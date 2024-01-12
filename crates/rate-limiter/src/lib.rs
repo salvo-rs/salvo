@@ -26,7 +26,7 @@ use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;
 use salvo_core::handler::{none_skipper, Skipper};
-use salvo_core::http::{Request, Response, StatusCode, StatusError};
+use salvo_core::http::{HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 mod quota;
@@ -96,6 +96,15 @@ pub trait RateGuard: Clone + Send + Sync + 'static {
     type Quota: Clone + Send + Sync + 'static;
     /// Verify is current request exceed the quota.
     async fn verify(&mut self, quota: &Self::Quota) -> bool;
+
+    /// Returns the remaining quota.
+    async fn remaining(&self, quota: &Self::Quota) -> usize;
+
+    /// Returns the reset time.
+    async fn reset(&self, quota: &Self::Quota) -> i64;
+
+    /// Returns the limit.
+    async fn limit(&self, quota: &Self::Quota) -> usize;
 }
 
 /// `RateStore` is used to store rate limit data.
@@ -122,6 +131,7 @@ pub struct RateLimiter<G, S, I, Q> {
     store: S,
     issuer: I,
     quota_getter: Q,
+    add_headers: bool,
     skipper: Box<dyn Skipper>,
 }
 
@@ -134,6 +144,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
             store,
             issuer,
             quota_getter,
+            add_headers: false,
             skipper: Box::new(none_skipper),
         }
     }
@@ -142,6 +153,14 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
     #[inline]
     pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
+        self
+    }
+
+    /// Sets `add_headers` and returns new `RateLimiter`.
+    /// If `add_headers` is true, the rate limit headers will be added to the response.
+    #[inline]
+    pub fn add_headers(mut self, add_headers: bool) -> Self {
+        self.add_headers = add_headers;
         self
     }
 }
@@ -185,6 +204,21 @@ where
             }
         };
         let verified = guard.verify(&quota).await;
+
+        if self.add_headers {
+            res.headers_mut().insert(
+                "X-RateLimit-Limit",
+                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).unwrap(),
+            );
+            res.headers_mut().insert(
+                "X-RateLimit-Remaining",
+                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).unwrap(),
+            );
+            res.headers_mut().insert(
+                "X-RateLimit-Reset",
+                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).unwrap(),
+            );
+        }
         if !verified {
             res.status_code(StatusCode::TOO_MANY_REQUESTS);
             ctrl.skip_rest();
