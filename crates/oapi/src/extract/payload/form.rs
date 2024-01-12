@@ -106,3 +106,111 @@ where
         operation.request_body = Some(request_body);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use assert_json_diff::assert_json_eq;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_form_body_into_inner() {
+        let form = FormBody::<String>("form_body".to_string());
+        assert_eq!(form.into_inner(), "form_body".to_string());
+    }
+
+    #[test]
+    fn test_form_body_deref() {
+        let form = FormBody::<String>("form_body".to_string());
+        assert_eq!(form.deref(), &"form_body".to_string());
+    }
+
+    #[test]
+    fn test_form_body_deref_mut() {
+        let mut form = FormBody::<String>("form_body".to_string());
+        assert_eq!(form.deref_mut(), &mut "form_body".to_string());
+    }
+
+    #[test]
+    fn test_form_body_to_request_body() {
+        let mut components = Components::default();
+        let request_body = FormBody::<String>::to_request_body(&mut components);
+        assert_json_eq!(
+            request_body,
+            json!({
+                "description": "Extract form format data from request.",
+                "content": {
+                    "application/x-www-form-urlencoded": {
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "multipart/*": {
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_form_body_debug() {
+        let form = FormBody::<String>("form_body".to_string());
+        assert_eq!(format!("{:?}", form), r#""form_body""#);
+    }
+
+    #[test]
+    fn test_form_body_display() {
+        let form = FormBody::<String>("form_body".to_string());
+        assert_eq!(format!("{}", form), "form_body");
+    }
+
+    #[test]
+    fn test_form_body_metadata() {
+        let metadata = FormBody::<String>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    async fn test_form_body_extract_with_arg() {
+        let map = BTreeMap::from_iter([("key", "value")]);
+        let mut req = TestClient::post("http://127.0.0.1:5800/").form(&map).build();
+        let result = FormBody::<BTreeMap<&str, &str>>::extract_with_arg(&mut req, "key").await;
+        assert_eq!("value", result.unwrap().0["key"]);
+    }
+
+    #[test]
+    fn test_form_body_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        FormBody::<String>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "requestBody": {
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "string"
+                            }
+                        },
+                        "multipart/*": {
+                            "schema": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "Extract form format data from request."
+                },
+                "responses": {}
+            })
+        );
+    }
+}

@@ -101,3 +101,101 @@ where
         operation.request_body = Some(request_body);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use assert_json_diff::assert_json_eq;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_json_body_into_inner() {
+        let form = JsonBody::<String>("json_body".to_string());
+        assert_eq!(form.into_inner(), "json_body".to_string());
+    }
+
+    #[test]
+    fn test_json_body_deref() {
+        let form = JsonBody::<String>("json_body".to_string());
+        assert_eq!(form.deref(), &"json_body".to_string());
+    }
+
+    #[test]
+    fn test_json_body_deref_mut() {
+        let mut form = JsonBody::<String>("json_body".to_string());
+        assert_eq!(form.deref_mut(), &mut "json_body".to_string());
+    }
+
+    #[test]
+    fn test_json_body_to_request_body() {
+        let mut components = Components::default();
+        let request_body = JsonBody::<String>::to_request_body(&mut components);
+        assert_json_eq!(
+            request_body,
+            json!({
+                "description": "Extract json format data from request.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_json_body_debug() {
+        let form = JsonBody::<String>("json_body".to_string());
+        assert_eq!(format!("{:?}", form), r#""json_body""#);
+    }
+
+    #[test]
+    fn test_json_body_display() {
+        let form = JsonBody::<String>("json_body".to_string());
+        assert_eq!(format!("{}", form), "json_body");
+    }
+
+    #[test]
+    fn test_json_body_metadata() {
+        let metadata = JsonBody::<String>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    async fn test_json_body_extract_with_arg() {
+        let map = BTreeMap::from_iter([("key", "value")]);
+        let mut req = TestClient::post("http://127.0.0.1:5800/").json(&map).build();
+        let result = JsonBody::<BTreeMap<&str, &str>>::extract_with_arg(&mut req, "key").await;
+        assert_eq!("value", result.unwrap().0["key"]);
+    }
+
+    #[test]
+    fn test_json_body_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        JsonBody::<String>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "Extract json format data from request."
+                },
+                "responses": {}
+            })
+        );
+    }
+}
