@@ -51,4 +51,16 @@ impl RateGuard for FixedGuard {
             false
         }
     }
+
+    async fn remaining(&self, quota: &Self::Quota) -> usize {
+        quota.limit - self.count
+    }
+
+    async fn reset(&self, _: &Self::Quota) -> i64 {
+        self.reset.unix_timestamp()
+    }
+
+    async fn limit(&self, quota: &Self::Quota) -> usize {
+        quota.limit
+    }
 }
