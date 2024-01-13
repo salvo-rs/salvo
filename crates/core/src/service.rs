@@ -144,9 +144,14 @@ impl Service {
     #[inline]
     pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
         let request = request.into();
-        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown, request.scheme.clone(), None)
-            .handle(request)
-            .await
+        self.hyper_handler(
+            request.local_addr.clone(),
+            request.remote_addr.clone(),
+            request.scheme.clone(),
+            None,
+        )
+        .handle(request)
+        .await
     }
 }
 
