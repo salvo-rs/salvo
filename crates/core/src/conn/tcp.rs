@@ -122,7 +122,7 @@ impl TcpAcceptor {
         self.inner.local_addr()
     }
 
-     /// Gets the value of the `IP_TTL` option for this socket.
+    /// Gets the value of the `IP_TTL` option for this socket.
     pub fn ttl(&self) -> IoResult<u32> {
         self.inner.ttl()
     }
