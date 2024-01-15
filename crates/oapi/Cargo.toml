@@ -51,7 +51,7 @@ http = { workspace = true }
 # Feature optional dependencies
 chrono = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
-rust-embed = { workspace = true, features = ["interpolate-folder-path"], optional = true }
+rust-embed = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 smallvec = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
