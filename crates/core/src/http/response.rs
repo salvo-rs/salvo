@@ -220,7 +220,7 @@ impl Response {
             }
         }
 
-        let status_code = status_code.unwrap_or_else(|| match &body {
+        let status_code = status_code.unwrap_or(match &body {
             ResBody::None => StatusCode::NOT_FOUND,
             ResBody::Error(e) => e.code,
             _ => StatusCode::OK,

@@ -4,7 +4,7 @@ use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::Uri;
-use hyper_tls::HttpsConnector;
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,13 @@ pub(crate) struct AcmeClient {
 impl AcmeClient {
     #[inline]
     pub(crate) async fn new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> crate::Result<Self> {
-        let client = Client::builder(TokioExecutor::new()).build(HttpsConnector::new());
+        let https = HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .expect("no native root CA certificates found")
+            .https_only()
+            .enable_http1()
+            .build();
+        let client = Client::builder(TokioExecutor::new()).build(https);
         let directory = get_directory(&client, directory_url).await?;
         Ok(Self {
             client,

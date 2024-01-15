@@ -171,7 +171,7 @@ impl ToTokens for ToParameters {
                 RenameRule::KebabCase => "KebabCase",
                 RenameRule::ScreamingKebabCase => "ScreamingKebabCase",
             };
-            let rule = Ident::new(&rename_all, Span::call_site());
+            let rule = Ident::new(rename_all, Span::call_site());
             quote! {
                 #salvo::extract::RenameRule::#rule
             }

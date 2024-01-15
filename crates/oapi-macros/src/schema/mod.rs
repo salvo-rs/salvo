@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Token};
+use syn::{Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
 
 mod enum_schemas;
 mod enum_variant;

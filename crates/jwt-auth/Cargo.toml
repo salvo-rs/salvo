@@ -20,14 +20,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = ["oidc"]
-oidc = ["dep:bytes", "dep:hyper-tls", "dep:hyper-util", "dep:http-body-util"]
+oidc = ["dep:bytes", "dep:hyper-rustls", "dep:hyper-util", "dep:http-body-util"]
 
 [dependencies]
 base64 = { workspace = true }
 bytes = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true }
 http-body-util = { workspace = true, optional = true }
-hyper-tls = { workspace = true, optional = true }
+hyper-rustls = { workspace = true, optional = true }
 hyper-util = { workspace = true, optional = true, features = ["client-legacy", "http1", "http2", "tokio"] }
 salvo_core = { workspace = true, features = ["cookie"] }
 serde = { workspace = true, features = ["derive"] }

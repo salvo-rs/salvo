@@ -30,11 +30,10 @@ use shared::*;
 #[proc_macro_attribute]
 pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
-    let stream = match handler::generate(item) {
+    match handler::generate(item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    };
-    stream
+    }
 }
 
 /// Generate code for extractible type.

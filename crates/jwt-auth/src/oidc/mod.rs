@@ -10,7 +10,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
-use hyper_tls::HttpsConnector;
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
 use jsonwebtoken::jwk::{Jwk, JwkSet};
@@ -109,8 +109,13 @@ where
         let cache = Arc::new(RwLock::new(JwkSetStore::new(jwks, CachePolicy::default(), validation)));
         let cache_state = Arc::new(CacheState::new());
 
-        let http_client =
-            http_client.unwrap_or_else(|| Client::builder(TokioExecutor::new()).build(HttpsConnector::new()));
+        let https = HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .expect("no native root CA certificates found")
+            .https_only()
+            .enable_http1()
+            .build();
+        let http_client = http_client.unwrap_or_else(|| Client::builder(TokioExecutor::new()).build(https));
         let decoder = OidcDecoder {
             issuer,
             http_client,
