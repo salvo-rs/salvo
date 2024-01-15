@@ -36,7 +36,7 @@ impl Handler for Logger {
             ctrl.call_next(req, depot, res).await;
             let duration = now.elapsed();
 
-            let status = res.status_code.unwrap_or_else(|| match &res.body {
+            let status = res.status_code.unwrap_or(match &res.body {
                 ResBody::None => StatusCode::NOT_FOUND,
                 ResBody::Error(e) => e.code,
                 _ => StatusCode::OK,
