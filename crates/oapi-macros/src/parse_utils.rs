@@ -1,12 +1,61 @@
+use std::fmt::Display;
+
 use proc_macro2::{Group, Ident, TokenStream};
+use quote::ToTokens;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Error, LitBool, LitStr, Token,
+    Error, Expr, LitBool, LitStr, Token,
 };
 
 use crate::ResultExt;
+
+#[derive(Debug)]
+pub(crate) enum Value {
+    LitStr(LitStr),
+    Expr(Expr),
+}
+
+impl Value {
+    pub(crate) fn is_empty(&self) -> bool {
+        matches!(self, Self::LitStr(s) if s.value().is_empty())
+    }
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Self::LitStr(LitStr::new("", proc_macro2::Span::call_site()))
+    }
+}
+
+impl Parse for Value {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+        } else {
+            Ok(Value::Expr(input.parse::<Expr>()?))
+        }
+    }
+}
+
+impl ToTokens for Value {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::LitStr(str) => str.to_tokens(tokens),
+            Self::Expr(expr) => expr.to_tokens(tokens),
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LitStr(str) => write!(f, "{str}", str = str.value()),
+            Self::Expr(expr) => write!(f, "{expr}", expr = expr.into_token_stream()),
+        }
+    }
+}
 
 pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
     input
@@ -17,6 +66,15 @@ pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T)
 
 pub(crate) fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
     Ok(parse_next(input, || input.parse::<LitStr>())?.value())
+}
+
+pub(crate) fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
+    parse_next(input, || Value::parse(input)).map_err(|error| {
+        syn::Error::new(
+            error.span(),
+            format!("expected literal string or expression argument: {error}"),
+        )
+    })
 }
 
 pub(crate) fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>

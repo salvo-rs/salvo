@@ -21,6 +21,7 @@ use crate::{
 };
 
 pub(crate) mod derive;
+mod parse;
 
 #[derive(Debug)]
 pub(crate) enum Response<'r> {
@@ -160,7 +161,7 @@ impl<'r> From<(ResponseStatusCode, ResponseValue<'r>)> for ResponseTuple<'r> {
 
 pub(crate) struct DeriveResponsesAttributes<T> {
     derive_value: T,
-    description: String,
+    description: parse_utils::Value,
 }
 
 impl<'r> From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'r> {
@@ -189,9 +190,9 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 
 #[derive(Default, Debug)]
 pub(crate) struct ResponseValue<'r> {
-    pub(crate) description: String,
+    pub(crate) description: parse_utils::Value,
     pub(crate) response_type: Option<PathType<'r>>,
-    pub(crate) content_type: Option<Vec<String>>,
+    pub(crate) content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
     pub(crate) example: Option<AnyValue>,
     pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
@@ -199,7 +200,7 @@ pub(crate) struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
+    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: parse_utils::Value) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -214,7 +215,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_to_responses_value(response_value: DeriveToResponsesValue, description: String) -> Self {
+    fn from_derive_to_responses_value(response_value: DeriveToResponsesValue, description: parse_utils::Value) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -375,9 +376,9 @@ trait DeriveResponseValue: Parse {
 
 #[derive(Default, Debug)]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }
@@ -448,9 +449,9 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveToResponsesValue {
     status_code: ResponseStatusCode,
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }
@@ -827,59 +828,5 @@ impl ToTokens for Header {
                 .description(#description)
             })
         }
-    }
-}
-
-mod parse {
-    use syn::parse::ParseStream;
-    use syn::punctuated::Punctuated;
-    use syn::token::Bracket;
-    use syn::{bracketed, parenthesized, LitStr, Result, Token};
-
-    use crate::operation::example::Example;
-    use crate::{parse_utils, AnyValue};
-
-    use super::Header;
-
-    #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<String> {
-        parse_utils::parse_next_literal_str(input)
-    }
-
-    #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<String>> {
-        parse_utils::parse_next(input, || {
-            let look_content_type = input.lookahead1();
-            if look_content_type.peek(LitStr) {
-                Ok(vec![input.parse::<LitStr>()?.value()])
-            } else if look_content_type.peek(Bracket) {
-                let content_types;
-                bracketed!(content_types in input);
-                Ok(Punctuated::<LitStr, Token![,]>::parse_terminated(&content_types)?
-                    .into_iter()
-                    .map(|lit| lit.value())
-                    .collect())
-            } else {
-                Err(look_content_type.error())
-            }
-        })
-    }
-
-    #[inline]
-    pub(super) fn headers(input: ParseStream) -> Result<Vec<Header>> {
-        let headers;
-        parenthesized!(headers in input);
-
-        parse_utils::parse_groups(&headers)
-    }
-
-    #[inline]
-    pub(super) fn example(input: ParseStream) -> Result<AnyValue> {
-        parse_utils::parse_next(input, || AnyValue::parse_lit_str_or_json(input))
-    }
-
-    #[inline]
-    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Token![,]>> {
-        parse_utils::parse_punctuated_within_parenthesis(input)
     }
 }
