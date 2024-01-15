@@ -65,23 +65,19 @@ impl ToTokens for ToSchema<'_> {
         let symbol = if inline {
             None
         } else if let Some(symbol) = variant.symbol() {
-            let ty_params = self.generics.type_params();
-            let ty_params = ty_params
-                .map(|ty_param| {
-                    let ty = &ty_param.ident;
-                    quote! {
-                        if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
-                            symbol
-                        } else {
-                            std::any::type_name::<#ty>().to_string()
-                        }
-                    }
-                })
-                .collect::<Punctuated<TokenStream, Token![,]>>();
-            if ty_params.is_empty() {
+            if self.generics.type_params().next().is_none() {
                 Some(quote! { #symbol.to_string().replace(" :: ", ".") })
             } else {
-                Some(quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") })
+                Some(quote! {
+                   {
+                       let full_name = std::any::type_name::<#ident #ty_generics>();
+                       if let Some((_, args)) = full_name.split_once('<') {
+                           format!("{}<{}", #symbol, args)
+                       } else {
+                           full_name.into()
+                       }
+                   }
+                })
             }
         } else {
             Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
