@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -11,7 +11,7 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, Holding, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
 
 use crate::http::uri::Scheme;
 use crate::http::Version;
@@ -426,7 +426,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = TlsStream<T::Conn>;
+    type Conn = HandshakeStream<TlsStream<T::Conn>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -442,13 +442,8 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let conn = self
-            .tls_acceptor
-            .accept(conn)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
         Ok(Accepted {
-            conn,
+            conn: HandshakeStream::new(self.tls_acceptor.accept(conn)),
             local_addr,
             remote_addr,
             http_version,
