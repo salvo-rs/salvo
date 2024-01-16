@@ -152,7 +152,6 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
     }
 }
 
-#[async_trait]
 impl HttpConnection for TcpStream {
     async fn serve(
         self,

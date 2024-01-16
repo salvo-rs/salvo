@@ -22,24 +22,23 @@ pub use response::Response;
 
 pub use http::version::Version;
 
+use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::async_trait;
 use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
 
 /// A helper trait for http connection.
-#[async_trait]
 pub trait HttpConnection {
     /// Serve this http connection.
-    async fn serve(
+    fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         idle_timeout: Option<Duration>,
-    ) -> IoResult<()>;
+    ) -> impl Future<Output = IoResult<()>> + Send;
 }
 
 /// Get Http version from alph.

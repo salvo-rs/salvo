@@ -112,7 +112,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> HttpConnection for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,

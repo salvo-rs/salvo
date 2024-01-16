@@ -62,7 +62,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,

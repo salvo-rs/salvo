@@ -16,6 +16,11 @@ mod proto;
 pub use proto::HttpBuilder;
 
 cfg_feature! {
+    #![any(feature = "native-tls", feature = "rustls", feature = "openssl-tls", feature = "acme")]
+    mod handshake_stream;
+    pub use handshake_stream::HandshakeStream;
+}
+cfg_feature! {
     #![feature = "acme"]
     pub mod acme;
     pub use acme::AcmeListener;
@@ -77,13 +82,11 @@ cfg_feature! {
         use tokio_rustls::server::TlsStream;
         use tokio::io::{AsyncRead, AsyncWrite};
 
-        use crate::async_trait;
         use crate::service::HyperHandler;
         use crate::http::{HttpConnection};
         use crate::conn::HttpBuilder;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
-        #[async_trait]
         impl<S> HttpConnection for TlsStream<S>
         where
             S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
