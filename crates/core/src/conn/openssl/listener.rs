@@ -1,13 +1,13 @@
 //! openssl module
+use std::error::Error as StdError;
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
-use std::error::Error as StdError;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
-use futures_util::stream::{Stream,BoxStream, StreamExt};
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
@@ -17,7 +17,7 @@ use tokio_openssl::SslStream;
 use super::SslAcceptorBuilder;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor,HttpBuilder, Holding, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -137,7 +137,7 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Conn = SslStream<T::Conn>;
+    type Conn = HandshakeStream<SslStream<T::Conn>>;
 
     /// Get the local address bound to this listener.
     fn holdings(&self) -> &[Holding] {
@@ -181,16 +181,20 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let ssl = Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-        let mut tls_stream =
-            SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-        use std::pin::Pin;
-        Pin::new(&mut tls_stream)
-            .accept()
-            .await
-            .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+        let conn = async move {
+            let ssl =
+                Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            let mut tls_stream =
+                SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            std::pin::Pin::new(&mut tls_stream)
+                .accept()
+                .await
+                .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            Ok(tls_stream)
+        };
+
         Ok(Accepted {
-            conn: tls_stream,
+            conn: HandshakeStream::new(conn),
             local_addr,
             remote_addr,
             http_version,

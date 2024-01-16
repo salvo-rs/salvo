@@ -13,7 +13,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -133,7 +133,7 @@ where
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
     E: StdError + Send,
 {
-    type Conn = TlsStream<T::Conn>;
+    type Conn = HandshakeStream<TlsStream<T::Conn>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -153,7 +153,9 @@ where
             config
         };
         if let Some(config) = config {
-            let identity = config.try_into().map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+            let identity = config
+                .try_into()
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
             let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity);
             match tls_acceptor {
                 Ok(tls_acceptor) => {
@@ -179,12 +181,14 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let conn = tls_acceptor
-            .accept(conn)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        let conn = async move {
+            tls_acceptor
+                .accept(conn)
+                .await
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+        };
         Ok(Accepted {
-            conn,
+            conn: HandshakeStream::new(conn),
             local_addr,
             remote_addr,
             http_version,
