@@ -8,7 +8,6 @@ use std::time::Duration;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
@@ -83,7 +82,6 @@ impl<A, B> JoinedListener<A, B> {
         JoinedListener { a, b }
     }
 }
-#[async_trait]
 impl<A, B> Listener for JoinedListener<A, B>
 where
     A: Listener + Send + Unpin + 'static,
@@ -131,7 +129,6 @@ where
     }
 }
 
-#[async_trait]
 impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,

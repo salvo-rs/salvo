@@ -4,19 +4,19 @@
 //! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol.
 //! Additionally, it includes implementations for Unix domain sockets.
 use std::fmt::{self, Display, Formatter};
+use std::future::Future;
 use std::io::Result as IoResult;
 
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::async_trait;
 use crate::http::{HttpConnection, Version};
 
 mod proto;
 pub use proto::HttpBuilder;
 
 cfg_feature! {
-    #![any(feature = "native-tls", feature = "rustls", feature = "openssl-tls", feature = "acme")]
+    #![any(feature = "native-tls", feature = "rustls", feature = "openssl", feature = "acme")]
     mod handshake_stream;
     pub use handshake_stream::HandshakeStream;
 }
@@ -155,7 +155,6 @@ where
 }
 
 /// `Acceptor` represents an acceptor that can accept incoming connections.
-#[async_trait]
 pub trait Acceptor {
     /// Conn type
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
@@ -164,7 +163,7 @@ pub trait Acceptor {
     fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
+    fn accept(&mut self) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
 }
 
 /// Holding information.
@@ -191,27 +190,27 @@ impl Display for Holding {
 }
 
 /// `Listener` represents a listener that can bind to a specific address and port and return an acceptor.
-#[async_trait]
+
 pub trait Listener {
     /// Acceptor type.
     type Acceptor: Acceptor;
 
     /// Bind and returns acceptor.
-    async fn bind(self) -> Self::Acceptor
+    fn bind(self) -> impl Future<Output = Self::Acceptor> + Send
     where
-        Self: Sized,
+        Self: Sized + Send,
     {
-        self.try_bind().await.unwrap()
+        async move { self.try_bind().await.unwrap() }
     }
 
     /// Bind and returns acceptor.
-    async fn try_bind(self) -> crate::Result<Self::Acceptor>;
+    fn try_bind(self) -> impl Future<Output = crate::Result<Self::Acceptor>> + Send;
 
     /// Join current Listener with the other.
     #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
     where
-        Self: Sized,
+        Self: Sized + Send,
     {
         JoinedListener::new(self, other)
     }

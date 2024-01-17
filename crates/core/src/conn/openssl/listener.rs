@@ -16,7 +16,6 @@ use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
-use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -46,7 +45,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Listener for OpensslListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -129,7 +127,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

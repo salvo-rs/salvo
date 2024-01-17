@@ -1,14 +1,13 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::error::Error as StdError;
+use std::future::Future;
 use std::hash::Hash;
 
-use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 
 /// Used to get quota and you can config users' quota config in database.
-#[async_trait]
 pub trait QuotaGetter<Key>: Send + Sync + 'static {
     /// Quota type.
     type Quota: Clone + Send + Sync + 'static;
@@ -16,7 +15,7 @@ pub trait QuotaGetter<Key>: Send + Sync + 'static {
     type Error: StdError;
 
     /// Get quota.
-    async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
+    fn get<Q>(&self, key: &Q) -> impl Future<Output = Result<Self::Quota, Self::Error>> + Send
     where
         Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
@@ -110,7 +109,6 @@ impl CelledQuota {
     }
 }
 
-#[async_trait]
 impl<Key, T> QuotaGetter<Key> for T
 where
     Key: Hash + Eq + Send + Sync + 'static,

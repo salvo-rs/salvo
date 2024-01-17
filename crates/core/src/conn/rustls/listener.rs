@@ -11,7 +11,6 @@ use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
-use crate::async_trait;
 use crate::conn::Holding;
 use crate::conn::{Accepted, HandshakeStream, Acceptor, IntoConfigStream, Listener};
 use crate::http::uri::Scheme;
@@ -44,7 +43,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Listener for RustlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -110,7 +108,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Acceptor for RustlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

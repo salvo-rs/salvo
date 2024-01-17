@@ -6,13 +6,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use http::uri::Scheme;
+use nix::unistd::{chown, Gid, Uid};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
-use nix::unistd::{Gid, chown, Uid};
 
-use crate::{Error, async_trait};
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
+use crate::Error;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -28,9 +28,11 @@ impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[inline]
     pub fn new(path: T) -> UnixListener<T> {
-        UnixListener { path,
+        UnixListener {
+            path,
             permissions: None,
-            owner: None, }
+            owner: None,
+        }
     }
 
     /// Provides permissions to be set on actual bind.
@@ -43,12 +45,11 @@ impl<T> UnixListener<T> {
     #[inline]
     /// Provides owner to be set on actual bind.
     pub fn owner(mut self, uid: Option<u32>, gid: Option<u32>) -> Self {
-        self.owner =  Some((uid.map(|v| Uid::from_raw(v)), gid.map(|v| Gid::from_raw(v))));
+        self.owner = Some((uid.map(Uid::from_raw), gid.map(Gid::from_raw)));
         self
     }
 }
 
-#[async_trait]
 impl<T> Listener for UnixListener<T>
 where
     T: AsRef<Path> + Send + Clone,
@@ -60,7 +61,7 @@ where
             (Some(permissions), Some((uid, gid))) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;
                 set_permissions(self.path.clone(), permissions)?;
-                chown(self.path.as_ref().as_os_str().into(), uid, gid).map_err(Error::other)?;
+                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
                 inner
             }
             (Some(permissions), None) => {
@@ -70,7 +71,7 @@ where
             }
             (None, Some((uid, gid))) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;
-                chown(self.path.as_ref().as_os_str().into(), uid, gid).map_err(Error::other)?;
+                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
                 inner
             }
             (None, None) => TokioUnixListener::bind(self.path)?,
@@ -95,7 +96,6 @@ pub struct UnixAcceptor {
 }
 
 #[cfg(unix)]
-#[async_trait]
 impl Acceptor for UnixAcceptor {
     type Conn = UnixStream;
 

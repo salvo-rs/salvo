@@ -1,4 +1,3 @@
-use salvo_core::async_trait;
 use time::{Duration, OffsetDateTime};
 
 use super::{CelledQuota, RateGuard};
@@ -32,7 +31,6 @@ impl SlidingGuard {
     }
 }
 
-#[async_trait]
 impl RateGuard for SlidingGuard {
     type Quota = CelledQuota;
     async fn verify(&mut self, quota: &Self::Quota) -> bool {

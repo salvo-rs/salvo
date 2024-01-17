@@ -12,6 +12,7 @@
 
 use std::convert::{Infallible, TryFrom};
 use std::error::Error as StdError;
+use std::future::Future;
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
@@ -36,23 +37,24 @@ pub(crate) fn encode_url_path(path: &str) -> String {
 }
 
 /// Client trait.
-#[async_trait]
 pub trait Client: Send + Sync + 'static {
     /// Error type.
     type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
-    async fn execute(&self, req: HyperRequest, upgraded: Option<OnUpgrade>) -> Result<HyperResponse, Self::Error>;
+    fn execute(
+        &self,
+        req: HyperRequest,
+        upgraded: Option<OnUpgrade>,
+    ) -> impl Future<Output = Result<HyperResponse, Self::Error>> + Send;
 }
 
 /// Upstreams trait.
-#[async_trait]
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
     type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
-    async fn elect(&self) -> Result<&str, Self::Error>;
+    fn elect(&self) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }
-#[async_trait]
 impl Upstreams for &'static str {
     type Error = Infallible;
 
@@ -60,7 +62,6 @@ impl Upstreams for &'static str {
         Ok(*self)
     }
 }
-#[async_trait]
 impl Upstreams for String {
     type Error = Infallible;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -68,7 +69,6 @@ impl Upstreams for String {
     }
 }
 
-#[async_trait]
 impl<const N: usize> Upstreams for [&'static str; N] {
     type Error = Error;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -80,7 +80,6 @@ impl<const N: usize> Upstreams for [&'static str; N] {
     }
 }
 
-#[async_trait]
 impl<T> Upstreams for Vec<T>
 where
     T: AsRef<str> + Send + Sync + 'static,

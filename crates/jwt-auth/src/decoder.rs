@@ -1,17 +1,21 @@
 use jsonwebtoken::errors::Error as JwtError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::Deserialize;
+use std::future::Future;
 
-use salvo_core::{async_trait, Depot};
+use salvo_core::Depot;
 
 /// JwtAuthDecoder is used to decode token to claims.
-#[async_trait]
 pub trait JwtAuthDecoder {
     /// Error type.
     type Error: std::error::Error + Send + Sync + 'static;
 
     ///Decode token.
-    async fn decode<C>(&self, token: &str, depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
+    fn decode<C>(
+        &self,
+        token: &str,
+        depot: &mut Depot,
+    ) -> impl Future<Output = Result<TokenData<C>, Self::Error>> + Send
     where
         C: for<'de> Deserialize<'de>;
 }
@@ -106,7 +110,6 @@ impl ConstDecoder {
     }
 }
 
-#[async_trait]
 impl JwtAuthDecoder for ConstDecoder {
     type Error = JwtError;
 

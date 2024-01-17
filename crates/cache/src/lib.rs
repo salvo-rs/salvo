@@ -21,6 +21,7 @@
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
+use std::future::Future;
 use std::hash::Hash;
 
 use bytes::Bytes;
@@ -42,14 +43,12 @@ cfg_feature! {
 }
 
 /// Issuer
-#[async_trait]
 pub trait CacheIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request. If it returns `None`, the request will not be cached.
-    async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
+    fn issue(&self, req: &mut Request, depot: &Depot) -> impl Future<Output = Option<Self::Key>> + Send;
 }
-#[async_trait]
 impl<F, K> CacheIssuer for F
 where
     F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
@@ -113,7 +112,6 @@ impl RequestIssuer {
     }
 }
 
-#[async_trait]
 impl CacheIssuer for RequestIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
@@ -147,19 +145,18 @@ impl CacheIssuer for RequestIssuer {
 }
 
 /// Store cache.
-#[async_trait]
 pub trait CacheStore: Send + Sync + 'static {
     /// Error type for CacheStore.
     type Error: StdError + Sync + Send + 'static;
     /// Key
     type Key: Hash + Eq + Send + Clone + 'static;
     /// Get the cache item from the store.
-    async fn load_entry<Q>(&self, key: &Q) -> Option<CachedEntry>
+    fn load_entry<Q>(&self, key: &Q) -> impl Future<Output = Option<CachedEntry>> + Send
     where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
     /// Save the cache item from the store.
-    async fn save_entry(&self, key: Self::Key, data: CachedEntry) -> Result<(), Self::Error>;
+    fn save_entry(&self, key: Self::Key, data: CachedEntry) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// `CachedBody` is used to save response body to `CachedStore`.

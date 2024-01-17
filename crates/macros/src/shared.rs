@@ -4,6 +4,7 @@ use quote::ToTokens;
 use regex::Regex;
 use syn::{FnArg, Ident, PatType, Receiver, Type, TypePath};
 
+#[allow(dead_code)]
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
     Depot(&'a PatType),

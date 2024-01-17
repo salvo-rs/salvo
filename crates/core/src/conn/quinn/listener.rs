@@ -13,7 +13,6 @@ use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::http3_quinn::{self, Endpoint};
 
-use crate::async_trait;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Holding, IntoConfigStream};
 use crate::http::Version;
@@ -44,7 +43,6 @@ where
         }
     }
 }
-#[async_trait]
 impl<S, C, T, E> Listener for QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -100,7 +98,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, E> Acceptor for QuinnAcceptor<S, C, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

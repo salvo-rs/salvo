@@ -1,6 +1,8 @@
 //! basic auth middleware.
 //!
 //! Read more: <https://salvo.rs>
+use std::future::Future;
+
 use salvo_core::http::header::{HeaderName, PROXY_AUTHORIZATION, AUTHORIZATION};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};
@@ -10,10 +12,9 @@ use base64::engine::{general_purpose, Engine};
 pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 
 /// BasicAuthValidator
-#[async_trait]
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
-    async fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> bool;
+    fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> impl Future<Output = bool> + Send;
 }
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
@@ -147,7 +148,6 @@ mod tests {
     }
 
     struct Validator;
-    #[async_trait]
     impl BasicAuthValidator for Validator {
         async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
             username == "root" && password == "pwd"

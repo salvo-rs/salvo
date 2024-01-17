@@ -11,6 +11,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::fmt::{self, Debug, Display, Formatter};
+use std::future::Future;
 use std::ops::Deref;
 
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
@@ -184,14 +185,19 @@ impl Display for FlashLevel {
 }
 
 /// `FlashStore` is for stores flash messages.
-#[async_trait]
 pub trait FlashStore: Debug + Send + Sync + 'static {
     /// Get the flash messages from the store.
-    async fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> Option<Flash>;
+    fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> impl Future<Output = Option<Flash>> + Send;
     /// Save the flash messages to the store.
-    async fn save_flash(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, flash: Flash);
+    fn save_flash(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        flash: Flash,
+    ) -> impl Future<Output = ()> + Send;
     /// Clear the flash store.
-    async fn clear_flash(&self, depot: &mut Depot, res: &mut Response);
+    fn clear_flash(&self, depot: &mut Depot, res: &mut Response) -> impl Future<Output = ()> + Send;
 }
 
 /// A trait for `Depot` to get flash messages.

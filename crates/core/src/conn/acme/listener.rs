@@ -15,7 +15,7 @@ use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
 
 use crate::http::uri::Scheme;
 use crate::http::Version;
-use crate::{async_trait, Router};
+use crate::Router;
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
@@ -265,7 +265,6 @@ impl<T> AcmeListener<T> {
     }
 }
 
-#[async_trait]
 impl<T> Listener for AcmeListener<T>
 where
     T: Listener + Send,
@@ -273,7 +272,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(mut self) -> crate::Result<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -320,7 +319,6 @@ cfg_feature! {
         }
     }
 
-    #[async_trait]
     impl<T, A> Listener for AcmeQuinnListener<T, A>
     where
         T: Listener + Send,
@@ -420,7 +418,7 @@ where
         self.server_config.clone()
     }
 }
-#[async_trait]
+
 impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
