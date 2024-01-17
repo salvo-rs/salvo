@@ -7,7 +7,6 @@ use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
-use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
@@ -96,7 +95,6 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         }
     }
 }
-#[async_trait]
 impl<T> Listener for TcpListener<T>
 where
     T: ToSocketAddrs + Send,
@@ -166,7 +164,6 @@ impl HttpConnection for TcpStream {
     }
 }
 
-#[async_trait]
 impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
 

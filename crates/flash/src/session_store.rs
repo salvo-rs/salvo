@@ -1,4 +1,4 @@
-use salvo_core::{async_trait, Depot, Request, Response};
+use salvo_core::{Depot, Request, Response};
 use salvo_session::SessionDepotExt;
 
 use super::{Flash, FlashHandler, FlashStore};
@@ -35,7 +35,7 @@ impl SessionStore {
         FlashHandler::new(self)
     }
 }
-#[async_trait]
+
 impl FlashStore for SessionStore {
     async fn load_flash(&self, _req: &mut Request, depot: &mut Depot) -> Option<Flash> {
         depot.session().and_then(|s| s.get::<Flash>(&self.name))

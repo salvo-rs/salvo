@@ -3,7 +3,6 @@ use std::convert::Infallible;
 use std::hash::Hash;
 
 use moka::future::Cache as MokaCache;
-use salvo_core::async_trait;
 
 use super::{RateGuard, RateStore};
 
@@ -38,7 +37,6 @@ where
     }
 }
 
-#[async_trait]
 impl<K, G> RateStore for MokaStore<K, G>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,

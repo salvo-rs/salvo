@@ -1,6 +1,6 @@
 use salvo_core::http::cookie::time::Duration;
 use salvo_core::http::cookie::{Cookie, SameSite};
-use salvo_core::{async_trait, Depot, Request, Response};
+use salvo_core::{Depot, Request, Response};
 
 use super::{Flash, FlashHandler, FlashStore};
 
@@ -72,7 +72,6 @@ impl CookieStore {
         FlashHandler::new(self)
     }
 }
-#[async_trait]
 impl FlashStore for CookieStore {
     async fn load_flash(&self, req: &mut Request, _depot: &mut Depot) -> Option<Flash> {
         match req.cookie(&self.name) {

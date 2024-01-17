@@ -4,7 +4,7 @@ use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClie
 use hyper_util::rt::TokioExecutor;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
-use salvo_core::{async_trait, Error};
+use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
 use super::{HyperRequest, HyperResponse};
@@ -33,7 +33,6 @@ impl HyperClient {
     }
 }
 
-#[async_trait]
 impl super::Client for HyperClient {
     type Error = salvo_core::Error;
 

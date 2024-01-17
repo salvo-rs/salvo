@@ -1,4 +1,4 @@
-use salvo_core::{async_trait, Depot, Error, Request, Response};
+use salvo_core::{Depot, Error, Request, Response};
 use salvo_session::SessionDepotExt;
 
 use super::{CsrfCipher, CsrfStore};
@@ -23,7 +23,6 @@ impl SessionStore {
     }
 }
 
-#[async_trait]
 impl CsrfStore for SessionStore {
     type Error = Error;
     async fn load<C: CsrfCipher>(&self, _req: &mut Request, depot: &mut Depot, _cipher: &C) -> Option<(String, String)> {
