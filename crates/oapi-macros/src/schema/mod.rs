@@ -3,9 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Token};
-
-use crate::feature::{Inline, Symbol};
+use syn::{Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
 
 mod enum_schemas;
 mod enum_variant;
@@ -24,9 +22,10 @@ pub(crate) use self::{
 
 use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
-    serde::{self, SerdeValue},
     ComponentSchema, FieldRename, VariantRename,
 };
+use crate::feature::{Inline, Symbol};
+use crate::serde_util::SerdeValue;
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -66,23 +65,19 @@ impl ToTokens for ToSchema<'_> {
         let symbol = if inline {
             None
         } else if let Some(symbol) = variant.symbol() {
-            let ty_params = self.generics.type_params();
-            let ty_params = ty_params
-                .map(|ty_param| {
-                    let ty = &ty_param.ident;
-                    quote! {
-                        if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
-                            symbol
-                        } else {
-                            std::any::type_name::<#ty>().to_string()
-                        }
-                    }
-                })
-                .collect::<Punctuated<TokenStream, Token![,]>>();
-            if ty_params.is_empty() {
+            if self.generics.type_params().next().is_none() {
                 Some(quote! { #symbol.to_string().replace(" :: ", ".") })
             } else {
-                Some(quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") })
+                Some(quote! {
+                   {
+                       let full_name = std::any::type_name::<#ident #ty_generics>();
+                       if let Some((_, args)) = full_name.split_once('<') {
+                           format!("{}<{}", #symbol, args)
+                       } else {
+                           full_name.into()
+                       }
+                   }
+                })
             }
         } else {
             Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
@@ -104,7 +99,7 @@ impl ToTokens for ToSchema<'_> {
                 }
             }
         };
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
                     #body

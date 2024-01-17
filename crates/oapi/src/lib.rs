@@ -384,16 +384,15 @@ where
 ///     }
 /// }
 ///
-/// #[async_trait]
-/// impl<'de> Extractible<'de> for PetParams {
-///    fn metadata() -> &'de Metadata {
+/// impl<'ex> Extractible<'ex> for PetParams {
+///    fn metadata() -> &'ex Metadata {
 ///      static METADATA: Metadata = Metadata::new("");
 ///      &METADATA
 ///    }
-///    async fn extract(req: &'de mut Request) -> Result<Self, salvo_core::http::ParseError> {
+///    async fn extract(req: &'ex mut Request) -> Result<Self, salvo_core::http::ParseError> {
 ///        salvo_core::serde::from_request(req, Self::metadata()).await
 ///    }
-///    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
+///    async fn extract_with_arg(req: &'ex mut Request, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
 ///        Self::extract(req).await
 ///    }
 /// }

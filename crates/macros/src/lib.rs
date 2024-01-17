@@ -18,6 +18,7 @@ mod extract;
 mod handler;
 mod shared;
 
+pub(crate) use salvo_serde_util as serde_util;
 use shared::*;
 
 /// `handler` is a macro to help create `Handler` from function or impl block easily.
@@ -56,7 +57,7 @@ mod tests {
     fn test_handler_for_fn() {
         let input = quote! {
             #[handler]
-            async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                 res.render_plain_text("Hello World");
             }
         };
@@ -69,7 +70,7 @@ mod tests {
                 struct hello;
                 impl hello {
                     #[handler]
-                    async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+                    async fn hello(req: &mut Request,depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                         {
                             res.render_plain_text("Hello World");
                         }
@@ -77,15 +78,14 @@ mod tests {
                 }
                 #[salvo::async_trait]
                 impl salvo::Handler for hello {
-                    #[inline]
                     async fn handle(
                         &self,
-                        __macro_generated_req: &mut salvo::Request,
-                        depot: &mut salvo::Depot,
-                        res: &mut salvo::Response,
-                        ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut salvo::Request,
+                        __macro_gen_depot: &mut salvo::Depot,
+                        __macro_gen_res: &mut salvo::Response,
+                        __macro_gen_ctrl: &mut salvo::FlowCtrl
                     ) {
-                        Self::hello(__macro_generated_req, depot, res, ctrl).await
+                        Self::hello(__macro_gen_req, __macro_gen_depot, __macro_gen_res, __macro_gen_ctrl).await
                     }
                 }
             }
@@ -97,41 +97,34 @@ mod tests {
     fn test_handler_for_fn_return_result() {
         let input = quote! {
             #[handler]
-            async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) -> Result<(), Error> {
+            async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) -> Result<(), Error> {
                 Ok(())
             }
         };
         let item = parse2(input).unwrap();
         assert_eq!(
             handler::generate(item).unwrap().to_string(),
-            quote! {
+            quote!{
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
                 impl hello {
                     #[handler]
-                    async fn hello(
-                        __macro_generated_req: &mut Request,
-                        depot: &mut Depot,
-                        res: &mut Response,
-                        ctrl: &mut FlowCtrl
+                    async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl
                     ) -> Result<(), Error> {
-                        {
-                            Ok(())
-                        }
+                        {Ok(())}
                     }
                 }
                 #[salvo::async_trait]
                 impl salvo::Handler for hello {
-                    #[inline]
                     async fn handle(
                         &self,
-                        __macro_generated_req: &mut salvo::Request,
-                        depot: &mut salvo::Depot,
-                        res: &mut salvo::Response,
-                        ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut salvo::Request,
+                        __macro_gen_depot: &mut salvo::Depot,
+                        __macro_gen_res: &mut salvo::Response,
+                        __macro_gen_ctrl: &mut salvo::FlowCtrl
                     ) {
-                        salvo::Writer::write(Self::hello(__macro_generated_req, depot, res, ctrl).await, __macro_generated_req, depot, res).await;
+                        salvo::Writer::write(Self::hello(__macro_gen_req, __macro_gen_depot, __macro_gen_res, __macro_gen_ctrl).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 }
             }
@@ -144,7 +137,7 @@ mod tests {
         let input = quote! {
             #[handler]
             impl Hello {
-                fn handle(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                     res.render_plain_text("Hello World");
                 }
             }
@@ -155,21 +148,20 @@ mod tests {
             quote! {
                 #[handler]
                 impl Hello {
-                    fn handle(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                    fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                         res.render_plain_text("Hello World");
                     }
                 }
                 #[salvo::async_trait]
                 impl salvo::Handler for Hello {
-                    #[inline]
                     async fn handle(
                         &self,
-                        __macro_generated_req: &mut salvo::Request,
-                        depot: &mut salvo::Depot,
-                        res: &mut salvo::Response,
-                        ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut salvo::Request,
+                        __macro_gen_depot: &mut salvo::Depot,
+                        __macro_gen_res: &mut salvo::Response,
+                        __macro_gen_ctrl: &mut salvo::FlowCtrl
                     ) {
-                        Self::handle(__macro_generated_req, depot, res)
+                        Self::handle(__macro_gen_req, __macro_gen_depot, __macro_gen_res)
                     }
                 }
             }
@@ -190,29 +182,33 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
-            quote! {
-                #[allow(non_upper_case_globals)]
-
-                static __salvo_extract_BadMan: salvo::__private::once_cell::sync::Lazy<salvo::extract::Metadata> =
-                    salvo::__private::once_cell::sync::Lazy::new(|| {
-                        let mut metadata = salvo::extract::Metadata::new("BadMan");
-                        metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
-                            salvo::extract::metadata::SourceFrom::Body,
-                            salvo::extract::metadata::SourceParser::Smart
-                        ));
-                        let mut field = salvo::extract::metadata::Field::new("id");
-                        field = field.add_source(salvo::extract::metadata::Source::new(
-                            salvo::extract::metadata::SourceFrom::Query,
-                            salvo::extract::metadata::SourceParser::Smart
-                        ));
-                        metadata = metadata.add_field(field);
-                        let mut field = salvo::extract::metadata::Field::new("username");
-                        metadata = metadata.add_field(field);
-                        metadata
-                    });
-                impl<'a> salvo::extract::Extractible<'a> for BadMan<'a> {
+            quote!{
+                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
-                        &*__salvo_extract_BadMan
+                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
+                            salvo::__private::once_cell::sync::OnceCell::new();
+                        METADATA.get_or_init(|| {
+                            let mut metadata = salvo::extract::Metadata::new("BadMan");
+                            metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
+                                salvo::extract::metadata::SourceFrom::Body,
+                                salvo::extract::metadata::SourceParser::Smart
+                            ));
+                            let mut field = salvo::extract::metadata::Field::new("id");
+                            field = field.add_source(salvo::extract::metadata::Source::new(
+                                salvo::extract::metadata::SourceFrom::Query,
+                                salvo::extract::metadata::SourceParser::Smart
+                            ));
+                            metadata = metadata.add_field(field);
+                            let mut field = salvo::extract::metadata::Field::new("username");
+                            metadata = metadata.add_field(field);
+                            metadata
+                        })
+                    }
+                    #[allow(refining_impl_trait)]
+                    async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
+                    where
+                        Self: Sized {
+                        salvo::serde::from_request(req, Self::metadata()).await
                     }
                 }
             }
@@ -239,38 +235,43 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
-            quote! {
-                #[allow(non_upper_case_globals)]
-                static __salvo_extract_BadMan: salvo::__private::once_cell::sync::Lazy<salvo::extract::Metadata> =
-                salvo::__private::once_cell::sync::Lazy::new(|| {
-                    let mut metadata = salvo::extract::Metadata::new("BadMan");
-                    metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
-                        salvo::extract::metadata::SourceFrom::Query,
-                        salvo::extract::metadata::SourceParser::Smart
-                    ));
-                    metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
-                        salvo::extract::metadata::SourceFrom::Param,
-                        salvo::extract::metadata::SourceParser::Smart
-                    ));
-                    metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
-                        salvo::extract::metadata::SourceFrom::Body,
-                        salvo::extract::metadata::SourceParser::Smart
-                    ));
-                    let mut field = salvo::extract::metadata::Field::new("id");
-                    metadata = metadata.add_field(field);
-                    let mut field = salvo::extract::metadata::Field::new("username");
-                    metadata = metadata.add_field(field);
-                    let mut field = salvo::extract::metadata::Field::new("first_name");
-                    metadata = metadata.add_field(field);
-                    let mut field = salvo::extract::metadata::Field::new("last_name");
-                    metadata = metadata.add_field(field);
-                    let mut field = salvo::extract::metadata::Field::new("lovers");
-                    metadata = metadata.add_field(field);
-                    metadata
-                });
-                impl<'a> salvo::extract::Extractible<'a> for BadMan<'a> {
+            quote!{
+                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
-                        &*__salvo_extract_BadMan
+                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
+                            salvo::__private::once_cell::sync::OnceCell::new();
+                        METADATA.get_or_init(|| {
+                            let mut metadata = salvo::extract::Metadata::new("BadMan");
+                            metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
+                                salvo::extract::metadata::SourceFrom::Query,
+                                salvo::extract::metadata::SourceParser::Smart
+                            ));
+                            metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
+                                salvo::extract::metadata::SourceFrom::Param,
+                                salvo::extract::metadata::SourceParser::Smart
+                            ));
+                            metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
+                                salvo::extract::metadata::SourceFrom::Body,
+                                salvo::extract::metadata::SourceParser::Smart
+                            ));
+                            let mut field = salvo::extract::metadata::Field::new("id");
+                            metadata = metadata.add_field(field);
+                            let mut field = salvo::extract::metadata::Field::new("username");
+                            metadata = metadata.add_field(field);
+                            let mut field = salvo::extract::metadata::Field::new("first_name");
+                            metadata = metadata.add_field(field);
+                            let mut field = salvo::extract::metadata::Field::new("last_name");
+                            metadata = metadata.add_field(field);
+                            let mut field = salvo::extract::metadata::Field::new("lovers");
+                            metadata = metadata.add_field(field);
+                            metadata
+                        })
+                    }
+                    #[allow(refining_impl_trait)]
+                    async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
+                    where
+                        Self: Sized {
+                        salvo::serde::from_request(req, Self::metadata()).await
                     }
                 }
             }

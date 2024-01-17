@@ -153,7 +153,7 @@ impl<'de> RequestDeserializer<'de> {
                 .metadata
                 .fields
                 .get(self.field_index as usize)
-                .expect("Field must exist");
+                .expect("field must exist.");
             let metadata = field.metadata.expect("Field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,
@@ -173,11 +173,11 @@ impl<'de> RequestDeserializer<'de> {
             let source = self
                 .field_source
                 .take()
-                .expect("MapAccess::next_value called before next_key");
+                .expect("`MapAccess::next_value` called before next_key");
 
             let parser = self.real_parser(source);
             if source.from == SourceFrom::Body && parser == SourceParser::Json {
-                // Panic because this indicates a bug in the program rather than an expected failure.
+                // panic because this indicates a bug in the program rather than an expected failure.
                 let value = self
                     .field_str_value
                     .expect("MapAccess::next_value called before next_key");
@@ -207,23 +207,20 @@ impl<'de> RequestDeserializer<'de> {
         } else if !self.metadata.default_sources.is_empty() {
             &self.metadata.default_sources
         } else {
-            tracing::error!("no sources for field {}", field.name);
+            tracing::error!("no sources for field {}", field.decl_name);
             return false;
         };
 
-        let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
-            if let Some(rename) = field.rename {
-                Cow::from(rename)
-            } else {
-                rename_all.rename(field.name).into()
-            }
+        let field_name: Cow<'_, str> = if let Some(rename) = field.rename {
+            Cow::from(rename)
+        } else if let Some(serde_rename) = field.serde_rename {
+            Cow::from(serde_rename)
+        } else if let Some(rename_all) = self.metadata.rename_all {
+            rename_all.apply_to_field(field.decl_name).into()
+        } else if let Some(serde_rename_all) = self.metadata.serde_rename_all {
+            serde_rename_all.apply_to_field(field.decl_name).into()
         } else {
-            if let Some(rename) = field.rename {
-                rename
-            } else {
-                field.name
-            }
-            .into()
+            field.decl_name.into()
         };
 
         for source in sources {
@@ -356,7 +353,7 @@ impl<'de> RequestDeserializer<'de> {
                         }
                         SourceParser::MultiMap => {
                             if let Some(Payload::FormData(form_data)) = self.payload {
-                                let mut value = form_data.fields.get_vec(field.name);
+                                let mut value = form_data.fields.get_vec(field_name.as_ref());
                                 if value.is_none() {
                                     for alias in &field.aliases {
                                         value = form_data.fields.get_vec(*alias);
@@ -395,7 +392,13 @@ impl<'de> RequestDeserializer<'de> {
             self.field_vec_value = None;
 
             if self.fill_value(field) {
-                return Some(Cow::from(field.name));
+                return field.serde_rename.map(Cow::from).or_else(|| {
+                    if let Some(serde_rename_all) = self.metadata.serde_rename_all {
+                        Some(Cow::Owned(serde_rename_all.apply_to_field(field.decl_name)))
+                    } else {
+                        Some(Cow::from(field.decl_name))
+                    }
+                });
             }
         }
         None
@@ -708,6 +711,68 @@ mod tests {
             RequestData {
                 p2: "921",
                 user: User { name: "chris", age: 20 }
+            }
+        );
+    }
+    #[tokio::test]
+    async fn test_de_request_with_extract_rename_all() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(rename_all = "kebab-case", default_source(from = "query")))]
+        struct RequestData {
+            full_name: String,
+            #[salvo(extract(rename = "currAge"))]
+            curr_age: usize,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                full_name: "chris young".into(),
+                curr_age: 20
+            }
+        );
+    }
+    #[tokio::test]
+    async fn test_de_request_with_serde_rename_all() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        #[serde(rename_all = "kebab-case")]
+        struct RequestData {
+            full_name: String,
+            #[salvo(extract(rename = "currAge"))]
+            curr_age: usize,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                full_name: "chris young".into(),
+                curr_age: 20
+            }
+        );
+    }
+    #[tokio::test]
+    async fn test_de_request_with_both_rename_all() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(rename_all = "kebab-case", default_source(from = "query")))]
+        #[serde(rename_all = "camelCase")]
+        struct RequestData {
+            full_name: String,
+            #[salvo(extract(rename = "currAge"))]
+            curr_age: usize,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                full_name: "chris young".into(),
+                curr_age: 20
             }
         );
     }

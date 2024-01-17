@@ -40,7 +40,7 @@ where
     P: Scribe + Sized + Send,
 {
     #[inline]
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         self.render(res)
     }
 }
@@ -51,7 +51,7 @@ where
     P: Scribe + Sized + Send,
 {
     #[inline]
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self {
             Some(v) => v.render(res),
             None => {
@@ -68,7 +68,7 @@ where
     E: Writer + Send,
 {
     #[inline]
-    async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn write(self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         match self {
             Ok(v) => {
                 v.write(req, depot, res).await;

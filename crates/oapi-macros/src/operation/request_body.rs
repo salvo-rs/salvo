@@ -50,8 +50,8 @@ use super::{PathType, PathTypeTree};
 #[derive(Default, Debug)]
 pub(crate) struct RequestBodyAttr<'r> {
     pub(crate) content: Option<PathType<'r>>,
-    pub(crate) content_type: Option<String>,
-    pub(crate) description: Option<String>,
+    pub(crate) content_type: Option<parse_utils::Value>,
+    pub(crate) description: Option<parse_utils::Value>,
     pub(crate) example: Option<AnyValue>,
     pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
 }
@@ -84,9 +84,11 @@ impl Parse for RequestBodyAttr<'_> {
                             })?);
                     }
                     "content_type" => {
-                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str(&group)?)
+                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
                     }
-                    "description" => request_body_attr.description = Some(parse_utils::parse_next_literal_str(&group)?),
+                    "description" => {
+                        request_body_attr.description = Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
+                    }
                     "example" => {
                         request_body_attr.example =
                             Some(parse_utils::parse_next(&group, || AnyValue::parse_json(&group))?)
@@ -175,10 +177,15 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
                     let required: Required = (!type_tree.is_option()).into();
-                    let content_type = self
-                        .content_type
-                        .as_deref()
-                        .unwrap_or_else(|| type_tree.get_default_content_type());
+
+                    let content_type = match &self.content_type {
+                        Some(content_type) => content_type.to_token_stream(),
+                        None => {
+                            let content_type = type_tree.get_default_content_type();
+                            quote!(#content_type)
+                        }
+                    };
+
                     tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
                             .add_content(#content_type, #content)

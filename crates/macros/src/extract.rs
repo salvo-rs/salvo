@@ -1,13 +1,15 @@
-use cruet::Inflector;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
-use crate::{attribute, omit_type_path_lifetimes, salvo_crate};
+use crate::{
+    attribute, omit_type_path_lifetimes, salvo_crate,
+    serde_util::{self, RenameRule, SerdeValue},
+};
 
 struct FieldInfo {
     ident: Option<Ident>,
@@ -15,6 +17,7 @@ struct FieldInfo {
     sources: Vec<SourceInfo>,
     aliases: Vec<String>,
     rename: Option<String>,
+    serde_rename: Option<String>,
     flatten: bool,
 }
 impl TryFrom<&Field> for FieldInfo {
@@ -26,7 +29,7 @@ impl TryFrom<&Field> for FieldInfo {
         let mut sources: Vec<SourceInfo> = Vec::with_capacity(field.attrs.len());
         let mut aliases = Vec::with_capacity(field.attrs.len());
         let mut rename = None;
-        let mut flatten = false;
+        let mut flatten = None;
         for attr in attrs {
             if attr.path().is_ident("salvo") {
                 if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
@@ -37,17 +40,38 @@ impl TryFrom<&Field> for FieldInfo {
                     if info.rename.is_some() {
                         rename = info.rename;
                     }
+                    if info.flatten.is_some() {
+                        flatten = info.flatten;
+                    }
                 }
             }
         }
         sources.dedup();
         aliases.dedup();
+
+        let (serde_rename, serde_flatten) =
+            if let Some(SerdeValue { rename, flatten, .. }) = serde_util::parse_value(&field.attrs) {
+                (rename, flatten)
+            } else {
+                (None, false)
+            };
+        let flatten = flatten.unwrap_or(serde_flatten);
+        if flatten {
+            if !sources.is_empty() {
+                return Err(Error::new_spanned(ident, "flatten field should not define souces."));
+            }
+            if !aliases.is_empty() {
+                return Err(Error::new_spanned(ident, "flatten field should not define aliases."));
+            }
+        }
+
         Ok(Self {
             ident,
             ty: field.ty.clone(),
             sources,
             aliases,
             rename,
+            serde_rename,
             flatten,
         })
     }
@@ -58,7 +82,7 @@ struct ExtractFieldInfo {
     sources: Vec<SourceInfo>,
     aliases: Vec<String>,
     rename: Option<String>,
-    flatten: bool,
+    flatten: Option<bool>,
 }
 impl Parse for ExtractFieldInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -82,21 +106,13 @@ impl Parse for ExtractFieldInfo {
                     extract.aliases.push(expr_lit_value(&expr)?);
                 }
                 "flatten" => {
-                    extract.flatten = true;
+                    extract.flatten = Some(true);
                 }
                 _ => {
                     return Err(input.error("unexpected attribute"));
                 }
             }
             input.parse::<Token![,]>().ok();
-        }
-        if extract.flatten {
-            if !extract.sources.is_empty() {
-                return Err(input.error("flatten field should not define souces"));
-            }
-            if !extract.aliases.is_empty() {
-                return Err(input.error("flatten field should not define aliases"));
-            }
         }
         Ok(extract)
     }
@@ -149,7 +165,8 @@ struct ExtractibleArgs {
     fields: Vec<FieldInfo>,
 
     default_sources: Vec<SourceInfo>,
-    rename_all: Option<String>,
+    rename_all: Option<RenameRule>,
+    serde_rename_all: Option<RenameRule>,
 }
 
 impl ExtractibleArgs {
@@ -185,7 +202,7 @@ impl ExtractibleArgs {
                             }
                             Meta::NameValue(meta) => {
                                 if meta.path.is_ident("rename_all") {
-                                    rename_all = Some(expr_lit_value(&meta.value)?);
+                                    rename_all = Some(expr_lit_value(&meta.value)?.parse::<RenameRule>()?);
                                 }
                             }
                             _ => {}
@@ -194,54 +211,28 @@ impl ExtractibleArgs {
                 }
             }
         }
+        let serde_container = serde_util::parse_container(&attrs);
+        let serde_rename_all = serde_container.and_then(|c| c.rename_all);
         Ok(Self {
             ident,
             generics,
             fields,
             default_sources,
             rename_all,
+            serde_rename_all,
         })
     }
 }
 
-static RENAME_RULES: &[(&str, &str)] = &[
-    ("lowercase", "LowerCase"),
-    ("UPPERCASE", "UpperCase"),
-    ("PascalCase", "PascalCase"),
-    ("camelCase", "CamelCase"),
-    ("snake_case", "SnakeCase"),
-    ("SCREAMING_SNAKE_CASE", "ScreamingSnakeCase"),
-    ("kebab-case", "KebabCase"),
-    ("SCREAMING-KEBAB-CASE", "ScreamingKebabCase"),
-];
-fn metadata_rename_rule(salvo: &Ident, input: &str) -> Result<TokenStream, Error> {
-    let mut rule = None;
-    for (name, value) in RENAME_RULES {
-        if input == *name {
-            rule = Some(*value);
-        }
-    }
-    match rule {
-        Some(rule) => {
-            let rule = Ident::new(rule, Span::call_site());
-            Ok(quote! {
-                #salvo::extract::metadata::RenameRule::#rule
-            })
-        }
-        None => {
-            Err(Error::new_spanned(
-                input,
-                "Invalid rename rule, valid rules are: lowercase, UPPERCASE, PascalCase, camelCase, snake_case, SCREAMING_SNAKE_CASE, kebab-case, SCREAMING-KEBAB-CASE",
-            ))
-        }
-    }
-}
 fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
-    let from = Ident::new(&source.from.to_pascal_case(), Span::call_site());
+    let from = Ident::new(&RenameRule::PascalCase.apply_to_field(&source.from), Span::call_site());
     let parser = if source.parser.to_lowercase() == "multimap" {
         Ident::new("MultiMap", Span::call_site())
     } else {
-        Ident::new(&source.parser.to_pascal_case(), Span::call_site())
+        Ident::new(
+            &RenameRule::PascalCase.apply_to_field(&source.parser),
+            Span::call_site(),
+        )
     };
     let from = quote! {
         #salvo::extract::metadata::SourceFrom::#from
@@ -257,7 +248,7 @@ fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
     let salvo = salvo_crate();
-    let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
+    let (_, ty_generics, where_clause) = args.generics.split_for_impl();
 
     let name = &args.ident;
     let mut default_sources = Vec::new();
@@ -269,10 +260,34 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             metadata = metadata.add_default_source(#source);
         });
     }
+    fn quote_rename_rule(salvo: &Ident, rename_all: &RenameRule) -> TokenStream {
+        let rename_all = match rename_all {
+            RenameRule::LowerCase => "LowerCase",
+            RenameRule::UpperCase => "UpperCase",
+            RenameRule::PascalCase => "PascalCase",
+            RenameRule::CamelCase => "CamelCase",
+            RenameRule::SnakeCase => "SnakeCase",
+            RenameRule::ScreamingSnakeCase => "ScreamingSnakeCase",
+            RenameRule::KebabCase => "KebabCase",
+            RenameRule::ScreamingKebabCase => "ScreamingKebabCase",
+        };
+        let rule = Ident::new(rename_all, Span::call_site());
+        quote! {
+            #salvo::extract::RenameRule::#rule
+        }
+    }
     let rename_all = if let Some(rename_all) = &args.rename_all {
-        let rename = metadata_rename_rule(&salvo, rename_all)?;
+        let rule = quote_rename_rule(&salvo, rename_all);
         Some(quote! {
-            metadata = metadata.rename_all(#rename);
+            metadata = metadata.rename_all(#rule);
+        })
+    } else {
+        None
+    };
+    let serde_rename_all = if let Some(serde_rename_all) = &args.serde_rename_all {
+        let rule = quote_rename_rule(&salvo, serde_rename_all);
+        Some(quote! {
+            metadata = metadata.serde_rename_all(#rule);
         })
     } else {
         None
@@ -291,7 +306,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 let ty = omit_type_path_lifetimes(ty);
                 nested_metadata = Some(quote! {
                     field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
-                    field = field.set_flatten(true);
+                    field = field.flatten(true);
                 });
             } else {
                 return Err(Error::new_spanned(name, "Invalid type for request source."));
@@ -317,53 +332,75 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 field = field.rename(#rename);
             }
         });
+        let serde_rename = field.serde_rename.as_ref().map(|serde_rename| {
+            quote! {
+                field = field.serde_rename(#serde_rename);
+            }
+        });
         fields.push(quote! {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident);
             #nested_metadata
             #(#sources)*
             #(#aliases)*
             #rename
+            #serde_rename
             metadata = metadata.add_field(field);
         });
     }
 
-    let sv: Ident = format_ident!("__salvo_extract_{}", name);
     let mt = name.to_string();
-    let imp_code = if args.generics.lifetimes().next().is_none() {
-        let de_life_def = syn::parse_str("'de").unwrap();
+    let metadata = quote! {
+        fn metadata() ->  &'static #salvo::extract::Metadata {
+            static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
+            METADATA.get_or_init(|| {
+                let mut metadata = #salvo::extract::Metadata::new(#mt);
+                #(
+                    #default_sources
+                )*
+                #rename_all
+                #serde_rename_all
+                #(
+                    #fields
+                )*
+                metadata
+            })
+        }
+    };
+    let life_param = args.generics.lifetimes().next();
+    let code = if let Some(life_param) = life_param {
+        let ex_life_def = syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime)).unwrap();
         let mut generics = args.generics.clone();
-        generics.params.insert(0, de_life_def);
+        generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'de> for #name #ty_generics #where_clause {
-                fn metadata() ->  &'static #salvo::extract::Metadata {
-                    &*#sv
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
+                #metadata
+
+                #[allow(refining_impl_trait)]
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                where
+                    Self: Sized {
+                    #salvo::serde::from_request(req, Self::metadata()).await
                 }
             }
         }
     } else {
+        let ex_life_def = syn::parse_str("'__macro_gen_ex").unwrap();
+        let mut generics = args.generics.clone();
+        generics.params.insert(0, ex_life_def);
+        let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics #salvo::extract::Extractible #impl_generics for #name #ty_generics #where_clause {
-                fn metadata() ->  &'static #salvo::extract::Metadata {
-                    &*#sv
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
+                #metadata
+
+                #[allow(refining_impl_trait)]
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                where
+                    Self: Sized {
+                    #salvo::serde::from_request(req, Self::metadata()).await
                 }
             }
         }
-    };
-    let code = quote! {
-        #[allow(non_upper_case_globals)]
-        static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
-            let mut metadata = #salvo::extract::Metadata::new(#mt);
-            #(
-                #default_sources
-            )*
-            #rename_all
-            #(
-                #fields
-            )*
-            metadata
-        });
-        #imp_code
     };
     Ok(code)
 }

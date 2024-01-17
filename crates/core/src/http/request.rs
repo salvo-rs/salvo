@@ -577,7 +577,7 @@ impl Request {
         })
     }
     /// Get mutable queries reference.
-    pub fn queries_mut(&mut self) -> &MultiMap<String, String> {
+    pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
         self.queries.get_mut().unwrap()
     }
@@ -714,7 +714,7 @@ impl Request {
     #[inline]
     pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: Extractible<'de> + Send,
+        T: Extractible<'de> + Deserialize<'de> + Send,
     {
         self.extract_with_metadata(T::metadata()).await
     }

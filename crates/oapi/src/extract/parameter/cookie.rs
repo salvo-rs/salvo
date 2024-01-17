@@ -2,11 +2,9 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
+use salvo_core::http::{ParseError, Request};
 use salvo_core::serde::from_str_val;
-use salvo_core::{async_trait, Request};
-use serde::Deserialize;
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
@@ -82,19 +80,20 @@ where
     }
 }
 
-#[async_trait]
-impl<'de, T> Extractible<'de> for CookieParam<T, true>
+impl<'ex, T> Extractible<'ex> for CookieParam<T, true>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
-        unimplemented!("cookie parameter can not be extracted from request")
+    #[allow(refining_impl_trait)]
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+        unimplemented!("cookie parameter can not be extracted from request");
     }
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    #[allow(refining_impl_trait)]
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .cookies()
             .get(arg)
@@ -106,19 +105,20 @@ where
     }
 }
 
-#[async_trait]
-impl<'de, T> Extractible<'de> for CookieParam<T, false>
+impl<'ex, T> Extractible<'ex> for CookieParam<T, false>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    #[allow(refining_impl_trait)]
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")
     }
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    #[allow(refining_impl_trait)]
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))
     }
@@ -135,5 +135,162 @@ where
             .schema(T::to_schema(components))
             .required(R);
         operation.parameters.insert(parameter);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use http::header::HeaderValue;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_required_cookie_param_into_inner() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!("param".to_string(), param.into_inner());
+    }
+
+    #[test]
+    fn test_required_cookie_param_deref() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&"param".to_string(), param.deref())
+    }
+
+    #[test]
+    fn test_required_cookie_param_deref_mut() {
+        let mut param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&mut "param".to_string(), param.deref_mut())
+    }
+
+    #[test]
+    fn test_cookie_param_into_inner() {
+        let param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(Some("param".to_string()), param.into_inner());
+    }
+
+    #[test]
+    fn test_cookie_param_deref() {
+        let param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&Some("param".to_string()), param.deref())
+    }
+
+    #[test]
+    fn test_cookie_param_deref_mut() {
+        let mut param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+    }
+
+    #[test]
+    fn test_cookie_param_deserialize() {
+        let param = serde_json::from_str::<CookieParam<String, true>>(r#""param""#).unwrap();
+        assert_eq!(param.0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_debug() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+    }
+
+    #[test]
+    fn test_cookie_param_display() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{}", param), "param");
+    }
+
+    #[test]
+    fn test_required_cookie_param_metadata() {
+        let metadata = CookieParam::<String, true>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_cookie_prarm_extract() {
+        let mut req = Request::new();
+        let _ = CookieParam::<String, true>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_required_cookie_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut()
+            .append("cookie", HeaderValue::from_static("param=param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_cookie_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_metadata() {
+        let metadata = CookieParam::<String, false>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_cookie_prarm_extract() {
+        let mut req = Request::new();
+        let _ = CookieParam::<String, false>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_cookie_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut()
+            .append("cookie", HeaderValue::from_static("param=param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_cookie_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        CookieParam::<String, false>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "parameters": [
+                    {
+                        "name": "arg",
+                        "in": "cookie",
+                        "description": "Get parameter `arg` from request cookie.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {}
+            })
+        )
     }
 }

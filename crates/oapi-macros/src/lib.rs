@@ -41,7 +41,6 @@ mod response;
 mod schema;
 mod schema_type;
 mod security_requirement;
-mod serde;
 mod shared;
 mod type_tree;
 
@@ -55,11 +54,10 @@ pub(crate) use self::{
     response::derive::{ToResponse, ToResponses},
     response::Response,
     schema::ToSchema,
-    serde::RenameRule,
-    serde::{SerdeContainer, SerdeValue},
     shared::*,
     type_tree::TypeTree,
 };
+pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -527,7 +525,7 @@ struct VariantRename;
 
 impl Rename for VariantRename {
     fn rename(rule: &RenameRule, value: &str) -> String {
-        rule.rename_variant(value)
+        rule.apply_to_variant(value)
     }
 }
 
@@ -536,7 +534,7 @@ pub(crate) struct FieldRename;
 
 impl Rename for FieldRename {
     fn rename(rule: &RenameRule, value: &str) -> String {
-        rule.rename(value)
+        rule.apply_to_field(value)
     }
 }
 
@@ -557,10 +555,10 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            endpoint::generate(parse2(quote! {}).unwrap(), item)
+            endpoint::generate(parse2(quote!{}).unwrap(), item)
                 .unwrap()
                 .to_string(),
-            quote! {
+            quote!{
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
@@ -572,21 +570,20 @@ mod tests {
                 }
                 #[salvo::async_trait]
                 impl salvo::Handler for hello {
-                    #[inline]
                     async fn handle(
                         &self,
-                        __macro_generated_req: &mut salvo::Request,
-                        depot: &mut salvo::Depot,
-                        res: &mut salvo::Response,
-                        ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut salvo::Request,
+                        __macro_gen_depot: &mut salvo::Depot,
+                        __macro_gen_res: &mut salvo::Response,
+                        __macro_gen_ctrl: &mut salvo::FlowCtrl
                     ) {
                         Self::hello().await
                     }
                 }
-                fn __salvo_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
+                fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
                     ::std::any::TypeId::of::<hello>()
                 }
-                fn __salvo_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
+                fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
                     let mut components = salvo::oapi::Components::new();
                     let status_codes: &[salvo::http::StatusCode] = &[];
                     fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
@@ -610,7 +607,7 @@ mod tests {
                         components,
                     }
                 }
-                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__salvo_oapi_endpoint_type_id_hello , __salvo_oapi_endpoint_creator_hello) }
+                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__macro_gen_oapi_endpoint_type_id_hello , __macro_gen_oapi_endpoint_creator_hello) }
             }
             .to_string()
         );

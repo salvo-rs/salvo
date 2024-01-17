@@ -22,7 +22,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2023/06/01/Rust-1.70.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.70%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2023/12/28/Rust-1.75.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.75%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -317,7 +317,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ☕ 支持
 
-`Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://ko-fi.com/chrislearn).
+`Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**请我喝杯咖啡**](https://ko-fi.com/chrislearn).
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>

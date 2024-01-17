@@ -65,25 +65,37 @@
 /// Metadata types.
 pub mod metadata;
 pub use metadata::Metadata;
+mod case;
+pub use case::RenameRule;
 
-use async_trait::async_trait;
-use serde::Deserialize;
+use std::fmt::Debug;
+use std::future::Future;
 
-use crate::http::{ParseError, Request};
-use crate::serde::from_request;
+use crate::http::Request;
+use crate::Writer;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
-#[async_trait]
-pub trait Extractible<'de>: Deserialize<'de> {
+pub trait Extractible<'ex> {
     /// Metadata for Extractible type.
-    fn metadata() -> &'de Metadata;
+    fn metadata() -> &'ex Metadata;
 
     /// Extract data from request.
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
-        from_request(req, Self::metadata()).await
-    }
+    ///
+    /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
+    fn extract(
+        req: &'ex mut Request,
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
+    where
+        Self: Sized;
+
     /// Extract data from request with a argument. This function used in macros internal.
-    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
-        Self::extract(req).await
+    fn extract_with_arg(
+        req: &'ex mut Request,
+        _arg: &str,
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
+    where
+        Self: Sized,
+    {
+        Self::extract(req)
     }
 }

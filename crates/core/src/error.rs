@@ -149,7 +149,6 @@ impl From<BoxedError> for Error {
 }
 
 impl Scribe for Error {
-    #[inline]
     fn render(self, res: &mut Response) {
         let status_error = match self {
             Error::HttpStatus(e) => e,

@@ -10,15 +10,14 @@ use crate::{
     doc_comment::CommentAttributes,
     feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
     schema::Inline,
+    serde_util::{self, SerdeContainer},
     type_tree::TypeTree,
     Deprecated,
 };
 
 use super::{
     feature::{FromAttributes, NamedFieldFeatures},
-    is_flatten, is_not_skipped,
-    serde::{self, SerdeContainer},
-    ComponentSchema, FieldRename, FlattenedMapSchema, Property,
+    is_flatten, is_not_skipped, ComponentSchema, FieldRename, FlattenedMapSchema, Property,
 };
 
 #[derive(Debug)]
@@ -121,13 +120,13 @@ impl NamedStructSchema<'_> {
 impl ToTokens for NamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        let container_rules = serde::parse_container(self.attributes);
+        let container_rules = serde_util::parse_container(self.attributes);
 
         let mut object_tokens = self
             .fields
             .iter()
             .filter_map(|field| {
-                let field_rule = serde::parse_value(&field.attrs);
+                let field_rule = serde_util::parse_value(&field.attrs);
 
                 if is_not_skipped(&field_rule) && !is_flatten(&field_rule) {
                     Some((field, field_rule))
@@ -191,7 +190,7 @@ impl ToTokens for NamedStructSchema<'_> {
             .fields
             .iter()
             .filter(|field| {
-                let field_rule = serde::parse_value(&field.attrs);
+                let field_rule = serde_util::parse_value(&field.attrs);
                 is_flatten(&field_rule)
             })
             .collect();
@@ -207,12 +206,12 @@ impl ToTokens for NamedStructSchema<'_> {
                     &container_rules,
                     |NamedStructFieldOptions { property, .. }| match property {
                         Property::Schema(_) | Property::SchemaWith(_) => {
-                            flattened_tokens.extend(quote! { .item(#property) })
+                            flattened_tokens.extend(quote!{ .item(#property) })
                         }
                         Property::FlattenedMap(_) => match flattened_map_field {
                             None => {
                                 object_tokens
-                                    .extend(quote! { .additional_properties(Some(#property)) });
+                                    .extend(quote!{ .additional_properties(Some(#property)) });
                                 flattened_map_field = Some(field);
                             }
                             Some(flattened_map_field) => {
@@ -232,7 +231,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 false
             } else {
                 tokens.extend(quote! {
-                    utoipa::openapi::AllOfBuilder::new()
+                    #oapi::oapi::schema::AllOf::new()
                         #flattened_tokens
                     .item(#object_tokens)
                 });
@@ -251,7 +250,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 .unwrap_or(false)
         {
             tokens.extend(quote! {
-                .additional_properties(Some(utoipa::openapi::schema::AdditionalProperties::FreeForm(false)))
+                .additional_properties(Some(#oapi::schema::AdditionalProperties::FreeForm(false)))
             });
         }
 
@@ -349,7 +348,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
         if fields_len > 1 {
             let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
             tokens.extend(
-                quote! { .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
+                quote!{ .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
     }

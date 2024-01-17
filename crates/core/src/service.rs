@@ -10,6 +10,7 @@ use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
+use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
@@ -22,6 +23,8 @@ pub struct Service {
     pub router: Arc<Router>,
     /// The catcher of this service.
     pub catcher: Option<Arc<Catcher>>,
+    /// These hoops will alwways be called when request received.
+    pub hoops: Vec<Arc<dyn Handler>>,
     /// The allowed media types of this service.
     pub allowed_media_types: Arc<Vec<Mime>>,
 }
@@ -36,6 +39,7 @@ impl Service {
         Service {
             router: router.into(),
             catcher: None,
+            hoops: vec![],
             allowed_media_types: Arc::new(vec![]),
         }
     }
@@ -71,6 +75,26 @@ impl Service {
     #[inline]
     pub fn catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
         self.catcher = Some(catcher.into());
+        self
+    }
+
+    /// Add a handler as middleware, it will run the handler when request received.
+    #[inline]
+    pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
+        self.hoops.push(Arc::new(hoop));
+        self
+    }
+
+    /// Add a handler as middleware, it will run the handler when request received.
+    ///
+    /// This middleware only effective when the filter return true.
+    #[inline]
+    pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        self.hoops.push(Arc::new(WhenHoop { inner: hoop, filter }));
         self
     }
 
@@ -110,6 +134,7 @@ impl Service {
             http_scheme,
             router: self.router.clone(),
             catcher: self.catcher.clone(),
+            hoops: self.hoops.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
             alt_svc_h3,
         }
@@ -119,9 +144,14 @@ impl Service {
     #[inline]
     pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
         let request = request.into();
-        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown, request.scheme.clone(), None)
-            .handle(request)
-            .await
+        self.hyper_handler(
+            request.local_addr.clone(),
+            request.remote_addr.clone(),
+            request.scheme.clone(),
+            None,
+        )
+        .handle(request)
+        .await
     }
 }
 
@@ -143,6 +173,7 @@ pub struct HyperHandler {
     pub(crate) http_scheme: Scheme,
     pub(crate) router: Arc<Router>,
     pub(crate) catcher: Option<Arc<Catcher>>,
+    pub(crate) hoops: Vec<Arc<dyn Handler>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
@@ -167,13 +198,21 @@ impl HyperHandler {
         let mut path_state = PathState::new(req.uri().path());
         let router = self.router.clone();
 
+        let hoops = self.hoops.clone();
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.goal]].concat());
+                let mut ctrl = FlowCtrl::new([&hoops[..], &dm.hoops[..], &[dm.goal]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code.is_none() {
                     res.status_code = Some(StatusCode::OK);
+                }
+            } else if !hoops.is_empty() {
+                req.params = path_state.params;
+                let mut ctrl = FlowCtrl::new(hoops);
+                ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                if res.status_code.is_none() {
+                    res.status_code = Some(StatusCode::NOT_FOUND);
                 }
             } else {
                 res.status_code(StatusCode::NOT_FOUND);
@@ -203,6 +242,7 @@ impl HyperHandler {
                 }
             } else if res.body.is_none()
                 && !has_error
+                && !status.is_redirection()
                 && res.status_code != Some(StatusCode::NO_CONTENT)
                 && res.status_code != Some(StatusCode::SWITCHING_PROTOCOLS)
                 && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())

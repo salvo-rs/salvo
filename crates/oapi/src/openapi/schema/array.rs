@@ -186,3 +186,62 @@ where
         Array::new(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::*;
+    use crate::{Object, SchemaType};
+
+    #[test]
+    fn test_build_array() {
+        let array = Array::new(Object::with_type(SchemaType::Object))
+            .items(Object::with_type(SchemaType::String))
+            .title("title")
+            .description("description")
+            .deprecated(Deprecated::False)
+            .example(Value::String("example".to_string()))
+            .default_value(Value::String("default".to_string()))
+            .max_items(10)
+            .min_items(1)
+            .unique_items(true)
+            .xml(Xml::new())
+            .nullable(false);
+
+        assert_json_eq!(
+            array,
+            json!({
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "title": "title",
+                "description": "description",
+                "deprecated": false,
+                "example": "example",
+                "default": "default",
+                "maxItems": 10,
+                "minItems": 1,
+                "uniqueItems": true,
+                "xml": {},
+            })
+        )
+    }
+
+    #[test]
+    fn test_schema_from_array() {
+        let array = Array::default();
+        let schema = Schema::from(array);
+        assert_json_eq!(
+            schema,
+            json!({
+                "type": "array",
+                "items": {
+                    "type": "object"
+                }
+            })
+        )
+    }
+}

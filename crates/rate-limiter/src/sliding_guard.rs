@@ -63,7 +63,7 @@ impl RateGuard for SlidingGuard {
             self.cell_inst = OffsetDateTime::now_utc();
             return true;
         } else {
-            while delta > self.cell_span{
+            while delta > self.cell_span {
                 delta -= self.cell_span;
                 self.head = (self.head + 1) % self.counts.len();
                 self.counts[self.head] = 0;
@@ -73,5 +73,20 @@ impl RateGuard for SlidingGuard {
             self.cell_inst = OffsetDateTime::now_utc();
         }
         self.counts.iter().cloned().sum::<usize>() <= quota.limit
+    }
+
+    async fn remaining(&self, quota: &Self::Quota) -> usize {
+        quota
+            .limit
+            .checked_sub(self.counts.iter().cloned().sum::<usize>())
+            .unwrap_or_default()
+    }
+
+    async fn reset(&self, quota: &Self::Quota) -> i64 {
+        (self.cell_inst + quota.period).unix_timestamp()
+    }
+
+    async fn limit(&self, quota: &Self::Quota) -> usize {
+        quota.limit
     }
 }

@@ -247,8 +247,11 @@ impl RequestBuilder {
         target.call(self.build()).await
     }
 }
+
+/// Trait for sending request to target, such as [`Router`], [`Service`], [`Handler`]. for test usage.
 #[async_trait]
 pub trait SendTarget {
+    /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
     #[must_use = "future must be used"]
     async fn call(self, req: Request) -> Response;
 }

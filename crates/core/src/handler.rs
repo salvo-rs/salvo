@@ -70,7 +70,7 @@
 //! struct CustomError;
 //! #[async_trait]
 //! impl Writer for CustomError {
-//!     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+//!     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
 //!         res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
 //!         res.render("custom error");
 //!     }

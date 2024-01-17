@@ -12,7 +12,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.name().unwrap_or("file"));
-        tracing::debug!(dest = %dest, "upload file");
+        tracing::debug!(dest, "upload file");
         if let Err(e) = std::fs::copy(file.path(), Path::new(&dest)) {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render(Text::Plain(format!("file not found in request: {e}")));

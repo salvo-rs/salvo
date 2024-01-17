@@ -162,7 +162,7 @@ impl Handler for Http01Handler {
             if let Some(value) = keys.get(token) {
                 res.render(value);
             } else {
-                tracing::error!(token = %token, "keys not found for token");
+                tracing::error!(token, "keys not found for token");
                 res.render(token);
             }
         } else {

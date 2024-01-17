@@ -56,7 +56,7 @@ impl ToTokens for Parameter<'_> {
         match self {
             Parameter::Value(parameter) => {
                 if parameter.parameter_in.is_none() {
-                    tokens.extend(quote! {
+                    tokens.extend(quote!{
                         {
                             let mut new_parameter = #parameter;
                             if let Some(exist_parameter) = operation.parameters.0.iter_mut().find(|p|p.name == new_parameter.name) {

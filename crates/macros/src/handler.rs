@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
 
@@ -78,20 +78,19 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
-    let mut count = 0;
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push(Ident::new("__macro_generated_req", Span::call_site()));
+                call_args.push(Ident::new("__macro_gen_req", Span::call_site()));
             }
             InputType::Depot(_pat) => {
-                call_args.push(Ident::new("depot", Span::call_site()));
+                call_args.push(Ident::new("__macro_gen_depot", Span::call_site()));
             }
             InputType::Response(_pat) => {
-                call_args.push(Ident::new("res", Span::call_site()));
+                call_args.push(Ident::new("__macro_gen_res", Span::call_site()));
             }
             InputType::FlowCtrl(_pat) => {
-                call_args.push(Ident::new("ctrl", Span::call_site()));
+                call_args.push(Ident::new("__macro_gen_ctrl", Span::call_site()));
             }
             InputType::Unknown => {
                 return Err(syn::Error::new_spanned(
@@ -100,25 +99,28 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 ))
             }
             InputType::NoReference(pat) => {
-                if let (_, Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
-                    let id = Ident::new(&format!("s{count}"), Span::call_site());
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    call_args.push(ident.ident.clone());
                     let ty = omit_type_path_lifetimes(ty);
-                    let idv = id.to_token_stream().to_string();
+                    let idv = pat.pat.to_token_stream().to_string();
+                    let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
+                    let id = Ident::new(&idv, Span::call_site());
+                    let idv = idv.trim_start_matches('_');
 
-                    extract_ts.push(quote! {
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_generated_req, #idv).await {
+                    extract_ts.push(quote!{
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
-                                #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
-                                res.render(#salvo::http::errors::StatusError::bad_request().brief(
-                                    "Extract data failed."
-                                ).cause(e));
+                                e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                                // If status code is not set or is not error, set it to 400.
+                                let status_code = __macro_gen_res.status_code.unwrap_or_default();
+                                if !status_code.is_client_error() && !status_code.is_server_error() {
+                                    __macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
+                                }
                                 return;
                             }
                         };
                     });
-                    call_args.push(id);
-                    count += 1;
                 } else {
                     return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
@@ -133,16 +135,14 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
                 Ok(quote! {
-                    #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
                 })
             } else {
                 Ok(quote! {
-                    #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -152,18 +152,16 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
         ReturnType::Type(_, _) => {
             if sig.asyncness.is_none() {
                 Ok(quote! {
-                    #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_generated_req, depot, res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 })
             } else {
                 Ok(quote! {
-                    #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_generated_req, depot, res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 })
             }

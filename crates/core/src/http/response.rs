@@ -220,11 +220,15 @@ impl Response {
             }
         }
 
+        let status_code = status_code.unwrap_or(match &body {
+            ResBody::None => StatusCode::NOT_FOUND,
+            ResBody::Error(e) => e.code,
+            _ => StatusCode::OK,
+        });
         let mut res = hyper::Response::new(body);
         *res.extensions_mut() = extensions;
         *res.headers_mut() = headers;
-        // Default to a 404 if no response code was set
-        *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
+        *res.status_mut() = status_code;
 
         res
     }

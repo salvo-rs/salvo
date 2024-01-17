@@ -1,5 +1,5 @@
 use hyper::upgrade::OnUpgrade;
-use hyper_tls::HttpsConnector;
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClient};
 use hyper_util::rt::TokioExecutor;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
@@ -15,8 +15,14 @@ pub struct HyperClient {
 }
 impl Default for HyperClient {
     fn default() -> Self {
+        let https = HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .expect("no native root CA certificates found")
+            .https_only()
+            .enable_http1()
+            .build();
         Self {
-            inner: HyperUtilClient::builder(TokioExecutor::new()).build(HttpsConnector::new()),
+            inner: HyperUtilClient::builder(TokioExecutor::new()).build(https),
         }
     }
 }

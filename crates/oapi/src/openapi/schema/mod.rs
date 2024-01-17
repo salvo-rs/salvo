@@ -810,4 +810,50 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn test_empty_schema() {
+        let schema = empty();
+        assert_json_eq!(
+            schema,
+            json!({
+                "type": "object",
+                "nullable": true,
+                "default": null
+            })
+        )
+    }
+
+    #[test]
+    fn test_default_schema() {
+        let schema = Schema::default();
+        assert_json_eq!(
+            schema,
+            json!({
+                "type": "object",
+            })
+        )
+    }
+
+    #[test]
+    fn test_ref_from_response_name() {
+        let _ref = Ref::from_response_name("MyResponse");
+        assert_json_eq!(
+            _ref,
+            json!({
+                "$ref": "#/components/responses/MyResponse"
+            })
+        )
+    }
+
+    #[test]
+    fn test_additional_properties_from_ref_or() {
+        let additional_properties = AdditionalProperties::from(RefOr::T(Schema::Object(Object::new())));
+        assert_json_eq!(
+            additional_properties,
+            json!({
+                "type": "object",
+            })
+        )
+    }
 }

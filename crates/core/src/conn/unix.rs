@@ -116,7 +116,6 @@ impl Acceptor for UnixAcceptor {
     }
 }
 
-#[async_trait]
 impl HttpConnection for UnixStream {
     async fn serve(
         self,

@@ -62,7 +62,7 @@ impl<'a> Operation<'a> {
         }
 
         // let responses = Responses(self.responses);
-        // modifiers.push(quote! {
+        // modifiers.push(quote!{
         //     .responses(#responses)
         // });
         if let Some(security_requirements) = self.security {
@@ -72,7 +72,7 @@ impl<'a> Operation<'a> {
         }
         if let Some(operation_id) = &self.operation_id {
             modifiers.push(quote! {
-                operation.operation_id = Some(#operation_id);
+                operation.operation_id = Some(#operation_id.into());
             });
         }
 

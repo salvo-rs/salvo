@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use tracing::{Instrument, Level};
 
-use salvo_core::http::{Request, Response, StatusCode};
+use salvo_core::http::{Request, ResBody, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// A simple logger middleware.
@@ -36,10 +36,14 @@ impl Handler for Logger {
             ctrl.call_next(req, depot, res).await;
             let duration = now.elapsed();
 
-            let status = res.status_code.unwrap_or(StatusCode::OK);
+            let status = res.status_code.unwrap_or(match &res.body {
+                ResBody::None => StatusCode::NOT_FOUND,
+                ResBody::Error(e) => e.code,
+                _ => StatusCode::OK,
+            });
             tracing::info!(
-                status = %status,
-                duration = ?duration,
+                %status,
+                ?duration,
                 "Response"
             );
         }
