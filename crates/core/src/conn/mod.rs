@@ -16,7 +16,7 @@ mod proto;
 pub use proto::HttpBuilder;
 
 cfg_feature! {
-    #![any(feature = "native-tls", feature = "rustls", feature = "openssl-tls", feature = "acme")]
+    #![any(feature = "native-tls", feature = "rustls", feature = "openssl", feature = "acme")]
     mod handshake_stream;
     pub use handshake_stream::HandshakeStream;
 }

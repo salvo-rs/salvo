@@ -16,7 +16,6 @@ static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
 });
 
 struct UserIssuer;
-#[async_trait]
 impl RateIssuer for UserIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
@@ -25,7 +24,6 @@ impl RateIssuer for UserIssuer {
 }
 
 struct CustomQuotaGetter;
-#[async_trait]
 impl QuotaGetter<String> for CustomQuotaGetter {
     type Quota = CelledQuota;
     type Error = Error;
