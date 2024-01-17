@@ -113,7 +113,6 @@ impl<A, B> JoinedAcceptor<A, B> {
     }
 }
 
-#[async_trait]
 impl<A, B> HttpConnection for JoinedStream<A, B>
 where
     A: HttpConnection + Send,

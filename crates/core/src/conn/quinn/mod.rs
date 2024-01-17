@@ -12,7 +12,6 @@ use salvo_http3::http3_quinn;
 pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::http::HttpConnection;
@@ -71,7 +70,6 @@ impl AsyncWrite for H3Connection {
     }
 }
 
-#[async_trait]
 impl HttpConnection for H3Connection {
     async fn serve(
         self,
