@@ -209,7 +209,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_required_query_prarm_extract_with_value() {
-        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut().insert("param".to_string(), "param".to_string());
@@ -242,7 +242,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_prarm_extract_with_value() {
-        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut().insert("param".to_string(), "param".to_string());

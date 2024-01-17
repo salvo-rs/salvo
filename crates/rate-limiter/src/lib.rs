@@ -241,7 +241,6 @@ mod tests {
     use super::*;
 
     struct UserIssuer;
-    #[async_trait]
     impl RateIssuer for UserIssuer {
         type Key = String;
         async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
@@ -264,7 +263,6 @@ mod tests {
         });
 
         struct CustomQuotaGetter;
-        #[async_trait]
         impl QuotaGetter<String> for CustomQuotaGetter {
             type Quota = BasicQuota;
             type Error = Error;
@@ -345,7 +343,6 @@ mod tests {
         });
 
         struct CustomQuotaGetter;
-        #[async_trait]
         impl QuotaGetter<String> for CustomQuotaGetter {
             type Quota = CelledQuota;
             type Error = Error;

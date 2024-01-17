@@ -768,6 +768,7 @@ impl From<MinItems> for Feature {
 impl_name!(MinItems = "min_items");
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct MaxProperties(pub(crate) usize, pub(crate) Ident);
 impl Parse for MaxProperties {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
@@ -790,6 +791,7 @@ impl From<MaxProperties> for Feature {
 impl_name!(MaxProperties = "max_properties");
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct MinProperties(pub(crate) usize, pub(crate) Ident);
 impl Parse for MinProperties {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
