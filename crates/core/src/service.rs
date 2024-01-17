@@ -254,7 +254,7 @@ impl HyperHandler {
                     "http response content type header not set"
                 );
             }
-            if (res.body.is_none() || res.body.is_error()) && has_error {
+            if Method::HEAD != *req.method() && (res.body.is_none() || res.body.is_error()) && has_error {
                 if let Some(catcher) = catcher {
                     catcher.catch(&mut req, &mut depot, &mut res).await;
                 } else {
@@ -262,10 +262,8 @@ impl HyperHandler {
                 }
             }
             #[cfg(debug_assertions)]
-            if let hyper::Method::HEAD = *req.method() {
-                if !res.body.is_none() {
-                    tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
-                }
+            if Method::HEAD == *req.method() && !res.body.is_none() {
+                tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
             }
             #[cfg(feature = "quinn")]
             {
