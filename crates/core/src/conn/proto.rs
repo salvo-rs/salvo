@@ -203,9 +203,9 @@ where
 }
 
 impl<T> ClosingInactiveConnection<T> {
-    fn new<F, Fut>(inner: T, timeout: Duration, mut f: F) -> ClosingInactiveConnection<T>
+    fn new<F, Fut>(inner: T, timeout: Duration, f: F) -> ClosingInactiveConnection<T>
     where
-        F: Send + FnMut() -> Fut + 'static,
+        F: Send + FnOnce() -> Fut + 'static,
         Fut: Future + Send + 'static,
     {
         let alive = Arc::new(Notify::new());

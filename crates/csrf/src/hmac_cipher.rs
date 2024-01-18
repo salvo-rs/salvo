@@ -97,7 +97,7 @@ mod tests {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
         let (token, _) = hmac_cipher.generate();
-        let invalid_proof = URL_SAFE_NO_PAD.encode(&vec![0u8; hmac_cipher.token_size]);
+        let invalid_proof = URL_SAFE_NO_PAD.encode(vec![0u8; hmac_cipher.token_size]);
         assert!(!hmac_cipher.verify(&token, &invalid_proof));
     }
 

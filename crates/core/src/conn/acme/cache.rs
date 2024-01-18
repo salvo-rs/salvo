@@ -134,7 +134,7 @@ where
             directory_name,
             file_hash_part(domains)
         ));
-        Ok(write_data(path, data).await?)
+        write_data(path, data).await
     }
 
     #[inline]
@@ -164,7 +164,7 @@ where
             directory_name,
             file_hash_part(domains)
         ));
-        Ok(write_data(path, data).await?)
+        write_data(path, data).await
     }
 }
 #[inline]

@@ -137,7 +137,7 @@ impl Handler for Scalar {
     }
 }
 
-const DEFAULT_STYLE: &'static str = r#":root {
+const DEFAULT_STYLE: &str = r#":root {
     --theme-font: 'Inter', var(--system-fonts);
   }
   /* basic theme */
