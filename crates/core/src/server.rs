@@ -4,7 +4,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 #[cfg(not(any(feature = "http1", feature = "http2", feature = "quinn")))]
-compile_error!("You have enabled `server` feature, it requires at least one of the following features: http1, http2, quinn.");
+compile_error!(
+    "You have enabled `server` feature, it requires at least one of the following features: http1, http2, quinn."
+);
 
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
@@ -248,7 +250,7 @@ impl<A: Acceptor + Send> Server<A> {
             }
         }
 
-        let service = Arc::new(service.into());
+        let service: Arc<Service> = Arc::new(service.into());
         let builder = Arc::new(builder);
         loop {
             tokio::select! {
@@ -347,7 +349,7 @@ mod tests {
         let serivce = Service::new(router);
 
         let base_url = "http://127.0.0.1:5800";
-        let result = TestClient::get(&base_url)
+        let result = TestClient::get(base_url)
             .send(&serivce)
             .await
             .take_string()
