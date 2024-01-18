@@ -98,9 +98,8 @@ impl Keycert {
 
     fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
-            .map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
-            .next()
-            .ok_or_else(|| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
+            .flat_map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
+            .collect::<Vec<_>>();
 
         let key = {
             let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
