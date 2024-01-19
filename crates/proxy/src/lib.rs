@@ -219,6 +219,8 @@ where
             format!("{}{}", upstream.trim_end_matches('/'), rest)
         } else if upstream.ends_with('/') || rest.starts_with('/') {
             format!("{}{}", upstream, rest)
+        } else if rest.is_empty() {
+            upstream.to_string()
         } else {
             format!("{}/{}", upstream, rest)
         };
