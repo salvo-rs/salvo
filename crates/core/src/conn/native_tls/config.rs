@@ -66,7 +66,6 @@ impl NativeTlsConfig {
     }
 
     /// Build identity
-    #[inline]
     pub fn build_identity(mut self) -> IoResult<Identity> {
         if self.pkcs12.is_empty() {
             if let Some(path) = &self.pkcs12_path {

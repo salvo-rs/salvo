@@ -49,7 +49,6 @@ impl Error {
     }
 }
 impl Display for Error {
-    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Hyper(e) => Display::fmt(e, f),

@@ -41,7 +41,6 @@ impl EncodeStream<BoxStream<'static, Result<Bytes, BoxedError>>> {
     }
 }
 impl EncodeStream<BoxStream<'static, Result<BytesFrame, BoxedError>>> {
-    #[inline]
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         Stream::poll_next(Pin::new(&mut self.body), cx)
             .map_ok(|f| f.into_data().unwrap_or_default())
@@ -49,7 +48,6 @@ impl EncodeStream<BoxStream<'static, Result<BytesFrame, BoxedError>>> {
     }
 }
 impl EncodeStream<HyperBody> {
-    #[inline]
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         match ready!(Body::poll_frame(Pin::new(&mut self.body), cx)) {
             Some(Ok(frame)) => Poll::Ready(frame.into_data().map(Ok).ok()),
@@ -59,7 +57,6 @@ impl EncodeStream<HyperBody> {
     }
 }
 impl EncodeStream<Option<Bytes>> {
-    #[inline]
     fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         if let Some(body) = Pin::new(&mut self.body).take() {
             Poll::Ready(Some(Ok(body)))
@@ -69,7 +66,6 @@ impl EncodeStream<Option<Bytes>> {
     }
 }
 impl EncodeStream<VecDeque<Bytes>> {
-    #[inline]
     fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         if let Some(body) = Pin::new(&mut self.body).pop_front() {
             Poll::Ready(Some(Ok(body)))

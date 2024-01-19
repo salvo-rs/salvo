@@ -126,7 +126,6 @@ impl WebSocketUpgrade {
 
 
     /// Upgrade websocket request.
-    #[inline]
     pub async fn upgrade<F, Fut>(&self, req: &mut Request, res: &mut Response, callback: F) -> Result<(), StatusError>
     where
         F: FnOnce(WebSocket) -> Fut + Send + 'static,

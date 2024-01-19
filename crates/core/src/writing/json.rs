@@ -13,7 +13,6 @@ impl<T> Scribe for Json<T>
 where
     T: Serialize + Send,
 {
-    #[inline]
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {

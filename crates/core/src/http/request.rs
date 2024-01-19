@@ -177,7 +177,6 @@ impl Request {
 
     /// Strip the request to [`hyper::Request`].
     #[doc(hidden)]
-    #[inline]
     pub fn strip_to_hyper<QB>(&mut self) -> Result<hyper::Request<QB>, crate::Error>
     where
         QB: TryFrom<ReqBody>,
@@ -202,7 +201,6 @@ impl Request {
 
     /// Merge data from [`hyper::Request`].
     #[doc(hidden)]
-    #[inline]
     pub fn merge_hyper(&mut self, hyper_req: hyper::Request<ReqBody>) {
         let (
             http::request::Parts {
@@ -448,7 +446,6 @@ impl Request {
             matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &salvo_http3::ext::Protocol::WEB_TRANSPORT)
         }
 
-        #[inline]
         /// Try to get a WebTransport session from the request.
         pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
@@ -832,7 +829,6 @@ impl Request {
     }
 
     /// Parse json body or form body as type `T` from request with max size.
-    #[inline]
     pub async fn parse_body_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,

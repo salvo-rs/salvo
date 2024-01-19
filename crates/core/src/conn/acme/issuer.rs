@@ -129,7 +129,6 @@ pub(crate) async fn issue_cert(
     Ok(())
 }
 
-#[inline]
 fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> crate::Result<CertifiedKey> {
     let mut params = CertificateParams::new(vec![domain.to_string()]);
     params.alg = &PKCS_ECDSA_P256_SHA256;

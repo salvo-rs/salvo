@@ -219,7 +219,6 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Try to serve a [`Service`].
-    #[inline]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
         S: Into<Service> + Send,

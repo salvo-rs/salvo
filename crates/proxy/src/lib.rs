@@ -196,7 +196,6 @@ where
         &mut self.client
     }
 
-    #[inline]
     async fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
         let upstream = self.upstreams.elect().await.map_err(Error::other)?;
         if upstream.is_empty() {
@@ -261,7 +260,6 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
