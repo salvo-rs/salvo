@@ -1,4 +1,5 @@
-use salvo_core::prelude::*;
+use salvo::prelude::*;
+use salvo::server::ServerHandle;
 use tokio::signal;
 
 #[tokio::main]
@@ -8,16 +9,40 @@ async fn main() {
     let handle = server.handle();
 
     // Listen Shutdown Signal
-    listen_shutdown_signal(handle);
+    tokio::spawn(listen_shutdown_signal(handle));
 
     server.serve(Router::new()).await;
 }
 
 async fn listen_shutdown_signal(handle: ServerHandle) {
     // Wait Shutdown Signal
-    tokio::spawn(async move {
-        let _ = signal::ctrl_c().await;
-        // Graceful Shutdown Server
-        handle.stop_graceful(None);
-    })
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(windows)]
+    let terminate = async {
+        signal::windows::signal(signal::windows::Signal::ctrl_c())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    tokio::select! {
+        _ = ctrl_c => println!("ctrl_c signal received"),
+        _ = terminate => println!("terminate signal received"),
+    };
+
+    // Graceful Shutdown Server
+    handle.stop_graceful(None);
 }
