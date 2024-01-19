@@ -282,7 +282,7 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        res.set_headers(headers);
+                        res.headers.extend(headers);
                         res.body(body);
                     }
                     Err(e) => {
@@ -294,10 +294,6 @@ where
             Err(e) => {
                 tracing::error!(error = ?e, "build proxied request failed");
             }
-        }
-        if ctrl.has_next() {
-            tracing::error!("all handlers after proxy will skipped");
-            ctrl.skip_rest();
         }
     }
 }
