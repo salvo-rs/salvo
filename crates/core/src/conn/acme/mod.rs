@@ -155,7 +155,6 @@ pub(crate) struct Http01Handler {
 
 #[async_trait]
 impl Handler for Http01Handler {
-    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         if let Some(token) = req.params().get("token") {
             let keys = self.keys.read();

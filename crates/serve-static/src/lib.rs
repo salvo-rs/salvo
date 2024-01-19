@@ -74,7 +74,6 @@ pub(crate) fn format_url_path_safely(path: &str) -> String {
     used_parts.join("/")
 }
 
-#[inline]
 pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
     let UriParts {
         scheme,

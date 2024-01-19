@@ -91,7 +91,6 @@ pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
 }
 
 #[doc(hidden)]
-#[inline]
 pub fn parse_credentials(req: &Request, header_names: &[HeaderName]) -> Result<(String, String), Error> {
     let mut authorization = "";
     for header_name in header_names {

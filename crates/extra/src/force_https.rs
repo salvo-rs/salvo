@@ -41,7 +41,6 @@ impl ForceHttps {
 
 #[async_trait]
 impl Handler for ForceHttps {
-    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if req.uri().scheme() == Some(&Scheme::HTTPS)
             || self

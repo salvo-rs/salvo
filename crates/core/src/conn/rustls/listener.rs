@@ -122,7 +122,6 @@ where
         &self.holdings
     }
 
-    #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;

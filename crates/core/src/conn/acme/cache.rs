@@ -107,7 +107,6 @@ where
 {
     type Error = IoError;
 
-    #[inline]
     async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
@@ -124,7 +123,6 @@ where
             },
         }
     }
-    #[inline]
     async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
@@ -137,7 +135,6 @@ where
         write_data(path, data).await
     }
 
-    #[inline]
     async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
@@ -154,7 +151,6 @@ where
             },
         }
     }
-    #[inline]
     async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
@@ -167,7 +163,6 @@ where
         write_data(path, data).await
     }
 }
-#[inline]
 async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> IoResult<()> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
@@ -180,7 +175,6 @@ async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> +
     Ok(())
 }
 
-#[inline]
 fn file_hash_part(data: &[String]) -> String {
     let mut ctx = Context::new(&SHA256);
     for el in data {

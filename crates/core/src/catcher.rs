@@ -162,7 +162,6 @@ impl Handler for DefaultGoal {
     }
 }
 
-#[inline]
 fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&str>, footer: Option<&str>) -> String {
     format!(
         r#"<!DOCTYPE html>
@@ -231,7 +230,6 @@ fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&s
     serde_json::to_string(&data).unwrap()
 }
 
-#[inline]
 fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
         "code: {}\n\nname: {}\n\nbrief: {}\n\ncause: {}",
@@ -242,7 +240,6 @@ fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&
     )
 }
 
-#[inline]
 fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     #[derive(Serialize)]
     struct Data<'a> {

@@ -106,7 +106,6 @@ impl StatusError {
 impl StdError for StatusError {}
 
 impl Display for StatusError {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "code: {}", self.code)?;
         write!(f, "name: {}", self.name)?;
@@ -118,7 +117,6 @@ impl Display for StatusError {
 }
 impl StatusError {
     /// Create new `StatusError` with code. If code is not error, it will be `None`.
-    #[inline]
     pub fn from_code(code: StatusCode) -> Option<StatusError> {
         match code {
             StatusCode::BAD_REQUEST => Some(StatusError::bad_request()),

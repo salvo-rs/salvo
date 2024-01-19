@@ -71,7 +71,6 @@ impl EndpointOutRegister for StatusError {
     }
 }
 impl EndpointOutRegister for StatusCode {
-    #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         for code in [
             StatusCode::CONTINUE,

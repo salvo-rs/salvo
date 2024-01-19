@@ -179,7 +179,6 @@ pub struct HyperHandler {
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
-    #[inline]
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catcher = self.catcher.clone();
         let allowed_media_types = self.allowed_media_types.clone();

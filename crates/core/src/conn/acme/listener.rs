@@ -100,7 +100,6 @@ impl<T> AcmeListener<T> {
     }
 
     /// Create an handler for HTTP-01 challenge
-    #[inline]
     pub fn http01_challege(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challege();
         if let Some(keys_for_http01) = &config_builder.keys_for_http01 {

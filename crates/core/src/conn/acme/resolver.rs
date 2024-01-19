@@ -46,7 +46,6 @@ impl ResolveServerCert {
 }
 
 impl ResolvesServerCert for ResolveServerCert {
-    #[inline]
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<CertifiedKey>> {
         if client_hello
             .alpn()
@@ -80,7 +79,6 @@ pub(crate) struct ResolveServerCertOld {
 }
 #[cfg(feature = "quinn")]
 impl ResolvesServerCertOld for ResolveServerCertOld {
-    #[inline]
     fn resolve(&self, client_hello: OldClientHello) -> Option<Arc<CertifiedKeyOld>> {
         if client_hello
             .alpn()

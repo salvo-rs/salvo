@@ -9,7 +9,6 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
-    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let size_hint = req.body().size_hint().upper();
         if let Some(upper) = size_hint {

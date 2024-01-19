@@ -23,7 +23,6 @@ struct Protected<'a> {
 }
 
 impl<'a> Protected<'a> {
-    #[inline]
     fn base64(jwk: Option<Jwk>, kid: Option<&'a str>, nonce: &'a str, url: &'a str) -> IoResult<String> {
         let protected = Self {
             alg: "ES256",
@@ -63,7 +62,6 @@ impl Jwk {
         }
     }
 
-    #[inline]
     fn thumb_sha256_base64(&self) -> IoResult<String> {
         #[derive(Serialize)]
         struct JwkThumb<'a> {
@@ -144,7 +142,6 @@ pub(crate) async fn request(
     }
     Ok(res)
 }
-#[inline]
 pub(crate) async fn request_json<T, R>(
     cli: &HyperClient,
     key_pair: &KeyPair,

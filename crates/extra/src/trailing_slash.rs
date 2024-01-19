@@ -86,7 +86,6 @@ impl TrailingSlash {
 
 #[async_trait]
 impl Handler for TrailingSlash {
-    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if self.skipper.skipped(req, depot) {
             return;
@@ -118,7 +117,6 @@ impl Handler for TrailingSlash {
     }
 }
 
-#[inline]
 fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
     let mut uri_parts = original_uri.clone().into_parts();
     let path = match original_uri.query() {

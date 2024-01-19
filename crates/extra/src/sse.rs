@@ -293,7 +293,6 @@ where
 {
     type Item = Result<SseEvent, SseError>;
 
-    #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let mut pin = self.project();
         match pin.event_stream.try_poll_next(cx) {

@@ -207,7 +207,6 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    #[inline]
     pub fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
@@ -229,7 +228,6 @@ impl RustlsConfig {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    #[inline]
     pub fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;

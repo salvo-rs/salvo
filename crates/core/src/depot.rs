@@ -136,7 +136,6 @@ impl Depot {
     ///
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
-    #[inline]
     pub fn get_mut<V: Any + Send + Sync>(
         &mut self,
         key: &str,
@@ -176,7 +175,6 @@ impl Depot {
 }
 
 impl fmt::Debug for Depot {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Depot").field("keys", &self.map.keys()).finish()
     }
