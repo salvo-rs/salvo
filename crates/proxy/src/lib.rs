@@ -262,7 +262,7 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
                 match self
@@ -282,7 +282,11 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        res.headers.extend(headers);
+                        for (name, value) in headers {
+                            if let Some(name) = name {
+                                res.headers.insert(name, value);
+                            }
+                        }
                         res.body(body);
                     }
                     Err(e) => {
