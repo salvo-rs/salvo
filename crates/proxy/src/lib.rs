@@ -262,7 +262,7 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
                 match self
@@ -282,7 +282,11 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        res.set_headers(headers);
+                        for (name, value) in headers {
+                            if let Some(name) = name {
+                                res.headers.insert(name, value);
+                            }
+                        }
                         res.body(body);
                     }
                     Err(e) => {
@@ -294,10 +298,6 @@ where
             Err(e) => {
                 tracing::error!(error = ?e, "build proxied request failed");
             }
-        }
-        if ctrl.has_next() {
-            tracing::error!("all handlers after proxy will skipped");
-            ctrl.skip_rest();
         }
     }
 }
