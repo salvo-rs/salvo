@@ -9,6 +9,7 @@ use std::borrow::Cow;
 mod config;
 pub mod oauth;
 pub use config::Config;
+pub use oauth::Config as OauthConfig;
 use rust_embed::RustEmbed;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
