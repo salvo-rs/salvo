@@ -226,7 +226,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="oapi"]
-        pub use crate::oapi::{endpoint, EndpointArgRegister, EndpointOutRegister, OpenApi, ToSchema, ToResponse, ToResponses};
+        pub use crate::oapi::{endpoint, EndpointArgRegister, EndpointOutRegister, OpenApi, ToParameter, ToParameters, ToSchema, ToResponse, ToResponses};
         pub use crate::oapi::swagger_ui::SwaggerUi;
         pub use crate::oapi::rapidoc::RapiDoc;
         pub use crate::oapi::redoc::ReDoc;
