@@ -1,5 +1,4 @@
-Generate reusable OpenAPI response what can be used
-in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
+Generate reusable [OpenApi][openapi] response.
 
 This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
 
@@ -205,5 +204,4 @@ _**Create enum response from variants.**_
 
 [to_response]: trait.ToResponse.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[path]: attr.path.html
 [openapi]: derive.OpenApi.html

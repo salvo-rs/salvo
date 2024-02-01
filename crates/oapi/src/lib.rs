@@ -38,6 +38,7 @@ cfg_feature! {
     pub mod redoc;
 }
 
+#[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
 pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/derive_to_parameters.md")]

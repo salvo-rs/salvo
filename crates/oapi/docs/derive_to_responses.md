@@ -1,5 +1,4 @@
-Generate responses with status codes what
-can be attached to the [`salvo_oapi::endpoint`][path_to_responses].
+Generate responses with status codes what can be used in [`OpenApi`][openapi].
 
 This is `#[derive]` implementation of [`ToResponses`][to_responses] trait. [`derive@ToResponses`]
 can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
@@ -175,3 +174,4 @@ enum UserResponses {
 [to_response]: trait.ToResponse.html
 [path_to_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+[openapi]: derive.OpenApi.html
