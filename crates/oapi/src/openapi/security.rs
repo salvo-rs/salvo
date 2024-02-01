@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Ord, PartialOrd, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
     #[serde(flatten)]
-    value: BTreeMap<String, Vec<String>>,
+    pub(crate) value: BTreeMap<String, Vec<String>>,
 }
 
 impl SecurityRequirement {
@@ -61,6 +61,11 @@ impl SecurityRequirement {
                 )
             })),
         }
+    }
+
+    /// Check if the security requirement is empty.
+    pub fn is_empty(&self) -> bool {
+        self.value.is_empty()
     }
 
     /// Allows to add multiple names to security requirement.
