@@ -1,5 +1,7 @@
 
-This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
+This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. 
+
+The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 at item level or field level in struct and enums. Currently placing this attribute to unnamed field does

@@ -59,6 +59,10 @@ pub(crate) use self::{
 };
 pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
+/// Enhanced of [handler][handler] for generate OpenAPI documention, [Read more][more].
+///
+/// [handler]: ../salvo_core/attr.handler.html
+/// [more]: ../salvo_oapi/endpoint/index.html
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -69,7 +73,10 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
-
+/// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait, [Read more][more].
+///
+/// [to_schema]: ../salvo_oapi/trait.ToSchema.html
+/// [more]: ../salvo_oapi/derive.ToSchema.html
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
@@ -84,6 +91,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     ToSchema::new(&data, &attrs, &ident, &generics).to_token_stream().into()
 }
 
+/// Generate parameters from struct's fields, [Read more][more].
+///
+/// [more]: ../salvo_oapi/derive.ToParameters.html
 #[proc_macro_error]
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
@@ -105,6 +115,10 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Generate reusable [OpenApi][openapi] response, [Read more][more].
+///
+/// [openapi]: ../salvo_oapi/struct.OpenApi.html
+/// [more]: ../salvo_oapi/derive.ToResponse.html
 #[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
@@ -119,6 +133,10 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
     ToResponse::new(attrs, &data, generics, ident).to_token_stream().into()
 }
 
+/// Generate responses with status codes what can be used in [OpenAPI][openapi], [Read more][more].
+///
+/// [openapi]: ../salvo_oapi/struct.OpenApi.html
+/// [more]: ../salvo_oapi/derive.ToResponses.html
 #[proc_macro_error]
 #[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {

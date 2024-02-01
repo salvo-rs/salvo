@@ -141,7 +141,7 @@ impl<'a> EndpointOutRegister for &'a String {
     }
 }
 
-/// A components for all endpoints.
+/// A component for all endpoints.
 #[non_exhaustive]
 pub struct EndpointRegistry {
     /// The type id of the endpoint.
