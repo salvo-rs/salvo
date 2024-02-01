@@ -166,4 +166,3 @@ impl EndpointRegistry {
     }
 }
 inventory::collect!(EndpointRegistry);
-
