@@ -289,7 +289,7 @@ impl Debug for ResBody {
             Self::Boxed(_) => write!(f, "ResBody::Boxed(_)"),
             Self::Stream(_) => write!(f, "ResBody::Stream(_)"),
             Self::Channel { .. } => write!(f, "ResBody::Channel{{..}}"),
-            Self::Error(_) => write!(f, "ResBody::Error(_)"),
+            Self::Error(value) => f.debug_tuple("ResBody::Error").field(value).finish(),
         }
     }
 }
