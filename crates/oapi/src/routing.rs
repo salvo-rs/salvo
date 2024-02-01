@@ -1,9 +1,13 @@
 use std::any::TypeId;
+use std::collections::{BTreeSet, HashMap};
+use std::sync::MutexGuard;
+use std::sync::RwLock;
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use salvo_core::Router;
 
-use crate::path::PathItemType;
+use crate::{path::PathItemType, security, SecurityRequirement};
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
@@ -48,4 +52,39 @@ impl NormNode {
         }
         node
     }
+}
+
+/// A component for save router metadata.
+type MetadataMap = RwLock<HashMap<usize, Metadata>>;
+static METADATA_REGISTRY: Lazy<MetadataMap> = Lazy::new(MetadataMap::default);
+
+pub trait RouterExt {
+    fn oapi_security(self, security: SecurityRequirement) -> Self;
+    fn oapi_tag(self, tag: impl Into<String>) -> Self;
+}
+
+impl RouterExt for Router {
+    fn oapi_security(self, security: SecurityRequirement) -> Self {
+        let mut guard = METADATA_REGISTRY
+            .write()
+            .expect("failed to lock METADATA_REGISTRY for write");
+        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        metadata.securities.push(security);
+        self
+    }
+    fn oapi_tag(self, tag: impl Into<String>) -> Self {
+        let mut guard = METADATA_REGISTRY
+            .write()
+            .expect("failed to lock METADATA_REGISTRY for write");
+        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        metadata.tags.insert(tag.into());
+        self
+    }
+}
+
+#[non_exhaustive]
+#[derive(Default)]
+pub(crate) struct Metadata {
+    pub(crate) securities: Vec<SecurityRequirement>,
+    pub(crate) tags: BTreeSet<String>,
 }
