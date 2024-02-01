@@ -1,6 +1,6 @@
 use std::fmt::{self, Formatter};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use super::filters;
 use super::{Filter, FnFilter, PathFilter, PathState};

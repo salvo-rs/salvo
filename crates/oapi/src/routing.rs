@@ -81,17 +81,22 @@ pub trait RouterExt {
     /// Add security requirements to the router.
     ///
     /// All endpoints in the router and it's descents will inherit these security requirements.
-    fn oapi_securities<I>(self, security: I) -> Self where I: IntoIterator<Item = SecurityRequirement>;
+    fn oapi_securities<I>(self, security: I) -> Self
+    where
+        I: IntoIterator<Item = SecurityRequirement>;
 
     /// Add tag to the router.
-    /// 
+    ///
     /// All endpoints in the router and it's descents will inherit this tag.
     fn oapi_tag(self, tag: impl Into<String>) -> Self;
 
     /// Add tags to the router.
     ///
     /// All endpoints in the router and it's descents will inherit thes tags.
-    fn oapi_tags<I, V>(self, tags: I) -> Self where I: IntoIterator<Item = V>, V: Into<String>;
+    fn oapi_tags<I, V>(self, tags: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<String>;
 }
 
 impl RouterExt for Router {
@@ -103,10 +108,13 @@ impl RouterExt for Router {
         metadata.securities.push(security);
         self
     }
-    fn oapi_securities<I>(self, iter: I) -> Self where I: IntoIterator<Item = SecurityRequirement> {
+    fn oapi_securities<I>(self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = SecurityRequirement>,
+    {
         let mut guard = METADATA_REGISTRY
-        .write()
-        .expect("failed to lock METADATA_REGISTRY for write");
+            .write()
+            .expect("failed to lock METADATA_REGISTRY for write");
         let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
         metadata.securities.extend(iter.into_iter());
         self
@@ -119,10 +127,14 @@ impl RouterExt for Router {
         metadata.tags.insert(tag.into());
         self
     }
-    fn oapi_tags<I, V>(self, iter: I) -> Self where I: IntoIterator<Item = V>, V: Into<String>{
+    fn oapi_tags<I, V>(self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<String>,
+    {
         let mut guard = METADATA_REGISTRY
-        .write()
-        .expect("failed to lock METADATA_REGISTRY for write");
+            .write()
+            .expect("failed to lock METADATA_REGISTRY for write");
         let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
         metadata.tags.extend(iter.into_iter().map(Into::into));
         self
