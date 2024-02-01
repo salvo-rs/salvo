@@ -1,4 +1,5 @@
 use std::fmt::{self, Formatter};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use super::filters;
@@ -85,6 +86,8 @@ use crate::{Depot, Request};
 /// This form of definition can make the definition of router clear and simple for complex projects.
 #[non_exhaustive]
 pub struct Router {
+    #[doc(hidden)]
+    pub id: usize,
     /// The children of current router.
     pub routers: Vec<Router>,
     /// The filters of current router.
@@ -106,12 +109,14 @@ impl Default for Router {
         Self::new()
     }
 }
+static NEXT_ROUTER_ID: AtomicUsize = AtomicUsize::new(1);
 
 impl Router {
     /// Create a new `Router`.
     #[inline]
     pub fn new() -> Self {
         Self {
+            id: NEXT_ROUTER_ID.fetch_add(1, Ordering::Relaxed),
             routers: Vec::new(),
             filters: Vec::new(),
             hoops: Vec::new(),

@@ -19,6 +19,7 @@ pub mod endpoint;
 pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
 mod routing;
+pub use routing::RouterExt;
 
 cfg_feature! {
     #![feature ="swagger-ui"]

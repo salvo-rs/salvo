@@ -347,7 +347,7 @@ impl OpenApi {
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
-        let mut node = NormNode::new(router);
+        let mut node = NormNode::new(router, Default::default());
         self.merge_norm_node(&mut node, base.as_ref());
         self
     }
@@ -377,10 +377,14 @@ impl OpenApi {
         if let Some(handler_type_id) = &node.handler_type_id {
             if let Some(creator) = crate::EndpointRegistry::find(handler_type_id) {
                 let Endpoint {
-                    operation,
+                    mut operation,
                     mut components,
                     ..
                 } = (creator)();
+                operation.tags.extend(node.metadata.tags.iter().map(|tag| tag.clone()));
+                operation
+                    .securities
+                    .extend(node.metadata.securities.iter().map(|e| e.clone()));
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
