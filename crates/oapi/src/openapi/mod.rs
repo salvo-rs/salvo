@@ -234,7 +234,7 @@ impl OpenApi {
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
+    /// [requirement]: crate::SecurityRequirement
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
@@ -252,7 +252,7 @@ impl OpenApi {
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
+    /// [requirement]: crate::SecurityRequirement
     pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         schemas: I,

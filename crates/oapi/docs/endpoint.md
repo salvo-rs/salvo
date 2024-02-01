@@ -1,4 +1,4 @@
-Endpoint attribute macro implements OpenAPI path for the decorated function.
+Enhanced of [handler][handler] for generate OpenAPI documention.
 
 Macro accepts set of attributes that can be used to configure and override default values what are resolved automatically.
 
@@ -438,6 +438,7 @@ async fn get_user() -> Json<User> {
 }
 ```
 
+[handler]: ../salvo_core/attr.handler.html
 [in_enum]: enum.ParameterIn.html
 [path]: trait.Path.html
 [to_schema]: trait.ToSchema.html
