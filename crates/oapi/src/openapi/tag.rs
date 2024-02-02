@@ -66,7 +66,7 @@ impl Tag {
             ..Default::default()
         }
     }
-    /// Add name fo the tag.
+    /// Add name of the tag.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
