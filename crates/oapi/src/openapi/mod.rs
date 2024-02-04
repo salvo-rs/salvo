@@ -445,9 +445,9 @@ impl Handler for OpenApi {
     ) {
         let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
         let content = if pretty {
-            self.to_pretty_json().unwrap()
+            self.to_pretty_json().unwrap_or_default()
         } else {
-            self.to_json().unwrap()
+            self.to_json().unwrap_or_default()
         };
         res.render(writing::Text::Json(&content));
     }
