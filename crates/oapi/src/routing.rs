@@ -10,7 +10,7 @@ use crate::{path::PathItemType, SecurityRequirement};
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
-    pub(crate) router_id: usize,
+    // pub(crate) router_id: usize,
     pub(crate) handler_type_id: Option<TypeId>,
     pub(crate) handler_type_name: Option<&'static str>,
     pub(crate) method: Option<PathItemType>,
@@ -21,17 +21,17 @@ pub(crate) struct NormNode {
 
 impl NormNode {
     pub(crate) fn new(router: &Router, inherted_metadata: Metadata) -> Self {
-        let mut node = NormNode::default();
-        node.router_id = router.id;
-        node.metadata = inherted_metadata;
+        let mut node = NormNode {
+            // router_id: router.id,
+            metadata: inherted_metadata,
+            ..NormNode::default()
+        };
         let registry = METADATA_REGISTRY
             .read()
             .expect("failed to lock METADATA_REGISTRY for read");
         if let Some(metadata) = registry.get(&router.id) {
-            node.metadata.tags.extend(metadata.tags.iter().map(|tag| tag.clone()));
-            node.metadata
-                .securities
-                .extend(metadata.securities.iter().map(|e| e.clone()));
+            node.metadata.tags.extend(metadata.tags.iter().cloned());
+            node.metadata.securities.extend(metadata.securities.iter().cloned());
         }
 
         let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).unwrap();
@@ -104,7 +104,7 @@ impl RouterExt for Router {
         let mut guard = METADATA_REGISTRY
             .write()
             .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        let metadata = guard.entry(self.id).or_default();
         metadata.securities.push(security);
         self
     }
@@ -115,7 +115,7 @@ impl RouterExt for Router {
         let mut guard = METADATA_REGISTRY
             .write()
             .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        let metadata = guard.entry(self.id).or_default();
         metadata.securities.extend(iter.into_iter());
         self
     }
@@ -123,7 +123,7 @@ impl RouterExt for Router {
         let mut guard = METADATA_REGISTRY
             .write()
             .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        let metadata = guard.entry(self.id).or_default();
         metadata.tags.insert(tag.into());
         self
     }
@@ -135,7 +135,7 @@ impl RouterExt for Router {
         let mut guard = METADATA_REGISTRY
             .write()
             .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_insert_with(|| Metadata::default());
+        let metadata = guard.entry(self.id).or_default();
         metadata.tags.extend(iter.into_iter().map(Into::into));
         self
     }

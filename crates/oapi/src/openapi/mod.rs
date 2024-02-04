@@ -381,10 +381,10 @@ impl OpenApi {
                     mut components,
                     ..
                 } = (creator)();
-                operation.tags.extend(node.metadata.tags.iter().map(|tag| tag.clone()));
+                operation.tags.extend(node.metadata.tags.iter().cloned());
                 operation
                     .securities
-                    .extend(node.metadata.securities.iter().map(|e| e.clone()));
+                    .extend(node.metadata.securities.iter().cloned());
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
