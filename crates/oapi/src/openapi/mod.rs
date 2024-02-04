@@ -382,9 +382,7 @@ impl OpenApi {
                     ..
                 } = (creator)();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
-                operation
-                    .securities
-                    .extend(node.metadata.securities.iter().cloned());
+                operation.securities.extend(node.metadata.securities.iter().cloned());
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
