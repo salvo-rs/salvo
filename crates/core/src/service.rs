@@ -217,7 +217,7 @@ impl HyperHandler {
                 res.status_code(StatusCode::NOT_FOUND);
             }
 
-            let status = res.status_code.unwrap();
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;

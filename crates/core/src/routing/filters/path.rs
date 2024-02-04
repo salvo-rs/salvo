@@ -242,11 +242,9 @@ impl fmt::Debug for CharsWisp {
 }
 impl PathWisp for CharsWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let picked = state.pick();
-        if picked.is_none() {
+        let Some(picked) = state.pick() else {
             return false;
-        }
-        let picked = picked.unwrap();
+        };
         if let Some(max_width) = self.max_width {
             let mut chars = Vec::with_capacity(max_width);
             for ch in picked.chars() {
@@ -457,11 +455,9 @@ impl PathWisp for RegexWisp {
                 false
             }
         } else {
-            let picked = state.pick();
-            if picked.is_none() {
+            let Some(picked) = state.pick() else {
                 return false;
-            }
-            let picked = picked.unwrap();
+            };
             let cap = self.regex.captures(picked).and_then(|caps| caps.get(0));
             if let Some(cap) = cap {
                 let cap = cap.as_str().to_owned();
@@ -481,11 +477,9 @@ pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let picked = state.pick();
-        if picked.is_none() {
+        let Some(picked) = state.pick() else {
             return false;
-        }
-        let picked = picked.unwrap();
+        };
         if picked.starts_with(&self.0) {
             state.forward(self.0.len());
             true

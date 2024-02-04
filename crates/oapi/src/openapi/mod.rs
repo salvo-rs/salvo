@@ -381,10 +381,8 @@ impl OpenApi {
                     mut components,
                     ..
                 } = (creator)();
-                operation.tags.extend(node.metadata.tags.iter().map(|tag| tag.clone()));
-                operation
-                    .securities
-                    .extend(node.metadata.securities.iter().map(|e| e.clone()));
+                operation.tags.extend(node.metadata.tags.iter().cloned());
+                operation.securities.extend(node.metadata.securities.iter().cloned());
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
@@ -445,9 +443,9 @@ impl Handler for OpenApi {
     ) {
         let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
         let content = if pretty {
-            self.to_pretty_json().unwrap()
+            self.to_pretty_json().unwrap_or_default()
         } else {
-            self.to_json().unwrap()
+            self.to_json().unwrap_or_default()
         };
         res.render(writing::Text::Json(&content));
     }
