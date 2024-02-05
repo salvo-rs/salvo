@@ -85,7 +85,7 @@ enum ServerCommand {
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    conn_idle_timeout: Option<Duration>,
+    config: Option<HttpConfig>,
     tx_cmd: UnboundedSender<ServerCommand>,
     rx_cmd: UnboundedReceiver<ServerCommand>,
 }
@@ -105,16 +105,9 @@ impl<A: Acceptor + Send> Server<A> {
     /// }
     /// ```
     pub fn new(acceptor: A) -> Self {
-        Self::with_http_builder(
+        Self::with_http_builder_config(
             acceptor,
-            HttpBuilder {
-                #[cfg(feature = "http1")]
-                http1: http1::Builder::new(),
-                #[cfg(feature = "http2")]
-                http2: http2::Builder::new(crate::rt::tokio::TokioExecutor::new()),
-                #[cfg(feature = "quinn")]
-                quinn: crate::conn::quinn::Builder::new(),
-            },
+            HttpBuilder::default(),
         )
     }
 
@@ -124,7 +117,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            conn_idle_timeout: None,
+            config: None,
             tx_cmd,
             rx_cmd,
         }
@@ -186,8 +179,28 @@ impl<A: Acceptor + Send> Server<A> {
     /// Specify connection idle timeout. Connections will be terminated if there was no activity
     /// within this period of time.
     #[must_use]
-    pub fn conn_idle_timeout(mut self, timeout: Duration) -> Self {
+    pub fn connect_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_idle_timeout = Some(timeout);
+        self
+    }
+    #[must_use]
+    pub fn tls_handshake_timeout(mut self, timeout: Duration) -> Self {
+        self.tls_handshake_timeout = Some(timeout);
+        self
+    }
+    #[must_use]
+    pub fn disconnect_timeout(mut self, timeout: Duration) -> Self {
         self.conn_idle_timeout = Some(timeout);
+        self
+    }
+    #[must_use]
+    pub fn headers_timeout(mut self, timeout: Duration) -> Self {
+        self.headers_timeout = Some(timeout);
+        self
+    }
+    #[must_use]
+    pub fn body_chunk_timeout(mut self, timeout: Duration) -> Self {
+        self.body_chunk_timeout = Some(timeout);
         self
     }
 

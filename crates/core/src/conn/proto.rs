@@ -37,6 +37,7 @@ use crate::conn::quinn;
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 #[doc(hidden)]
+#[derive(Default)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
     pub(crate) http1: http1::Builder,
@@ -46,6 +47,17 @@ pub struct HttpBuilder {
     pub(crate) quinn: quinn::Builder,
 }
 impl HttpBuilder {
+    pub fn new() -> Self {
+        Self {
+            #[cfg(feature = "http1")]
+            http1: http1::Builder::new(),
+            #[cfg(feature = "http2")]
+            http2: http2::Builder::new(crate::rt::tokio::TokioExecutor::new()),
+            #[cfg(feature = "quinn")]
+            quinn: crate::conn::quinn::Builder::new(),
+        }
+    }
+
     /// Bind a connection together with a [`Service`].
     pub async fn serve_connection<I, S, B>(
         &self,
