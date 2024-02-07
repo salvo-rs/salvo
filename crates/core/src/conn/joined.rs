@@ -3,12 +3,13 @@ use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
+use crate::fuse::{self, ArcFuseFactory, ArcFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -120,12 +121,15 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
+        graceful_stop_token: CancellationToken,
     ) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.serve(handler, builder, idle_timeout).await,
-            JoinedStream::B(b) => b.serve(handler, builder, idle_timeout).await,
+            JoinedStream::A(a) => a.serve(handler, builder, graceful_stop_token).await,
+            JoinedStream::B(b) => b.serve(handler, builder, graceful_stop_token).await,
         }
+    }
+    fn fusewire(&self) -> ArcFusewire {
+        Arc::new(fuse::pseudo())
     }
 }
 
@@ -144,12 +148,12 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
-            accepted = self.a.accept() => {
+            accepted = self.a.accept(fuse_factory.clone()) => {
                 Ok(accepted?.map_conn(JoinedStream::A))
             }
-            accepted = self.b.accept() => {
+            accepted = self.b.accept(fuse_factory) => {
                 Ok(accepted?.map_conn(JoinedStream::B))
             }
         }

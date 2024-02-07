@@ -26,6 +26,7 @@ mod depot;
 mod error;
 pub mod extract;
 pub mod fs;
+pub mod fuse;
 pub mod handler;
 pub mod http;
 pub mod proto;

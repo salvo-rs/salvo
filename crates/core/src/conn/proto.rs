@@ -4,9 +4,7 @@ use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::{PhantomPinned, Unpin};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{self, ready, Context, Poll};
-use std::time::Duration;
 
 use bytes::{Buf, Bytes};
 
@@ -14,10 +12,9 @@ use http::{Request, Response, Version};
 use hyper::service::Service;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::sync::Notify;
-use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
 
+use crate::fuse::ArcFusewire;
 use crate::http::body::{Body, HyperBody};
 #[cfg(any(feature = "http1", feature = "http2"))]
 use crate::rt::tokio::TokioIo;
@@ -37,7 +34,6 @@ use crate::conn::quinn;
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 #[doc(hidden)]
-#[derive(Default)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
     pub(crate) http1: http1::Builder,
@@ -58,12 +54,13 @@ impl HttpBuilder {
         }
     }
 
-    /// Bind a connection together with a [`Service`].
+    /// Serve a connection with the given service.
     pub async fn serve_connection<I, S, B>(
         &self,
         socket: I,
-        #[allow(unused_variables)] service: S,
-        idle_timeout: Option<Duration>,
+        service: S,
+        fusewire: ArcFusewire,
+        stop_token: CancellationToken,
     ) -> Result<()>
     where
         S: Service<Request<HyperBody>, Response = Response<B>> + Send,
@@ -74,7 +71,6 @@ impl HttpBuilder {
         B::Error: Into<Box<dyn StdError + Send + Sync>>,
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        let conn_shutdown_token = CancellationToken::new();
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = read_version(socket).await?;
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
@@ -83,20 +79,6 @@ impl HttpBuilder {
         let version = Version::HTTP_11;
         #[cfg(all(not(feature = "http1"), feature = "http2"))]
         let version = Version::HTTP_2;
-        #[allow(unused_variables)]
-        let socket = match idle_timeout {
-            Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
-                let conn_shutdown_token = conn_shutdown_token.clone();
-
-                move || {
-                    let conn_shutdown_token = conn_shutdown_token.clone();
-                    async move {
-                        conn_shutdown_token.cancel();
-                    }
-                }
-            })),
-            None => Either::Right(socket),
-        };
 
         match version {
             Version::HTTP_10 | Version::HTTP_11 => {
@@ -114,7 +96,10 @@ impl HttpBuilder {
                             // Connection completed successfully.
                             return Ok(());
                         },
-                        _ = conn_shutdown_token.cancelled() => {
+                        _ = fusewire.fused() => {
+                            tracing::info!("closing connection due to fused");
+                        },
+                        _ = stop_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
                         }
                     }
@@ -135,14 +120,17 @@ impl HttpBuilder {
                             // Connection completed successfully.
                             return Ok(());
                         },
-                        _ = conn_shutdown_token.cancelled() => {
+                        _ = fusewire.fused() => {
+                            tracing::info!("closing connection due to fused");
+                        },
+                        _ = stop_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
+
+                            // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
+                            Pin::new(&mut conn).graceful_shutdown();
+                            conn.await.ok();
                         }
                     }
-
-                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                    Pin::new(&mut conn).graceful_shutdown();
-                    conn.await.ok();
                 }
             }
             _ => {
@@ -151,88 +139,6 @@ impl HttpBuilder {
         }
 
         Ok(())
-    }
-}
-
-#[pin_project]
-struct ClosingInactiveConnection<T> {
-    #[pin]
-    inner: T,
-    #[pin]
-    alive: Arc<Notify>,
-    timeout: Duration,
-}
-
-impl<T> AsyncRead for ClosingInactiveConnection<T>
-where
-    T: AsyncRead,
-{
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
-        let this = self.project();
-
-        match this.inner.poll_read(cx, buf) {
-            Poll::Ready(Ok(())) => {
-                this.alive.notify_waiters();
-                Poll::Ready(Ok(()))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-impl<T> AsyncWrite for ClosingInactiveConnection<T>
-where
-    T: AsyncWrite,
-{
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
-        let this = self.project();
-        this.alive.notify_waiters();
-        this.inner.poll_write(cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        let this = self.project();
-        this.alive.notify_waiters();
-        this.inner.poll_flush(cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        let this = self.project();
-        this.alive.notify_waiters();
-        this.inner.poll_shutdown(cx)
-    }
-
-    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
-        let this = self.project();
-        this.alive.notify_waiters();
-        this.inner.poll_write_vectored(cx, bufs)
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.inner.is_write_vectored()
-    }
-}
-
-impl<T> ClosingInactiveConnection<T> {
-    fn new<F, Fut>(inner: T, timeout: Duration, f: F) -> ClosingInactiveConnection<T>
-    where
-        F: Send + FnOnce() -> Fut + 'static,
-        Fut: Future + Send + 'static,
-    {
-        let alive = Arc::new(Notify::new());
-        tokio::spawn({
-            let alive = alive.clone();
-            async move {
-                loop {
-                    if tokio::time::timeout(timeout, alive.notified()).await.is_err() {
-                        f().await;
-                        break;
-                    }
-                }
-            }
-        });
-        Self { inner, alive, timeout }
     }
 }
 

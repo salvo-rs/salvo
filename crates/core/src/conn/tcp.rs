@@ -1,16 +1,14 @@
 //! TcpListener and it's implements.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
 use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
-use crate::conn::{Holding, HttpBuilder};
+use crate::conn::{Holding, StraightStream};
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
+use crate::http::Version;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -150,22 +148,8 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
     }
 }
 
-impl HttpConnection for TcpStream {
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-    }
-}
-
 impl Acceptor for TcpAcceptor {
-    type Conn = TcpStream;
+    type Conn = StraightStream<TcpStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -173,9 +157,9 @@ impl Acceptor for TcpAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn,
+            conn: StraightStream::new(conn, fuse_factory.create()),
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
             http_version: Version::HTTP_11,

@@ -51,54 +51,13 @@ impl Builder {
     }
 }
 
-macro_rules! process_accepted {
-    ($conn:expr, $accepted:expr, $hyper_handler:expr) => {
-        match $accepted {
-            Ok(Some((request, stream))) => {
-                tracing::debug!("new request: {:#?}", request);
-                let hyper_handler = $hyper_handler.clone();
-                match request.method() {
-                    &Method::CONNECT
-                        if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) =>
-                    {
-                        if let Some(c) = process_web_transport($conn, request, stream, hyper_handler).await? {
-                            $conn = c;
-                        } else {
-                            return Ok(());
-                        }
-                    }
-                    _ => {
-                        tokio::spawn(async move {
-                            match process_request(request, stream, hyper_handler).await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    tracing::error!(error = ?e, "process request failed")
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-            Ok(None) => {
-                break;
-            }
-            Err(e) => {
-                tracing::warn!(error = ?e, "accept failed");
-                match e.get_error_level() {
-                    ErrorLevel::ConnectionError => break,
-                    ErrorLevel::StreamError => continue,
-                }
-            }
-        }
-    }
-}
 impl Builder {
     /// Serve HTTP3 connection.
     pub async fn serve_connection(
         &self,
         conn: crate::conn::quinn::H3Connection,
         hyper_handler: crate::service::HyperHandler,
-        idle_timeout: Option<Duration>, //TODO
+        graceful_stop_token: CancellationToken,
     ) -> IoResult<()> {
         let mut conn = self
             .0
@@ -107,35 +66,47 @@ impl Builder {
             .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid connection: {}", e)))?;
 
         loop {
-            if let Some(idle_timeout) = idle_timeout {
-                let conn_shutdown_token = CancellationToken::new();
-                let alive = Arc::new(Notify::new());
-                tokio::spawn({
-                    let alive = alive.clone();
-                    let conn_shutdown_token = conn_shutdown_token.clone();
-                    async move {
-                        loop {
-                            let timeout = tokio::time::timeout(idle_timeout, alive.notified());
-                            if timeout.await.is_err() {
-                                conn_shutdown_token.cancel();
-                                break;
+            match conn.accept().await {
+                Ok(Some((request, stream))) => {
+                    tracing::debug!("new request: {:#?}", request);
+                    let hyper_handler = hyper_handler.clone();
+                    match request.method() {
+                        &Method::CONNECT
+                            if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) =>
+                        {
+                            if let Some(c) =
+                                process_web_transport(conn, request, stream, hyper_handler, fusewire).await?
+                            {
+                                conn = c;
+                            } else {
+                                return Ok(());
                             }
                         }
-                    }
-                });
-                tokio::select! {
-                    accepted = conn.accept() => {
-                        alive.notify_waiters();
-                        process_accepted!(conn, accepted, hyper_handler);
-                    }
-                    _ = conn_shutdown_token.cancelled() => {
-                        tracing::info!("closing http3 connection due to inactivity");
-                        break;
+                        _ => {
+                            tokio::spawn(async move {
+                                match process_request(request, stream, hyper_handler, fusewire).await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        tracing::error!(error = ?e, "process request failed")
+                                    }
+                                }
+                            });
+                        }
                     }
                 }
-            } else {
-                let accpeted = conn.accept().await;
-                process_accepted!(conn, accpeted, hyper_handler);
+                Ok(None) => {
+                    break;
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "accept failed");
+                    match e.get_error_level() {
+                        ErrorLevel::ConnectionError => break,
+                        ErrorLevel::StreamError => continue,
+                    }
+                }
+            }
+            if graceful_stop_token.is_cancelled() {
+                break;
             }
         }
         Ok(())
@@ -147,6 +118,7 @@ async fn process_web_transport(
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
+    fusewire: ArcFusewire,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
@@ -233,6 +205,7 @@ async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
     hyper_handler: crate::service::HyperHandler,
+    fusewire: ArcFusewire,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,

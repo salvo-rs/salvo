@@ -16,6 +16,7 @@ use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
 use crate::http::uri::Scheme;
 use crate::http::Version;
 use crate::Router;
+use crate::fuse::{ArcFusewire, ArcFuseFactory};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
@@ -423,7 +424,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Conn = T::Conn;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -431,16 +432,16 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
             conn,
             local_addr,
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory).await?;
         Ok(Accepted {
-            conn: HandshakeStream::new(self.tls_acceptor.accept(conn)),
+            conn,
             local_addr,
             remote_addr,
             http_version,

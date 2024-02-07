@@ -12,6 +12,7 @@ use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
+use crate::fuse::{ArcFusewire, ArcFuseFactory};
 use crate::Error;
 
 use super::{Accepted, Acceptor, Listener};
@@ -97,7 +98,7 @@ pub struct UnixAcceptor {
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Conn = UnixStream;
+    type Conn = StraightStream<UnixStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -105,28 +106,14 @@ impl Acceptor for UnixAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn,
+            conn: StraightStream::new(conn, fuse_factory.create()),
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
             http_version: Version::HTTP_11,
             http_scheme: Scheme::HTTP,
         })
-    }
-}
-
-impl HttpConnection for UnixStream {
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

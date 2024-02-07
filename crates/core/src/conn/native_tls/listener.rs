@@ -13,6 +13,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
+use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -57,23 +58,6 @@ where
             self.config_stream.into_stream().boxed(),
             self.inner.try_bind().await?,
         ))
-    }
-}
-
-impl<S> HttpConnection for TlsStream<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 
@@ -138,7 +122,7 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -177,7 +161,8 @@ where
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory.clone()).await?;
+        let fusewire = conn.fusewire();
         let conn = async move {
             tls_acceptor
                 .accept(conn)
@@ -185,7 +170,7 @@ where
                 .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
         };
         Ok(Accepted {
-            conn: HandshakeStream::new(conn),
+            conn: HandshakeStream::new(conn, fusewire),
             local_addr,
             remote_addr,
             http_version,
