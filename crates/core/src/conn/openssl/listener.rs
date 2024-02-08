@@ -4,21 +4,19 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -110,23 +108,6 @@ where
     }
 }
 
-impl<S> HttpConnection for SslStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-    }
-}
-
 impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,
@@ -141,7 +122,7 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -176,7 +157,8 @@ where
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory).await?;
+        let fusewire = conn.fusewire();
         let conn = async move {
             let ssl =
                 Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
@@ -190,7 +172,7 @@ where
         };
 
         Ok(Accepted {
-            conn: HandshakeStream::new(conn),
+            conn: HandshakeStream::new(conn, fusewire),
             local_addr,
             remote_addr,
             http_version,

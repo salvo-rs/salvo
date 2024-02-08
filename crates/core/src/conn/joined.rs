@@ -3,12 +3,13 @@ use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
+use crate::fuse::{ArcFuseFactory, ArcFusewire, SteadyFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -120,12 +121,15 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
+        graceful_stop_token: CancellationToken,
     ) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.serve(handler, builder, idle_timeout).await,
-            JoinedStream::B(b) => b.serve(handler, builder, idle_timeout).await,
+            JoinedStream::A(a) => a.serve(handler, builder, graceful_stop_token).await,
+            JoinedStream::B(b) => b.serve(handler, builder, graceful_stop_token).await,
         }
+    }
+    fn fusewire(&self) -> ArcFusewire {
+        Arc::new(SteadyFusewire)
     }
 }
 
@@ -144,12 +148,12 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
-            accepted = self.a.accept() => {
+            accepted = self.a.accept(fuse_factory.clone()) => {
                 Ok(accepted?.map_conn(JoinedStream::A))
             }
-            accepted = self.b.accept() => {
+            accepted = self.b.accept(fuse_factory) => {
                 Ok(accepted?.map_conn(JoinedStream::B))
             }
         }
@@ -158,11 +162,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
     use crate::conn::TcpListener;
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_joined_listener() {
@@ -177,9 +184,9 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         let first = conn.read_i32().await.unwrap();
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         let second = conn.read_i32().await.unwrap();
         assert_eq!(first + second, 150);
     }

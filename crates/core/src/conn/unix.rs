@@ -1,17 +1,15 @@
 //! UnixListener module
 use std::fs::{set_permissions, Permissions};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
 
 use http::uri::Scheme;
 use nix::unistd::{chown, Gid, Uid};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
-use crate::conn::{Holding, HttpBuilder};
-use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
+use crate::conn::{Holding, StraightStream};
+use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::http::Version;
 use crate::Error;
 
 use super::{Accepted, Acceptor, Listener};
@@ -97,7 +95,7 @@ pub struct UnixAcceptor {
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Conn = UnixStream;
+    type Conn = StraightStream<UnixStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -105,9 +103,9 @@ impl Acceptor for UnixAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn,
+            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
             http_version: Version::HTTP_11,
@@ -116,26 +114,15 @@ impl Acceptor for UnixAcceptor {
     }
 }
 
-impl HttpConnection for UnixStream {
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener};
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_unix_listener() {
@@ -147,7 +134,7 @@ mod tests {
             stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }

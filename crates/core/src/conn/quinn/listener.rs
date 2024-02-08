@@ -1,6 +1,6 @@
 //! QuinnListener and it's implements.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::error::Error as StdError;
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -13,12 +13,11 @@ use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::http3_quinn::{self, Endpoint};
 
-use crate::conn::quinn::ServerConfig;
-use crate::conn::{Holding, IntoConfigStream};
-use crate::http::Version;
-
 use super::H3Connection;
-use crate::conn::{Accepted, Acceptor, Listener};
+use crate::conn::quinn::ServerConfig;
+use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
+use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::http::Version;
 
 /// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
@@ -110,7 +109,7 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) =
@@ -143,7 +142,7 @@ where
                 Ok(conn) => {
                     let conn = http3_quinn::Connection::new(conn);
                     return Ok(Accepted {
-                        conn: H3Connection(conn),
+                        conn: H3Connection::new(conn, fuse_factory.create(TransProto::Quic)),
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
