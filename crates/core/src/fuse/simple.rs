@@ -87,7 +87,7 @@ impl Fusewire for SimpleFusewire {
                     }
                 });
             }
-            FuseEvent::RecvFrame => {
+            FuseEvent::GainFrame => {
                 self.tcp_frame_notify.notify_waiters();
             }
             _ => {}

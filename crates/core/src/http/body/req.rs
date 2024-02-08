@@ -27,21 +27,31 @@ pub enum ReqBody {
     /// Once bytes body.
     Once(Bytes),
     /// Hyper default body.
-    Hyper(Incoming, ArcFusewire),
+    Hyper {
+        /// Inner body.
+        inner: Incoming,
+        /// Fusewire.
+        fusewire: ArcFusewire,
+    },
     /// Boxed body.
-    Boxed(BoxedBody, ArcFusewire),
+    Boxed {
+        /// Inner body.
+        inner: BoxedBody,
+        /// Fusewire.
+        fusewire: ArcFusewire,
+    },
 }
 impl ReqBody {
     #[doc(hidden)]
-    pub fn fill_fusewire(&mut self, fusewire: ArcFusewire) {
+    pub fn fill_fusewire(&mut self, value: ArcFusewire) {
         match self {
             Self::None => {}
             Self::Once(_) => {}
-            Self::Hyper(_, ref mut fuse) => {
-                *fuse = fusewire;
+            Self::Hyper { fusewire, .. } => {
+                *fusewire = value;
             }
-            Self::Boxed(_, ref mut fuse) => {
-                *fuse = fusewire;
+            Self::Boxed { fusewire, .. } => {
+                *fusewire = value;
             }
         }
     }
@@ -58,12 +68,12 @@ impl ReqBody {
     /// Check is that body is hyper default body type.
     #[inline]
     pub fn is_hyper(&self) -> bool {
-        matches!(*self, Self::Hyper(_, _))
+        matches!(*self, Self::Hyper { .. })
     }
     /// Check is that body is stream.
     #[inline]
     pub fn is_boxed(&self) -> bool {
-        matches!(*self, Self::Boxed(_, _))
+        matches!(*self, Self::Boxed { .. })
     }
 
     /// Set body to none and returns current body.
@@ -83,7 +93,7 @@ impl Body for ReqBody {
             match poll {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Ready(Some(Ok(data))) => {
-                    fusewire.event(FuseEvent::RecvFrame);
+                    fusewire.event(FuseEvent::GainFrame);
                     Poll::Ready(Some(Ok(data)))
                 }
                 Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
@@ -103,13 +113,13 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            Self::Hyper(body, fusewire) => {
-                let poll = Pin::new(body)
+            Self::Hyper { inner, fusewire } => {
+                let poll = Pin::new(inner)
                     .poll_frame(cx)
                     .map_err(|e| IoError::new(ErrorKind::Other, e));
                 through_fursewire(poll, fusewire)
             }
-            Self::Boxed(inner, fusewire) => {
+            Self::Boxed { inner, fusewire } => {
                 let poll = Pin::new(inner)
                     .poll_frame(cx)
                     .map_err(|e| IoError::new(ErrorKind::Other, e));
@@ -122,8 +132,8 @@ impl Body for ReqBody {
         match self {
             Self::None => true,
             Self::Once(bytes) => bytes.is_empty(),
-            Self::Hyper(body, _) => body.is_end_stream(),
-            Self::Boxed(body, _) => body.is_end_stream(),
+            Self::Hyper { inner, .. } => inner.is_end_stream(),
+            Self::Boxed { inner, .. } => inner.is_end_stream(),
         }
     }
 
@@ -131,8 +141,8 @@ impl Body for ReqBody {
         match self {
             Self::None => SizeHint::with_exact(0),
             Self::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
-            Self::Hyper(body, _) => body.size_hint(),
-            Self::Boxed(body, _) => body.size_hint(),
+            Self::Hyper { inner, .. } => inner.size_hint(),
+            Self::Boxed { inner, .. } => inner.size_hint(),
         }
     }
 }
@@ -155,8 +165,11 @@ impl From<Bytes> for ReqBody {
     }
 }
 impl From<Incoming> for ReqBody {
-    fn from(value: Incoming) -> Self {
-        Self::Hyper(value, Arc::new(fuse::steady()))
+    fn from(inner: Incoming) -> Self {
+        Self::Hyper {
+            inner,
+            fusewire: Arc::new(fuse::steady()),
+        }
     }
 }
 impl From<String> for ReqBody {
@@ -171,8 +184,8 @@ impl TryFrom<ReqBody> for Incoming {
         match body {
             ReqBody::None => Err(crate::Error::other("ReqBody::None cannot convert to Incoming")),
             ReqBody::Once(_) => Err(crate::Error::other("ReqBody::Bytes cannot convert to Incoming")),
-            ReqBody::Hyper(body, _) => Ok(body),
-            ReqBody::Boxed(..) => Err(crate::Error::other("ReqBody::Boxed cannot convert to Incoming")),
+            ReqBody::Hyper { inner, .. } => Ok(inner),
+            ReqBody::Boxed { .. } => Err(crate::Error::other("ReqBody::Boxed cannot convert to Incoming")),
         }
     }
 }
@@ -284,8 +297,8 @@ impl fmt::Debug for ReqBody {
         match self {
             ReqBody::None => write!(f, "ReqBody::None"),
             ReqBody::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),
-            ReqBody::Hyper(value, _) => f.debug_tuple("ReqBody::Hyper").field(value).finish(),
-            ReqBody::Boxed(..) => write!(f, "ReqBody::Boxed(_)"),
+            ReqBody::Hyper { inner, .. } => f.debug_struct("ReqBody::Hyper").field("inner", inner).finish(),
+            ReqBody::Boxed { .. } => write!(f, "ReqBody::Boxed{{..}}"),
         }
     }
 }

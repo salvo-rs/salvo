@@ -42,8 +42,8 @@ pub enum FuseEvent {
     WriteData(usize),
     /// WaitFrame.
     WaitFrame,
-    /// RecvFrame.
-    RecvFrame,
+    /// GainFrame.
+    GainFrame,
 }
 
 pub(crate) type ArcFuseFactory = Arc<dyn FuseFactory + Sync + Send + 'static>;
