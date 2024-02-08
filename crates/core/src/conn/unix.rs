@@ -1,18 +1,15 @@
 //! UnixListener module
 use std::fs::{set_permissions, Permissions};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
 
 use http::uri::Scheme;
 use nix::unistd::{chown, Gid, Uid};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
-use crate::conn::{Holding, HttpBuilder};
-use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
-use crate::fuse::{ArcFusewire, ArcFuseFactory};
+use crate::conn::{Holding, StraightStream};
+use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::http::Version;
 use crate::Error;
 
 use super::{Accepted, Acceptor, Listener};
@@ -108,7 +105,7 @@ impl Acceptor for UnixAcceptor {
     #[inline]
     async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn: StraightStream::new(conn, fuse_factory.create()),
+            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
             http_version: Version::HTTP_11,
