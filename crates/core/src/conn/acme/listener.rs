@@ -8,13 +8,15 @@ use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
+use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
 use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
+use crate::conn::HandshakeStream;
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::Version;
+use crate::http::{HttpConnection, Version};
 use crate::Router;
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
@@ -423,7 +425,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = T::Conn;
+    type Conn = HandshakeStream<TlsStream<T::Conn>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -439,8 +441,9 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept(fuse_factory).await?;
+        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn,
+            conn: HandshakeStream::new(self.tls_acceptor.accept(conn), fusewire),
             local_addr,
             remote_addr,
             http_version,

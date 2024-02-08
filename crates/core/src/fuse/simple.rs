@@ -10,12 +10,18 @@ use super::{async_trait, FuseEvent, Fusewire, TransProto};
 #[derive(Default)]
 pub struct SimpleFusewire {
     trans_proto: TransProto,
+
+    tcp_idle_timeout: Duration,
     tcp_idle_token: CancellationToken,
     tcp_idle_notify: Arc<Notify>,
 
-    tcp_idle_timeout: Duration,
     tcp_frame_timeout: Duration,
+    tcp_frame_token: CancellationToken,
+    tcp_frame_notify: Arc<Notify>,
+
     tls_handshake_timeout: Duration,
+    tls_handshake_token: CancellationToken,
+    tls_handshake_notify: Arc<Notify>,
 }
 
 impl SimpleFusewire {
@@ -39,6 +45,60 @@ impl SimpleFusewire {
     /// Set the timeout for close the connection if handshake not finished.
     pub fn tls_handshake_timeout(&self) -> Duration {
         self.tls_handshake_timeout
+    }
+}
+#[async_trait]
+impl Fusewire for SimpleFusewire {
+    fn event(&self, event: FuseEvent) {
+        if self.trans_proto.is_quic() {
+            return;
+        }
+        self.tcp_idle_notify.notify_waiters();
+        match event {
+            FuseEvent::TlsHandshaking => {
+                let tls_handshake_notify = self.tls_handshake_notify.clone();
+                let tls_handshake_timeout = self.tls_handshake_timeout;
+                let tls_handshake_token = self.tls_handshake_token.clone();
+                tokio::spawn(async move {
+                    loop {
+                        if tokio::time::timeout(tls_handshake_timeout, tls_handshake_notify.notified())
+                            .await
+                            .is_err()
+                        {
+                            tls_handshake_token.cancel();
+                            break;
+                        }
+                    }
+                });
+            }
+            FuseEvent::TlsHandshaked => {
+                self.tls_handshake_notify.notify_waiters();
+            }
+            FuseEvent::WaitFrame => {
+                let tcp_frame_notify = self.tcp_frame_notify.clone();
+                let tcp_frame_timeout = self.tcp_frame_timeout;
+                let tcp_frame_token = self.tcp_frame_token.clone();
+                tokio::spawn(async move {
+                    if tokio::time::timeout(tcp_frame_timeout, tcp_frame_notify.notified())
+                        .await
+                        .is_err()
+                    {
+                        tcp_frame_token.cancel();
+                    }
+                });
+            }
+            FuseEvent::RecvFrame => {
+                self.tcp_frame_notify.notify_waiters();
+            }
+            _ => {}
+        }
+    }
+    async fn fused(&self) {
+        tokio::select! {
+            _ = self.tcp_idle_token.cancelled() => {}
+            _ = self.tcp_frame_token.cancelled() => {}
+            _ = self.tls_handshake_token.cancelled() => {}
+        }
     }
 }
 
@@ -79,23 +139,35 @@ impl SimpleBuilder {
 
         let tcp_idle_token = CancellationToken::new();
         let tcp_idle_notify = Arc::new(Notify::new());
+        tokio::spawn({
+            let tcp_idle_notify = tcp_idle_notify.clone();
+            let tcp_idle_token = tcp_idle_token.clone();
+            async move {
+                loop {
+                    if tokio::time::timeout(tcp_idle_timeout, tcp_idle_notify.notified())
+                        .await
+                        .is_err()
+                    {
+                        tcp_idle_token.cancel();
+                        break;
+                    }
+                }
+            }
+        });
         SimpleFusewire {
             trans_proto,
+
+            tcp_idle_timeout,
             tcp_idle_token,
             tcp_idle_notify,
-            tcp_idle_timeout,
-            tcp_frame_timeout,
-            tls_handshake_timeout,
-        }
-    }
-}
 
-#[async_trait]
-impl Fusewire for SimpleFusewire {
-    fn event(&self, event: FuseEvent) {
-        // self.tcp_idle_notify.notify();
-    }
-    async fn fused(&self) {
-        futures_util::future::pending::<()>().await;
+            tcp_frame_timeout,
+            tcp_frame_token: CancellationToken::new(),
+            tcp_frame_notify: Arc::new(Notify::new()),
+
+            tls_handshake_timeout,
+            tls_handshake_token: CancellationToken::new(),
+            tls_handshake_notify: Arc::new(Notify::new()),
+        }
     }
 }

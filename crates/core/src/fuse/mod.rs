@@ -16,6 +16,16 @@ pub enum TransProto {
     /// Quic.
     Quic,
 }
+impl TransProto {
+    /// Check if the transport protocol is tcp.
+    pub fn is_tcp(&self) -> bool {
+        matches!(self, Self::Tcp)
+    }
+    /// Check if the transport protocol is quic.
+    pub fn is_quic(&self) -> bool {
+        matches!(self, Self::Quic)
+    }
+}
 
 /// A fuse event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
