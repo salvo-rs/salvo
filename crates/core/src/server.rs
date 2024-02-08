@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
-use crate::fuse::{self, ArcFuseFactory};
+use crate::fuse::{ArcFuseFactory, PseudoFusewire};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -115,7 +115,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            fuse_factory: Arc::new(fuse::pseudo),
+            fuse_factory: Arc::new(PseudoFusewire),
             tx_cmd,
             rx_cmd,
         }

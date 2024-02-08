@@ -6,7 +6,7 @@ use std::vec;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::conn::{Holding, StraightStream};
-use crate::fuse::ArcFuseFactory;
+use crate::fuse::{ArcFuseFactory, TransProto};
 use crate::http::uri::Scheme;
 use crate::http::Version;
 
@@ -159,7 +159,7 @@ impl Acceptor for TcpAcceptor {
     #[inline]
     async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn: StraightStream::new(conn, fuse_factory.create()),
+            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
             http_version: Version::HTTP_11,

@@ -209,6 +209,7 @@ cfg_feature! {
     pub(crate) mod h3 {
         use std::boxed::Box;
         use std::pin::Pin;
+        use std::sync::Arc;
         use std::task::{Context, Poll};
 
         use hyper::body::{Body, Frame, SizeHint};
@@ -218,6 +219,7 @@ cfg_feature! {
 
         use crate::BoxedError;
         use crate::http::ReqBody;
+        use crate::fuse::PseudoFusewire;
 
         /// Http3 request body.
         pub struct H3ReqBody<S, B> {
@@ -271,7 +273,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Boxed(Box::pin(value))
+                ReqBody::Boxed(Box::pin(value), Arc::new(PseudoFusewire))
             }
         }
     }

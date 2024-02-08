@@ -10,7 +10,7 @@ use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
-use crate::fuse::ArcFusewire;
+use crate::fuse::{ArcFusewire, PseudoFusewire};
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
@@ -122,7 +122,7 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn  hyper_handler(
+    pub fn hyper_handler(
         &self,
         local_addr: SocketAddr,
         remote_addr: SocketAddr,
@@ -146,14 +146,12 @@ impl Service {
     #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
-        use crate::fuse;
-
         let request = request.into();
         self.hyper_handler(
             request.local_addr.clone(),
             request.remote_addr.clone(),
             request.scheme.clone(),
-            Arc::new(fuse::pseudo()),
+            Arc::new(PseudoFusewire),
             None,
         )
         .handle(request)
@@ -331,7 +329,8 @@ where
                 }
             }
         }
-        let request = Request::from_hyper_with_furswire(req, scheme, self.fusewire.clone());
+        let mut request = Request::from_hyper(req, scheme);
+        request.body.fill_fusewire(self.fusewire.clone());
         let response = self.handle(request);
         Box::pin(async move { Ok(response.await.into_hyper()) })
     }

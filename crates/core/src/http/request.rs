@@ -1,7 +1,6 @@
 //! Http request.
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
-use std::sync::Arc;
 #[cfg(feature = "quinn")]
 use std::sync::Arc;
 
@@ -23,7 +22,7 @@ use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
-use crate::fuse::{self, ArcFusewire};
+use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
@@ -54,7 +53,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: ReqBody,
+    pub(crate) body: ReqBody,
     pub(crate) extensions: Extensions,
 
     // The request method.
@@ -75,8 +74,6 @@ pub struct Request {
     pub(crate) scheme: Scheme,
     pub(crate) local_addr: SocketAddr,
     pub(crate) remote_addr: SocketAddr,
-
-    pub(crate) fusewire: ArcFusewire,
 }
 
 impl fmt::Debug for Request {
@@ -122,18 +119,18 @@ impl Request {
             scheme: Scheme::HTTP,
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
-            fusewire: Arc::new(fuse::pseudo()),
+        }
+    }
+    #[doc(hidden)]
+    pub fn trans_proto(&self) -> TransProto {
+        if self.version == Version::HTTP_3 {
+            TransProto::Quic
+        } else {
+            TransProto::Tcp
         }
     }
     /// Creates a new `Request` from [`hyper::Request`].
     pub fn from_hyper<B>(req: hyper::Request<B>, scheme: Scheme) -> Self
-    where
-        B: Into<ReqBody>,
-    {
-        Self::from_hyper_with_furswire(req, scheme, Arc::new(fuse::pseudo()))
-    }
-    /// Creates a new `Request` from [`hyper::Request`] with fusewire.
-    pub fn from_hyper_with_furswire<B>(req: hyper::Request<B>, scheme: Scheme, fusewire: ArcFusewire) -> Self
     where
         B: Into<ReqBody>,
     {
@@ -183,7 +180,6 @@ impl Request {
             remote_addr: SocketAddr::Unknown,
             version,
             scheme,
-            fusewire,
         }
     }
 
@@ -232,7 +228,6 @@ impl Request {
         self.headers = headers;
         self.extensions = extensions;
         self.body = body;
-        self.body.fill_fusewire(self.fusewire.clone());
     }
 
     /// Returns a reference to the associated URI.

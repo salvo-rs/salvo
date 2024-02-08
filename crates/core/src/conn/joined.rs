@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
-use crate::fuse::{self, ArcFuseFactory, ArcFusewire};
+use crate::fuse::{ArcFuseFactory, PseudoFusewire, ArcFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -129,7 +129,7 @@ where
         }
     }
     fn fusewire(&self) -> ArcFusewire {
-        Arc::new(fuse::pseudo())
+        Arc::new(PseudoFusewire)
     }
 }
 

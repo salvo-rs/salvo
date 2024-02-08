@@ -4,22 +4,19 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
-use crate::fuse::{Fusewire,ArcFuseFactory, StraightStream};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {

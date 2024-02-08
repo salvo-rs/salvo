@@ -4,7 +4,6 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 use std::vec;
 
 use futures_util::Stream;
@@ -15,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
-use crate::fuse::{ArcFuseFactory, ArcFusewire, FuseEvent, StraightStream, Fusewire};
+use crate::fuse::ArcFusewire;
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -39,7 +38,7 @@ pub struct H3Connection {
     fusewire: ArcFusewire,
 }
 impl H3Connection {
-    pub fn new(inner: http3_quinn::Connection, fusewire: ArcFusewire) -> Self {
+    pub(crate) fn new(inner: http3_quinn::Connection, fusewire: ArcFusewire) -> Self {
         Self { inner, fusewire }
     }
     /// Get inner quinn connection.

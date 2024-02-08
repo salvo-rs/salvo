@@ -4,7 +4,6 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use bytes::Bytes;
 use futures_util::future::poll_fn;
@@ -12,11 +11,11 @@ use futures_util::Stream;
 use salvo_http3::error::ErrorLevel;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
-use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
+use crate::fuse::ArcFusewire;
 use crate::http::body::{H3ReqBody, ReqBody};
-use crate::http::Method;
+use crate::http::{HttpConnection, Method};
 use crate::proto::WebTransportSession;
 
 /// Builder is used to serve HTTP3 connection.
@@ -59,6 +58,7 @@ impl Builder {
         hyper_handler: crate::service::HyperHandler,
         graceful_stop_token: CancellationToken,
     ) -> IoResult<()> {
+        let fusewire = conn.fusewire();
         let mut conn = self
             .0
             .build::<salvo_http3::http3_quinn::Connection, bytes::Bytes>(conn.into_inner())
@@ -75,7 +75,7 @@ impl Builder {
                             if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) =>
                         {
                             if let Some(c) =
-                                process_web_transport(conn, request, stream, hyper_handler, fusewire).await?
+                                process_web_transport(conn, request, stream, hyper_handler, fusewire.clone()).await?
                             {
                                 conn = c;
                             } else {
@@ -83,6 +83,7 @@ impl Builder {
                             }
                         }
                         _ => {
+                            let fusewire = fusewire.clone();
                             tokio::spawn(async move {
                                 match process_request(request, stream, hyper_handler, fusewire).await {
                                     Ok(_) => {}
@@ -118,7 +119,7 @@ async fn process_web_transport(
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    fusewire: ArcFusewire,
+    _fusewire: ArcFusewire,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
@@ -205,7 +206,7 @@ async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    fusewire: ArcFusewire,
+    _fusewire: ArcFusewire,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,

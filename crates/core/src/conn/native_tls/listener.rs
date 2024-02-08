@@ -2,9 +2,7 @@
 use std::error::Error as StdError;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
-use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
@@ -12,10 +10,9 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, HttpBuilder, IntoConfigStream, Listener};
-use crate::fuse::{ArcFuseFactory, ArcFusewire};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
-use crate::service::HyperHandler;
 
 use super::Identity;
 

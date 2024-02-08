@@ -15,9 +15,8 @@ use salvo_http3::http3_quinn::{self, Endpoint};
 
 use super::H3Connection;
 use crate::conn::quinn::ServerConfig;
-use crate::conn::{Accepted, Acceptor, Listener};
-use crate::conn::{Holding, IntoConfigStream};
-use crate::fuse::ArcFuseFactory;
+use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
+use crate::fuse::{ArcFuseFactory, TransProto};
 use crate::http::Version;
 
 /// A wrapper of `Listener` with quinn.
@@ -143,7 +142,7 @@ where
                 Ok(conn) => {
                     let conn = http3_quinn::Connection::new(conn);
                     return Ok(Accepted {
-                        conn: H3Connection::new(conn, fuse_factory.create()),
+                        conn: H3Connection::new(conn, fuse_factory.create(TransProto::Quic)),
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),

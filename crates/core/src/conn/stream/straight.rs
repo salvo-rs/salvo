@@ -9,7 +9,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::conn::HttpBuilder;
-use crate::fuse::ArcFusewire;
+use crate::fuse::{FuseEvent, ArcFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -42,6 +42,7 @@ where
         graceful_stop_token: CancellationToken,
     ) -> std::io::Result<()> {
         let fusewire = self.fusewire.clone();
+        fusewire.event(FuseEvent::Alive);
         builder
             .serve_connection(self, handler, fusewire, graceful_stop_token)
             .await
@@ -58,11 +59,18 @@ where
 {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
-
+        let remaining = buf.remaining();
         match this.inner.poll_read(cx, buf) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(())) => {
+                this.fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                Poll::Ready(Ok(()))
+            },
+            Poll::Ready(Err(e)) =>                
+                Poll::Ready(Err(e)),
+            Poll::Pending => {                
+                this.fusewire.event(FuseEvent::Alive);
+                Poll::Pending
+            },
         }
     }
 }
@@ -74,24 +82,33 @@ where
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         let this = self.project();
         match this.inner.poll_write(cx, buf) {
-            Poll::Ready(Ok(len)) => Poll::Ready(Ok(len)),
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(len)) => {
+                this.fusewire.event(FuseEvent::WriteData(len));
+                Poll::Ready(Ok(len))
+            },
+            Poll::Ready(Err(e)) =>Poll::Ready(Err(e)),
+            Poll::Pending => {
+                this.fusewire.event(FuseEvent::Alive);
+                Poll::Pending
+            },
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
+        this.fusewire.event(FuseEvent::Alive);
         this.inner.poll_flush(cx)
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
+        this.fusewire.event(FuseEvent::Alive);
         this.inner.poll_shutdown(cx)
     }
 
     fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
         let this = self.project();
+        this.fusewire.event(FuseEvent::Alive);
         this.inner.poll_write_vectored(cx, bufs)
     }
 

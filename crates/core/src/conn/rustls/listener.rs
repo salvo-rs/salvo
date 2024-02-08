@@ -11,10 +11,10 @@ use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::{Accepted,Holding, Acceptor, HandshakeStream, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
-use crate::fuse::{Fusewire, StraightStream,ArcFusewire, ArcFuseFactory};
 
 use super::ServerConfig;
 
@@ -122,10 +122,7 @@ where
         &self.holdings
     }
 
-    async fn accept(
-        &mut self,
-        fuse_factory: ArcFuseFactory,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) =

@@ -8,15 +8,14 @@ use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
-use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
 use crate::http::Version;
 use crate::Router;
-use crate::fuse::{ArcFusewire, ArcFuseFactory};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
