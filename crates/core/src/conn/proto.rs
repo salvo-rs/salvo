@@ -42,6 +42,12 @@ pub struct HttpBuilder {
     #[cfg(feature = "quinn")]
     pub(crate) quinn: quinn::Builder,
 }
+impl Default for HttpBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpBuilder {
     pub fn new() -> Self {
         Self {

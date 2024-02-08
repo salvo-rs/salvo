@@ -156,7 +156,7 @@ impl From<Bytes> for ReqBody {
 }
 impl From<Incoming> for ReqBody {
     fn from(value: Incoming) -> Self {
-        Self::Hyper(value, Arc::new(fuse::pseudo()))
+        Self::Hyper(value, Arc::new(fuse::steady()))
     }
 }
 impl From<String> for ReqBody {
@@ -219,7 +219,7 @@ cfg_feature! {
 
         use crate::BoxedError;
         use crate::http::ReqBody;
-        use crate::fuse::PseudoFusewire;
+        use crate::fuse::SteadyFusewire;
 
         /// Http3 request body.
         pub struct H3ReqBody<S, B> {
@@ -273,7 +273,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Boxed(Box::pin(value), Arc::new(PseudoFusewire))
+                ReqBody::Boxed(Box::pin(value), Arc::new(SteadyFusewire))
             }
         }
     }

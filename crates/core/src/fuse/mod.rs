@@ -64,9 +64,9 @@ pub trait Fusewire {
     async fn fused(&self);
 }
 
-/// Create a pseudo fusewire.
-pub fn pseudo() -> PseudoFusewire {
-    PseudoFusewire
+/// Create a fusewire never fused.
+pub fn steady() -> SteadyFusewire {
+    SteadyFusewire
 }
 /// Create a simple fusewire.
 pub fn simple(trans_proto: TransProto) -> SimpleFusewire {
@@ -83,18 +83,18 @@ where
     }
 }
 
-impl FuseFactory for PseudoFusewire {
+impl FuseFactory for SteadyFusewire {
     fn create(&self, _trans_proto: TransProto) -> ArcFusewire {
-        Arc::new(PseudoFusewire)
+        Arc::new(SteadyFusewire)
     }
 }
 
-/// A pseudo fusewire.
+/// A fusewire never fused.
 ///
 /// This fusewire will do nothing.
-pub struct PseudoFusewire;
+pub struct SteadyFusewire;
 #[async_trait]
-impl Fusewire for PseudoFusewire {
+impl Fusewire for SteadyFusewire {
     fn event(&self, _event: FuseEvent) {}
     async fn fused(&self) {
         futures_util::future::pending::<()>().await;

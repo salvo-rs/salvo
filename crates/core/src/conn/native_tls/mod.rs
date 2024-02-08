@@ -7,11 +7,14 @@ pub use config::{Identity, NativeTlsConfig};
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_native_tls_listener() {
@@ -39,7 +42,7 @@ mod tests {
             stream.write_i32(10).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 10);
     }
 }

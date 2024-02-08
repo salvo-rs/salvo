@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, ArcFusewire, PseudoFusewire};
+use crate::fuse::{ArcFuseFactory, ArcFusewire, SteadyFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -129,7 +129,7 @@ where
         }
     }
     fn fusewire(&self) -> ArcFusewire {
-        Arc::new(PseudoFusewire)
+        Arc::new(SteadyFusewire)
     }
 }
 
@@ -162,11 +162,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
     use crate::conn::TcpListener;
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_joined_listener() {
@@ -181,9 +184,9 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         let first = conn.read_i32().await.unwrap();
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         let second = conn.read_i32().await.unwrap();
         assert_eq!(first + second, 150);
     }

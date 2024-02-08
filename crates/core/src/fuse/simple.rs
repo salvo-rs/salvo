@@ -108,6 +108,13 @@ pub struct SimpleBuilder {
     tcp_frame_timeout: Duration,
     tls_handshake_timeout: Duration,
 }
+
+impl Default for SimpleBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimpleBuilder {
     /// Create a new `SimpleBuilder`.
     pub fn new() -> Self {
