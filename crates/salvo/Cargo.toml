@@ -82,3 +82,6 @@ salvo-serve-static = { workspace = true, features = ["full"], optional = true }
 salvo-proxy = { workspace = true, optional = true }
 salvo-otel = { workspace = true, optional = true }
 salvo-oapi = { workspace = true, features = ["full"], optional = true }
+
+[lints]
+workspace = true

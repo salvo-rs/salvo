@@ -38,18 +38,22 @@ pub enum CompressionLevel {
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 #[non_exhaustive]
 pub enum CompressionAlgo {
+    /// Compress use Brotli algo.
     #[cfg(feature = "brotli")]
     #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     Brotli,
 
+    /// Compress use Deflate algo.
     #[cfg(feature = "deflate")]
     #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     Deflate,
 
+    /// Compress use Gzip algo.
     #[cfg(feature = "gzip")]
     #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     Gzip,
 
+    /// Compress use Zstd algo.
     #[cfg(feature = "zstd")]
     #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     Zstd,
