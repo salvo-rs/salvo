@@ -90,7 +90,7 @@ impl FuseFactory for PseudoFusewire {
 }
 
 /// A pseudo fusewire.
-/// 
+///
 /// This fusewire will do nothing.
 pub struct PseudoFusewire;
 #[async_trait]
