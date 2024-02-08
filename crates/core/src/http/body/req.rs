@@ -286,7 +286,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Boxed(Box::pin(value), Arc::new(SteadyFusewire))
+                ReqBody::Boxed{inner: Box::pin(value), fusewire: Arc::new(SteadyFusewire)}
             }
         }
     }
