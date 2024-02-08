@@ -25,9 +25,11 @@ pub use http::version::Version;
 use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
-use std::time::Duration;
+
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
+use crate::fuse::ArcFusewire;
 use crate::service::HyperHandler;
 
 /// A helper trait for http connection.
@@ -37,8 +39,11 @@ pub trait HttpConnection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
+        graceful_stop_token: CancellationToken,
     ) -> impl Future<Output = IoResult<()>> + Send;
+
+    /// Get the fusewire of this connection.
+    fn fusewire(&self) -> ArcFusewire;
 }
 
 /// Get Http version from alph.

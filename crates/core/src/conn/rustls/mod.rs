@@ -31,6 +31,7 @@ mod tests {
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_rustls_listener() {
@@ -60,7 +61,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
     }
 }

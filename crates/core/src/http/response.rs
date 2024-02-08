@@ -12,6 +12,7 @@ use http::{version::Version, Extensions};
 use mime::Mime;
 
 use crate::fs::NamedFile;
+use crate::fuse::TransProto;
 use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
@@ -159,6 +160,14 @@ impl Response {
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
+    }
+    #[doc(hidden)]
+    pub fn trans_proto(&self) -> TransProto {
+        if self.version == Version::HTTP_3 {
+            TransProto::Quic
+        } else {
+            TransProto::Tcp
+        }
     }
 
     /// Get mutable body reference.
