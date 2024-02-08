@@ -9,7 +9,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::conn::HttpBuilder;
-use crate::fuse::{FuseEvent, ArcFusewire};
+use crate::fuse::{ArcFusewire, FuseEvent};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -64,13 +64,12 @@ where
             Poll::Ready(Ok(())) => {
                 this.fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
                 Poll::Ready(Ok(()))
-            },
-            Poll::Ready(Err(e)) =>                
-                Poll::Ready(Err(e)),
-            Poll::Pending => {                
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+            Poll::Pending => {
                 this.fusewire.event(FuseEvent::Alive);
                 Poll::Pending
-            },
+            }
         }
     }
 }
@@ -85,12 +84,12 @@ where
             Poll::Ready(Ok(len)) => {
                 this.fusewire.event(FuseEvent::WriteData(len));
                 Poll::Ready(Ok(len))
-            },
-            Poll::Ready(Err(e)) =>Poll::Ready(Err(e)),
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
                 this.fusewire.event(FuseEvent::Alive);
                 Poll::Pending
-            },
+            }
         }
     }
 

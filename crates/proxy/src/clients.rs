@@ -7,7 +7,7 @@ use salvo_core::rt::tokio::TokioIo;
 use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use super::{HyperRequest, Client, HyperResponse};
+use super::{Client, HyperRequest, HyperResponse};
 
 /// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
 pub struct HyperClient {
