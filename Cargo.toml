@@ -142,6 +142,7 @@ missing_docs = "warn"
 
 [workspace.lints.clippy]
 future_not_send = "warn"
+unwrap_used = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

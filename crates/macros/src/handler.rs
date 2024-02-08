@@ -51,10 +51,9 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                     }
                 }
             }
-            if hmtd.is_none() {
+            let Some(hmtd) = hmtd else {
                 return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
-            }
-            let hmtd = hmtd.unwrap();
+            };
             let hfn = handle_fn(&salvo, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();

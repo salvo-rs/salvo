@@ -34,14 +34,21 @@ impl NormNode {
             node.metadata.securities.extend(metadata.securities.iter().cloned());
         }
 
-        let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).unwrap();
+        let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).expect("invalid regex");
         for filter in router.filters() {
             let info = format!("{filter:?}");
             if info.starts_with("path:") {
-                let path = info.split_once(':').unwrap().1;
+                let path = info
+                    .split_once(':')
+                    .expect("split once by ':' should not be get `None`")
+                    .1;
                 node.path = Some(regex.replace_all(path, "{$1}").to_string());
             } else if info.starts_with("method:") {
-                match info.split_once(':').unwrap().1 {
+                match info
+                    .split_once(':')
+                    .expect("split once by ':' should not be get `None`.")
+                    .1
+                {
                     "GET" => node.method = Some(PathItemType::Get),
                     "POST" => node.method = Some(PathItemType::Post),
                     "PUT" => node.method = Some(PathItemType::Put),

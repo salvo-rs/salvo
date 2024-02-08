@@ -90,7 +90,7 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
             builder = builder.path_and_query(format!("{}/", path_and_query.path()));
         }
     }
-    let redirect_uri = builder.build().unwrap();
+    let redirect_uri = builder.build().expect("Invalid uri");
     res.render(Redirect::found(redirect_uri));
 }
 

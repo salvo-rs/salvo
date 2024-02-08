@@ -261,7 +261,7 @@ impl<'c> ComponentSchema {
         };
 
         let validate = |feature: &Feature| {
-            let type_path = &**type_tree.path.as_ref().unwrap();
+            let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
             let schema_type = SchemaType(type_path);
             feature.validate(&schema_type, type_tree);
         };
@@ -305,7 +305,7 @@ impl<'c> ComponentSchema {
 
         match type_tree.value_type {
             ValueType::Primitive => {
-                let type_path = &**type_tree.path.as_ref().unwrap();
+                let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
                 let schema_type = SchemaType(type_path);
                 if schema_type.is_unsigned_integer() {
                     // add default minimum feature only when there is no explicit minimum
@@ -355,7 +355,7 @@ impl<'c> ComponentSchema {
                     example.to_tokens(tokens);
                     nullable.to_tokens(tokens)
                 } else {
-                    let type_path = &**type_tree.path.as_ref().unwrap();
+                    let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
                     let schema = if type_definition {
                         quote! {
                             if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {

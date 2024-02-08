@@ -300,7 +300,13 @@ where
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
         .get(&CONNECTION)
-        .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE))
+        .map(|value| {
+            value
+                .to_str()
+                .unwrap_or_default()
+                .split(',')
+                .any(|e| e.trim() == UPGRADE)
+        })
         .unwrap_or(false)
     {
         if let Some(upgrade_value) = headers.get(&UPGRADE) {

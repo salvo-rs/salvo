@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::{self, Mime, StatusCode};
+use salvo_core::http::{self, mime, Mime, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 mod encoder;
@@ -145,13 +145,13 @@ impl Default for Compression {
         Self {
             algos,
             content_types: vec![
-                "text/*".parse().unwrap(),
-                "application/javascript".parse().unwrap(),
-                "application/json".parse().unwrap(),
-                "application/xml".parse().unwrap(),
-                "application/rss+xml".parse().unwrap(),
-                "application/wasm".parse().unwrap(),
-                "image/svg+xml".parse().unwrap(),
+                mime::TEXT_STAR,
+                mime::APPLICATION_JAVASCRIPT,
+                mime::APPLICATION_JSON,
+                mime::IMAGE_SVG,
+                "application/wasm".parse().expect("invalid mime type"),
+                "application/xml".parse().expect("invalid mime type"),
+                "application/rss+xml".parse().expect("invalid mime type"),
             ],
             min_length: 0,
             force_priority: false,

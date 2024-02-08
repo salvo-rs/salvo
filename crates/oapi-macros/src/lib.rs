@@ -414,18 +414,21 @@ impl AnyValue {
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
             if input.peek(LitStr) {
-                let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
+                let lit_str = input
+                    .parse::<LitStr>()
+                    .expect("parse `LitStr` failed")
+                    .to_token_stream();
 
                 Ok(AnyValue::Json(lit_str))
             } else {
-                let lit = input.parse::<Lit>().unwrap().to_token_stream();
+                let lit = input.parse::<Lit>().expect("parse `Lit` failed").to_token_stream();
 
                 Ok(AnyValue::Json(lit))
             }
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
-                let ident = fork.parse::<Ident>().unwrap();
+                let ident = fork.parse::<Ident>().expect("parse `Ident` failed");
                 ident == "json"
             } else {
                 false
@@ -447,7 +450,12 @@ impl AnyValue {
 
     fn parse_lit_str_or_json(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok(AnyValue::String(input.parse::<LitStr>().unwrap().to_token_stream()))
+            Ok(AnyValue::String(
+                input
+                    .parse::<LitStr>()
+                    .expect("parse `LitStr` failed")
+                    .to_token_stream(),
+            ))
         } else {
             Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
         }

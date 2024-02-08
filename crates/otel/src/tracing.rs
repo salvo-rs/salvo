@@ -30,8 +30,8 @@ where
         //TODO: Will remove after opentelemetry_http updated
         let mut headers = HeaderMap::with_capacity(req.headers().len());
         headers.extend(req.headers().into_iter().map(|(name, value)| {
-            let name = HeaderName::from_bytes(name.as_ref()).unwrap();
-            let value = HeaderValue::from_bytes(value.as_ref()).unwrap();
+            let name = HeaderName::from_bytes(name.as_ref()).expect("Invalid header name");
+            let value = HeaderValue::from_bytes(value.as_ref()).expect("Invalid header value");
             (name, value)
         }));
 

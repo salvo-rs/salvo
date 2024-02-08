@@ -70,7 +70,7 @@ where
                 result.extend_from_slice(val.as_bytes());
             }
 
-            Some(HeaderValue::from_maybe_shared(result.freeze()).unwrap())
+            HeaderValue::from_maybe_shared(result.freeze()).ok()
         }
         None => None,
     }

@@ -80,7 +80,7 @@ impl ResponseExt for Response {
             .await
     }
     async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        let full = self.take_bytes(Some(&"application/json".parse().unwrap())).await?;
+        let full = self.take_bytes(Some(&mime::APPLICATION_JSON)).await?;
         serde_json::from_slice(&full).map_err(Error::SerdeJson)
     }
     async fn take_string_with_charset(
@@ -137,7 +137,7 @@ impl ResponseExt for Response {
                 if let Some(content_type) = content_type {
                     status_error_bytes(&e, content_type, None).1
                 } else {
-                    status_error_bytes(&e, &"text/html".parse().unwrap(), None).1
+                    status_error_bytes(&e, &mime::TEXT_HTML, None).1
                 }
             }
             _ => BodyExt::collect(body).await?.to_bytes(),

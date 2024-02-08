@@ -414,11 +414,11 @@ impl fmt::Debug for Router {
                 for filter in &router.filters {
                     let info = format!("{filter:?}");
                     if info.starts_with("path:") {
-                        path = info.split_once(':').unwrap().1.to_owned();
+                        path = info.split_once(':').expect("`split_once` get `None`").1.to_owned();
                     } else {
                         let mut parts = info.splitn(2, ':').collect::<Vec<_>>();
                         if !parts.is_empty() {
-                            others.push(parts.pop().unwrap().to_owned());
+                            others.push(parts.pop().expect("part should exists.").to_owned());
                         }
                     }
                 }
