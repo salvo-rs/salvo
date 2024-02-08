@@ -76,7 +76,10 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.as_ref().expect("`CookieParam<T, true>` value should not be None.").fmt(f)
+        self.0
+            .as_ref()
+            .expect("`CookieParam<T, true>` value should not be None.")
+            .fmt(f)
     }
 }
 

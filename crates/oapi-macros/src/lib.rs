@@ -414,7 +414,10 @@ impl AnyValue {
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
             if input.peek(LitStr) {
-                let lit_str = input.parse::<LitStr>().expect("parse `LitStr` failed").to_token_stream();
+                let lit_str = input
+                    .parse::<LitStr>()
+                    .expect("parse `LitStr` failed")
+                    .to_token_stream();
 
                 Ok(AnyValue::Json(lit_str))
             } else {

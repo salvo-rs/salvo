@@ -368,7 +368,8 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     };
     let life_param = args.generics.lifetimes().next();
     let code = if let Some(life_param) = life_param {
-        let ex_life_def = syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime)).expect("Invalid lifetime.");
+        let ex_life_def =
+            syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime)).expect("Invalid lifetime.");
         let mut generics = args.generics.clone();
         generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
