@@ -39,3 +39,6 @@ zstd = { workspace = true, optional = true, features = ["default"] }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["http1", "test"] }
+
+[lints]
+workspace = true
