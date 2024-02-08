@@ -174,7 +174,7 @@ pub trait Listener {
     where
         Self: Sized + Send,
     {
-        async move { self.try_bind().await.unwrap() }
+        async move { self.try_bind().await.expect("bind failed") }
     }
 
     /// Bind and returns acceptor.

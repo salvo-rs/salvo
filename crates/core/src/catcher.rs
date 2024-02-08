@@ -263,7 +263,7 @@ fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&st
 #[inline]
 pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Bytes) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
-        "text/html".parse().unwrap()
+        mime::TEXT_HTML
     } else {
         prefer_format.clone()
     };
@@ -294,7 +294,7 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
         )
     };
     res.headers_mut()
-        .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        .insert(header::CONTENT_TYPE, format.to_string().parse().expect("invalid `Content-Type`"));
     res.write_body(data).ok();
 }
 

@@ -133,13 +133,13 @@ impl From<Vec<HeaderValue>> for AllowOrigin {
 
 impl<'a> From<&'a str> for AllowOrigin {
     fn from(val: &'a str) -> Self {
-        Self::exact(HeaderValue::from_str(val).unwrap())
+        Self::exact(HeaderValue::from_str(val).expect("invalid `HeaderValue`"))
     }
 }
 
 impl<'a> From<&'a String> for AllowOrigin {
     fn from(val: &'a String) -> Self {
-        Self::exact(HeaderValue::from_str(val).unwrap())
+        Self::exact(HeaderValue::from_str(val).expect("invalid `HeaderValue`"))
     }
 }
 
@@ -147,7 +147,7 @@ impl<'a> From<Vec<&'a str>> for AllowOrigin {
     fn from(vals: Vec<&'a str>) -> Self {
         Self::list(
             vals.iter()
-                .map(|v| HeaderValue::from_str(v).unwrap())
+                .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))
                 .collect::<Vec<_>>(),
         )
     }
@@ -156,7 +156,7 @@ impl<'a, const N: usize> From<[&'a str; N]> for AllowOrigin {
     fn from(vals: [&'a str; N]) -> Self {
         Self::list(
             vals.iter()
-                .map(|v| HeaderValue::from_str(v).unwrap())
+                .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))
                 .collect::<Vec<_>>(),
         )
     }
@@ -165,7 +165,7 @@ impl<'a> From<&'a Vec<String>> for AllowOrigin {
     fn from(vals: &'a Vec<String>) -> Self {
         Self::list(
             vals.iter()
-                .map(|v| HeaderValue::from_str(v).unwrap())
+                .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))
                 .collect::<Vec<_>>(),
         )
     }

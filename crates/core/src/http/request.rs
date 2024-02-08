@@ -584,7 +584,7 @@ impl Request {
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
-        self.queries.get_mut().unwrap()
+        self.queries.get_mut().expect("queries should be initialized")
     }
 
     /// Get query value from queries.

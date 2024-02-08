@@ -483,7 +483,7 @@ fn list_xml(current: &CurrentInfo) -> String {
                 ftxt,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
-                dir.modified.format(&format).unwrap(),
+                dir.modified.format(&format).expect("format time failed"),
                 encode_url_path(&dir.name),
             )
             .ok();
@@ -493,7 +493,7 @@ fn list_xml(current: &CurrentInfo) -> String {
                 ftxt,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
-                file.modified.format(&format).unwrap(),
+                file.modified.format(&format).expect("format time failed"),
                 file.size,
                 encode_url_path(&file.name),
             )
@@ -545,7 +545,7 @@ fn list_html(current: &CurrentInfo) -> String {
                 DIR_ICON,
                 encode_url_path(&dir.name),
                 dir.name,
-                dir.modified.format(&format).unwrap(),
+                dir.modified.format(&format).expect("format time failed"),
             )
             .ok();
         }
@@ -556,7 +556,7 @@ fn list_html(current: &CurrentInfo) -> String {
                 FILE_ICON,
                 encode_url_path(&file.name),
                 file.name,
-                file.modified.format(&format).unwrap(),
+                file.modified.format(&format).expect("format time failed"),
                 file.size
             )
             .ok();

@@ -204,7 +204,7 @@ impl<A: Acceptor + Send> Server<A> {
     where
         S: Into<Service> + Send,
     {
-        self.try_serve(service).await.unwrap();
+        self.try_serve(service).await.expect("failed to call `Server::serve`");
     }
 
     /// Try to serve a [`Service`].
@@ -233,7 +233,7 @@ impl<A: Acceptor + Send> Server<A> {
                     alt_svc_h3 = Some(
                         format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
-                            .unwrap(),
+                            .expect("Parse alt-svc header failed."),
                     );
                 }
             }

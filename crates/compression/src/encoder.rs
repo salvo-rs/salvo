@@ -89,7 +89,7 @@ impl CompressionLevel {
             Self::Precise(quality) => quality.min(21) as i32,
             Self::Default => 1,
         };
-        ZstdEncoder::new(Writer::new(), quality).unwrap()
+        ZstdEncoder::new(Writer::new(), quality).expect("`ZstdEncoder::new` returned an error")
     }
 }
 

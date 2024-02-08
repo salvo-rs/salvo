@@ -45,7 +45,7 @@ mod xml;
 
 use crate::{routing::NormNode, Endpoint};
 
-static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").unwrap());
+static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
 /// Root object of the OpenAPI document.
 ///
@@ -370,7 +370,7 @@ impl OpenApi {
                 captures
                     .iter()
                     .skip(1)
-                    .map(|capture| capture.unwrap().as_str().to_owned())
+                    .map(|capture| capture.expect("Regex captures should not be None.").as_str().to_owned())
                     .next()
             })
             .collect::<Vec<_>>();

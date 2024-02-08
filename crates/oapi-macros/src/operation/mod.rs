@@ -280,7 +280,12 @@ impl PathTypeTree for TypeTree<'_> {
     fn is_array(&self) -> bool {
         match self.generic_type {
             Some(GenericType::Vec | GenericType::Set) => true,
-            Some(_) => self.children.as_ref().unwrap().iter().any(|child| child.is_array()),
+            Some(_) => self
+                .children
+                .as_ref()
+                .expect("children should no be `None`")
+                .iter()
+                .any(|child| child.is_array()),
             None => false,
         }
     }

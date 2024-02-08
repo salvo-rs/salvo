@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use salvo_core::handler::Skipper;
 use salvo_core::http::uri::{PathAndQuery, Uri};
-use salvo_core::http::ResBody;
+use salvo_core::http::{ParseError, ResBody};
 use salvo_core::prelude::*;
 
 /// TrailingSlashAction
@@ -92,12 +92,13 @@ impl Handler for TrailingSlash {
         }
 
         let original_path = req.uri().path();
-        if !original_path.is_empty() && original_path != "/" { // skip root path
+        if !original_path.is_empty() && original_path != "/" {
+            // skip root path
             let ends_with_slash = original_path.ends_with('/');
             let new_uri = if self.action == TrailingSlashAction::Add && !ends_with_slash {
-                Some(replace_uri_path(req.uri(), &format!("{original_path}/")))
+                replace_uri_path(req.uri(), &format!("{original_path}/")).ok()
             } else if self.action == TrailingSlashAction::Remove && ends_with_slash {
-                Some(replace_uri_path(req.uri(), original_path.trim_end_matches('/')))
+                replace_uri_path(req.uri(), original_path.trim_end_matches('/')).ok()
             } else {
                 None
             };
@@ -117,14 +118,14 @@ impl Handler for TrailingSlash {
     }
 }
 
-fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
+fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Result<Uri, ParseError> {
     let mut uri_parts = original_uri.clone().into_parts();
     let path = match original_uri.query() {
         Some(query) => Cow::from(format!("{new_path}?{query}")),
         None => Cow::from(new_path),
     };
-    uri_parts.path_and_query = Some(PathAndQuery::from_str(path.as_ref()).unwrap());
-    Uri::from_parts(uri_parts).unwrap()
+    uri_parts.path_and_query = Some(PathAndQuery::from_str(path.as_ref())?);
+    Ok(Uri::from_parts(uri_parts)?)
 }
 
 /// Create an add slash middleware.
