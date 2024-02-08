@@ -1,4 +1,4 @@
-//! This module is for protecting the server from slow or malicious clients.
+//! Protecting the server from slow HTTP attacks.
 
 mod simple;
 pub use simple::{SimpleBuilder, SimpleFusewire};
@@ -58,9 +58,9 @@ pub trait FuseFactory {
 /// A fusewire.
 #[async_trait]
 pub trait Fusewire {
-    /// Report a event.
+    /// Recive a event report.
     fn event(&self, event: FuseEvent);
-    /// Check if the fuse is fused.
+    /// Check if the fusewire is fused.
     async fn fused(&self);
 }
 
@@ -90,6 +90,8 @@ impl FuseFactory for PseudoFusewire {
 }
 
 /// A pseudo fusewire.
+/// 
+/// This fusewire will do nothing.
 pub struct PseudoFusewire;
 #[async_trait]
 impl Fusewire for PseudoFusewire {
