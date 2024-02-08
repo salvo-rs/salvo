@@ -16,3 +16,6 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 proc-macro-error = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits"] }
+
+[lints]
+workspace = true

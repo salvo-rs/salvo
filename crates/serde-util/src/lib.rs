@@ -1,4 +1,10 @@
 //! Provides serde related features parsing serde attributes from types.
+//!
+//! Read more: <https://salvo.rs>
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 use proc_macro2::{Ident, Span, TokenTree};
 use proc_macro_error::abort;
 use syn::{buffer::Cursor, Attribute, Error};
@@ -39,13 +45,20 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
     }
 }
 
+/// Value type of a `#[serde(...)]` attribute.
 #[derive(Default, Debug)]
 pub struct SerdeValue {
+    /// Skip field.
     pub skip: bool,
+    /// Rename field.
     pub rename: Option<String>,
+    /// Is default value.
     pub is_default: bool,
+    /// Flatten field.
     pub flatten: bool,
+    /// Skip serializing if.
     pub skip_serializing_if: bool,
+    /// Double option.
     pub double_option: bool,
 }
 
@@ -87,20 +100,28 @@ impl SerdeValue {
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum SerdeEnumRepr {
+    /// ExternallyTagged.
     #[default]
     ExternallyTagged,
+    /// InternallyTagged.
     InternallyTagged {
+        /// tag.
         tag: String,
     },
+    /// AdjacentlyTagged
     AdjacentlyTagged {
+        /// tag.
         tag: String,
+        /// content.
         content: String,
     },
+    /// Untagged
     Untagged,
     /// This is a variant that can never happen because `serde` will not accept it.
     /// With the current implementation it is necessary to have it as an intermediate state when parsing the
     /// attributes
     UnfinishedAdjacentlyTagged {
+        /// content.
         content: String,
     },
 }
@@ -109,9 +130,13 @@ pub enum SerdeEnumRepr {
 #[derive(Default, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeContainer {
+    /// Rename all fields.
     pub rename_all: Option<RenameRule>,
+    /// Enum repr.
     pub enum_repr: SerdeEnumRepr,
+    /// Is default.
     pub is_default: bool,
+    /// Deny unknown fields.
     pub deny_unknown_fields: bool,
 }
 
@@ -201,6 +226,7 @@ impl SerdeContainer {
     }
 }
 
+/// Parse value.
 pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
@@ -230,6 +256,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         })
 }
 
+/// Parse container.
 pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()

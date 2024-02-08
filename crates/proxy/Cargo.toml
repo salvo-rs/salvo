@@ -31,3 +31,6 @@ percent-encoding = { workspace = true }
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

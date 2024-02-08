@@ -134,3 +134,14 @@ x509-parser = "0.15"
 brotli = { version = "3.3", default-features = false }
 flate2 = { version = "1.0", default-features = false }
 zstd = { version = "0.13", default-features = false }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unreachable_pub = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+future_not_send = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"

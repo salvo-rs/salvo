@@ -30,3 +30,6 @@ headers03 = {version = "0.3", package = "headers"}
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true }
+
+[lints]
+workspace = true
