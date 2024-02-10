@@ -66,7 +66,7 @@ impl HttpBuilder {
         socket: I,
         service: S,
         fusewire: ArcFusewire,
-        stop_token: CancellationToken,
+        graceful_stop_token: CancellationToken,
     ) -> Result<()>
     where
         S: Service<Request<HyperBody>, Response = Response<B>> + Send,
@@ -78,7 +78,15 @@ impl HttpBuilder {
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         #[cfg(all(feature = "http1", feature = "http2"))]
-        let (version, socket) = read_version(socket).await?;
+        let (version, socket) = tokio::select! {
+            result = read_version(socket) => {
+                result?
+            },
+            _ = fusewire.fused() => {
+                tracing::info!("closing connection due to fused");
+                return Ok(());
+            },
+        };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
         let version = Version::HTTP_11; // Just make the compiler happy.
         #[cfg(all(feature = "http1", not(feature = "http2")))]
@@ -105,14 +113,14 @@ impl HttpBuilder {
                         _ = fusewire.fused() => {
                             tracing::info!("closing connection due to fused");
                         },
-                        _ = stop_token.cancelled() => {
+                        _ = graceful_stop_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
+
+                            // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
+                            Pin::new(&mut conn).graceful_shutdown();
+                            conn.await.ok();
                         }
                     }
-
-                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                    Pin::new(&mut conn).graceful_shutdown();
-                    conn.await.ok();
                 }
             }
             Version::HTTP_2 => {
@@ -121,6 +129,7 @@ impl HttpBuilder {
                 #[cfg(feature = "http2")]
                 {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
+
                     tokio::select! {
                         _ = &mut conn => {
                             // Connection completed successfully.
@@ -129,7 +138,7 @@ impl HttpBuilder {
                         _ = fusewire.fused() => {
                             tracing::info!("closing connection due to fused");
                         },
-                        _ = stop_token.cancelled() => {
+                        _ = graceful_stop_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
 
                             // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)

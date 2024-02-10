@@ -1,7 +1,7 @@
 //! Protecting the server from slow HTTP attacks.
 
-mod simple;
-pub use simple::{SimpleBuilder, SimpleFusewire};
+pub mod simple;
+pub use simple::{SimpleFactory, SimpleFusewire};
 
 use std::sync::Arc;
 
@@ -62,15 +62,6 @@ pub trait Fusewire {
     fn event(&self, event: FuseEvent);
     /// Check if the fusewire is fused.
     async fn fused(&self);
-}
-
-/// Create a fusewire never fused.
-pub fn steady() -> SteadyFusewire {
-    SteadyFusewire
-}
-/// Create a simple fusewire.
-pub fn simple(trans_proto: TransProto) -> SimpleFusewire {
-    SimpleFusewire::new(trans_proto)
 }
 
 impl<T, F> FuseFactory for T

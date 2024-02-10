@@ -11,7 +11,7 @@ use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::Bytes;
 
-use crate::fuse::{self, ArcFusewire, FuseEvent};
+use crate::fuse::{ArcFusewire, FuseEvent, SteadyFusewire};
 use crate::BoxedError;
 
 pub(crate) type BoxedBody = Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
@@ -168,7 +168,7 @@ impl From<Incoming> for ReqBody {
     fn from(inner: Incoming) -> Self {
         Self::Hyper {
             inner,
-            fusewire: Arc::new(fuse::steady()),
+            fusewire: Arc::new(SteadyFusewire),
         }
     }
 }

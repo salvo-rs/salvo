@@ -10,7 +10,7 @@ use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
-use crate::fuse::{ArcFusewire, SteadyFusewire};
+use crate::fuse::ArcFusewire;
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
