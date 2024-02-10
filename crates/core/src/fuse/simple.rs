@@ -6,7 +6,7 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::{async_trait, FuseFactory, ArcFusewire, FuseEvent, Fusewire, TransProto};
+use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, Fusewire, TransProto};
 
 /// A simple fusewire.
 #[derive(Default)]
