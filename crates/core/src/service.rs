@@ -151,7 +151,7 @@ impl Service {
             request.local_addr.clone(),
             request.remote_addr.clone(),
             request.scheme.clone(),
-            Arc::new(SteadyFusewire),
+            Arc::new(crate::fuse::SteadyFusewire),
             None,
         )
         .handle(request)
