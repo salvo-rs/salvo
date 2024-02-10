@@ -96,13 +96,11 @@ impl Fusewire for SimpleFusewire {
         }
     }
     async fn fused(&self) {
-        println!("fused,,,");
         tokio::select! {
             _ = self.tcp_idle_token.cancelled() => {}
             _ = self.tcp_frame_token.cancelled() => {}
             _ = self.tls_handshake_token.cancelled() => {}
         }
-        println!("fused");
     }
 }
 
@@ -160,7 +158,6 @@ impl SimpleFactory {
                         .await
                         .is_err()
                     {
-                        println!("tcp_idle_timeout");
                         tcp_idle_token.cancel();
                         break;
                     }
