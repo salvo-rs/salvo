@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, SteadyFusewire};
+use crate::fuse::{ArcFuseFactory, FuseFactory, SteadyFusewire};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -122,8 +122,11 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Set the fuse factory.
-    pub fn fuse_factory(mut self, factory: impl Into<ArcFuseFactory>) -> Self {
-        self.fuse_factory = factory.into();
+    pub fn fuse_factory<F>(mut self, factory: F) -> Self
+    where
+        F: FuseFactory + Send + Sync + 'static,
+    {
+        self.fuse_factory = Arc::new(factory);
         self
     }
 
