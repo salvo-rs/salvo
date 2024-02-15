@@ -1,6 +1,9 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Compression middleware for for Savlo web server framework.
 //!
 //! Read more: <https://salvo.rs>
+
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
