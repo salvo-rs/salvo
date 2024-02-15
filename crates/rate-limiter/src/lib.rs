@@ -14,11 +14,6 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
@@ -208,15 +203,15 @@ where
         if self.add_headers {
             res.headers_mut().insert(
                 "X-RateLimit-Limit",
-                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).unwrap(),
+                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Remaining",
-                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).unwrap(),
+                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Reset",
-                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).unwrap(),
+                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).expect("Invalid header value"),
             );
         }
         if !verified {

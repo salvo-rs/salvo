@@ -27,9 +27,27 @@ pub enum ParseError {
     #[error("Parse error when parse from str.")]
     ParseFromStr,
 
-    /// Parse error when parse from str.
-    #[error("Parse error when decode url.")]
-    UrlDecode,
+    //// A possible error value when converting a `StatusCode` from a `u16` or `&str`
+    /// This error indicates that the supplied input was not a valid number, was less
+    /// than 100, or was greater than 999.
+    #[error("Invalid StatusCode.")]
+    InvalidStatusCode(#[from] http::status::InvalidStatusCode),
+
+    /// A possible error value when converting `Method` from bytes.
+    #[error("Invalid http method.")]
+    InvalidMethod(#[from] http::method::InvalidMethod),
+    /// An error resulting from a failed attempt to construct a URI.
+    #[error("Invalid uri.")]
+    InvalidUri(#[from] http::uri::InvalidUri),
+    /// An error resulting from a failed attempt to construct a URI.
+    #[error("Invalid uri parts.")]
+    InvalidUriParts(#[from] http::uri::InvalidUriParts),
+    /// A possible error when converting a `HeaderName` from another type.
+    #[error("Invalid header name.")]
+    InvalidHeaderName(#[from] http::header::InvalidHeaderName),
+    /// A possible error when converting a `HeaderValue` from a string or byte slice.
+    #[error("Invalid header value.")]
+    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
     /// Deserialize error when parse from request.
     #[error("Deserialize error.")]

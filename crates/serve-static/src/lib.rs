@@ -4,11 +4,6 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 pub mod dir;
 mod file;
@@ -95,7 +90,7 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
             builder = builder.path_and_query(format!("{}/", path_and_query.path()));
         }
     }
-    let redirect_uri = builder.build().unwrap();
+    let redirect_uri = builder.build().expect("Invalid uri");
     res.render(Redirect::found(redirect_uri));
 }
 

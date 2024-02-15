@@ -1,5 +1,4 @@
 //! Http request.
-
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 #[cfg(feature = "quinn")]
@@ -23,6 +22,7 @@ use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
+use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
@@ -53,7 +53,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: ReqBody,
+    pub(crate) body: ReqBody,
     pub(crate) extensions: Extensions,
 
     // The request method.
@@ -119,6 +119,14 @@ impl Request {
             scheme: Scheme::HTTP,
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
+        }
+    }
+    #[doc(hidden)]
+    pub fn trans_proto(&self) -> TransProto {
+        if self.version == Version::HTTP_3 {
+            TransProto::Quic
+        } else {
+            TransProto::Tcp
         }
     }
     /// Creates a new `Request` from [`hyper::Request`].
@@ -576,7 +584,7 @@ impl Request {
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
-        self.queries.get_mut().unwrap()
+        self.queries.get_mut().expect("queries should be initialized")
     }
 
     /// Get query value from queries.

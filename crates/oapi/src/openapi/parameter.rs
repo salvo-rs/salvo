@@ -217,7 +217,10 @@ impl Parameter {
             if self.extensions.is_none() {
                 self.extensions = Some(HashMap::new());
             } else {
-                self.extensions.as_mut().unwrap().extend(extensions);
+                self.extensions
+                    .as_mut()
+                    .expect("Parameter extensions should not be None.")
+                    .extend(extensions);
             }
         }
         true

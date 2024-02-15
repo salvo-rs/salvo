@@ -36,3 +36,6 @@ tokio = { workspace = true }
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 once_cell = { workspace = true }
+
+[lints]
+workspace = true

@@ -59,7 +59,7 @@ impl<'r> ResponseTuple<'r> {
         if self.inner.is_none() {
             self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
         }
-        if let ResponseTupleInner::Value(val) = self.inner.as_mut().unwrap() {
+        if let ResponseTupleInner::Value(val) = self.inner.as_mut().expect("inner value shoule not be `None`") {
             Ok(val)
         } else {
             Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
@@ -239,7 +239,7 @@ impl<'r> ResponseValue<'r> {
 impl ToTokens for ResponseTuple<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
-        match self.inner.as_ref().unwrap() {
+        match self.inner.as_ref().expect("inner value should not be `None`") {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
                 tokens.extend(quote_spanned! {path.span()=>

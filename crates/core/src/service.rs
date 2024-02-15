@@ -10,6 +10,7 @@ use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
+use crate::fuse::ArcFusewire;
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
@@ -126,6 +127,7 @@ impl Service {
         local_addr: SocketAddr,
         remote_addr: SocketAddr,
         http_scheme: Scheme,
+        fusewire: ArcFusewire,
         alt_svc_h3: Option<HeaderValue>,
     ) -> HyperHandler {
         HyperHandler {
@@ -136,6 +138,7 @@ impl Service {
             catcher: self.catcher.clone(),
             hoops: self.hoops.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
+            fusewire,
             alt_svc_h3,
         }
     }
@@ -148,6 +151,7 @@ impl Service {
             request.local_addr.clone(),
             request.remote_addr.clone(),
             request.scheme.clone(),
+            Arc::new(crate::fuse::SteadyFusewire),
             None,
         )
         .handle(request)
@@ -175,6 +179,7 @@ pub struct HyperHandler {
     pub(crate) catcher: Option<Arc<Catcher>>,
     pub(crate) hoops: Vec<Arc<dyn Handler>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) fusewire: ArcFusewire,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
 impl HyperHandler {
@@ -217,7 +222,7 @@ impl HyperHandler {
                 res.status_code(StatusCode::NOT_FOUND);
             }
 
-            let status = res.status_code.unwrap();
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
@@ -324,7 +329,8 @@ where
                 }
             }
         }
-        let request = Request::from_hyper(req, scheme);
+        let mut request = Request::from_hyper(req, scheme);
+        request.body.fill_fusewire(self.fusewire.clone());
         let response = self.handle(request);
         Box::pin(async move { Ok(response.await.into_hyper()) })
     }

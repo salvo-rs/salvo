@@ -91,7 +91,9 @@ impl Filter for HostFilter {
             .and_then(|h| h.to_str().ok())
             .map(|h| {
                 if h.contains(':') {
-                    h.rsplit_once(':').unwrap().0
+                    h.rsplit_once(':')
+                        .expect("rsplit_once by ':' should not returns `None`")
+                        .0
                 } else {
                     h
                 }
@@ -138,7 +140,9 @@ impl Filter for PortFilter {
             .and_then(|h| h.to_str().ok())
             .map(|h| {
                 if h.contains(':') {
-                    h.rsplit_once(':').unwrap().1
+                    h.rsplit_once(':')
+                        .expect("rsplit_once by ':' should not returns `None`")
+                        .1
                 } else {
                     h
                 }

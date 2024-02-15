@@ -194,8 +194,8 @@ fn text_nonce() -> String {
         let nsecs: u32 = now.subsec_nanos();
 
         let mut cursor = Cursor::new(&mut *raw);
-        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).unwrap();
-        Write::write_all(&mut cursor, &secs.to_le_bytes()).unwrap();
+        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).expect("write_all failed");
+        Write::write_all(&mut cursor, &secs.to_le_bytes()).expect("write_all failed");
 
         // Get the last bytes from random data
         OsRng.fill_bytes(&mut raw[12..BYTE_LEN]);

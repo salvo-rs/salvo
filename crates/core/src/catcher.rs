@@ -227,7 +227,7 @@ fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&s
             cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
         },
     };
-    serde_json::to_string(&data).unwrap()
+    serde_json::to_string(&data).unwrap_or_default()
 }
 
 fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
@@ -255,7 +255,7 @@ fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&st
         brief,
         cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
     };
-    serde_xml_rs::to_string(&data).unwrap()
+    serde_xml_rs::to_string(&data).unwrap_or_default()
 }
 
 /// Create bytes from `StatusError`.
@@ -263,7 +263,7 @@ fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&st
 #[inline]
 pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Bytes) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
-        "text/html".parse().unwrap()
+        mime::TEXT_HTML
     } else {
         prefer_format.clone()
     };
@@ -287,10 +287,16 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
         status_error_bytes(body, &format, footer)
     } else {
         let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
-        status_error_bytes(&StatusError::from_code(status).unwrap(), &format, footer)
+        status_error_bytes(
+            &StatusError::from_code(status).unwrap_or_else(StatusError::internal_server_error),
+            &format,
+            footer,
+        )
     };
-    res.headers_mut()
-        .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        format.to_string().parse().expect("invalid `Content-Type`"),
+    );
     res.write_body(data).ok();
 }
 

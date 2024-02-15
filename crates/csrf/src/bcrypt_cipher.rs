@@ -52,7 +52,7 @@ impl CsrfCipher for BcryptCipher {
     }
     fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
-        let proof = bcrypt::hash(&token, self.cost).unwrap().replace('+', "/").replace('/', "_");
+        let proof = bcrypt::hash(&token, self.cost).expect("Call bcrypt hash get error result.").replace('+', "/").replace('/', "_");
 
         (URL_SAFE_NO_PAD.encode(token), proof)
     }

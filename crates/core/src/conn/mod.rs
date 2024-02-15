@@ -10,16 +10,14 @@ use std::io::Result as IoResult;
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
 
 mod proto;
 pub use proto::HttpBuilder;
+mod stream;
+pub use stream::*;
 
-cfg_feature! {
-    #![any(feature = "native-tls", feature = "rustls", feature = "openssl", feature = "acme")]
-    mod handshake_stream;
-    pub use handshake_stream::HandshakeStream;
-}
 cfg_feature! {
     #![feature = "acme"]
     pub mod acme;
@@ -72,36 +70,6 @@ cfg_feature! {
     pub use unix::UnixListener;
 }
 
-cfg_feature! {
-    #![any(feature = "rustls", feature = "acme")]
-    mod sealed {
-        use std::io::{Error as IoError, ErrorKind, Result as IoResult};
-        use std::sync::Arc;
-        use std::time::Duration;
-
-        use tokio_rustls::server::TlsStream;
-        use tokio::io::{AsyncRead, AsyncWrite};
-
-        use crate::service::HyperHandler;
-        use crate::http::{HttpConnection};
-        use crate::conn::HttpBuilder;
-
-        #[cfg(any(feature = "rustls", feature = "acme"))]
-        impl<S> HttpConnection for TlsStream<S>
-        where
-            S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-        {
-            async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>,
-                idle_timeout: Option<Duration>) -> IoResult<()> {
-                builder
-                    .serve_connection(self, handler, idle_timeout)
-                    .await
-                    .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-            }
-        }
-    }
-}
-
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 /// A type that can convert into tls config stream.
 pub trait IntoConfigStream<C> {
@@ -117,7 +85,10 @@ pub trait IntoConfigStream<C> {
 /// The  `Accepted`  struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
 #[non_exhaustive]
-pub struct Accepted<C> {
+pub struct Accepted<C>
+where
+    C: HttpConnection,
+{
     /// Incoming stream.
     pub conn: C,
     /// Local addr.
@@ -136,7 +107,10 @@ where
 {
     /// Map connection and returns a new `Accepted`.
     #[inline]
-    pub fn map_conn<T>(self, wrap_fn: impl FnOnce(C) -> T) -> Accepted<T> {
+    pub fn map_conn<T>(self, wrap_fn: impl FnOnce(C) -> T) -> Accepted<T>
+    where
+        T: HttpConnection,
+    {
         let Accepted {
             conn,
             local_addr,
@@ -163,7 +137,7 @@ pub trait Acceptor {
     fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
-    fn accept(&mut self) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+    fn accept(&mut self, fuse_factory: ArcFuseFactory) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
 }
 
 /// Holding information.
@@ -200,7 +174,7 @@ pub trait Listener {
     where
         Self: Sized + Send,
     {
-        async move { self.try_bind().await.unwrap() }
+        async move { self.try_bind().await.expect("bind failed") }
     }
 
     /// Bind and returns acceptor.

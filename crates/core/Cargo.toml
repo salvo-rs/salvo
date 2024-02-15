@@ -29,7 +29,7 @@ native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
 test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2","hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 tower-compat = ["dep:tower"]
 
 [dependencies]
@@ -98,3 +98,6 @@ nix = { workspace = true, features = ["fs", "user"] }
 
 [dev-dependencies]
 fastrand = { workspace = true }
+
+[lints]
+workspace = true

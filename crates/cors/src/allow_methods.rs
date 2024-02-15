@@ -34,7 +34,7 @@ impl AllowMethods {
     ///
     /// [`Cors::allow_methods`]: super::Cors::allow_methods
     pub fn exact(method: Method) -> Self {
-        let value = HeaderValue::from_str(method.as_str()).unwrap();
+        let value = HeaderValue::from_str(method.as_str()).expect("Invalid method.");
         Self(AllowMethodsInner::Exact(value))
     }
 
@@ -47,7 +47,9 @@ impl AllowMethods {
     where
         I: IntoIterator<Item = Method>,
     {
-        let methods = methods.into_iter().map(|m| HeaderValue::from_str(m.as_str()).unwrap());
+        let methods = methods
+            .into_iter()
+            .map(|m| HeaderValue::from_str(m.as_str()).expect("Invalid method."));
         match separated_by_commas(methods) {
             None => Self(AllowMethodsInner::None),
             Some(v) => Self(AllowMethodsInner::Exact(v)),

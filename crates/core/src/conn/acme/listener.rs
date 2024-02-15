@@ -11,10 +11,12 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
+use crate::conn::HandshakeStream;
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::Version;
+use crate::http::{HttpConnection, Version};
 use crate::Router;
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
@@ -431,16 +433,17 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
             conn,
             local_addr,
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory).await?;
+        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(self.tls_acceptor.accept(conn)),
+            conn: HandshakeStream::new(self.tls_acceptor.accept(conn), fusewire),
             local_addr,
             remote_addr,
             http_version,

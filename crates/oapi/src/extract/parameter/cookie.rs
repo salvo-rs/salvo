@@ -14,7 +14,7 @@ pub struct CookieParam<T, const REQUIRED: bool>(Option<T>);
 impl<T> CookieParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
-        self.0.unwrap()
+        self.0.expect("`CookieParam<T, true>` into_inner get `None`")
     }
 }
 impl<T> CookieParam<T, false> {
@@ -28,7 +28,7 @@ impl<T> Deref for CookieParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap()
+        self.0.as_ref().expect("`CookieParam<T, true>` defref get `None`")
     }
 }
 impl<T> Deref for CookieParam<T, false> {
@@ -41,7 +41,7 @@ impl<T> Deref for CookieParam<T, false> {
 
 impl<T> DerefMut for CookieParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().unwrap()
+        self.0.as_mut().expect("`CookieParam<T, true>` defref_mut get `None`")
     }
 }
 impl<T> DerefMut for CookieParam<T, false> {
@@ -76,7 +76,10 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.as_ref().unwrap().fmt(f)
+        self.0
+            .as_ref()
+            .expect("`CookieParam<T, true>` value should not be None.")
+            .fmt(f)
     }
 }
 

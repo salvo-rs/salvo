@@ -20,6 +20,7 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
+use crate::fuse::{ArcFuseFactory, FuseFactory, SteadyFusewire};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -85,7 +86,7 @@ enum ServerCommand {
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    conn_idle_timeout: Option<Duration>,
+    fuse_factory: ArcFuseFactory,
     tx_cmd: UnboundedSender<ServerCommand>,
     rx_cmd: UnboundedReceiver<ServerCommand>,
 }
@@ -105,17 +106,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// }
     /// ```
     pub fn new(acceptor: A) -> Self {
-        Self::with_http_builder(
-            acceptor,
-            HttpBuilder {
-                #[cfg(feature = "http1")]
-                http1: http1::Builder::new(),
-                #[cfg(feature = "http2")]
-                http2: http2::Builder::new(crate::rt::tokio::TokioExecutor::new()),
-                #[cfg(feature = "quinn")]
-                quinn: crate::conn::quinn::Builder::new(),
-            },
-        )
+        Self::with_http_builder(acceptor, HttpBuilder::new())
     }
 
     /// Create new `Server` with [`Acceptor`] and [`HttpBuilder`].
@@ -124,10 +115,19 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            conn_idle_timeout: None,
+            fuse_factory: Arc::new(SteadyFusewire),
             tx_cmd,
             rx_cmd,
         }
+    }
+
+    /// Set the fuse factory.
+    pub fn fuse_factory<F>(mut self, factory: F) -> Self
+    where
+        F: FuseFactory + Send + Sync + 'static,
+    {
+        self.fuse_factory = Arc::new(factory);
+        self
     }
 
     /// Get a [`ServerHandle`] to stop server.
@@ -183,14 +183,6 @@ impl<A: Acceptor + Send> Server<A> {
         }
     }
 
-    /// Specify connection idle timeout. Connections will be terminated if there was no activity
-    /// within this period of time.
-    #[must_use]
-    pub fn conn_idle_timeout(mut self, timeout: Duration) -> Self {
-        self.conn_idle_timeout = Some(timeout);
-        self
-    }
-
     /// Serve a [`Service`].
     ///
     /// # Example
@@ -215,7 +207,7 @@ impl<A: Acceptor + Send> Server<A> {
     where
         S: Into<Service> + Send,
     {
-        self.try_serve(service).await.unwrap();
+        self.try_serve(service).await.expect("failed to call `Server::serve`");
     }
 
     /// Try to serve a [`Service`].
@@ -226,13 +218,14 @@ impl<A: Acceptor + Send> Server<A> {
         let Self {
             mut acceptor,
             builder,
-            conn_idle_timeout,
+            fuse_factory,
             mut rx_cmd,
             ..
         } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
-        let timeout_token = CancellationToken::new();
+        let force_stop_token = CancellationToken::new();
+        let graceful_stop_token = CancellationToken::new();
 
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
@@ -243,7 +236,7 @@ impl<A: Acceptor + Send> Server<A> {
                     alt_svc_h3 = Some(
                         format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
-                            .unwrap(),
+                            .expect("Parse alt-svc header failed."),
                     );
                 }
             }
@@ -256,16 +249,18 @@ impl<A: Acceptor + Send> Server<A> {
                 Some(cmd) = rx_cmd.recv() => {
                     match cmd {
                         ServerCommand::StopGraceful(timeout) => {
+                            let graceful_stop_token = graceful_stop_token.clone();
+                            graceful_stop_token.cancel();
                             if let Some(timeout) = timeout {
                                 tracing::info!(
                                     timeout_in_seconds = timeout.as_secs_f32(),
                                     "initiate graceful stop server",
                                 );
 
-                                let timeout_token = timeout_token.clone();
+                                let force_stop_token = force_stop_token.clone();
                                 tokio::spawn(async move {
                                     tokio::time::sleep(timeout).await;
-                                    timeout_token.cancel();
+                                    force_stop_token.cancel();
                                 });
                             } else {
                                 tracing::info!("initiate graceful stop server");
@@ -273,12 +268,12 @@ impl<A: Acceptor + Send> Server<A> {
                         },
                         ServerCommand::StopForcible => {
                             tracing::info!("force stop server");
-                            timeout_token.cancel();
+                            force_stop_token.cancel();
                         },
                     }
                     break;
                 },
-                accepted = acceptor.accept() => {
+                accepted = acceptor.accept(fuse_factory.clone()) => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
                             alive_connections.fetch_add(1, Ordering::Release);
@@ -286,17 +281,18 @@ impl<A: Acceptor + Send> Server<A> {
                             let service = service.clone();
                             let alive_connections = alive_connections.clone();
                             let notify = notify.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, alt_svc_h3.clone());
+                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
                             let builder = builder.clone();
 
-                            let timeout_token = timeout_token.clone();
+                            let force_stop_token = force_stop_token.clone();
+                            let graceful_stop_token = graceful_stop_token.clone();
 
                             tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, conn_idle_timeout);
+                                let conn = conn.serve(handler, builder, graceful_stop_token);
                                 tokio::select! {
                                     _ = conn => {
                                     },
-                                    _ = timeout_token.cancelled() => {
+                                    _ = force_stop_token.cancelled() => {
                                     }
                                 }
 

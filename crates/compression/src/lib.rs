@@ -1,6 +1,9 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Compression middleware for for Savlo web server framework.
 //!
 //! Read more: <https://salvo.rs>
+
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -8,7 +11,7 @@ use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::{self, Mime, StatusCode};
+use salvo_core::http::{self, mime, Mime, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 mod encoder;
@@ -38,18 +41,22 @@ pub enum CompressionLevel {
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 #[non_exhaustive]
 pub enum CompressionAlgo {
+    /// Compress use Brotli algo.
     #[cfg(feature = "brotli")]
     #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     Brotli,
 
+    /// Compress use Deflate algo.
     #[cfg(feature = "deflate")]
     #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     Deflate,
 
+    /// Compress use Gzip algo.
     #[cfg(feature = "gzip")]
     #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     Gzip,
 
+    /// Compress use Zstd algo.
     #[cfg(feature = "zstd")]
     #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     Zstd,
@@ -141,13 +148,13 @@ impl Default for Compression {
         Self {
             algos,
             content_types: vec![
-                "text/*".parse().unwrap(),
-                "application/javascript".parse().unwrap(),
-                "application/json".parse().unwrap(),
-                "application/xml".parse().unwrap(),
-                "application/rss+xml".parse().unwrap(),
-                "application/wasm".parse().unwrap(),
-                "image/svg+xml".parse().unwrap(),
+                mime::TEXT_STAR,
+                mime::APPLICATION_JAVASCRIPT,
+                mime::APPLICATION_JSON,
+                mime::IMAGE_SVG,
+                "application/wasm".parse().expect("invalid mime type"),
+                "application/xml".parse().expect("invalid mime type"),
+                "application/rss+xml".parse().expect("invalid mime type"),
             ],
             min_length: 0,
             force_priority: false,

@@ -39,7 +39,7 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                 // such as:
                 // `::std::vec::Vec` is `Vec`
                 // `Vec` is `Vec`
-                let ident = &nty.path.segments.last().unwrap().ident;
+                let ident = &nty.path.segments.last().expect("path segment should exists").ident;
                 if ident == "Request" {
                     InputType::Request(p)
                 } else if ident == "Response" {
@@ -66,8 +66,8 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
 }
 
 pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
-    let reg = Regex::new(r"'\w+").unwrap();
+    let reg = Regex::new(r"'\w+").expect("invalid regex");
     let ty_path = ty_path.into_token_stream().to_string();
     let ty_path = reg.replace_all(&ty_path, "'_");
-    syn::parse_str(ty_path.as_ref()).unwrap()
+    syn::parse_str(ty_path.as_ref()).expect("invalid type path")
 }
