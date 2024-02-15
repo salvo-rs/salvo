@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.65.2"
+version = "0.66.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 rust-version = "1.75"
@@ -19,24 +19,24 @@ license = "MIT OR Apache-2.0"
 categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [workspace.dependencies]
-salvo_macros = { version = "0.65.2", path = "crates/macros", default-features = false }
-salvo_core = { version = "0.65.2", path = "crates/core", default-features = false }
-salvo_extra = { version = "0.65.2", path = "crates/extra", default-features = false }
-salvo-compression = { version = "0.65.2", path = "crates/compression", default-features = false }
-salvo-cache = { version = "0.65.2", path = "crates/cache", default-features = false }
-salvo-cors = { version = "0.65.2", path = "crates/cors", default-features = false }
-salvo-csrf = { version = "0.65.2", path = "crates/csrf", default-features = false }
-salvo-flash = { version = "0.65.2", path = "crates/flash", default-features = false }
+salvo_macros = { version = "0.66.0", path = "crates/macros", default-features = false }
+salvo_core = { version = "0.66.0", path = "crates/core", default-features = false }
+salvo_extra = { version = "0.66.0", path = "crates/extra", default-features = false }
+salvo-compression = { version = "0.66.0", path = "crates/compression", default-features = false }
+salvo-cache = { version = "0.66.0", path = "crates/cache", default-features = false }
+salvo-cors = { version = "0.66.0", path = "crates/cors", default-features = false }
+salvo-csrf = { version = "0.66.0", path = "crates/csrf", default-features = false }
+salvo-flash = { version = "0.66.0", path = "crates/flash", default-features = false }
 salvo-http3 = { version = "0.0.9", default-features = false }
-salvo-jwt-auth = { version = "0.65.2", path = "crates/jwt-auth", default-features = false }
-salvo-oapi = { version = "0.65.2", path = "./crates/oapi", default-features = false }
-salvo-oapi-macros = { version = "0.65.2", path = "crates/oapi-macros", default-features = false }
-salvo-otel = { version = "0.65.2", path = "crates/otel", default-features = false }
-salvo-proxy = { version = "0.65.2", path = "crates/proxy", default-features = false }
-salvo-rate-limiter = { version = "0.65.2", path = "crates/rate-limiter", default-features = false }
-salvo-serde-util = { version = "0.65.2", path = "crates/serde-util", default-features = true }
-salvo-serve-static = { version = "0.65.2", path = "crates/serve-static", default-features = false }
-salvo-session = { version = "0.65.2", path = "crates/session", default-features = false }
+salvo-jwt-auth = { version = "0.66.0", path = "crates/jwt-auth", default-features = false }
+salvo-oapi = { version = "0.66.0", path = "./crates/oapi", default-features = false }
+salvo-oapi-macros = { version = "0.66.0", path = "crates/oapi-macros", default-features = false }
+salvo-otel = { version = "0.66.0", path = "crates/otel", default-features = false }
+salvo-proxy = { version = "0.66.0", path = "crates/proxy", default-features = false }
+salvo-rate-limiter = { version = "0.66.0", path = "crates/rate-limiter", default-features = false }
+salvo-serde-util = { version = "0.66.0", path = "crates/serde-util", default-features = true }
+salvo-serve-static = { version = "0.66.0", path = "crates/serve-static", default-features = false }
+salvo-session = { version = "0.66.0", path = "crates/session", default-features = false }
 
 aead = "0.5"
 aes-gcm = "0.10"
