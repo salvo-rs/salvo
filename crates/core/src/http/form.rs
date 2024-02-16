@@ -121,6 +121,14 @@ impl FilePart {
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
+    /// Get content type.
+    #[inline]
+    pub fn content_type(&self) -> Option<Mime> {
+        self.headers
+            .get(CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok())
+    }
     /// Get file path.
     #[inline]
     pub fn path(&self) -> &PathBuf {
