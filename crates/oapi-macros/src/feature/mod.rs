@@ -205,9 +205,7 @@ impl ToTokens for Feature {
             Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
             Feature::Description(description) => quote! { .description(#description) },
             Feature::Deprecated(deprecated) => quote! { .deprecated(#deprecated) },
-            Feature::Skip(_) => {
-                TokenStream::new()
-            }
+            Feature::Skip(_) => TokenStream::new(),
             Feature::AdditionalProperties(additional_properties) => {
                 quote! { .additional_properties(#additional_properties) }
             }

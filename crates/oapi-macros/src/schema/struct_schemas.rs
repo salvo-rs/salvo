@@ -131,7 +131,9 @@ impl ToTokens for NamedStructSchema<'_> {
                 let is_skipped = field
                     .attrs
                     .parse_features::<NamedFieldFeatures>()
-                    .into_inner().map(|features|features.is_skipped()).unwrap_or(false);
+                    .into_inner()
+                    .map(|features| features.is_skipped())
+                    .unwrap_or(false);
 
                 if is_skipped {
                     return None;

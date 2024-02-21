@@ -890,7 +890,6 @@ impl From<Deprecated> for Feature {
 
 impl_name!(Deprecated = "deprecated");
 
-
 /// Skip feature parsed from macro attributes.
 #[derive(Clone, Debug)]
 pub(crate) struct Skip(pub(crate) bool);
