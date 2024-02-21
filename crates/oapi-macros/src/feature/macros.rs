@@ -66,6 +66,7 @@ is_validatable! {
     SchemaWith => false,
     Description => false,
     Deprecated => false,
+    Skip => false,
     AdditionalProperties => false,
     Required => false
 }

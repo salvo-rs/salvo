@@ -104,6 +104,7 @@ pub(crate) enum Feature {
     SchemaWith(SchemaWith),
     Description(Description),
     Deprecated(Deprecated),
+    Skip(Skip),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
 }
@@ -204,6 +205,7 @@ impl ToTokens for Feature {
             Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
             Feature::Description(description) => quote! { .description(#description) },
             Feature::Deprecated(deprecated) => quote! { .deprecated(#deprecated) },
+            Feature::Skip(_) => TokenStream::new(),
             Feature::AdditionalProperties(additional_properties) => {
                 quote! { .additional_properties(#additional_properties) }
             }
@@ -274,6 +276,7 @@ impl Display for Feature {
             Feature::SchemaWith(with_schema) => with_schema.fmt(f),
             Feature::Description(description) => description.fmt(f),
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
+            Feature::Skip(skip) => skip.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
         }
@@ -317,6 +320,7 @@ impl Validatable for Feature {
             Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
+            Feature::Skip(skip) => skip.is_validatable(),
             Feature::AdditionalProperties(additional_properites) => additional_properites.is_validatable(),
             Feature::Required(required) => required.is_validatable(),
         }
@@ -446,6 +450,22 @@ impl IsInline for Vec<Feature> {
             .is_some()
     }
 }
+
+pub(crate) trait IsSkipped {
+    fn is_skipped(&self) -> bool;
+}
+
+impl IsSkipped for Vec<Feature> {
+    fn is_skipped(&self) -> bool {
+        self.iter()
+            .find_map(|feature| match feature {
+                Feature::Skip(skip) if skip.0 => Some(skip),
+                _ => None,
+            })
+            .is_some()
+    }
+}
+
 pub(crate) trait IntoInner<T> {
     fn into_inner(self) -> T;
 }

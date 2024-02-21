@@ -8,7 +8,9 @@ use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, 
 use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
-    feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
+    feature::{
+        pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, Symbol, ToTokensExt,
+    },
     schema::Inline,
     serde_util::{self, SerdeContainer},
     type_tree::TypeTree,
@@ -126,6 +128,17 @@ impl ToTokens for NamedStructSchema<'_> {
             .fields
             .iter()
             .filter_map(|field| {
+                let is_skipped = field
+                    .attrs
+                    .parse_features::<NamedFieldFeatures>()
+                    .into_inner()
+                    .map(|features| features.is_skipped())
+                    .unwrap_or(false);
+
+                if is_skipped {
+                    return None;
+                }
+
                 let field_rule = serde_util::parse_value(&field.attrs);
 
                 if is_not_skipped(&field_rule) && !is_flatten(&field_rule) {

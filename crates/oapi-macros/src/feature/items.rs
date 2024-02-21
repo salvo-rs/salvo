@@ -890,6 +890,30 @@ impl From<Deprecated> for Feature {
 
 impl_name!(Deprecated = "deprecated");
 
+/// Skip feature parsed from macro attributes.
+#[derive(Clone, Debug)]
+pub(crate) struct Skip(pub(crate) bool);
+impl Parse for Skip {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+impl From<bool> for Skip {
+    fn from(value: bool) -> Self {
+        Skip(value)
+    }
+}
+impl From<Skip> for Feature {
+    fn from(value: Skip) -> Self {
+        Self::Skip(value)
+    }
+}
+
+impl_name!(Skip = "skip");
+
 #[derive(Clone, Debug)]
 pub(crate) struct AdditionalProperties(pub(crate) bool);
 impl Parse for AdditionalProperties {
