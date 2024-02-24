@@ -1,7 +1,7 @@
 use std::fmt::{self, Formatter};
 
 use crate::http::uri::Scheme;
-use crate::http::{header, Method, Request};
+use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
 /// Filter by request method
@@ -90,7 +90,7 @@ impl Filter for HostFilter {
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
         let host = req.uri().authority().map(|a| a.as_str())
-            .or_else(|| req.headers().get(header::HOST).and_then(|h| h.to_str().ok()));
+            .or_else(|| req.headers().get(crate::http::header::HOST).and_then(|h| h.to_str().ok()));
         host.map(|h| {
                 if h.contains(':') {
                     h.rsplit_once(':')
@@ -141,7 +141,7 @@ impl Filter for PortFilter {
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
         let host = req.uri().authority().map(|a| a.as_str())
-            .or_else(|| req.headers().get(header::HOST).and_then(|h| h.to_str().ok()));
+            .or_else(|| req.headers().get(crate::http::header::HOST).and_then(|h| h.to_str().ok()));
         host.map(|h| {
                 if h.contains(':') {
                     h.rsplit_once(':')
