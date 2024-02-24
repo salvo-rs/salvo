@@ -4,16 +4,17 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 use std::vec;
 
 use futures_util::Stream;
 use salvo_http3::http3_quinn;
 pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
+use crate::fuse::ArcFusewire;
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -32,22 +33,28 @@ impl TryInto<ServerConfig> for RustlsConfig {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(http3_quinn::Connection);
+pub struct H3Connection {
+    inner: http3_quinn::Connection,
+    fusewire: ArcFusewire,
+}
 impl H3Connection {
+    pub(crate) fn new(inner: http3_quinn::Connection, fusewire: ArcFusewire) -> Self {
+        Self { inner, fusewire }
+    }
     /// Get inner quinn connection.
     pub fn into_inner(self) -> http3_quinn::Connection {
-        self.0
+        self.inner
     }
 }
 impl Deref for H3Connection {
     type Target = http3_quinn::Connection;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.inner
     }
 }
 impl DerefMut for H3Connection {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.inner
     }
 }
 impl AsyncRead for H3Connection {
@@ -75,12 +82,12 @@ impl HttpConnection for H3Connection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
+        graceful_stop_token: CancellationToken,
     ) -> IoResult<()> {
-        builder
-            .quinn
-            .serve_connection(self, handler, idle_timeout)
-            .await
+        builder.quinn.serve_connection(self, handler, graceful_stop_token).await
+    }
+    fn fusewire(&self) -> ArcFusewire {
+        self.fusewire.clone()
     }
 }
 

@@ -1,5 +1,4 @@
-Generate reusable OpenAPI response what can be used
-in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
+Generate reusable [OpenApi][openapi] response.
 
 This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
 
@@ -102,7 +101,7 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
   Content type can also be slice of **content_type** values if the endpoint support returning multiple
  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
- the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+ the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 
 * `headers(...)` Slice of response headers that are returned back to a caller.
 
@@ -205,5 +204,4 @@ _**Create enum response from variants.**_
 
 [to_response]: trait.ToResponse.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[path]: attr.path.html
 [openapi]: derive.OpenApi.html

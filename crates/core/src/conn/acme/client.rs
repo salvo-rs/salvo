@@ -44,7 +44,6 @@ pub(crate) struct AcmeClient {
 }
 
 impl AcmeClient {
-    #[inline]
     pub(crate) async fn new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> crate::Result<Self> {
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
@@ -114,7 +113,6 @@ impl AcmeClient {
         Ok(res)
     }
 
-    #[inline]
     pub(crate) async fn fetch_authorization(&self, auth_url: &str) -> crate::Result<FetchAuthorizationResponse> {
         tracing::debug!(auth_url, "fetch authorization");
 
@@ -138,7 +136,6 @@ impl AcmeClient {
         Ok(res)
     }
 
-    #[inline]
     pub(crate) async fn trigger_challenge(
         &self,
         domain: &str,
@@ -166,7 +163,6 @@ impl AcmeClient {
         Ok(())
     }
 
-    #[inline]
     pub(crate) async fn send_csr(&self, url: &str, csr: &[u8]) -> crate::Result<NewOrderResponse> {
         tracing::debug!(url, "send certificate request");
 
@@ -190,7 +186,6 @@ impl AcmeClient {
         .await
     }
 
-    #[inline]
     pub(crate) async fn obtain_certificate(&self, url: &str) -> crate::Result<Bytes> {
         tracing::debug!(url, "send certificate request");
 

@@ -155,7 +155,7 @@ impl Parse for ValueParameter<'_> {
                 });
             }
         } else {
-            return Err(input.error("unparseable parameter name, expected literal string"));
+            return Err(input.error("unparsable parameter name, expected literal string"));
         }
 
         input.parse::<Token![,]>()?;

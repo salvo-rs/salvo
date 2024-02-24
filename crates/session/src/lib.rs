@@ -68,11 +68,6 @@ Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 
@@ -135,7 +130,6 @@ pub struct HandlerBuilder<S> {
     fallback_keys: Vec<Key>,
 }
 impl<S: SessionStore> fmt::Debug for HandlerBuilder<S> {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandlerBuilder")
             .field("store", &self.store)
@@ -248,7 +242,6 @@ where
     }
 
     /// Build `SessionHandler`
-    #[inline]
     pub fn build(self) -> Result<SessionHandler<S>, Error> {
         let Self {
             store,
@@ -377,7 +370,6 @@ where
     /// Given a signed value `str` where the signature is prepended to `value`,
     /// verifies the signed value and returns it. If there's a problem, returns
     /// an `Err` with a string describing the issue.
-    #[inline]
     fn verify_signature(&self, cookie_value: &str) -> Result<String, Error> {
         if cookie_value.len() < BASE64_DIGEST_LEN {
             return Err(Error::Other("length of value is <= BASE64_DIGEST_LEN".into()));
@@ -402,7 +394,6 @@ where
         }
         Err(Error::Other("value did not verify".into()))
     }
-    #[inline]
     fn build_cookie(&self, secure: bool, cookie_value: String) -> Cookie<'static> {
         let mut cookie = Cookie::build((self.cookie_name.clone(), cookie_value))
             .http_only(true)
@@ -426,7 +417,6 @@ where
     // The following is reused verbatim from
     // https://github.com/SergioBenitez/cookie-rs/blob/master/src/secure/signed.rs#L37-46
     /// signs the cookie's value providing integrity and authenticity.
-    #[inline]
     fn sign_cookie(&self, cookie: &mut Cookie<'_>) {
         // Compute HMAC-SHA256 of the cookie's value.
         let mut mac = self.hmac.clone();

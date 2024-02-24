@@ -1,9 +1,8 @@
-Generate [path parameters][path_params] from struct's
-fields.
+Generate parameters from struct's fields.
 
 This is `#[derive]` implementation for [`ToParameters`][to_parameters] trait.
 
-Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...parameters(...))]`][path_params] section
+Typically path parameters need to be defined within `#[salvo_oapi::endpoint(...parameters(...))]` section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
 Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
 within `parameters(...)` section if description or other than default configuration need to be given.
@@ -292,7 +291,6 @@ struct Query {
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
 [to_parameters]: trait.ToParameters.html
-[path_params]: attr.path.html#params-attributes
 [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 [style]: openapi/path/enum.ParameterStyle.html
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html

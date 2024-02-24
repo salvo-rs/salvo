@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::future::Future;
 use std::io::{self, Result as IoResult, Write};
 
 use bytes::{Bytes, BytesMut};
@@ -13,7 +14,7 @@ use zstd::stream::write::Decoder as ZstdDecoder;
 use crate::catcher::status_error_bytes;
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{ResBody, Response};
-use crate::{async_trait, Error};
+use crate::Error;
 
 struct Writer {
     buf: BytesMut,
@@ -43,24 +44,22 @@ impl io::Write for Writer {
 }
 
 /// More utils functions for response.
-#[async_trait]
 pub trait ResponseExt {
     /// Take body as `String` from response.
-    async fn take_string(&mut self) -> crate::Result<String>;
+    fn take_string(&mut self) -> impl Future<Output = crate::Result<String>> + Send;
     /// Take body as deserialize it to type `T` instance.
-    async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T>;
+    fn take_json<T: DeserializeOwned>(&mut self) -> impl Future<Output = crate::Result<T>> + Send;
     /// Take body as `String` from response with charset.
-    async fn take_string_with_charset(
+    fn take_string_with_charset(
         &mut self,
         content_type: Option<&Mime>,
         charset: &str,
         compress: Option<&str>,
-    ) -> crate::Result<String>;
+    ) -> impl Future<Output = crate::Result<String>>;
     /// Take all body bytes. If body is none, it will creates and returns a new [`Bytes`].
-    async fn take_bytes(&mut self, content_type: Option<&Mime>) -> crate::Result<Bytes>;
+    fn take_bytes(&mut self, content_type: Option<&Mime>) -> impl Future<Output = crate::Result<Bytes>> + Send;
 }
 
-#[async_trait]
 impl ResponseExt for Response {
     async fn take_string(&mut self) -> crate::Result<String> {
         let content_type = self
@@ -81,7 +80,7 @@ impl ResponseExt for Response {
             .await
     }
     async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        let full = self.take_bytes(Some(&"application/json".parse().unwrap())).await?;
+        let full = self.take_bytes(Some(&mime::APPLICATION_JSON)).await?;
         serde_json::from_slice(&full).map_err(Error::SerdeJson)
     }
     async fn take_string_with_charset(
@@ -138,7 +137,7 @@ impl ResponseExt for Response {
                 if let Some(content_type) = content_type {
                     status_error_bytes(&e, content_type, None).1
                 } else {
-                    status_error_bytes(&e, &"text/html".parse().unwrap(), None).1
+                    status_error_bytes(&e, &mime::TEXT_HTML, None).1
                 }
             }
             _ => BodyExt::collect(body).await?.to_bytes(),

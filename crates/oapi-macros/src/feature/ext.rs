@@ -92,7 +92,7 @@ impl FeaturesExt for Vec<Feature> {
             Feature::XmlAttr(xml_feature) => {
                 let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
 
-                // replace the original xml attribute with splitted value xml
+                // replace the original xml attribute with split value xml
                 if let Some(mut xml) = value_xml {
                     std::mem::swap(xml_feature, &mut xml)
                 }

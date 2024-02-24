@@ -119,13 +119,13 @@ impl From<Vec<HeaderName>> for AllowHeaders {
 
 impl<'a> From<&'a str> for AllowHeaders {
     fn from(val: &'a str) -> Self {
-        Self::list([HeaderName::from_str(val).unwrap()])
+        Self::list([HeaderName::from_str(val).expect("Invalid header name.")])
     }
 }
 
 impl<'a> From<&'a String> for AllowHeaders {
     fn from(val: &'a String) -> Self {
-        Self::list([HeaderName::from_str(val).unwrap()])
+        Self::list([HeaderName::from_str(val).expect("Invalid header name.")])
     }
 }
 
@@ -133,7 +133,7 @@ impl<'a> From<Vec<&'a str>> for AllowHeaders {
     fn from(vals: Vec<&'a str>) -> Self {
         Self::list(
             vals.into_iter()
-                .map(|v| HeaderName::from_str(v).unwrap())
+                .map(|v| HeaderName::from_str(v).expect("Invalid header name."))
                 .collect::<Vec<_>>(),
         )
     }
@@ -142,7 +142,7 @@ impl<'a> From<&'a Vec<String>> for AllowHeaders {
     fn from(vals: &'a Vec<String>) -> Self {
         Self::list(
             vals.iter()
-                .map(|v| HeaderName::from_str(v).unwrap())
+                .map(|v| HeaderName::from_str(v).expect("Invalid header name."))
                 .collect::<Vec<_>>(),
         )
     }

@@ -2,11 +2,6 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 #[macro_use]
 mod cfg;
@@ -19,6 +14,7 @@ pub mod endpoint;
 pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
 mod routing;
+pub use routing::RouterExt;
 
 cfg_feature! {
     #![feature ="swagger-ui"]
@@ -37,6 +33,7 @@ cfg_feature! {
     pub mod redoc;
 }
 
+#[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
 pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/derive_to_parameters.md")]

@@ -11,11 +11,13 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
+use crate::conn::HandshakeStream;
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::Version;
-use crate::{async_trait, Router};
+use crate::http::{HttpConnection, Version};
+use crate::Router;
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
@@ -100,7 +102,6 @@ impl<T> AcmeListener<T> {
     }
 
     /// Create an handler for HTTP-01 challenge
-    #[inline]
     pub fn http01_challege(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challege();
         if let Some(keys_for_http01) = &config_builder.keys_for_http01 {
@@ -265,7 +266,6 @@ impl<T> AcmeListener<T> {
     }
 }
 
-#[async_trait]
 impl<T> Listener for AcmeListener<T>
 where
     T: Listener + Send,
@@ -273,7 +273,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(mut self) -> crate::Result<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -320,7 +320,6 @@ cfg_feature! {
         }
     }
 
-    #[async_trait]
     impl<T, A> Listener for AcmeQuinnListener<T, A>
     where
         T: Listener + Send,
@@ -420,7 +419,7 @@ where
         self.server_config.clone()
     }
 }
-#[async_trait]
+
 impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
@@ -434,16 +433,17 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
             conn,
             local_addr,
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory).await?;
+        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(self.tls_acceptor.accept(conn)),
+            conn: HandshakeStream::new(self.tls_acceptor.accept(conn), fusewire),
             local_addr,
             remote_addr,
             http_version,

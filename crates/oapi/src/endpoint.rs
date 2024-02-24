@@ -71,7 +71,6 @@ impl EndpointOutRegister for StatusError {
     }
 }
 impl EndpointOutRegister for StatusCode {
-    #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         for code in [
             StatusCode::CONTINUE,
@@ -142,7 +141,8 @@ impl<'a> EndpointOutRegister for &'a String {
     }
 }
 
-/// A components for all endpoints.
+/// A component for all endpoints.
+#[doc(hidden)]
 #[non_exhaustive]
 pub struct EndpointRegistry {
     /// The type id of the endpoint.

@@ -70,7 +70,6 @@ impl JsonFinder {
 }
 #[async_trait]
 impl CsrfTokenFinder for JsonFinder {
-    #[inline]
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         let data = req.parse_json::<HashMap<String, Value>>().await;
         if let Ok(data) = data {

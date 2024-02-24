@@ -98,10 +98,10 @@ impl<'c> ComponentSchema {
                     type_tree: type_tree
                         .children
                         .as_ref()
-                        .expect("CompnentSchema generic container type should have children")
+                        .expect("ComponentSchema generic container type should have children")
                         .iter()
                         .next()
-                        .expect("CompnentSchema generic container type should have 1 child"),
+                        .expect("ComponentSchema generic container type should have 1 child"),
                     features: Some(features),
                     description,
                     deprecated,
@@ -218,10 +218,10 @@ impl<'c> ComponentSchema {
         let child = type_tree
             .children
             .as_ref()
-            .expect("CompnentSchema Vec should have children")
+            .expect("ComponentSchema Vec should have children")
             .iter()
             .next()
-            .expect("CompnentSchema Vec should have 1 child");
+            .expect("ComponentSchema Vec should have 1 child");
 
         let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
 
@@ -261,7 +261,7 @@ impl<'c> ComponentSchema {
         };
 
         let validate = |feature: &Feature| {
-            let type_path = &**type_tree.path.as_ref().unwrap();
+            let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
             let schema_type = SchemaType(type_path);
             feature.validate(&schema_type, type_tree);
         };
@@ -305,7 +305,7 @@ impl<'c> ComponentSchema {
 
         match type_tree.value_type {
             ValueType::Primitive => {
-                let type_path = &**type_tree.path.as_ref().unwrap();
+                let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
                 let schema_type = SchemaType(type_path);
                 if schema_type.is_unsigned_integer() {
                     // add default minimum feature only when there is no explicit minimum
@@ -355,7 +355,7 @@ impl<'c> ComponentSchema {
                     example.to_tokens(tokens);
                     nullable.to_tokens(tokens)
                 } else {
-                    let type_path = &**type_tree.path.as_ref().unwrap();
+                    let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
                     let schema = if type_definition {
                         quote! {
                             if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {

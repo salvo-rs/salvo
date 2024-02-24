@@ -5,10 +5,10 @@ Note that the files contain private keys.
 */
 
 use std::error::Error as StdError;
+use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 
-use async_trait::async_trait;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::engine::Engine;
 use ring::digest::{Context, SHA256};
@@ -19,8 +19,8 @@ use tokio::io::AsyncWriteExt;
 pub trait CacheError: StdError + Send + Sync + 'static {}
 
 impl<T> CacheError for T where T: StdError + Send + Sync + 'static {}
+
 /// Trait to define a custom location/mechanism to cache account data and certificates.
-#[async_trait]
 pub trait AcmeCache {
     /// The error type returned from the functions on this trait.
     type Error: CacheError;
@@ -36,7 +36,11 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the private key was unable to be written
     /// successfully.
-    async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
+    fn read_key(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+    ) -> impl Future<Output = Result<Option<Vec<u8>>, Self::Error>> + Send;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
     ///
@@ -50,7 +54,12 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// successfully.
-    async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
+    fn write_key(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+        data: &[u8],
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
     /// Returns the previously written certificate retrieved from `Acme`. The parameters are:
     ///
@@ -63,7 +72,11 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// successfully.
-    async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
+    fn read_cert(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+    ) -> impl Future<Output = Result<Option<Vec<u8>>, Self::Error>> + Send;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
     ///
@@ -77,19 +90,23 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// successfully.
-    async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
+    fn write_cert(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+        data: &[u8],
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 static KEY_PEM_PREFIX: &str = "key-";
 static CERT_PEM_PREFIX: &str = "cert-";
-#[async_trait]
+
 impl<P> AcmeCache for P
 where
     P: AsRef<Path> + Send + Sync,
 {
     type Error = IoError;
 
-    #[inline]
     async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
@@ -106,7 +123,6 @@ where
             },
         }
     }
-    #[inline]
     async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
@@ -116,10 +132,9 @@ where
             directory_name,
             file_hash_part(domains)
         ));
-        Ok(write_data(path, data).await?)
+        write_data(path, data).await
     }
 
-    #[inline]
     async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
@@ -136,7 +151,6 @@ where
             },
         }
     }
-    #[inline]
     async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
@@ -146,10 +160,9 @@ where
             directory_name,
             file_hash_part(domains)
         ));
-        Ok(write_data(path, data).await?)
+        write_data(path, data).await
     }
 }
-#[inline]
 async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> IoResult<()> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
@@ -162,7 +175,6 @@ async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> +
     Ok(())
 }
 
-#[inline]
 fn file_hash_part(data: &[String]) -> String {
     let mut ctx = Context::new(&SHA256);
     for el in data {

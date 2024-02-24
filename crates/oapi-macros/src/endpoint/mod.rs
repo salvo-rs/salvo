@@ -139,10 +139,9 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                     }
                 }
             }
-            if hmtd.is_none() {
+            let Some(hmtd) = hmtd else {
                 return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
-            }
-            let hmtd = hmtd.unwrap();
+            };
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();

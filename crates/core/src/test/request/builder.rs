@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::convert::TryInto;
+use std::future::Future;
 use std::str;
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use url::Url;
 use crate::http::body::ReqBody;
 use crate::http::Method;
 use crate::routing::{FlowCtrl, Router};
-use crate::{async_trait, Depot, Error, Handler, Request, Response, Service};
+use crate::{Depot, Error, Handler, Request, Response, Service};
 
 /// `RequestBuilder` is the main way of building requests.
 ///
@@ -36,7 +37,7 @@ impl RequestBuilder {
     where
         U: AsRef<str>,
     {
-        let url = Url::parse(url.as_ref()).unwrap();
+        let url = Url::parse(url.as_ref()).expect("invalid url");
         Self {
             url,
             method,
@@ -155,7 +156,7 @@ impl RequestBuilder {
         self.headers
             .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
-        self.body(serde_json::to_vec(value).unwrap())
+        self.body(serde_json::to_vec(value).expect("Failed to serialize json."))
     }
 
     /// Sets the body of this request to be the JSON representation of the given string.
@@ -172,7 +173,9 @@ impl RequestBuilder {
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
     pub fn form<T: serde::Serialize>(mut self, value: &T) -> Self {
-        let body = serde_urlencoded::to_string(value).unwrap().into_bytes();
+        let body = serde_urlencoded::to_string(value)
+            .expect("`serde_urlencoded::to_string` returns error")
+            .into_bytes();
         self.headers
             .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
@@ -199,7 +202,7 @@ impl RequestBuilder {
         let value = value
             .try_into()
             .map_err(|_| Error::Other("invalid header value".into()))
-            .unwrap();
+            .expect("invalid header value");
         if overwrite {
             self.headers.insert(name, value);
         } else {
@@ -224,8 +227,8 @@ impl RequestBuilder {
             body,
         } = self;
         let mut req = hyper::Request::builder().method(method).uri(url.to_string());
-        (*req.headers_mut().unwrap()) = headers;
-        req.body(body).unwrap()
+        (*req.headers_mut().expect("`headers_mut` returns `None`")) = headers;
+        req.body(body).expect("invalid request body")
     }
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
@@ -249,34 +252,28 @@ impl RequestBuilder {
 }
 
 /// Trait for sending request to target, such as [`Router`], [`Service`], [`Handler`]. for test usage.
-#[async_trait]
 pub trait SendTarget {
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
     #[must_use = "future must be used"]
-    async fn call(self, req: Request) -> Response;
+    fn call(self, req: Request) -> impl Future<Output = Response> + Send;
 }
-#[async_trait]
 impl SendTarget for &Service {
     async fn call(self, req: Request) -> Response {
         self.handle(req).await
     }
 }
-#[async_trait]
 impl SendTarget for Router {
     async fn call(self, req: Request) -> Response {
         let router = Arc::new(self);
         SendTarget::call(router, req).await
     }
 }
-#[async_trait]
 impl SendTarget for Arc<Router> {
     async fn call(self, req: Request) -> Response {
         let srv = Service::new(self);
         srv.handle(req).await
     }
 }
-
-#[async_trait]
 impl<T> SendTarget for Arc<T>
 where
     T: Handler + Send,
@@ -293,7 +290,6 @@ where
         res
     }
 }
-#[async_trait]
 impl<T> SendTarget for T
 where
     T: Handler + Send,

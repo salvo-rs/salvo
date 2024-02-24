@@ -36,10 +36,10 @@ impl FlattenedMapSchema {
             type_tree: type_tree
                 .children
                 .as_ref()
-                .expect("ComponentSchema Map type should have children")
+                .expect("`ComponentSchema` Map type should have children")
                 .iter()
                 .nth(1)
-                .expect("ComponentSchema Map type should have 2 child"),
+                .expect("`ComponentSchema` Map type should have 2 child"),
             features: Some(features),
             description: None,
             deprecated: None,

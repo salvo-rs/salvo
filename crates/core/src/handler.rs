@@ -63,7 +63,7 @@
 //!
 //! For custom error types, you can output different error pages according to your needs.
 //!
-//! ```no_run
+//! ```ignore
 //! use anyhow::anyhow;
 //! use salvo_core::prelude::*;
 //!

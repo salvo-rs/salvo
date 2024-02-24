@@ -1,5 +1,7 @@
 
-This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
+This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. 
+
+The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
@@ -39,6 +41,7 @@ struct Pet {
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
    Rust's own `#[deprecated]` attribute instead.
+* `skip` Can be used to skip this field.
 
 # Enum Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
@@ -52,6 +55,7 @@ struct Pet {
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
    Rust's own `#[deprecated]` attribute instead.
+* `skip` Can be used to skip this field.
 
 # Enum Variant Optional Configuration Options for `#[salvo(schema(...))]`
 Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
@@ -80,6 +84,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
    Rust's own `#[deprecated]` attribute instead.
+* `skip` Can be used to skip this field.
 
 # Named Fields Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
@@ -125,6 +130,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
    Rust's own `#[deprecated]` attribute instead.
+* `skip` Can be used to skip this field.
 
 #### Field nullability and required rules
 

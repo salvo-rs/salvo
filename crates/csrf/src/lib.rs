@@ -9,13 +9,9 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 use std::error::Error as StdError;
+use std::future::Future;
 
 mod finder;
 
@@ -164,21 +160,25 @@ fn default_skipper(req: &mut Request, _depot: &Depot) -> bool {
 }
 
 /// Store proof.
-#[async_trait]
 pub trait CsrfStore: Send + Sync + 'static {
     /// Error type for CsrfStore.
     type Error: StdError + Send + Sync + 'static;
     /// Get the proof from the store.
-    async fn load<C: CsrfCipher>(&self, req: &mut Request, depot: &mut Depot, cipher: &C) -> Option<(String, String)>;
+    fn load<C: CsrfCipher>(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        cipher: &C,
+    ) -> impl Future<Output = Option<(String, String)>> + Send;
     /// Save the proof from the store.
-    async fn save(
+    fn save(
         &self,
         req: &mut Request,
         depot: &mut Depot,
         res: &mut Response,
         token: &str,
         proof: &str,
-    ) -> Result<(), Self::Error>;
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// Generate token and proof and valid token.

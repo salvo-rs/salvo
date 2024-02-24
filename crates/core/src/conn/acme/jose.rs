@@ -23,7 +23,6 @@ struct Protected<'a> {
 }
 
 impl<'a> Protected<'a> {
-    #[inline]
     fn base64(jwk: Option<Jwk>, kid: Option<&'a str>, nonce: &'a str, url: &'a str) -> IoResult<String> {
         let protected = Self {
             alg: "ES256",
@@ -63,7 +62,6 @@ impl Jwk {
         }
     }
 
-    #[inline]
     fn thumb_sha256_base64(&self) -> IoResult<String> {
         #[derive(Serialize)]
         struct JwkThumb<'a> {
@@ -123,14 +121,14 @@ pub(crate) async fn request(
         payload,
         signature,
     })
-    .unwrap();
+    .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
 
     let req = hyper::Request::builder()
         .header("content-type", "application/jose+json")
         .method(Method::POST)
         .uri(uri)
         .body(Full::from(body))
-        .unwrap();
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build http request: {}", e)))?;
 
     let res = client
         .request(req)
@@ -144,7 +142,6 @@ pub(crate) async fn request(
     }
     Ok(res)
 }
-#[inline]
 pub(crate) async fn request_json<T, R>(
     cli: &HyperClient,
     key_pair: &KeyPair,
@@ -159,13 +156,8 @@ where
 {
     let res = request(cli, key_pair, kid, nonce, url, payload).await?;
 
-    let data = res
-        .into_body()
-        .collect()
-        .await?
-        .to_bytes();
-    serde_json::from_slice(&data)
-        .map_err(|e| Error::other(format!("response is not a valid json: {}", e)))
+    let data = res.into_body().collect().await?.to_bytes();
+    serde_json::from_slice(&data).map_err(|e| Error::other(format!("response is not a valid json: {}", e)))
 }
 
 #[inline]

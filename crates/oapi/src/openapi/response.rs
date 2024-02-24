@@ -238,12 +238,10 @@ mod tests {
             ("response2".to_string(), Response::new("response2")),
         ]);
 
-        let expected = Responses {
-            0: BTreeMap::from([
-                ("response1".to_string(), RefOr::T(Response::new("response1"))),
-                ("response2".to_string(), RefOr::T(Response::new("response2"))),
-            ]),
-        };
+        let expected = Responses(BTreeMap::from([
+            ("response1".to_string(), RefOr::T(Response::new("response1"))),
+            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+        ]));
 
         let actual = Responses::from(input);
 
@@ -257,12 +255,10 @@ mod tests {
             ("response2".to_string(), Response::new("response2")),
         ];
 
-        let expected = Responses {
-            0: BTreeMap::from([
-                ("response1".to_string(), RefOr::T(Response::new("response1"))),
-                ("response2".to_string(), RefOr::T(Response::new("response2"))),
-            ]),
-        };
+        let expected = Responses(BTreeMap::from([
+            ("response1".to_string(), RefOr::T(Response::new("response1"))),
+            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+        ]));
 
         let actual = Responses::from(input);
 
@@ -276,12 +272,10 @@ mod tests {
             ("response2".to_string(), Response::new("response2")),
         ];
 
-        let expected = Responses {
-            0: BTreeMap::from([
-                ("response1".to_string(), RefOr::T(Response::new("response1"))),
-                ("response2".to_string(), RefOr::T(Response::new("response2"))),
-            ]),
-        };
+        let expected = Responses(BTreeMap::from([
+            ("response1".to_string(), RefOr::T(Response::new("response1"))),
+            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+        ]));
 
         let actual = Responses::from_iter(input);
 

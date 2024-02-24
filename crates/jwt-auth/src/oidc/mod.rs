@@ -16,7 +16,7 @@ use hyper_util::rt::TokioExecutor;
 use jsonwebtoken::jwk::{Jwk, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
-use salvo_core::{async_trait, Depot};
+use salvo_core::Depot;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use tokio::sync::{Notify, RwLock};
@@ -39,7 +39,6 @@ pub struct OidcDecoder {
     notifier: Arc<Notify>,
 }
 
-#[async_trait]
 impl JwtAuthDecoder for OidcDecoder {
     type Error = JwtAuthError;
 

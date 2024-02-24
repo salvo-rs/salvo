@@ -14,15 +14,6 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislea
 [lib]
 proc-macro = true
 
-[dependencies]
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-proc-macro-crate = { workspace = true }
-proc-macro-error = { workspace = true }
-regex = { workspace = true }
-salvo-serde-util = { workspace = true }
-syn = { workspace = true, features = ["full", "extra-traits"] }
-
 [features]
 default = []
 chrono = []
@@ -35,3 +26,15 @@ time = []
 smallvec = []
 repr = []
 indexmap = []
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+proc-macro-crate = { workspace = true }
+proc-macro-error = { workspace = true }
+regex = { workspace = true }
+salvo-serde-util = { workspace = true }
+syn = { workspace = true, features = ["full", "extra-traits"] }
+
+[lints]
+workspace = true

@@ -14,14 +14,10 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
+use std::future::Future;
 use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;
@@ -56,14 +52,12 @@ cfg_feature! {
 }
 
 /// Issuer is used to identify every request.
-#[async_trait]
 pub trait RateIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request.
-    async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
+    fn issue(&self, req: &mut Request, depot: &Depot) -> impl Future<Output = Option<Self::Key>> + Send;
 }
-#[async_trait]
 impl<F, K> RateIssuer for F
 where
     F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
@@ -77,7 +71,6 @@ where
 
 /// Identify user by IP address.
 pub struct RemoteIpIssuer;
-#[async_trait]
 impl RateIssuer for RemoteIpIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
@@ -90,25 +83,23 @@ impl RateIssuer for RemoteIpIssuer {
 }
 
 /// `RateGuard` is strategy to verify is the request exceeded quota
-#[async_trait]
 pub trait RateGuard: Clone + Send + Sync + 'static {
     /// The quota for the rate limit.
     type Quota: Clone + Send + Sync + 'static;
     /// Verify is current request exceed the quota.
-    async fn verify(&mut self, quota: &Self::Quota) -> bool;
+    fn verify(&mut self, quota: &Self::Quota) -> impl Future<Output = bool> + Send;
 
     /// Returns the remaining quota.
-    async fn remaining(&self, quota: &Self::Quota) -> usize;
+    fn remaining(&self, quota: &Self::Quota) -> impl Future<Output = usize> + Send;
 
     /// Returns the reset time.
-    async fn reset(&self, quota: &Self::Quota) -> i64;
+    fn reset(&self, quota: &Self::Quota) -> impl Future<Output = i64> + Send;
 
     /// Returns the limit.
-    async fn limit(&self, quota: &Self::Quota) -> usize;
+    fn limit(&self, quota: &Self::Quota) -> impl Future<Output = usize> + Send;
 }
 
 /// `RateStore` is used to store rate limit data.
-#[async_trait]
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
     type Error: StdError;
@@ -117,12 +108,16 @@ pub trait RateStore: Send + Sync + 'static {
     /// Saved guard.
     type Guard;
     /// Get the guard from the store.
-    async fn load_guard<Q>(&self, key: &Q, refer: &Self::Guard) -> Result<Self::Guard, Self::Error>
+    fn load_guard<Q>(
+        &self,
+        key: &Q,
+        refer: &Self::Guard,
+    ) -> impl Future<Output = Result<Self::Guard, Self::Error>> + Send
     where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
     /// Save the guard from the store.
-    async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error>;
+    fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// `RateLimiter` is the main struct to used limit user request.
@@ -208,15 +203,15 @@ where
         if self.add_headers {
             res.headers_mut().insert(
                 "X-RateLimit-Limit",
-                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).unwrap(),
+                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Remaining",
-                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).unwrap(),
+                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Reset",
-                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).unwrap(),
+                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).expect("Invalid header value"),
             );
         }
         if !verified {
@@ -241,7 +236,6 @@ mod tests {
     use super::*;
 
     struct UserIssuer;
-    #[async_trait]
     impl RateIssuer for UserIssuer {
         type Key = String;
         async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
@@ -264,7 +258,6 @@ mod tests {
         });
 
         struct CustomQuotaGetter;
-        #[async_trait]
         impl QuotaGetter<String> for CustomQuotaGetter {
             type Quota = BasicQuota;
             type Error = Error;
@@ -345,7 +338,6 @@ mod tests {
         });
 
         struct CustomQuotaGetter;
-        #[async_trait]
         impl QuotaGetter<String> for CustomQuotaGetter {
             type Quota = CelledQuota;
             type Error = Error;

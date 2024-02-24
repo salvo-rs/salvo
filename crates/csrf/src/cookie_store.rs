@@ -1,7 +1,7 @@
 use cookie::time::Duration;
 use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::uri::Scheme;
-use salvo_core::{async_trait, Depot, Error, Request, Response};
+use salvo_core::{Depot, Error, Request, Response};
 
 use crate::CsrfCipher;
 
@@ -61,7 +61,6 @@ impl CookieStore {
         self
     }
 }
-#[async_trait]
 impl CsrfStore for CookieStore {
     type Error = Error;
     async fn load<C: CsrfCipher>(&self, req: &mut Request, _depot: &mut Depot, cipher: &C) -> Option<(String, String)> {

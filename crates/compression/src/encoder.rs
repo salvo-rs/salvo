@@ -89,7 +89,7 @@ impl CompressionLevel {
             Self::Precise(quality) => quality.min(21) as i32,
             Self::Default => 1,
         };
-        ZstdEncoder::new(Writer::new(), quality).unwrap()
+        ZstdEncoder::new(Writer::new(), quality).expect("`ZstdEncoder::new` returned an error")
     }
 }
 
@@ -105,7 +105,6 @@ pub(super) enum Encoder {
 }
 
 impl Encoder {
-    #[allow(unused_variables)]
     pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel) -> Self {
         match algo {
             #[cfg(feature = "brotli")]
@@ -118,7 +117,6 @@ impl Encoder {
             CompressionAlgo::Zstd => Self::Zstd(level.into_zstd()),
         }
     }
-    #[inline]
     pub(super) fn take(&mut self) -> IoResult<Bytes> {
         match *self {
             #[cfg(feature = "brotli")]

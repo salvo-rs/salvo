@@ -36,7 +36,6 @@ pub fn render_embedded_file(file: EmbeddedFile, req: &Request, res: &mut Respons
     render_embedded_data(data, &metadata, req, res, mime);
 }
 
-#[inline]
 fn render_embedded_data(
     data: Cow<'static, [u8]>,
     metadata: &Metadata,
@@ -105,7 +104,6 @@ impl<T> Handler for StaticEmbed<T>
 where
     T: RustEmbed + Send + Sync + 'static,
 {
-    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = if let Some((_, value)) = param {

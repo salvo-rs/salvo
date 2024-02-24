@@ -78,7 +78,6 @@ pub(crate) struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    #[inline]
     pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;
 
@@ -122,7 +121,6 @@ impl<'de> RequestDeserializer<'de> {
         })
     }
 
-    #[inline]
     fn real_parser(&self, source: &Source) -> SourceParser {
         let mut parser = source.parser;
         if parser == SourceParser::Smart {
@@ -143,7 +141,6 @@ impl<'de> RequestDeserializer<'de> {
         parser
     }
 
-    #[inline]
     fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
         T: de::DeserializeSeed<'de>,
@@ -195,7 +192,6 @@ impl<'de> RequestDeserializer<'de> {
         }
     }
 
-    #[inline]
     #[allow(unreachable_patterns)]
     fn fill_value(&mut self, field: &'de Field) -> bool {
         if field.flatten {
@@ -382,7 +378,6 @@ impl<'de> RequestDeserializer<'de> {
         }
         false
     }
-    #[inline]
     fn next(&mut self) -> Option<Cow<'_, str>> {
         while self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;

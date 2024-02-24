@@ -13,7 +13,7 @@ pub struct HeaderParam<T, const REQUIRED: bool>(Option<T>);
 impl<T> HeaderParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
-        self.0.unwrap()
+        self.0.expect("`HeaderParam<T, true>` into_inner get `None`")
     }
 }
 impl<T> HeaderParam<T, false> {
@@ -27,7 +27,7 @@ impl<T> Deref for HeaderParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap()
+        self.0.as_ref().expect("`HeaderParam<T, true>` defref get `None`")
     }
 }
 impl<T> Deref for HeaderParam<T, false> {
@@ -40,7 +40,7 @@ impl<T> Deref for HeaderParam<T, false> {
 
 impl<T> DerefMut for HeaderParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().unwrap()
+        self.0.as_mut().expect("`HeaderParam<T, true>` defref_mut get `None`")
     }
 }
 impl<T> DerefMut for HeaderParam<T, false> {
@@ -85,7 +85,7 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.as_ref().unwrap().fmt(f)
+        self.0.as_ref().expect("HeaderParam value should not None.").fmt(f)
     }
 }
 

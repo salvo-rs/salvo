@@ -4,10 +4,10 @@ use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClie
 use hyper_util::rt::TokioExecutor;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
-use salvo_core::{async_trait, Error};
+use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use super::{HyperRequest, HyperResponse};
+use super::{Client, HyperRequest, HyperResponse};
 
 /// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
 pub struct HyperClient {
@@ -33,8 +33,7 @@ impl HyperClient {
     }
 }
 
-#[async_trait]
-impl super::Client for HyperClient {
+impl Client for HyperClient {
     type Error = salvo_core::Error;
 
     async fn execute(

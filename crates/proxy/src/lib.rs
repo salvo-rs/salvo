@@ -4,14 +4,10 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 use std::convert::{Infallible, TryFrom};
 use std::error::Error as StdError;
+use std::future::Future;
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
@@ -36,23 +32,24 @@ pub(crate) fn encode_url_path(path: &str) -> String {
 }
 
 /// Client trait.
-#[async_trait]
 pub trait Client: Send + Sync + 'static {
     /// Error type.
     type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
-    async fn execute(&self, req: HyperRequest, upgraded: Option<OnUpgrade>) -> Result<HyperResponse, Self::Error>;
+    fn execute(
+        &self,
+        req: HyperRequest,
+        upgraded: Option<OnUpgrade>,
+    ) -> impl Future<Output = Result<HyperResponse, Self::Error>> + Send;
 }
 
 /// Upstreams trait.
-#[async_trait]
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
     type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
-    async fn elect(&self) -> Result<&str, Self::Error>;
+    fn elect(&self) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }
-#[async_trait]
 impl Upstreams for &'static str {
     type Error = Infallible;
 
@@ -60,7 +57,6 @@ impl Upstreams for &'static str {
         Ok(*self)
     }
 }
-#[async_trait]
 impl Upstreams for String {
     type Error = Infallible;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -68,7 +64,6 @@ impl Upstreams for String {
     }
 }
 
-#[async_trait]
 impl<const N: usize> Upstreams for [&'static str; N] {
     type Error = Error;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -80,7 +75,6 @@ impl<const N: usize> Upstreams for [&'static str; N] {
     }
 }
 
-#[async_trait]
 impl<T> Upstreams for Vec<T>
 where
     T: AsRef<str> + Send + Sync + 'static,
@@ -197,7 +191,6 @@ where
         &mut self.client
     }
 
-    #[inline]
     async fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
         let upstream = self.upstreams.elect().await.map_err(Error::other)?;
         if upstream.is_empty() {
@@ -220,6 +213,8 @@ where
             format!("{}{}", upstream.trim_end_matches('/'), rest)
         } else if upstream.ends_with('/') || rest.starts_with('/') {
             format!("{}{}", upstream, rest)
+        } else if rest.is_empty() {
+            upstream.to_string()
         } else {
             format!("{}/{}", upstream, rest)
         };
@@ -262,8 +257,7 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    #[inline]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
                 match self
@@ -283,7 +277,11 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        res.set_headers(headers);
+                        for (name, value) in headers {
+                            if let Some(name) = name {
+                                res.headers.insert(name, value);
+                            }
+                        }
                         res.body(body);
                     }
                     Err(e) => {
@@ -296,17 +294,19 @@ where
                 tracing::error!(error = ?e, "build proxied request failed");
             }
         }
-        if ctrl.has_next() {
-            tracing::error!("all handlers after proxy will skipped");
-            ctrl.skip_rest();
-        }
     }
 }
 #[inline]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
         .get(&CONNECTION)
-        .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE))
+        .map(|value| {
+            value
+                .to_str()
+                .unwrap_or_default()
+                .split(',')
+                .any(|e| e.trim() == UPGRADE)
+        })
         .unwrap_or(false)
     {
         if let Some(upgrade_value) = headers.get(&UPGRADE) {

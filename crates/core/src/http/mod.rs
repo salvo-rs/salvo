@@ -25,9 +25,11 @@ pub use http::version::Version;
 use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
-use std::time::Duration;
+
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
+use crate::fuse::ArcFusewire;
 use crate::service::HyperHandler;
 
 /// A helper trait for http connection.
@@ -37,8 +39,11 @@ pub trait HttpConnection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
+        graceful_stop_token: CancellationToken,
     ) -> impl Future<Output = IoResult<()>> + Send;
+
+    /// Get the fusewire of this connection.
+    fn fusewire(&self) -> ArcFusewire;
 }
 
 /// Get Http version from alph.
@@ -80,7 +85,7 @@ pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
 #[doc(hidden)]
 #[inline]
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
-    let dmime: Mime = default_type.unwrap_or_else(|| "text/html".parse().unwrap());
+    let dmime: Mime = default_type.unwrap_or(mime::TEXT_HTML);
     let accept = req.accept();
     accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
 }

@@ -121,6 +121,14 @@ impl FilePart {
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
+    /// Get content type.
+    #[inline]
+    pub fn content_type(&self) -> Option<Mime> {
+        self.headers
+            .get(CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok())
+    }
     /// Get file path.
     #[inline]
     pub fn path(&self) -> &PathBuf {
@@ -140,7 +148,6 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
-    #[inline]
     pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
         // Setup a file to capture the contents.
         let mut path = tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
@@ -195,8 +202,8 @@ fn text_nonce() -> String {
         let nsecs: u32 = now.subsec_nanos();
 
         let mut cursor = Cursor::new(&mut *raw);
-        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).unwrap();
-        Write::write_all(&mut cursor, &secs.to_le_bytes()).unwrap();
+        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).expect("write_all failed");
+        Write::write_all(&mut cursor, &secs.to_le_bytes()).expect("write_all failed");
 
         // Get the last bytes from random data
         OsRng.fill_bytes(&mut raw[12..BYTE_LEN]);

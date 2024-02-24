@@ -45,7 +45,7 @@ mod xml;
 
 use crate::{routing::NormNode, Endpoint};
 
-static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").unwrap());
+static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
 /// Root object of the OpenAPI document.
 ///
@@ -234,7 +234,7 @@ impl OpenApi {
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
+    /// [requirement]: crate::SecurityRequirement
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
@@ -252,7 +252,7 @@ impl OpenApi {
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
+    /// [requirement]: crate::SecurityRequirement
     pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         schemas: I,
@@ -347,7 +347,7 @@ impl OpenApi {
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
-        let mut node = NormNode::new(router);
+        let mut node = NormNode::new(router, Default::default());
         self.merge_norm_node(&mut node, base.as_ref());
         self
     }
@@ -370,17 +370,19 @@ impl OpenApi {
                 captures
                     .iter()
                     .skip(1)
-                    .map(|capture| capture.unwrap().as_str().to_owned())
+                    .map(|capture| capture.expect("Regex captures should not be None.").as_str().to_owned())
                     .next()
             })
             .collect::<Vec<_>>();
         if let Some(handler_type_id) = &node.handler_type_id {
             if let Some(creator) = crate::EndpointRegistry::find(handler_type_id) {
                 let Endpoint {
-                    operation,
+                    mut operation,
                     mut components,
                     ..
                 } = (creator)();
+                operation.tags.extend(node.metadata.tags.iter().cloned());
+                operation.securities.extend(node.metadata.securities.iter().cloned());
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
@@ -441,9 +443,9 @@ impl Handler for OpenApi {
     ) {
         let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
         let content = if pretty {
-            self.to_pretty_json().unwrap()
+            self.to_pretty_json().unwrap_or_default()
         } else {
-            self.to_json().unwrap()
+            self.to_json().unwrap_or_default()
         };
         res.render(writing::Text::Json(&content));
     }

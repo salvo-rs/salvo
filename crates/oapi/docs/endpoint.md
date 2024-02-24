@@ -1,4 +1,4 @@
-Endpoint attribute macro implements OpenAPI path for the decorated function.
+Enhanced of [handler][handler] for generate OpenAPI documention.
 
 Macro accepts set of attributes that can be used to configure and override default values what are resolved automatically.
 
@@ -103,7 +103,7 @@ _**Example request body definitions.**_
   Content type can also be slice of **content_type** values if the endpoint support returning multiple
  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
- the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+ the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 
 * `headers(...)` Slice of response headers that are returned back to a caller.
 
@@ -438,6 +438,7 @@ async fn get_user() -> Json<User> {
 }
 ```
 
+[handler]: ../salvo_core/attr.handler.html
 [in_enum]: enum.ParameterIn.html
 [path]: trait.Path.html
 [to_schema]: trait.ToSchema.html

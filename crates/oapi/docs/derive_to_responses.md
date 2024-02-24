@@ -1,5 +1,4 @@
-Generate responses with status codes what
-can be attached to the [`salvo_oapi::endpoint`][path_to_responses].
+Generate responses with status codes what can be used in [`OpenApi`][openapi].
 
 This is `#[derive]` implementation of [`ToResponses`][to_responses] trait. [`derive@ToResponses`]
 can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
@@ -52,7 +51,7 @@ It can also be overridden with _`description = "..."`_ attribute.
   Content type can also be slice of **content_type** values if the endpoint support returning multiple
  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
- the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+ the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 
 * `headers(...)` Slice of response headers that are returned back to a caller.
 
@@ -175,3 +174,4 @@ enum UserResponses {
 [to_response]: trait.ToResponse.html
 [path_to_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+[openapi]: derive.OpenApi.html

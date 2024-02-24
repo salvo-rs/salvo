@@ -8,7 +8,9 @@ use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, 
 use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
-    feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
+    feature::{
+        pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, Symbol, ToTokensExt,
+    },
     schema::Inline,
     serde_util::{self, SerdeContainer},
     type_tree::TypeTree,
@@ -61,7 +63,7 @@ impl NamedStructSchema<'_> {
         if schema_default || serde_default {
             let features_inner = field_features.get_or_insert(vec![]);
             if !features_inner.iter().any(|f| matches!(f, Feature::Default(_))) {
-                let field_ident = field.ident.as_ref().unwrap().to_owned();
+                let field_ident = field.ident.as_ref().expect("field ident shoule be exist").to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(crate::feature::Default::new_default_trait(
                     struct_ident,
@@ -126,6 +128,17 @@ impl ToTokens for NamedStructSchema<'_> {
             .fields
             .iter()
             .filter_map(|field| {
+                let is_skipped = field
+                    .attrs
+                    .parse_features::<NamedFieldFeatures>()
+                    .into_inner()
+                    .map(|features| features.is_skipped())
+                    .unwrap_or(false);
+
+                if is_skipped {
+                    return None;
+                }
+
                 let field_rule = serde_util::parse_value(&field.attrs);
 
                 if is_not_skipped(&field_rule) && !is_flatten(&field_rule) {
@@ -137,7 +150,7 @@ impl ToTokens for NamedStructSchema<'_> {
             .fold(
                 quote! { #oapi::oapi::Object::new() },
                 |mut object_tokens, (field, field_rule)| {
-                    let mut field_name = &*field.ident.as_ref().unwrap().to_string();
+                    let mut field_name = &*field.ident.as_ref().expect("field ident shoule be exists").to_string();
 
                     if field_name.starts_with("r#") {
                         field_name = &field_name[2..];
@@ -218,8 +231,8 @@ impl ToTokens for NamedStructSchema<'_> {
                                 abort!(self.fields,
                                        "The structure `{}` contains multiple flattened map fields.",
                                                                              self.struct_name;
-                                       note = flattened_map_field.span() => "first flattened map field was declared here as `{}`", flattened_map_field.ident.as_ref().unwrap();
-                                       note = field.span() => "second flattened map field was declared here as `{}`", field.ident.as_ref().unwrap());
+                                       note = flattened_map_field.span() => "first flattened map field was declared here as `{}`", flattened_map_field.ident.as_ref().expect("field ident shoule be exists");
+                                       note = field.span() => "second flattened map field was declared here as `{}`", field.ident.as_ref().expect("field ident shoule be exists"));
                             },
                         },
                     },
@@ -285,7 +298,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let fields_len = self.fields.len();
-        let first_field = self.fields.first().unwrap();
+        let first_field = self.fields.first().expect("fields should not be empty");
         let first_part = &TypeTree::from_type(&first_field.ty);
 
         let all_fields_are_same = fields_len == 1

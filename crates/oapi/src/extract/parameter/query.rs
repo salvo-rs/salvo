@@ -14,7 +14,7 @@ pub struct QueryParam<T, const REQUIRED: bool>(Option<T>);
 impl<T> QueryParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
-        self.0.unwrap()
+        self.0.expect("`QueryParam<T, true>` into_inner get `None`")
     }
 }
 impl<T> QueryParam<T, false> {
@@ -28,7 +28,7 @@ impl<T> Deref for QueryParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap()
+        self.0.as_ref().expect("`QueryParam<T, true>` defref get `None`")
     }
 }
 impl<T> Deref for QueryParam<T, false> {
@@ -41,7 +41,7 @@ impl<T> Deref for QueryParam<T, false> {
 
 impl<T> DerefMut for QueryParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().unwrap()
+        self.0.as_mut().expect("`QueryParam<T, true>` defref_mut get `None`")
     }
 }
 impl<T> DerefMut for QueryParam<T, false> {
@@ -76,7 +76,7 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.as_ref().unwrap().fmt(f)
+        self.0.as_ref().expect("`QueryParam<T, true>` as_ref get `None`").fmt(f)
     }
 }
 
@@ -209,7 +209,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_required_query_prarm_extract_with_value() {
-        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut().insert("param".to_string(), "param".to_string());
@@ -242,7 +242,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_prarm_extract_with_value() {
-        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut().insert("param".to_string(), "param".to_string());

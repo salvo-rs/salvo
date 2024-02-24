@@ -11,11 +11,10 @@ use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
-use crate::async_trait;
-use crate::conn::Holding;
-use crate::conn::{Accepted, HandshakeStream, Acceptor, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::Version;
+use crate::http::{HttpConnection, Version};
 
 use super::ServerConfig;
 
@@ -44,7 +43,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Listener for RustlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -110,7 +108,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S, C, T, E> Acceptor for RustlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,
@@ -125,8 +122,7 @@ where
         &self.holdings
     }
 
-    #[inline]
-    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) =
@@ -159,9 +155,10 @@ where
             remote_addr,
             http_version,
             http_scheme,
-        } = self.inner.accept().await?;
+        } = self.inner.accept(fuse_factory).await?;
+        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(tls_acceptor.accept(conn)),
+            conn: HandshakeStream::new(tls_acceptor.accept(conn), fusewire),
             local_addr,
             remote_addr,
             http_version,

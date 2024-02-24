@@ -1,19 +1,20 @@
 //! basic auth middleware.
 //!
 //! Read more: <https://salvo.rs>
-use salvo_core::http::header::{HeaderName, PROXY_AUTHORIZATION, AUTHORIZATION};
+use std::future::Future;
+
+use base64::engine::{general_purpose, Engine};
+use salvo_core::http::header::{HeaderName, AUTHORIZATION, PROXY_AUTHORIZATION};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};
-use base64::engine::{general_purpose, Engine};
 
 /// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 
 /// BasicAuthValidator
-#[async_trait]
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
-    async fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> bool;
+    fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> impl Future<Output = bool> + Send;
 }
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
@@ -57,13 +58,13 @@ where
     #[doc(hidden)]
     #[inline]
     pub fn header_names(&self) -> &Vec<HeaderName> {
-       & self.header_names
+        &self.header_names
     }
 
     #[doc(hidden)]
     #[inline]
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
-       &mut self.header_names
+        &mut self.header_names
     }
 
     #[doc(hidden)]
@@ -84,13 +85,14 @@ where
 pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
     res.headers_mut().insert(
         "WWW-Authenticate",
-        format!("Basic realm={:?}", realm.as_ref()).parse().unwrap(),
+        format!("Basic realm={:?}", realm.as_ref())
+            .parse()
+            .expect("parse WWW-Authenticate failed"),
     );
     res.status_code(StatusCode::UNAUTHORIZED);
 }
 
 #[doc(hidden)]
-#[inline]
 pub fn parse_credentials(req: &Request, header_names: &[HeaderName]) -> Result<(String, String), Error> {
     let mut authorization = "";
     for header_name in header_names {
@@ -147,7 +149,6 @@ mod tests {
     }
 
     struct Validator;
-    #[async_trait]
     impl BasicAuthValidator for Validator {
         async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
             username == "root" && password == "pwd"

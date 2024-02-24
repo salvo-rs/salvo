@@ -1,7 +1,7 @@
 //! `RustlsListener` and utils.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use tokio_rustls::rustls::{pki_types::CertificateDer, RootCertStore};
+use tokio_rustls::rustls::RootCertStore;
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
@@ -14,7 +14,7 @@ pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertSto
     let mut store = RootCertStore::empty();
     for cert in certs {
         store
-            .add(CertificateDer::from(cert))
+            .add(cert)
             .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
     }
     Ok(store)
@@ -26,11 +26,12 @@ mod tests {
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
-    use tokio_rustls::rustls::{ClientConfig, pki_types::ServerName};
+    use tokio_rustls::rustls::{pki_types::ServerName, ClientConfig};
     use tokio_rustls::TlsConnector;
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_rustls_listener() {
@@ -60,7 +61,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
     }
 }

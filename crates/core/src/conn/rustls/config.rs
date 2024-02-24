@@ -98,9 +98,8 @@ impl Keycert {
 
     fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
-            .map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
-            .next()
-            .ok_or_else(|| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
+            .flat_map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
+            .collect::<Vec<_>>();
 
         let key = {
             let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
@@ -208,7 +207,6 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    #[inline]
     pub fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
@@ -230,7 +228,6 @@ impl RustlsConfig {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    #[inline]
     pub fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;

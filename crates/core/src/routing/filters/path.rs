@@ -242,11 +242,9 @@ impl fmt::Debug for CharsWisp {
 }
 impl PathWisp for CharsWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let picked = state.pick();
-        if picked.is_none() {
+        let Some(picked) = state.pick() else {
             return false;
-        }
-        let picked = picked.unwrap();
+        };
         if let Some(max_width) = self.max_width {
             let mut chars = Vec::with_capacity(max_width);
             for ch in picked.chars() {
@@ -305,7 +303,11 @@ impl PathWisp for CombWisp {
             return false;
         };
         let mut ostate = state.clone();
-        ostate.parts.get_mut(state.cursor.0).unwrap().clear();
+        ostate
+            .parts
+            .get_mut(state.cursor.0)
+            .expect("part should be exists")
+            .clear();
         let inner_detect = move |state: &mut PathState| {
             let row = state.cursor.0;
             for (index, wisp) in self.0.iter().enumerate() {
@@ -318,7 +320,7 @@ impl PathWisp for CombWisp {
                 // The last wisp can change it if it is rest named wisp.
                 if state.cursor.0 > row {
                     state.cursor = (row, 0);
-                    *(state.parts.get_mut(state.cursor.0).unwrap()) = "".into();
+                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) = "".into();
                 }
                 if online_all_matched {
                     state.cursor.1 = 0;
@@ -326,10 +328,10 @@ impl PathWisp for CombWisp {
                         if next_const_index == self.0.len() - 1 {
                             if offline.ends_with(&next_const_wisp.0) {
                                 if index == next_const_index {
-                                    *(state.parts.get_mut(state.cursor.0).unwrap()) = offline;
+                                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) = offline;
                                     offline = "".into();
                                 } else {
-                                    *(state.parts.get_mut(state.cursor.0).unwrap()) =
+                                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
                                         offline.trim_end_matches(&next_const_wisp.0).into();
                                     offline = next_const_wisp.0.clone();
                                 }
@@ -338,17 +340,19 @@ impl PathWisp for CombWisp {
                             }
                         } else if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
                             if next_const_index == index {
-                                *(state.parts.get_mut(state.cursor.0).unwrap()) = next_const_wisp.0.clone();
+                                *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
+                                    next_const_wisp.0.clone();
                                 offline = new_offline.into();
                             } else {
-                                *(state.parts.get_mut(state.cursor.0).unwrap()) = new_online.into();
+                                *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
+                                    new_online.into();
                                 offline = format!("{}{}", next_const_wisp.0, new_offline);
                             }
                         } else {
                             return false;
                         }
                     } else if !offline.is_empty() {
-                        *(state.parts.get_mut(state.cursor.0).unwrap()) = offline;
+                        *(state.parts.get_mut(state.cursor.0).expect("part shoule be exists")) = offline;
                         offline = "".into();
                     }
                 }
@@ -368,8 +372,8 @@ impl PathWisp for CombWisp {
     fn validate(&self) -> Result<(), String> {
         let mut index = 0;
         while index < self.0.len() - 2 {
-            let curr = self.0.get(index).unwrap();
-            let next = self.0.get(index + 1).unwrap();
+            let curr = self.0.get(index).expect("index is out of range");
+            let next = self.0.get(index + 1).expect("index is out of range");
             if let (WispKind::Named(_), WispKind::Named(_)) = (curr, next) {
                 return Err(format!(
                     "named wisp: `{:?}` can't be followed by another named wisp: `{:?}`",
@@ -406,7 +410,7 @@ impl PathWisp for NamedWisp {
             if picked.is_none() {
                 return false;
             }
-            let picked = picked.unwrap().to_owned();
+            let picked = picked.expect("picked should not be `None`").to_owned();
             state.forward(picked.len());
             state.params.insert(self.0.clone(), picked);
             true
@@ -457,11 +461,9 @@ impl PathWisp for RegexWisp {
                 false
             }
         } else {
-            let picked = state.pick();
-            if picked.is_none() {
+            let Some(picked) = state.pick() else {
                 return false;
-            }
-            let picked = picked.unwrap();
+            };
             let cap = self.regex.captures(picked).and_then(|caps| caps.get(0));
             if let Some(cap) = cap {
                 let cap = cap.as_str().to_owned();
@@ -481,11 +483,9 @@ pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let picked = state.pick();
-        if picked.is_none() {
+        let Some(picked) = state.pick() else {
             return false;
-        }
-        let picked = picked.unwrap();
+        };
         if picked.starts_with(&self.0) {
             state.forward(self.0.len());
             true
@@ -756,7 +756,7 @@ impl PathParser {
             if scaned.len() > 1 {
                 wisps.push(CombWisp(scaned).into());
             } else if !scaned.is_empty() {
-                wisps.push(scaned.pop().unwrap());
+                wisps.push(scaned.pop().expect("scan parts is empty"));
             } else {
                 return Err("scan parts is empty".to_owned());
             }
@@ -829,7 +829,7 @@ impl PathParser {
                 self.path.iter().collect::<String>()
             ));
         } else if let Some(wild_name) = wild_names.first() {
-            if wild_name != all_names.last().unwrap() {
+            if wild_name != all_names.last().expect("all_names should not be empty") {
                 return Err(format!(
                     "wildcard name: `{}` should be the last one in url: `{}`",
                     wild_name,

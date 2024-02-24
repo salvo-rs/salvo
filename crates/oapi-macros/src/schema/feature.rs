@@ -5,7 +5,7 @@ use crate::feature::{
     impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Deprecated, Example, ExclusiveMaximum,
     ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems,
     MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required,
-    SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
+    SchemaWith, Skip, Symbol, ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, ResultExt};
 
@@ -23,7 +23,8 @@ impl Parse for NamedFieldStructFeatures {
             MinProperties,
             Inline,
             Default,
-            Deprecated
+            Deprecated,
+            Skip
         )))
     }
 }
@@ -42,7 +43,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Format,
             ValueType,
             Inline,
-            Deprecated
+            Deprecated,
+            Skip
         )))
     }
 }
@@ -111,7 +113,8 @@ impl Parse for NamedFieldFeatures {
             SchemaWith,
             AdditionalProperties,
             Required,
-            Deprecated
+            Deprecated,
+            Skip
         )))
     }
 }
@@ -128,7 +131,8 @@ impl Parse for EnumNamedFieldVariantFeatures {
             Symbol,
             Rename,
             RenameAll,
-            Deprecated
+            Deprecated,
+            Skip
         )))
     }
 }
@@ -146,7 +150,8 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
             Format,
             ValueType,
             Rename,
-            Deprecated
+            Deprecated,
+            Skip
         )))
     }
 }

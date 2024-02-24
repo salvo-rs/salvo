@@ -1,5 +1,4 @@
 //! Http request.
-
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 #[cfg(feature = "quinn")]
@@ -23,6 +22,7 @@ use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
+use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
@@ -53,7 +53,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: ReqBody,
+    pub(crate) body: ReqBody,
     pub(crate) extensions: Extensions,
 
     // The request method.
@@ -121,6 +121,14 @@ impl Request {
             remote_addr: SocketAddr::Unknown,
         }
     }
+    #[doc(hidden)]
+    pub fn trans_proto(&self) -> TransProto {
+        if self.version == Version::HTTP_3 {
+            TransProto::Quic
+        } else {
+            TransProto::Tcp
+        }
+    }
     /// Creates a new `Request` from [`hyper::Request`].
     pub fn from_hyper<B>(req: hyper::Request<B>, scheme: Scheme) -> Self
     where
@@ -177,7 +185,6 @@ impl Request {
 
     /// Strip the request to [`hyper::Request`].
     #[doc(hidden)]
-    #[inline]
     pub fn strip_to_hyper<QB>(&mut self) -> Result<hyper::Request<QB>, crate::Error>
     where
         QB: TryFrom<ReqBody>,
@@ -202,7 +209,6 @@ impl Request {
 
     /// Merge data from [`hyper::Request`].
     #[doc(hidden)]
-    #[inline]
     pub fn merge_hyper(&mut self, hyper_req: hyper::Request<ReqBody>) {
         let (
             http::request::Parts {
@@ -448,7 +454,6 @@ impl Request {
             matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &salvo_http3::ext::Protocol::WEB_TRANSPORT)
         }
 
-        #[inline]
         /// Try to get a WebTransport session from the request.
         pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
@@ -579,7 +584,7 @@ impl Request {
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
-        self.queries.get_mut().unwrap()
+        self.queries.get_mut().expect("queries should be initialized")
     }
 
     /// Get query value from queries.
@@ -832,7 +837,6 @@ impl Request {
     }
 
     /// Parse json body or form body as type `T` from request with max size.
-    #[inline]
     pub async fn parse_body_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,

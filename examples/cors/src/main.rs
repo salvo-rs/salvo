@@ -1,4 +1,3 @@
-use salvo::catcher::Catcher;
 use salvo::cors::Cors;
 use salvo::http::Method;
 use salvo::prelude::*;

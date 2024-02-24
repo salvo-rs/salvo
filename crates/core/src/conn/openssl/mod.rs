@@ -8,6 +8,7 @@ pub use listener::{OpensslAcceptor, OpensslListener};
 #[cfg(test)]
 mod tests {
     use std::pin::Pin;
+    use std::sync::Arc;
 
     use openssl::ssl::{SslConnector, SslMethod};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -16,6 +17,7 @@ mod tests {
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
+    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_openssl_listener() {
@@ -49,7 +51,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
     }
 }

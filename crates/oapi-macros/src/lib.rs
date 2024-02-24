@@ -7,10 +7,6 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 use std::borrow::Cow;
 use std::ops::Deref;
@@ -59,6 +55,10 @@ pub(crate) use self::{
 };
 pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
+/// Enhanced of [handler][handler] for generate OpenAPI documention, [Read more][more].
+///
+/// [handler]: ../salvo_core/attr.handler.html
+/// [more]: ../salvo_oapi/endpoint/index.html
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -69,7 +69,10 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
-
+/// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait, [Read more][more].
+///
+/// [to_schema]: ../salvo_oapi/trait.ToSchema.html
+/// [more]: ../salvo_oapi/derive.ToSchema.html
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
@@ -84,6 +87,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     ToSchema::new(&data, &attrs, &ident, &generics).to_token_stream().into()
 }
 
+/// Generate parameters from struct's fields, [Read more][more].
+///
+/// [more]: ../salvo_oapi/derive.ToParameters.html
 #[proc_macro_error]
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
@@ -105,6 +111,10 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Generate reusable [OpenApi][openapi] response, [Read more][more].
+///
+/// [openapi]: ../salvo_oapi/struct.OpenApi.html
+/// [more]: ../salvo_oapi/derive.ToResponse.html
 #[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
@@ -119,6 +129,10 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
     ToResponse::new(attrs, &data, generics, ident).to_token_stream().into()
 }
 
+/// Generate responses with status codes what can be used in [OpenAPI][openapi], [Read more][more].
+///
+/// [openapi]: ../salvo_oapi/struct.OpenApi.html
+/// [more]: ../salvo_oapi/derive.ToResponses.html
 #[proc_macro_error]
 #[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
@@ -400,18 +414,21 @@ impl AnyValue {
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
             if input.peek(LitStr) {
-                let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
+                let lit_str = input
+                    .parse::<LitStr>()
+                    .expect("parse `LitStr` failed")
+                    .to_token_stream();
 
                 Ok(AnyValue::Json(lit_str))
             } else {
-                let lit = input.parse::<Lit>().unwrap().to_token_stream();
+                let lit = input.parse::<Lit>().expect("parse `Lit` failed").to_token_stream();
 
                 Ok(AnyValue::Json(lit))
             }
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
-                let ident = fork.parse::<Ident>().unwrap();
+                let ident = fork.parse::<Ident>().expect("parse `Ident` failed");
                 ident == "json"
             } else {
                 false
@@ -433,7 +450,12 @@ impl AnyValue {
 
     fn parse_lit_str_or_json(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok(AnyValue::String(input.parse::<LitStr>().unwrap().to_token_stream()))
+            Ok(AnyValue::String(
+                input
+                    .parse::<LitStr>()
+                    .expect("parse `LitStr` failed")
+                    .to_token_stream(),
+            ))
         } else {
             Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
         }

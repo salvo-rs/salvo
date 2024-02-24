@@ -1,15 +1,9 @@
 //!Salvo is a powerful web framework that can make your work easier.
 //!
 //! Read more: <https://salvo.rs>
-
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
 #[macro_use]
 mod cfg;
@@ -226,7 +220,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="oapi"]
-        pub use crate::oapi::{endpoint, EndpointArgRegister, EndpointOutRegister, OpenApi, ToSchema, ToResponse, ToResponses};
+        pub use crate::oapi::{endpoint, RouterExt, EndpointArgRegister, EndpointOutRegister, OpenApi, ToParameter, ToParameters, ToSchema, ToResponse, ToResponses};
         pub use crate::oapi::swagger_ui::SwaggerUi;
         pub use crate::oapi::rapidoc::RapiDoc;
         pub use crate::oapi::redoc::ReDoc;

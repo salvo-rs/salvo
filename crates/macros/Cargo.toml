@@ -23,3 +23,6 @@ quote = { workspace = true }
 regex = { workspace = true }
 salvo-serde-util = { workspace = true }
 syn = { workspace = true, features = ["full", "parsing"] }
+
+[lints]
+workspace = true

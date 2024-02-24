@@ -3,12 +3,13 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use futures_util::{future::BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
+use crate::fuse::{ArcFusewire, FuseEvent, Fusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -21,16 +22,44 @@ enum State<S> {
 /// Tls stream.
 pub struct HandshakeStream<S> {
     state: State<S>,
+    fusewire: Arc<dyn Fusewire + Sync + Send + 'static>,
 }
 
 impl<S> HandshakeStream<S> {
-    pub(crate) fn new<F>(handshake: F) -> Self
+    pub(crate) fn new<F>(handshake: F, fusewire: Arc<dyn Fusewire + Sync + Send + 'static>) -> Self
     where
         F: Future<Output = Result<S>> + Send + 'static,
     {
+        fusewire.event(FuseEvent::TlsHandshaking);
         Self {
             state: State::Handshaking(handshake.boxed()),
+            fusewire,
         }
+    }
+
+    fn set_state_ready(&mut self, stream: S) {
+        self.state = State::Ready(stream);
+        self.fusewire.event(FuseEvent::TlsHandshaked);
+    }
+}
+impl<S> HttpConnection for HandshakeStream<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: CancellationToken,
+    ) -> IoResult<()> {
+        let fusewire = self.fusewire.clone();
+        builder
+            .serve_connection(self, handler, fusewire, graceful_stop_token)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+    fn fusewire(&self) -> ArcFusewire {
+        self.fusewire.clone()
     }
 }
 
@@ -44,14 +73,30 @@ where
         loop {
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(s)) => this.state = State::Ready(s),
+                    Poll::Ready(Ok(s)) => this.set_state_ready(s),
                     Poll::Ready(Err(err)) => {
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
                     }
-                    Poll::Pending => return Poll::Pending,
+                    Poll::Pending => {
+                        this.fusewire.event(FuseEvent::Alive);
+                        return Poll::Pending
+                    },
                 },
-                State::Ready(stream) => return Pin::new(stream).poll_read(cx, buf),
+                State::Ready(stream) => {
+                    let remaining = buf.remaining();
+                    return match Pin::new(stream).poll_read(cx, buf) {
+                        Poll::Ready(Ok(())) => {
+                            this.fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                            Poll::Ready(Ok(()))
+                        }
+                        Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                        Poll::Pending => {
+                            this.fusewire.event(FuseEvent::Alive);
+                            Poll::Pending
+                        }
+                    };
+                },
                 State::Error => return Poll::Ready(Err(invalid_data_error("poll read invalid data"))),
             }
         }
@@ -68,7 +113,7 @@ where
         loop {
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(s)) => this.state = State::Ready(s),
+                    Poll::Ready(Ok(s)) => this.set_state_ready(s),
                     Poll::Ready(Err(err)) => {
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
@@ -87,7 +132,7 @@ where
         loop {
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(s)) => this.state = State::Ready(s),
+                    Poll::Ready(Ok(s)) => this.set_state_ready(s),
                     Poll::Ready(Err(err)) => {
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
@@ -106,7 +151,7 @@ where
         loop {
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(s)) => this.state = State::Ready(s),
+                    Poll::Ready(Ok(s)) => this.set_state_ready(s),
                     Poll::Ready(Err(err)) => {
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
@@ -117,23 +162,6 @@ where
                 State::Error => return Poll::Ready(Err(invalid_data_error("poll shutdown invalid data"))),
             }
         }
-    }
-}
-
-impl<S> HttpConnection for HandshakeStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        idle_timeout: Option<Duration>,
-    ) -> IoResult<()> {
-        builder
-            .serve_connection(self, handler, idle_timeout)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 
