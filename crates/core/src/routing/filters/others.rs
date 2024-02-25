@@ -89,19 +89,22 @@ impl Filter for HostFilter {
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
-        let host = req.uri().authority().map(|a| a.as_str())
-            .or_else(|| req.headers().get(crate::http::header::HOST).and_then(|h| h.to_str().ok()));
+        let host = req.uri().authority().map(|a| a.as_str()).or_else(|| {
+            req.headers()
+                .get(crate::http::header::HOST)
+                .and_then(|h| h.to_str().ok())
+        });
         host.map(|h| {
-                if h.contains(':') {
-                    h.rsplit_once(':')
-                        .expect("rsplit_once by ':' should not returns `None`")
-                        .0
-                } else {
-                    h
-                }
-            })
-            .map(|h| h == self.host)
-            .unwrap_or(self.lack)
+            if h.contains(':') {
+                h.rsplit_once(':')
+                    .expect("rsplit_once by ':' should not returns `None`")
+                    .0
+            } else {
+                h
+            }
+        })
+        .map(|h| h == self.host)
+        .unwrap_or(self.lack)
     }
 }
 impl fmt::Debug for HostFilter {
@@ -140,20 +143,23 @@ impl Filter for PortFilter {
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
-        let host = req.uri().authority().map(|a| a.as_str())
-            .or_else(|| req.headers().get(crate::http::header::HOST).and_then(|h| h.to_str().ok()));
+        let host = req.uri().authority().map(|a| a.as_str()).or_else(|| {
+            req.headers()
+                .get(crate::http::header::HOST)
+                .and_then(|h| h.to_str().ok())
+        });
         host.map(|h| {
-                if h.contains(':') {
-                    h.rsplit_once(':')
-                        .expect("rsplit_once by ':' should not returns `None`")
-                        .1
-                } else {
-                    h
-                }
-            })
-            .and_then(|p| p.parse::<u16>().ok())
-            .map(|p| p == self.port)
-            .unwrap_or(self.lack)
+            if h.contains(':') {
+                h.rsplit_once(':')
+                    .expect("rsplit_once by ':' should not returns `None`")
+                    .1
+            } else {
+                h
+            }
+        })
+        .and_then(|p| p.parse::<u16>().ok())
+        .map(|p| p == self.port)
+        .unwrap_or(self.lack)
     }
 }
 impl fmt::Debug for PortFilter {
