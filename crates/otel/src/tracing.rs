@@ -1,6 +1,6 @@
 use headers03::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
-use opentelemetry::{global, Context};
+use opentelemetry::{global, Context, KeyValue};
 use opentelemetry_http::HeaderExtractor;
 use opentelemetry_semantic_conventions::{resource, trace};
 use salvo_core::http::headers::{self, HeaderMapExt};
@@ -38,13 +38,19 @@ where
         let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(&headers)));
 
         let mut attributes = Vec::new();
-        attributes.push(resource::TELEMETRY_SDK_NAME.string(env!("CARGO_CRATE_NAME")));
-        attributes.push(resource::TELEMETRY_SDK_VERSION.string(env!("CARGO_PKG_VERSION")));
-        attributes.push(resource::TELEMETRY_SDK_LANGUAGE.string("rust"));
-        attributes.push(trace::HTTP_REQUEST_METHOD.string(req.method().to_string()));
-        attributes.push(trace::URL_FULL.string(req.uri().to_string()));
-        attributes.push(trace::CLIENT_ADDRESS.string(remote_addr));
-        attributes.push(trace::NETWORK_PROTOCOL_VERSION.string(format!("{:?}", req.version())));
+        attributes.push(KeyValue::new(resource::TELEMETRY_SDK_NAME, env!("CARGO_CRATE_NAME")));
+        attributes.push(KeyValue::new(
+            resource::TELEMETRY_SDK_VERSION,
+            env!("CARGO_PKG_VERSION"),
+        ));
+        attributes.push(KeyValue::new(resource::TELEMETRY_SDK_LANGUAGE, "rust"));
+        attributes.push(KeyValue::new(trace::HTTP_REQUEST_METHOD, req.method().to_string()));
+        attributes.push(KeyValue::new(trace::URL_FULL, req.uri().to_string()));
+        attributes.push(KeyValue::new(trace::CLIENT_ADDRESS, remote_addr));
+        attributes.push(KeyValue::new(
+            trace::NETWORK_PROTOCOL_VERSION,
+            format!("{:?}", req.version()),
+        ));
         let mut span = self
             .tracer
             .span_builder(format!("{} {}", req.method(), req.uri()))
@@ -66,9 +72,9 @@ where
                 "request.success"
             };
             span.add_event(event.to_string(), vec![]);
-            span.set_attribute(trace::HTTP_RESPONSE_STATUS_CODE.i64(status.as_u16() as i64));
+            span.set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, status.as_u16() as i64));
             if let Some(content_length) = res.headers().typed_get::<headers::ContentLength>() {
-                span.set_attribute(trace::HTTP_RESPONSE_BODY_SIZE.i64(content_length.0 as i64));
+                span.set_attribute(KeyValue::new(trace::HTTP_RESPONSE_BODY_SIZE, content_length.0 as i64));
             }
         }
         .with_context(Context::current_with_span(span))
