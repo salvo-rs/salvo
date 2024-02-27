@@ -158,7 +158,7 @@ impl<'c> ComponentSchema {
         type_definition: bool,
     ) {
         let oapi = crate::oapi_crate();
-        let example = features.pop_by(|feature: &Feature| matches!(feature, Feature::Example(_)));
+        let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
