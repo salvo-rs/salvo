@@ -42,7 +42,9 @@ impl<'c> ComponentSchema {
         let description_stream = ComponentSchema::get_description(description);
 
         match type_tree.generic_type {
-            Some(GenericType::Map) => ComponentSchema::map_to_tokens(
+            Some(GenericType::Map) => {
+                features.push(AdditionalProperties(true).into());
+                ComponentSchema::map_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -50,7 +52,7 @@ impl<'c> ComponentSchema {
                 description_stream,
                 deprecated_stream,
                 type_definition,
-            ),
+            )},
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
@@ -155,7 +157,7 @@ impl<'c> ComponentSchema {
         type_definition: bool,
     ) {
         let oapi = crate::oapi_crate();
-        let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+        let example = features.pop_by(|feature: &Feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
