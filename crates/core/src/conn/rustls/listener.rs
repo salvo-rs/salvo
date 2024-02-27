@@ -154,7 +154,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            ..
         } = self.inner.accept(fuse_factory).await?;
         let fusewire = conn.fusewire();
         Ok(Accepted {
@@ -162,7 +162,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            http_scheme: Scheme::HTTPS,
         })
     }
 }
