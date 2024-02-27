@@ -42,15 +42,18 @@ impl<'c> ComponentSchema {
         let description_stream = ComponentSchema::get_description(description);
 
         match type_tree.generic_type {
-            Some(GenericType::Map) => ComponentSchema::map_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description_stream,
-                deprecated_stream,
-                type_definition,
-            ),
+            Some(GenericType::Map) => {
+                features.push(AdditionalProperties(true).into());
+                ComponentSchema::map_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description_stream,
+                    deprecated_stream,
+                    type_definition,
+                )
+            }
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
