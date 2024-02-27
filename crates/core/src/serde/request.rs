@@ -315,9 +315,8 @@ impl<'de> RequestDeserializer<'de> {
                                             self.field_str_value = Some(value);
                                             self.field_source = Some(source);
                                             return true;
-                                        } else {
-                                            return false;
                                         }
+                                        return false;
                                     }
                                     Payload::JsonMap(ref map) => {
                                         let mut value = map.get(field_name.as_ref());
@@ -333,9 +332,8 @@ impl<'de> RequestDeserializer<'de> {
                                             self.field_str_value = Some(value.get());
                                             self.field_source = Some(source);
                                             return true;
-                                        } else {
-                                            return false;
                                         }
+                                        return false;
                                     }
                                     Payload::JsonStr(value) => {
                                         self.field_str_value = Some(*value);
@@ -362,12 +360,9 @@ impl<'de> RequestDeserializer<'de> {
                                     self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
                                     self.field_source = Some(source);
                                     return true;
-                                } else {
-                                    return false;
                                 }
-                            } else {
-                                return false;
                             }
+                            return false;
                         }
                         _ => {
                             panic!("unsupported source parser: {:?}", parser);
