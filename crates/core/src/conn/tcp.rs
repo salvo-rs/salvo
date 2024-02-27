@@ -89,7 +89,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         #[inline]
         pub fn acme(self) -> AcmeListener<Self>
         {
-            AcmeListener::new( self)
+            AcmeListener::new(self)
         }
     }
 }

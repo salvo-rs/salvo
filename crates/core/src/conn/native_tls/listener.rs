@@ -157,7 +157,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            ..
         } = self.inner.accept(fuse_factory.clone()).await?;
         let fusewire = conn.fusewire();
         let conn = async move {
@@ -171,7 +171,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            http_scheme: Scheme::HTTPS,
         })
     }
 }
