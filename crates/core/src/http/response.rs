@@ -379,21 +379,21 @@ impl Response {
     /// let mut res = Response::new();
     /// res.render("hello world");
     /// ```
-    pub fn render<P>(&mut self, piece: P)
+    pub fn render<P>(&mut self, scribe: P)
     where
         P: Scribe,
     {
-        piece.render(self);
+        scribe.render(self);
     }
 
     /// Render content with status code.
     #[inline]
-    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
+    pub fn stuff<P>(&mut self, code: StatusCode, scribe: P)
     where
         P: Scribe,
     {
         self.status_code = Some(code);
-        piece.render(self);
+        scribe.render(self);
     }
 
     /// Attempts to send a file. If file not exists, not found error will occur.
