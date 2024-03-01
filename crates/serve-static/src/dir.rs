@@ -641,22 +641,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
-        println!("{}", human_size(98595176));// 98.59 MB on mac
+        println!("{}", human_size(98595176)); // 98.59 MB on mac
 
         let unit = 1000;
-        println!("{}", human_size(unit));                   // 1 KB
-        println!("{}", human_size(unit - 1));            // 1023.9 B
+        println!("{}", human_size(unit)); // 1 KB
+        println!("{}", human_size(unit - 1)); // 1023.9 B
 
-        println!("{}", human_size(unit * unit));        // 1 MB
-        println!("{}", human_size(unit * unit - 1));      // 1023.9 KB
+        println!("{}", human_size(unit * unit)); // 1 MB
+        println!("{}", human_size(unit * unit - 1)); // 1023.9 KB
 
         println!("{}", human_size(unit * unit * unit)); // 1 GB
-        println!("{}", human_size(unit * unit * unit - 1));  // 1023.9 MB
+        println!("{}", human_size(unit * unit * unit - 1)); // 1023.9 MB
 
-        println!("{}", human_size(unit * unit * unit * unit));          // 1 TB
-        println!("{}", human_size(unit * unit * unit * unit - 1));      // 1023.9 GB
+        println!("{}", human_size(unit * unit * unit * unit)); // 1 TB
+        println!("{}", human_size(unit * unit * unit * unit - 1)); // 1023.9 GB
 
-        println!("{}", human_size(unit * unit * unit * unit * unit));    // 1 PB
+        println!("{}", human_size(unit * unit * unit * unit * unit)); // 1 PB
         println!("{}", human_size(unit * unit * unit * unit * unit - 1)); //1023.9 TB
     }
 }
