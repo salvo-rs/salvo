@@ -67,7 +67,7 @@ where
     ///
     /// It is very important to make the listener closure not to panic. Otherwise,
     /// the cache will stop calling the listener after a panic. This is an intended
-    /// behavior because the cache cannot know whether is is memory safe or not to
+    /// behavior because the cache cannot know whether is memory safe or not to
     /// call the panicked lister again.
     pub fn eviction_listener(
         mut self,
