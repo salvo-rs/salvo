@@ -9,6 +9,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 
 ## Project showcase
 
+- [AI00 RWKV Server](https://github.com/Ai00-X/ai00_server): AI00 RWKV Server is an inference API server based on the RWKV model..
 - [Salvo Admin](https://github.com/lyqgit/salvo-admin): 基于salvo和Ruoyi-Vue3的rust快速开发框架.
 - [Salvo Admin](https://github.com/feihua/salvo-admin): 基于salvo和rbatis的rbac权限管理系统.
 - [Geospatial Web](https://gitlab.com/geospatialweb/rust-mvt-postgis): Rust REST API - Martin MVT Tile Server - PostGIS.
