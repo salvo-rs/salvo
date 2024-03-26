@@ -27,6 +27,7 @@ hyper = { workspace = true, features = ["server", "http1", "http2"] }
 hyper-rustls = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio", "http1", "http2", "client-legacy"] }
 percent-encoding = { workspace = true }
+reqwest = { workspace = true, features = ["stream"] }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }

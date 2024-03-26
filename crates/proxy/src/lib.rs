@@ -133,6 +133,17 @@ where
     }
 }
 
+impl<U> Proxy<U, ReqwestClient>
+where
+    U: Upstreams,
+    U::Error: Into<BoxedError>,
+{
+    /// Create new `Proxy` which use default reqwest util client.
+    pub fn default_reqwest_client(upstreams: U) -> Self {
+        Proxy::new(upstreams, ReqwestClient::default())
+    }
+}
+
 impl<U, C> Proxy<U, C>
 where
     U: Upstreams,
@@ -351,7 +362,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_proxy() {
+    async fn test_hyper_proxy() {
         let router = Router::new().push(
             Router::with_path("rust/<**rest>").goal(Proxy::default_hyper_client(vec!["https://www.rust-lang.org"])),
         );
@@ -364,6 +375,22 @@ mod tests {
             .unwrap();
         assert!(content.contains("Install Rust"));
     }
+
+    #[tokio::test]
+    async fn test_reqwest_proxy() {
+        let router = Router::new().push(
+            Router::with_path("rust/<**rest>").goal(Proxy::default_reqwest_client(vec!["https://www.rust-lang.org"])),
+        );
+
+        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
+            .send(router)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Install Rust"));
+    }
+
     #[test]
     fn test_others() {
         let mut handler = Proxy::default_hyper_client(["https://www.bing.com"]);
