@@ -32,7 +32,10 @@ jobs:
       - name: Install openssl
         run: |
             echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-            vcpkg install openssl:x64-windows-static-md cmake nasm llvm
+            vcpkg install openssl:x64-windows-static-md
+            vcpkg install cmake:x64-windows
+            vcpkg install llvm:x64-windows
+            vcpkg install nasm:x64-windows
 
       - name: check build
         run: cargo check --all --bins --examples --tests
