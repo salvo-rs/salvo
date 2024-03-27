@@ -31,6 +31,8 @@ unix = ["http1"]
 test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 tower-compat = ["dep:tower"]
+aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
+ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
 
 [dependencies]
 rustls-pemfile-old = { version = "1", package = "rustls-pemfile", optional = true }
@@ -70,7 +72,7 @@ ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
-hyper-rustls = { workspace = true, optional = true }
+hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "http1", "tls12", "logging"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
@@ -82,7 +84,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
-tokio-rustls = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true, features = ["logging", "tls12"]}
 tokio-util = { workspace = true, features = ["io"] }
 tower = { workspace = true, optional = true, default-features = false, features = ["buffer", "util"] }
 tracing = { workspace = true }
