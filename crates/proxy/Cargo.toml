@@ -17,6 +17,11 @@ categories = { workspace = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = ["aws-lc-rs"]
+aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
+ring = ["hyper-rustls/ring"]
+
 [dependencies]
 futures-util = { workspace = true, default-features = false }
 salvo_core = { workspace = true, default-features = false }
@@ -24,7 +29,7 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-hyper-rustls = { workspace = true }
+hyper-rustls = { workspace = true, features = ["native-tokio", "http1", "tls12", "logging"] }
 hyper-util = { workspace = true, features = ["tokio", "http1", "http2", "client-legacy"] }
 percent-encoding = { workspace = true }
 
