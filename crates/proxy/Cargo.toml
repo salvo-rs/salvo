@@ -19,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["ring"]
+full = ["ring"]
 # aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
 ring = ["hyper-rustls/ring"]
 

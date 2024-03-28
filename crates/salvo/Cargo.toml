@@ -81,7 +81,7 @@ salvo-flash = { workspace = true, features = ["full"], optional = true }
 salvo-rate-limiter = { workspace = true, features = ["full"], optional = true }
 salvo-session = { workspace = true, optional = true }
 salvo-serve-static = { workspace = true, features = ["full"], optional = true }
-salvo-proxy = { workspace = true, optional = true }
+salvo-proxy = { workspace = true, features = ["full"], optional = true }
 salvo-otel = { workspace = true, optional = true }
 salvo-oapi = { workspace = true, features = ["full"], optional = true }
 
