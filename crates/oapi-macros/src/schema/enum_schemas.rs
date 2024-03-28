@@ -8,8 +8,8 @@ use syn::{punctuated::Punctuated, Attribute, Fields, Token, Variant};
 use crate::{
     doc_comment::CommentAttributes,
     feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Example, Feature, FeaturesExt, IntoInner, IsSkipped, Rename,
-        RenameAll, Symbol, ToTokensExt,Bound, SkipBound,
+        parse_features, pop_feature, pop_feature_as_inner, Bound, Example, Feature, FeaturesExt, IntoInner, IsSkipped,
+        Rename, RenameAll, SkipBound, Symbol, ToTokensExt,
     },
     schema::{Inline, VariantRename},
     serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},

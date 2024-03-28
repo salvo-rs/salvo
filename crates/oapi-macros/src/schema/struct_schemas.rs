@@ -9,7 +9,8 @@ use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
     feature::{
-        pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, Symbol, ToTokensExt, Bound, SkipBound
+        pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, SkipBound,
+        Symbol, ToTokensExt,
     },
     schema::Inline,
     serde_util::{self, SerdeContainer},

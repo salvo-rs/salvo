@@ -224,7 +224,7 @@ impl ToTokens for Feature {
                     help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
                 }
             }
-            Feature::Inline(_)|Feature::SkipBound(_)|Feature::Bound(_) => {
+            Feature::Inline(_) | Feature::SkipBound(_) | Feature::Bound(_) => {
                 // inline， skip_bound and bound feature is ignored by `ToTokens`
                 TokenStream::new()
             }
