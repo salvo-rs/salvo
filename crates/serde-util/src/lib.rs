@@ -14,7 +14,7 @@ pub use case::RenameRule;
 
 trait ResultExt<T> {
     fn unwrap_or_abort(self) -> T;
-    fn expect_or_abort(self, message: &str) -> T;
+    // fn expect_or_abort(self, message: &str) -> T;
 }
 
 impl<T> ResultExt<T> for Result<T, syn::Error> {
@@ -25,12 +25,12 @@ impl<T> ResultExt<T> for Result<T, syn::Error> {
         }
     }
 
-    fn expect_or_abort(self, message: &str) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}: {message}")),
-        }
-    }
+    // fn expect_or_abort(self, message: &str) -> T {
+    //     match self {
+    //         Ok(value) => value,
+    //         Err(error) => abort!(error.span(), format!("{error}: {message}")),
+    //     }
+    // }
 }
 
 #[inline]

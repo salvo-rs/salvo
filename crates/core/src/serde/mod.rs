@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::hash::Hash;
-use std::iter::Iterator;
 
 pub use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{

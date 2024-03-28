@@ -31,7 +31,7 @@ unix = ["http1"]
 test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 tower-compat = ["dep:tower"]
-aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
+# aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
 ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
 
 [dependencies]

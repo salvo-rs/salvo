@@ -169,8 +169,8 @@ where
     ///
     /// The default for this value is "/".
     #[inline]
-    pub fn cookie_path(mut self, cookie_path: impl AsRef<str>) -> Self {
-        self.cookie_path = cookie_path.as_ref().to_owned();
+    pub fn cookie_path(mut self, cookie_path: impl Into<String>) -> Self {
+        self.cookie_path = cookie_path.into();
         self
     }
 
@@ -191,8 +191,8 @@ where
     /// domain, you will need different values for each
     /// application. The default value is "salvo.session_id".
     #[inline]
-    pub fn cookie_name(mut self, cookie_name: impl AsRef<str>) -> Self {
-        self.cookie_name = cookie_name.as_ref().to_owned();
+    pub fn cookie_name(mut self, cookie_name: impl Into<String>) -> Self {
+        self.cookie_name = cookie_name.into();
         self
     }
 
@@ -435,7 +435,6 @@ mod tests {
     use salvo_core::http::Method;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::writing::Redirect;
 
     use super::*;
 

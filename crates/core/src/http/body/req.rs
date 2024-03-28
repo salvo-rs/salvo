@@ -1,5 +1,4 @@
 //! Http body.
-use std::boxed::Box;
 use std::fmt::{self, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;

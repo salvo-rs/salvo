@@ -11,10 +11,9 @@ use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
-use http::{self, Extensions};
+use http::Extensions;
 use http_body_util::{BodyExt, Limited};
 use indexmap::IndexMap;
-use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
