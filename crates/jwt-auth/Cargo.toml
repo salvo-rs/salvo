@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = ["oidc", "ring"]
-oidc = ["dep:bytes", "hyper-rustls", "dep:hyper-util", "dep:http-body-util"]
+oidc = ["dep:bytes", "hyper-rustls", "dep:hyper-util", "dep:http-body-util", "ring"]
 # aws-lc-rs = ["hyper-rustls?/aws-lc-rs"]
 ring = ["hyper-rustls?/ring"]
 

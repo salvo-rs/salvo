@@ -61,6 +61,7 @@ impl HttpBuilder {
     }
 
     /// Serve a connection with the given service.
+    #[allow(unused_variables)]
     pub async fn serve_connection<I, S, B>(
         &self,
         socket: I,
