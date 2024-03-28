@@ -24,6 +24,7 @@
 //! ```
 //! use salvo_core::prelude::*;
 //!
+//! #[allow(non_camel_case_types)]
 //! struct hello;
 //!
 //! #[async_trait]

@@ -37,8 +37,7 @@ impl FlattenedMapSchema {
                 .children
                 .as_ref()
                 .expect("`ComponentSchema` Map type should have children")
-                .iter()
-                .nth(1)
+                .get(1)
                 .expect("`ComponentSchema` Map type should have 2 child"),
             features: Some(features),
             description: None,

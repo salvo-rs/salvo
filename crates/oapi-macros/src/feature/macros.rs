@@ -1,4 +1,4 @@
-use crate::feature::{items::*, Feature, Nullable, ParameterIn, Style, Validatable, ValueType};
+use crate::feature::{items::*, Feature, Validatable};
 
 macro_rules! impl_name {
     ( $ident:ident = $name:literal ) => {
@@ -143,6 +143,7 @@ macro_rules! pop_feature_as_inner {
 
 pub(crate) use pop_feature_as_inner;
 
+#[allow(dead_code)]
 pub(crate) trait IntoInner<T> {
     fn into_inner(self) -> T;
 }
@@ -165,6 +166,7 @@ macro_rules! impl_into_inner {
 
 pub(crate) use impl_into_inner;
 
+#[allow(dead_code)]
 pub(crate) trait Merge<T>: IntoInner<Vec<Feature>> {
     fn merge(self, from: T) -> Self;
 }

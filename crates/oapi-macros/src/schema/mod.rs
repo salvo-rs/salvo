@@ -253,9 +253,6 @@ impl ToTokens for UnitStructVariant {
     }
 }
 
-#[derive(PartialEq, Debug)]
-struct TypeTuple<'a, T>(T, &'a Ident);
-
 #[derive(Debug)]
 enum Property {
     Schema(ComponentSchema),

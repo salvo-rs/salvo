@@ -518,7 +518,7 @@ fn human_size(x: u64) -> String {
     }
 
     let part_integer = format!("{}", n);
-    let mut res = format!("{}", part_integer);
+    let mut res = part_integer.to_string();
     if n_float.fract() != 0.0 {
         let s = format!("{}", n_float.fract());
         let substring = &s[2..3]; // 0.99 get 9

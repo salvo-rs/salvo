@@ -19,7 +19,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["ring"]
-aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
+full = ["ring"]
+# aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
 ring = ["hyper-rustls/ring"]
 
 [dependencies]
@@ -29,7 +30,7 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-hyper-rustls = { workspace = true, features = ["native-tokio", "http1", "tls12", "logging"] }
+hyper-rustls = { workspace = true, features = ["native-tokio", "rustls-native-certs", "ring", "http1", "tls12", "logging"] }
 hyper-util = { workspace = true, features = ["tokio", "http1", "http2", "client-legacy"] }
 percent-encoding = { workspace = true }
 

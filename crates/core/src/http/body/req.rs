@@ -1,5 +1,4 @@
 //! Http body.
-use std::boxed::Box;
 use std::fmt::{self, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
@@ -262,12 +261,16 @@ cfg_feature! {
                 _cx: &mut Context<'_>,
             ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
                 let this = &mut *self;
-                let rt = tokio::runtime::Runtime::new().unwrap();
+                let rt = tokio::runtime::Runtime::new().expect("create tokio runtime failed");
                 // TODO: how to remove block?
                 Poll::Ready(Some(rt.block_on(async move {
-                    let buf = this.inner.recv_data().await.unwrap();
-                    let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
-                    Ok(Frame::data(buf.unwrap()))
+                    match this.inner.recv_data().await {
+                        Ok(Some(buf)) => {
+                            Ok(Frame::data(Bytes::copy_from_slice(buf.chunk())))
+                        }
+                        Ok(None) => Ok(Frame::data(Bytes::new())),
+                        Err(e) => Err(e.into()),
+                    }
                 })))
             }
 

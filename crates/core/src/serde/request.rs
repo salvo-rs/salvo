@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::iter::Iterator;
 
 use indexmap::IndexMap;
 use multimap::MultiMap;

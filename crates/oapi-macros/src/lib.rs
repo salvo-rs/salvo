@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -502,16 +502,6 @@ impl<T> ResultExt<T> for Result<T, syn::Error> {
             Ok(value) => value,
             Err(error) => abort!(error.span(), format!("{error}: {message}")),
         }
-    }
-}
-
-trait OptionExt<T> {
-    fn expect_or_abort(self, message: &str) -> T;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-    fn expect_or_abort(self, message: &str) -> T {
-        self.unwrap_or_else(|| abort!(Span::call_site(), message))
     }
 }
 
