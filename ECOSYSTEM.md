@@ -23,3 +23,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
 - [使用Tera和Salvo构建单词本](https://www.bilibili.com/video/BV1Kg411b75s): 使用Tera和Salvo构建一个简单的单词本Web应用.
+- [is salvo really the simplest rust web framework?](https://www.youtube.com/watch?v=tf9x97eTcpk)
+- [Salvo.rs - Un Framework sencillo de Backend creado en Rust](https://www.youtube.com/watch?v=HlVf4mE8V9s)
+- [rust + dioxus maybe | rust, salvo, dioxus live view, sqlx](https://www.youtube.com/watch?v=_j9tNhWbp8g)
+- [rust + dockerfile + fly | rust, salvo, dioxus live view, sqlx, docker, fly.io](https://www.youtube.com/watch?v=IuyQxpbxjb8)
