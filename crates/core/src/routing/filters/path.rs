@@ -333,15 +333,18 @@ impl PathWisp for CombWisp {
                                 } else {
                                     *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
                                         offline.trim_end_matches(&next_const_wisp.0).into();
-                                    offline = next_const_wisp.0.clone();
+                                    offline.clone_from(&next_const_wisp.0);
                                 }
                             } else {
                                 return false;
                             }
                         } else if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
                             if next_const_index == index {
-                                *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
-                                    next_const_wisp.0.clone();
+                                state
+                                    .parts
+                                    .get_mut(state.cursor.0)
+                                    .expect("part should be exists")
+                                    .clone_from(&next_const_wisp.0);
                                 offline = new_offline.into();
                             } else {
                                 *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =

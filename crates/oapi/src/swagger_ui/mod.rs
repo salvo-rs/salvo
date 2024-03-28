@@ -221,8 +221,13 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
             builder = builder.path_and_query(format!("{}/", path_and_query.path()));
         }
     }
-    let redirect_uri = builder.build().unwrap();
-    res.render(Redirect::found(redirect_uri));
+    match builder.build() {
+        Ok(redirect_uri) => res.render(Redirect::found(redirect_uri)),
+        Err(e) => {
+            tracing::error!(error = ?e, "failed to build redirect uri");
+            res.render(StatusError::internal_server_error());
+        }
+    }
 }
 
 #[async_trait]
@@ -252,7 +257,7 @@ impl Handler for SwaggerUi {
         match serve(path, &self.title, &keywords, &description, &self.config) {
             Ok(Some(file)) => {
                 res.headers_mut()
-                    .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
+                    .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).expect("content type parse failed"));
                 res.body(ResBody::Once(file.bytes.to_vec().into()));
             }
             Ok(None) => {

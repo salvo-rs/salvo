@@ -1,6 +1,5 @@
 //! Http body.
 
-use std::boxed::Box;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::future::Future;
