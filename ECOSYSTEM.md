@@ -22,3 +22,4 @@ If your project isn't listed here and you would like it to be, please feel free 
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
+- [使用Tera和Salvo构建单词本](https://www.bilibili.com/video/BV1Kg411b75s): 使用Tera和Salvo构建一个简单的单词本Web应用.
