@@ -81,7 +81,7 @@ pub(crate) async fn issue_cert(
     let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         cert.serialize_private_key_der(),
     )))
-    .unwrap();
+    .expect("serialize private key der failed");
     let csr = cert
         .serialize_request_der()
         .map_err(|e| Error::other(format!("failed to serialize request der {}", e)))?;
@@ -137,7 +137,7 @@ fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> crate::Result<CertifiedKey> 
     let key = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         cert.serialize_private_key_der(),
     )))
-    .unwrap();
+    .expect("serialize private key der failed");
     Ok(CertifiedKey::new(
         vec![CertificateDer::from(
             cert.serialize_der()

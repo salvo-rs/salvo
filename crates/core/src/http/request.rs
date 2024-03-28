@@ -11,10 +11,9 @@ use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
-use http::{self, Extensions};
+use http::Extensions;
 use http_body_util::{BodyExt, Limited};
 use indexmap::IndexMap;
-use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
@@ -460,21 +459,34 @@ impl Request {
                 if self.extensions.get::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().is_none() {
                     let conn = self.extensions.remove::<std::sync::Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>();
                     let stream = self.extensions.remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
-                    if conn.is_some() && stream.is_some() {
-                        let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
-                        self.extensions.insert(Arc::new(session));
-                        Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
-                    } else {
-                        if let Some(conn) = conn {
+                    match (conn, stream) {
+                        (Some(conn), Some(stream)) => {
+                            if let Ok(conn) = conn.into_inner() {
+                                    let session =  crate::proto::WebTransportSession::accept(stream, conn).await?;
+                                    self.extensions.insert(Arc::new(session));
+                                    if let Some(session) = self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>() {
+                                        Ok(session)
+                                    } else {
+                                        Err(crate::Error::Other("invalid web transport".into()))
+                                    }
+                            } else {
+                                Err(crate::Error::Other("invalid web transport".into()))
+                            }
+                        }
+                        (Some(conn), None) => {
                             self.extensions_mut().insert(Arc::new(conn));
+                            Err(crate::Error::Other("invalid web transport without stream".into()))
                         }
-                        if let Some(stream) = stream {
+                        (None, Some(stream)) => {
                             self.extensions_mut().insert(Arc::new(stream));
+                            Err(crate::Error::Other("invalid web transport without connection".into()))
                         }
-                        Err(crate::Error::Other("invalid web transport".into()))
+                        (None, None) => Err(crate::Error::Other("invalid web transport without connection and stream".into())),
                     }
+                } else if let Some(session) = self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>() {
+                    Ok(session)
                 } else {
-                    Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
+                    Err(crate::Error::Other("invalid web transport".into()))
                 }
             } else {
                 Err(crate::Error::Other("no web transport".into()))

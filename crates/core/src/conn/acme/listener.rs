@@ -188,7 +188,7 @@ impl<T> AcmeListener<T> {
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKeyOld::new(
                 certs,
-                any_ecdsa_type_old(&PrivateKeyOld(cached_key)).unwrap(),
+                any_ecdsa_type_old(&PrivateKeyOld(cached_key)).expect("parse private key failed"),
             )));
         }
 
@@ -249,7 +249,7 @@ impl<T> AcmeListener<T> {
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
-                any_ecdsa_type(&PrivateKeyDer::Pkcs8(cached_key)).unwrap(),
+                any_ecdsa_type(&PrivateKeyDer::Pkcs8(cached_key)).expect("parse private key failed"),
             )));
         }
 

@@ -14,9 +14,9 @@ pub(crate) mod derive;
 use crate::{
     component::{self, ComponentSchema},
     feature::{
-        impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
-        Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable,
-        Pattern, ReadOnly, Style, ToTokensExt, WriteOnly, XmlAttr,
+        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature,
+        Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
+        Style, ToTokensExt, WriteOnly, XmlAttr,
     },
     operation::InlineType,
     parse_utils, Required,
@@ -247,7 +247,7 @@ impl ParameterFeatures {
     }
 }
 
-impl_into_inner!(ParameterFeatures);
+// impl_into_inner!(ParameterFeatures);
 
 impl ToTokens for ValueParameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {

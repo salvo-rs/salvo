@@ -662,33 +662,33 @@ impl Parse for Content<'_> {
     }
 }
 
-pub(crate) struct Responses<'a>(pub(crate) &'a [Response<'a>]);
+// pub(crate) struct Responses<'a>(pub(crate) &'a [Response<'a>]);
 
-impl ToTokens for Responses<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let oapi = crate::oapi_crate();
-        tokens.extend(
-            self.0
-                .iter()
-                .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
-                    match response {
-                        Response::ToResponses(path) => {
-                            let span = path.span();
-                            acc.extend(quote_spanned! {span =>
-                                .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components))
-                            })
-                        }
-                        Response::Tuple(response) => {
-                            let code = &response.status_code;
-                            acc.extend(quote! { .response(#code, #response) });
-                        }
-                    }
+// impl ToTokens for Responses<'_> {
+//     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+//         let oapi = crate::oapi_crate();
+//         tokens.extend(
+//             self.0
+//                 .iter()
+//                 .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
+//                     match response {
+//                         Response::ToResponses(path) => {
+//                             let span = path.span();
+//                             acc.extend(quote_spanned! {span =>
+//                                 .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components))
+//                             })
+//                         }
+//                         Response::Tuple(response) => {
+//                             let code = &response.status_code;
+//                             acc.extend(quote! { .response(#code, #response) });
+//                         }
+//                     }
 
-                    acc
-                }),
-        );
-    }
-}
+//                     acc
+//                 }),
+//         );
+//     }
+// }
 
 /// Parsed representation of response header defined in `#[salvo_oapi::endpoint(..)]` attribute.
 ///

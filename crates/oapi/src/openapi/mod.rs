@@ -605,13 +605,11 @@ mod tests {
     use super::{response::Response, *};
     use crate::{
         extract::*,
-        info::Info,
-        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme},
-        server::{Server, ServerVariable},
-        OpenApi, Operation, Paths, ToSchema,
+        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme},
+        server::Server,
+        ToSchema,
     };
 
-    use salvo_core::Router;
     use salvo_core::{http::ResBody, prelude::*};
 
     #[test]

@@ -37,7 +37,7 @@ impl ResolveServerCert {
             .map(|(_, cert)| cert.validity().not_after.timestamp())
         {
             Some(valid_until) => {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("time went backwards");
                 (now + before).as_secs() as i64 > valid_until
             }
             None => true,

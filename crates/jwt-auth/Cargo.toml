@@ -19,15 +19,17 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-full = ["oidc"]
-oidc = ["dep:bytes", "dep:hyper-rustls", "dep:hyper-util", "dep:http-body-util"]
+full = ["oidc", "ring"]
+oidc = ["dep:bytes", "hyper-rustls", "dep:hyper-util", "dep:http-body-util", "ring"]
+# aws-lc-rs = ["hyper-rustls?/aws-lc-rs"]
+ring = ["hyper-rustls?/ring"]
 
 [dependencies]
 base64 = { workspace = true }
 bytes = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true }
 http-body-util = { workspace = true, optional = true }
-hyper-rustls = { workspace = true, optional = true }
+hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "http1", "tls12", "logging"] }
 hyper-util = { workspace = true, optional = true, features = ["client-legacy", "http1", "http2", "tokio"] }
 salvo_core = { workspace = true, features = ["cookie"] }
 serde = { workspace = true, features = ["derive"] }

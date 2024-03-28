@@ -162,14 +162,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
     use crate::conn::TcpListener;
-    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_joined_listener() {

@@ -5,7 +5,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::convert::{Infallible, TryFrom};
+use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::future::Future;
 

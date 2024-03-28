@@ -27,7 +27,7 @@ impl ResolvesServerCert for CertResolver {
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<CertifiedKey>> {
         client_hello
             .server_name()
-            .and_then(|name| self.certified_keys.get(name).map(Arc::clone))
+            .and_then(|name| self.certified_keys.get(name).cloned())
             .or_else(|| self.fallback.clone())
     }
 }

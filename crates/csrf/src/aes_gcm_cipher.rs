@@ -59,7 +59,7 @@ impl CsrfCipher for AesGcmCipher {
         let aead = self.aead();
         let mut proof = self.random_bytes(12);
         let nonce = GenericArray::from_slice(&proof);
-        proof.append(&mut aead.encrypt(nonce, token.as_slice()).unwrap());
+        proof.append(&mut aead.encrypt(nonce, token.as_slice()).expect("encryption failed"));
         (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))
     }
 }

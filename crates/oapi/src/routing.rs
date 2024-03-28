@@ -123,7 +123,7 @@ impl RouterExt for Router {
             .write()
             .expect("failed to lock METADATA_REGISTRY for write");
         let metadata = guard.entry(self.id).or_default();
-        metadata.securities.extend(iter.into_iter());
+        metadata.securities.extend(iter);
         self
     }
     fn oapi_tag(self, tag: impl Into<String>) -> Self {

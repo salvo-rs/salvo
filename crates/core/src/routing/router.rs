@@ -409,12 +409,15 @@ impl fmt::Debug for Router {
             let mut path = "".to_owned();
             let mut others = Vec::with_capacity(router.filters.len());
             if router.filters.is_empty() {
-                path = "!NULL!".to_owned();
+                "!NULL!".clone_into(&mut path);
             } else {
                 for filter in &router.filters {
                     let info = format!("{filter:?}");
                     if info.starts_with("path:") {
-                        path = info.split_once(':').expect("`split_once` get `None`").1.to_owned();
+                        info.split_once(':')
+                            .expect("`split_once` get `None`")
+                            .1
+                            .clone_into(&mut path)
                     } else {
                         let mut parts = info.splitn(2, ':').collect::<Vec<_>>();
                         if !parts.is_empty() {

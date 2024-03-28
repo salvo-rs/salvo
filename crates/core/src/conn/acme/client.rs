@@ -85,7 +85,7 @@ impl AcmeClient {
                 let kid =
                     create_acme_account(&self.client, &self.directory, &self.key_pair, self.contacts.clone()).await?;
                 self.kid = Some(kid);
-                self.kid.as_ref().unwrap()
+                self.kid.as_ref().expect("kid should not none")
             }
         };
         tracing::debug!(kid = kid.as_str(), "new order request");

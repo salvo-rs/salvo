@@ -297,12 +297,12 @@ impl DecodingInfo {
     fn new(key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {
         let mut validation = Validation::new(alg);
 
-        validation.aud = validation_settings.aud.clone();
-        validation.iss = validation_settings.iss.clone();
+        validation.aud.clone_from(&validation_settings.aud);
+        validation.iss.clone_from(&validation_settings.iss);
         validation.leeway = validation_settings.leeway;
-        validation.required_spec_claims = validation_settings.required_spec_claims.clone();
+        validation.required_spec_claims.clone_from(&validation_settings.required_spec_claims);
 
-        validation.sub = validation_settings.sub.clone();
+        validation.sub.clone_from(&validation_settings.sub);
         validation.validate_exp = validation_settings.validate_exp;
         validation.validate_nbf = validation_settings.validate_nbf;
 

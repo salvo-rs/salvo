@@ -235,8 +235,8 @@ pub(crate) trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &str;
 
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool;
+    // /// Check whether [`TypeTree`] an option
+    // fn is_option(&self) -> bool;
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool;
@@ -271,10 +271,10 @@ impl PathTypeTree for TypeTree<'_> {
         }
     }
 
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool {
-        matches!(self.generic_type, Some(GenericType::Option))
-    }
+    // /// Check whether [`TypeTree`] an option
+    // fn is_option(&self) -> bool {
+    //     matches!(self.generic_type, Some(GenericType::Option))
+    // }
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool {

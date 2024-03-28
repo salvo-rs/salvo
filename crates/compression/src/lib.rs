@@ -399,7 +399,6 @@ impl Handler for Compression {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 

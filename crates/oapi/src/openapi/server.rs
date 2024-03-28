@@ -38,7 +38,7 @@
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
-use std::cmp::{Ord, Ordering, PartialOrd};
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::{Deref, DerefMut};
 
@@ -252,7 +252,7 @@ impl ServerVariables {
                 if variable.description.is_some() {
                     item.description = variable.description.take();
                 }
-                item.default_value = variable.default_value.clone();
+                item.default_value.clone_from(&variable.default_value);
                 item.enum_values.append(&mut variable.enum_values);
             })
             .or_insert(variable);

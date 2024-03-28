@@ -2,7 +2,7 @@ use std::cmp;
 use std::error::Error as StdError;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
-use std::marker::{PhantomPinned, Unpin};
+use std::marker::PhantomPinned;
 use std::pin::Pin;
 use std::task::{self, ready, Context, Poll};
 
@@ -61,6 +61,7 @@ impl HttpBuilder {
     }
 
     /// Serve a connection with the given service.
+    #[allow(unused_variables)]
     pub async fn serve_connection<I, S, B>(
         &self,
         socket: I,
