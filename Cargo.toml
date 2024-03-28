@@ -95,7 +95,7 @@ proc-macro2 = "1"
 quinn = { version = "0.10", default-features = false }
 quote = "1"
 rand = "0.8"
-rcgen = "0.12"
+rcgen = "0.13"
 regex = "1"
 ring = "0.17"
 rust_decimal = "1"
