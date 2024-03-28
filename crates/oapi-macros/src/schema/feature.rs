@@ -2,10 +2,10 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Deprecated, Example, ExclusiveMaximum,
-    ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems,
-    MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required,
-    SchemaWith, Skip, Symbol, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Bound, Default, Deprecated, Example,
+    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
+    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename,
+    RenameAll, Required, SchemaWith, Skip, SkipBound, Symbol, ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, ResultExt};
 
@@ -24,7 +24,9 @@ impl Parse for NamedFieldStructFeatures {
             Inline,
             Default,
             Deprecated,
-            Skip
+            Skip,
+            Bound,
+            SkipBound
         )))
     }
 }
@@ -44,7 +46,9 @@ impl Parse for UnnamedFieldStructFeatures {
             ValueType,
             Inline,
             Deprecated,
-            Skip
+            Skip,
+            Bound,
+            SkipBound
         )))
     }
 }
@@ -61,7 +65,9 @@ impl Parse for EnumFeatures {
             Symbol,
             RenameAll,
             Inline,
-            Deprecated
+            Deprecated,
+            Bound,
+            SkipBound
         )))
     }
 }
@@ -78,7 +84,9 @@ impl Parse for ComplexEnumFeatures {
             RenameAll,
             Symbol,
             Inline,
-            Deprecated
+            Deprecated,
+            Bound,
+            SkipBound,
         )))
     }
 }
