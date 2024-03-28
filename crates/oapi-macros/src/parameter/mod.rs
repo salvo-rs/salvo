@@ -14,9 +14,9 @@ pub(crate) mod derive;
 use crate::{
     component::{self, ComponentSchema},
     feature::{
-        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
-        Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable,
-        Pattern, ReadOnly, Style, ToTokensExt, WriteOnly, XmlAttr,
+        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature,
+        Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
+        Style, ToTokensExt, WriteOnly, XmlAttr,
     },
     operation::InlineType,
     parse_utils, Required,

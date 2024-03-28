@@ -414,7 +414,10 @@ impl fmt::Debug for Router {
                 for filter in &router.filters {
                     let info = format!("{filter:?}");
                     if info.starts_with("path:") {
-                        info.split_once(':').expect("`split_once` get `None`").1.clone_into(&mut path)
+                        info.split_once(':')
+                            .expect("`split_once` get `None`")
+                            .1
+                            .clone_into(&mut path)
                     } else {
                         let mut parts = info.splitn(2, ':').collect::<Vec<_>>();
                         if !parts.is_empty() {
