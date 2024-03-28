@@ -26,6 +26,7 @@ use syn::{
 };
 
 mod attribute;
+pub(crate) mod bound;
 mod component;
 mod doc_comment;
 mod endpoint;
@@ -202,11 +203,8 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
-fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
-    if attributes
-        .iter()
-        .any(|attribute| attribute.path().is_ident("deprecated"))
-    {
+fn get_deprecated(attributs: &[Attribute]) -> Option<crate::Deprecated> {
+    if attributs.iter().any(|attr| attr.path().is_ident("deprecated")) {
         Some(Deprecated::True)
     } else {
         None

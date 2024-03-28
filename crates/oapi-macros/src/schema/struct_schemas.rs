@@ -9,7 +9,8 @@ use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
     feature::{
-        pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, Symbol, ToTokensExt,
+        pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, SkipBound,
+        Symbol, ToTokensExt,
     },
     schema::Inline,
     serde_util::{self, SerdeContainer},
@@ -43,6 +44,12 @@ struct NamedStructFieldOptions<'a> {
 }
 
 impl NamedStructSchema<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        pop_feature_as_inner!(self.features => Feature::SkipBound(_v))
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        pop_feature_as_inner!(self.features => Feature::Bound(_v))
+    }
     fn field_as_schema_property<R>(
         &self,
         field: &Field,
@@ -292,6 +299,14 @@ pub(super) struct UnnamedStructSchema<'a> {
     pub(super) features: Option<Vec<Feature>>,
     pub(super) symbol: Option<Symbol>,
     pub(super) inline: Option<Inline>,
+}
+impl UnnamedStructSchema<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        pop_feature_as_inner!(self.features => Feature::SkipBound(_v))
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        pop_feature_as_inner!(self.features => Feature::Bound(_v))
+    }
 }
 
 impl ToTokens for UnnamedStructSchema<'_> {
