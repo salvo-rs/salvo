@@ -166,7 +166,7 @@ impl Acceptor for TcpAcceptor {
                     fuse_factory.map(|f| {
                         f.create(FuseInfo {
                             trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.clone().into(),
+                            remote_addr: remote_addr.into(),
                             local_addr: local_addr.clone(),
                         })
                     }),

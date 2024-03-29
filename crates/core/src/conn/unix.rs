@@ -2,13 +2,14 @@
 use std::fs::{set_permissions, Permissions};
 use std::io::Result as IoResult;
 use std::path::Path;
+use std::sync::Arc;
 
 use http::uri::Scheme;
 use nix::unistd::{chown, Gid, Uid};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::fuse::{ArcFuseFactory,FuseInfo,TransProto};
 use crate::http::Version;
 use crate::Error;
 
@@ -105,16 +106,16 @@ impl Acceptor for UnixAcceptor {
     #[inline]
     async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)|{
-            let remote_addr = remote_addr.into();
+            let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
              Accepted {
             conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
                 trans_proto: TransProto::Tcp,
-                remote_addr: remote_addr.clone(),
+                remote_addr: remote_addr.clone().into(),
                 local_addr: local_addr.clone()
             }))),
             local_addr: self.holdings[0].local_addr.clone(),
-            remote_addr,
+            remote_addr: remote_addr.clone().into(),
             http_version: Version::HTTP_11,
             http_scheme: Scheme::HTTP,
         }})

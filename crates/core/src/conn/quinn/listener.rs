@@ -145,7 +145,7 @@ where
                     return Ok(Accepted {
                         conn: H3Connection::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
                             trans_proto: TransProto::Quic,
-                            remote_addr: remote_addr.clone().into(),
+                            remote_addr: remote_addr.into(),
                             local_addr: local_addr.clone()
                         }))),
                         local_addr: self.holdings[0].local_addr.clone(),
