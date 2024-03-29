@@ -433,7 +433,7 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
             conn,
             local_addr,

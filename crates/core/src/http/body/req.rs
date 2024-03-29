@@ -2,7 +2,6 @@
 use std::fmt::{self, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::stream::Stream;
@@ -10,7 +9,7 @@ use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::Bytes;
 
-use crate::fuse::{ArcFusewire, FuseEvent, SteadyFusewire};
+use crate::fuse::{ArcFusewire, FuseEvent};
 use crate::BoxedError;
 
 pub(crate) type BoxedBody = Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
@@ -30,19 +29,19 @@ pub enum ReqBody {
         /// Inner body.
         inner: Incoming,
         /// Fusewire.
-        fusewire: ArcFusewire,
+        fusewire: Option<ArcFusewire>,
     },
     /// Boxed body.
     Boxed {
         /// Inner body.
         inner: BoxedBody,
         /// Fusewire.
-        fusewire: ArcFusewire,
+        fusewire: Option<ArcFusewire>,
     },
 }
 impl ReqBody {
     #[doc(hidden)]
-    pub fn fill_fusewire(&mut self, value: ArcFusewire) {
+    pub fn set_fusewire(&mut self, value: Option<ArcFusewire>) {
         match self {
             Self::None => {}
             Self::Once(_) => {}
@@ -88,16 +87,20 @@ impl Body for ReqBody {
 
     fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> PollFrame {
         #[inline]
-        fn through_fursewire(poll: PollFrame, fusewire: &ArcFusewire) -> PollFrame {
+        fn through_fursewire(poll: PollFrame, fusewire: &Option<ArcFusewire>) -> PollFrame {
             match poll {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Ready(Some(Ok(data))) => {
-                    fusewire.event(FuseEvent::GainFrame);
+                    if let Some(fusewire) = fusewire {
+                        fusewire.event(FuseEvent::GainFrame);
+                    }
                     Poll::Ready(Some(Ok(data)))
                 }
                 Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
                 Poll::Pending => {
-                    fusewire.event(FuseEvent::WaitFrame);
+                    if let Some(fusewire) = fusewire {
+                        fusewire.event(FuseEvent::WaitFrame);
+                    }
                     Poll::Pending
                 }
             }
@@ -165,10 +168,7 @@ impl From<Bytes> for ReqBody {
 }
 impl From<Incoming> for ReqBody {
     fn from(inner: Incoming) -> Self {
-        Self::Hyper {
-            inner,
-            fusewire: Arc::new(SteadyFusewire),
-        }
+        Self::Hyper { inner, fusewire: None }
     }
 }
 impl From<String> for ReqBody {
@@ -221,7 +221,6 @@ cfg_feature! {
     pub(crate) mod h3 {
         use std::boxed::Box;
         use std::pin::Pin;
-        use std::sync::Arc;
         use std::task::{Context, Poll};
 
         use hyper::body::{Body, Frame, SizeHint};
@@ -231,7 +230,6 @@ cfg_feature! {
 
         use crate::BoxedError;
         use crate::http::ReqBody;
-        use crate::fuse::SteadyFusewire;
 
         /// Http3 request body.
         pub struct H3ReqBody<S, B> {
@@ -289,7 +287,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Boxed{inner: Box::pin(value), fusewire: Arc::new(SteadyFusewire)}
+                ReqBody::Boxed{inner: Box::pin(value), fusewire: None}
             }
         }
     }

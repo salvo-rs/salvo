@@ -35,10 +35,10 @@ impl TryInto<ServerConfig> for RustlsConfig {
 /// Http3 Connection.
 pub struct H3Connection {
     inner: http3_quinn::Connection,
-    fusewire: ArcFusewire,
+    fusewire: Option<ArcFusewire>,
 }
 impl H3Connection {
-    pub(crate) fn new(inner: http3_quinn::Connection, fusewire: ArcFusewire) -> Self {
+    pub(crate) fn new(inner: http3_quinn::Connection, fusewire: Option<ArcFusewire>) -> Self {
         Self { inner, fusewire }
     }
     /// Get inner quinn connection.
@@ -86,7 +86,7 @@ impl HttpConnection for H3Connection {
     ) -> IoResult<()> {
         builder.quinn.serve_connection(self, handler, graceful_stop_token).await
     }
-    fn fusewire(&self) -> ArcFusewire {
+    fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
     }
 }

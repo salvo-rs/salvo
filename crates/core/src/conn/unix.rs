@@ -103,14 +103,21 @@ impl Acceptor for UnixAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+        self.inner.accept().await.map(move |(conn, remote_addr)|{
+            let remote_addr = remote_addr.into();
+            let local_addr = self.holdings[0].local_addr.clone();
+             Accepted {
+            conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
+                trans_proto: TransProto::Tcp,
+                remote_addr: remote_addr.clone(),
+                local_addr: local_addr.clone()
+            }))),
             local_addr: self.holdings[0].local_addr.clone(),
-            remote_addr: remote_addr.into(),
+            remote_addr,
             http_version: Version::HTTP_11,
             http_scheme: Scheme::HTTP,
-        })
+        }})
     }
 }
 

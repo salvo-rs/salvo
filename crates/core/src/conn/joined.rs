@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, ArcFusewire, SteadyFusewire};
+use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -128,8 +128,8 @@ where
             JoinedStream::B(b) => b.serve(handler, builder, graceful_stop_token).await,
         }
     }
-    fn fusewire(&self) -> ArcFusewire {
-        Arc::new(SteadyFusewire)
+    fn fusewire(&self) -> Option<ArcFusewire> {
+        None
     }
 }
 
@@ -148,7 +148,7 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
                 Ok(accepted?.map_conn(JoinedStream::A))

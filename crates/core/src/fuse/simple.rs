@@ -6,12 +6,11 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, Fusewire, TransProto};
+use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire};
 
 /// A simple fusewire.
-#[derive(Default)]
 pub struct SimpleFusewire {
-    trans_proto: TransProto,
+    info: FuseInfo,
 
     tcp_idle_timeout: Duration,
     tcp_idle_token: CancellationToken,
@@ -28,8 +27,8 @@ pub struct SimpleFusewire {
 
 impl SimpleFusewire {
     /// Create a new `SimpleFusewire`.
-    pub fn new(trans_proto: TransProto) -> Self {
-        Self::builder().build(trans_proto)
+    pub fn new(info: FuseInfo) -> Self {
+        Self::builder().build(info)
     }
 
     /// Create a new `SimpleFactory`.
@@ -52,7 +51,7 @@ impl SimpleFusewire {
 #[async_trait]
 impl Fusewire for SimpleFusewire {
     fn event(&self, event: FuseEvent) {
-        if self.trans_proto.is_quic() {
+        if self.info.trans_proto.is_quic() {
             return;
         }
         self.tcp_idle_notify.notify_waiters();
@@ -140,7 +139,7 @@ impl SimpleFactory {
     }
 
     /// Build a `SimpleFusewire`.
-    pub fn build(&self, trans_proto: TransProto) -> SimpleFusewire {
+    pub fn build(&self, info: FuseInfo) -> SimpleFusewire {
         let Self {
             tcp_idle_timeout,
             tcp_frame_timeout,
@@ -165,7 +164,7 @@ impl SimpleFactory {
             }
         });
         SimpleFusewire {
-            trans_proto,
+            info,
 
             tcp_idle_timeout,
             tcp_idle_token,
@@ -183,7 +182,7 @@ impl SimpleFactory {
 }
 
 impl FuseFactory for SimpleFactory {
-    fn create(&self, trans_proto: TransProto) -> ArcFusewire {
-        Arc::new(self.build(trans_proto))
+    fn create(&self, info: FuseInfo) -> ArcFusewire {
+        Arc::new(self.build(info))
     }
 }

@@ -6,7 +6,7 @@ use std::vec;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::uri::Scheme;
 use crate::http::Version;
 
@@ -157,13 +157,25 @@ impl Acceptor for TcpAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
-            local_addr: self.holdings[0].local_addr.clone(),
-            remote_addr: remote_addr.into(),
-            http_version: Version::HTTP_11,
-            http_scheme: Scheme::HTTP,
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+        self.inner.accept().await.map(move |(conn, remote_addr)| {
+            let local_addr = self.holdings[0].local_addr.clone();
+            Accepted {
+                conn: StraightStream::new(
+                    conn,
+                    fuse_factory.map(|f| {
+                        f.create(FuseInfo {
+                            trans_proto: TransProto::Tcp,
+                            remote_addr: remote_addr.clone().into(),
+                            local_addr: local_addr.clone(),
+                        })
+                    }),
+                ),
+                remote_addr: remote_addr.into(),
+                local_addr,
+                http_version: Version::HTTP_11,
+                http_scheme: Scheme::HTTP,
+            }
         })
     }
 }
