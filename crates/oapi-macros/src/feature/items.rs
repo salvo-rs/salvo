@@ -843,7 +843,7 @@ impl Parse for Bound {
     }
 }
 impl ToTokens for Bound {
-    fn to_tokens(&self, tokens: &mut TokenStream) {}
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
 }
 impl From<Bound> for Feature {
     fn from(value: Bound) -> Self {
@@ -860,7 +860,7 @@ impl Parse for SkipBound {
     }
 }
 impl ToTokens for SkipBound {
-    fn to_tokens(&self, tokens: &mut TokenStream) {}
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
 }
 impl From<SkipBound> for Feature {
     fn from(value: SkipBound) -> Self {
