@@ -182,12 +182,9 @@ impl Acceptor for TcpAcceptor {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
-    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_tcp_listener() {
@@ -199,7 +196,7 @@ mod tests {
             stream.write_i32(150).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 150);
     }
 }

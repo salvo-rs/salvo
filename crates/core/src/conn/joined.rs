@@ -181,9 +181,9 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
         let first = conn.read_i32().await.unwrap();
-        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
         let second = conn.read_i32().await.unwrap();
         assert_eq!(first + second, 150);
     }
