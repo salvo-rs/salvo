@@ -1,7 +1,7 @@
 //! Protecting the server from slow HTTP attacks.
 
-pub mod simple;
-pub use simple::{SimpleFactory, SimpleFusewire};
+pub mod flex;
+pub use flex::{FlexFactory, FlexFusewire};
 
 use std::sync::Arc;
 

@@ -1,4 +1,4 @@
-//! A simple fusewire.
+//! A flexible fusewire.
 
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
 }
 
 /// A simple fusewire.
-pub struct SimpleFusewire {
+pub struct FlexFusewire {
     info: FuseInfo,
     guards: Arc<Vec<Box<dyn Guard>>>,
 
@@ -60,15 +60,15 @@ pub struct SimpleFusewire {
     tls_handshake_token: CancellationToken,
     tls_handshake_notify: Arc<Notify>,
 }
-impl SimpleFusewire {
-    /// Create a new `SimpleFusewire`.
+impl FlexFusewire {
+    /// Create a new `FlexFusewire`.
     pub fn new(info: FuseInfo) -> Self {
         Self::builder().build(info)
     }
 
-    /// Create a new `SimpleFactory`.
-    pub fn builder() -> SimpleFactory {
-        SimpleFactory::new()
+    /// Create a new `FlexFactory`.
+    pub fn builder() -> FlexFactory {
+        FlexFactory::new()
     }
     /// Get the timeout for close the idle tcp connection.
     pub fn tcp_idle_timeout(&self) -> Duration {
@@ -84,7 +84,7 @@ impl SimpleFusewire {
     }
 }
 #[async_trait]
-impl Fusewire for SimpleFusewire {
+impl Fusewire for FlexFusewire {
     fn event(&self, event: FuseEvent) {
         for guard in self.guards.iter() {
             match guard.check(&self.info, &event) {
@@ -148,9 +148,9 @@ impl Fusewire for SimpleFusewire {
     }
 }
 
-/// A [`SimpleFusewire`] builder.
+/// A [`FlexFusewire`] builder.
 #[derive(Clone)]
-pub struct SimpleFactory {
+pub struct FlexFactory {
     tcp_idle_timeout: Duration,
     tcp_frame_timeout: Duration,
     tls_handshake_timeout: Duration,
@@ -158,14 +158,14 @@ pub struct SimpleFactory {
     guards: Arc<Vec<Box<dyn Guard>>>,
 }
 
-impl Default for SimpleFactory {
+impl Default for FlexFactory {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SimpleFactory {
-    /// Create a new `SimpleFactory`.
+impl FlexFactory {
+    /// Create a new `FlexFactory`.
     pub fn new() -> Self {
         Self {
             tcp_idle_timeout: Duration::from_secs(30),
@@ -199,8 +199,8 @@ impl SimpleFactory {
         self
     }
 
-    /// Build a `SimpleFusewire`.
-    pub fn build(&self, info: FuseInfo) -> SimpleFusewire {
+    /// Build a `FlexFusewire`.
+    pub fn build(&self, info: FuseInfo) -> FlexFusewire {
         let Self {
             tcp_idle_timeout,
             tcp_frame_timeout,
@@ -225,7 +225,7 @@ impl SimpleFactory {
                 }
             }
         });
-        SimpleFusewire {
+        FlexFusewire {
             info,
             guards,
 
@@ -246,7 +246,7 @@ impl SimpleFactory {
     }
 }
 
-impl FuseFactory for SimpleFactory {
+impl FuseFactory for FlexFactory {
     fn create(&self, info: FuseInfo) -> ArcFusewire {
         Arc::new(self.build(info))
     }

@@ -8,7 +8,6 @@ pub use listener::{OpensslAcceptor, OpensslListener};
 #[cfg(test)]
 mod tests {
     use std::pin::Pin;
-    use std::sync::Arc;
 
     use openssl::ssl::{SslConnector, SslMethod};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
