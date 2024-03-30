@@ -1,11 +1,12 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
 use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
-use reqwest::{Url, Method, Client};
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
+use reqwest::{Client, Method, Url};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 
@@ -14,10 +15,13 @@ use exporter::Exporter;
 
 fn init_tracer() -> Tracer {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_jaeger::new_collector_pipeline()
-        .with_service_name("salvo")
-        .with_endpoint("http://localhost:14268/api/traces")
-        .with_hyper()
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint("http://localhost:14268/api/traces"),
+        )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }
