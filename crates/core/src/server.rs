@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, FuseFactory, SteadyFusewire};
+use crate::fuse::{ArcFuseFactory, FuseFactory};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -86,7 +86,7 @@ enum ServerCommand {
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    fuse_factory: ArcFuseFactory,
+    fuse_factory: Option<ArcFuseFactory>,
     tx_cmd: UnboundedSender<ServerCommand>,
     rx_cmd: UnboundedReceiver<ServerCommand>,
 }
@@ -115,7 +115,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            fuse_factory: Arc::new(SteadyFusewire),
+            fuse_factory: None,
             tx_cmd,
             rx_cmd,
         }
@@ -126,7 +126,7 @@ impl<A: Acceptor + Send> Server<A> {
     where
         F: FuseFactory + Send + Sync + 'static,
     {
-        self.fuse_factory = Arc::new(factory);
+        self.fuse_factory = Some(Arc::new(factory));
         self
     }
 

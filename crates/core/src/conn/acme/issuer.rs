@@ -88,7 +88,7 @@ pub(crate) async fn issue_cert(
     )))
     .expect("serialize private key der failed");
 
-    let order_res = client.send_csr(&order_res.finalize, &csr.der()).await?;
+    let order_res = client.send_csr(&order_res.finalize, csr.der()).await?;
     if order_res.status == "invalid" {
         return Err(Error::other(format!(
             "failed to request certificate: {}",

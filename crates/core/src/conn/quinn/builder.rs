@@ -119,7 +119,7 @@ async fn process_web_transport(
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fusewire: ArcFusewire,
+    _fusewire: Option<ArcFusewire>,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
@@ -206,7 +206,7 @@ async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fusewire: ArcFusewire,
+    _fusewire: Option<ArcFusewire>,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,

@@ -18,7 +18,7 @@ use crate::service::HyperHandler;
 pub struct StraightStream<C> {
     #[pin]
     inner: C,
-    fusewire: ArcFusewire,
+    fusewire: Option<ArcFusewire>,
 }
 
 impl<C> StraightStream<C>
@@ -26,7 +26,7 @@ where
     C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     /// Create a new `StraightStream`.
-    pub fn new(inner: C, fusewire: ArcFusewire) -> Self {
+    pub fn new(inner: C, fusewire: Option<ArcFusewire>) -> Self {
         Self { inner, fusewire }
     }
 }
@@ -42,13 +42,15 @@ where
         graceful_stop_token: CancellationToken,
     ) -> std::io::Result<()> {
         let fusewire = self.fusewire.clone();
-        fusewire.event(FuseEvent::Alive);
+        if let Some(fusewire) = &fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
         builder
             .serve_connection(self, handler, fusewire, graceful_stop_token)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
-    fn fusewire(&self) -> ArcFusewire {
+    fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
     }
 }
@@ -62,12 +64,16 @@ where
         let remaining = buf.remaining();
         match this.inner.poll_read(cx, buf) {
             Poll::Ready(Ok(())) => {
-                this.fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                if let Some(fusewire) = &this.fusewire {
+                    fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                }
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
-                this.fusewire.event(FuseEvent::Alive);
+                if let Some(fusewire) = &this.fusewire {
+                    fusewire.event(FuseEvent::Alive);
+                }
                 Poll::Pending
             }
         }
@@ -82,12 +88,16 @@ where
         let this = self.project();
         match this.inner.poll_write(cx, buf) {
             Poll::Ready(Ok(len)) => {
-                this.fusewire.event(FuseEvent::WriteData(len));
+                if let Some(fusewire) = &this.fusewire {
+                    fusewire.event(FuseEvent::WriteData(len));
+                }
                 Poll::Ready(Ok(len))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
-                this.fusewire.event(FuseEvent::Alive);
+                if let Some(fusewire) = &this.fusewire {
+                    fusewire.event(FuseEvent::Alive);
+                }
                 Poll::Pending
             }
         }
@@ -95,19 +105,25 @@ where
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
-        this.fusewire.event(FuseEvent::Alive);
+        if let Some(fusewire) = &this.fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
         this.inner.poll_flush(cx)
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
-        this.fusewire.event(FuseEvent::Alive);
+        if let Some(fusewire) = &this.fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
         this.inner.poll_shutdown(cx)
     }
 
     fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
         let this = self.project();
-        this.fusewire.event(FuseEvent::Alive);
+        if let Some(fusewire) = &this.fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
         this.inner.poll_write_vectored(cx, bufs)
     }
 

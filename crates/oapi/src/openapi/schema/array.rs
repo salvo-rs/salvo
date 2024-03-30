@@ -193,7 +193,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::{Object, SchemaType};
+    use crate::Object;
 
     #[test]
     fn test_build_array() {

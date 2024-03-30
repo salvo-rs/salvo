@@ -90,14 +90,6 @@ impl ToTokens for ToSchema<'_> {
         } else {
             variant.pop_bound().map(|b| b.0)
         };
-        let attr_items = self
-            .attributes
-            .iter()
-            .filter(|attr| attr.path().is_ident("salvo"))
-            .filter_map(|attr| crate::attribute::find_nested_list(attr, "schema").ok().flatten());
-        for attr_item in attr_items {
-            println!("{:?}", attr_item);
-        }
 
         let generics = bound::without_defaults(self.generics);
         let generics = match bound {

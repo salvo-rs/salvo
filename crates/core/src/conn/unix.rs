@@ -2,13 +2,14 @@
 use std::fs::{set_permissions, Permissions};
 use std::io::Result as IoResult;
 use std::path::Path;
+use std::sync::Arc;
 
 use http::uri::Scheme;
 use nix::unistd::{chown, Gid, Uid};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::fuse::{ArcFuseFactory,FuseInfo,TransProto};
 use crate::http::Version;
 use crate::Error;
 
@@ -103,26 +104,30 @@ impl Acceptor for UnixAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
-            conn: StraightStream::new(conn, fuse_factory.create(TransProto::Tcp)),
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+        self.inner.accept().await.map(move |(conn, remote_addr)|{
+            let remote_addr = Arc::new(remote_addr);
+            let local_addr = self.holdings[0].local_addr.clone();
+             Accepted {
+            conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
+                trans_proto: TransProto::Tcp,
+                remote_addr: remote_addr.clone().into(),
+                local_addr: local_addr.clone()
+            }))),
             local_addr: self.holdings[0].local_addr.clone(),
-            remote_addr: remote_addr.into(),
+            remote_addr: remote_addr.clone().into(),
             http_version: Version::HTTP_11,
             http_scheme: Scheme::HTTP,
-        })
+        }})
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener};
-    use crate::fuse::SteadyFusewire;
 
     #[tokio::test]
     async fn test_unix_listener() {
@@ -134,7 +139,7 @@ mod tests {
             stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept(Arc::new(SteadyFusewire)).await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }

@@ -137,7 +137,10 @@ pub trait Acceptor {
     fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
-    fn accept(&mut self, fuse_factory: ArcFuseFactory) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
 }
 
 /// Holding information.

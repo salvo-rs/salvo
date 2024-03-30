@@ -43,7 +43,7 @@ pub trait HttpConnection {
     ) -> impl Future<Output = IoResult<()>> + Send;
 
     /// Get the fusewire of this connection.
-    fn fusewire(&self) -> ArcFusewire;
+    fn fusewire(&self) -> Option<ArcFusewire>;
 }
 
 /// Get Http version from alph.
