@@ -7,8 +7,6 @@ pub use config::{Identity, NativeTlsConfig};
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
