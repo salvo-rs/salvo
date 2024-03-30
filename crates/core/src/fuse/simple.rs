@@ -8,7 +8,6 @@ use tokio_util::sync::CancellationToken;
 
 use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire};
 
-
 /// A guard action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GuardAction {
@@ -20,11 +19,14 @@ pub enum GuardAction {
     Permit,
 }
 /// A guard.
-pub trait Guard: Sync + Send + 'static{
+pub trait Guard: Sync + Send + 'static {
     /// Check the event.
     fn check(&self, info: &FuseInfo, event: &FuseEvent) -> GuardAction;
 }
-impl<F> Guard for F where F: Fn(&FuseInfo, &FuseEvent) -> GuardAction + Sync + Send + 'static{
+impl<F> Guard for F
+where
+    F: Fn(&FuseInfo, &FuseEvent) -> GuardAction + Sync + Send + 'static,
+{
     fn check(&self, info: &FuseInfo, event: &FuseEvent) -> GuardAction {
         self(info, event)
     }
@@ -38,7 +40,6 @@ pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
         GuardAction::ToNext
     }
 }
-
 
 /// A simple fusewire.
 pub struct SimpleFusewire {
@@ -86,7 +87,7 @@ impl SimpleFusewire {
 impl Fusewire for SimpleFusewire {
     fn event(&self, event: FuseEvent) {
         for guard in self.guards.iter() {
-            match guard.check(&self.info, &event){
+            match guard.check(&self.info, &event) {
                 GuardAction::Permit => {
                     return;
                 }
@@ -192,7 +193,9 @@ impl SimpleFactory {
     }
     /// Add a guard.
     pub fn add_guard(mut self, guard: impl Guard) -> Self {
-        Arc::get_mut(&mut self.guards).expect("guards get mut failed").push(Box::new(guard));
+        Arc::get_mut(&mut self.guards)
+            .expect("guards get mut failed")
+            .push(Box::new(guard));
         self
     }
 
