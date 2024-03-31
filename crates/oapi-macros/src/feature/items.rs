@@ -841,7 +841,8 @@ impl Parse for Bound {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || {
             let input: LitStr = input.parse()?;
-            input.parse_with(Punctuated::<WherePredicate, token::Comma>::parse_terminated)
+            input
+                .parse_with(Punctuated::<WherePredicate, token::Comma>::parse_terminated)
                 .map(|p| Self(p.into_iter().collect()))
         })
     }
