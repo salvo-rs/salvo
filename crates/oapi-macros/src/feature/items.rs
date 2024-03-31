@@ -839,7 +839,11 @@ impl_name!(SchemaWith = "schema_with");
 pub(crate) struct Bound(pub(crate) Vec<WherePredicate>);
 impl Parse for Bound {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
-        Punctuated::<WherePredicate, token::Comma>::parse_terminated(input).map(|p| Self(p.into_iter().collect()))
+        parse_utils::parse_next(input, || {
+            let input: LitStr = input.parse()?;
+            input.parse_with(Punctuated::<WherePredicate, token::Comma>::parse_terminated)
+                .map(|p| Self(p.into_iter().collect()))
+        })
     }
 }
 impl ToTokens for Bound {

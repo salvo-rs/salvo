@@ -91,11 +91,13 @@ impl ToTokens for ToSchema<'_> {
             variant.pop_bound().map(|b| b.0)
         };
 
-        let generics = bound::without_defaults(self.generics);
-        let generics = match bound {
-            Some(predicates) => bound::with_where_predicates(&generics, &predicates),
-            None => bound::with_bound(self.data, &generics, parse_quote!(#oapi::oapi::ToSchema + 'static)),
-        };
+        let mut generics = bound::without_defaults(self.generics);
+        if skip_bound != Some(SkipBound(true)) {
+            generics = match bound {
+                Some(predicates) => bound::with_where_predicates(&generics, &predicates),
+                None => bound::with_bound(self.data, &generics, parse_quote!(#oapi::oapi::ToSchema + 'static)),
+            };
+        }
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
