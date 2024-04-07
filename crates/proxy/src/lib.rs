@@ -134,7 +134,6 @@ where
     pub url_query_getter: UrlPartGetter,
 }
 
-
 impl<U, C> Proxy<U, C>
 where
     U: Upstreams,
