@@ -16,8 +16,19 @@ use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 
-mod clients;
-pub use clients::*;
+#[macro_use]
+mod cfg;
+
+cfg_feature! {
+    #![feature = "hyper-client"]
+    mod hyper_client;
+    pub use hyper_client::*;
+}
+cfg_feature! {
+    #![feature = "reqwest-client"]
+    mod reqwest_client;
+    pub use reqwest_client::*;
+}
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
@@ -122,27 +133,7 @@ where
     /// Url query getter.
     pub url_query_getter: UrlPartGetter,
 }
-impl<U> Proxy<U, HyperClient>
-where
-    U: Upstreams,
-    U::Error: Into<BoxedError>,
-{
-    /// Create new `Proxy` which use default hyper util client.
-    pub fn default_hyper_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, HyperClient::default())
-    }
-}
 
-impl<U> Proxy<U, ReqwestClient>
-where
-    U: Upstreams,
-    U::Error: Into<BoxedError>,
-{
-    /// Create new `Proxy` which use default reqwest util client.
-    pub fn default_reqwest_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, ReqwestClient::default())
-    }
-}
 
 impl<U, C> Proxy<U, C>
 where
