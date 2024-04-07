@@ -1,6 +1,7 @@
 use salvo::http::StatusError;
 use salvo::jwt_auth::{HeaderFinder, OidcDecoder};
 use salvo::prelude::*;
+use salvo::proxy::HyperClient;
 use serde::{Deserialize, Serialize};
 
 const ISSUER_URL: &str = "https://coherent-gopher-0.clerk.accounts.dev";
@@ -24,7 +25,7 @@ async fn main() {
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     let router = Router::new()
         .push(Router::with_hoop(auth_handler).path("welcome").get(welcome))
-        .push(Router::with_path("<**rest>").goal(Proxy::default_hyper_client(vec!["http://localhost:5801"])));
+        .push(Router::with_path("<**rest>").goal(Proxy::new(vec!["http://localhost:5801"], HyperClient::default())));
     Server::new(acceptor).serve(router).await;
 }
 #[handler]
