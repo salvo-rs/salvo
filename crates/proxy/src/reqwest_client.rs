@@ -6,12 +6,23 @@ use salvo_core::rt::tokio::TokioIo;
 use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use crate::{Client, HyperRequest, HyperResponse};
+use crate::{Client, HyperRequest, BoxedError, Proxy, Upstreams, HyperResponse};
 
 /// A [`Client`] implementation based on [`reqwest::Client`].
 #[derive(Default, Clone, Debug)]
 pub struct ReqwestClient {
     inner: InnerClient,
+}
+
+impl<U> Proxy<U, ReqwestClient>
+where
+    U: Upstreams,
+    U::Error: Into<BoxedError>,
+{
+    /// Create new `Proxy` which use default reqwest util client.
+    pub fn use_reqwest_client(upstreams: U) -> Self {
+        Proxy::new(upstreams, ReqwestClient::default())
+    }
 }
 
 impl ReqwestClient {
