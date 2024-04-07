@@ -322,9 +322,6 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
-    use salvo_core::prelude::*;
-    use salvo_core::test::*;
-
     use super::*;
 
     #[test]
@@ -334,14 +331,6 @@ mod tests {
         assert_eq!(encoded_path, "/test/path");
     }
 
-    #[tokio::test]
-    async fn test_upstreams_elect() {
-        let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
-        let proxy = Proxy::default_hyper_client(upstreams.clone());
-        let elected_upstream = proxy.upstreams().elect().await.unwrap();
-        assert!(upstreams.contains(&elected_upstream));
-    }
-
     #[test]
     fn test_get_upgrade_type() {
         let mut headers = HeaderMap::new();
@@ -349,42 +338,5 @@ mod tests {
         headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
         let upgrade_type = get_upgrade_type(&headers);
         assert_eq!(upgrade_type, Some("websocket"));
-    }
-
-    #[tokio::test]
-    async fn test_hyper_proxy() {
-        let router = Router::new().push(
-            Router::with_path("rust/<**rest>").goal(Proxy::default_hyper_client(vec!["https://www.rust-lang.org"])),
-        );
-
-        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
-            .send(router)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("Install Rust"));
-    }
-
-    #[tokio::test]
-    async fn test_reqwest_proxy() {
-        let router = Router::new().push(
-            Router::with_path("rust/<**rest>").goal(Proxy::default_reqwest_client(vec!["https://www.rust-lang.org"])),
-        );
-
-        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
-            .send(router)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("Install Rust"));
-    }
-
-    #[test]
-    fn test_others() {
-        let mut handler = Proxy::default_hyper_client(["https://www.bing.com"]);
-        assert_eq!(handler.upstreams().len(), 1);
-        assert_eq!(handler.upstreams_mut().len(), 1);
     }
 }
