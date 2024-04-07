@@ -7,7 +7,7 @@ use salvo_core::rt::tokio::TokioIo;
 use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use crate::{Client, HyperRequest, HyperResponse};
+use crate::{Client, HyperRequest,Proxy, BoxedError, Upstreams,HyperResponse};
 
 /// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
 #[derive(Clone, Debug)]
@@ -28,6 +28,18 @@ impl Default for HyperClient {
         }
     }
 }
+
+impl<U> Proxy<U, HyperClient>
+where
+    U: Upstreams,
+    U::Error: Into<BoxedError>,
+{
+    /// Create new `Proxy` which use default hyper util client.
+    pub fn use_hyper_client(upstreams: U) -> Self {
+        Proxy::new(upstreams, HyperClient::default())
+    }
+}
+
 impl HyperClient {
     /// Create a new `HyperClient` with the given `HyperClient`.
     pub fn new(inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>) -> Self {
