@@ -246,33 +246,6 @@ impl<A: Acceptor + Send> Server<A> {
         let builder = Arc::new(builder);
         loop {
             tokio::select! {
-                Some(cmd) = rx_cmd.recv() => {
-                    match cmd {
-                        ServerCommand::StopGraceful(timeout) => {
-                            let graceful_stop_token = graceful_stop_token.clone();
-                            graceful_stop_token.cancel();
-                            if let Some(timeout) = timeout {
-                                tracing::info!(
-                                    timeout_in_seconds = timeout.as_secs_f32(),
-                                    "initiate graceful stop server",
-                                );
-
-                                let force_stop_token = force_stop_token.clone();
-                                tokio::spawn(async move {
-                                    tokio::time::sleep(timeout).await;
-                                    force_stop_token.cancel();
-                                });
-                            } else {
-                                tracing::info!("initiate graceful stop server");
-                            }
-                        },
-                        ServerCommand::StopForcible => {
-                            tracing::info!("force stop server");
-                            force_stop_token.cancel();
-                        },
-                    }
-                    break;
-                },
                 accepted = acceptor.accept(fuse_factory.clone()) => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
@@ -306,6 +279,33 @@ impl<A: Acceptor + Send> Server<A> {
                         }
                     }
                 }
+                Some(cmd) = rx_cmd.recv() => {
+                    match cmd {
+                        ServerCommand::StopGraceful(timeout) => {
+                            let graceful_stop_token = graceful_stop_token.clone();
+                            graceful_stop_token.cancel();
+                            if let Some(timeout) = timeout {
+                                tracing::info!(
+                                    timeout_in_seconds = timeout.as_secs_f32(),
+                                    "initiate graceful stop server",
+                                );
+
+                                let force_stop_token = force_stop_token.clone();
+                                tokio::spawn(async move {
+                                    tokio::time::sleep(timeout).await;
+                                    force_stop_token.cancel();
+                                });
+                            } else {
+                                tracing::info!("initiate graceful stop server");
+                            }
+                        },
+                        ServerCommand::StopForcible => {
+                            tracing::info!("force stop server");
+                            force_stop_token.cancel();
+                        },
+                    }
+                    break;
+                },
             }
         }
 
