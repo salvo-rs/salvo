@@ -469,16 +469,17 @@ impl AnyValue {
 
 impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let oapi = crate::oapi_crate();
         match self {
             Self::Json(json) => tokens.extend(quote! {
-                serde_json::json!(#json)
+                #oapi::oapi::__private::serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
             Self::DefaultTrait {
                 struct_ident,
                 field_ident,
             } => tokens.extend(quote! {
-                serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+                #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
         }
     }

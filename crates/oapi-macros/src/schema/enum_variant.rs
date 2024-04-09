@@ -255,7 +255,7 @@ impl ToTokens for UntaggedEnum {
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
                 .nullable(true)
-                .default_value(serde_json::Value::Null)
+                .default_value(#oapi::oapi::__private::serde_json::Value::Null)
                 #symbol
         })
     }
