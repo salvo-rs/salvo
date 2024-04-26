@@ -169,6 +169,7 @@ impl FilePart {
             size += chunk.len() as u64;
             file.write_all(&chunk).await?;
         }
+        file.sync_all().await?;
         Ok(FilePart {
             name,
             headers: field.headers().to_owned(),
