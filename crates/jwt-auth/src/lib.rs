@@ -8,7 +8,7 @@
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
-pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation, errors::Error as JwtError};
+pub use jsonwebtoken::{decode, errors::Error as JwtError, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
