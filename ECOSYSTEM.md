@@ -20,6 +20,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [Pure Rust Instant Message(PRIM)](https://github.com/SuanCaiYv/prim): 使用纯Rust实现的即时通讯系统.
 - [rblog](https://github.com/prabirshrestha/rblog): Blog engine written in rust.
 - [myblog](https://github.com/driftluo/myblog): This is my personal blog.
+- [opensound](https://github.com/opensound-org/opensound): Pro-Audio system engine, using `salvo` as the default HTTP server backend（专业音频系统引擎，使用`salvo`作为默认HTTP服务器后端）.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
