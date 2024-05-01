@@ -47,15 +47,15 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書.
-- 支持 Tower serivce 和 layer.
+- 支持 Tower Serivce 和 Layer.
 
 ## ⚡️ 快速開始
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
 
-### Hello World with ACME and HTTP3
+### 支持 ACME 自動獲取證書和 HTTP3 的 Hello World
 
-**輕輕鬆鬆實現一個支持 ACME 自動獲取證書的，支持 HTTP3 的服務器.**
+**隻需要幾行代碼就可以實現一個同時支持 ACME 自動獲取證書以及支持 HTTP1，HTTP2， HTTP3 協議的伺服器.**
 
 ```rust
 use salvo::prelude::*;
@@ -70,7 +70,6 @@ async fn main() {
     let mut router = Router::new().get(hello);
     let listener = TcpListener::new("0.0.0.0:443")
         .acme()
-        .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
         .http01_challege(&mut router).quinn("0.0.0.0:443");
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;

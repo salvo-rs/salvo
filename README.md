@@ -45,14 +45,14 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - Support WebSocket, WebTransport;
 - Support OpenAPI, generate OpenAPI data automatic;
 - Support Acme, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
-- Support Tower service and layer;
+- Support Tower Service and Layer;
 
 ## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [official website](https://salvo.rs).
 
 ### Hello World with ACME and HTTP3
 
-**Easily implement a server that supports ACME to automatically obtain certificates and supports HTTP3.**
+**It only takes a few lines of code to implement a server that supports ACME to automatically obtain certificates and supports HTTP1, HTTP2, and HTTP3 protocols.**
 
 ```rust
 use salvo::prelude::*;
@@ -67,7 +67,6 @@ async fn main() {
     let mut router = Router::new().get(hello);
     let listener = TcpListener::new("0.0.0.0:443")
         .acme()
-        .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
         .http01_challege(&mut router).quinn("0.0.0.0:443");
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
