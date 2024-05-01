@@ -53,22 +53,9 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架. 仅
 
 你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs).
 
-### 🛠️ Salvo CLI
-Salvo CLI是一个命令行工具，可以简化创建新的Salvo项目的过程，支持Web API、网站、数据库（包括通过SQLx、SeaORM、Diesel、Rbatis支持的SQLite、PostgreSQL、MySQL）和基本的中间件的模板。
-你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来创建一个新的 Salvo 项目:
-#### 安装
-```bash
-cargo install salvo-cli
-```
-#### 创建一个salvo项目
-```bash
-salvo new project_name
-```
-___
-
 ### Hello World with ACME and HTTP3
 
-轻轻松松实现一个支持 ACME 自动获取证书的，支持 HTTP3 的服务器.
+**轻轻松松实现一个支持 ACME 自动获取证书的，支持 HTTP3 的服务器.**
 
 ```rust
 use salvo::prelude::*;
@@ -284,6 +271,19 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 ```
+
+### 🛠️ Salvo CLI
+Salvo CLI是一个命令行工具，可以简化创建新的Salvo项目的过程，支持Web API、网站、数据库（包括通过SQLx、SeaORM、Diesel、Rbatis支持的SQLite、PostgreSQL、MySQL）和基本的中间件的模板。
+你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来创建一个新的 Salvo 项目:
+#### 安装
+```bash
+cargo install salvo-cli
+```
+#### 创建一个salvo项目
+```bash
+salvo new project_name
+```
+___
 
 ### 更多示例
 

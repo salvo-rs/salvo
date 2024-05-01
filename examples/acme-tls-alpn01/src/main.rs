@@ -12,8 +12,7 @@ async fn main() {
     let router = Router::new().get(hello);
     let acceptor = TcpListener::new("0.0.0.0:443")
         .acme()
-        // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
-        .cache_path("temp/letsencrypt")
+        // .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
         .bind()
         .await;

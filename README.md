@@ -50,22 +50,9 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 ## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [official website](https://salvo.rs).
 
-### 🛠️ Salvo CLI
-Salvo CLI is a command-line tool that simplifies the creation of new Salvo projects, supporting templates for web APIs, websites, databases (including SQLite, PostgreSQL, and MySQL via SQLx, SeaORM, Diesel, Rbatis), and basic middleware.
-You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new Salvo project:
-#### install
-```bash
-cargo install salvo-cli
-```
-#### create a new salvo project
-```bash
-salvo new project_name
-```
-___
-
 ### Hello World with ACME and HTTP3
 
-Easily implement a server that supports ACME to automatically obtain certificates and supports HTTP3.
+**Easily implement a server that supports ACME to automatically obtain certificates and supports HTTP3.**
 
 ```rust
 use salvo::prelude::*;
@@ -277,6 +264,19 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 ```
+
+### 🛠️ Salvo CLI
+Salvo CLI is a command-line tool that simplifies the creation of new Salvo projects, supporting templates for web APIs, websites, databases (including SQLite, PostgreSQL, and MySQL via SQLx, SeaORM, Diesel, Rbatis), and basic middleware.
+You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new Salvo project:
+#### install
+```bash
+cargo install salvo-cli
+```
+#### create a new salvo project
+```bash
+salvo new project_name
+```
+___
 
 ### More Examples
 
