@@ -13,7 +13,7 @@ async fn main() {
     let acceptor = TcpListener::new("0.0.0.0:443")
         .acme()
         // .cache_path("temp/letsencrypt")
-        .add_domain("test.salvo.rs")
+        .add_domain("test.salvo.rs") // Replace this domain name with your own.
         .bind()
         .await;
     Server::new(acceptor).serve(router).await;
