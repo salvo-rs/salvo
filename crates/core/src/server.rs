@@ -261,7 +261,7 @@ impl<A: Acceptor + Send> Server<A> {
                             let graceful_stop_token = graceful_stop_token.clone();
 
                             tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, graceful_stop_token);
+                                let conn = conn.serve(handler, builder, graceful_stop_token.clone());
                                 tokio::select! {
                                     _ = conn => {
                                     },
