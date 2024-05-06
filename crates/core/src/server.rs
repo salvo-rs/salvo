@@ -270,7 +270,11 @@ impl<A: Acceptor + Send> Server<A> {
                                 }
 
                                 if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
-                                    notify.notify_waiters();
+                                    // notify only if shutdown is initiated, to prevent notification when server is active.
+                                    // It's a valid state to have 0 alive connections when server is not shutting down.
+                                    if graceful_stop_token.is_cancelled() {
+                                        notify.notify_one();
+                                    }
                                 }
                             });
                         },
