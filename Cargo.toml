@@ -92,7 +92,7 @@ pin-project = "1"
 proc-macro-crate = {version = ">= 2, <= 4"}
 proc-macro-error = "1"
 proc-macro2 = "1"
-quinn = { version = "0.10", default-features = false }
+quinn = { version = "0.11", default-features = false }
 quote = "1"
 rand = "0.8"
 rcgen = "0.13"
