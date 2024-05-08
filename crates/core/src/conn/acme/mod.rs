@@ -75,7 +75,7 @@ use crate::http::StatusError;
 use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
-pub use listener::AcmeListener;
+pub use listener::{AcmeQuinnListener, AcmeListener};
 // TODO: waiting quinn update
 // cfg_feature! {
 //     #![feature = "quinn"]

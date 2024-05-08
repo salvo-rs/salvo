@@ -1,18 +1,17 @@
 //! `QuinnListener`` and utils.
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
+use std::future::{ready, Ready};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::vec;
 
-use futures_util::Stream;
 use salvo_http3::http3_quinn;
-pub use salvo_http3::http3_quinn::ServerConfig;
+pub use quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
+use futures_util::stream::{once, Once};
 
-use crate::conn::rustls::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::fuse::ArcFusewire;
 use crate::http::HttpConnection;
@@ -22,15 +21,6 @@ mod builder;
 pub use builder::Builder;
 mod listener;
 pub use listener::{QuinnAcceptor, QuinnListener};
-
-impl TryInto<ServerConfig> for RustlsConfig {
-    type Error = IoError;
-    fn try_into(self) -> IoResult<ServerConfig> {
-        let mut crypto = self.build_server_config_old()?;
-        crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
-        Ok(ServerConfig::with_crypto(Arc::new(crypto)))
-    }
-}
 
 /// Http3 Connection.
 pub struct H3Connection {
@@ -91,13 +81,19 @@ impl HttpConnection for H3Connection {
     }
 }
 
-impl<T> IntoConfigStream<ServerConfig> for T
-where
-    T: Stream<Item = ServerConfig> + Send + 'static,
-{
-    type Stream = T;
+impl IntoConfigStream<ServerConfig> for ServerConfig {
+    type Stream = Once<Ready<ServerConfig>>;
 
-    fn into_stream(self) -> Self {
-        self
+    fn into_stream(self) -> Self::Stream {
+        once(ready(self))
+    }
+}
+
+
+impl IntoConfigStream<ServerConfig> for quinn::crypto::rustls::QuicServerConfig {
+    type Stream = Once<Ready<ServerConfig>>;
+
+    fn into_stream(self) -> Self::Stream {
+        once(ready(ServerConfig::with_crypto(Arc::new(self))))
     }
 }

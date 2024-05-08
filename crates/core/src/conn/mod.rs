@@ -49,7 +49,6 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "quinn"]
     pub mod quinn;
-    pub(crate) mod rustls_old;
     pub use self::quinn::{QuinnListener, H3Connection};
 }
 cfg_feature! {

@@ -22,9 +22,9 @@ categories = ["web-programming::http-server", "web-programming::websocket", "net
 
 [workspace.dependencies]
 anyhow = "1"
-rbatis = "4.3"
-rbdc = "4.3"
-rbdc-mysql = "4.3"
+rbatis = "4.5.22"
+rbdc = "4.5.32"
+rbdc-mysql = "4.5.7"
 rbs = "4.3"
 async-std = "1.12"
 async-trait = "0.1"

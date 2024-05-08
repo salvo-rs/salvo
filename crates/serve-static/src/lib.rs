@@ -56,7 +56,7 @@ pub(crate) fn decode_url_path_safely(path: &str) -> String {
 
 #[inline]
 pub(crate) fn format_url_path_safely(path: &str) -> String {
-    let final_slash = if path.ends_with("/") { "/" } else { "" };
+    let final_slash = if path.ends_with('/') { "/" } else { "" };
     let mut used_parts = Vec::with_capacity(8);
     for part in path.split(['/', '\\']) {
         if part.is_empty() || part == "." {
