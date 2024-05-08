@@ -35,6 +35,15 @@ pub(crate) struct FetchAuthorizationResponse {
     pub(crate) error: Option<Problem>,
 }
 
+impl FetchAuthorizationResponse {
+    pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> crate::Result<&Challenge> {
+        self.challenges
+            .iter()
+            .find(|c| c.kind == ctype.to_string())
+            .ok_or_else(|| Error::other(format!("unable to find `{}` challenge", ctype)))
+    }
+}
+
 pub(crate) struct AcmeClient {
     pub(crate) client: HyperClient,
     pub(crate) directory: Directory,
@@ -67,15 +76,6 @@ impl AcmeClient {
         #[serde(rename_all = "camelCase")]
         struct NewOrderRequest {
             identifiers: Vec<Identifier>,
-        }
-
-        impl FetchAuthorizationResponse {
-            pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> crate::Result<&Challenge> {
-                self.challenges
-                    .iter()
-                    .find(|c| c.kind == ctype.to_string())
-                    .ok_or_else(|| Error::other(format!("unable to find `{}` challenge", ctype)))
-            }
         }
 
         let kid = match &self.kid {

@@ -298,6 +298,7 @@ where
     }
 }
 #[inline]
+#[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
         .get(&CONNECTION)
