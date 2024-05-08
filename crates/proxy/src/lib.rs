@@ -5,7 +5,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::convert::{Infallible, TryFrom};
+use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::future::Future;
 
@@ -16,8 +16,19 @@ use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 
-mod clients;
-pub use clients::*;
+#[macro_use]
+mod cfg;
+
+cfg_feature! {
+    #![feature = "hyper-client"]
+    mod hyper_client;
+    pub use hyper_client::*;
+}
+cfg_feature! {
+    #![feature = "reqwest-client"]
+    mod reqwest_client;
+    pub use reqwest_client::*;
+}
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
@@ -121,16 +132,6 @@ where
     pub url_path_getter: UrlPartGetter,
     /// Url query getter.
     pub url_query_getter: UrlPartGetter,
-}
-impl<U> Proxy<U, HyperClient>
-where
-    U: Upstreams,
-    U::Error: Into<BoxedError>,
-{
-    /// Create new `Proxy` which use default hyper util client.
-    pub fn default_hyper_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, HyperClient::default())
-    }
 }
 
 impl<U, C> Proxy<U, C>
@@ -297,6 +298,7 @@ where
     }
 }
 #[inline]
+#[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
         .get(&CONNECTION)
@@ -321,9 +323,6 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
-    use salvo_core::prelude::*;
-    use salvo_core::test::*;
-
     use super::*;
 
     #[test]
@@ -333,14 +332,6 @@ mod tests {
         assert_eq!(encoded_path, "/test/path");
     }
 
-    #[tokio::test]
-    async fn test_upstreams_elect() {
-        let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
-        let proxy = Proxy::default_hyper_client(upstreams.clone());
-        let elected_upstream = proxy.upstreams().elect().await.unwrap();
-        assert!(upstreams.contains(&elected_upstream));
-    }
-
     #[test]
     fn test_get_upgrade_type() {
         let mut headers = HeaderMap::new();
@@ -348,26 +339,5 @@ mod tests {
         headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
         let upgrade_type = get_upgrade_type(&headers);
         assert_eq!(upgrade_type, Some("websocket"));
-    }
-
-    #[tokio::test]
-    async fn test_proxy() {
-        let router = Router::new().push(
-            Router::with_path("rust/<**rest>").goal(Proxy::default_hyper_client(vec!["https://www.rust-lang.org"])),
-        );
-
-        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
-            .send(router)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("Install Rust"));
-    }
-    #[test]
-    fn test_others() {
-        let mut handler = Proxy::default_hyper_client(["https://www.bing.com"]);
-        assert_eq!(handler.upstreams().len(), 1);
-        assert_eq!(handler.upstreams_mut().len(), 1);
     }
 }

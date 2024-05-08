@@ -3,7 +3,7 @@ use std::{fmt::Display, mem};
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitStr, TypePath};
+use syn::{parenthesized, parse::ParseStream, punctuated::Punctuated, token, LitStr, TypePath, WherePredicate};
 
 use super::{impl_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
 use crate::{
@@ -833,8 +833,47 @@ impl From<SchemaWith> for Feature {
         Feature::SchemaWith(value)
     }
 }
-
 impl_name!(SchemaWith = "schema_with");
+
+#[derive(Clone, Debug)]
+pub(crate) struct Bound(pub(crate) Vec<WherePredicate>);
+impl Parse for Bound {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || {
+            let input: LitStr = input.parse()?;
+            input
+                .parse_with(Punctuated::<WherePredicate, token::Comma>::parse_terminated)
+                .map(|p| Self(p.into_iter().collect()))
+        })
+    }
+}
+impl ToTokens for Bound {
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+}
+impl From<Bound> for Feature {
+    fn from(value: Bound) -> Self {
+        Feature::Bound(value)
+    }
+}
+impl_name!(Bound = "bound");
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub(crate) struct SkipBound(pub(crate) bool);
+impl Parse for SkipBound {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+impl ToTokens for SkipBound {
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+}
+impl From<SkipBound> for Feature {
+    fn from(value: SkipBound) -> Self {
+        Feature::SkipBound(value)
+    }
+}
+impl_name!(SkipBound = "skip_bound");
+
 #[derive(Clone, Debug)]
 pub(crate) struct Description(pub(crate) String);
 impl Parse for Description {

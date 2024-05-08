@@ -49,7 +49,6 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "quinn"]
     pub mod quinn;
-    pub(crate) mod rustls_old;
     pub use self::quinn::{QuinnListener, H3Connection};
 }
 cfg_feature! {
@@ -137,7 +136,10 @@ pub trait Acceptor {
     fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
-    fn accept(&mut self, fuse_factory: ArcFuseFactory) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
 }
 
 /// Holding information.

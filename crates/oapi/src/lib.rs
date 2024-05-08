@@ -170,6 +170,7 @@ pub mod oapi {
 #[doc(hidden)]
 pub mod __private {
     pub use inventory;
+    pub use serde_json;
 }
 
 #[rustfmt::skip]
@@ -209,7 +210,7 @@ impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
 }
 #[cfg(feature = "indexmap")]
 impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] indexmap::IndexMap<K, V>).into()
     }
 }
@@ -263,18 +264,18 @@ impl<T: ToSchema> ToSchema for Option<T> {
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Default::default()).into()
+        Schema::Object(Object::default()).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }
 }
@@ -316,6 +317,17 @@ where
             .item(E::to_schema(components));
         components.schemas.insert(symbol.clone(), schema.into());
         crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+    }
+}
+
+impl ToSchema for serde_json::Value {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Object::default()).into()
+    }
+}
+impl ToSchema for serde_json::Map<String, serde_json::Value> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline]HashMap<K, V>).into()
     }
 }
 

@@ -107,6 +107,8 @@ pub(crate) enum Feature {
     Skip(Skip),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
+    SkipBound(SkipBound),
+    Bound(Bound),
 }
 
 impl Feature {
@@ -137,7 +139,7 @@ impl Feature {
                     "multiple_of",
                     "maximum",
                     "minimum",
-                    "exclusive_maximum",
+                    "exclusive_<aximum",
                     "exclusive_minimum",
                     "max_length",
                     "min_length",
@@ -222,8 +224,8 @@ impl ToTokens for Feature {
                     help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
                 }
             }
-            Feature::Inline(_) => {
-                // inline feature is ignored by `ToTokens`
+            Feature::Inline(_) | Feature::SkipBound(_) | Feature::Bound(_) => {
+                // inline， skip_bound and bound feature is ignored by `ToTokens`
                 TokenStream::new()
             }
             Feature::ToParametersNames(_) => {
@@ -279,6 +281,8 @@ impl Display for Feature {
             Feature::Skip(skip) => skip.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
+            Feature::SkipBound(skip) => skip.fmt(f),
+            Feature::Bound(bound) => bound.fmt(f),
         }
     }
 }
@@ -323,6 +327,8 @@ impl Validatable for Feature {
             Feature::Skip(skip) => skip.is_validatable(),
             Feature::AdditionalProperties(additional_properites) => additional_properites.is_validatable(),
             Feature::Required(required) => required.is_validatable(),
+            Feature::SkipBound(skip) => skip.is_validatable(),
+            Feature::Bound(bound) => bound.is_validatable(),
         }
     }
 }

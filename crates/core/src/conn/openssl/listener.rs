@@ -122,7 +122,7 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -156,7 +156,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            ..
         } = self.inner.accept(fuse_factory).await?;
         let fusewire = conn.fusewire();
         let conn = async move {
@@ -176,7 +176,7 @@ where
             local_addr,
             remote_addr,
             http_version,
-            http_scheme,
+            http_scheme: Scheme::HTTPS,
         })
     }
 }

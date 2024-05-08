@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, FuseFactory, SteadyFusewire};
+use crate::fuse::{ArcFuseFactory, FuseFactory};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -86,7 +86,7 @@ enum ServerCommand {
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    fuse_factory: ArcFuseFactory,
+    fuse_factory: Option<ArcFuseFactory>,
     tx_cmd: UnboundedSender<ServerCommand>,
     rx_cmd: UnboundedReceiver<ServerCommand>,
 }
@@ -115,7 +115,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            fuse_factory: Arc::new(SteadyFusewire),
+            fuse_factory: None,
             tx_cmd,
             rx_cmd,
         }
@@ -126,7 +126,7 @@ impl<A: Acceptor + Send> Server<A> {
     where
         F: FuseFactory + Send + Sync + 'static,
     {
-        self.fuse_factory = Arc::new(factory);
+        self.fuse_factory = Some(Arc::new(factory));
         self
     }
 
@@ -246,6 +246,43 @@ impl<A: Acceptor + Send> Server<A> {
         let builder = Arc::new(builder);
         loop {
             tokio::select! {
+                accepted = acceptor.accept(fuse_factory.clone()) => {
+                    match accepted {
+                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+                            alive_connections.fetch_add(1, Ordering::Release);
+
+                            let service = service.clone();
+                            let alive_connections = alive_connections.clone();
+                            let notify = notify.clone();
+                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                            let builder = builder.clone();
+
+                            let force_stop_token = force_stop_token.clone();
+                            let graceful_stop_token = graceful_stop_token.clone();
+
+                            tokio::spawn(async move {
+                                let conn = conn.serve(handler, builder, graceful_stop_token.clone());
+                                tokio::select! {
+                                    _ = conn => {
+                                    },
+                                    _ = force_stop_token.cancelled() => {
+                                    }
+                                }
+
+                                if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
+                                    // notify only if shutdown is initiated, to prevent notification when server is active.
+                                    // It's a valid state to have 0 alive connections when server is not shutting down.
+                                    if graceful_stop_token.is_cancelled() {
+                                        notify.notify_one();
+                                    }
+                                }
+                            });
+                        },
+                        Err(e) => {
+                            tracing::error!(error = ?e, "accept connection failed");
+                        }
+                    }
+                }
                 Some(cmd) = rx_cmd.recv() => {
                     match cmd {
                         ServerCommand::StopGraceful(timeout) => {
@@ -273,39 +310,6 @@ impl<A: Acceptor + Send> Server<A> {
                     }
                     break;
                 },
-                accepted = acceptor.accept(fuse_factory.clone()) => {
-                    match accepted {
-                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
-                            alive_connections.fetch_add(1, Ordering::Release);
-
-                            let service = service.clone();
-                            let alive_connections = alive_connections.clone();
-                            let notify = notify.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
-                            let builder = builder.clone();
-
-                            let force_stop_token = force_stop_token.clone();
-                            let graceful_stop_token = graceful_stop_token.clone();
-
-                            tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, graceful_stop_token);
-                                tokio::select! {
-                                    _ = conn => {
-                                    },
-                                    _ = force_stop_token.cancelled() => {
-                                    }
-                                }
-
-                                if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
-                                    notify.notify_waiters();
-                                }
-                            });
-                        },
-                        Err(e) => {
-                            tracing::error!(error = ?e, "accept connection failed");
-                        }
-                    }
-                }
             }
         }
 

@@ -169,7 +169,7 @@ pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
     pub name: String,
 
-    /// Description of the the [`ApiKey`] [`SecurityScheme`]. Supports markdown syntax.
+    /// Description of the [`ApiKey`] [`SecurityScheme`]. Supports markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }

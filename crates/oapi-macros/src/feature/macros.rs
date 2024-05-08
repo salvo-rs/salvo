@@ -1,4 +1,4 @@
-use crate::feature::{items::*, Feature, Nullable, ParameterIn, Style, Validatable, ValueType};
+use crate::feature::{items::*, Feature, Validatable};
 
 macro_rules! impl_name {
     ( $ident:ident = $name:literal ) => {
@@ -20,7 +20,7 @@ macro_rules! impl_name {
 pub(crate) use impl_name;
 
 macro_rules! is_validatable {
-    ( $( $ident:ident => $validatable:literal ),* ) => {
+    ( $( $ident:ident => $validatable:literal ),* $(,)?) => {
         $(
             impl Validatable for $ident {
                 fn is_validatable(&self) -> bool {
@@ -68,11 +68,13 @@ is_validatable! {
     Deprecated => false,
     Skip => false,
     AdditionalProperties => false,
-    Required => false
+    Required => false,
+    SkipBound => false,
+    Bound => false,
 }
 
 macro_rules! parse_features {
-    ($ident:ident as $( $feature:path ),*) => {
+    ($ident:ident as $( $feature:path ),* $(,)?) => {
         {
             fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<crate::feature::Feature>> {
                 let names = [$( <crate::feature::parse_features!(@as_ident $feature) as crate::feature::Name>::get_name(), )* ];
@@ -117,7 +119,7 @@ macro_rules! parse_features {
 pub(crate) use parse_features;
 
 macro_rules! pop_feature {
-    ($features:ident => $value:pat_param) => {{
+    ($features:expr => $value:pat_param) => {{
         $features.pop_by(|feature| matches!(feature, $value))
     }};
 }
@@ -125,7 +127,7 @@ macro_rules! pop_feature {
 pub(crate) use pop_feature;
 
 macro_rules! pop_feature_as_inner {
-    ( $features:ident => $($value:tt)* ) => {
+    ( $features:expr => $($value:tt)* ) => {
         crate::feature::pop_feature!($features => $( $value )* )
             .map(|f| match f {
                 $( $value )* => {
@@ -141,6 +143,7 @@ macro_rules! pop_feature_as_inner {
 
 pub(crate) use pop_feature_as_inner;
 
+#[allow(dead_code)]
 pub(crate) trait IntoInner<T> {
     fn into_inner(self) -> T;
 }
@@ -163,6 +166,7 @@ macro_rules! impl_into_inner {
 
 pub(crate) use impl_into_inner;
 
+#[allow(dead_code)]
 pub(crate) trait Merge<T>: IntoInner<Vec<Feature>> {
     fn merge(self, from: T) -> Self;
 }

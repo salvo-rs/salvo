@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -26,6 +26,7 @@ use syn::{
 };
 
 mod attribute;
+pub(crate) mod bound;
 mod component;
 mod doc_comment;
 mod endpoint;
@@ -202,11 +203,8 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
-fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
-    if attributes
-        .iter()
-        .any(|attribute| attribute.path().is_ident("deprecated"))
-    {
+fn get_deprecated(attributs: &[Attribute]) -> Option<crate::Deprecated> {
+    if attributs.iter().any(|attr| attr.path().is_ident("deprecated")) {
         Some(Deprecated::True)
     } else {
         None
@@ -471,16 +469,17 @@ impl AnyValue {
 
 impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let oapi = crate::oapi_crate();
         match self {
             Self::Json(json) => tokens.extend(quote! {
-                serde_json::json!(#json)
+                #oapi::oapi::__private::serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
             Self::DefaultTrait {
                 struct_ident,
                 field_ident,
             } => tokens.extend(quote! {
-                serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+                #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
         }
     }
@@ -504,16 +503,6 @@ impl<T> ResultExt<T> for Result<T, syn::Error> {
             Ok(value) => value,
             Err(error) => abort!(error.span(), format!("{error}: {message}")),
         }
-    }
-}
-
-trait OptionExt<T> {
-    fn expect_or_abort(self, message: &str) -> T;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-    fn expect_or_abort(self, message: &str) -> T {
-        self.unwrap_or_else(|| abort!(Span::call_site(), message))
     }
 }
 

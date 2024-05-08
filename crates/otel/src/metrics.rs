@@ -1,7 +1,7 @@
 use std::time::Instant;
 
-use opentelemetry::global;
 use opentelemetry::metrics::{Counter, Histogram, Unit};
+use opentelemetry::{global, KeyValue};
 use opentelemetry_semantic_conventions::trace;
 use salvo_core::http::ResBody;
 use salvo_core::prelude::*;
@@ -45,15 +45,15 @@ impl Metrics {
 impl Handler for Metrics {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let mut labels = Vec::with_capacity(3);
-        labels.push(trace::HTTP_REQUEST_METHOD.string(req.method().to_string()));
-        labels.push(trace::URL_FULL.string(req.uri().to_string()));
+        labels.push(KeyValue::new(trace::HTTP_REQUEST_METHOD, req.method().to_string()));
+        labels.push(KeyValue::new(trace::URL_FULL, req.uri().to_string()));
 
         let s = Instant::now();
         ctrl.call_next(req, depot, res).await;
         let elapsed = s.elapsed();
 
         let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
-        labels.push(trace::HTTP_RESPONSE_STATUS_CODE.i64(status.as_u16() as i64));
+        labels.push(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, status.as_u16() as i64));
         if status.is_client_error() || status.is_server_error() {
             self.error_count.add(1, &labels);
             let msg = if let ResBody::Error(body) = &res.body {
@@ -61,7 +61,7 @@ impl Handler for Metrics {
             } else {
                 format!("ErrorCode: {}", status.as_u16())
             };
-            labels.push(trace::EXCEPTION_MESSAGE.string(msg));
+            labels.push(KeyValue::new(trace::EXCEPTION_MESSAGE, msg));
         }
 
         self.request_count.add(1, &labels);

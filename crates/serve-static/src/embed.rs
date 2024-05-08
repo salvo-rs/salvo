@@ -3,10 +3,10 @@ use std::marker::PhantomData;
 
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
-use salvo_core::http::{Mime, Request, Response, StatusCode};
+use salvo_core::http::{HeaderValue, Mime, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 
-use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url, join_path};
+use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
 
 /// Handler that serves embed file.
 #[non_exhaustive]
@@ -44,7 +44,12 @@ fn render_embedded_data(
     mime: Option<Mime>,
 ) {
     let mime = mime.unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
-    res.headers_mut().insert(CONTENT_TYPE, mime.as_ref().parse().unwrap());
+    res.headers_mut().insert(
+        CONTENT_TYPE,
+        mime.as_ref()
+            .parse()
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+    );
 
     let hash = hex::encode(metadata.sha256_hash());
     // if etag is matched, return 304
@@ -59,7 +64,11 @@ fn render_embedded_data(
     }
 
     // otherwise, return 200 with etag hash
-    res.headers_mut().insert(ETAG, hash.parse().unwrap());
+    if let Ok(hash) = hash.parse() {
+        res.headers_mut().insert(ETAG, hash);
+    } else {
+        tracing::error!("Failed to parse etag hash: {}", hash);
+    }
 
     match data {
         Cow::Borrowed(data) => {

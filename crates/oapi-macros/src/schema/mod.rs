@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
+use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
 
 mod enum_schemas;
 mod enum_variant;
@@ -24,7 +24,8 @@ use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
     ComponentSchema, FieldRename, VariantRename,
 };
-use crate::feature::{Inline, Symbol};
+use crate::bound;
+use crate::feature::{Bound, Inline, SkipBound, Symbol};
 use crate::serde_util::SerdeValue;
 
 pub(crate) struct ToSchema<'a> {
@@ -57,9 +58,9 @@ impl ToTokens for ToSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let ident = self.ident;
-        let variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics);
+        let mut variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics);
 
-        let (_, ty_generics, where_clause) = self.generics.split_for_impl();
+        let (_, ty_generics, _) = self.generics.split_for_impl();
 
         let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
         let symbol = if inline {
@@ -83,7 +84,22 @@ impl ToTokens for ToSchema<'_> {
             Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
         };
 
-        let (impl_generics, _, _) = self.generics.split_for_impl();
+        let skip_bound = variant.pop_skip_bound();
+        let bound = if skip_bound == Some(SkipBound(true)) {
+            None
+        } else {
+            variant.pop_bound().map(|b| b.0)
+        };
+
+        let mut generics = bound::without_defaults(self.generics);
+        if skip_bound != Some(SkipBound(true)) {
+            generics = match bound {
+                Some(predicates) => bound::with_where_predicates(&generics, &predicates),
+                None => bound::with_bound(self.data, &generics, parse_quote!(#oapi::oapi::ToSchema + 'static)),
+            };
+        }
+
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let body = match symbol {
             None => {
@@ -188,6 +204,22 @@ impl<'a> SchemaVariant<'a> {
             _ => &None,
         }
     }
+    fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        match self {
+            Self::Enum(schema) => schema.pop_skip_bound(),
+            Self::Named(schema) => schema.pop_skip_bound(),
+            Self::Unnamed(schema) => schema.pop_skip_bound(),
+            _ => None,
+        }
+    }
+    fn pop_bound(&mut self) -> Option<Bound> {
+        match self {
+            Self::Enum(schema) => schema.pop_bound(),
+            Self::Named(schema) => schema.pop_bound(),
+            Self::Unnamed(schema) => schema.pop_bound(),
+            _ => None,
+        }
+    }
 }
 
 impl ToTokens for SchemaVariant<'_> {
@@ -212,9 +244,6 @@ impl ToTokens for UnitStructVariant {
         });
     }
 }
-
-#[derive(PartialEq, Debug)]
-struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[derive(Debug)]
 enum Property {

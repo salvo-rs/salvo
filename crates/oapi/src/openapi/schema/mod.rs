@@ -175,7 +175,7 @@ impl Ref {
     }
 
     /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
-    /// references the the reusable schemas.
+    /// references the reusable schemas.
     pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
         Self::new(format!("#/components/schemas/{}", schema_name.into()))
     }

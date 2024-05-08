@@ -12,20 +12,6 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
 use tokio_rustls::rustls::sign::CertifiedKey;
 
-#[cfg(feature = "quinn")]
-use tokio_rustls_old::rustls::{
-    server::{
-        AllowAnyAnonymousOrAuthenticatedClient as AllowAnyAnonymousOrAuthenticatedClientOld,
-        AllowAnyAuthenticatedClient as AllowAnyAuthenticatedClientOld, NoClientAuth as NoClientAuthOld,
-        ServerConfig as ServerConfigOld,
-    },
-    sign::{any_supported_type as any_supported_type_old, CertifiedKey as CertifiedKeyOld},
-    {Certificate as CertificateOld, PrivateKey as PrivateKeyOld},
-};
-
-#[cfg(feature = "quinn")]
-use crate::conn::rustls_old::CertResolver as CertResolverOld;
-
 pub use tokio_rustls::rustls::server::ServerConfig;
 
 use crate::conn::IntoConfigStream;
@@ -130,43 +116,6 @@ impl Keycert {
             } else {
                 None
             },
-        })
-    }
-
-    #[cfg(feature = "quinn")]
-    fn build_certified_key_old(&mut self) -> IoResult<CertifiedKeyOld> {
-        let cert = rustls_pemfile_old::certs(&mut self.cert.as_ref())
-            .map(|certs| certs.into_iter().map(CertificateOld).collect())
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
-
-        let key = {
-            let mut pkcs8 = rustls_pemfile_old::pkcs8_private_keys(&mut self.key.as_ref())
-                .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
-            if !pkcs8.is_empty() {
-                PrivateKeyOld(pkcs8.remove(0))
-            } else {
-                let mut rsa = rustls_pemfile_old::rsa_private_keys(&mut self.key.as_ref())
-                    .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
-
-                if !rsa.is_empty() {
-                    PrivateKeyOld(rsa.remove(0))
-                } else {
-                    return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
-                }
-            }
-        };
-
-        let key = any_supported_type_old(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
-
-        Ok(CertifiedKeyOld {
-            cert,
-            key,
-            ocsp: if !self.ocsp_resp.is_empty() {
-                Some(self.ocsp_resp.clone())
-            } else {
-                None
-            },
-            sct_list: None,
         })
     }
 }
@@ -299,41 +248,12 @@ impl RustlsConfig {
         Ok(config)
     }
 
-    /// ServerConfigOld
-    #[cfg(feature = "quinn")]
-    pub(crate) fn build_server_config_old(mut self) -> IoResult<ServerConfigOld> {
-        let fallback = self
-            .fallback
-            .as_mut()
-            .map(|fallback| fallback.build_certified_key_old())
-            .transpose()?
-            .map(Arc::new);
-        let mut certified_keys = HashMap::new();
-
-        for (name, keycert) in &mut self.keycerts {
-            certified_keys.insert(name.clone(), Arc::new(keycert.build_certified_key_old()?));
+    cfg_feature! {
+        #![feature = "quinn"]
+        /// Build quinn server config.
+        pub fn build_quinn_config(self) -> IoResult<crate::conn::quinn::ServerConfig> {
+            self.try_into()
         }
-
-        let client_auth = match &self.client_auth {
-            TlsClientAuth::Off => NoClientAuthOld::boxed(),
-            TlsClientAuth::Optional(trust_anchor) => AllowAnyAnonymousOrAuthenticatedClientOld::new(
-                crate::conn::rustls_old::read_trust_anchor(trust_anchor)?,
-            )
-            .boxed(),
-            TlsClientAuth::Required(trust_anchor) => {
-                AllowAnyAuthenticatedClientOld::new(crate::conn::rustls_old::read_trust_anchor(trust_anchor)?).boxed()
-            }
-        };
-
-        let mut config = ServerConfigOld::builder()
-            .with_safe_defaults()
-            .with_client_cert_verifier(client_auth)
-            .with_cert_resolver(Arc::new(CertResolverOld {
-                certified_keys,
-                fallback,
-            }));
-        config.alpn_protocols = self.alpn_protocols;
-        Ok(config)
     }
 }
 
@@ -345,12 +265,15 @@ impl TryInto<ServerConfig> for RustlsConfig {
     }
 }
 
-#[cfg(feature = "quinn")]
-impl TryInto<ServerConfigOld> for RustlsConfig {
-    type Error = IoError;
+cfg_feature! {
+    #![feature = "quinn"]
+    impl TryInto<crate::conn::quinn::ServerConfig> for RustlsConfig {
+        type Error = IoError;
 
-    fn try_into(self) -> IoResult<ServerConfigOld> {
-        self.build_server_config_old()
+        fn try_into(self) -> IoResult<crate::conn::quinn::ServerConfig> {
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::new(ErrorKind::Other, "failed to build quic server config"))?;
+            Ok(crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto)))
+        }
     }
 }
 
@@ -364,7 +287,7 @@ impl ResolvesServerCert for CertResolver {
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<CertifiedKey>> {
         client_hello
             .server_name()
-            .and_then(|name| self.certified_keys.get(name).map(Arc::clone))
+            .and_then(|name| self.certified_keys.get(name).cloned())
             .or_else(|| self.fallback.clone())
     }
 }
@@ -379,17 +302,6 @@ impl IntoConfigStream<RustlsConfig> for RustlsConfig {
 impl<T> IntoConfigStream<RustlsConfig> for T
 where
     T: Stream<Item = RustlsConfig> + Send + 'static,
-{
-    type Stream = T;
-
-    fn into_stream(self) -> Self {
-        self
-    }
-}
-
-impl<T> IntoConfigStream<ServerConfig> for T
-where
-    T: Stream<Item = ServerConfig> + Send + 'static,
 {
     type Stream = T;
 

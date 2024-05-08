@@ -127,7 +127,7 @@ impl Service {
         local_addr: SocketAddr,
         remote_addr: SocketAddr,
         http_scheme: Scheme,
-        fusewire: ArcFusewire,
+        fusewire: Option<ArcFusewire>,
         alt_svc_h3: Option<HeaderValue>,
     ) -> HyperHandler {
         HyperHandler {
@@ -151,7 +151,7 @@ impl Service {
             request.local_addr.clone(),
             request.remote_addr.clone(),
             request.scheme.clone(),
-            Arc::new(crate::fuse::SteadyFusewire),
+            None,
             None,
         )
         .handle(request)
@@ -179,7 +179,7 @@ pub struct HyperHandler {
     pub(crate) catcher: Option<Arc<Catcher>>,
     pub(crate) hoops: Vec<Arc<dyn Handler>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
-    pub(crate) fusewire: ArcFusewire,
+    pub(crate) fusewire: Option<ArcFusewire>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
 impl HyperHandler {
@@ -330,7 +330,7 @@ where
             }
         }
         let mut request = Request::from_hyper(req, scheme);
-        request.body.fill_fusewire(self.fusewire.clone());
+        request.body.set_fusewire(self.fusewire.clone());
         let response = self.handle(request);
         Box::pin(async move { Ok(response.await.into_hyper()) })
     }

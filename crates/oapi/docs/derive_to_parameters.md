@@ -11,7 +11,7 @@ You can use the Rust's own `#[deprecated]` attribute on field to mark it as
 deprecated and it will reflect to the generated OpenAPI spec.
 
 `#[deprecated]` attribute supports adding additional details such as a reason and or since version
-but this is is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
+but this is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
 While it is totally okay to declare deprecated with reason
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 

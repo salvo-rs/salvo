@@ -6,15 +6,19 @@ use opentelemetry::{
     Context, KeyValue,
 };
 use opentelemetry_http::HeaderInjector;
+use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
 use reqwest::{Client, Method, Url};
 
 fn init_tracer() -> Tracer {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_jaeger::new_collector_pipeline()
-        .with_service_name("salvo")
-        .with_endpoint("http://localhost:14268/api/traces")
-        .with_hyper()
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint("http://localhost:14268/api/traces"),
+        )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }

@@ -8,8 +8,8 @@ use syn::{punctuated::Punctuated, Attribute, Fields, Token, Variant};
 use crate::{
     doc_comment::CommentAttributes,
     feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Example, Feature, FeaturesExt, IntoInner, IsSkipped, Rename,
-        RenameAll, Symbol, ToTokensExt,
+        parse_features, pop_feature, pop_feature_as_inner, Bound, Example, Feature, FeaturesExt, IntoInner, IsSkipped,
+        Rename, RenameAll, SkipBound, Symbol, ToTokensExt,
     },
     schema::{Inline, VariantRename},
     serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
@@ -141,6 +141,12 @@ impl<'e> EnumSchema<'e> {
             }
         }
     }
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        self.schema_type.pop_skip_bound()
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        self.schema_type.pop_bound()
+    }
 }
 
 impl ToTokens for EnumSchema<'_> {
@@ -155,6 +161,24 @@ pub(super) enum EnumSchemaType<'e> {
     #[cfg(feature = "repr")]
     Repr(ReprEnum<'e>),
     Complex(ComplexEnum<'e>),
+}
+impl EnumSchemaType<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        match self {
+            Self::Simple(simple) => simple.pop_skip_bound(),
+            #[cfg(feature = "repr")]
+            Self::Repr(repr) => repr.pop_skip_bound(),
+            Self::Complex(complex) => complex.pop_skip_bound(),
+        }
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        match self {
+            Self::Simple(simple) => simple.pop_bound(),
+            #[cfg(feature = "repr")]
+            Self::Repr(repr) => repr.pop_bound(),
+            Self::Complex(complex) => complex.pop_bound(),
+        }
+    }
 }
 
 impl ToTokens for EnumSchemaType<'_> {
@@ -195,6 +219,15 @@ pub(super) struct ReprEnum<'a> {
     attributes: &'a [Attribute],
     enum_type: syn::TypePath,
     enum_features: Vec<Feature>,
+}
+#[cfg(feature = "repr")]
+impl ReprEnum<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        pop_feature_as_inner!(self.enum_features => Feature::SkipBound(_v))
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        pop_feature_as_inner!(self.enum_features => Feature::Bound(_v))
+    }
 }
 
 #[cfg(feature = "repr")]
@@ -251,6 +284,14 @@ pub(super) struct SimpleEnum<'a> {
     attributes: &'a [Attribute],
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
+}
+impl SimpleEnum<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        pop_feature_as_inner!(self.enum_features => Feature::SkipBound(_v))
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        pop_feature_as_inner!(self.enum_features => Feature::Bound(_v))
+    }
 }
 
 impl ToTokens for SimpleEnum<'_> {
@@ -341,6 +382,13 @@ pub(super) struct ComplexEnum<'a> {
 }
 
 impl ComplexEnum<'_> {
+    pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
+        pop_feature_as_inner!(self.enum_features => Feature::SkipBound(_v))
+    }
+    pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
+        pop_feature_as_inner!(self.enum_features => Feature::Bound(_v))
+    }
+
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
     fn variant_tokens(
         &self,

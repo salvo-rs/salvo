@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
-use crate::fuse::{ArcFusewire, FuseEvent, Fusewire};
+use crate::fuse::{ArcFusewire, FuseEvent};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -22,15 +22,17 @@ enum State<S> {
 /// Tls stream.
 pub struct HandshakeStream<S> {
     state: State<S>,
-    fusewire: Arc<dyn Fusewire + Sync + Send + 'static>,
+    fusewire: Option<ArcFusewire>,
 }
 
 impl<S> HandshakeStream<S> {
-    pub(crate) fn new<F>(handshake: F, fusewire: Arc<dyn Fusewire + Sync + Send + 'static>) -> Self
+    pub(crate) fn new<F>(handshake: F, fusewire: Option<ArcFusewire>) -> Self
     where
         F: Future<Output = Result<S>> + Send + 'static,
     {
-        fusewire.event(FuseEvent::TlsHandshaking);
+        if let Some(fusewire) = &fusewire {
+            fusewire.event(FuseEvent::TlsHandshaking);
+        }
         Self {
             state: State::Handshaking(handshake.boxed()),
             fusewire,
@@ -39,7 +41,9 @@ impl<S> HandshakeStream<S> {
 
     fn set_state_ready(&mut self, stream: S) {
         self.state = State::Ready(stream);
-        self.fusewire.event(FuseEvent::TlsHandshaked);
+        if let Some(fusewire) = &self.fusewire {
+            fusewire.event(FuseEvent::TlsHandshaked);
+        }
     }
 }
 impl<S> HttpConnection for HandshakeStream<S>
@@ -58,7 +62,7 @@ where
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
-    fn fusewire(&self) -> ArcFusewire {
+    fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
     }
 }
@@ -79,7 +83,9 @@ where
                         return Poll::Ready(Err(err));
                     }
                     Poll::Pending => {
-                        this.fusewire.event(FuseEvent::Alive);
+                        if let Some(fusewire) = &self.fusewire {
+                            fusewire.event(FuseEvent::Alive);
+                        }
                         return Poll::Pending
                     },
                 },
@@ -87,12 +93,16 @@ where
                     let remaining = buf.remaining();
                     return match Pin::new(stream).poll_read(cx, buf) {
                         Poll::Ready(Ok(())) => {
-                            this.fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                            if let Some(fusewire) = &self.fusewire {
+                                fusewire.event(FuseEvent::ReadData(remaining - buf.remaining()));
+                            }
                             Poll::Ready(Ok(()))
                         }
                         Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
                         Poll::Pending => {
-                            this.fusewire.event(FuseEvent::Alive);
+                            if let Some(fusewire) = &self.fusewire {
+                                fusewire.event(FuseEvent::Alive);
+                            }
                             Poll::Pending
                         }
                     };
