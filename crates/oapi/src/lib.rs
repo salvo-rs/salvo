@@ -287,6 +287,7 @@ impl ToSchema for StatusError {
             .last()
             .unwrap()
             .to_string();
+        let _ref = std::any::type_name::<StatusError>().replace("::", ".");
         let schema = Schema::from(
             Object::new()
                 .property("code", u16::to_schema(components))
@@ -300,7 +301,7 @@ impl ToSchema for StatusError {
                 .property("cause", String::to_schema(components)),
         );
         components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", _ref)))
     }
 }
 impl ToSchema for salvo_core::Error {
@@ -316,11 +317,12 @@ where
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         let symbol = std::any::type_name::<Self>().split("::").last().unwrap().to_string();
+        let _ref = std::any::type_name::<StatusError>().replace("::", ".");
         let schema = OneOf::new()
             .item(T::to_schema(components))
             .item(E::to_schema(components));
         components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", _ref)))
     }
 }
 
