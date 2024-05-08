@@ -70,14 +70,14 @@ impl ToTokens for ToSchema<'_> {
                 Some(quote! { #symbol.to_string().replace(" :: ", ".") })
             } else {
                 Some(quote! {
-                   {
-                       let full_name = std::any::type_name::<#ident #ty_generics>();
-                       if let Some((_, args)) = full_name.split_once('<') {
-                           format!("{}<{}", #symbol, args)
-                       } else {
-                           full_name.into()
-                       }
-                   }
+                    {
+                        let full_name = std::any::type_name::<#ident #ty_generics>();
+                        if let Some((_, args)) = full_name.split_once('<') {
+                            format!("{}<{}", #symbol, args).replace("::", ".")
+                        } else {
+                            full_name.into()
+                        }
+                    }
                 })
             }
         } else {
