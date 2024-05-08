@@ -119,7 +119,6 @@ impl ToTokens for ToSchema<'_> {
             Some(symbol) => {
                 quote! {
                     let full_name = std::any::type_name::<#ident #ty_generics>().replace("::", ".");
-                    println!("full_name: {:?}", full_name);
                     let schema = #variant;
                     components.schemas.insert(#symbol, schema.into());
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", full_name)))
