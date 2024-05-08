@@ -960,7 +960,7 @@ mod tests {
                     },
                     "components": {
                        "schemas": {
-                          "salvo_oapi.openapi.tests.simple_document_with_security.Pet": {
+                          "Pet": {
                              "type": "object",
                              "required": [
                                 "id",
@@ -1209,7 +1209,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>"
+                                                "$ref": "#/components/schemas/Response<CityDTO>>"
                                             }
                                         }
                                     }
@@ -1219,7 +1219,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                                "$ref": "#/components/schemas/StatusError"
                                             }
                                         }
                                     }
@@ -1229,7 +1229,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                                "$ref": "#/components/schemas/StatusError"
                                             }
                                         }
                                     }
@@ -1239,7 +1239,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                                "$ref": "#/components/schemas/StatusError"
                                             }
                                         }
                                     }
@@ -1249,7 +1249,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                                "$ref": "#/components/schemas/StatusError"
                                             }
                                         }
                                     }
@@ -1275,7 +1275,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>": {
+                        "Response<CityDTO>>": {
                             "type": "object",
                             "required": [
                                 "status",
@@ -1299,7 +1299,7 @@ mod tests {
                                 }
                             }
                         },
-                        "salvo_core.http.errors.status_error.StatusError": {
+                        "StatusError": {
                             "type": "object",
                             "required": [
                                 "code",

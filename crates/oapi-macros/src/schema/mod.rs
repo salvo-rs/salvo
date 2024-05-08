@@ -73,7 +73,7 @@ impl ToTokens for ToSchema<'_> {
                     {
                         let full_name = std::any::type_name::<#ident #ty_generics>();
                         if let Some((_, args)) = full_name.split_once('<') {
-                            format!("{}<{}", #symbol, args).replace("::", ".")
+                            format!("{}<{}", #symbol, args.split("::").last().unwrap())
                         } else {
                             full_name.into()
                         }
@@ -81,7 +81,16 @@ impl ToTokens for ToSchema<'_> {
                 })
             }
         } else {
-            Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
+            Some(quote! {
+                {
+                    let full_name = std::any::type_name::<#ident #ty_generics>().to_string();
+                    if let Some((symbol, args)) = full_name.split_once('<') {
+                        format!("{}<{}", symbol.split("::").last().unwrap(), args.split("::").last().unwrap())
+                    } else {
+                        full_name.split("::").last().unwrap().to_string()
+                    }
+                }
+            })
         };
 
         let skip_bound = variant.pop_skip_bound();
