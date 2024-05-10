@@ -3,7 +3,7 @@
 First make sure you have a running version of the Jaeger instance you want to send data to:
 
 ```shell
-docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 -p14268:14268 jaegertracing/all-in-one:latest
+docker run -d -e COLLECTOR_OTLP_ENABLED=true -p6831:6831/udp -p6832:6832/udp -p16686:16686 -p14268:14268 jaegertracing/all-in-one:latest
 ```
 
 Launch the servers:
