@@ -156,8 +156,8 @@ impl<'ex> Extractible<'ex> for FormFiles {
             req.files(arg)
                 .await
                 .ok_or_else(|| ParseError::other("file not found"))?
-                .into_iter()
-                .map(|file_part| FormFile::new(&file_part))
+                .iter()
+                .map(FormFile::new)
                 .collect(),
         ))
     }
