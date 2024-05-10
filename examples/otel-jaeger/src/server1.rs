@@ -4,8 +4,7 @@ use std::sync::Arc;
 use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
-use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer, Resource};
 use reqwest::{Client, Method, Url};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
@@ -17,11 +16,11 @@ fn init_tracer() -> Tracer {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint("http://localhost:14268/api/traces"),
+        .with_trace_config(
+            opentelemetry_sdk::trace::config()
+                .with_resource(Resource::new(vec![KeyValue::new("service.name", "server1")])),
         )
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }
