@@ -1,13 +1,17 @@
-use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
 
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::form::FilePart;
-use salvo_core::{async_trait, Request, Writer};
-use serde::{Deserialize, Deserializer};
+use salvo_core::http::header::CONTENT_TYPE;
+use salvo_core::http::{HeaderMap, Mime, ParseError};
+use salvo_core::{async_trait, Request, };
 
 use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Content, Operation, RequestBody, ToRequestBody, ToSchema};
+use crate::{
+    Array, Components, Content, KnownFormat, Object, Operation, RequestBody, Schema, SchemaFormat, SchemaType,
+    ToRequestBody,
+};
 
 /// Represents the upload file.
 #[derive(Clone, Debug)]
@@ -72,7 +76,7 @@ impl FormFile {
 }
 
 impl ToRequestBody for FormFile {
-    fn to_request_body(components: &mut Components) -> RequestBody {
+    fn to_request_body(_components: &mut Components) -> RequestBody {
         let schema =
             Schema::from(Object::with_type(SchemaType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)));
         RequestBody::new()
@@ -81,19 +85,21 @@ impl ToRequestBody for FormFile {
     }
 }
 
-impl Extractible for FormFile {
+impl<'ex> Extractible<'ex> for FormFile {
     fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(req: &'ex mut Request) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
+    #[allow(refining_impl_trait)]
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
-    async fn extract_with_arg(
-        req: &'ex mut Request,
-        arg: &str,
-    ) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
-        req.file(arg).await.map(|file_part| FormFile::new(&file_part))
+    #[allow(refining_impl_trait)]
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+        req.file(arg)
+            .await
+            .map(|file_part| FormFile::new(&file_part))
+            .ok_or_else(|| ParseError::other("file not found"))
     }
 }
 
@@ -105,89 +111,63 @@ impl EndpointArgRegister for FormFile {
     }
 }
 
-
-
 /// Represents the upload files.
 #[derive(Clone, Debug)]
 pub struct FormFiles(Vec<FormFile>);
 impl FormFiles {
-    /// Create a new `FormFile` from a `FilePart`.
-    pub fn new(file_part: &FilePart) -> Self {
-        Self {
-            name: file_part.name().map(|s| s.to_owned()),
-            headers: file_part.headers().clone(),
-            path: file_part.path().to_owned(),
-            size: file_part.size(),
-        }
+    /// Create a new `FormFiles` from a `Vec<&FilePart>`.
+    pub fn new(file_parts: Vec<&FilePart>) -> Self {
+        Self(file_parts.into_iter().map(|fp| FormFile::new(fp)).collect())
     }
+}
+impl Deref for FormFiles {
+    type Target = Vec<FormFile>;
 
-    /// Get file name.
-    #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-    /// Get file name mutable reference.
-    #[inline]
-    pub fn name_mut(&mut self) -> Option<&mut String> {
-        self.name.as_mut()
-    }
-    /// Get headers.
-    #[inline]
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-    /// Get headers mutable reference.
-    pub fn headers_mut(&mut self) -> &mut HeaderMap {
-        &mut self.headers
-    }
-    /// Get content type.
-    #[inline]
-    pub fn content_type(&self) -> Option<Mime> {
-        self.headers
-            .get(CONTENT_TYPE)
-            .and_then(|h| h.to_str().ok())
-            .and_then(|v| v.parse().ok())
-    }
-    /// Get file path.
-    #[inline]
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
-    /// Get file size.
-    #[inline]
-    pub fn size(&self) -> u64 {
-        self.size
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl ToRequestBody for FormFile {
-    fn to_request_body(components: &mut Components) -> RequestBody {
-        let schema =
-            Schema::from(Object::with_type(SchemaType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)));
+impl DerefMut for FormFiles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl ToRequestBody for FormFiles {
+    fn to_request_body(_components: &mut Components) -> RequestBody {
+        let schema = Schema::from(Array::new(Schema::from(
+            Object::with_type(SchemaType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
+        )));
         RequestBody::new()
-            .description("Upload a file.")
+            .description("Upload files.")
             .add_content("multipart/form-data", Content::new(schema))
     }
 }
 
-impl Extractible for FormFile {
+impl<'ex> Extractible<'ex> for FormFiles {
     fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(req: &'ex mut Request) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
+    #[allow(refining_impl_trait)]
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
-    async fn extract_with_arg(
-        req: &'ex mut Request,
-        arg: &str,
-    ) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
-        req.file(arg).await.map(|file_part| FormFile::new(&file_part))
+    #[allow(refining_impl_trait)]
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+        Ok(Self(
+            req.files(arg)
+                .await
+                .ok_or_else(|| ParseError::other("file not found"))?.into_iter()
+                .map(|file_part| FormFile::new(&file_part))
+                .collect(),
+        ))
     }
 }
 
 #[async_trait]
-impl EndpointArgRegister for FormFile {
+impl EndpointArgRegister for FormFiles {
     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
         let request_body = Self::to_request_body(components);
         operation.request_body = Some(request_body);
