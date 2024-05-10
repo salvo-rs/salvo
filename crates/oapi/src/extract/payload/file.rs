@@ -5,7 +5,7 @@ use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::form::FilePart;
 use salvo_core::http::header::CONTENT_TYPE;
 use salvo_core::http::{HeaderMap, Mime, ParseError};
-use salvo_core::{async_trait, Request, };
+use salvo_core::{async_trait, Request};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{
@@ -159,7 +159,8 @@ impl<'ex> Extractible<'ex> for FormFiles {
         Ok(Self(
             req.files(arg)
                 .await
-                .ok_or_else(|| ParseError::other("file not found"))?.into_iter()
+                .ok_or_else(|| ParseError::other("file not found"))?
+                .into_iter()
                 .map(|file_part| FormFile::new(&file_part))
                 .collect(),
         ))
