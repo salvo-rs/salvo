@@ -6,32 +6,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use proc_macro2::{Ident, Span, TokenTree};
-use proc_macro_error::abort;
 use syn::{buffer::Cursor, Attribute, Error};
+use proc_macro2_diagnostics::{SpanDiagnosticExt, Diagnostic};
 
 pub(crate) mod case;
 pub use case::RenameRule;
 
-trait ResultExt<T> {
-    fn unwrap_or_abort(self) -> T;
-    // fn expect_or_abort(self, message: &str) -> T;
-}
-
-impl<T> ResultExt<T> for Result<T, syn::Error> {
-    fn unwrap_or_abort(self) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}")),
-        }
-    }
-
-    // fn expect_or_abort(self, message: &str) -> T {
-    //     match self {
-    //         Ok(value) => value,
-    //         Err(error) => abort!(error.span(), format!("{error}: {message}")),
-    //     }
-    // }
-}
 
 #[inline]
 fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
