@@ -23,7 +23,7 @@ pub(crate) struct Operation<'a> {
     operation_id: Option<&'a Expr>,
     tags: &'a Option<Vec<String>>,
     summary: Option<&'a String>,
-    description: Option<&'a Vec<String>>,
+    description: Option<&'a [String]>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
@@ -32,12 +32,25 @@ pub(crate) struct Operation<'a> {
 
 impl<'a> Operation<'a> {
     pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
+        let split_comment = attr
+            .doc_comments
+            .as_ref()
+            .and_then(|comments| comments.split_first())
+            .map(|(summary, description)| {
+                // Skip all whitespace lines
+                let start_pos = description.iter().position(|s| !s.chars().all(char::is_whitespace));
+
+                let trimmed = start_pos.and_then(|pos| description.get(pos..)).unwrap_or(description);
+
+                (summary, trimmed)
+            });
+
         Self {
             deprecated: &attr.deprecated,
             operation_id: attr.operation_id.as_ref(),
             tags: &attr.tags,
-            summary: attr.doc_comments.as_ref().and_then(|comments| comments.iter().next()),
-            description: attr.doc_comments.as_ref(),
+            summary: split_comment.map(|(summary, _)| summary),
+            description: split_comment.map(|(_, description)| description),
             parameters: attr.parameters.as_ref(),
             request_body: attr.request_body.as_ref(),
             responses: attr.responses.as_ref(),
