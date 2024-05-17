@@ -910,7 +910,7 @@ mod tests {
                        "/pets/{id}": {
                           "get": {
                              "summary": "Get pet by id",
-                             "description": "Get pet by id\n\nGet pet from database by pet database id",
+                             "description": "Get pet from database by pet database id",
                              "operationId": "salvo_oapi.openapi.tests.simple_document_with_security.get_pet_by_id",
                              "parameters": [
                                 {
