@@ -1,9 +1,9 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{parenthesized, Error, LitStr, Token};
 
-use crate::{parse_utils, AnyValue};
+use crate::{parse_utils, AnyValue, };
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default, Debug)]
@@ -75,7 +75,7 @@ impl Parse for Example {
 }
 
 impl ToTokens for Example {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let summary = self.summary.as_ref().map(|summary| quote!(.summary(#summary)));
         let description = self
@@ -88,7 +88,7 @@ impl ToTokens for Example {
             .as_ref()
             .map(|external_value| quote!(.external_value(#external_value)));
 
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::Example::new()
                 #summary
                 #description

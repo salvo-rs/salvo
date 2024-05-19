@@ -12,7 +12,6 @@ use std::borrow::Cow;
 use std::ops::Deref;
 
 use proc_macro::TokenStream;
-use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
@@ -54,13 +53,13 @@ pub(crate) use self::{
     shared::*,
     type_tree::TypeTree,
 };
+pub(crate) use proc_macro2_diagnostics::{Diagnostic, Level as DiagLevel};
 pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
 /// Enhanced of [handler][handler] for generate OpenAPI documention, [Read more][more].
 ///
 /// [handler]: ../salvo_core/attr.handler.html
 /// [more]: ../salvo_oapi/endpoint/index.html
-#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
@@ -74,7 +73,6 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// [to_schema]: ../salvo_oapi/trait.ToSchema.html
 /// [more]: ../salvo_oapi/derive.ToSchema.html
-#[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -85,13 +83,15 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToSchema::new(&data, &attrs, &ident, &generics).to_token_stream().into()
+    match ToSchema::new(&data, &attrs, &ident, &generics).try_to_token_stream() {
+        Ok(stream) => stream.into(),
+        Err(diag) => diag.emit_as_expr_tokens().into(),
+    }
 }
 
 /// Generate parameters from struct's fields, [Read more][more].
 ///
 /// [more]: ../salvo_oapi/derive.ToParameters.html
-#[proc_macro_error]
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -102,21 +102,23 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToParameters {
+    let stream = ToParameters {
         attrs,
         generics,
         data,
         ident,
     }
-    .to_token_stream()
-    .into()
+    .try_to_token_stream();
+    match stream {
+        Ok(stream) => stream.into(),
+        Err(diag) => diag.emit_as_expr_tokens().into(),
+    }
 }
 
 /// Generate reusable [OpenApi][openapi] response, [Read more][more].
 ///
 /// [openapi]: ../salvo_oapi/struct.OpenApi.html
 /// [more]: ../salvo_oapi/derive.ToResponse.html
-#[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -127,14 +129,17 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToResponse::new(attrs, &data, generics, ident).to_token_stream().into()
+    let stream = ToResponse::new(attrs, &data, generics, ident).and_then(|s| s.try_to_token_stream());
+    match stream {
+        Ok(stream) => stream.into(),
+        Err(diag) => diag.emit_as_expr_tokens().into(),
+    }
 }
 
 /// Generate responses with status codes what can be used in [OpenAPI][openapi], [Read more][more].
 ///
 /// [openapi]: ../salvo_oapi/struct.OpenApi.html
 /// [more]: ../salvo_oapi/derive.ToResponses.html
-#[proc_macro_error]
 #[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -145,14 +150,18 @@ pub fn to_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToResponses {
+    let stream = ToResponses {
         attributes: attrs,
         ident,
         generics,
         data,
     }
-    .to_token_stream()
-    .into()
+    .try_to_token_stream();
+
+    match stream {
+        Ok(stream) => stream.into(),
+        Err(diag) => diag.emit_as_expr_tokens().into(),
+    }
 }
 
 #[doc(hidden)]
@@ -181,17 +190,24 @@ pub fn schema(input: TokenStream) -> TokenStream {
     }
 
     let schema = syn::parse_macro_input!(input as Schema);
-    let type_tree = TypeTree::from_type(&schema.ty);
+    let type_tree = match TypeTree::from_type(&schema.ty) {
+        Ok(type_tree) => type_tree,
+        Err(diag) => return diag.emit_as_expr_tokens().into(),
+    };
 
-    let schema = ComponentSchema::new(ComponentSchemaProps {
+    let stream = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
         type_tree: &type_tree,
         deprecated: None,
         description: None,
         object_name: "",
         type_definition: false,
-    });
-    schema.to_token_stream().into()
+    })
+    .map(|s| s.to_token_stream());
+    match stream {
+        Ok(stream) => stream.into(),
+        Err(diag) => diag.emit_as_expr_tokens().into(),
+    }
 }
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
@@ -262,13 +278,13 @@ impl<T> ToTokens for Array<'_, T>
 where
     T: Sized + ToTokens,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let values = match self {
             Self::Owned(values) => values.iter(),
             Self::Borrowed(values) => values.iter(),
         };
 
-        tokens.append(Group::new(
+        stream.append(Group::new(
             proc_macro2::Delimiter::Bracket,
             values
                 .fold(Punctuated::new(), |mut punctuated, item| {
@@ -299,9 +315,9 @@ impl From<bool> for Deprecated {
 }
 
 impl ToTokens for Deprecated {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(match self {
+        stream.extend(match self {
             Self::False => quote! { #oapi::oapi::Deprecated::False },
             Self::True => quote! { #oapi::oapi::Deprecated::True },
         })
@@ -332,9 +348,9 @@ impl From<feature::Required> for Required {
 }
 
 impl ToTokens for Required {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(match self {
+        stream.extend(match self {
             Self::False => quote! { #oapi::oapi::Required::False },
             Self::True => quote! { #oapi::oapi::Required::True },
         })
@@ -379,16 +395,16 @@ impl Parse for ExternalDocs {
 }
 
 impl ToTokens for ExternalDocs {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let url = &self.url;
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::external_docs::ExternalDocsBuilder::new()
                 .url(#url)
         });
 
         if let Some(ref description) = self.description {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .description(#description)
             });
         }
@@ -481,27 +497,6 @@ impl ToTokens for AnyValue {
             } => tokens.extend(quote! {
                 #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
-        }
-    }
-}
-
-trait ResultExt<T> {
-    fn unwrap_or_abort(self) -> T;
-    fn expect_or_abort(self, message: &str) -> T;
-}
-
-impl<T> ResultExt<T> for Result<T, syn::Error> {
-    fn unwrap_or_abort(self) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}")),
-        }
-    }
-
-    fn expect_or_abort(self, message: &str) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}: {message}")),
         }
     }
 }

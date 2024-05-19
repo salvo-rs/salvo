@@ -1,23 +1,24 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 
 use crate::{
     feature::{Feature, Rename, RenameAll, Style, ValueType},
     type_tree::TypeTree,
+    DiagResult, TryToTokens,
 };
 
 use super::ParameterIn;
 
-pub(crate) trait ToTokensExt {
-    fn to_token_stream(&self) -> TokenStream;
+pub(crate) trait TryToTokensExt {
+    fn try_to_token_stream(&self) -> DiagResult<TokenStream>;
 }
 
-impl ToTokensExt for Vec<Feature> {
-    fn to_token_stream(&self) -> TokenStream {
-        self.iter().fold(TokenStream::new(), |mut tokens, item| {
-            item.to_tokens(&mut tokens);
-            tokens
-        })
+impl TryToTokensExt for Vec<Feature> {
+    fn try_to_token_stream(&self) -> DiagResult<TokenStream> {
+        let mut tokens = TokenStream::new();
+        for item in self.iter() {
+            item.try_to_tokens(&mut tokens)?;
+        }
+        Ok(tokens)
     }
 }
 
@@ -90,7 +91,9 @@ impl FeaturesExt for Vec<Feature> {
     fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
         self.iter_mut().find_map(|feature| match feature {
             Feature::XmlAttr(xml_feature) => {
-                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
+                let Ok((vec_xml, value_xml)) = xml_feature.split_for_vec(type_tree) else {
+                    return None;
+                };
 
                 // replace the original xml attribute with split value xml
                 if let Some(mut xml) = value_xml {

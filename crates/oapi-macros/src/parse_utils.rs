@@ -9,8 +9,6 @@ use syn::{
     Error, Expr, LitBool, LitStr, Token,
 };
 
-use crate::ResultExt;
-
 #[derive(Debug)]
 pub(crate) enum Value {
     LitStr(LitStr),
@@ -40,10 +38,10 @@ impl Parse for Value {
 }
 
 impl ToTokens for Value {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         match self {
-            Self::LitStr(str) => str.to_tokens(tokens),
-            Self::Expr(expr) => expr.to_tokens(tokens),
+            Self::LitStr(str) => str.to_tokens(stream),
+            Self::Expr(expr) => expr.to_tokens(stream),
         }
     }
 }
@@ -57,10 +55,8 @@ impl Display for Value {
     }
 }
 
-pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
-    input
-        .parse::<Token![=]>()
-        .expect_or_abort("expected equals token before value assignment");
+pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> syn::Result<T>) -> syn::Result<T> {
+    input.parse::<Token![=]>()?;
     next()
 }
 

@@ -1,7 +1,6 @@
 use std::{fmt::Display, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::ParseStream, punctuated::Punctuated, token, LitStr, TypePath, WherePredicate};
 
@@ -12,7 +11,7 @@ use crate::{
     schema_type::SchemaFormat,
     serde_util::RenameRule,
     type_tree::{GenericType, TypeTree},
-    AnyValue,
+    AnyValue, DiagLevel, DiagResult, Diagnostic, TryToTokens,
 };
 
 #[derive(Clone, Debug)]
@@ -25,8 +24,8 @@ impl Parse for Example {
 }
 
 impl ToTokens for Example {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 
@@ -54,10 +53,10 @@ impl Parse for Default {
     }
 }
 impl ToTokens for Default {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         match &self.0 {
-            Some(inner) => tokens.extend(quote! {Some(#inner)}),
-            None => tokens.extend(quote! {None}),
+            Some(inner) => stream.extend(quote! {Some(#inner)}),
+            None => stream.extend(quote! {None}),
         }
     }
 }
@@ -92,7 +91,7 @@ pub(crate) struct XmlAttr(pub(crate) schema::XmlAttr);
 impl XmlAttr {
     /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
     /// one is for a vec and second one is for object field.
-    pub(crate) fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
+    pub(crate) fn split_for_vec(&mut self, type_tree: &TypeTree) -> DiagResult<(Option<XmlAttr>, Option<XmlAttr>)> {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
             let mut value_xml = mem::take(self);
             let vec_xml = schema::XmlAttr::with_wrapped(
@@ -100,20 +99,25 @@ impl XmlAttr {
                 mem::take(&mut value_xml.0.wrap_name),
             );
 
-            (Some(XmlAttr(vec_xml)), Some(value_xml))
+            Ok((Some(XmlAttr(vec_xml)), Some(value_xml)))
         } else {
-            self.validate_xml(&self.0);
+            self.validate_xml(&self.0)?;
 
-            (None, Some(mem::take(self)))
+            Ok((None, Some(mem::take(self))))
         }
     }
 
     #[inline]
-    fn validate_xml(&self, xml: &schema::XmlAttr) {
+    fn validate_xml(&self, xml: &schema::XmlAttr) -> DiagResult<()> {
         if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
-            abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
-                help = "Try removing `wrapped` attribute or make your field `Vec`"
-            }
+            Err(Diagnostic::spanned(
+                wrapped_ident.span(),
+                DiagLevel::Error,
+                format!("cannot use `wrapped` attribute in non slice field type"),
+            )
+            .help("Try removing `wrapped` attribute or make your field `Vec`"))
+        } else {
+            Ok(())
         }
     }
 }
@@ -125,8 +129,8 @@ impl Parse for XmlAttr {
     }
 }
 impl ToTokens for XmlAttr {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 impl From<XmlAttr> for Feature {
@@ -143,9 +147,10 @@ impl Parse for Format {
         parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
     }
 }
-impl ToTokens for Format {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+impl TryToTokens for Format {
+    fn try_to_tokens(&self, stream: &mut TokenStream) -> DiagResult<()> {
+        stream.extend(self.0.try_to_token_stream()?);
+        Ok(())
     }
 }
 impl From<Format> for Feature {
@@ -159,7 +164,7 @@ impl_name!(Format = "format");
 pub(crate) struct ValueType(pub(crate) syn::Type);
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub(crate) fn as_type_tree(&self) -> TypeTree {
+    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree> {
         TypeTree::from_type(&self.0)
     }
 }
@@ -183,8 +188,8 @@ impl Parse for WriteOnly {
     }
 }
 impl ToTokens for WriteOnly {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 impl From<WriteOnly> for Feature {
@@ -202,8 +207,8 @@ impl Parse for ReadOnly {
     }
 }
 impl ToTokens for ReadOnly {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 impl From<ReadOnly> for Feature {
@@ -221,8 +226,8 @@ impl Parse for Symbol {
     }
 }
 impl ToTokens for Symbol {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 impl From<Symbol> for Feature {
@@ -245,8 +250,8 @@ impl Parse for Nullable {
     }
 }
 impl ToTokens for Nullable {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 impl From<Nullable> for Feature {
@@ -269,8 +274,8 @@ impl Parse for Rename {
     }
 }
 impl ToTokens for Rename {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
     }
 }
 
@@ -319,8 +324,8 @@ impl Parse for DefaultStyle {
     }
 }
 impl ToTokens for DefaultStyle {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream)
     }
 }
 impl From<DefaultStyle> for Feature {
@@ -343,8 +348,8 @@ impl Parse for Style {
     }
 }
 impl ToTokens for Style {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream)
     }
 }
 impl From<Style> for Feature {
@@ -362,8 +367,8 @@ impl Parse for AllowReserved {
     }
 }
 impl ToTokens for AllowReserved {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream)
     }
 }
 impl From<AllowReserved> for Feature {
@@ -381,8 +386,8 @@ impl Parse for Explode {
     }
 }
 impl ToTokens for Explode {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream)
     }
 }
 impl From<Explode> for Feature {
@@ -400,8 +405,8 @@ impl Parse for DefaultParameterIn {
     }
 }
 impl ToTokens for DefaultParameterIn {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<DefaultParameterIn> for Feature {
@@ -419,8 +424,8 @@ impl Parse for ParameterIn {
     }
 }
 impl ToTokens for ParameterIn {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<ParameterIn> for Feature {
@@ -458,12 +463,19 @@ impl_name!(Names = "names");
 #[derive(Clone, Debug)]
 pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);
 impl Validate for MultipleOf {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`multiple_of` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`"
-            }
-        };
+            Err(Diagnostic::spanned(
+                self.1.span(),
+                DiagLevel::Error,
+                format!("`multiple_of` error: {}", error),
+            )
+            .help(
+                "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`",
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 impl Parse for MultipleOf {
@@ -472,8 +484,8 @@ impl Parse for MultipleOf {
     }
 }
 impl ToTokens for MultipleOf {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MultipleOf> for Feature {
@@ -486,11 +498,15 @@ impl_name!(MultipleOf = "multiple_of");
 #[derive(Clone, Debug)]
 pub(crate) struct Maximum(pub(crate) f64, pub(crate) Ident);
 impl Validate for Maximum {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`maximum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`"
-            }
+            Err(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`maximum` error: {}", error)).help(
+                    "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`",
+                ),
+            )
+        } else {
+            Ok(())
         }
     }
 }
@@ -503,8 +519,8 @@ impl Parse for Maximum {
     }
 }
 impl ToTokens for Maximum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<Maximum> for Feature {
@@ -522,11 +538,15 @@ impl Minimum {
     }
 }
 impl Validate for Minimum {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`minimum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`"
-            }
+            Err(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`minimum` error: {}", error)).help(
+                    "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`",
+                ),
+            )
+        } else {
+            Ok(())
         }
     }
 }
@@ -539,8 +559,8 @@ impl Parse for Minimum {
     }
 }
 impl ToTokens for Minimum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<Minimum> for Feature {
@@ -553,11 +573,12 @@ impl_name!(Minimum = "minimum");
 #[derive(Clone, Debug)]
 pub(crate) struct ExclusiveMaximum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMaximum {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`exclusive_maximum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`"
-            }
+            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_maximum` error: {}", error))
+            .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`"))
+        } else {
+            Ok(())
         }
     }
 }
@@ -570,8 +591,8 @@ impl Parse for ExclusiveMaximum {
     }
 }
 impl ToTokens for ExclusiveMaximum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<ExclusiveMaximum> for Feature {
@@ -584,11 +605,12 @@ impl_name!(ExclusiveMaximum = "exclusive_maximum");
 #[derive(Clone, Debug)]
 pub(crate) struct ExclusiveMinimum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMinimum {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`exclusive_minimum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`"
-            }
+            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_minimum` error: {}", error))
+            .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`"))
+        } else {
+            Ok(())
         }
     }
 }
@@ -601,8 +623,8 @@ impl Parse for ExclusiveMinimum {
     }
 }
 impl ToTokens for ExclusiveMinimum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<ExclusiveMinimum> for Feature {
@@ -615,11 +637,18 @@ impl_name!(ExclusiveMinimum = "exclusive_minimum");
 #[derive(Clone, Debug)]
 pub(crate) struct MaxLength(pub(crate) usize, pub(crate) Ident);
 impl Validate for MaxLength {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`max_length` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`"
-            }
+            Err(Diagnostic::spanned(
+                self.1.span(),
+                DiagLevel::Error,
+                format!("`max_length` error: {}", error),
+            )
+            .help(
+                "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`",
+            ))
+        } else {
+            Ok(())
         }
     }
 }
@@ -632,8 +661,8 @@ impl Parse for MaxLength {
     }
 }
 impl ToTokens for MaxLength {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MaxLength> for Feature {
@@ -646,11 +675,18 @@ impl_name!(MaxLength = "max_length");
 #[derive(Clone, Debug)]
 pub(crate) struct MinLength(pub(crate) usize, pub(crate) Ident);
 impl Validate for MinLength {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`min_length` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`"
-            }
+            Err(Diagnostic::spanned(
+                self.1.span(),
+                DiagLevel::Error,
+                format!("`min_length` error: {}", error),
+            )
+            .help(
+                "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`",
+            ))
+        } else {
+            Ok(())
         }
     }
 }
@@ -663,8 +699,8 @@ impl Parse for MinLength {
     }
 }
 impl ToTokens for MinLength {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MinLength> for Feature {
@@ -677,11 +713,15 @@ impl_name!(MinLength = "min_length");
 #[derive(Clone, Debug)]
 pub(crate) struct Pattern(pub(crate) String, pub(crate) Ident);
 impl Validate for Pattern {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`pattern` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`"
-            }
+            Err(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`pattern` error: {}", error)).help(
+                    "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`",
+                ),
+            )
+        } else {
+            Ok(())
         }
     }
 }
@@ -694,8 +734,8 @@ impl Parse for Pattern {
     }
 }
 impl ToTokens for Pattern {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<Pattern> for Feature {
@@ -708,11 +748,15 @@ impl_name!(Pattern = "pattern");
 #[derive(Clone, Debug)]
 pub(crate) struct MaxItems(pub(crate) usize, pub(crate) Ident);
 impl Validate for MaxItems {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`max_items` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems"
-            }
+            Err(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`max_items` error: {}", error)).help(
+                    "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems",
+                ),
+            )
+        } else {
+            Ok(())
         }
     }
 }
@@ -725,8 +769,8 @@ impl Parse for MaxItems {
     }
 }
 impl ToTokens for MaxItems {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MaxItems> for Feature {
@@ -739,11 +783,15 @@ impl_name!(MaxItems = "max_items");
 #[derive(Clone, Debug)]
 pub(crate) struct MinItems(pub(crate) usize, pub(crate) Ident);
 impl Validate for MinItems {
-    fn validate(&self, validator: impl Validator) {
+    fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`min_items` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems"
-            }
+            Err(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`min_items` error: {}", error)).help(
+                    "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems",
+                ),
+            )
+        } else {
+            Ok(())
         }
     }
 }
@@ -756,8 +804,8 @@ impl Parse for MinItems {
     }
 }
 impl ToTokens for MinItems {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MinItems> for Feature {
@@ -779,8 +827,8 @@ impl Parse for MaxProperties {
     }
 }
 impl ToTokens for MaxProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MaxProperties> for Feature {
@@ -802,8 +850,8 @@ impl Parse for MinProperties {
     }
 }
 impl ToTokens for MinProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<MinProperties> for Feature {
@@ -821,9 +869,9 @@ impl Parse for SchemaWith {
     }
 }
 impl ToTokens for SchemaWith {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let path = &self.0;
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #path()
         })
     }
@@ -847,8 +895,10 @@ impl Parse for Bound {
         })
     }
 }
-impl ToTokens for Bound {
-    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+impl TryToTokens for Bound {
+    fn try_to_tokens(&self, _stream: &mut TokenStream) -> DiagResult<()> {
+        Ok(())
+    }
 }
 impl From<Bound> for Feature {
     fn from(value: Bound) -> Self {
@@ -865,7 +915,7 @@ impl Parse for SkipBound {
     }
 }
 impl ToTokens for SkipBound {
-    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+    fn to_tokens(&self, _stream: &mut proc_macro2::TokenStream) {}
 }
 impl From<SkipBound> for Feature {
     fn from(value: SkipBound) -> Self {
@@ -885,8 +935,8 @@ impl Parse for Description {
     }
 }
 impl ToTokens for Description {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream);
     }
 }
 impl From<String> for Description {
@@ -916,9 +966,9 @@ impl Parse for Deprecated {
     }
 }
 impl ToTokens for Deprecated {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let deprecated: crate::Deprecated = self.0.into();
-        deprecated.to_tokens(tokens);
+        deprecated.to_tokens(stream);
     }
 }
 impl From<Deprecated> for Feature {
@@ -964,10 +1014,10 @@ impl Parse for AdditionalProperties {
     }
 }
 impl ToTokens for AdditionalProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let additional_properties = &self.0;
-        tokens.extend(quote!(
+        stream.extend(quote!(
             #oapi::oapi::schema::AdditionalProperties::FreeForm(
                 #additional_properties
             )
@@ -994,8 +1044,8 @@ impl Parse for Required {
     }
 }
 impl ToTokens for Required {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        self.0.to_tokens(stream)
     }
 }
 impl From<crate::Required> for Required {

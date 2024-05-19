@@ -7,11 +7,9 @@
 
 use proc_macro2::{Ident, Span, TokenTree};
 use syn::{buffer::Cursor, Attribute, Error};
-use proc_macro2_diagnostics::{SpanDiagnosticExt, Diagnostic};
 
 pub(crate) mod case;
 pub use case::RenameRule;
-
 
 #[inline]
 fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
@@ -147,9 +145,11 @@ impl SerdeContainer {
                             content: content.clone(),
                         },
                         SerdeEnumRepr::InternallyTagged { .. } | SerdeEnumRepr::AdjacentlyTagged { .. } => {
-                            abort!(span, "Duplicate serde tag argument")
+                            return Err(Error::new(span, "Duplicate serde tag argument"));
                         }
-                        SerdeEnumRepr::Untagged => abort!(span, "Untagged enum cannot have tag"),
+                        SerdeEnumRepr::Untagged => {
+                            return Err(Error::new(span, "Untagged enum cannot have tag"));
+                        }
                     };
                 }
             }
@@ -164,10 +164,10 @@ impl SerdeContainer {
                             SerdeEnumRepr::UnfinishedAdjacentlyTagged { content: literal }
                         }
                         SerdeEnumRepr::AdjacentlyTagged { .. } | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                            abort!(span, "Duplicate serde content argument")
+                            return Err(Error::new(span, "Duplicate serde content argument"));
                         }
                         SerdeEnumRepr::Untagged => {
-                            abort!(span, "Untagged enum cannot have content")
+                            return Err(Error::new(span, "Untagged enum cannot have content"));
                         }
                     };
                 }
@@ -211,8 +211,11 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse).unwrap_or_abort())
+        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse))
         .try_fold(SerdeValue::default(), |mut acc, value| {
+            let Ok(value) = value else {
+                return Some(acc);
+            };
             if value.skip {
                 acc.skip = value.skip;
             }
@@ -241,8 +244,11 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse).unwrap_or_abort())
+        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse))
         .try_fold(SerdeContainer::default(), |mut acc, value| {
+            let Ok(value) = value else {
+                return Some(acc);
+            };
             if value.is_default {
                 acc.is_default = value.is_default;
             }

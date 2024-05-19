@@ -7,7 +7,7 @@ use crate::feature::{
     Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename,
     RenameAll, Required, SchemaWith, Skip, SkipBound, Symbol, ValueType, WriteOnly, XmlAttr,
 };
-use crate::{attribute, ResultExt};
+use crate::{attribute, DiagResult, Diagnostic};
 
 #[derive(Debug)]
 pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);
@@ -167,13 +167,13 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
 impl_into_inner!(EnumUnnamedFieldVariantFeatures);
 
 pub(crate) trait FromAttributes {
-    fn parse_features<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Result<Option<T>, Diagnostic>
     where
         T: Parse + Merge<T>;
 }
 
 impl FromAttributes for &'_ [Attribute] {
-    fn parse_features<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Result<Option<T>, Diagnostic>
     where
         T: Parse + Merge<T>,
     {
@@ -182,7 +182,7 @@ impl FromAttributes for &'_ [Attribute] {
 }
 
 impl FromAttributes for Vec<Attribute> {
-    fn parse_features<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Result<Option<T>, Diagnostic>
     where
         T: Parse + Merge<T>,
     {
@@ -200,13 +200,17 @@ impl_merge!(
     EnumUnnamedFieldVariantFeatures
 );
 
-pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
-    attributes
+pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(
+    attributes: &[Attribute],
+) -> DiagResult<Option<T>> {
+    Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("salvo"))
         .filter_map(|attr| attribute::find_nested_list(attr, "schema").ok().flatten())
-        .map(|attr| attr.parse_args::<T>().unwrap_or_abort())
-        .reduce(|acc, item| acc.merge(item))
+        .map(|attr| attr.parse_args::<T>().map_err(Diagnostic::from))
+        .collect::<Result<Vec<T>, Diagnostic>>()?
+        .into_iter()
+        .reduce(|acc, item| acc.merge(item)))
 }
 
 pub(crate) fn parse_schema_features_with<
@@ -215,10 +219,12 @@ pub(crate) fn parse_schema_features_with<
 >(
     attributes: &[Attribute],
     parser: P,
-) -> Option<T> {
-    attributes
+) -> DiagResult<Option<T>> {
+    Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("schema"))
-        .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
-        .reduce(|acc, item| acc.merge(item))
+        .map(|attributes| attributes.parse_args_with(parser).map_err(Diagnostic::from))
+        .collect::<Result<Vec<T>, Diagnostic>>()?
+        .into_iter()
+        .reduce(|acc, item| acc.merge(item)))
 }

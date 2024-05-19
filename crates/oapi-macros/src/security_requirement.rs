@@ -1,4 +1,3 @@
-use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     bracketed,
@@ -8,7 +7,7 @@ use syn::{
     LitStr, Token,
 };
 
-use crate::Array;
+use crate::{Array,};
 
 #[derive(Default, Debug)]
 pub(crate) struct SecurityRequirementsAttrItem {
@@ -47,9 +46,9 @@ impl Parse for SecurityRequirementsAttrItem {
 }
 
 impl ToTokens for SecurityRequirementsAttr {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::security::SecurityRequirement::default()
         });
 
@@ -58,7 +57,7 @@ impl ToTokens for SecurityRequirementsAttr {
                 let scopes = scopes.iter().collect::<Array<&String>>();
                 let scopes_len = scopes.len();
 
-                tokens.extend(quote! {
+                stream.extend(quote! {
                     .add::<&str, [&str; #scopes_len], &str>(#name, #scopes)
                 });
             }

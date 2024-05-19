@@ -1,4 +1,5 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
+use proc_macro2_diagnostics::Diagnostic;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::ToTokens;
 use regex::Regex;
@@ -82,3 +83,16 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
     let ty_path = reg.replace_all(&ty_path, "'_");
     syn::parse_str(ty_path.as_ref()).expect("failed to parse type path")
 }
+
+pub(crate) trait TryToTokens {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()>;
+    fn try_to_token_stream(&self) -> DiagResult<TokenStream> {
+        let mut tokens = TokenStream::new();
+        match self.try_to_tokens(&mut tokens) {
+            Ok(()) => Ok(tokens),
+            Err(diag) => Err(diag),
+        }
+    }
+}
+
+pub(crate) type DiagResult<T> = Result<T, Diagnostic>;

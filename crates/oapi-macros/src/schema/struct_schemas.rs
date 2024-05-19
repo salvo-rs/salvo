@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, Token};
 
@@ -10,13 +9,13 @@ use crate::{
     doc_comment::CommentAttributes,
     feature::{
         pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, SkipBound,
-        Symbol, ToTokensExt,
+        Symbol, TryToTokensExt,
     },
     schema::Inline,
     serde_util::{self, SerdeContainer},
     type_tree::TypeTree,
-    Deprecated,
 };
+use crate::{Deprecated, DiagLevel, DiagResult, Diagnostic, SerdeValue, TryToTokens};
 
 use super::{
     feature::{FromAttributes, NamedFieldFeatures},
@@ -50,15 +49,14 @@ impl NamedStructSchema<'_> {
     pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
         pop_feature_as_inner!(self.features => Feature::Bound(_v))
     }
-    fn field_as_schema_property<R>(
+    fn field_as_schema_property(
         &self,
         field: &Field,
         flatten: bool,
         container_rules: &Option<SerdeContainer>,
-        yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
-    ) -> R {
-        let type_tree = &mut TypeTree::from_type(&field.ty);
-        let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>().into_inner();
+    ) -> DiagResult<NamedStructFieldOptions<'_>> {
+        let type_tree = &mut TypeTree::from_type(&field.ty)?;
+        let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>()?.into_inner();
 
         let schema_default = self
             .features
@@ -94,14 +92,17 @@ impl NamedStructSchema<'_> {
         let value_type = field_features
             .as_mut()
             .and_then(|features| features.pop_value_type_feature());
-        let override_type_tree = value_type.as_ref().map(|value_type| value_type.as_type_tree());
+        let override_type_tree = value_type
+            .as_ref()
+            .map(|value_type| value_type.as_type_tree())
+            .transpose()?;
         let comments = CommentAttributes::from_attributes(&field.attrs);
         let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
         let is_option = type_tree.is_option();
 
-        yield_(NamedStructFieldOptions {
+        Ok(NamedStructFieldOptions {
             property: if let Some(with_schema) = with_schema {
                 Property::SchemaWith(with_schema)
             } else {
@@ -114,9 +115,9 @@ impl NamedStructSchema<'_> {
                     type_definition: true,
                 };
                 if flatten && type_tree.is_map() {
-                    Property::FlattenedMap(FlattenedMapSchema::new(cs))
+                    Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
                 } else {
-                    Property::Schema(ComponentSchema::new(cs))
+                    Property::Schema(ComponentSchema::new(cs)?)
                 }
             },
             rename_field_value: rename_field,
@@ -126,92 +127,88 @@ impl NamedStructSchema<'_> {
     }
 }
 
-impl ToTokens for NamedStructSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for NamedStructSchema<'_> {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let container_rules = serde_util::parse_container(self.attributes);
 
-        let mut object_tokens = self
+        let field_values = self
             .fields
             .iter()
-            .filter_map(|field| {
+            .map(|field| {
                 let is_skipped = field
                     .attrs
-                    .parse_features::<NamedFieldFeatures>()
+                    .parse_features::<NamedFieldFeatures>()?
                     .into_inner()
                     .map(|features| features.is_skipped())
                     .unwrap_or(false);
 
                 if is_skipped {
-                    return None;
+                    return Ok(None);
                 }
 
                 let field_rule = serde_util::parse_value(&field.attrs);
 
-                if is_not_skipped(&field_rule) && !is_flatten(&field_rule) {
-                    Some((field, field_rule))
+                if is_not_skipped(field_rule.as_ref()) && !is_flatten(field_rule.as_ref()) {
+                    Ok(Some((field, field_rule)))
                 } else {
-                    None
+                    Ok(None)
                 }
             })
-            .fold(
-                quote! { #oapi::oapi::Object::new() },
-                |mut object_tokens, (field, field_rule)| {
-                    let mut field_name = &*field.ident.as_ref().expect("field ident shoule be exists").to_string();
+            .collect::<DiagResult<Vec<Option<(&Field, Option<SerdeValue>)>>>>()?
+            .into_iter()
+            .filter_map(|f| f)
+            .collect::<Vec<_>>();
 
-                    if field_name.starts_with("r#") {
-                        field_name = &field_name[2..];
-                    }
+        let mut object_tokens = quote! { #oapi::oapi::Object::new() };
+        for (field, field_rule) in field_values {
+            let mut field_name = &*field.ident.as_ref().expect("field ident shoule be exists").to_string();
 
-                    self.field_as_schema_property(
-                        field,
-                        false,
-                        &container_rules,
-                        |NamedStructFieldOptions {
-                             property,
-                             rename_field_value,
-                             required,
-                             is_option,
-                         }| {
-                            let rename_to = field_rule
-                                .as_ref()
-                                .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
-                                .or(rename_field_value);
-                            let rename_all = container_rules
-                                .as_ref()
-                                .and_then(|container_rule| container_rule.rename_all.as_ref())
-                                .or_else(|| self.rename_all.as_ref().map(|rename_all| rename_all.as_rename_rule()));
+            if field_name.starts_with("r#") {
+                field_name = &field_name[2..];
+            }
 
-                            let name = crate::rename::<FieldRename>(field_name, rename_to, rename_all)
-                                .unwrap_or(Cow::Borrowed(field_name));
+            let NamedStructFieldOptions {
+                property,
+                rename_field_value,
+                required,
+                is_option,
+            } = self.field_as_schema_property(field, false, &container_rules)?;
+            let rename_to = field_rule
+                .as_ref()
+                .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
+                .or(rename_field_value);
+            let rename_all = container_rules
+                .as_ref()
+                .and_then(|container_rule| container_rule.rename_all.as_ref())
+                .or_else(|| self.rename_all.as_ref().map(|rename_all| rename_all.as_rename_rule()));
 
-                            object_tokens.extend(quote! {
-                                .property(#name, #property)
-                            });
+            let name =
+                crate::rename::<FieldRename>(field_name, rename_to, rename_all).unwrap_or(Cow::Borrowed(field_name));
 
-                            if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
-                                || required
-                                    .as_ref()
-                                    .map(crate::feature::Required::is_true)
-                                    .unwrap_or(false)
-                            {
-                                object_tokens.extend(quote! {
-                                    .required(#name)
-                                })
-                            }
+            let property = property.try_to_token_stream()?;
+            object_tokens.extend(quote! {
+                .property(#name, #property)
+            });
 
-                            object_tokens
-                        },
-                    )
-                },
-            );
+            if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
+                || required
+                    .as_ref()
+                    .map(crate::feature::Required::is_true)
+                    .unwrap_or(false)
+            {
+                object_tokens.extend(quote! {
+                    .required(#name)
+                })
+            }
+        }
 
         let flatten_fields: Vec<&Field> = self
             .fields
             .iter()
             .filter(|field| {
                 let field_rule = serde_util::parse_value(&field.attrs);
-                is_flatten(&field_rule)
+                is_flatten(field_rule.as_ref())
             })
             .collect();
 
@@ -220,30 +217,39 @@ impl ToTokens for NamedStructSchema<'_> {
             let mut flattened_map_field = None;
 
             for field in flatten_fields {
-                self.field_as_schema_property(
-                    field,
-                    true,
-                    &container_rules,
-                    |NamedStructFieldOptions { property, .. }| match property {
-                        Property::Schema(_) | Property::SchemaWith(_) => {
-                            flattened_tokens.extend(quote!{ .item(#property) })
+                let NamedStructFieldOptions{property, ..} = self.field_as_schema_property(field, true, &container_rules)?;
+
+                match property {
+                    Property::Schema(_) | Property::SchemaWith(_) => {
+                        let property = property.try_to_token_stream()?;
+                        flattened_tokens.extend(quote! { .item(#property) })
+                    }
+                    Property::FlattenedMap(_) => match flattened_map_field {
+                        None => {
+                            let property = property.try_to_token_stream()?;
+                            object_tokens.extend(quote! { .additional_properties(Some(#property)) });
+                            flattened_map_field = Some(field);
                         }
-                        Property::FlattenedMap(_) => match flattened_map_field {
-                            None => {
-                                object_tokens
-                                    .extend(quote!{ .additional_properties(Some(#property)) });
-                                flattened_map_field = Some(field);
-                            }
-                            Some(flattened_map_field) => {
-                                abort!(self.fields,
-                                       "The structure `{}` contains multiple flattened map fields.",
-                                                                             self.struct_name;
-                                       note = flattened_map_field.span() => "first flattened map field was declared here as `{}`", flattened_map_field.ident.as_ref().expect("field ident shoule be exists");
-                                       note = field.span() => "second flattened map field was declared here as `{}`", field.ident.as_ref().expect("field ident shoule be exists"));
-                            },
-                        },
+                        Some(flattened_map_field) => {
+                            return Err(Diagnostic::spanned(
+                                self.fields.span(),
+                                DiagLevel::Error,
+                                format!(
+                                    "The structure `{}` contains multiple flattened map fields.",
+                                    self.struct_name
+                                ),
+                            )
+                            .note(format!(
+                                "first flattened map field was declared here as `{}`",
+                                flattened_map_field.ident.as_ref().unwrap()
+                            ))
+                            .note(format!(
+                                "second flattened map field was declared here as `{}`",
+                                field.ident.as_ref().unwrap()
+                            )));
+                        }
                     },
-                )
+                }
             }
 
             if flattened_tokens.is_empty() {
@@ -255,7 +261,6 @@ impl ToTokens for NamedStructSchema<'_> {
                         #flattened_tokens
                     .item(#object_tokens)
                 });
-
                 true
             }
         } else {
@@ -275,11 +280,11 @@ impl ToTokens for NamedStructSchema<'_> {
         }
 
         if let Some(deprecated) = crate::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(#deprecated) });
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
         if let Some(struct_features) = self.features.as_ref() {
-            tokens.extend(struct_features.to_token_stream())
+            tokens.extend(struct_features.try_to_token_stream()?)
         }
 
         let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
@@ -288,6 +293,8 @@ impl ToTokens for NamedStructSchema<'_> {
                 .description(#description)
             })
         }
+
+        Ok(())
     }
 }
 
@@ -309,19 +316,22 @@ impl UnnamedStructSchema<'_> {
     }
 }
 
-impl ToTokens for UnnamedStructSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for UnnamedStructSchema<'_> {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let fields_len = self.fields.len();
         let first_field = self.fields.first().expect("fields should not be empty");
-        let first_part = &TypeTree::from_type(&first_field.ty);
+        let first_part = &TypeTree::from_type(&first_field.ty)?;
 
         let all_fields_are_same = fields_len == 1
-            || self.fields.iter().skip(1).all(|field| {
-                let schema_part = &TypeTree::from_type(&field.ty);
-
-                first_part == schema_part
-            });
+            || self
+                .fields
+                .iter()
+                .skip(1)
+                .map(|field| TypeTree::from_type(&field.ty))
+                .collect::<Result<Vec<TypeTree>, Diagnostic>>()?
+                .iter()
+                .all(|schema_part| first_part == schema_part);
 
         let deprecated = crate::get_deprecated(self.attributes);
         if all_fields_are_same {
@@ -329,7 +339,10 @@ impl ToTokens for UnnamedStructSchema<'_> {
             let value_type = unnamed_struct_features
                 .as_mut()
                 .and_then(|features| features.pop_value_type_feature());
-            let override_type_tree = value_type.as_ref().map(|value_type| value_type.as_type_tree());
+            let override_type_tree = value_type
+                .as_ref()
+                .map(|value_type| value_type.as_type_tree())
+                .transpose()?;
 
             if fields_len == 1 {
                 if let Some(ref mut features) = unnamed_struct_features {
@@ -352,7 +365,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                     type_definition: true,
-                })
+                })?
                 .to_token_stream(),
             );
         } else {
@@ -369,7 +382,11 @@ impl ToTokens for UnnamedStructSchema<'_> {
             }
 
             if let Some(ref attrs) = self.features {
-                tokens.extend(attrs.to_token_stream())
+                let attrs = attrs
+                    .iter()
+                    .map(TryToTokens::try_to_token_stream)
+                    .collect::<DiagResult<TokenStream>>()?;
+                tokens.extend(attrs)
             }
         };
 
@@ -379,5 +396,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 quote!{ .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
+        Ok(())
     }
 }
