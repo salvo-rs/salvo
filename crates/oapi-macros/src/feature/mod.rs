@@ -1,7 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{parse::ParseStream, LitFloat, LitInt};
 
@@ -12,8 +11,8 @@ pub(crate) use macros::*;
 mod items;
 pub(crate) use items::*;
 
+use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 use crate::{
-    parse_utils,
     schema_type::SchemaType,
     type_tree::{GenericType, TypeTree},
 };
@@ -59,7 +58,7 @@ pub(crate) trait Validatable {
 
 pub(crate) trait Validate: Validatable {
     /// Perform validation check against schema type.
-    fn validate(&self, validator: impl Validator);
+    fn validate(&self, validator: impl Validator) -> Result<(), Diagnostic>;
 }
 
 pub(crate) trait Parse {
@@ -112,7 +111,7 @@ pub(crate) enum Feature {
 }
 
 impl Feature {
-    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
+    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> DiagResult<()> {
         match self {
             Feature::MultipleOf(multiple_of) => {
                 multiple_of.validate(ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)))
@@ -157,8 +156,8 @@ impl Feature {
     }
 }
 
-impl ToTokens for Feature {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl TryToTokens for Feature {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let feature = match &self {
             Feature::Default(default) => {
                 if let Some(default) = &default.0 {
@@ -169,7 +168,10 @@ impl ToTokens for Feature {
             }
             Feature::Example(example) => quote! { .example(#example) },
             Feature::XmlAttr(xml) => quote! { .xml(#xml) },
-            Feature::Format(format) => quote! { .format(#format) },
+            Feature::Format(format) => {
+                let format = format.try_to_token_stream()?;
+                quote! { .format(#format) }
+            }
             Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
             Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
@@ -212,32 +214,39 @@ impl ToTokens for Feature {
                 quote! { .additional_properties(#additional_properties) }
             }
             Feature::RenameAll(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "RenameAll feature does not support `ToTokens`"
-                }
+                    DiagLevel::Error,
+                    "RenameAll feature does not support `ToTokens`",
+                ));
             }
             Feature::ValueType(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "ValueType feature does not support `ToTokens`";
-                    help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
-                }
+                    DiagLevel::Error,
+                    "ValueType feature does not support `ToTokens`",
+                )
+                .help(
+                    "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.",
+                ));
             }
             Feature::Inline(_) | Feature::SkipBound(_) | Feature::Bound(_) => {
                 // inline， skip_bound and bound feature is ignored by `ToTokens`
                 TokenStream::new()
             }
             Feature::ToParametersNames(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "Names feature does not support `ToTokens`";
-                    help = "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
-                }
+                    DiagLevel::Error,
+                    "Names feature does not support `ToTokens`"
+                ).help(
+                    "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
+                ));
             }
         };
 
-        tokens.extend(feature)
+        tokens.extend(feature);
+        Ok(())
     }
 }
 

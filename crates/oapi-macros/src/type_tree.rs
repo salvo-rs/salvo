@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span};
-use proc_macro_error::{abort, abort_call_site};
+use syn::spanned::Spanned;
 use syn::{GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
 use crate::schema_type::SchemaType;
+use crate::{DiagLevel, DiagResult, Diagnostic};
 
 #[derive(Debug)]
 enum TypeTreeValue<'t> {
@@ -14,6 +15,7 @@ enum TypeTreeValue<'t> {
     /// generic arguments.
     Array(Vec<TypeTreeValue<'t>>, Span),
     UnitType,
+    Tuple(Vec<TypeTreeValue<'t>>, Span),
 }
 
 impl PartialEq for TypeTreeValue<'_> {
@@ -22,6 +24,7 @@ impl PartialEq for TypeTreeValue<'_> {
             Self::Path(_) => self == other,
             Self::TypePath(_) => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+            Self::Tuple(tuple, _) => matches!(other, Self::Tuple(other, _) if other == tuple),
             Self::UnitType => self == other,
         }
     }
@@ -38,25 +41,27 @@ pub(crate) struct TypeTree<'t> {
 }
 
 impl<'t> TypeTree<'t> {
-    pub(crate) fn from_type(ty: &'t Type) -> TypeTree<'t> {
-        Self::from_type_paths(Self::get_type_paths(ty))
+    pub(crate) fn from_type(ty: &'t Type) -> DiagResult<TypeTree<'t>> {
+        Self::from_type_paths(Self::get_type_paths(ty)?)
     }
 
-    fn get_type_paths(ty: &'t Type) -> Vec<TypeTreeValue> {
-        match ty {
+    fn get_type_paths(ty: &'t Type) -> DiagResult<Vec<TypeTreeValue>> {
+        let type_tree_values = match ty {
             Type::Path(path) => {
                 vec![TypeTreeValue::TypePath(path)]
             },
-            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
+            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref())?,
+            Type::Group(group) => Self::get_type_paths(group.elem.as_ref())?,
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem)?, slice.bracket_token.span.join())],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem)?, array.bracket_token.span.join())],
             Type::Tuple(tuple) => {
                 // Detect unit type ()
-                if tuple.elems.is_empty() { return vec![TypeTreeValue::UnitType] }
-
-                tuple.elems.iter().flat_map(Self::get_type_paths).collect()
+                if tuple.elems.is_empty() { return Ok(vec![TypeTreeValue::UnitType]) }
+                vec![TypeTreeValue::Tuple(
+                    tuple.elems.iter().map(Self::get_type_paths).collect::<DiagResult<Vec<_>>>()?.into_iter().flatten().collect(),
+                    tuple.span()
+                )]
             },
-            Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), slice.bracket_token.span.join())],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), array.bracket_token.span.join())],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -71,72 +76,92 @@ impl<'t> TypeTree<'t> {
                     })
                     .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
-            _ => abort_call_site!(
+            unexpected => return Err(Diagnostic::spanned(unexpected.span(), DiagLevel::Error,
                 "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject"
-            ),
-        }
+            )),
+        };
+        Ok(type_tree_values)
     }
 
-    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> TypeTree<'t> {
+    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> DiagResult<TypeTree<'t>> {
         if paths.len() > 1 {
-            TypeTree {
+            Ok(TypeTree {
                 path: None,
-                children: Some(Self::convert_types(paths).collect()),
+                children: Some(match Self::convert_types(paths) {
+                    Ok(children) => children.collect(),
+                    Err(diag) => return Err(diag),
+                }),
                 generic_type: None,
                 value_type: ValueType::Tuple,
-            }
+            })
         } else {
-            Self::convert_types(paths)
+            Ok(Self::convert_types(paths)?
                 .next()
-                .expect("TypeTreeValue from_type_paths expected at least one TypePath")
+                .expect("TypeTreeValue from_type_paths expected at least one TypePath"))
         }
     }
 
-    fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> impl Iterator<Item = TypeTree<'t>> {
-        paths.into_iter().map(|value| {
-            let path = match value {
-                TypeTreeValue::TypePath(type_path) => &type_path.path,
-                TypeTreeValue::Path(path) => path,
-                TypeTreeValue::Array(value, span) => {
-                    let array: Path = Ident::new("Array", span).into();
-                    return TypeTree {
-                        path: Some(Cow::Owned(array)),
-                        value_type: ValueType::Object,
-                        generic_type: Some(GenericType::Vec),
-                        children: Some(vec![Self::from_type_paths(value)]),
-                    };
-                }
-                TypeTreeValue::UnitType => {
-                    return TypeTree {
-                        path: None,
-                        value_type: ValueType::Tuple,
-                        generic_type: None,
-                        children: None,
+    fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> DiagResult<impl Iterator<Item = TypeTree<'t>>> {
+        paths
+            .into_iter()
+            .map(|value| {
+                let path = match value {
+                    TypeTreeValue::TypePath(type_path) => &type_path.path,
+                    TypeTreeValue::Path(path) => path,
+                    TypeTreeValue::Array(value, span) => {
+                        let array: Path = Ident::new("Array", span).into();
+                        return Ok(TypeTree {
+                            path: Some(Cow::Owned(array)),
+                            value_type: ValueType::Object,
+                            generic_type: Some(GenericType::Vec),
+                            children: Some(vec![Self::from_type_paths(value)?]),
+                        });
                     }
+                    TypeTreeValue::Tuple(tuple, _span) => {
+                        return Ok(TypeTree {
+                            path: None,
+                            generic_type: None,
+                            value_type: ValueType::Tuple,
+                            children: Some(match Self::convert_types(tuple) {
+                                Ok(converted_values) => converted_values.collect(),
+                                Err(diag) => return Err(diag),
+                            }),
+                        })
+                    }
+                    TypeTreeValue::UnitType => {
+                        return Ok(TypeTree {
+                            path: None,
+                            value_type: ValueType::Tuple,
+                            generic_type: None,
+                            children: None,
+                        })
+                    }
+                };
+
+                // there will always be one segment at least
+                let last_segment = path
+                    .segments
+                    .last()
+                    .expect("at least one segment within path in TypeTree::convert_types");
+
+                if last_segment.arguments.is_empty() {
+                    Ok(Self::convert(path, last_segment))
+                } else {
+                    Self::resolve_schema_type(path, last_segment)
                 }
-            };
-
-            // there will always be one segment at least
-            let last_segment = path
-                .segments
-                .last()
-                .expect("at least one segment within path in TypeTree::convert_types");
-
-            if last_segment.arguments.is_empty() {
-                Self::convert(path, last_segment)
-            } else {
-                Self::resolve_schema_type(path, last_segment)
-            }
-        })
+            })
+            .collect::<DiagResult<Vec<TypeTree<'t>>>>()
+            .map(IntoIterator::into_iter)
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> DiagResult<TypeTree<'t>> {
         if last_segment.arguments.is_empty() {
-            abort!(
-                last_segment.ident,
-                "expected at least one angle bracket argument but was 0"
-            );
+            return Err(Diagnostic::spanned(
+                last_segment.ident.span(),
+                DiagLevel::Error,
+                "expected at least one angle bracket argument but was 0",
+            ));
         };
 
         let mut generic_schema_type = Self::convert(path, last_segment);
@@ -157,23 +182,33 @@ impl<'t> TypeTree<'t> {
                             .iter()
                             .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
                             .map(|arg| match arg {
-                                GenericArgument::Type(arg) => arg,
-                                _ => abort!(arg, "expected generic argument type or generic argument lifetime"),
-                            }),
+                                GenericArgument::Type(arg) => Ok(arg),
+                                _ => Err(Diagnostic::spanned(
+                                    arg.span(),
+                                    DiagLevel::Error,
+                                    "expected generic argument type or generic argument lifetime",
+                                )),
+                            })
+                            .collect::<DiagResult<Vec<_>>>()?
+                            .into_iter(),
                     )
                 }
             }
-            _ => abort!(
-                last_segment.ident,
-                "unexpected path argument, expected angle bracketed path argument"
-            ),
+            _ => {
+                return Err(Diagnostic::spanned(
+                    last_segment.ident.span(),
+                    DiagLevel::Error,
+                    "unexpected path argument, expected angle bracketed path argument",
+                ))
+            }
         };
 
         generic_schema_type.children = generic_types
             .as_mut()
-            .map(|generic_type| generic_type.map(Self::from_type).collect());
+            .map(|generic_type| generic_type.map(Self::from_type).collect::<DiagResult<_>>())
+            .transpose()?;
 
-        generic_schema_type
+        Ok(generic_schema_type)
     }
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {

@@ -7,7 +7,7 @@ use syn::{parse_quote, TypePath};
 
 use crate::feature::Feature;
 use crate::schema_type::SchemaType;
-use crate::Array;
+use crate::{Array, DiagResult, TryToTokens};
 
 pub(crate) trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]
@@ -15,7 +15,13 @@ pub(crate) trait Variant {
 
     /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
-        (SchemaType(&parse_quote!(str)).to_token_stream(), quote! {&str})
+        (
+            match SchemaType(&parse_quote!(str)).try_to_token_stream() {
+                Ok(tokens) => tokens,
+                Err(diag) => diag.emit_as_item_tokens(),
+            },
+            quote! {&str},
+        )
     }
 }
 
@@ -47,7 +53,10 @@ where
 
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
-            SchemaType(&self.type_path.path).to_token_stream(),
+            match SchemaType(&self.type_path.path).try_to_token_stream() {
+                Ok(stream) => stream,
+                Err(diag) => diag.emit_as_item_tokens(),
+            },
             self.type_path.to_token_stream(),
         )
     }
@@ -117,7 +126,7 @@ impl<T> ToTokens for Enum<'_, T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let symbol = &self.symbol;
@@ -127,7 +136,7 @@ where
         let enum_type = &self.enum_type;
         let description = &self.description;
 
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::Object::new()
                 #symbol
                 #description
@@ -185,12 +194,12 @@ impl<T> ToTokens for TaggedEnum<T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
 
-        tokens.extend(quote! {
+        stream.extend(quote! {
             Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
@@ -247,17 +256,18 @@ impl UntaggedEnum {
     }
 }
 
-impl ToTokens for UntaggedEnum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for UntaggedEnum {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let symbol = &self.symbol;
+        let symbol = self.symbol.as_ref().map(|f| f.try_to_token_stream()).transpose()?;
 
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
                 .nullable(true)
                 .default_value(#oapi::oapi::__private::serde_json::Value::Null)
                 #symbol
-        })
+        });
+        Ok(())
     }
 }
 
@@ -277,12 +287,12 @@ impl<T> ToTokens for AdjacentlyTaggedEnum<T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
 
-        tokens.extend(quote! {
+        stream.extend(quote! {
             Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
@@ -352,9 +362,9 @@ impl<'c, T> ToTokens for CustomEnum<'c, T>
 where
     T: ToTokens,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        self.items.to_tokens(tokens);
+        self.items.to_tokens(stream);
 
         // currently uses serde `tag` attribute as a discriminator. This discriminator
         // feature needs some refinement.
@@ -364,7 +374,7 @@ where
             }
         });
 
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #discriminator
         });
     }

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
 
@@ -9,7 +9,7 @@ use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
-use crate::Array;
+use crate::{Array, DiagResult, TryToTokens};
 
 pub(crate) mod example;
 pub(crate) mod request_body;
@@ -57,16 +57,19 @@ impl<'a> Operation<'a> {
             security: attr.security.as_ref(),
         }
     }
-    pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
+    pub(crate) fn modifiers(&self) -> DiagResult<Vec<TokenStream>> {
         let mut modifiers = vec![];
         let oapi = crate::oapi_crate();
 
         if let Some(rb) = self.request_body {
-            modifiers.push(quote! {
-                if let Some(request_body) = operation.request_body.as_mut() {
-                    request_body.merge(#rb);
-                } else {
-                    operation.request_body = Some(#rb);
+            modifiers.push({
+                let rb = rb.try_to_token_stream()?;
+                quote! {
+                    if let Some(request_body) = operation.request_body.as_mut() {
+                        request_body.merge(#rb);
+                    } else {
+                        operation.request_body = Some(#rb);
+                    }
                 }
             });
             if let Some(content) = &rb.content {
@@ -117,11 +120,16 @@ impl<'a> Operation<'a> {
             }
         }
 
-        self.parameters.iter().for_each(|parameter| {
-            modifiers.push(quote! {
-                #parameter
-            })
-        });
+        self.parameters
+            .iter()
+            .map(TryToTokens::try_to_token_stream)
+            .collect::<DiagResult<Vec<TokenStream>>>()?
+            .iter()
+            .for_each(|parameter| {
+                modifiers.push(quote! {
+                    #parameter
+                })
+            });
 
         for response in self.responses {
             match response {
@@ -147,17 +155,18 @@ impl<'a> Operation<'a> {
                             }
                         }
                     }
+                    let tuple = tuple.try_to_token_stream()?;
                     modifiers.push(quote! {
                         operation.responses.insert(#code, #tuple);
                     });
                 }
             }
         }
-        modifiers
+        Ok(modifiers)
     }
 }
 
-fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream2> {
+fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream> {
     let mut modifiers = vec![];
     match content {
         PathType::RefPath(path) => {
@@ -181,7 +190,7 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
 pub(crate) enum PathType<'p> {
     RefPath(Path),
     MediaType(InlineType<'p>),
-    InlineSchema(TokenStream2, Type),
+    InlineSchema(TokenStream, Type),
 }
 
 impl Parse for PathType<'_> {
@@ -213,7 +222,7 @@ pub(crate) struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    pub(crate) fn as_type_tree(&self) -> TypeTree {
+    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree> {
         TypeTree::from_type(&self.ty)
     }
 }

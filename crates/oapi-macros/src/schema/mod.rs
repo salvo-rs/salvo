@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
 
@@ -24,9 +23,9 @@ use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
     ComponentSchema, FieldRename, VariantRename,
 };
-use crate::bound;
 use crate::feature::{Bound, Inline, SkipBound, Symbol};
 use crate::serde_util::SerdeValue;
+use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -54,11 +53,11 @@ impl<'a> ToSchema<'a> {
     }
 }
 
-impl ToTokens for ToSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for ToSchema<'_> {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let ident = self.ident;
-        let mut variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics);
+        let mut variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics)?;
 
         let (_, ty_generics, _) = self.generics.split_for_impl();
 
@@ -101,6 +100,7 @@ impl ToTokens for ToSchema<'_> {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+        let variant = variant.try_to_token_stream()?;
         let body = match symbol {
             None => {
                 quote! {
@@ -121,7 +121,8 @@ impl ToTokens for ToSchema<'_> {
                     #body
                 }
             }
-        })
+        });
+        Ok(())
     }
 }
 
@@ -139,31 +140,31 @@ impl<'a> SchemaVariant<'a> {
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-    ) -> SchemaVariant<'a> {
+    ) -> DiagResult<SchemaVariant<'a>> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
-                    let mut unnamed_features = attributes.parse_features::<UnnamedFieldStructFeatures>().into_inner();
+                    let mut unnamed_features = attributes.parse_features::<UnnamedFieldStructFeatures>()?.into_inner();
 
                     let symbol = pop_feature_as_inner!(unnamed_features => Feature::Symbol(_v));
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
-                    Self::Unnamed(UnnamedStructSchema {
+                    Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
                         features: unnamed_features,
                         fields: unnamed,
                         symbol,
                         inline,
-                    })
+                    }))
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    let mut named_features = attributes.parse_features::<NamedFieldStructFeatures>().into_inner();
+                    let mut named_features = attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
                     let symbol = pop_feature_as_inner!(named_features => Feature::Symbol(_v));
                     let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
 
-                    Self::Named(NamedStructSchema {
+                    Ok(Self::Named(NamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
                         rename_all: named_features.pop_rename_all_feature(),
@@ -172,19 +173,20 @@ impl<'a> SchemaVariant<'a> {
                         generics: Some(generics),
                         symbol,
                         inline,
-                    })
+                    }))
                 }
-                Fields::Unit => Self::Unit(UnitStructVariant),
+                Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
-            Data::Enum(content) => Self::Enum(EnumSchema::new(
+            Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(
                 Cow::Owned(ident.to_string()),
                 &content.variants,
                 attributes,
-            )),
-            _ => abort!(
+            )?)),
+            _ => Err(Diagnostic::spanned(
                 ident.span(),
-                "unexpected data type, expected syn::Data::Struct or syn::Data::Enum"
-            ),
+                DiagLevel::Error,
+                "unexpected data type, expected syn::Data::Struct or syn::Data::Enum",
+            )),
         }
     }
 
@@ -222,13 +224,16 @@ impl<'a> SchemaVariant<'a> {
     }
 }
 
-impl ToTokens for SchemaVariant<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for SchemaVariant<'_> {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         match self {
-            Self::Enum(schema) => schema.to_tokens(tokens),
-            Self::Named(schema) => schema.to_tokens(tokens),
-            Self::Unnamed(schema) => schema.to_tokens(tokens),
-            Self::Unit(unit) => unit.to_tokens(tokens),
+            Self::Enum(schema) => schema.try_to_tokens(tokens),
+            Self::Named(schema) => schema.try_to_tokens(tokens),
+            Self::Unnamed(schema) => schema.try_to_tokens(tokens),
+            Self::Unit(unit) => {
+                unit.to_tokens(tokens);
+                Ok(())
+            }
         }
     }
 }
@@ -237,9 +242,9 @@ impl ToTokens for SchemaVariant<'_> {
 struct UnitStructVariant;
 
 impl ToTokens for UnitStructVariant {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::schema::empty()
         });
     }
@@ -252,12 +257,18 @@ enum Property {
     FlattenedMap(FlattenedMapSchema),
 }
 
-impl ToTokens for Property {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl TryToTokens for Property {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         match self {
-            Self::Schema(schema) => schema.to_tokens(tokens),
-            Self::FlattenedMap(schema) => schema.to_tokens(tokens),
-            Self::SchemaWith(with_schema) => with_schema.to_tokens(tokens),
+            Self::Schema(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
+            Self::FlattenedMap(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
+            Self::SchemaWith(with_schema) => with_schema.try_to_tokens(tokens),
         }
     }
 }
@@ -274,11 +285,11 @@ impl SchemaFeatureExt for Vec<Feature> {
 }
 
 #[inline]
-fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
-    rule.as_ref().map(|value| !value.skip).unwrap_or(true)
+fn is_not_skipped(rule: Option<&SerdeValue>) -> bool {
+    rule.map(|value| !value.skip).unwrap_or(true)
 }
 
 #[inline]
-fn is_flatten(rule: &Option<SerdeValue>) -> bool {
-    rule.as_ref().map(|value| value.flatten).unwrap_or(false)
+fn is_flatten(rule: Option<&SerdeValue>) -> bool {
+    rule.map(|value| value.flatten).unwrap_or(false)
 }
