@@ -61,12 +61,12 @@ impl<'e> EnumSchema<'e> {
                                 crate::feature::Symbol,
                                 crate::feature::Inline
                             ))
-                        })
+                        })?
                         .unwrap_or_default();
 
                         let symbol = pop_feature_as_inner!(repr_enum_features => Feature::Symbol(_v));
                         let inline: Option<Inline> = pop_feature_as_inner!(repr_enum_features => Feature::Inline(_v));
-                        Self {
+                        Ok(Self {
                             schema_type: EnumSchemaType::Repr(ReprEnum {
                                 variants,
                                 attributes,
@@ -75,18 +75,18 @@ impl<'e> EnumSchema<'e> {
                             }),
                             symbol,
                             inline,
-                        }
+                        })
                     })
                     .unwrap_or_else(|| {
                         let mut simple_enum_features = attributes
-                            .parse_features::<EnumFeatures>()
+                            .parse_features::<EnumFeatures>()?
                             .into_inner()
                             .unwrap_or_default();
                         let rename_all = simple_enum_features.pop_rename_all_feature();
                         let symbol = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                         let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
-                        Self {
+                        Ok(Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
                                 attributes,
                                 variants,
@@ -95,7 +95,7 @@ impl<'e> EnumSchema<'e> {
                             }),
                             symbol,
                             inline,
-                        }
+                        })
                     })
             }
 
@@ -191,7 +191,7 @@ impl TryToTokens for EnumSchemaType<'_> {
             }
             #[cfg(feature = "repr")]
             Self::Repr(repr) => {
-                repr.to_tokens(tokens);
+                repr.try_to_tokens(tokens)?;
                 repr.attributes
             }
             Self::Complex(complex) => {
@@ -244,7 +244,7 @@ impl TryToTokens for ReprEnum<'_> {
                     let variant_type = &variant.ident;
                     let variant_rules = serde_util::parse_value(&variant.attrs);
 
-                    if is_not_skipped(&variant_rules) {
+                    if is_not_skipped(variant_rules.as_ref()) {
                         let repr_type = &self.enum_type;
                         Some(enum_variant::ReprVariant {
                             value: quote! { Self::#variant_type as #repr_type },
@@ -255,7 +255,7 @@ impl TryToTokens for ReprEnum<'_> {
                     }
                 })
                 .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>()
-        });
+        })
     }
 }
 

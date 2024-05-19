@@ -111,7 +111,7 @@ pub(crate) enum Feature {
 }
 
 impl Feature {
-    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> DiagResult<()> {
+    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> DiagResult<(), Diagnostic> {
         match self {
             Feature::MultipleOf(multiple_of) => {
                 multiple_of.validate(ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)))

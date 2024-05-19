@@ -550,9 +550,9 @@ impl TryToTokens for Parameter<'_> {
             tokens.extend(style.try_to_token_stream());
         }
 
-        if let Some(deprecated) = crate::get_deprecated(&field.attrs) {
-            tokens.extend(quote! { .deprecated(#deprecated) });
-        }
+        // if let Some(deprecated) = crate::get_deprecated(&field.attrs) {
+        //     tokens.extend(quote! { .deprecated(#deprecated) });
+        // }
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_))
             .map(|f| f.try_to_token_stream())
