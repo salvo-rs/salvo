@@ -5,7 +5,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::ComponentSchema;
 use crate::feature::Inline;
-use crate::{parse_utils, AnyValue, Array, DiagResult,  Required, TryToTokens};
+use crate::{parse_utils, AnyValue, Array, DiagResult, Required, TryToTokens};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};

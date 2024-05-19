@@ -1,9 +1,9 @@
-use proc_macro2::{Ident};
+use proc_macro2::Ident;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{parenthesized, Error, LitStr, Token};
 
-use crate::{parse_utils, AnyValue, };
+use crate::{parse_utils, AnyValue};
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default, Debug)]

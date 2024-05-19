@@ -3,7 +3,7 @@ use quote::{quote, ToTokens};
 use syn::{Expr, Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, Array, DiagResult,  InputType, Operation};
+use crate::{omit_type_path_lifetimes, parse_input_type, Array, DiagResult, InputType, Operation};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;

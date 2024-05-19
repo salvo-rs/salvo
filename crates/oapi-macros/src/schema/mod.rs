@@ -260,8 +260,14 @@ enum Property {
 impl TryToTokens for Property {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         match self {
-            Self::Schema(schema) => Ok(schema.to_tokens(tokens)),
-            Self::FlattenedMap(schema) => Ok(schema.to_tokens(tokens)),
+            Self::Schema(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
+            Self::FlattenedMap(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
             Self::SchemaWith(with_schema) => with_schema.try_to_tokens(tokens),
         }
     }

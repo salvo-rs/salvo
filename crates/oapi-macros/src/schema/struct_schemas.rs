@@ -157,7 +157,7 @@ impl TryToTokens for NamedStructSchema<'_> {
             })
             .collect::<DiagResult<Vec<Option<(&Field, Option<SerdeValue>)>>>>()?
             .into_iter()
-            .filter_map(|f| f)
+            .flatten()
             .collect::<Vec<_>>();
 
         let mut object_tokens = quote! { #oapi::oapi::Object::new() };
@@ -217,7 +217,8 @@ impl TryToTokens for NamedStructSchema<'_> {
             let mut flattened_map_field = None;
 
             for field in flatten_fields {
-                let NamedStructFieldOptions{property, ..} = self.field_as_schema_property(field, true, &container_rules)?;
+                let NamedStructFieldOptions { property, .. } =
+                    self.field_as_schema_property(field, true, &container_rules)?;
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
@@ -240,12 +241,12 @@ impl TryToTokens for NamedStructSchema<'_> {
                                 ),
                             )
                             .note(format!(
-                                "first flattened map field was declared here as `{}`",
-                                flattened_map_field.ident.as_ref().unwrap()
+                                "first flattened map field was declared here as `{:?}`",
+                                flattened_map_field.ident
                             ))
                             .note(format!(
-                                "second flattened map field was declared here as `{}`",
-                                field.ident.as_ref().unwrap()
+                                "second flattened map field was declared here as `{:?}`",
+                                field.ident
                             )));
                         }
                     },

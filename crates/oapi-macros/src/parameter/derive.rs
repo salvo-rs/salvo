@@ -186,7 +186,7 @@ impl TryToTokens for ToParameters {
             .as_ref()
             .map(|feature| match feature {
                 Feature::RenameAll(RenameAll(rename_rule)) => {
-                    let rule = quote_rename_rule(&salvo, &rename_rule);
+                    let rule = quote_rename_rule(&salvo, rename_rule);
                     Some(quote! {
                         .rename_all(#rule)
                     })
@@ -249,15 +249,12 @@ impl ToParameters {
     fn is_named_struct(&self) -> bool {
         matches!(&self.data, Data::Struct(data_struct) if matches!(&data_struct.fields, syn::Fields::Named(_)))
     }
-    fn get_struct_fields(
-        &self,
-        field_names: &Option<&Vec<String>>,
-    ) -> DiagResult<impl Iterator<Item = &Field>> {
+    fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> DiagResult<impl Iterator<Item = &Field>> {
         let ident = &self.ident;
         let abort = |note: &str| {
             let msg = format!("unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
-            ident.to_string(),
-            ident.to_string());
+            ident,
+            ident);
             Err(Diagnostic::spanned(ident.span(), DiagLevel::Error, msg).note(note))
         };
 

@@ -7,7 +7,7 @@ use syn::{
     LitStr, Token,
 };
 
-use crate::{Array,};
+use crate::Array;
 
 #[derive(Default, Debug)]
 pub(crate) struct SecurityRequirementsAttrItem {

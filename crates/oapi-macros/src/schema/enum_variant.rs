@@ -7,7 +7,7 @@ use syn::{parse_quote, TypePath};
 
 use crate::feature::Feature;
 use crate::schema_type::SchemaType;
-use crate::{Array, DiagResult,  TryToTokens};
+use crate::{Array, DiagResult, TryToTokens};
 
 pub(crate) trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]

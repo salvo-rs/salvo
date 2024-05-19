@@ -183,13 +183,11 @@ impl<'t> TypeTree<'t> {
                             .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
                             .map(|arg| match arg {
                                 GenericArgument::Type(arg) => Ok(arg),
-                                _ => {
-                                    return Err(Diagnostic::spanned(
-                                        arg.span(),
-                                        DiagLevel::Error,
-                                        "expected generic argument type or generic argument lifetime",
-                                    ))
-                                }
+                                _ => Err(Diagnostic::spanned(
+                                    arg.span(),
+                                    DiagLevel::Error,
+                                    "expected generic argument type or generic argument lifetime",
+                                )),
                             })
                             .collect::<DiagResult<Vec<_>>>()?
                             .into_iter(),
@@ -207,7 +205,8 @@ impl<'t> TypeTree<'t> {
 
         generic_schema_type.children = generic_types
             .as_mut()
-            .map(|generic_type| generic_type.map(Self::from_type).collect::<DiagResult<_>>()).transpose()?;
+            .map(|generic_type| generic_type.map(Self::from_type).collect::<DiagResult<_>>())
+            .transpose()?;
 
         Ok(generic_schema_type)
     }

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::feature::{pop_feature, Feature, FeaturesExt};
-use crate::{ComponentSchema, ComponentSchemaProps,  DiagResult, TryToTokens};
+use crate::{ComponentSchema, ComponentSchemaProps, DiagResult, TryToTokens};
 
 #[derive(Debug)]
 pub(crate) struct FlattenedMapSchema {

@@ -113,7 +113,7 @@ impl XmlAttr {
             Err(Diagnostic::spanned(
                 wrapped_ident.span(),
                 DiagLevel::Error,
-                format!("cannot use `wrapped` attribute in non slice field type"),
+                "cannot use `wrapped` attribute in non slice field type",
             )
             .help("Try removing `wrapped` attribute or make your field `Vec`"))
         } else {

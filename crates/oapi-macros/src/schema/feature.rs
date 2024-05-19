@@ -200,9 +200,7 @@ impl_merge!(
     EnumUnnamedFieldVariantFeatures
 );
 
-pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(
-    attributes: &[Attribute],
-) -> DiagResult<Option<T>> {
+pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> DiagResult<Option<T>> {
     Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("salvo"))
