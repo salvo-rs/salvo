@@ -281,7 +281,7 @@ impl TryToTokens for NamedStructSchema<'_> {
         }
 
         if let Some(deprecated) = crate::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         if let Some(struct_features) = self.features.as_ref() {
