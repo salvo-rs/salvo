@@ -141,7 +141,7 @@ impl<'a> EndpointOutRegister for &'a String {
     }
 }
 
-/// A component for all endpoints.
+/// A registry for all endpoints.
 #[doc(hidden)]
 #[non_exhaustive]
 pub struct EndpointRegistry {
@@ -152,11 +152,11 @@ pub struct EndpointRegistry {
 }
 
 impl EndpointRegistry {
-    /// Save the endpoint information to the components.
+    /// Save the endpoint information to the registry.
     pub const fn save(type_id: fn() -> TypeId, creator: fn() -> Endpoint) -> Self {
         Self { type_id, creator }
     }
-    /// Find the endpoint information from the components.
+    /// Find the endpoint information from the registry.
     pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
         for record in inventory::iter::<EndpointRegistry> {
             if (record.type_id)() == *type_id {
