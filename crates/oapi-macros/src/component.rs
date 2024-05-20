@@ -321,6 +321,9 @@ impl<'c> ComponentSchema {
         type_definition: bool,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
+        let nullable = pop_feature!(features => Feature::Nullable(_))
+            .map(|f| f.try_to_token_stream())
+            .transpose()?;
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -356,17 +359,11 @@ impl<'c> ComponentSchema {
                 }
                 tokens.extend(features.try_to_token_stream()?);
 
-                let nullable = pop_feature!(features => Feature::Nullable(_));
-                if let Some(nullable) = nullable {
-                    nullable.try_to_tokens(tokens)?;
-                }
+                nullable.to_tokens(tokens);
             }
             ValueType::Object => {
                 let is_inline = features.is_inline();
 
-                let nullable = pop_feature!(features => Feature::Nullable(_))
-                    .map(|f| f.try_to_token_stream())
-                    .transpose()?;
                 let default = pop_feature!(features => Feature::Default(_))
                     .map(|f| f.try_to_token_stream())
                     .transpose()?;
@@ -435,9 +432,6 @@ impl<'c> ComponentSchema {
                 }
             }
             ValueType::Tuple => {
-                let nullable = pop_feature!(features => Feature::Nullable(_))
-                    .map(|f| f.try_to_token_stream())
-                    .transpose()?;
                 type_tree
                     .children
                     .as_ref()

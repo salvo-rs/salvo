@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics};
+use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments};
 
 mod enum_schemas;
 mod enum_variant;
@@ -66,7 +66,8 @@ impl TryToTokens for ToSchema<'_> {
             None
         } else if let Some(symbol) = variant.symbol() {
             if self.generics.type_params().next().is_none() {
-                Some(quote! { #symbol.to_string().replace(" :: ", ".") })
+                let symbol = format_path_ref(symbol);
+                Some(quote! { #symbol })
             } else {
                 Some(quote! {
                    {
@@ -282,6 +283,20 @@ impl SchemaFeatureExt for Vec<Feature> {
         self.into_iter()
             .partition(|feature| matches!(feature, Feature::Symbol(_)))
     }
+}
+
+/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact schema reference,
+/// by removing spaces between colon punctuation and `::` and the path segments.
+pub(crate) fn format_path_ref(path: &Path) -> String {
+    let mut path = path.clone();
+
+    // // Generics and path arguments are unsupported
+    // if let Some(last_segment) = path.segments.last_mut() {
+    //     last_segment.arguments = PathArguments::None;
+    // }
+    // :: are not officially supported in the spec
+    // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
+    path.to_token_stream().to_string().replace(" :: ", ".")
 }
 
 #[inline]
