@@ -1,16 +1,16 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use proc_macro2::{Span, Punct, Group, TokenStream};
+use proc_macro2::{Group, Punct, Span, TokenStream};
 use proc_macro2_diagnostics::Diagnostic;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{quote, ToTokens, TokenStreamExt};
 use regex::Regex;
-use syn::{Attribute, FnArg, Ident, ExprPath, Lit, LitStr, Member, PatType, Receiver, Token, Type, TypePath};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{Attribute, ExprPath, FnArg, Ident, Lit, LitStr, Member, PatType, Receiver, Token, Type, TypePath};
 
-use crate::{RenameRule,  feature, SerdeContainer, parse_utils, SerdeValue};
+use crate::{feature, parse_utils, RenameRule, SerdeContainer, SerdeValue};
 
 #[allow(dead_code)]
 pub(crate) enum InputType<'a> {
