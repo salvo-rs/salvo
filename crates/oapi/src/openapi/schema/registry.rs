@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::BTreeMap;
 
 use once_cell::sync::Lazy;
-use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard};
 use regex::Regex;
 
 /// A registry for all schema names.
@@ -103,7 +103,7 @@ impl Namer for ShortNamer {
         let name = match rule {
             NameRule::Trans => {
                 let re = Regex::new(r"([^:<>]+::)+").unwrap();
-                let mut base = re.replace_all(type_name, "").replace('<', "L").replace('>', "7");
+                let base = re.replace_all(type_name, "").replace('<', "L").replace('>', "7");
                 let mut name = base.clone();
                 let mut count = 1;
                 while name_type(&name).map(|t| t.0) == Some(type_id) {

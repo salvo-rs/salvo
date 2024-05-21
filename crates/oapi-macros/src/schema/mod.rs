@@ -148,27 +148,6 @@ impl TryToTokens for ToSchema<'_> {
             })
             .transpose()?;
 
-        let name = if inline {
-            None
-        } else if let Some(name) = variant.name() {
-            if self.generics.type_params().next().is_none() {
-                Some(quote! { #name.to_string().replace(" :: ", ".") })
-            } else {
-                Some(quote! {
-                   {
-                       let full_name = ::std::any::type_name::<#ident #ty_generics>();
-                       if let Some((_, args)) = full_name.split_once('<') {
-                           format!("{}<{}", #name, args)
-                       } else {
-                           full_name.into()
-                       }
-                   }
-                })
-            }
-        } else {
-            Some(quote! { ::std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
-        };
-
         let skip_bound = variant.pop_skip_bound();
         let bound = if skip_bound == Some(SkipBound(true)) {
             None
@@ -186,6 +165,28 @@ impl TryToTokens for ToSchema<'_> {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+        let name = if inline {
+            println!("==========");
+            None
+        } else if let Some(name) = variant.name() {
+            println!("===========name  {name}");
+            if self.generics.type_params().next().is_none() {
+                Some(quote! { #name.to_string().replace(" :: ", ".") })
+            } else {
+                Some(quote! {
+                   {
+                       let full_name = ::std::any::type_name::<#ident #ty_generics>();
+                       if let Some((_, args)) = full_name.split_once('<') {
+                           format!("{}<{}", #name, args)
+                       } else {
+                           full_name.into()
+                       }
+                   }
+                })
+            }
+        } else {
+            Some(quote! { ::std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
+        };
         let variant = variant.try_to_token_stream()?;
         let body = match name {
             None => {
