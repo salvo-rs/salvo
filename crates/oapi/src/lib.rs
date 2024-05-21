@@ -282,7 +282,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let symbol = std::any::type_name::<StatusError>().replace("::", ".");
+        let name = std::any::type_name::<StatusError>().replace("::", ".");
         let schema = Schema::from(
             Object::new()
                 .property("code", u16::to_schema(components))
@@ -295,8 +295,8 @@ impl ToSchema for StatusError {
                 .property("detail", String::to_schema(components))
                 .property("cause", String::to_schema(components)),
         );
-        components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        components.schemas.insert(name.clone(), schema.into());
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)))
     }
 }
 impl ToSchema for salvo_core::Error {
@@ -311,12 +311,12 @@ where
     E: ToSchema,
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let symbol = std::any::type_name::<Self>().replace("::", ".");
+        let name = std::any::type_name::<Self>().replace("::", ".");
         let schema = OneOf::new()
             .item(T::to_schema(components))
             .item(E::to_schema(components));
-        components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        components.schemas.insert(name.clone(), schema.into());
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)))
     }
 }
 

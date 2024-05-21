@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
@@ -17,7 +19,6 @@ pub(crate) struct ComponentSchemaProps<'c> {
     pub(crate) description: Option<&'c CommentAttributes>,
     pub(crate) deprecated: Option<&'c Deprecated>,
     pub(crate) object_name: &'c str,
-    pub(crate) type_definition: bool,
 }
 
 #[derive(Debug)]
@@ -33,7 +34,6 @@ impl<'c> ComponentSchema {
             description,
             deprecated,
             object_name,
-            type_definition,
         }: ComponentSchemaProps,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
@@ -51,7 +51,6 @@ impl<'c> ComponentSchema {
                     object_name,
                     description_stream,
                     deprecated_stream,
-                    type_definition,
                 )?
             }
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
@@ -61,7 +60,6 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-                type_definition,
             )?,
             Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -70,7 +68,6 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-                type_definition,
             )?,
             Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -79,7 +76,6 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-                type_definition,
             )?,
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
@@ -89,7 +85,6 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-                type_definition,
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -109,7 +104,6 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
-                    type_definition,
                 })?
                 .to_tokens(&mut tokens);
             }
@@ -130,7 +124,6 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
-                    type_definition,
                 })?
                 .to_tokens(&mut tokens);
             }
@@ -141,7 +134,6 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-                type_definition,
             )?,
         }
 
@@ -155,7 +147,6 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-        type_definition: bool,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
@@ -185,7 +176,6 @@ impl<'c> ComponentSchema {
                     description: None,
                     deprecated: None,
                     object_name,
-                    type_definition,
                 })?
                 .to_token_stream();
 
@@ -216,7 +206,6 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-        type_definition: bool,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let example = pop_feature!(features => Feature::Example(_));
@@ -257,7 +246,6 @@ impl<'c> ComponentSchema {
                 description: None,
                 deprecated: None,
                 object_name,
-                type_definition,
             })?;
 
             let unique = match unique {
@@ -318,7 +306,6 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-        type_definition: bool,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let nullable = pop_feature!(features => Feature::Nullable(_))
@@ -387,44 +374,40 @@ impl<'c> ComponentSchema {
                     nullable.to_tokens(tokens);
                 } else {
                     let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
-                    let schema = if type_definition {
-                        quote! {
-                            if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
-                                #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
-                            } else {
-                                #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
-                            }
-                        }
-                    } else {
-                        quote! {
-                            <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
-                        }
-                    };
                     if is_inline {
                         let schema = if default.is_some() || nullable.is_some() {
                             quote_spanned! {type_path.span()=>
                                 #oapi::oapi::schema::AllOf::new()
                                     #nullable
-                                    .item(#schema)
+                                    .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 #default
                             }
                         } else {
                             quote_spanned! {type_path.span() =>
-                                #schema
+                                <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                             }
                         };
                         schema.to_tokens(tokens);
                     } else {
+                        let msg = format!(
+                            "Object type `{}` is not supported. Use `#[derive(oapi::ToSchema)]` to implement `ToSchema` for the type",
+                            type_path.to_token_stream()
+                        );
+                        let name =  quote! {
+                            let type_id = ::std::any::TypeId::of<#type_path>();
+                            let rule = #oapi::oapi::openapi::schema::registry::NameRuleRegistry::find(&type_id).expect(#msg);
+                            #oapi::oapi::openapi::schema::registry::namer().name(type_id, rule)
+                        };
                         let schema = if default.is_some() || nullable.is_some() {
                             quote! {
                                 #oapi::oapi::schema::AllOf::new()
                                     #nullable
-                                    .item(#schema)
+                                    .item(#oapi::oapi::Ref::from_schema_name(#name))
                                     #default
                             }
                         } else {
                             quote! {
-                                #schema
+                                #oapi::oapi::Ref::from_schema_name(#name)
                             }
                         };
                         schema.to_tokens(tokens);
@@ -451,7 +434,6 @@ impl<'c> ComponentSchema {
                                     description: None,
                                     deprecated: None,
                                     object_name,
-                                    type_definition,
                                 })
                             })
                             .collect::<DiagResult<Vec<_>>>()

@@ -23,7 +23,7 @@ use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
     ComponentSchema, FieldRename, VariantRename,
 };
-use crate::feature::{Bound, Inline, SkipBound, Symbol};
+use crate::feature::{Bound, Inline, SkipBound, Name};
 use crate::serde_util::SerdeValue;
 use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
@@ -62,18 +62,17 @@ impl TryToTokens for ToSchema<'_> {
         let (_, ty_generics, _) = self.generics.split_for_impl();
 
         let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
-        let symbol = if inline {
+        let name = if inline {
             None
-        } else if let Some(symbol) = variant.symbol() {
+        } else if let Some(name) = variant.name() {
             if self.generics.type_params().next().is_none() {
-                let symbol = format_path_ref(symbol);
-                Some(quote! { #symbol })
+                Some(quote! { #name.to_string().replace(" :: ", ".") })
             } else {
                 Some(quote! {
                    {
                        let full_name = std::any::type_name::<#ident #ty_generics>();
                        if let Some((_, args)) = full_name.split_once('<') {
-                           format!("{}<{}", #symbol, args)
+                           format!("{}<{}", #name, args)
                        } else {
                            full_name.into()
                        }
@@ -102,17 +101,19 @@ impl TryToTokens for ToSchema<'_> {
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let variant = variant.try_to_token_stream()?;
-        let body = match symbol {
+        let body = match name {
             None => {
                 quote! {
+                    println!("---------1");
                     #variant.into()
                 }
             }
-            Some(symbol) => {
+            Some(name) => {
                 quote! {
+                    println!("---------2");
                     let schema = #variant;
-                    components.schemas.insert(#symbol, schema.into());
-                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #symbol)))
+                    components.schemas.insert(#name, schema.into());
+                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #name)))
                 }
             }
         };
@@ -148,21 +149,21 @@ impl<'a> SchemaVariant<'a> {
                     let FieldsUnnamed { unnamed, .. } = fields;
                     let mut unnamed_features = attributes.parse_features::<UnnamedFieldStructFeatures>()?.into_inner();
 
-                    let symbol = pop_feature_as_inner!(unnamed_features => Feature::Symbol(_v));
+                    let name = pop_feature_as_inner!(unnamed_features => Feature::Name(_v));
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
                         features: unnamed_features,
                         fields: unnamed,
-                        symbol,
+                        name,
                         inline,
                     }))
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    let mut named_features = attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
-                    let symbol = pop_feature_as_inner!(named_features => Feature::Symbol(_v));
+                    let mut named_features: Option<Vec<Feature>> = attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
+                    let name = pop_feature_as_inner!(named_features => Feature::Name(_v));
                     let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
 
                     Ok(Self::Named(NamedStructSchema {
@@ -172,7 +173,7 @@ impl<'a> SchemaVariant<'a> {
                         features: named_features,
                         fields: named,
                         generics: Some(generics),
-                        symbol,
+                        name,
                         inline,
                     }))
                 }
@@ -191,11 +192,11 @@ impl<'a> SchemaVariant<'a> {
         }
     }
 
-    fn symbol(&self) -> &Option<Symbol> {
+    fn name(&self) -> &Option<Name> {
         match self {
-            Self::Enum(schema) => &schema.symbol,
-            Self::Named(schema) => &schema.symbol,
-            Self::Unnamed(schema) => &schema.symbol,
+            Self::Enum(schema) => &schema.name,
+            Self::Named(schema) => &schema.name,
+            Self::Unnamed(schema) => &schema.name,
             _ => &None,
         }
     }
@@ -275,13 +276,13 @@ impl TryToTokens for Property {
 }
 
 trait SchemaFeatureExt {
-    fn split_for_symbol(self) -> (Vec<Feature>, Vec<Feature>);
+    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
 }
 
 impl SchemaFeatureExt for Vec<Feature> {
-    fn split_for_symbol(self) -> (Vec<Feature>, Vec<Feature>) {
+    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
         self.into_iter()
-            .partition(|feature| matches!(feature, Feature::Symbol(_)))
+            .partition(|feature| matches!(feature, Feature::Title(_)))
     }
 }
 

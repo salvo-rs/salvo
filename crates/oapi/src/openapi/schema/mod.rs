@@ -13,6 +13,7 @@ mod any_of;
 mod array;
 mod object;
 mod one_of;
+pub mod registry;
 
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
@@ -477,13 +478,13 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_symbol() {
-        let json_value = Object::new().symbol("SomeName");
+    fn test_object_with_name() {
+        let json_value = Object::new().name("SomeName");
         assert_json_eq!(
             json_value,
             json!({
                 "type": "object",
-                "symbol": "SomeName"
+                "name": "SomeName"
             })
         );
     }

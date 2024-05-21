@@ -110,7 +110,6 @@ impl TryToTokens for ParameterSchema<'_> {
                         description: None,
                         deprecated: None,
                         object_name: "",
-                        type_definition: false,
                     })?,
                     required,
                 )

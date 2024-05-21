@@ -219,23 +219,42 @@ impl From<ReadOnly> for Feature {
 impl_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Symbol(pub(crate) String);
-impl Parse for Symbol {
+pub(crate) struct Name(pub(crate) String);
+impl Parse for Name {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
-impl ToTokens for Symbol {
+impl ToTokens for Name {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         stream.extend(self.0.to_token_stream())
     }
 }
-impl From<Symbol> for Feature {
-    fn from(value: Symbol) -> Self {
-        Feature::Symbol(value)
+impl From<Name> for Feature {
+    fn from(value: Name) -> Self {
+        Feature::Name(value)
     }
 }
-impl_name!(Symbol = "symbol");
+impl_name!(Name = "name");
+
+#[derive(Clone, Debug)]
+pub(crate) struct Name(pub(crate) String);
+impl Parse for Title {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+impl ToTokens for Title {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        stream.extend(self.0.to_token_stream())
+    }
+}
+impl From<Title> for Feature {
+    fn from(value: Title) -> Self {
+        Feature::Title(value)
+    }
+}
+impl_name!(Title = "title");
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Nullable(pub(crate) bool);

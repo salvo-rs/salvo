@@ -64,7 +64,7 @@ where
 
 pub(crate) struct ObjectVariant<'o, T: ToTokens> {
     pub(crate) item: T,
-    pub(crate) symbol: Option<TokenStream>,
+    pub(crate) name: Option<TokenStream>,
     pub(crate) example: Option<TokenStream>,
     pub(crate) name: Cow<'o, str>,
 }
@@ -75,14 +75,14 @@ where
 {
     fn to_tokens(&self) -> TokenStream {
         let oapi = crate::oapi_crate();
-        let symbol = &self.symbol;
+        let name = &self.name;
         let example = &self.example;
         let variant = &self.item;
         let name = &self.name;
 
         quote! {
             #oapi::oapi::schema::Object::new()
-                #symbol
+                #name
                 #example
                 .property(#name, #variant)
                 .required(#name)
@@ -91,7 +91,7 @@ where
 }
 
 pub(crate) struct Enum<'e, V: Variant> {
-    pub(crate) symbol: Option<TokenStream>,
+    pub(crate) name: Option<TokenStream>,
     pub(crate) example: Option<TokenStream>,
     len: usize,
     items: Array<'e, TokenStream>,
@@ -106,8 +106,8 @@ impl<V: Variant> Enum<'_, V> {
         items.into_iter().collect()
     }
 
-    pub(crate) fn symbol<I: Into<TokenStream>>(mut self, symbol: I) -> Self {
-        self.symbol = Some(symbol.into());
+    pub(crate) fn name<I: Into<TokenStream>>(mut self, name: I) -> Self {
+        self.name = Some(name.into());
         self
     }
 
@@ -129,7 +129,7 @@ where
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
-        let symbol = &self.symbol;
+        let name = &self.name;
         let example = &self.example;
         let items = &self.items;
         let schema_type = &self.schema_type;
@@ -138,7 +138,7 @@ where
 
         stream.extend(quote! {
             #oapi::oapi::Object::new()
-                #symbol
+                #name
                 #description
                 #example
                 .schema_type(#schema_type)
@@ -166,7 +166,7 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
             .collect::<Array<TokenStream>>();
 
         Self {
-            symbol: None,
+            name: None,
             example: None,
             description: None,
             len,
@@ -243,29 +243,29 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
 }
 
 pub(crate) struct UntaggedEnum {
-    symbol: Option<Feature>,
+    name: Option<Feature>,
 }
 
 impl UntaggedEnum {
     pub(crate) fn new() -> Self {
-        Self { symbol: None }
+        Self { name: None }
     }
 
-    pub(crate) fn with_symbol(symbol: Option<Feature>) -> Self {
-        Self { symbol }
+    pub(crate) fn with_name(name: Option<Feature>) -> Self {
+        Self { name }
     }
 }
 
 impl TryToTokens for UntaggedEnum {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let symbol = self.symbol.as_ref().map(|f| f.try_to_token_stream()).transpose()?;
+        let name = self.name.as_ref().map(|f| f.try_to_token_stream()).transpose()?;
 
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
                 .nullable(true)
                 .default_value(#oapi::oapi::__private::serde_json::Value::Null)
-                #symbol
+                #name
         });
         Ok(())
     }

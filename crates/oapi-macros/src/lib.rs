@@ -74,8 +74,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     } = syn::parse_macro_input!(input);
 
     match ToSchema::new(&data, &attrs, &ident, &generics).try_to_token_stream() {
-        Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Ok(stream) => {let s = stream.into(); println!("{s}"); s},
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -101,7 +101,7 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     .try_to_token_stream();
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -122,7 +122,7 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let stream = ToResponse::new(attrs, &data, generics, ident).and_then(|s| s.try_to_token_stream());
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -150,7 +150,7 @@ pub fn to_responses(input: TokenStream) -> TokenStream {
 
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -182,7 +182,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
     let schema = syn::parse_macro_input!(input as Schema);
     let type_tree = match TypeTree::from_type(&schema.ty) {
         Ok(type_tree) => type_tree,
-        Err(diag) => return diag.emit_as_expr_tokens().into(),
+        Err(diag) => return diag.emit_as_item_tokens().into(),
     };
 
     let stream = ComponentSchema::new(ComponentSchemaProps {
@@ -191,12 +191,11 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
-        type_definition: false,
     })
     .map(|s| s.to_token_stream());
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 

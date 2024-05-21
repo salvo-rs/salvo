@@ -5,7 +5,7 @@ use crate::feature::{
     impl_into_inner, impl_merge, parse_features, AdditionalProperties, Bound, Default, Deprecated, Example,
     ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
     Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename,
-    RenameAll, Required, SchemaWith, Skip, SkipBound, Symbol, ValueType, WriteOnly, XmlAttr,
+    RenameAll, Required, SchemaWith, Skip, SkipBound, Name, ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, DiagResult, Diagnostic};
 
@@ -17,7 +17,7 @@ impl Parse for NamedFieldStructFeatures {
         Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
             XmlAttr,
-            Symbol,
+            Title,
             RenameAll,
             MaxProperties,
             MinProperties,
@@ -41,7 +41,7 @@ impl Parse for UnnamedFieldStructFeatures {
         Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
             Default,
-            Symbol,
+            Title,
             Format,
             ValueType,
             Inline,
@@ -62,7 +62,7 @@ impl Parse for EnumFeatures {
         Ok(EnumFeatures(parse_features!(
             input as Example,
             Default,
-            Symbol,
+            Title,
             RenameAll,
             Inline,
             Deprecated,
@@ -82,7 +82,7 @@ impl Parse for ComplexEnumFeatures {
             input as Example,
             Default,
             RenameAll,
-            Symbol,
+            Name,
             Inline,
             Deprecated,
             Bound,
@@ -136,7 +136,7 @@ impl Parse for EnumNamedFieldVariantFeatures {
         Ok(EnumNamedFieldVariantFeatures(parse_features!(
             input as Example,
             XmlAttr,
-            Symbol,
+            Title,
             Rename,
             RenameAll,
             Deprecated,
@@ -154,7 +154,7 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
         Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
             input as Example,
             Default,
-            Symbol,
+            Title,
             Format,
             ValueType,
             Rename,

@@ -9,7 +9,7 @@ use crate::{
     doc_comment::CommentAttributes,
     feature::{
         pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, SkipBound,
-        Symbol, TryToTokensExt,
+        Name, TryToTokensExt,
     },
     schema::Inline,
     serde_util::{self, SerdeContainer},
@@ -31,7 +31,7 @@ pub(crate) struct NamedStructSchema<'a> {
     pub(crate) rename_all: Option<RenameAll>,
     #[allow(dead_code)]
     pub(crate) generics: Option<&'a Generics>,
-    pub(crate) symbol: Option<Symbol>,
+    pub(crate) name: Option<Name>,
     pub(crate) inline: Option<Inline>,
 }
 
@@ -112,7 +112,6 @@ impl NamedStructSchema<'_> {
                     description: Some(&comments),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
-                    type_definition: true,
                 };
                 if flatten && type_tree.is_map() {
                     Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
@@ -305,7 +304,7 @@ pub(super) struct UnnamedStructSchema<'a> {
     pub(super) fields: &'a Punctuated<Field, Token![,]>,
     pub(super) attributes: &'a [Attribute],
     pub(super) features: Option<Vec<Feature>>,
-    pub(super) symbol: Option<Symbol>,
+    pub(super) name: Option<Name>,
     pub(super) inline: Option<Inline>,
 }
 impl UnnamedStructSchema<'_> {
@@ -365,7 +364,6 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                     description: Some(&CommentAttributes::from_attributes(self.attributes)),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
-                    type_definition: true,
                 })?
                 .to_token_stream(),
             );
