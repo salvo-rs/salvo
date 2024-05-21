@@ -8,8 +8,8 @@ use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
     feature::{
-        pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, RenameAll, SkipBound,
-        Name, TryToTokensExt,
+        pop_feature, pop_feature_as_inner, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, Name, RenameAll,
+        SkipBound, TryToTokensExt,
     },
     schema::Inline,
     serde_util::{self, SerdeContainer},
@@ -57,7 +57,7 @@ impl NamedStructSchema<'_> {
         container_rules: &Option<SerdeContainer>,
     ) -> DiagResult<NamedStructFieldOptions<'_>> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
-        
+
         if let Some(aliases) = &self.aliases {
             for (new_generic, old_generic_matcher) in aliases.iter() {
                 if let Some(generic_match) = type_tree.find_mut(old_generic_matcher) {
@@ -65,7 +65,7 @@ impl NamedStructSchema<'_> {
                 }
             }
         }
-        
+
         let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>()?.into_inner();
 
         let schema_default = self

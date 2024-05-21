@@ -4,9 +4,9 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Visibility,
+use syn::{
     parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, Generics, Path, PathArguments,
-    Type,
+    Type, Visibility,
 };
 
 mod alias_schema;
@@ -85,60 +85,68 @@ impl TryToTokens for ToSchema<'_> {
 
         let schema_ty: Type = parse_quote!(#ident #ty_generics);
         let schema_children = &*TypeTree::from_type(&schema_ty)?.children.unwrap_or_default();
-        let aliases = self.aliases.as_ref().map(|aliases| {
-            let alias_schemas = aliases
-                .iter()
-                .map(|alias| {
-                    let name = &*alias.name;
-                    let alias_type_tree = TypeTree::from_type(&alias.ty);
+        let aliases = self
+            .aliases
+            .as_ref()
+            .map(|aliases| {
+                let alias_schemas = aliases
+                    .iter()
+                    .map(|alias| {
+                        let name = &*alias.name;
+                        let alias_type_tree = TypeTree::from_type(&alias.ty);
 
-                    SchemaVariant::new(
-                        self.data,
-                        self.attributes,
-                        ident,
-                        self.generics,
-                        alias_type_tree?
-                            .children
-                            .map(|children| children.into_iter().zip(schema_children)),
-                    )
-                    .and_then(|variant| {
-                        let mut alias_tokens = TokenStream::new();
-                        match variant.try_to_tokens(&mut alias_tokens) {
-                            Ok(_) => Ok(quote! { #alias_tokens.into().name(#name) }),
-                            Err(diag) => Err(diag),
-                        }
+                        SchemaVariant::new(
+                            self.data,
+                            self.attributes,
+                            ident,
+                            self.generics,
+                            alias_type_tree?
+                                .children
+                                .map(|children| children.into_iter().zip(schema_children)),
+                        )
+                        .and_then(|variant| {
+                            let mut alias_tokens = TokenStream::new();
+                            match variant.try_to_tokens(&mut alias_tokens) {
+                                Ok(_) => Ok(quote! { #alias_tokens.into().name(#name) }),
+                                Err(diag) => Err(diag),
+                            }
+                        })
                     })
-                })
-                .collect::<DiagResult<Array<TokenStream>>>()?;
+                    .collect::<DiagResult<Array<TokenStream>>>()?;
 
-            DiagResult::<TokenStream>::Ok(quote! {
-                fn aliases() -> Vec<#oapi::oapi::openapi::schema::Schema> {
-                    #alias_schemas.to_vec()
-                }
+                DiagResult::<TokenStream>::Ok(quote! {
+                    fn aliases() -> Vec<#oapi::oapi::openapi::schema::Schema> {
+                        #alias_schemas.to_vec()
+                    }
+                })
             })
-        }).transpose()?;
+            .transpose()?;
 
-        let type_aliases = self.aliases.as_ref().map(|aliases| {
-            aliases
-                .iter()
-                .map(|alias| {
-                    let name = quote::format_ident!("{}", alias.name);
-                    let ty = &alias.ty;
-                    let vis = self.vis;
-                    let name_generics = alias.get_lifetimes()?.fold(
-                        Punctuated::<&GenericArgument, Comma>::new(),
-                        |mut acc, lifetime| {
-                            acc.push(lifetime);
-                            acc
-                        },
-                    );
+        let type_aliases = self
+            .aliases
+            .as_ref()
+            .map(|aliases| {
+                aliases
+                    .iter()
+                    .map(|alias| {
+                        let name = quote::format_ident!("{}", alias.name);
+                        let ty = &alias.ty;
+                        let vis = self.vis;
+                        let name_generics = alias.get_lifetimes()?.fold(
+                            Punctuated::<&GenericArgument, Comma>::new(),
+                            |mut acc, lifetime| {
+                                acc.push(lifetime);
+                                acc
+                            },
+                        );
 
-                    Ok(quote! {
-                        #vis type #name < #name_generics > = #ty;
+                        Ok(quote! {
+                            #vis type #name < #name_generics > = #ty;
+                        })
                     })
-                })
-                .collect::<DiagResult<TokenStream>>()
-        }).transpose()?;
+                    .collect::<DiagResult<TokenStream>>()
+            })
+            .transpose()?;
 
         let name = if inline {
             None

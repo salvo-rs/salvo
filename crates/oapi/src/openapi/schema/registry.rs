@@ -111,7 +111,7 @@ impl Namer for ShortNamer {
             }
             NameRule::Const(name) => {
                 if let Some((exist_id, exist_name)) = name_type(name) {
-                    if exist_id !=type_id {
+                    if exist_id != type_id {
                         panic!("Duplicate name for types: {}, {}", exist_name, type_name);
                     }
                 }

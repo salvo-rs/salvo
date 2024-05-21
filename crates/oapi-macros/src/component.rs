@@ -393,7 +393,7 @@ impl<'c> ComponentSchema {
                             "Object type `{}` is not supported. Use `#[derive(oapi::ToSchema)]` to implement `ToSchema` for the type",
                             type_path.to_token_stream()
                         );
-                        let name =  quote! {
+                        let name = quote! {
                             let type_id = ::std::any::TypeId::of<#type_path>();
                             let rule = #oapi::oapi::openapi::schema::registry::NameRuleRegistry::find(&type_id).expect(#msg);
                             #oapi::oapi::openapi::schema::registry::namer().name(type_id, rule)

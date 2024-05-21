@@ -4,8 +4,8 @@ use syn::Attribute;
 use crate::feature::{
     impl_into_inner, impl_merge, parse_features, AdditionalProperties, Bound, Default, Deprecated, Example,
     ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
-    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename,
-    RenameAll, Required, SchemaWith, Skip, SkipBound, Name, Title, ValueType, WriteOnly, XmlAttr,
+    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename,
+    RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, DiagResult, Diagnostic};
 
