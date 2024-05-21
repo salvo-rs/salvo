@@ -408,11 +408,11 @@ impl ComplexEnum<'_> {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (name_features, mut named_struct_features) = variant
+                let (title_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()?
                     .into_inner()
-                    .map(|features| features.split_for_name())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 if named_struct_features.is_skipped() {
@@ -431,7 +431,7 @@ impl ComplexEnum<'_> {
 
                 Ok(self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    name: name_features
+                    title: title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
                         .transpose()?,
@@ -444,17 +444,18 @@ impl ComplexEnum<'_> {
                         fields: &named_fields.named,
                         generics: None,
                         name: None,
+                        aliases: None,
                         inline: None,
                     }
                     .try_to_token_stream()?,
                 }))
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (name_features, mut unnamed_struct_features) = variant
+                let (title_features, mut unnamed_struct_features) = variant
                     .attrs
                     .parse_features::<EnumUnnamedFieldVariantFeatures>()?
                     .into_inner()
-                    .map(|features| features.split_for_name())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 if unnamed_struct_features.is_skipped() {
@@ -473,7 +474,7 @@ impl ComplexEnum<'_> {
 
                 Ok(self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    name: name_features
+                    title: title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
                         .transpose()?,
@@ -558,6 +559,7 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     name: None,
+                    aliases: None,
                     inline: None,
                 }
                 .try_to_token_stream()
@@ -614,11 +616,11 @@ impl ComplexEnum<'_> {
         let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (name_features, mut named_struct_features) = variant
+                let (title_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()?
                     .into_inner()
-                    .map(|features| features.split_for_name())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 if named_struct_features.is_skipped() {
@@ -641,10 +643,11 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     name: None,
+                    aliases: None,
                     inline: None,
                 }
                 .try_to_token_stream()?;
-                let name = name_features
+                let title = title_features
                     .first()
                     .map(TryToTokens::try_to_token_stream)
                     .transpose()?;
@@ -654,18 +657,18 @@ impl ComplexEnum<'_> {
                 }]);
                 Ok(quote! {
                     #named_enum
-                        #name
+                        #title
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                 })
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (name_features, mut unnamed_struct_features) = variant
+                    let (title_features, mut unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<EnumUnnamedFieldVariantFeatures>()?
                         .into_inner()
-                        .map(|features| features.split_for_name())
+                        .map(|features| features.split_for_title())
                         .unwrap_or_default();
 
                     if unnamed_struct_features.is_skipped() {
@@ -690,7 +693,7 @@ impl ComplexEnum<'_> {
                     }
                     .try_to_token_stream()?;
 
-                    let name = name_features
+                    let title = title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
                         .transpose()?;
@@ -707,7 +710,7 @@ impl ComplexEnum<'_> {
                     if is_reference {
                         Ok(quote! {
                             #oapi::oapi::schema::AllOf::new()
-                                #name
+                                #title
                                 .item(#unnamed_enum)
                                 .item(#oapi::oapi::schema::Object::new()
                                     .schema_type(#oapi::oapi::schema::SchemaType::Object)
@@ -784,11 +787,11 @@ impl ComplexEnum<'_> {
         let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (name_features, mut named_struct_features) = variant
+                let (title_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()?
                     .into_inner()
-                    .map(|features| features.split_for_name())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 if named_struct_features.is_skipped() {
@@ -811,17 +814,18 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     name: None,
+                    aliases: None,
                     inline: None,
                 }
                 .try_to_token_stream()?;
-                let name = name_features.first().map(|s| s.try_to_token_stream()).transpose()?;
+                let title = title_features.first().map(|s| s.try_to_token_stream()).transpose()?;
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
                 Ok(quote! {
                     #oapi::oapi::schema::Object::new()
-                        #name
+                        #title
                         .schema_type(#oapi::oapi::schema::SchemaType::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
@@ -831,11 +835,11 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (name_features, mut unnamed_struct_features) = variant
+                    let (title_features, mut unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<EnumUnnamedFieldVariantFeatures>()?
                         .into_inner()
-                        .map(|features| features.split_for_name())
+                        .map(|features| features.split_for_title())
                         .unwrap_or_default();
 
                     if unnamed_struct_features.is_skipped() {
@@ -860,7 +864,7 @@ impl ComplexEnum<'_> {
                     }
                     .try_to_token_stream()?;
 
-                    let name = name_features
+                    let title = title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
                         .transpose()?;

@@ -125,6 +125,14 @@ pub trait ToSchema {
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema>;
+
+    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    ///
+    /// Typically there is no need to manually implement this method but it is instead implemented
+    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    fn aliases() -> Vec<schema::Schema> {
+        Vec::new()
+    }
 }
 
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.

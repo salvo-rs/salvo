@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::ParseStream, punctuated::Punctuated, token, LitStr, TypePath, WherePredicate};
 
-use super::{impl_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
+use super::{impl_get_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
 use crate::{
     parameter::{self, ParameterStyle},
     parse_utils, schema,
@@ -34,7 +34,7 @@ impl From<Example> for Feature {
         Feature::Example(value)
     }
 }
-impl_name!(Example = "example");
+impl_get_name!(Example = "example");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Default(pub(crate) Option<AnyValue>);
@@ -65,7 +65,7 @@ impl From<self::Default> for Feature {
         Feature::Default(value)
     }
 }
-impl_name!(Default = "default");
+impl_get_name!(Default = "default");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Inline(pub(crate) bool);
@@ -84,7 +84,7 @@ impl From<Inline> for Feature {
         Feature::Inline(value)
     }
 }
-impl_name!(Inline = "inline");
+impl_get_name!(Inline = "inline");
 
 #[derive(Default, Clone, Debug)]
 pub(crate) struct XmlAttr(pub(crate) schema::XmlAttr);
@@ -138,7 +138,7 @@ impl From<XmlAttr> for Feature {
         Feature::XmlAttr(value)
     }
 }
-impl_name!(XmlAttr = "xml");
+impl_get_name!(XmlAttr = "xml");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Format(pub(crate) SchemaFormat<'static>);
@@ -158,7 +158,7 @@ impl From<Format> for Feature {
         Feature::Format(value)
     }
 }
-impl_name!(Format = "format");
+impl_get_name!(Format = "format");
 
 #[derive(Clone, Debug)]
 pub(crate) struct ValueType(pub(crate) syn::Type);
@@ -178,7 +178,7 @@ impl From<ValueType> for Feature {
         Feature::ValueType(value)
     }
 }
-impl_name!(ValueType = "value_type");
+impl_get_name!(ValueType = "value_type");
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WriteOnly(pub(crate) bool);
@@ -197,7 +197,7 @@ impl From<WriteOnly> for Feature {
         Feature::WriteOnly(value)
     }
 }
-impl_name!(WriteOnly = "write_only");
+impl_get_name!(WriteOnly = "write_only");
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ReadOnly(pub(crate) bool);
@@ -216,7 +216,7 @@ impl From<ReadOnly> for Feature {
         Feature::ReadOnly(value)
     }
 }
-impl_name!(ReadOnly = "read_only");
+impl_get_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Name(pub(crate) String);
@@ -235,10 +235,10 @@ impl From<Name> for Feature {
         Feature::Name(value)
     }
 }
-impl_name!(Name = "name");
+impl_get_name!(Name = "name");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Name(pub(crate) String);
+pub(crate) struct Title(pub(crate) String);
 impl Parse for Title {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
@@ -254,7 +254,7 @@ impl From<Title> for Feature {
         Feature::Title(value)
     }
 }
-impl_name!(Title = "title");
+impl_get_name!(Title = "title");
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Nullable(pub(crate) bool);
@@ -278,7 +278,7 @@ impl From<Nullable> for Feature {
         Feature::Nullable(value)
     }
 }
-impl_name!(Nullable = "nullable");
+impl_get_name!(Nullable = "nullable");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Rename(pub(crate) String);
@@ -303,7 +303,7 @@ impl From<Rename> for Feature {
         Feature::Rename(value)
     }
 }
-impl_name!(Rename = "rename");
+impl_get_name!(Rename = "rename");
 
 #[derive(Clone, Debug)]
 pub(crate) struct RenameAll(pub(crate) RenameRule);
@@ -328,7 +328,7 @@ impl From<RenameAll> for Feature {
         Feature::RenameAll(value)
     }
 }
-impl_name!(RenameAll = "rename_all");
+impl_get_name!(RenameAll = "rename_all");
 
 #[derive(Clone, Debug)]
 pub(crate) struct DefaultStyle(pub(crate) ParameterStyle);
@@ -352,7 +352,7 @@ impl From<DefaultStyle> for Feature {
         Feature::DefaultStyle(value)
     }
 }
-impl_name!(DefaultStyle = "default_style");
+impl_get_name!(DefaultStyle = "default_style");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Style(pub(crate) ParameterStyle);
@@ -376,7 +376,7 @@ impl From<Style> for Feature {
         Feature::Style(value)
     }
 }
-impl_name!(Style = "style");
+impl_get_name!(Style = "style");
 
 #[derive(Clone, Debug)]
 pub(crate) struct AllowReserved(pub(crate) bool);
@@ -395,7 +395,7 @@ impl From<AllowReserved> for Feature {
         Feature::AllowReserved(value)
     }
 }
-impl_name!(AllowReserved = "allow_reserved");
+impl_get_name!(AllowReserved = "allow_reserved");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Explode(pub(crate) bool);
@@ -414,7 +414,7 @@ impl From<Explode> for Feature {
         Feature::Explode(value)
     }
 }
-impl_name!(Explode = "explode");
+impl_get_name!(Explode = "explode");
 
 #[derive(Clone, Debug)]
 pub(crate) struct DefaultParameterIn(pub(crate) parameter::ParameterIn);
@@ -433,7 +433,7 @@ impl From<DefaultParameterIn> for Feature {
         Feature::DefaultParameterIn(value)
     }
 }
-impl_name!(DefaultParameterIn = "default_parameter_in");
+impl_get_name!(DefaultParameterIn = "default_parameter_in");
 
 #[derive(Clone, Debug)]
 pub(crate) struct ParameterIn(pub(crate) parameter::ParameterIn);
@@ -452,7 +452,7 @@ impl From<ParameterIn> for Feature {
         Feature::ParameterIn(value)
     }
 }
-impl_name!(ParameterIn = "parameter_in");
+impl_get_name!(ParameterIn = "parameter_in");
 
 /// Specify names of unnamed fields with `names(...) attribute for `ToParameters` derive.
 #[derive(Clone, Debug)]
@@ -477,7 +477,7 @@ impl From<Names> for Feature {
         Feature::ToParametersNames(value)
     }
 }
-impl_name!(Names = "names");
+impl_get_name!(Names = "names");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);
@@ -512,7 +512,7 @@ impl From<MultipleOf> for Feature {
         Feature::MultipleOf(value)
     }
 }
-impl_name!(MultipleOf = "multiple_of");
+impl_get_name!(MultipleOf = "multiple_of");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Maximum(pub(crate) f64, pub(crate) Ident);
@@ -547,7 +547,7 @@ impl From<Maximum> for Feature {
         Feature::Maximum(value)
     }
 }
-impl_name!(Maximum = "maximum");
+impl_get_name!(Maximum = "maximum");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Minimum(pub(crate) f64, pub(crate) Ident);
@@ -587,7 +587,7 @@ impl From<Minimum> for Feature {
         Feature::Minimum(value)
     }
 }
-impl_name!(Minimum = "minimum");
+impl_get_name!(Minimum = "minimum");
 
 #[derive(Clone, Debug)]
 pub(crate) struct ExclusiveMaximum(pub(crate) f64, pub(crate) Ident);
@@ -619,7 +619,7 @@ impl From<ExclusiveMaximum> for Feature {
         Feature::ExclusiveMaximum(value)
     }
 }
-impl_name!(ExclusiveMaximum = "exclusive_maximum");
+impl_get_name!(ExclusiveMaximum = "exclusive_maximum");
 
 #[derive(Clone, Debug)]
 pub(crate) struct ExclusiveMinimum(pub(crate) f64, pub(crate) Ident);
@@ -651,7 +651,7 @@ impl From<ExclusiveMinimum> for Feature {
         Feature::ExclusiveMinimum(value)
     }
 }
-impl_name!(ExclusiveMinimum = "exclusive_minimum");
+impl_get_name!(ExclusiveMinimum = "exclusive_minimum");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MaxLength(pub(crate) usize, pub(crate) Ident);
@@ -689,7 +689,7 @@ impl From<MaxLength> for Feature {
         Feature::MaxLength(value)
     }
 }
-impl_name!(MaxLength = "max_length");
+impl_get_name!(MaxLength = "max_length");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MinLength(pub(crate) usize, pub(crate) Ident);
@@ -727,7 +727,7 @@ impl From<MinLength> for Feature {
         Feature::MinLength(value)
     }
 }
-impl_name!(MinLength = "min_length");
+impl_get_name!(MinLength = "min_length");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Pattern(pub(crate) String, pub(crate) Ident);
@@ -762,7 +762,7 @@ impl From<Pattern> for Feature {
         Feature::Pattern(value)
     }
 }
-impl_name!(Pattern = "pattern");
+impl_get_name!(Pattern = "pattern");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MaxItems(pub(crate) usize, pub(crate) Ident);
@@ -797,7 +797,7 @@ impl From<MaxItems> for Feature {
         Feature::MaxItems(value)
     }
 }
-impl_name!(MaxItems = "max_items");
+impl_get_name!(MaxItems = "max_items");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MinItems(pub(crate) usize, pub(crate) Ident);
@@ -832,7 +832,7 @@ impl From<MinItems> for Feature {
         Feature::MinItems(value)
     }
 }
-impl_name!(MinItems = "min_items");
+impl_get_name!(MinItems = "min_items");
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -855,7 +855,7 @@ impl From<MaxProperties> for Feature {
         Feature::MaxProperties(value)
     }
 }
-impl_name!(MaxProperties = "max_properties");
+impl_get_name!(MaxProperties = "max_properties");
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -878,7 +878,7 @@ impl From<MinProperties> for Feature {
         Feature::MinProperties(value)
     }
 }
-impl_name!(MinProperties = "min_properties");
+impl_get_name!(MinProperties = "min_properties");
 
 #[derive(Clone, Debug)]
 pub(crate) struct SchemaWith(pub(crate) TypePath);
@@ -900,7 +900,7 @@ impl From<SchemaWith> for Feature {
         Feature::SchemaWith(value)
     }
 }
-impl_name!(SchemaWith = "schema_with");
+impl_get_name!(SchemaWith = "schema_with");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Bound(pub(crate) Vec<WherePredicate>);
@@ -924,7 +924,7 @@ impl From<Bound> for Feature {
         Feature::Bound(value)
     }
 }
-impl_name!(Bound = "bound");
+impl_get_name!(Bound = "bound");
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub(crate) struct SkipBound(pub(crate) bool);
@@ -941,7 +941,7 @@ impl From<SkipBound> for Feature {
         Feature::SkipBound(value)
     }
 }
-impl_name!(SkipBound = "skip_bound");
+impl_get_name!(SkipBound = "skip_bound");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Description(pub(crate) String);
@@ -968,7 +968,7 @@ impl From<Description> for Feature {
         Self::Description(value)
     }
 }
-impl_name!(Description = "description");
+impl_get_name!(Description = "description");
 
 /// Deprecated feature parsed from macro attributes.
 ///
@@ -996,7 +996,7 @@ impl From<Deprecated> for Feature {
     }
 }
 
-impl_name!(Deprecated = "deprecated");
+impl_get_name!(Deprecated = "deprecated");
 
 /// Skip feature parsed from macro attributes.
 #[derive(Clone, Debug)]
@@ -1020,7 +1020,7 @@ impl From<Skip> for Feature {
     }
 }
 
-impl_name!(Skip = "skip");
+impl_get_name!(Skip = "skip");
 
 #[derive(Clone, Debug)]
 pub(crate) struct AdditionalProperties(pub(crate) bool);
@@ -1043,7 +1043,7 @@ impl ToTokens for AdditionalProperties {
         ))
     }
 }
-impl_name!(AdditionalProperties = "additional_properties");
+impl_get_name!(AdditionalProperties = "additional_properties");
 
 impl From<AdditionalProperties> for Feature {
     fn from(value: AdditionalProperties) -> Self {
@@ -1086,4 +1086,4 @@ impl From<Required> for Feature {
         Self::Required(value)
     }
 }
-impl_name!(Required = "required");
+impl_get_name!(Required = "required");

@@ -43,7 +43,7 @@ where
     })
 }
 
-pub(crate) trait Name {
+pub(crate) trait GetName {
     fn get_name() -> &'static str
     where
         Self: Sized;

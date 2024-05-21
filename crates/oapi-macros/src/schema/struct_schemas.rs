@@ -32,6 +32,7 @@ pub(crate) struct NamedStructSchema<'a> {
     #[allow(dead_code)]
     pub(crate) generics: Option<&'a Generics>,
     pub(crate) name: Option<Name>,
+    pub(crate) aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub(crate) inline: Option<Inline>,
 }
 
@@ -56,6 +57,15 @@ impl NamedStructSchema<'_> {
         container_rules: &Option<SerdeContainer>,
     ) -> DiagResult<NamedStructFieldOptions<'_>> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
+        
+        if let Some(aliases) = &self.aliases {
+            for (new_generic, old_generic_matcher) in aliases.iter() {
+                if let Some(generic_match) = type_tree.find_mut(old_generic_matcher) {
+                    *generic_match = new_generic.clone();
+                }
+            }
+        }
+        
         let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>()?.into_inner();
 
         let schema_default = self
