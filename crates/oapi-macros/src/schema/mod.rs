@@ -156,7 +156,7 @@ impl TryToTokens for ToSchema<'_> {
             } else {
                 Some(quote! {
                    {
-                       let full_name = std::any::type_name::<#ident #ty_generics>();
+                       let full_name = ::std::any::type_name::<#ident #ty_generics>();
                        if let Some((_, args)) = full_name.split_once('<') {
                            format!("{}<{}", #name, args)
                        } else {
@@ -166,7 +166,7 @@ impl TryToTokens for ToSchema<'_> {
                 })
             }
         } else {
-            Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
+            Some(quote! { ::std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
         };
 
         let skip_bound = variant.pop_skip_bound();

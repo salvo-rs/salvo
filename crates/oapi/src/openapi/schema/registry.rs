@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::BTreeMap;
 
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
+use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
 use regex::Regex;
 
 /// A registry for all schema names.
@@ -43,6 +43,9 @@ static GLOBAL_NAMES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = La
 
 pub fn set_namer(namer: impl Namer) {
     *GLOBAL_NAMER.write() = Box::new(namer);
+}
+pub fn namer() -> RwLockReadGuard<'static, Box<dyn Namer>> {
+    GLOBAL_NAMER.read()
 }
 
 pub fn name_type(name: &str) -> Option<(TypeId, &'static str)> {
