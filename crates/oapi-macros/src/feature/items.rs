@@ -2,7 +2,11 @@ use std::{fmt::Display, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, punctuated::Punctuated, token, LitStr, TypePath, WherePredicate};
+use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::token::Comma;
+use syn::{parenthesized, token, GenericArgument, LitStr, PathArguments, Token, Type, TypePath, WherePredicate};
 
 use super::{impl_get_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
 use crate::{
@@ -1087,3 +1091,83 @@ impl From<Required> for Feature {
     }
 }
 impl_get_name!(Required = "required");
+
+#[derive(Clone, Debug)]
+pub(crate) struct Alias {
+    pub(crate) name: String,
+    pub(crate) ty: Type,
+}
+
+impl Alias {
+    pub(crate) fn get_lifetimes(&self) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostic> {
+        fn lifetimes_from_type(ty: &Type) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostic> {
+            match ty {
+                Type::Path(type_path) => Ok(type_path
+                    .path
+                    .segments
+                    .iter()
+                    .flat_map(|segment| match &segment.arguments {
+                        PathArguments::AngleBracketed(angle_bracketed_args) => {
+                            Some(angle_bracketed_args.args.iter())
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .flat_map(|arg| match arg {
+                        GenericArgument::Type(type_argument) => {
+                            lifetimes_from_type(type_argument).map(|iter| iter.collect::<Vec<_>>())
+                        }
+                        _ => Ok(vec![arg]),
+                    })
+                    .flat_map(|args| args.into_iter().filter(|generic_arg| matches!(generic_arg, syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),
+                    ),
+                _ => Err(Diagnostic::spanned(ty.span(),DiagLevel::Error, "AliasSchema `get_lifetimes` only supports syn::TypePath types"))
+            }
+        }
+
+        lifetimes_from_type(&self.ty)
+    }
+}
+
+impl syn::parse::Parse for Alias {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name = input.parse::<Ident>()?;
+        input.parse::<Token![=]>()?;
+
+        Ok(Self {
+            name: name.to_string(),
+            ty: input.parse::<Type>()?,
+        })
+    }
+}
+
+// pub(super) fn parse_aliases(attributes: &[Attribute]) -> DiagResult<Option<Punctuated<Alias, Comma>>> {
+//     attributes
+//         .iter()
+//         .find(|attribute| attribute.path().is_ident("aliases"))
+//         .map(|aliases| aliases.parse_args_with(Punctuated::<Alias, Comma>::parse_terminated))
+//         .transpose()
+//         .map_err(Into::into)
+// }
+
+#[derive(Default, Clone, Debug)]
+pub(crate) struct Aliases(pub(crate) Punctuated<Alias, Comma>);
+
+impl Parse for Aliases {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_punctuated_within_parenthesis(input).map(Self)
+    }
+}
+
+// impl ToTokens for Aliases {
+//     fn to_tokens(&self, stream: &mut TokenStream) {
+//         stream.extend(self.0.to_token_stream())
+//     }
+// }
+
+impl From<Aliases> for Feature {
+    fn from(value: Aliases) -> Self {
+        Feature::Aliases(value)
+    }
+}
+impl_get_name!(Aliases = "aliases");

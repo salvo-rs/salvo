@@ -1,5 +1,5 @@
+use std::any::TypeId;
 use std::collections::BTreeMap;
-use std::{any::TypeId};
 
 use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard};
@@ -11,7 +11,6 @@ pub enum NameRule {
     Auto,
     Force(&'static str),
 }
-
 
 static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(WordyNamer::new())));
 static GLOBAL_NAMES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);
@@ -39,6 +38,7 @@ pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     }
     namer().assign_name(type_id, type_name, rule)
 }
+
 pub fn get_name<T: 'static>() -> String {
     let type_id = TypeId::of::<T>();
     for (name, (exist_id, _)) in GLOBAL_NAMES.read().iter() {
@@ -75,8 +75,8 @@ impl Namer for WordyNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
         let name = match rule {
             NameRule::Auto => {
-                let base = type_name.replace("::", ".").replace('<', "L").replace('>', "7");
-                let mut name = base.clone();
+                let base = type_name.replace("::", ".");
+                let mut name = base.to_string();
                 let mut count = 1;
                 while type_info_by_name(&name).map(|t| t.0) == Some(type_id) {
                     name = format!("{}{}", base, count);
@@ -98,8 +98,10 @@ impl Namer for WordyNamer {
     }
 }
 
+/// A namer that generates short names.
 pub struct ShortNamer;
 impl ShortNamer {
+    /// Create a new ShortNamer.
     pub fn new() -> Self {
         Self
     }
@@ -109,8 +111,8 @@ impl Namer for ShortNamer {
         let name: String = match rule {
             NameRule::Auto => {
                 let re = Regex::new(r"([^:<>]+::)+").unwrap();
-                let base = re.replace_all(type_name, "").replace('<', "L").replace('>', "7");
-                let mut name = base.clone();
+                let base = re.replace_all(type_name, "");
+                let mut name = base.to_string();
                 let mut count = 1;
                 while type_info_by_name(&name).map(|t| t.0) == Some(type_id) {
                     name = format!("{}{}", base, count);

@@ -40,6 +40,7 @@ is_validatable! {
     ReadOnly => false,
     Name => false,
     Title => false,
+    Aliases => false,
     Nullable => false,
     Rename => false,
     DefaultStyle => false,

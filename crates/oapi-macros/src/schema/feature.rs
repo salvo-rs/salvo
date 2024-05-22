@@ -2,7 +2,7 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Bound, Default, Deprecated, Example,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated, Example,
     ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
     Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename,
     RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
@@ -19,6 +19,7 @@ impl Parse for NamedFieldStructFeatures {
             XmlAttr,
             Name,
             Title,
+            Aliases,
             RenameAll,
             MaxProperties,
             MinProperties,
@@ -44,6 +45,7 @@ impl Parse for UnnamedFieldStructFeatures {
             Default,
             Name,
             Title,
+            Aliases,
             Format,
             ValueType,
             Inline,
@@ -66,6 +68,7 @@ impl Parse for EnumFeatures {
             Default,
             Name,
             Title,
+            Aliases,
             RenameAll,
             Inline,
             Deprecated,
@@ -87,6 +90,7 @@ impl Parse for ComplexEnumFeatures {
             RenameAll,
             Name,
             Title,
+            Aliases,
             Inline,
             Deprecated,
             Bound,

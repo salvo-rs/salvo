@@ -1,4 +1,3 @@
-mod alias_schema;
 mod enum_schemas;
 mod enum_variant;
 mod feature;
@@ -12,13 +11,9 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{
-    parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics,
-    Type, Visibility,
-};
+use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Type, Visibility};
 
 pub(crate) use self::{
-    alias_schema::*,
     enum_schemas::*,
     feature::{FromAttributes, NamedFieldStructFeatures, UnnamedFieldStructFeatures},
     flattened_map_schema::*,
@@ -30,7 +25,8 @@ use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
     ComponentSchema, FieldRename, VariantRename,
 };
-use crate::feature::{Bound, Inline, Name, SkipBound};
+use crate::feature::{Alias, Bound, Inline, Name, SkipBound};
+use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
 use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens, TypeTree};
 
@@ -39,7 +35,7 @@ pub(crate) struct ToSchema<'a> {
     attributes: &'a [Attribute],
     generics: &'a Generics,
     data: &'a Data,
-    aliases: Option<Punctuated<AliasSchema, Comma>>,
+    // aliases: Option<Punctuated<AliasSchema, Comma>>,
     //vis: &'a Visibility,
 }
 
@@ -51,18 +47,12 @@ impl<'a> ToSchema<'a> {
         generics: &'a Generics,
         _vis: &'a Visibility,
     ) -> DiagResult<Self> {
-        let aliases = if generics.type_params().count() > 0 {
-            parse_aliases(attributes)?
-        } else {
-            None
-        };
-
         Ok(Self {
             data,
             ident,
             attributes,
             generics,
-            aliases,
+            // aliases,
             // vis,
         })
     }
@@ -77,79 +67,18 @@ impl TryToTokens for ToSchema<'_> {
             self.attributes,
             ident,
             self.generics,
-            None::<Vec<(TypeTree, &TypeTree)>>,
+            // None::<Vec<(TypeTree, &TypeTree)>>,
         )?;
+
+        let aliases = variant.aliases();
 
         let (_, ty_generics, _) = self.generics.split_for_impl();
         let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
 
         let schema_ty: Type = parse_quote!(#ident #ty_generics);
         let schema_children = &*TypeTree::from_type(&schema_ty)?.children.unwrap_or_default();
-        // let aliases = self
-        //     .aliases
-        //     .as_ref()
-        //     .map(|aliases| {
-        //         let alias_schemas = aliases
-        //             .iter()
-        //             .map(|alias| {
-        //                 let name = &*alias.name;
-        //                 let alias_type_tree = TypeTree::from_type(&alias.ty);
 
-        //                 SchemaVariant::new(
-        //                     self.data,
-        //                     self.attributes,
-        //                     ident,
-        //                     self.generics,
-        //                     alias_type_tree?
-        //                         .children
-        //                         .map(|children| children.into_iter().zip(schema_children)),
-        //                 )
-        //                 .and_then(|variant| {
-        //                     let mut alias_tokens = TokenStream::new();
-        //                     match variant.try_to_tokens(&mut alias_tokens) {
-        //                         Ok(_) => Ok(quote! { #alias_tokens.into().name(#name) }),
-        //                         Err(diag) => Err(diag),
-        //                     }
-        //                 })
-        //             })
-        //             .collect::<DiagResult<Array<TokenStream>>>()?;
-
-        //         DiagResult::<TokenStream>::Ok(quote! {
-        //             fn aliases() -> Vec<#oapi::oapi::openapi::schema::Schema> {
-        //                 #alias_schemas.to_vec()
-        //             }
-        //         })
-        //     })
-        //     .transpose()?;
-
-        // let type_aliases = self
-        //     .aliases
-        //     .as_ref()
-        //     .map(|aliases| {
-        //         aliases
-        //             .iter()
-        //             .map(|alias| {
-        //                 let name = quote::format_ident!("{}", alias.name);
-        //                 let ty = &alias.ty;
-        //                 let vis = self.vis;
-        //                 let name_generics = alias.get_lifetimes()?.fold(
-        //                     Punctuated::<&GenericArgument, Comma>::new(),
-        //                     |mut acc, lifetime| {
-        //                         acc.push(lifetime);
-        //                         acc
-        //                     },
-        //                 );
-
-        //                 Ok(quote! {
-        //                     #vis type #name < #name_generics > = #ty;
-        //                 })
-        //             })
-        //             .collect::<DiagResult<TokenStream>>()
-        //     })
-        //     .transpose()?;
-
-        let type_aliases = self
-            .aliases
+        let type_aliases = aliases
             .as_ref()
             .map(|aliases| {
                 aliases
@@ -159,7 +88,9 @@ impl TryToTokens for ToSchema<'_> {
                         let ty = &alias.ty;
 
                         Ok(quote! {
-                            #oapi::oapi::schema::naming::assign_name::<#ty>(#oapi::oapi::schema::naming::NameRule::Force(#name));
+                            if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<#ty>() {
+                                name = Some(#oapi::oapi::schema::naming::assign_name::<#ty>(#oapi::oapi::schema::naming::NameRule::Force(#name)));
+                            }
                         })
                     })
                     .collect::<DiagResult<TokenStream>>()
@@ -200,14 +131,24 @@ impl TryToTokens for ToSchema<'_> {
                 }
             }
             Some(name_rule) => {
+                let name_tokens = if type_aliases.is_some() {
+                    quote! {
+                        let mut name = None;
+                        #type_aliases
+                        let name = name.unwrap_or_else(||#oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule));
+                    }
+                } else {
+                    quote! {
+                        let name = #oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule);
+                    }
+                };
                 quote! {
-                    let name = #oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule);
+                    #name_tokens
                     let ref_or = #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", name)));
                     if !components.schemas.contains_key(&name) {
                         components.schemas.insert(name.clone(), ref_or.clone());
                         let schema = #variant;
                         components.schemas.insert(name, schema);
-                        #type_aliases
                     }
                     ref_or
                 }
@@ -219,13 +160,6 @@ impl TryToTokens for ToSchema<'_> {
                     #body
                 }
             }
-
-            // #oapi::oapi::__private::inventory::submit! {
-            //     fn type_id() -> ::std::any::TypeId {
-            //         ::std::any::TypeId::of::<#ident #ty_generics>()
-            //     }
-            //     #oapi::oapi::schema::naming::NameRuleRegistry::save(type_id, #name_rule)
-            // }
         });
         Ok(())
     }
@@ -240,12 +174,11 @@ enum SchemaVariant<'a> {
 }
 
 impl<'a> SchemaVariant<'a> {
-    pub(crate) fn new<I: IntoIterator<Item = (TypeTree<'a>, &'a TypeTree<'a>)>>(
+    pub(crate) fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-        aliases: Option<I>,
     ) -> DiagResult<SchemaVariant<'a>> {
         match data {
             Data::Struct(content) => match &content.fields {
@@ -254,6 +187,15 @@ impl<'a> SchemaVariant<'a> {
                     let mut unnamed_features = attributes.parse_features::<UnnamedFieldStructFeatures>()?.into_inner();
 
                     let name = pop_feature_as_inner!(unnamed_features => Feature::Name(_v));
+                    let aliases = pop_feature_as_inner!(unnamed_features => Feature::Aliases(_v));
+                    if generics.type_params().count() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
+                    {
+                        return Err(Diagnostic::spanned(
+                            ident.span(),
+                            DiagLevel::Error,
+                            "aliases are only allowed for generic types",
+                        ));
+                    }
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
@@ -261,6 +203,7 @@ impl<'a> SchemaVariant<'a> {
                         features: unnamed_features,
                         fields: unnamed,
                         name,
+                        aliases: aliases.map(|a| a.0),
                         inline,
                     }))
                 }
@@ -269,6 +212,15 @@ impl<'a> SchemaVariant<'a> {
                     let mut named_features: Option<Vec<Feature>> =
                         attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
                     let name = pop_feature_as_inner!(named_features => Feature::Name(_v));
+                    let aliases = pop_feature_as_inner!(named_features => Feature::Aliases(_v));
+                    if generics.type_params().count() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
+                    {
+                        return Err(Diagnostic::spanned(
+                            ident.span(),
+                            DiagLevel::Error,
+                            "aliases are only allowed for generic types",
+                        ));
+                    }
                     let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
 
                     Ok(Self::Named(NamedStructSchema {
@@ -279,17 +231,22 @@ impl<'a> SchemaVariant<'a> {
                         fields: named,
                         generics: Some(generics),
                         name,
-                        aliases: aliases.map(|aliases| aliases.into_iter().collect()),
+                        aliases: aliases.map(|a| a.0),
                         inline,
                     }))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
-            Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(
-                Cow::Owned(ident.to_string()),
-                &content.variants,
-                attributes,
-            )?)),
+            Data::Enum(content) => {
+                let mut enum_features: Option<Vec<Feature>> = attributes.parse_features::<EnumFeatures>()?.into_inner();
+                let aliases = pop_feature_as_inner!(enum_features => Feature::Aliases(_v));
+                Ok(Self::Enum(EnumSchema::new(
+                    Cow::Owned(ident.to_string()),
+                    &content.variants,
+                    attributes,
+                    Some(generics),
+                )?))
+            }
             _ => Err(Diagnostic::spanned(
                 ident.span(),
                 DiagLevel::Error,
@@ -298,20 +255,28 @@ impl<'a> SchemaVariant<'a> {
         }
     }
 
-    fn name(&self) -> &Option<Name> {
+    fn name(&self) -> Option<&Name> {
         match self {
-            Self::Enum(schema) => &schema.name,
-            Self::Named(schema) => &schema.name,
-            Self::Unnamed(schema) => &schema.name,
-            _ => &None,
+            Self::Enum(schema) => schema.name.as_ref(),
+            Self::Named(schema) => schema.name.as_ref(),
+            Self::Unnamed(schema) => schema.name.as_ref(),
+            _ => None,
         }
     }
-    fn inline(&self) -> &Option<Inline> {
+    fn inline(&self) -> Option<&Inline> {
         match self {
-            Self::Enum(schema) => &schema.inline,
-            Self::Named(schema) => &schema.inline,
-            Self::Unnamed(schema) => &schema.inline,
-            _ => &None,
+            Self::Enum(schema) => schema.inline.as_ref(),
+            Self::Named(schema) => schema.inline.as_ref(),
+            Self::Unnamed(schema) => schema.inline.as_ref(),
+            _ => None,
+        }
+    }
+    fn aliases(&self) -> Option<&Punctuated<Alias, Comma>> {
+        match self {
+            Self::Enum(schema) => schema.aliases.as_ref(),
+            Self::Named(schema) => schema.aliases.as_ref(),
+            Self::Unnamed(schema) => schema.aliases.as_ref(),
+            _ => None,
         }
     }
     fn pop_skip_bound(&mut self) -> Option<SkipBound> {

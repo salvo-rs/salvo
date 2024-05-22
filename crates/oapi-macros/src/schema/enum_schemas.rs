@@ -3,13 +3,14 @@ use std::borrow::Cow;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
-use syn::{punctuated::Punctuated, Attribute, Fields, Token, Variant};
+use syn::punctuated::Punctuated; use syn::token::Comma;
+use syn::{Generics, Attribute, Fields, Token, Variant};
 
 use crate::{
     doc_comment::CommentAttributes,
     feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Bound, Example, Feature, FeaturesExt, IntoInner, IsSkipped,
-        Name, Rename, RenameAll, SkipBound, TryToTokensExt,
+        parse_features, pop_feature, pop_feature_as_inner, Alias, Aliases, Bound, Example, Feature, FeaturesExt,
+        IntoInner, IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
     },
     schema::{Inline, VariantRename},
     serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
@@ -32,6 +33,8 @@ use super::{
 pub(crate) struct EnumSchema<'a> {
     pub(super) schema_type: EnumSchemaType<'a>,
     pub(super) name: Option<Name>,
+    pub(super) aliases: Option<Punctuated<Alias, Comma>>,
+    pub(crate) generics: Option<&'a Generics>,
     pub(super) inline: Option<Inline>,
 }
 
@@ -40,6 +43,7 @@ impl<'e> EnumSchema<'e> {
         enum_name: Cow<'e, str>,
         variants: &'e Punctuated<Variant, Token![,]>,
         attributes: &'e [Attribute],
+        generics: Option<&'e Generics>,
     ) -> DiagResult<Self> {
         if variants.iter().all(|variant| matches!(variant.fields, Fields::Unit)) {
             #[cfg(feature = "repr")]
@@ -108,6 +112,13 @@ impl<'e> EnumSchema<'e> {
                     .unwrap_or_default();
                 let rename_all = simple_enum_features.pop_rename_all_feature();
                 let name: Option<Name> = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
+                let aliases = pop_feature_as_inner!(simple_enum_features => Feature::Aliases(_v));                    
+                if generics.map(|g|g.type_params().count()).unwrap_or_default() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true) {
+                    return Err(Diagnostic::new(
+                        DiagLevel::Error,
+                        "aliases are only allowed for generic types",
+                    ));
+                }
                 let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
                 Ok(Self {
@@ -118,7 +129,9 @@ impl<'e> EnumSchema<'e> {
                         rename_all,
                     }),
                     name,
+                    aliases: aliases.map(|a|a.0),
                     inline,
+                    generics,
                 })
             }
         } else {
@@ -128,6 +141,13 @@ impl<'e> EnumSchema<'e> {
                 .unwrap_or_default();
             let rename_all = enum_features.pop_rename_all_feature();
             let name: Option<Name> = pop_feature_as_inner!(enum_features => Feature::Name(_v));
+            let aliases = pop_feature_as_inner!(enum_features => Feature::Aliases(_v));               
+            if generics.map(|g|g.type_params().count()).unwrap_or_default() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true){
+                return Err(Diagnostic::new(
+                    DiagLevel::Error,
+                    "aliases are only allowed for generic types",
+                ));
+            }
             let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
 
             Ok(Self {
@@ -139,7 +159,9 @@ impl<'e> EnumSchema<'e> {
                     enum_features,
                 }),
                 name,
+                aliases: aliases.map(|a|a.0),
                 inline,
+                generics,
             })
         }
     }
@@ -486,6 +508,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         name: None,
+                        aliases: None,
                         inline: None,
                     }
                     .try_to_token_stream()?,
@@ -582,6 +605,7 @@ impl ComplexEnum<'_> {
                     features: Some(unnamed_struct_features),
                     fields: &unnamed_fields.unnamed,
                     name: None,
+                    aliases: None,
                     inline: None,
                 }
                 .try_to_token_stream()
@@ -690,6 +714,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         name: None,
+                        aliases: None,
                         inline: None,
                     }
                     .try_to_token_stream()?;
@@ -861,6 +886,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         name: None,
+                        aliases: None,
                         inline: None,
                     }
                     .try_to_token_stream()?;
