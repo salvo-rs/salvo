@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{RefOr, Response, Responses, Schema, SecurityScheme};
+use crate::{RefOr, Response, Responses, Schema, Schemas, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.
@@ -23,7 +23,7 @@ pub struct Components {
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub schemas: BTreeMap<String, RefOr<Schema>>,
+    pub schemas: Schemas,
 
     /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
     /// Reference][reference]s to [OpenAPI Response Object][response]s.
@@ -81,7 +81,7 @@ impl Components {
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
-        self.schemas.insert(name.into(), schema.into());
+        self.schemas.insert(name, schema);
         self
     }
 

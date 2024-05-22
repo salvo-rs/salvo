@@ -290,20 +290,22 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = std::any::type_name::<StatusError>().replace("::", ".");
-        let schema = Schema::from(
-            Object::new()
-                .property("code", u16::to_schema(components))
-                .required("code")
-                .required("name")
-                .property("name", String::to_schema(components))
-                .required("brief")
-                .property("brief", String::to_schema(components))
-                .required("detail")
-                .property("detail", String::to_schema(components))
-                .property("cause", String::to_schema(components)),
-        );
-        components.schemas.insert(name.clone(), schema.into());
+        let name = std::any::type_name::<StatusError>();
+        if !components.schemas.contains_key(name) {
+            let schema = Schema::from(
+                Object::new()
+                    .property("code", u16::to_schema(components))
+                    .required("code")
+                    .required("name")
+                    .property("name", String::to_schema(components))
+                    .required("brief")
+                    .property("brief", String::to_schema(components))
+                    .required("detail")
+                    .property("detail", String::to_schema(components))
+                    .property("cause", String::to_schema(components)),
+            );
+            components.schemas.insert(name.clone(), schema);
+        }
         crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)))
     }
 }
@@ -319,11 +321,13 @@ where
     E: ToSchema,
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = std::any::type_name::<Self>().replace("::", ".");
-        let schema = OneOf::new()
-            .item(T::to_schema(components))
-            .item(E::to_schema(components));
-        components.schemas.insert(name.clone(), schema.into());
+        let name = std::any::type_name::<Self>();
+        if !components.schemas.contains_key(name) {
+            let schema = OneOf::new()
+                .item(T::to_schema(components))
+                .item(E::to_schema(components));
+            components.schemas.insert(name.clone(), schema);
+        }
         crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)))
     }
 }

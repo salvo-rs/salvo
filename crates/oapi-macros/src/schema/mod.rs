@@ -1,4 +1,16 @@
+
+
+mod alias_schema;
+mod enum_schemas;
+mod enum_variant;
+mod feature;
+mod flattened_map_schema;
+mod struct_schemas;
+mod xml;
+
 use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
@@ -8,14 +20,6 @@ use syn::{
     parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, Generics, Path, PathArguments,
     Type, Visibility,
 };
-
-mod alias_schema;
-mod enum_schemas;
-mod enum_variant;
-mod feature;
-mod flattened_map_schema;
-mod struct_schemas;
-mod xml;
 
 pub(crate) use self::{
     alias_schema::*,
@@ -33,6 +37,8 @@ use super::{
 use crate::feature::{Bound, Inline, Name, SkipBound};
 use crate::serde_util::SerdeValue;
 use crate::{bound, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, TypeTree};
+
+
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -122,6 +128,32 @@ impl TryToTokens for ToSchema<'_> {
             })
             .transpose()?;
 
+        // let type_aliases = self
+        //     .aliases
+        //     .as_ref()
+        //     .map(|aliases| {
+        //         aliases
+        //             .iter()
+        //             .map(|alias| {
+        //                 let name = quote::format_ident!("{}", alias.name);
+        //                 let ty = &alias.ty;
+        //                 let vis = self.vis;
+        //                 let name_generics = alias.get_lifetimes()?.fold(
+        //                     Punctuated::<&GenericArgument, Comma>::new(),
+        //                     |mut acc, lifetime| {
+        //                         acc.push(lifetime);
+        //                         acc
+        //                     },
+        //                 );
+
+        //                 Ok(quote! {
+        //                     #vis type #name < #name_generics > = #ty;
+        //                 })
+        //             })
+        //             .collect::<DiagResult<TokenStream>>()
+        //     })
+        //     .transpose()?;
+
         let type_aliases = self
             .aliases
             .as_ref()
@@ -131,17 +163,23 @@ impl TryToTokens for ToSchema<'_> {
                     .map(|alias| {
                         let name = quote::format_ident!("{}", alias.name);
                         let ty = &alias.ty;
-                        let vis = self.vis;
-                        let name_generics = alias.get_lifetimes()?.fold(
-                            Punctuated::<&GenericArgument, Comma>::new(),
-                            |mut acc, lifetime| {
-                                acc.push(lifetime);
-                                acc
-                            },
-                        );
+                        // let vis = self.vis;
+                        // let name_generics = alias.get_lifetimes()?.fold(
+                        //     Punctuated::<&GenericArgument, Comma>::new(),
+                        //     |mut acc, lifetime| {
+                        //         acc.push(lifetime);
+                        //         acc
+                        //     },
+                        // );
 
                         Ok(quote! {
-                            #vis type #name < #name_generics > = #ty;
+                            // #vis type #name < #name_generics > = #ty;
+                            #oapi::oapi::__private::inventory::submit! {
+                                fn type_id() -> ::std::any::TypeId {
+                                    ::std::any::TypeId::of::<#ty>()
+                                }
+                                #oapi::oapi::schema::registry::NameRuleRegistry::save(type_id, #oapi::oapi::schema::registry::NameRule::Const(#name))
+                            }
                         })
                     })
                     .collect::<DiagResult<TokenStream>>()
@@ -165,41 +203,27 @@ impl TryToTokens for ToSchema<'_> {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let name = if inline {
-            println!("==========");
-            None
+        let (name, name_rule) = if inline {
+            (None, None)
         } else if let Some(name) = variant.name() {
-            println!("===========name  {name}");
-            if self.generics.type_params().next().is_none() {
-                Some(quote! { #name.to_string().replace(" :: ", ".") })
-            } else {
-                Some(quote! {
-                   {
-                       let full_name = ::std::any::type_name::<#ident #ty_generics>();
-                       if let Some((_, args)) = full_name.split_once('<') {
-                           format!("{}<{}", #name, args)
-                       } else {
-                           full_name.into()
-                       }
-                   }
-                })
-            }
+            let name = name.0.path.to_token_stream();
+            (Some(name.clone()), Some(quote!{#oapi::oapi::schema::registry::NameRule::Const(#name)}))
         } else {
-            Some(quote! { ::std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
+            (Some(quote! { ::std::any::type_name::<#ident #ty_generics>() }), Some(quote!{#oapi::oapi::schema::registry::NameRule::Trans}))
         };
         let variant = variant.try_to_token_stream()?;
         let body = match name {
             None => {
                 quote! {
-                    println!("---------1");
                     #variant.into()
                 }
             }
             Some(name) => {
                 quote! {
-                    println!("---------2");
-                    let schema = #variant;
-                    components.schemas.insert(#name, schema.into());
+                    if !components.schemas.contains_key(#name) {
+                        let schema = #variant;
+                        components.schemas.insert(#name, schema);
+                    }
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #name)))
                 }
             }
@@ -212,6 +236,13 @@ impl TryToTokens for ToSchema<'_> {
                 #aliases
             }
             #type_aliases
+
+            #oapi::oapi::__private::inventory::submit! {
+                fn type_id() -> ::std::any::TypeId {
+                    ::std::any::TypeId::of::<#ident #ty_generics>()
+                }
+                #oapi::oapi::schema::registry::NameRuleRegistry::save(type_id, #name_rule)
+            }
         });
         Ok(())
     }

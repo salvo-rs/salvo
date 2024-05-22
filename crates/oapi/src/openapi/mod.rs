@@ -18,7 +18,7 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
+    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, Schemas, SchemaFormat, SchemaType, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
@@ -267,7 +267,7 @@ impl OpenApi {
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
-        self.components.schemas.insert(name.into(), schema.into());
+        self.components.schemas.insert(name, schema);
         self
     }
 

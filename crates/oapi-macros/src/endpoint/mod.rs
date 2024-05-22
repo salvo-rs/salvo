@@ -15,14 +15,6 @@ fn metadata(
     name: &Ident,
     mut modifiers: Vec<TokenStream>,
 ) -> DiagResult<TokenStream> {
-    let tfn = Ident::new(
-        &format!("__macro_gen_oapi_endpoint_type_id_{}", name),
-        Span::call_site(),
-    );
-    let cfn = Ident::new(
-        &format!("__macro_gen_oapi_endpoint_creator_{}", name),
-        Span::call_site(),
-    );
     let opt = Operation::new(&attr);
     modifiers.append(opt.modifiers()?.as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
@@ -38,37 +30,37 @@ fn metadata(
         }
     }));
     let stream = quote! {
-        fn #tfn() -> ::std::any::TypeId {
-            ::std::any::TypeId::of::<#name>()
-        }
-        fn #cfn() -> #oapi::oapi::Endpoint {
-            let mut components = #oapi::oapi::Components::new();
-            let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                #(#modifiers)*
-            }
-            let mut operation = #oapi::oapi::Operation::new();
-            modify(&mut components, &mut operation);
-            if operation.operation_id.is_none() {
-                operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
-            }
-            if !status_codes.is_empty() {
-                let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
-                responses.retain(|k,_| {
-                    if let Ok(code) = <#salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
-                        status_codes.contains(&code)
-                    } else {
-                        true
-                    }
-                });
-            }
-            #oapi::oapi::Endpoint{
-                operation,
-                components,
-            }
-        }
         #oapi::oapi::__private::inventory::submit! {
-            #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
+            fn type_id() -> ::std::any::TypeId {
+                ::std::any::TypeId::of::<#name>()
+            }
+            fn creator() -> #oapi::oapi::Endpoint {
+                let mut components = #oapi::oapi::Components::new();
+                let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
+                fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    #(#modifiers)*
+                }
+                let mut operation = #oapi::oapi::Operation::new();
+                modify(&mut components, &mut operation);
+                if operation.operation_id.is_none() {
+                    operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
+                }
+                if !status_codes.is_empty() {
+                    let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
+                    responses.retain(|k,_| {
+                        if let Ok(code) = <#salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
+                            status_codes.contains(&code)
+                        } else {
+                            true
+                        }
+                    });
+                }
+                #oapi::oapi::Endpoint{
+                    operation,
+                    components,
+                }
+            }
+            #oapi::oapi::EndpointRegistry::save(type_id, creator)
         }
     };
     Ok(stream)

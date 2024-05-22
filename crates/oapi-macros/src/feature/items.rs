@@ -219,10 +219,10 @@ impl From<ReadOnly> for Feature {
 impl_get_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Name(pub(crate) String);
+pub(crate) struct Name(pub(crate) TypePath);
 impl Parse for Name {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next(input, || input.parse()).map(Self)
     }
 }
 impl ToTokens for Name {
