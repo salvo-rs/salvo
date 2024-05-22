@@ -83,6 +83,7 @@ where
         quote! {
             #oapi::oapi::schema::Object::new()
                 #name
+                #title
                 #example
                 .property(#name, #variant)
                 .required(#name)

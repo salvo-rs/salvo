@@ -480,7 +480,7 @@ impl<'r> EnumResponse<'r> {
             description,
         });
         response_value.response_type = if contents.is_empty() {
-            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes, None)?;
+            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes, None, None)?;
 
             Some(PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty))
         } else {

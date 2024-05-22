@@ -2,15 +2,16 @@ use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::punctuated::Punctuated; use syn::token::Comma;
-use syn::{Generics, Attribute, Fields, Token, Variant};
+use syn::token::Comma;
+use syn::{Attribute, Fields, Generics, Token, Variant};
 
 use crate::{
     doc_comment::CommentAttributes,
     feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Alias, Aliases, Bound, Example, Feature, FeaturesExt,
-        IntoInner, IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
+        parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt, IntoInner,
+        IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
     },
     schema::{Inline, VariantRename},
     serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
@@ -34,6 +35,7 @@ pub(crate) struct EnumSchema<'a> {
     pub(super) schema_type: EnumSchemaType<'a>,
     pub(super) name: Option<Name>,
     pub(super) aliases: Option<Punctuated<Alias, Comma>>,
+    #[allow(dead_code)]
     pub(crate) generics: Option<&'a Generics>,
     pub(super) inline: Option<Inline>,
 }
@@ -43,6 +45,7 @@ impl<'e> EnumSchema<'e> {
         enum_name: Cow<'e, str>,
         variants: &'e Punctuated<Variant, Token![,]>,
         attributes: &'e [Attribute],
+        aliases: Option<Punctuated<Alias, Comma>>,
         generics: Option<&'e Generics>,
     ) -> DiagResult<Self> {
         if variants.iter().all(|variant| matches!(variant.fields, Fields::Unit)) {
@@ -79,7 +82,9 @@ impl<'e> EnumSchema<'e> {
                                 enum_features: repr_enum_features,
                             }),
                             name,
+                            aliases: aliases.clone(),
                             inline,
+                            generics,
                         })
                     })
                     .unwrap_or_else(|| {
@@ -99,7 +104,9 @@ impl<'e> EnumSchema<'e> {
                                 rename_all,
                             }),
                             name,
+                            aliases,
                             inline,
+                            generics,
                         })
                     })
             }
@@ -112,8 +119,9 @@ impl<'e> EnumSchema<'e> {
                     .unwrap_or_default();
                 let rename_all = simple_enum_features.pop_rename_all_feature();
                 let name: Option<Name> = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
-                let aliases = pop_feature_as_inner!(simple_enum_features => Feature::Aliases(_v));                    
-                if generics.map(|g|g.type_params().count()).unwrap_or_default() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true) {
+                if generics.map(|g| g.type_params().count()).unwrap_or_default() == 0
+                    && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true)
+                {
                     return Err(Diagnostic::new(
                         DiagLevel::Error,
                         "aliases are only allowed for generic types",
@@ -129,7 +137,7 @@ impl<'e> EnumSchema<'e> {
                         rename_all,
                     }),
                     name,
-                    aliases: aliases.map(|a|a.0),
+                    aliases,
                     inline,
                     generics,
                 })
@@ -141,8 +149,9 @@ impl<'e> EnumSchema<'e> {
                 .unwrap_or_default();
             let rename_all = enum_features.pop_rename_all_feature();
             let name: Option<Name> = pop_feature_as_inner!(enum_features => Feature::Name(_v));
-            let aliases = pop_feature_as_inner!(enum_features => Feature::Aliases(_v));               
-            if generics.map(|g|g.type_params().count()).unwrap_or_default() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true){
+            if generics.map(|g| g.type_params().count()).unwrap_or_default() == 0
+                && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true)
+            {
                 return Err(Diagnostic::new(
                     DiagLevel::Error,
                     "aliases are only allowed for generic types",
@@ -159,7 +168,7 @@ impl<'e> EnumSchema<'e> {
                     enum_features,
                 }),
                 name,
-                aliases: aliases.map(|a|a.0),
+                aliases,
                 inline,
                 generics,
             })
@@ -894,7 +903,8 @@ impl ComplexEnum<'_> {
                     let title = title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
-                        .transpose()?;
+                        .transpose()?
+                        .map(|title| quote! { .title(#title)});
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                     }]);
@@ -902,6 +912,7 @@ impl ComplexEnum<'_> {
                     Ok(quote! {
                         #oapi::oapi::schema::Object::new()
                             #name
+                            #title
                             .schema_type(#oapi::oapi::schema::SchemaType::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)

@@ -11,7 +11,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Type, Visibility};
+use syn::{parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Visibility};
 
 pub(crate) use self::{
     enum_schemas::*,
@@ -28,7 +28,7 @@ use super::{
 use crate::feature::{Alias, Bound, Inline, Name, SkipBound};
 use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
-use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens, TypeTree};
+use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -74,9 +74,6 @@ impl TryToTokens for ToSchema<'_> {
 
         let (_, ty_generics, _) = self.generics.split_for_impl();
         let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
-
-        let schema_ty: Type = parse_quote!(#ident #ty_generics);
-        let schema_children = &*TypeTree::from_type(&schema_ty)?.children.unwrap_or_default();
 
         let type_aliases = aliases
             .as_ref()
@@ -244,6 +241,7 @@ impl<'a> SchemaVariant<'a> {
                     Cow::Owned(ident.to_string()),
                     &content.variants,
                     attributes,
+                    aliases.map(|a| a.0),
                     Some(generics),
                 )?))
             }

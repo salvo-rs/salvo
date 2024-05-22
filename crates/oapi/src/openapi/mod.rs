@@ -1143,7 +1143,7 @@ mod tests {
     #[test]
     fn test_openapi_schema_work_with_generics() {
         #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-        #[salvo(schema(name = "City"))]
+        #[salvo(schema(name = City))]
         pub(crate) struct CityDTO {
             #[salvo(schema(rename = "id"))]
             pub(crate) id: String,
@@ -1152,7 +1152,7 @@ mod tests {
         }
 
         #[derive(Serialize, Deserialize, Debug, ToSchema)]
-        #[salvo(schema(name = "Response"))]
+        #[salvo(schema(name = Response))]
         pub(crate) struct ApiResponse<T: Serialize + ToSchema + Send + Debug + 'static> {
             #[salvo(schema(rename = "status"))]
             /// status code
@@ -1209,7 +1209,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>"
+                                                "$ref": "#/components/schemas/Response<alloc::vec::Vec<City>>"
                                             }
                                         }
                                     }
@@ -1275,7 +1275,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>": {
+                        "Response<alloc::vec::Vec<City>>": {
                             "type": "object",
                             "required": [
                                 "status",

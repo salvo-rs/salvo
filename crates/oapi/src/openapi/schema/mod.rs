@@ -5,6 +5,7 @@
 mod all_of;
 mod any_of;
 mod array;
+/// Module for name schemas.
 pub mod naming;
 mod object;
 mod one_of;
@@ -22,6 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::RefOr;
 
+/// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Schemas(pub BTreeMap<String, RefOr<Schema>>);

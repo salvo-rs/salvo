@@ -5,10 +5,13 @@ use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard};
 use regex::Regex;
 
+/// NameRule is used to specify the rule of naming.
 #[derive(Default, Debug, Clone, Copy)]
 pub enum NameRule {
+    /// Auto generate name by namer.
     #[default]
     Auto,
+    /// Force to use the given name.
     Force(&'static str),
 }
 
@@ -55,13 +58,16 @@ pub fn get_name<T: 'static>() -> String {
     panic!("Type not found in the name registry: {:?}", std::any::type_name::<T>());
 }
 
+/// Namer is used to assign names to types.
 pub trait Namer: Sync + Send + 'static {
+    /// Assign name to type.
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String;
 }
 
 /// A namer that generates wordy names.
 pub struct WordyNamer;
 impl WordyNamer {
+    /// Create a new WordyNamer.
     pub fn new() -> Self {
         Self
     }

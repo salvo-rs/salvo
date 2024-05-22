@@ -217,10 +217,10 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            endpoint::generate(parse2(quote!{}).unwrap(), item)
+            endpoint::generate(parse2(quote! {}).unwrap(), item)
                 .unwrap()
                 .to_string(),
-            quote!{
+            quote! {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
@@ -242,34 +242,36 @@ mod tests {
                         Self::hello().await
                     }
                 }
-                fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
-                    ::std::any::TypeId::of::<hello>()
+                salvo::oapi::__private::inventory::submit! {
+                    fn type_id() -> ::std::any::TypeId {
+                        ::std::any::TypeId::of::<hello>()
+                    }
+                    fn creator() -> salvo::oapi::Endpoint {
+                        let mut components = salvo::oapi::Components::new();
+                        let status_codes: &[salvo::http::StatusCode] = &[];
+                        fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
+                        let mut operation = salvo::oapi::Operation::new();
+                        modify(&mut components, &mut operation);
+                        if operation.operation_id.is_none() {
+                            operation.operation_id = Some(::std::any::type_name::<hello>().replace("::", "."));
+                        }
+                        if !status_codes.is_empty() {
+                            let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
+                            responses.retain(|k, _| {
+                                if let Ok(code) = <salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
+                                    status_codes.contains(&code)
+                                } else {
+                                    true
+                                }
+                            });
+                        }
+                        salvo::oapi::Endpoint {
+                            operation,
+                            components,
+                        }
+                    }
+                    salvo::oapi::EndpointRegistry::save(type_id, creator)
                 }
-                fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
-                    let mut components = salvo::oapi::Components::new();
-                    let status_codes: &[salvo::http::StatusCode] = &[];
-                    fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
-                    let mut operation = salvo::oapi::Operation::new();
-                    modify(&mut components, &mut operation);
-                    if operation.operation_id.is_none() {
-                        operation.operation_id = Some(::std::any::type_name::<hello>().replace("::", "."));
-                    }
-                    if !status_codes.is_empty() {
-                        let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
-                        responses.retain(|k, _| {
-                            if let Ok(code) = <salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
-                                status_codes.contains(&code)
-                            } else {
-                                true
-                            }
-                        });
-                    }
-                    salvo::oapi::Endpoint {
-                        operation,
-                        components,
-                    }
-                }
-                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__macro_gen_oapi_endpoint_type_id_hello , __macro_gen_oapi_endpoint_creator_hello) }
             }
             .to_string()
         );
