@@ -17,6 +17,7 @@ impl Parse for NamedFieldStructFeatures {
         Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
             XmlAttr,
+            Name,
             Title,
             RenameAll,
             MaxProperties,
@@ -41,6 +42,7 @@ impl Parse for UnnamedFieldStructFeatures {
         Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
             Default,
+            Name,
             Title,
             Format,
             ValueType,
@@ -62,6 +64,7 @@ impl Parse for EnumFeatures {
         Ok(EnumFeatures(parse_features!(
             input as Example,
             Default,
+            Name,
             Title,
             RenameAll,
             Inline,
@@ -83,6 +86,7 @@ impl Parse for ComplexEnumFeatures {
             Default,
             RenameAll,
             Name,
+            Title,
             Inline,
             Deprecated,
             Bound,

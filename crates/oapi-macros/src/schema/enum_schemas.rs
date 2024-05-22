@@ -58,6 +58,7 @@ impl<'e> EnumSchema<'e> {
                             Ok(parse_features!(
                                 input as crate::feature::Example,
                                 crate::feature::Default,
+                                crate::feature::Name,
                                 crate::feature::Title,
                                 crate::feature::Inline
                             ))

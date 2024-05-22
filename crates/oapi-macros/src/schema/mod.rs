@@ -40,7 +40,7 @@ pub(crate) struct ToSchema<'a> {
     generics: &'a Generics,
     data: &'a Data,
     aliases: Option<Punctuated<AliasSchema, Comma>>,
-    vis: &'a Visibility,
+    //vis: &'a Visibility,
 }
 
 impl<'a> ToSchema<'a> {
@@ -49,7 +49,7 @@ impl<'a> ToSchema<'a> {
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-        vis: &'a Visibility,
+        _vis: &'a Visibility,
     ) -> DiagResult<Self> {
         let aliases = if generics.type_params().count() > 0 {
             parse_aliases(attributes)?
@@ -63,7 +63,7 @@ impl<'a> ToSchema<'a> {
             attributes,
             generics,
             aliases,
-            vis,
+            // vis,
         })
     }
 }
@@ -155,25 +155,10 @@ impl TryToTokens for ToSchema<'_> {
                 aliases
                     .iter()
                     .map(|alias| {
-                        let name = quote::format_ident!("{}", alias.name);
+                        let name = quote::format_ident!("{}", alias.name).to_string();
                         let ty = &alias.ty;
-                        // let vis = self.vis;
-                        // let name_generics = alias.get_lifetimes()?.fold(
-                        //     Punctuated::<&GenericArgument, Comma>::new(),
-                        //     |mut acc, lifetime| {
-                        //         acc.push(lifetime);
-                        //         acc
-                        //     },
-                        // );
 
                         Ok(quote! {
-                            // #vis type #name < #name_generics > = #ty;
-                            // #oapi::oapi::__private::inventory::submit! {
-                            //     fn type_id() -> ::std::any::TypeId {
-                            //         ::std::any::TypeId::of::<#ty>()
-                            //     }
-                            //     #oapi::oapi::schema::naming::NameRuleRegistry::save(type_id, #oapi::oapi::schema::naming::NameRule::Const(#name))
-                            // }
                             #oapi::oapi::schema::naming::assign_name::<#ty>(#oapi::oapi::schema::naming::NameRule::Force(#name));
                         })
                     })
@@ -202,6 +187,7 @@ impl TryToTokens for ToSchema<'_> {
             None
         } else if let Some(name) = variant.name() {
             let name = name.0.path.to_token_stream();
+            let name = quote!(#name).to_string();
             Some(quote! { #oapi::oapi::schema::naming::NameRule::Force(#name) })
         } else {
             Some(quote! { #oapi::oapi::schema::naming::NameRule::Auto })
