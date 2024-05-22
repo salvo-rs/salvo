@@ -5,16 +5,6 @@ use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard};
 use regex::Regex;
 
-// /// A registry for all schema names.
-// #[doc(hidden)]
-// #[non_exhaustive]
-// pub struct NameRuleRegistry {
-//     /// The type id of the schema.
-//     pub type_id: fn() -> TypeId,
-//     /// The name of the schema.
-//     pub rule: NameRule,
-// }
-
 #[derive(Default, Debug, Clone, Copy)]
 pub enum NameRule {
     #[default]
@@ -22,22 +12,6 @@ pub enum NameRule {
     Force(&'static str),
 }
 
-// impl NameRuleRegistry {
-//     /// Save the schema name to the registry.
-//     pub const fn save(type_id: fn() -> TypeId, rule: NameRule) -> Self {
-//         Self { type_id, rule }
-//     }
-//     /// Find the schema name from the registry.
-//     pub fn find(type_id: &TypeId) -> Option<NameRule> {
-//         for record in inventory::iter::<NameRuleRegistry> {
-//             if (record.type_id)() == *type_id {
-//                 return Some(record.rule);
-//             }
-//         }
-//         None
-//     }
-// }
-// inventory::collect!(NameRuleRegistry);
 
 static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(WordyNamer::new())));
 static GLOBAL_NAMES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);

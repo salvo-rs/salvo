@@ -220,7 +220,6 @@ impl TryToTokens for ToSchema<'_> {
                     let name = #oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule);
                     let ref_or = #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", name)));
                     if !components.schemas.contains_key(&name) {
-                        println!("==================={}", name);
                         components.schemas.insert(name.clone(), ref_or.clone());
                         let schema = #variant;
                         components.schemas.insert(name, schema);

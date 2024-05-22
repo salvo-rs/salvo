@@ -8,7 +8,6 @@ use syn::token::Comma;
 use syn::{punctuated::Punctuated, Attribute, Fields, GenericArgument, Ident, PathArguments, Token, Type, Variant};
 
 use crate::{
-    doc_comment::CommentAttributes,
     feature::{
         parse_features, pop_feature, pop_feature_as_inner, Bound, Example, Feature, FeaturesExt, IntoInner, IsSkipped,
         Name, Rename, RenameAll, SkipBound, TryToTokensExt,

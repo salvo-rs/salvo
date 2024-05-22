@@ -2,12 +2,6 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::BTreeMap;
-use std::ops::{Deref, DerefMut};
-
-use serde::{Deserialize, Serialize};
-
-use crate::{PathItem, Paths, RefOr};
 
 mod all_of;
 mod any_of;
@@ -21,6 +15,11 @@ pub use any_of::AnyOf;
 pub use array::{Array, ToArray};
 pub use object::Object;
 pub use one_of::OneOf;
+
+use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
