@@ -193,6 +193,7 @@ impl<'a> SchemaVariant<'a> {
                             "aliases are only allowed for generic types",
                         ));
                     }
+
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
@@ -208,9 +209,11 @@ impl<'a> SchemaVariant<'a> {
                     let FieldsNamed { named, .. } = fields;
                     let mut named_features: Option<Vec<Feature>> =
                         attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
+
+                    let generic_count = generics.type_params().count();
                     let name = pop_feature_as_inner!(named_features => Feature::Name(_v));
                     let aliases = pop_feature_as_inner!(named_features => Feature::Aliases(_v));
-                    if generics.type_params().count() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
+                    if generic_count == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
                     {
                         return Err(Diagnostic::spanned(
                             ident.span(),
@@ -218,8 +221,8 @@ impl<'a> SchemaVariant<'a> {
                             "aliases are only allowed for generic types",
                         ));
                     }
-                    let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
 
+                    let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
                     Ok(Self::Named(NamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,

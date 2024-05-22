@@ -72,7 +72,9 @@ impl<'e> EnumSchema<'e> {
                         })?
                         .unwrap_or_default();
 
+                        let generic_count = generics.map(|g| g.type_params().count()).unwrap_or_default();
                         let name = pop_feature_as_inner!(repr_enum_features => Feature::Name(_v));
+
                         let inline: Option<Inline> = pop_feature_as_inner!(repr_enum_features => Feature::Inline(_v));
                         Ok(Self {
                             schema_type: EnumSchemaType::Repr(ReprEnum {
@@ -92,10 +94,11 @@ impl<'e> EnumSchema<'e> {
                             .parse_features::<EnumFeatures>()?
                             .into_inner()
                             .unwrap_or_default();
-                        let rename_all = simple_enum_features.pop_rename_all_feature();
-                        let name = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
-                        let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
+                        let name = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
+
+                        let rename_all = simple_enum_features.pop_rename_all_feature();
+                        let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
                         Ok(Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
                                 attributes,
@@ -117,18 +120,18 @@ impl<'e> EnumSchema<'e> {
                     .parse_features::<EnumFeatures>()?
                     .into_inner()
                     .unwrap_or_default();
-                let rename_all = simple_enum_features.pop_rename_all_feature();
-                let name: Option<Name> = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
-                if generics.map(|g| g.type_params().count()).unwrap_or_default() == 0
-                    && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true)
-                {
+
+                let generic_count = generics.map(|g| g.type_params().count()).unwrap_or_default();
+                let name = pop_feature_as_inner!(simple_enum_features => Feature::Name(_v));
+                if generic_count == 0 && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true) {
                     return Err(Diagnostic::new(
                         DiagLevel::Error,
                         "aliases are only allowed for generic types",
                     ));
                 }
-                let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
+                let rename_all = simple_enum_features.pop_rename_all_feature();
+                let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
                 Ok(Self {
                     schema_type: EnumSchemaType::Simple(SimpleEnum {
                         attributes,
@@ -147,18 +150,18 @@ impl<'e> EnumSchema<'e> {
                 .parse_features::<ComplexEnumFeatures>()?
                 .into_inner()
                 .unwrap_or_default();
-            let rename_all = enum_features.pop_rename_all_feature();
-            let name: Option<Name> = pop_feature_as_inner!(enum_features => Feature::Name(_v));
-            if generics.map(|g| g.type_params().count()).unwrap_or_default() == 0
-                && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true)
-            {
+
+            let generic_count = generics.map(|g| g.type_params().count()).unwrap_or_default();
+            let name = pop_feature_as_inner!(enum_features => Feature::Name(_v));
+            if generic_count == 0 && !aliases.as_ref().map(|a| a.is_empty()).unwrap_or(true) {
                 return Err(Diagnostic::new(
                     DiagLevel::Error,
                     "aliases are only allowed for generic types",
                 ));
             }
-            let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
 
+            let rename_all = enum_features.pop_rename_all_feature();
+            let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
             Ok(Self {
                 schema_type: EnumSchemaType::Complex(ComplexEnum {
                     enum_name,
