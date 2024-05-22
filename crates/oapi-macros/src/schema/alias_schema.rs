@@ -1,33 +1,11 @@
-use std::borrow::Cow;
 
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
 use syn::parse::Parse;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{punctuated::Punctuated, Attribute, Fields, GenericArgument, Ident, PathArguments, Token, Type, Variant};
+use syn::{punctuated::Punctuated, Attribute, GenericArgument, Ident, PathArguments, Token, Type};
 
-use crate::{
-    feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Bound, Example, Feature, FeaturesExt, IntoInner, IsSkipped,
-        Name, Rename, RenameAll, SkipBound, TryToTokensExt,
-    },
-    schema::{Inline, VariantRename},
-    serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-    type_tree::{TypeTree, ValueType},
-};
-use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
+use crate::{DiagLevel, DiagResult, Diagnostic};
 
-use super::{
-    enum_variant::{
-        self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum,
-    },
-    feature::{
-        self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures, EnumUnnamedFieldVariantFeatures,
-        FromAttributes,
-    },
-    is_not_skipped, NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema,
-};
 
 #[derive(Debug)]
 pub(crate) struct AliasSchema {

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::{any::TypeId, default};
+use std::{any::TypeId};
 
 use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard};

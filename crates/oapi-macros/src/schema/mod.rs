@@ -7,15 +7,13 @@ mod struct_schemas;
 mod xml;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
-use std::ops::{Deref, DerefMut};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, Generics, Path, PathArguments,
+    parse_quote, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics,
     Type, Visibility,
 };
 
@@ -34,7 +32,7 @@ use super::{
 };
 use crate::feature::{Bound, Inline, Name, SkipBound};
 use crate::serde_util::SerdeValue;
-use crate::{bound, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, TypeTree};
+use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens, TypeTree};
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
