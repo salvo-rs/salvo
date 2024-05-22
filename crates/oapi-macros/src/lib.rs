@@ -78,7 +78,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     } = syn::parse_macro_input!(input);
 
     match ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream()) {
-        Ok(stream) => stream.into(),
+        Ok(stream) => {println!("{stream}");stream.into()},
         Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
