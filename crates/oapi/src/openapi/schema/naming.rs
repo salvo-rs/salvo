@@ -15,9 +15,12 @@ pub enum NameRule {
 static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(WordyNamer::new())));
 static GLOBAL_NAMES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);
 
+/// Set global namer.
 pub fn set_namer(namer: impl Namer) {
     *GLOBAL_NAMER.write() = Box::new(namer);
 }
+
+#[doc(hidden)]
 pub fn namer() -> RwLockReadGuard<'static, Box<dyn Namer>> {
     GLOBAL_NAMER.read()
 }
@@ -28,6 +31,8 @@ fn type_info_by_name(name: &str) -> Option<(TypeId, &'static str)> {
 fn set_name_type_info(name: String, type_id: TypeId, type_name: &'static str) -> Option<(TypeId, &'static str)> {
     GLOBAL_NAMES.write().insert(name.clone(), (type_id, type_name))
 }
+
+/// Assign name to type and returns the name. If the type is already named, return the existing name.
 pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     let type_id = TypeId::of::<T>();
     let type_name = std::any::type_name::<T>();
@@ -39,6 +44,7 @@ pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     namer().assign_name(type_id, type_name, rule)
 }
 
+/// Get the name of the type. Panic if the name is not exist.
 pub fn get_name<T: 'static>() -> String {
     let type_id = TypeId::of::<T>();
     for (name, (exist_id, _)) in GLOBAL_NAMES.read().iter() {
@@ -48,23 +54,12 @@ pub fn get_name<T: 'static>() -> String {
     }
     panic!("Type not found in the name registry: {:?}", std::any::type_name::<T>());
 }
-// pub fn name_by_type<T>() -> &'static str {
-//     let target_id = TypeId::of::<T>();
-//     for (name, (type_id, _)) in GLOBAL_NAMES.read() {
-//         if type_id == target_id {
-//             return name;
-//         }
-//     }
-//     panic!("Type not found in the name registry: {:?}", std::any::type_name::<T>());
-// }
-// pub fn ref_path_by_type<T>() -> String {
-//     format!("#/components/schemas/{}", name_by_type::<T>())
-// }
 
 pub trait Namer: Sync + Send + 'static {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String;
 }
 
+/// A namer that generates wordy names.
 pub struct WordyNamer;
 impl WordyNamer {
     pub fn new() -> Self {
