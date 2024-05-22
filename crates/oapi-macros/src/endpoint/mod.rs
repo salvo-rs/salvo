@@ -44,11 +44,12 @@ fn metadata(
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+            let mut operation = #oapi::oapi::Operation::new();
+            {
+                let mut components = &mut components;
+                let mut operation = &mut operation;
                 #(#modifiers)*
             }
-            let mut operation = #oapi::oapi::Operation::new();
-            modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
             }

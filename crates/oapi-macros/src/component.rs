@@ -388,11 +388,7 @@ impl<'c> ComponentSchema {
                         schema.to_tokens(tokens);
                     } else {
                         let schema = quote! {
-                            if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
-                                #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
-                            } else {
-                                #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
-                            }
+                            #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                         };
                         let schema = if default.is_some() || nullable.is_some() {
                             quote! {

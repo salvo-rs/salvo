@@ -55,10 +55,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
     match endpoint::generate(attr, item) {
-        Ok(stream) => {
-            println!("{stream}");
-            stream.into()
-        }
+        Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     }
 }
@@ -78,7 +75,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     } = syn::parse_macro_input!(input);
 
     match ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream()) {
-        Ok(stream) => {println!("{stream}");stream.into()},
+        Ok(stream) => stream.into(),
         Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
