@@ -18,7 +18,7 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, Schemas, SchemaFormat, SchemaType, ToArray},
+    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,

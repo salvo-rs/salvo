@@ -393,22 +393,29 @@ impl<'c> ComponentSchema {
                             "Object type `{}` is not supported. Use `#[derive(oapi::ToSchema)]` to implement `ToSchema` for the type",
                             type_path.to_token_stream()
                         );
-                        let name =  quote! {{
+                        let name = quote! {{
                             let type_id = ::std::any::TypeId::of::<#type_path>();
                             let type_name = ::std::any::type_name::<#type_path>();
-                            let rule = #oapi::oapi::schema::registry::NameRuleRegistry::find(&type_id).expect(#msg);
-                            #oapi::oapi::schema::registry::namer().name(type_id, type_name, rule)
+                            let rule = #oapi::oapi::schema::naming::NameRuleRegistry::find(&type_id).expect(#msg);
+                            #oapi::oapi::schema::naming::namer().name(type_id, type_name, rule)
                         }};
+                        let schema = quote! {
+                            if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
+                                #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
+                            } else {
+                                #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                            }
+                        };
                         let schema = if default.is_some() || nullable.is_some() {
                             quote! {
                                 #oapi::oapi::schema::AllOf::new()
                                     #nullable
-                                    .item(#oapi::oapi::Ref::from_schema_name(#name))
+                                    .item(#schema)
                                     #default
                             }
                         } else {
                             quote! {
-                                #oapi::oapi::Ref::from_schema_name(#name)
+                                #schema
                             }
                         };
                         schema.to_tokens(tokens);

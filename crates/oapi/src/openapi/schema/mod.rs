@@ -12,9 +12,9 @@ use crate::{PathItem, Paths, RefOr};
 mod all_of;
 mod any_of;
 mod array;
+pub mod naming;
 mod object;
 mod one_of;
-pub mod registry;
 
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
@@ -27,18 +27,18 @@ pub use one_of::OneOf;
 pub struct Schemas(pub BTreeMap<String, RefOr<Schema>>);
 
 impl<K, R> From<BTreeMap<K, R>> for Schemas
-    where
-        K: Into<String>,
-        R: Into<RefOr<Schema>>,
+where
+    K: Into<String>,
+    R: Into<RefOr<Schema>>,
 {
     fn from(inner: BTreeMap<K, R>) -> Self {
         Self(inner.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
     }
 }
 impl<K, R, const N: usize> From<[(K, R); N]> for Schemas
-    where
-        K: Into<String>,
-        R: Into<RefOr<Schema>>,
+where
+    K: Into<String>,
+    R: Into<RefOr<Schema>>,
 {
     fn from(inner: [(K, R); N]) -> Self {
         Self(
@@ -85,8 +85,7 @@ impl Schemas {
     }
     /// Inserts a key-value pair into the instance.
     pub fn insert<K: Into<String>, V: Into<RefOr<Schema>>>(&mut self, key: K, value: V) {
-        self.0
-            .insert(key.into(), value.into());
+        self.0.insert(key.into(), value.into());
     }
     /// Moves all elements from `other` into `self`, leaving `other` empty.
     ///
@@ -100,10 +99,10 @@ impl Schemas {
     }
     /// Extends a collection with the contents of an iterator.
     pub fn extend<I, K, V>(&mut self, iter: I)
-        where
-            I: IntoIterator<Item = (K, V)>,
-            K: Into<String>,
-            V: Into<RefOr<Schema>>,
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<RefOr<Schema>>,
     {
         for (k, v) in iter.into_iter() {
             self.insert(k, v);
