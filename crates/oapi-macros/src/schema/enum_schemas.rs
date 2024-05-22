@@ -72,7 +72,6 @@ impl<'e> EnumSchema<'e> {
                         })?
                         .unwrap_or_default();
 
-                        let generic_count = generics.map(|g| g.type_params().count()).unwrap_or_default();
                         let name = pop_feature_as_inner!(repr_enum_features => Feature::Name(_v));
 
                         let inline: Option<Inline> = pop_feature_as_inner!(repr_enum_features => Feature::Inline(_v));

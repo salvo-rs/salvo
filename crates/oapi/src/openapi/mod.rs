@@ -1209,7 +1209,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc::vec::Vec<City>>"
+                                                "$ref": "#/components/schemas/Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>"
                                             }
                                         }
                                     }
@@ -1275,7 +1275,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc::vec::Vec<City>>": {
+                        "Response<alloc::vec::Vec<salvo_oapi::openapi::tests::test_openapi_schema_work_with_generics::CityDTO>>": {
                             "type": "object",
                             "required": [
                                 "status",

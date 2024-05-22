@@ -62,7 +62,7 @@ fn type_generic_part(type_name: &str) -> String {
     let re = Regex::new(r"^[^<]+").unwrap();
     let result = re.replace_all(type_name, "");
     result.to_string()
-}   
+}
 /// Namer is used to assign names to types.
 pub trait Namer: Sync + Send + 'static {
     /// Assign name to type.
@@ -91,7 +91,7 @@ impl Namer for WordyNamer {
                 name
             }
             NameRule::Force(name) => {
-                let name = format!{"{}{}", name, type_generic_part(type_name)};
+                let name = format! {"{}{}", name, type_generic_part(type_name)};
                 if let Some((exist_id, exist_name)) = type_info_by_name(&name) {
                     if exist_id != type_id {
                         panic!("Duplicate name for types: {}, {}", exist_name, type_name);
@@ -128,7 +128,7 @@ impl Namer for ShortNamer {
                 name
             }
             NameRule::Force(name) => {
-                let name = format!{"{}{}", name, type_generic_part(type_name)};
+                let name = format! {"{}{}", name, type_generic_part(type_name)};
                 if let Some((exist_id, exist_name)) = type_info_by_name(&name) {
                     if exist_id != type_id {
                         panic!("Duplicate name for types: {}, {}", exist_name, type_name);

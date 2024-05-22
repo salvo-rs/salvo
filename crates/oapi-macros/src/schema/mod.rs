@@ -213,8 +213,7 @@ impl<'a> SchemaVariant<'a> {
                     let generic_count = generics.type_params().count();
                     let name = pop_feature_as_inner!(named_features => Feature::Name(_v));
                     let aliases = pop_feature_as_inner!(named_features => Feature::Aliases(_v));
-                    if generic_count == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
-                    {
+                    if generic_count == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true) {
                         return Err(Diagnostic::spanned(
                             ident.span(),
                             DiagLevel::Error,
