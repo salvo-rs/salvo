@@ -433,10 +433,10 @@ enum Random {
 }
 ```
 
-_**Add `symbol` to the enum.**_
+_**Add `name` to the enum.**_
 ```
 #[derive(salvo_oapi::ToSchema)]
-#[salvo(schema(symbol = "UserType"))]
+#[salvo(schema(name = UserType))]
 enum UserType {
     Admin,
     Moderator,
@@ -476,11 +476,11 @@ struct Value {
 }
 ```
 
-_**Use `as` attribute to change the name and the path of the schema in the generated OpenAPI
+_**Use `name` attribute to change the name and the path of the schema in the generated OpenAPI
 spec.**_
 ```
  #[derive(salvo_oapi::ToSchema)]
- #[salvo(schema(symbol = "api::models::person::Person"))]
+ #[salvo(schema(name = api::models::person::Person))]
  struct Person {
      name: String,
  }

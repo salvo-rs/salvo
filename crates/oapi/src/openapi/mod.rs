@@ -18,7 +18,7 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
+    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
@@ -267,7 +267,7 @@ impl OpenApi {
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
-        self.components.schemas.insert(name.into(), schema.into());
+        self.components.schemas.insert(name, schema);
         self
     }
 
@@ -1143,7 +1143,7 @@ mod tests {
     #[test]
     fn test_openapi_schema_work_with_generics() {
         #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-        #[salvo(schema(symbol = "City"))]
+        #[salvo(schema(name = City))]
         pub(crate) struct CityDTO {
             #[salvo(schema(rename = "id"))]
             pub(crate) id: String,
@@ -1152,7 +1152,7 @@ mod tests {
         }
 
         #[derive(Serialize, Deserialize, Debug, ToSchema)]
-        #[salvo(schema(symbol = "Response"))]
+        #[salvo(schema(name = Response))]
         pub(crate) struct ApiResponse<T: Serialize + ToSchema + Send + Debug + 'static> {
             #[salvo(schema(rename = "status"))]
             /// status code

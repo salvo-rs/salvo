@@ -3,6 +3,7 @@ use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
+#[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
 struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
     value: T,
 }

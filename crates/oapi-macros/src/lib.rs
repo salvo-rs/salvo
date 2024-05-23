@@ -70,12 +70,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         ident,
         data,
         generics,
+        vis,
         ..
     } = syn::parse_macro_input!(input);
 
-    match ToSchema::new(&data, &attrs, &ident, &generics).try_to_token_stream() {
+    match ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream()) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -101,7 +102,7 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     .try_to_token_stream();
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -122,7 +123,7 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let stream = ToResponse::new(attrs, &data, generics, ident).and_then(|s| s.try_to_token_stream());
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -150,7 +151,7 @@ pub fn to_responses(input: TokenStream) -> TokenStream {
 
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -182,7 +183,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
     let schema = syn::parse_macro_input!(input as Schema);
     let type_tree = match TypeTree::from_type(&schema.ty) {
         Ok(type_tree) => type_tree,
-        Err(diag) => return diag.emit_as_expr_tokens().into(),
+        Err(diag) => return diag.emit_as_item_tokens().into(),
     };
 
     let stream = ComponentSchema::new(ComponentSchemaProps {
@@ -191,12 +192,11 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
-        type_definition: false,
     })
     .map(|s| s.to_token_stream());
     match stream {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_expr_tokens().into(),
+        Err(diag) => diag.emit_as_item_tokens().into(),
     }
 }
 
@@ -217,10 +217,10 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            endpoint::generate(parse2(quote!{}).unwrap(), item)
+            endpoint::generate(parse2(quote! {}).unwrap(), item)
                 .unwrap()
                 .to_string(),
-            quote!{
+            quote! {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
@@ -248,9 +248,7 @@ mod tests {
                 fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
                     let mut components = salvo::oapi::Components::new();
                     let status_codes: &[salvo::http::StatusCode] = &[];
-                    fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
                     let mut operation = salvo::oapi::Operation::new();
-                    modify(&mut components, &mut operation);
                     if operation.operation_id.is_none() {
                         operation.operation_id = Some(::std::any::type_name::<hello>().replace("::", "."));
                     }
@@ -269,7 +267,9 @@ mod tests {
                         components,
                     }
                 }
-                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__macro_gen_oapi_endpoint_type_id_hello , __macro_gen_oapi_endpoint_creator_hello) }
+                salvo::oapi::__private::inventory::submit! {
+                    salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
+                }
             }
             .to_string()
         );

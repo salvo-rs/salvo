@@ -191,7 +191,7 @@ trait Response {
         if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
             if let Ok(metas) = metas.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
                 for meta in metas {
-                    if meta.path().is_ident("symbol") || meta.path().is_ident("content") {
+                    if meta.path().is_ident("name") || meta.path().is_ident("content") {
                         return (false, ERROR);
                     }
                 }
@@ -278,11 +278,12 @@ impl NamedStructResponse<'_> {
         let inline_schema = NamedStructSchema {
             attributes,
             fields,
+            aliases: None,
             features: None,
             generics: None,
             rename_all: None,
             struct_name: Cow::Owned(ident.to_string()),
-            symbol: None,
+            name: None,
             inline: None,
         };
 
@@ -352,12 +353,13 @@ impl<'p> ToResponseNamedStructResponse<'p> {
 
         let inline_schema = NamedStructSchema {
             fields,
+            aliases: None,
             features: None,
             generics: None,
             attributes,
             struct_name: Cow::Owned(ident.to_string()),
             rename_all: None,
-            symbol: None,
+            name: None,
             inline: None,
         };
         let response_type = PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty);
@@ -478,7 +480,7 @@ impl<'r> EnumResponse<'r> {
             description,
         });
         response_value.response_type = if contents.is_empty() {
-            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes)?;
+            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes, None, None)?;
 
             Some(PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty))
         } else {

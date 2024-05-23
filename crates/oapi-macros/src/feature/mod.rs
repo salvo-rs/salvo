@@ -43,7 +43,7 @@ where
     })
 }
 
-pub(crate) trait Name {
+pub(crate) trait GetName {
     fn get_name() -> &'static str
     where
         Self: Sized;
@@ -77,7 +77,9 @@ pub(crate) enum Feature {
     ValueType(ValueType),
     WriteOnly(WriteOnly),
     ReadOnly(ReadOnly),
-    Symbol(Symbol),
+    Name(Name),
+    Title(Title),
+    Aliases(Aliases),
     Nullable(Nullable),
     Rename(Rename),
     RenameAll(RenameAll),
@@ -174,7 +176,14 @@ impl TryToTokens for Feature {
             }
             Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
-            Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
+            Feature::Name(name) => quote! { .name(#name) },
+            Feature::Title(title) => quote! { .title(#title) },
+            Feature::Aliases(_) => quote! {
+                return Err(Diagnostic::spanned(
+                Span::call_site(),
+                DiagLevel::Error,
+                "Aliases feature does not support `TryToTokens`",
+            )); },
             Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
             Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),
@@ -217,28 +226,28 @@ impl TryToTokens for Feature {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
                     DiagLevel::Error,
-                    "RenameAll feature does not support `ToTokens`",
+                    "RenameAll feature does not support `TryToTokens`",
                 ));
             }
             Feature::ValueType(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
                     DiagLevel::Error,
-                    "ValueType feature does not support `ToTokens`",
+                    "ValueType feature does not support `TryToTokens`",
                 )
                 .help(
                     "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.",
                 ));
             }
             Feature::Inline(_) | Feature::SkipBound(_) | Feature::Bound(_) => {
-                // inline， skip_bound and bound feature is ignored by `ToTokens`
+                // inline， skip_bound and bound feature is ignored by `TryToTokens`
                 TokenStream::new()
             }
             Feature::ToParametersNames(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
                     DiagLevel::Error,
-                    "Names feature does not support `ToTokens`"
+                    "Names feature does not support `TryToTokens`"
                 ).help(
                     "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
                 ));
@@ -259,7 +268,9 @@ impl Display for Feature {
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
             Feature::ReadOnly(read_only) => read_only.fmt(f),
-            Feature::Symbol(symbol) => symbol.fmt(f),
+            Feature::Name(name) => name.fmt(f),
+            Feature::Title(title) => title.fmt(f),
+            Feature::Aliases(aliases) => aliases.fmt(f),
             Feature::Nullable(nullable) => nullable.fmt(f),
             Feature::Rename(rename) => rename.fmt(f),
             Feature::Style(style) => style.fmt(f),
@@ -305,7 +316,9 @@ impl Validatable for Feature {
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
             Feature::ReadOnly(read_only) => read_only.is_validatable(),
-            Feature::Symbol(symbol) => symbol.is_validatable(),
+            Feature::Name(name) => name.is_validatable(),
+            Feature::Title(title) => title.is_validatable(),
+            Feature::Aliases(aliases) => aliases.is_validatable(),
             Feature::Nullable(nullable) => nullable.is_validatable(),
             Feature::Rename(rename) => rename.is_validatable(),
             Feature::Style(style) => style.is_validatable(),
