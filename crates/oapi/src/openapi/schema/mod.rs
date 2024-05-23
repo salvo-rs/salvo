@@ -5,8 +5,6 @@
 mod all_of;
 mod any_of;
 mod array;
-/// Module for name schemas.
-pub mod naming;
 mod object;
 mod one_of;
 
