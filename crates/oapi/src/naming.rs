@@ -96,7 +96,7 @@ impl FlexNamer {
         self.short_mode = short_mode;
         self
     }
-    
+
     /// Set the delimiter for generic types.
     pub fn generic_delimiter(mut self, open: impl Into<String>, close: impl Into<String>) -> Self {
         self.generic_delimiter = Some((open.into(), close.into()));
@@ -125,7 +125,7 @@ impl Namer for FlexNamer {
                 name
             }
             NameRule::Force(name) => {
-                let mut name =  if self.short_mode {
+                let mut name = if self.short_mode {
                     let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
                     re.replace_all(type_name, "").to_string()
                 } else {
