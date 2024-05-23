@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(name, "alloc.string.String");
         let name = assign_name::<Vec<String>>(NameRule::Auto);
         assert_eq!(name, "alloc.vec.Vec<alloc.string.String>");
-        
+
         let name = assign_name::<MyString>(NameRule::Auto);
         assert_eq!(name, "salvo_oapi.naming.tests.test_name.MyString");
         let name = assign_name::<nest::MyString>(NameRule::Auto);
