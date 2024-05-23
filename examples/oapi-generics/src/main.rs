@@ -30,7 +30,7 @@ async fn use_u64(body: JsonBody<MyObject<u64>>) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    // Custom your OpenApi naming style.
+    // Custom your OpenApi naming style. You should set it before using OpenApi.
     salvo::oapi::naming::set_namer(salvo::oapi::naming::FlexNamer::new().short_mode(true).generic_delimiter('_', '_'));
 
     let router = Router::new()
