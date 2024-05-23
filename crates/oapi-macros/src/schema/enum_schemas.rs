@@ -913,7 +913,6 @@ impl ComplexEnum<'_> {
 
                     Ok(quote! {
                         #oapi::oapi::schema::Object::new()
-                            #name
                             #title
                             .schema_type(#oapi::oapi::schema::SchemaType::Object)
                             .property(#tag, #variant_name_tokens)
