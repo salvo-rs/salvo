@@ -248,9 +248,7 @@ mod tests {
                 fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
                     let mut components = salvo::oapi::Components::new();
                     let status_codes: &[salvo::http::StatusCode] = &[];
-                    fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
                     let mut operation = salvo::oapi::Operation::new();
-                    modify(&mut components, &mut operation);
                     if operation.operation_id.is_none() {
                         operation.operation_id = Some(::std::any::type_name::<hello>().replace("::", "."));
                     }

@@ -37,6 +37,15 @@ fn metadata(
             }
         }
     }));
+    let modifiers = if modifiers.is_empty() {
+        None
+    } else {
+        Some(quote!{{
+            let mut components = &mut components;
+            let mut operation = &mut operation;
+            #(#modifiers)*
+        }})
+    };
     let stream = quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
@@ -45,11 +54,7 @@ fn metadata(
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
             let mut operation = #oapi::oapi::Operation::new();
-            {
-                let mut components = &mut components;
-                let mut operation = &mut operation;
-                #(#modifiers)*
-            }
+            #modifiers
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
             }
