@@ -147,38 +147,53 @@ impl Namer for FlexNamer {
     }
 }
 
-// mod tests {
-//     #[test]
-//     fn test_name() {
-//         use super::*;
+mod tests {
+    #[test]
+    fn test_name() {
+        use super::*;
 
-//         let namer = FlexNamer::new().generic_delimiter('_', '_');
-//         set_namer(namer);
+        struct MyString;
+        mod nest {
+            pub(crate) struct MyString;
+        }
 
-//         let name = assign_name::<String>(NameRule::Auto);
-//         assert_eq!(name, "alloc.string.String");
-//         let name = assign_name::<Vec<String>>(NameRule::Auto);
-//         assert_eq!(name, "alloc.vec.Vec_alloc.string.String_");
+        let name = assign_name::<String>(NameRule::Auto);
+        assert_eq!(name, "alloc.string.String");
+        let name = assign_name::<Vec<String>>(NameRule::Auto);
+        assert_eq!(name, "alloc.vec.Vec<alloc.string.String>");
+        
+        let name = assign_name::<MyString>(NameRule::Auto);
+        assert_eq!(name, "salvo_oapi.naming.tests.test_name.MyString");
+        let name = assign_name::<nest::MyString>(NameRule::Auto);
+        assert_eq!(name, "salvo_oapi.naming.tests.test_name.nest.MyString");
 
-//         let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
-//         set_namer(namer);
+        // let namer = FlexNamer::new().generic_delimiter('_', '_');
+        // set_namer(namer);
 
-//         let name = assign_name::<String>(NameRule::Auto);
-//         assert_eq!(name, "String");
-//         let name = assign_name::<Vec<String>>(NameRule::Auto);
-//         assert_eq!(name, "Vec_String_");
+        // let name = assign_name::<String>(NameRule::Auto);
+        // assert_eq!(name, "alloc.string.String");
+        // let name = assign_name::<Vec<String>>(NameRule::Auto);
+        // assert_eq!(name, "alloc.vec.Vec_alloc.string.String_");
 
-//         let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
-//         set_namer(namer);
+        // let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
+        // set_namer(namer);
 
-//         struct MyString;
-//         mod nest {
-//             pub(crate) struct MyString;
-//         }
+        // let name = assign_name::<String>(NameRule::Auto);
+        // assert_eq!(name, "String");
+        // let name = assign_name::<Vec<String>>(NameRule::Auto);
+        // assert_eq!(name, "Vec_String_");
 
-//         let name = assign_name::<MyString>(NameRule::Auto);
-//         assert_eq!(name, "MyString");
-//         let name = assign_name::<nest::MyString>(NameRule::Auto);
-//         assert_eq!(name, "MyString2");
-//     }
-// }
+        // let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
+        // set_namer(namer);
+
+        // struct MyString;
+        // mod nest {
+        //     pub(crate) struct MyString;
+        // }
+
+        // let name = assign_name::<MyString>(NameRule::Auto);
+        // assert_eq!(name, "MyString");
+        // let name = assign_name::<nest::MyString>(NameRule::Auto);
+        // assert_eq!(name, "MyString2");
+    }
+}
