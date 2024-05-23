@@ -148,7 +148,6 @@ impl Namer for FlexNamer {
 }
 
 mod tests {
-    use super::*;
     #[test]
     fn test_name() {
         let namer = FlexNamer::new().generic_delimiter('_', '_');
