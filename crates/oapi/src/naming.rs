@@ -59,7 +59,7 @@ pub fn get_name<T: 'static>() -> String {
 }
 
 fn type_generic_part(type_name: &str) -> String {
-    let re = Regex::new(r"^[^<]+").unwrap();
+    let re = Regex::new(r"^[^<]+").expect("Invalid regex");
     let result = re.replace_all(type_name, "");
     result.to_string()
 }
@@ -70,6 +70,7 @@ pub trait Namer: Sync + Send + 'static {
 }
 
 /// A namer that generates wordy names.
+#[derive(Default, Debug, Clone, Copy)]
 pub struct WordyNamer;
 impl WordyNamer {
     /// Create a new WordyNamer.
@@ -106,6 +107,7 @@ impl Namer for WordyNamer {
 }
 
 /// A namer that generates short names.
+#[derive(Default, Debug, Clone, Copy)]
 pub struct ShortNamer;
 impl ShortNamer {
     /// Create a new ShortNamer.
@@ -117,7 +119,7 @@ impl Namer for ShortNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
         let name: String = match rule {
             NameRule::Auto => {
-                let re = Regex::new(r"([^:<>]+::)+").unwrap();
+                let re = Regex::new(r"([^:<>]+::)+").expect("Invalid regex");
                 let base = re.replace_all(type_name, "");
                 let mut name = base.to_string();
                 let mut count = 1;
