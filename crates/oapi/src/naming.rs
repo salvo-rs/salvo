@@ -124,19 +124,25 @@ impl Namer for FlexNamer {
                 }
                 name
             }
-            NameRule::Force(name) => {
-                let mut name = if self.short_mode {
+            NameRule::Force(force_name) => {
+                let mut base = if self.short_mode {
                     let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
                     re.replace_all(type_name, "").to_string()
                 } else {
-                    format! {"{}{}", name, type_generic_part(type_name).replace("::", ".")}
+                    format! {"{}{}", force_name, type_generic_part(type_name).replace("::", ".")}
                 };
                 if let Some((open, close)) = &self.generic_delimiter {
-                    name = name.replace('<', open).replace('>', close).to_string();
+                    base = base.replace('<', open).replace('>', close).to_string();
                 }
-                if let Some((exist_id, exist_name)) = type_info_by_name(&name) {
+                let mut name = base.to_string();
+                let mut count = 1;
+                while let Some((exist_id, exist_name)) = type_info_by_name(&name) {
                     if exist_id != type_id {
-                        panic!("Duplicate name for types: {}, {}", exist_name, type_name);
+                        count += 1;
+                        tracing::error!("Duplicate name for types: {}, {}", exist_name, type_name);
+                        name = format!("{}{}", base, count);
+                    } else {
+                        break;
                     }
                 }
                 name.to_string()
