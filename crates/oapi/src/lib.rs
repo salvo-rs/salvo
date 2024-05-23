@@ -15,6 +15,8 @@ pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointR
 pub mod extract;
 mod routing;
 pub use routing::RouterExt;
+/// Module for name schemas.
+pub mod naming;
 
 cfg_feature! {
     #![feature ="swagger-ui"]
@@ -290,7 +292,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = crate::schema::naming::assign_name::<StatusError>(Default::default());
+        let name = crate::naming::assign_name::<StatusError>(Default::default());
         let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());
@@ -323,7 +325,7 @@ where
     E: ToSchema,
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = crate::schema::naming::assign_name::<StatusError>(Default::default());
+        let name = crate::naming::assign_name::<StatusError>(Default::default());
         let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());

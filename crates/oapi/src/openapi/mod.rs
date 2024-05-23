@@ -1,4 +1,24 @@
 //! Rust implementation of Openapi Spec V3.
+
+mod components;
+mod content;
+mod encoding;
+mod example;
+mod external_docs;
+mod header;
+pub mod info;
+pub mod operation;
+pub mod parameter;
+pub mod path;
+pub mod request_body;
+pub mod response;
+pub mod schema;
+pub mod security;
+pub mod server;
+mod tag;
+mod xml;
+
+use crate::{routing::NormNode, Endpoint};
 use std::collections::{btree_map, BTreeSet};
 
 use once_cell::sync::Lazy;
@@ -24,26 +44,6 @@ pub use self::{
     tag::Tag,
     xml::Xml,
 };
-
-mod components;
-mod content;
-mod encoding;
-mod example;
-mod external_docs;
-mod header;
-pub mod info;
-pub mod operation;
-pub mod parameter;
-pub mod path;
-pub mod request_body;
-pub mod response;
-pub mod schema;
-pub mod security;
-pub mod server;
-mod tag;
-mod xml;
-
-use crate::{routing::NormNode, Endpoint};
 
 static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 

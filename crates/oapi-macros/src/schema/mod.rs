@@ -86,7 +86,7 @@ impl TryToTokens for ToSchema<'_> {
 
                         Ok(quote! {
                             if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<#ty>() {
-                                name = Some(#oapi::oapi::schema::naming::assign_name::<#ty>(#oapi::oapi::schema::naming::NameRule::Force(#name)));
+                                name = Some(#oapi::oapi::naming::assign_name::<#ty>(#oapi::oapi::naming::NameRule::Force(#name)));
                             }
                         })
                     })
@@ -116,9 +116,9 @@ impl TryToTokens for ToSchema<'_> {
         } else if let Some(name) = variant.name() {
             let name = name.0.path.to_token_stream();
             let name = quote!(#name).to_string();
-            Some(quote! { #oapi::oapi::schema::naming::NameRule::Force(#name) })
+            Some(quote! { #oapi::oapi::naming::NameRule::Force(#name) })
         } else {
-            Some(quote! { #oapi::oapi::schema::naming::NameRule::Auto })
+            Some(quote! { #oapi::oapi::naming::NameRule::Auto })
         };
         let variant = variant.try_to_token_stream()?;
         let body = match name_rule {
@@ -132,11 +132,11 @@ impl TryToTokens for ToSchema<'_> {
                     quote! {
                         let mut name = None;
                         #type_aliases
-                        let name = name.unwrap_or_else(||#oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule));
+                        let name = name.unwrap_or_else(||#oapi::oapi::naming::assign_name::<#ident #ty_generics>(#name_rule));
                     }
                 } else {
                     quote! {
-                        let name = #oapi::oapi::schema::naming::assign_name::<#ident #ty_generics>(#name_rule);
+                        let name = #oapi::oapi::naming::assign_name::<#ident #ty_generics>(#name_rule);
                     }
                 };
                 quote! {

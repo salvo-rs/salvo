@@ -56,7 +56,7 @@ fn metadata(
             let mut operation = #oapi::oapi::Operation::new();
             #modifiers
             if operation.operation_id.is_none() {
-                operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
+                operation.operation_id = Some(#oapi::oapi::naming::assign_name::<#name>(#oapi::oapi::naming::NameRule::Auto));
             }
             if !status_codes.is_empty() {
                 let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
