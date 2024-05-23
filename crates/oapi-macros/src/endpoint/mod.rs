@@ -40,7 +40,7 @@ fn metadata(
     let modifiers = if modifiers.is_empty() {
         None
     } else {
-        Some(quote!{{
+        Some(quote! {{
             let mut components = &mut components;
             let mut operation = &mut operation;
             #(#modifiers)*
