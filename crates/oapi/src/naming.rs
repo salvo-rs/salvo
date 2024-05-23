@@ -15,7 +15,7 @@ pub enum NameRule {
     Force(&'static str),
 }
 
-static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(WordyNamer::new())));
+static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(FlexNamer::new())));
 static GLOBAL_NAMES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);
 
 /// Set global namer.
@@ -44,7 +44,9 @@ pub fn assign_name<T: 'static>(rule: NameRule) -> String {
             return name.clone();
         }
     }
-    namer().assign_name(type_id, type_name, rule)
+    let name = namer().assign_name(type_id, type_name, rule);
+    set_name_type_info(name.clone(), type_id, type_name);
+    name
 }
 
 /// Get the name of the type. Panic if the name is not exist.
@@ -70,57 +72,50 @@ pub trait Namer: Sync + Send + 'static {
 }
 
 /// A namer that generates wordy names.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct WordyNamer;
-impl WordyNamer {
-    /// Create a new WordyNamer.
+#[derive(Clone, Debug)]
+pub struct FlexNamer {
+    short_mode: bool,
+    generic_delimiter: Option<(String, String)>,
+}
+impl Default for FlexNamer {
+    fn default() -> Self {
+        Self {
+            short_mode: false,
+            generic_delimiter: None,
+        }
+    }
+}
+impl FlexNamer {
+    /// Create a new FlexNamer.
     pub fn new() -> Self {
-        Self
+        Default::default()
     }
-}
-impl Namer for WordyNamer {
-    fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
-        let name = match rule {
-            NameRule::Auto => {
-                let base = type_name.replace("::", ".");
-                let mut name = base.to_string();
-                let mut count = 1;
-                while type_info_by_name(&name).map(|t| t.0) == Some(type_id) {
-                    name = format!("{}{}", base, count);
-                    count += 1;
-                }
-                name
-            }
-            NameRule::Force(name) => {
-                let name = format! {"{}{}", name, type_generic_part(type_name)};
-                if let Some((exist_id, exist_name)) = type_info_by_name(&name) {
-                    if exist_id != type_id {
-                        panic!("Duplicate name for types: {}, {}", exist_name, type_name);
-                    }
-                }
-                name.to_string()
-            }
-        };
-        set_name_type_info(name.clone(), type_id, type_name);
-        name
-    }
-}
 
-/// A namer that generates short names.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ShortNamer;
-impl ShortNamer {
-    /// Create a new ShortNamer.
-    pub fn new() -> Self {
-        Self
+    /// Set the short mode.
+    pub fn short_mode(mut self, short_mode: bool) -> Self {
+        self.short_mode = short_mode;
+        self
+    }
+    
+    /// Set the delimiter for generic types.
+    pub fn generic_delimiter(mut self, open: impl Into<String>, close: impl Into<String>) -> Self {
+        self.generic_delimiter = Some((open.into(), close.into()));
+        self
     }
 }
-impl Namer for ShortNamer {
+impl Namer for FlexNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
-        let name: String = match rule {
+        match rule {
             NameRule::Auto => {
-                let re = Regex::new(r"([^:<>]+::)+").expect("Invalid regex");
-                let base = re.replace_all(type_name, "");
+                let mut base = if self.short_mode {
+                    let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
+                    re.replace_all(type_name, "").to_string()
+                } else {
+                    type_name.replace("::", ".")
+                };
+                if let Some((open, close)) = &self.generic_delimiter {
+                    base = base.replace('<', open).replace('>', close);
+                }
                 let mut name = base.to_string();
                 let mut count = 1;
                 while type_info_by_name(&name).map(|t| t.0) == Some(type_id) {
@@ -130,7 +125,15 @@ impl Namer for ShortNamer {
                 name
             }
             NameRule::Force(name) => {
-                let name = format! {"{}{}", name, type_generic_part(type_name)};
+                let mut name =  if self.short_mode {
+                    let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
+                    re.replace_all(type_name, "").to_string()
+                } else {
+                    format! {"{}{}", name, type_generic_part(type_name).replace("::", ".")}
+                };
+                if let Some((open, close)) = &self.generic_delimiter {
+                    name = name.replace('<', open).replace('>', close).to_string();
+                }
                 if let Some((exist_id, exist_name)) = type_info_by_name(&name) {
                     if exist_id != type_id {
                         panic!("Duplicate name for types: {}, {}", exist_name, type_name);
@@ -138,8 +141,6 @@ impl Namer for ShortNamer {
                 }
                 name.to_string()
             }
-        };
-        set_name_type_info(name.clone(), type_id, type_name);
-        name
+        }
     }
 }
