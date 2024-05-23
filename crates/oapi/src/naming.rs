@@ -150,6 +150,8 @@ impl Namer for FlexNamer {
 mod tests {
     #[test]
     fn test_name() {
+        use super::*;
+        
         let namer = FlexNamer::new().generic_delimiter('_', '_');
         set_namer(namer);
 
