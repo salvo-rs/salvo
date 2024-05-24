@@ -92,7 +92,7 @@ impl Keycert {
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
             if !ec.is_empty() {
-                PrivateKeyDer::Pkcs8(ec.remove(0))
+                PrivateKeyDer::Sec1(ec.remove(0))
             } else {
                 let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
                     .collect::<Result<Vec<_>, _>>()
