@@ -88,20 +88,27 @@ impl Keycert {
             .collect::<Vec<_>>();
 
         let key = {
-            let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
+            let mut ec = rustls_pemfile::ec_private_keys(&mut self.key.as_ref())
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
-            if !pkcs8.is_empty() {
-                PrivateKeyDer::Pkcs8(pkcs8.remove(0))
+            if !ec.is_empty() {
+                PrivateKeyDer::Pkcs8(ec.remove(0))
             } else {
-                let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
+                let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
-
-                if !rsa.is_empty() {
-                    PrivateKeyDer::Pkcs1(rsa.remove(0))
+                if !pkcs8.is_empty() {
+                    PrivateKeyDer::Pkcs8(pkcs8.remove(0))
                 } else {
-                    return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
+                    let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+
+                    if !rsa.is_empty() {
+                        PrivateKeyDer::Pkcs1(rsa.remove(0))
+                    } else {
+                        return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
+                    }
                 }
             }
         };
