@@ -1030,7 +1030,8 @@ impl TryToTokens for ComplexEnum<'_> {
                 }
             })
             .collect::<DiagResult<Vec<Option<TokenStream>>>>()?
-            .into_iter().flatten()
+            .into_iter()
+            .flatten()
             .collect::<CustomEnum<'_, TokenStream>>();
         if let Some(tag) = tag {
             ts.discriminator(Cow::Borrowed(tag.as_str())).to_tokens(tokens);
