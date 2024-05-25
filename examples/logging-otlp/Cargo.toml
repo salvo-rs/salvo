@@ -1,0 +1,18 @@
+[package]
+name = "example-logging-otlp"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+anyhow.workspace = true
+salvo = { workspace = true, features = ["logging"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber ={ workspace = true, features = ["env-filter"] }
+tracing-opentelemetry = "0.23.0"
+opentelemetry = "0.22.0"
+opentelemetry-otlp = { version = "0.15.0", features = ["tonic"] }
+opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio"] }
+tracing-appender = "0.2.3"
