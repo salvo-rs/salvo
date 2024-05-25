@@ -1,11 +1,11 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::ComponentSchema;
 use crate::feature::Inline;
-use crate::{parse_utils, AnyValue, Array, Required};
+use crate::{parse_utils, AnyValue, Array, DiagResult, Required, TryToTokens};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};
@@ -123,8 +123,8 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl ToTokens for RequestBodyAttr<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl TryToTokens for RequestBodyAttr<'_> {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
@@ -132,15 +132,14 @@ impl ToTokens for RequestBodyAttr<'_> {
                     <#ref_type as #oapi::oapi::schema::Schema>::to_schema(components)
                 },
                 PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree();
+                    let type_tree = body_type.as_type_tree()?;
                     ComponentSchema::new(crate::component::ComponentSchemaProps {
                         type_tree: &type_tree,
                         features: Some(vec![Inline::from(body_type.is_inline).into()]),
                         description: None,
                         deprecated: None,
                         object_name: "",
-                        type_definition: false,
-                    })
+                    })?
                     .to_token_stream()
                 }
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
@@ -161,7 +160,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                         let name = &example.name;
                         quote!((#name, #example))
                     })
-                    .collect::<Array<TokenStream2>>();
+                    .collect::<Array<TokenStream>>();
                 content.extend(quote!(
                     .extend_examples(#examples)
                 ))
@@ -175,7 +174,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                     });
                 }
                 PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree();
+                    let type_tree = body_type.as_type_tree()?;
                     let required: Required = (!type_tree.is_option()).into();
 
                     let content_type = match &self.content_type {
@@ -203,5 +202,6 @@ impl ToTokens for RequestBodyAttr<'_> {
                 .description(#description)
             })
         }
+        Ok(())
     }
 }

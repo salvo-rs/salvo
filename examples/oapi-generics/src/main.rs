@@ -3,6 +3,7 @@ use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
+#[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
 struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
     value: T,
 }
@@ -28,6 +29,9 @@ async fn use_u64(body: JsonBody<MyObject<u64>>) -> String {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
+
+    // Custom your OpenApi naming style. You should set it before using OpenApi.
+    salvo::oapi::naming::set_namer(salvo::oapi::naming::FlexNamer::new().short_mode(true).generic_delimiter('_', '_'));
 
     let router = Router::new()
         .push(Router::with_path("i32").post(use_i32))

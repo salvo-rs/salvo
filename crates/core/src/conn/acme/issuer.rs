@@ -2,8 +2,8 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rcgen::{Certificate, CertificateParams, CustomExtension, DistinguishedName, PKCS_ECDSA_P256_SHA256};
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use rcgen::{CertificateParams, CustomExtension, DistinguishedName, KeyPair};
+use tokio_rustls::rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::{crypto::ring::sign::any_ecdsa_type, sign::CertifiedKey};
 
 use super::cache::AcmeCache;
@@ -73,19 +73,22 @@ pub(crate) async fn issue_cert(
         return Err(Error::other("authorization failed too many times"));
     }
     // send csr
-    let mut params = CertificateParams::new(config.domains.clone());
+    let mut params = CertificateParams::new(config.domains.clone())
+        .map_err(|e| Error::other(format!("crate certificate params failed: {}", e)))?;
     params.distinguished_name = DistinguishedName::new();
-    params.alg = &PKCS_ECDSA_P256_SHA256;
-    let cert = Certificate::from_params(params)
-        .map_err(|e| Error::other(format!("failed create certificate request: {}", e)))?;
-    let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
-        cert.serialize_private_key_der(),
-    )))
-    .unwrap();
-    let csr = cert
-        .serialize_request_der()
+
+    let key_pair = KeyPair::generate().map_err(|e| Error::other(format!("generate key pair failed: {}", e)))?;
+
+    let csr = params
+        .serialize_request(&key_pair)
         .map_err(|e| Error::other(format!("failed to serialize request der {}", e)))?;
-    let order_res = client.send_csr(&order_res.finalize, &csr).await?;
+ 
+    let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        key_pair.serialize_der(),
+    )))
+    .expect("serialize private key der failed");
+
+    let order_res = client.send_csr(&order_res.finalize, csr.der()).await?;
     if order_res.status == "invalid" {
         return Err(Error::other(format!(
             "failed to request certificate: {}",
@@ -113,7 +116,7 @@ pub(crate) async fn issue_cert(
         .await?
         .as_ref()
         .to_vec();
-    let key_pem = cert.serialize_private_key_pem();
+    let key_pem = key_pair.serialize_pem();
     let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice()).collect::<IoResult<Vec<_>>>()?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
     *resolver.cert.write() = Some(Arc::new(cert_key));
@@ -130,19 +133,20 @@ pub(crate) async fn issue_cert(
 }
 
 fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> crate::Result<CertifiedKey> {
-    let mut params = CertificateParams::new(vec![domain.to_string()]);
-    params.alg = &PKCS_ECDSA_P256_SHA256;
+    let key_pair = KeyPair::generate().map_err(|e| Error::other(format!("generate key pair failed: {}", e)))?;
+
+    let mut params = CertificateParams::new(vec![domain.to_string()])
+        .map_err(|e| Error::other(format!("create certificate params failed: {}", e)))?;
     params.custom_extensions = vec![CustomExtension::new_acme_identifier(acme_hash)];
-    let cert = Certificate::from_params(params).map_err(|_| Error::other("failed to generate acme certificate"))?;
-    let key = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
-        cert.serialize_private_key_der(),
+    let cert = params
+        .self_signed(&key_pair)
+        .map_err(|_| Error::other("failed to generate acme certificate"))?;
+    let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        key_pair.serialize_der(),
     )))
-    .unwrap();
+    .expect("serialize private key der failed");
     Ok(CertifiedKey::new(
-        vec![CertificateDer::from(
-            cert.serialize_der()
-                .map_err(|_| Error::other("failed to serialize acme certificate"))?,
-        )],
-        key,
+        vec![cert.der().clone()],
+        pk,
     ))
 }

@@ -27,5 +27,5 @@ prometheus = "0.13"
 opentelemetry-prometheus.workspace = true
 opentelemetry-http.workspace = true
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
-opentelemetry-jaeger = { workspace = true, features = ["rt-tokio", "collector_client", "hyper_collector_client"] }
+opentelemetry-otlp = { workspace = true, features = ["http-proto", "trace", "reqwest"] }
  

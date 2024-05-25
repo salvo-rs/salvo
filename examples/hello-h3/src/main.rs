@@ -16,7 +16,7 @@ async fn main() {
     let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
     let listener = TcpListener::new(("0.0.0.0", 5800)).rustls(config.clone());
 
-    let acceptor = QuinnListener::new(config, ("0.0.0.0", 5800))
+    let acceptor = QuinnListener::new(config.build_quinn_config().unwrap(), ("0.0.0.0", 5800))
         .join(listener)
         .bind()
         .await;

@@ -17,6 +17,14 @@ categories = { workspace = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = ["ring", "hyper-client"]
+full = ["ring", "hyper-client", "reqwest-client"]
+# aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
+ring = ["hyper-rustls/ring"]
+hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
+reqwest-client = ["dep:reqwest"]
+
 [dependencies]
 futures-util = { workspace = true, default-features = false }
 salvo_core = { workspace = true, default-features = false }
@@ -24,9 +32,10 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-hyper-rustls = { workspace = true }
-hyper-util = { workspace = true, features = ["tokio", "http1", "http2", "client-legacy"] }
+hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "rustls-native-certs", "ring", "http1", "tls12", "logging"] }
+hyper-util = { workspace = true, optional = true, features = ["tokio", "http1", "http2", "client-legacy"] }
 percent-encoding = { workspace = true }
+reqwest = { workspace = true, optional = true, features = ["stream"] }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }

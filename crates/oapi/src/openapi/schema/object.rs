@@ -30,9 +30,9 @@ pub struct Object {
     #[serde(rename = "type")]
     pub schema_type: SchemaType,
 
-    /// Changes the [`Object`] symbol.
+    /// Changes the [`Object`] name.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub symbol: Option<String>,
+    pub name: Option<String>,
 
     /// Additional format for detailing the schema type.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,9 +199,9 @@ impl Object {
         self
     }
 
-    /// Add or change the symbol of the [`Object`].
-    pub fn symbol(mut self, symbol: impl Into<String>) -> Self {
-        self.symbol = Some(symbol.into());
+    /// Add or change the name of the [`Object`].
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
         self
     }
 

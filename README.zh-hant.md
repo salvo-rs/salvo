@@ -35,7 +35,7 @@
 
 Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需要基礎 Rust 知識即可開發後端服務.
 
-> 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
+> 中国用户可以添加我微信(chrislearn), 拉微信討論群或者直接加入QQ群：823441777.
 
 ## 🎯 功能特色
 
@@ -47,27 +47,15 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書.
-- 支持 Tower serivce 和 layer.
+- 支持 Tower Serivce 和 Layer.
 
 ## ⚡️ 快速開始
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
-### 🛠️ Salvo CLI
-Salvo CLI是一個命令行工具，可以簡化創建新的Salvo項目的過程，支援Web API、網站、資料庫（包括透過SQLx、SeaORM、Diesel、Rbatis支援的SQLite、PostgreSQL、MySQL）和基本的中介軟體的模板。
-你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来來創建一個新的 Salvo 項目:
-#### 安裝
-```bash
-cargo install salvo-cli
-```
 
-#### 創建一個新的salvo項目
-```bash
-salvo new project_name
-```
-___
-### Hello World with ACME and HTTP3
+### 支持 ACME 自動獲取證書和 HTTP3 的 Hello World
 
-輕輕鬆鬆實現一個支持 ACME 自動獲取證書的，支持 HTTP3 的服務器.
+**隻需要幾行代碼就可以實現一個同時支持 ACME 自動獲取證書以及支持 HTTP1，HTTP2， HTTP3 協議的伺服器.**
 
 ```rust
 use salvo::prelude::*;
@@ -82,8 +70,7 @@ async fn main() {
     let mut router = Router::new().get(hello);
     let listener = TcpListener::new("0.0.0.0:443")
         .acme()
-        .cache_path("temp/letsencrypt")
-        .add_domain("test.salvo.rs")
+        .add_domain("test.salvo.rs") // 用你自己的域名替换此域名.
         .http01_challege(&mut router).quinn("0.0.0.0:443");
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
     Server::new(acceptor).serve(router).await;
@@ -282,6 +269,20 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 ```
+
+### 🛠️ Salvo CLI
+Salvo CLI是一個命令行工具，可以簡化創建新的Salvo項目的過程，支援Web API、網站、資料庫（包括透過SQLx、SeaORM、Diesel、Rbatis支援的SQLite、PostgreSQL、MySQL）和基本的中介軟體的模板。
+你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来來創建一個新的 Salvo 項目:
+#### 安裝
+```bash
+cargo install salvo-cli
+```
+
+#### 創建一個新的salvo項目
+```bash
+salvo new project_name
+```
+___
 
 ### 更多示例
 

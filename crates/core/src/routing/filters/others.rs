@@ -1,7 +1,7 @@
 use std::fmt::{self, Formatter};
 
 use crate::http::uri::Scheme;
-use crate::http::{header, Method, Request};
+use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
 /// Filter by request method
@@ -86,20 +86,25 @@ impl Filter for HostFilter {
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // Http1, if `fix-http1-request-uri` feature is disabled, host is lack. so use header host instead.
         // https://github.com/hyperium/hyper/issues/1310
-        req.headers()
-            .get(header::HOST)
-            .and_then(|h| h.to_str().ok())
-            .map(|h| {
-                if h.contains(':') {
-                    h.rsplit_once(':')
-                        .expect("rsplit_once by ':' should not returns `None`")
-                        .0
-                } else {
-                    h
-                }
-            })
-            .map(|h| h == self.host)
-            .unwrap_or(self.lack)
+        #[cfg(feature = "fix-http1-request-uri")]
+        let host = req.uri().authority().map(|a| a.as_str());
+        #[cfg(not(feature = "fix-http1-request-uri"))]
+        let host = req.uri().authority().map(|a| a.as_str()).or_else(|| {
+            req.headers()
+                .get(crate::http::header::HOST)
+                .and_then(|h| h.to_str().ok())
+        });
+        host.map(|h| {
+            if h.contains(':') {
+                h.rsplit_once(':')
+                    .expect("rsplit_once by ':' should not returns `None`")
+                    .0
+            } else {
+                h
+            }
+        })
+        .map(|h| h == self.host)
+        .unwrap_or(self.lack)
     }
 }
 impl fmt::Debug for HostFilter {
@@ -135,21 +140,26 @@ impl Filter for PortFilter {
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // Http1, if `fix-http1-request-uri` feature is disabled, port is lack. so use header host instead.
         // https://github.com/hyperium/hyper/issues/1310
-        req.headers()
-            .get(header::HOST)
-            .and_then(|h| h.to_str().ok())
-            .map(|h| {
-                if h.contains(':') {
-                    h.rsplit_once(':')
-                        .expect("rsplit_once by ':' should not returns `None`")
-                        .1
-                } else {
-                    h
-                }
-            })
-            .and_then(|p| p.parse::<u16>().ok())
-            .map(|p| p == self.port)
-            .unwrap_or(self.lack)
+        #[cfg(feature = "fix-http1-request-uri")]
+        let host = req.uri().authority().map(|a| a.as_str());
+        #[cfg(not(feature = "fix-http1-request-uri"))]
+        let host = req.uri().authority().map(|a| a.as_str()).or_else(|| {
+            req.headers()
+                .get(crate::http::header::HOST)
+                .and_then(|h| h.to_str().ok())
+        });
+        host.map(|h| {
+            if h.contains(':') {
+                h.rsplit_once(':')
+                    .expect("rsplit_once by ':' should not returns `None`")
+                    .1
+            } else {
+                h
+            }
+        })
+        .and_then(|p| p.parse::<u16>().ok())
+        .map(|p| p == self.port)
+        .unwrap_or(self.lack)
     }
 }
 impl fmt::Debug for PortFilter {

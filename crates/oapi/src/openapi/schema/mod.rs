@@ -2,12 +2,6 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::BTreeMap;
-
-use serde::{Deserialize, Serialize};
-
-use crate::RefOr;
-
 mod all_of;
 mod any_of;
 mod array;
@@ -19,6 +13,102 @@ pub use any_of::AnyOf;
 pub use array::{Array, ToArray};
 pub use object::Object;
 pub use one_of::OneOf;
+
+use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
+
+use serde::{Deserialize, Serialize};
+
+use crate::RefOr;
+
+/// Schemas collection for OpenApi.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Schemas(pub BTreeMap<String, RefOr<Schema>>);
+
+impl<K, R> From<BTreeMap<K, R>> for Schemas
+where
+    K: Into<String>,
+    R: Into<RefOr<Schema>>,
+{
+    fn from(inner: BTreeMap<K, R>) -> Self {
+        Self(inner.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+    }
+}
+impl<K, R, const N: usize> From<[(K, R); N]> for Schemas
+where
+    K: Into<String>,
+    R: Into<RefOr<Schema>>,
+{
+    fn from(inner: [(K, R); N]) -> Self {
+        Self(
+            <[(K, R)]>::into_vec(Box::new(inner))
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl Deref for Schemas {
+    type Target = BTreeMap<String, RefOr<Schema>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Schemas {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for Schemas {
+    type Item = (String, RefOr<Schema>);
+    type IntoIter = <BTreeMap<String, RefOr<Schema>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl Schemas {
+    /// Construct a new empty [`Schemas`]. This is effectively same as calling [`Schemas::default`].
+    pub fn new() -> Self {
+        Default::default()
+    }
+    /// Inserts a key-value pair into the instance and returns `self`.
+    pub fn schema<K: Into<String>, V: Into<RefOr<Schema>>>(mut self, key: K, value: V) -> Self {
+        self.insert(key, value);
+        self
+    }
+    /// Inserts a key-value pair into the instance.
+    pub fn insert<K: Into<String>, V: Into<RefOr<Schema>>>(&mut self, key: K, value: V) {
+        self.0.insert(key.into(), value.into());
+    }
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
+    pub fn append(&mut self, other: &mut Schemas) {
+        let items = std::mem::take(&mut other.0);
+        for item in items {
+            self.insert(item.0, item.1);
+        }
+    }
+    /// Extends a collection with the contents of an iterator.
+    pub fn extend<I, K, V>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<RefOr<Schema>>,
+    {
+        for (k, v) in iter.into_iter() {
+            self.insert(k, v);
+        }
+    }
+}
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
@@ -175,7 +265,7 @@ impl Ref {
     }
 
     /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
-    /// references the the reusable schemas.
+    /// references the reusable schemas.
     pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
         Self::new(format!("#/components/schemas/{}", schema_name.into()))
     }
@@ -477,13 +567,13 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_symbol() {
-        let json_value = Object::new().symbol("SomeName");
+    fn test_object_with_name() {
+        let json_value = Object::new().name("SomeName");
         assert_json_eq!(
             json_value,
             json!({
                 "type": "object",
-                "symbol": "SomeName"
+                "name": "SomeName"
             })
         );
     }

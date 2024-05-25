@@ -1,7 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{parse::ParseStream, LitFloat, LitInt};
 
@@ -12,8 +11,8 @@ pub(crate) use macros::*;
 mod items;
 pub(crate) use items::*;
 
+use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 use crate::{
-    parse_utils,
     schema_type::SchemaType,
     type_tree::{GenericType, TypeTree},
 };
@@ -44,7 +43,7 @@ where
     })
 }
 
-pub(crate) trait Name {
+pub(crate) trait GetName {
     fn get_name() -> &'static str
     where
         Self: Sized;
@@ -59,7 +58,7 @@ pub(crate) trait Validatable {
 
 pub(crate) trait Validate: Validatable {
     /// Perform validation check against schema type.
-    fn validate(&self, validator: impl Validator);
+    fn validate(&self, validator: impl Validator) -> Result<(), Diagnostic>;
 }
 
 pub(crate) trait Parse {
@@ -78,7 +77,9 @@ pub(crate) enum Feature {
     ValueType(ValueType),
     WriteOnly(WriteOnly),
     ReadOnly(ReadOnly),
-    Symbol(Symbol),
+    Name(Name),
+    Title(Title),
+    Aliases(Aliases),
     Nullable(Nullable),
     Rename(Rename),
     RenameAll(RenameAll),
@@ -107,10 +108,12 @@ pub(crate) enum Feature {
     Skip(Skip),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
+    SkipBound(SkipBound),
+    Bound(Bound),
 }
 
 impl Feature {
-    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
+    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> DiagResult<()> {
         match self {
             Feature::MultipleOf(multiple_of) => {
                 multiple_of.validate(ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)))
@@ -137,7 +140,7 @@ impl Feature {
                     "multiple_of",
                     "maximum",
                     "minimum",
-                    "exclusive_maximum",
+                    "exclusive_<aximum",
                     "exclusive_minimum",
                     "max_length",
                     "min_length",
@@ -155,8 +158,8 @@ impl Feature {
     }
 }
 
-impl ToTokens for Feature {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl TryToTokens for Feature {
+    fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let feature = match &self {
             Feature::Default(default) => {
                 if let Some(default) = &default.0 {
@@ -167,10 +170,20 @@ impl ToTokens for Feature {
             }
             Feature::Example(example) => quote! { .example(#example) },
             Feature::XmlAttr(xml) => quote! { .xml(#xml) },
-            Feature::Format(format) => quote! { .format(#format) },
+            Feature::Format(format) => {
+                let format = format.try_to_token_stream()?;
+                quote! { .format(#format) }
+            }
             Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
-            Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
+            Feature::Name(name) => quote! { .name(#name) },
+            Feature::Title(title) => quote! { .title(#title) },
+            Feature::Aliases(_) => quote! {
+                return Err(Diagnostic::spanned(
+                Span::call_site(),
+                DiagLevel::Error,
+                "Aliases feature does not support `TryToTokens`",
+            )); },
             Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
             Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),
@@ -210,32 +223,39 @@ impl ToTokens for Feature {
                 quote! { .additional_properties(#additional_properties) }
             }
             Feature::RenameAll(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "RenameAll feature does not support `ToTokens`"
-                }
+                    DiagLevel::Error,
+                    "RenameAll feature does not support `TryToTokens`",
+                ));
             }
             Feature::ValueType(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "ValueType feature does not support `ToTokens`";
-                    help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
-                }
+                    DiagLevel::Error,
+                    "ValueType feature does not support `TryToTokens`",
+                )
+                .help(
+                    "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.",
+                ));
             }
-            Feature::Inline(_) => {
-                // inline feature is ignored by `ToTokens`
+            Feature::Inline(_) | Feature::SkipBound(_) | Feature::Bound(_) => {
+                // inline， skip_bound and bound feature is ignored by `TryToTokens`
                 TokenStream::new()
             }
             Feature::ToParametersNames(_) => {
-                abort! {
+                return Err(Diagnostic::spanned(
                     Span::call_site(),
-                    "Names feature does not support `ToTokens`";
-                    help = "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
-                }
+                    DiagLevel::Error,
+                    "Names feature does not support `TryToTokens`"
+                ).help(
+                    "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
+                ));
             }
         };
 
-        tokens.extend(feature)
+        tokens.extend(feature);
+        Ok(())
     }
 }
 
@@ -248,7 +268,9 @@ impl Display for Feature {
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
             Feature::ReadOnly(read_only) => read_only.fmt(f),
-            Feature::Symbol(symbol) => symbol.fmt(f),
+            Feature::Name(name) => name.fmt(f),
+            Feature::Title(title) => title.fmt(f),
+            Feature::Aliases(aliases) => aliases.fmt(f),
             Feature::Nullable(nullable) => nullable.fmt(f),
             Feature::Rename(rename) => rename.fmt(f),
             Feature::Style(style) => style.fmt(f),
@@ -279,6 +301,8 @@ impl Display for Feature {
             Feature::Skip(skip) => skip.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
+            Feature::SkipBound(skip) => skip.fmt(f),
+            Feature::Bound(bound) => bound.fmt(f),
         }
     }
 }
@@ -292,7 +316,9 @@ impl Validatable for Feature {
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
             Feature::ReadOnly(read_only) => read_only.is_validatable(),
-            Feature::Symbol(symbol) => symbol.is_validatable(),
+            Feature::Name(name) => name.is_validatable(),
+            Feature::Title(title) => title.is_validatable(),
+            Feature::Aliases(aliases) => aliases.is_validatable(),
             Feature::Nullable(nullable) => nullable.is_validatable(),
             Feature::Rename(rename) => rename.is_validatable(),
             Feature::Style(style) => style.is_validatable(),
@@ -323,6 +349,8 @@ impl Validatable for Feature {
             Feature::Skip(skip) => skip.is_validatable(),
             Feature::AdditionalProperties(additional_properites) => additional_properites.is_validatable(),
             Feature::Required(required) => required.is_validatable(),
+            Feature::SkipBound(skip) => skip.is_validatable(),
+            Feature::Bound(bound) => bound.is_validatable(),
         }
     }
 }

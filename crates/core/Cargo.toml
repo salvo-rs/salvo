@@ -16,26 +16,25 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "test"]
-full = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "tower-compat", "anyhow", "eyre"]
+default = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "test", "ring"]
+full = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "tower-compat", "anyhow", "eyre", "ring"]
 cookie = ["dep:cookie"]
 fix-http1-request-uri = ["http1"]
 server = []
 http1 = []
 http2 = ["hyper/http2"]
-quinn = ["dep:salvo-http3", "dep:quinn", "dep:tokio-rustls-old", "dep:rustls-pemfile-old", "rustls"]
-rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
+quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
+rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile", "ring"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
 test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 tower-compat = ["dep:tower"]
+# aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
+ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
 
 [dependencies]
-rustls-pemfile-old = { version = "1", package = "rustls-pemfile", optional = true }
-tokio-rustls-old = { version = "0.24", package = "tokio-rustls", optional = true }
-
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
@@ -62,7 +61,7 @@ openssl = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 pin-project = { workspace = true }
 parking_lot = { workspace = true }
-quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
+quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "rustls"] }
 rand = { workspace = true }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
@@ -70,7 +69,7 @@ ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
-hyper-rustls = { workspace = true, optional = true }
+hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "http1", "tls12", "logging"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
@@ -82,7 +81,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
-tokio-rustls = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true, features = ["logging", "tls12"]}
 tokio-util = { workspace = true, features = ["io"] }
 tower = { workspace = true, optional = true, default-features = false, features = ["buffer", "util"] }
 tracing = { workspace = true }

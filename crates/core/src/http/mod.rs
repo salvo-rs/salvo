@@ -12,7 +12,7 @@ cfg_feature! {
 pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
-pub use http::{header, method, uri, HeaderMap, HeaderValue, StatusCode};
+pub use http::{header, method, uri, HeaderMap, HeaderName, HeaderValue, StatusCode};
 pub use mime::{self, Mime};
 pub use range::HttpRange;
 pub use request::Request;
@@ -43,7 +43,7 @@ pub trait HttpConnection {
     ) -> impl Future<Output = IoResult<()>> + Send;
 
     /// Get the fusewire of this connection.
-    fn fusewire(&self) -> ArcFusewire;
+    fn fusewire(&self) -> Option<ArcFusewire>;
 }
 
 /// Get Http version from alph.

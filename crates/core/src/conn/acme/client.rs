@@ -35,6 +35,15 @@ pub(crate) struct FetchAuthorizationResponse {
     pub(crate) error: Option<Problem>,
 }
 
+impl FetchAuthorizationResponse {
+    pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> crate::Result<&Challenge> {
+        self.challenges
+            .iter()
+            .find(|c| c.kind == ctype.to_string())
+            .ok_or_else(|| Error::other(format!("unable to find `{}` challenge", ctype)))
+    }
+}
+
 pub(crate) struct AcmeClient {
     pub(crate) client: HyperClient,
     pub(crate) directory: Directory,
@@ -69,15 +78,6 @@ impl AcmeClient {
             identifiers: Vec<Identifier>,
         }
 
-        impl FetchAuthorizationResponse {
-            pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> crate::Result<&Challenge> {
-                self.challenges
-                    .iter()
-                    .find(|c| c.kind == ctype.to_string())
-                    .ok_or_else(|| Error::other(format!("unable to find `{}` challenge", ctype)))
-            }
-        }
-
         let kid = match &self.kid {
             Some(kid) => kid,
             None => {
@@ -85,7 +85,7 @@ impl AcmeClient {
                 let kid =
                     create_acme_account(&self.client, &self.directory, &self.key_pair, self.contacts.clone()).await?;
                 self.kid = Some(kid);
-                self.kid.as_ref().unwrap()
+                self.kid.as_ref().expect("kid should not none")
             }
         };
         tracing::debug!(kid = kid.as_str(), "new order request");

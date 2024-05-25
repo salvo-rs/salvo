@@ -1,4 +1,4 @@
-//! A simple fusewire.
+//! A flexible fusewire.
 
 use std::sync::Arc;
 
@@ -6,12 +6,47 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, Fusewire, TransProto};
+use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire};
+
+/// A guard action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GuardAction {
+    /// Reject the connection.
+    Reject,
+    /// Allow the event to next guards.
+    ToNext,
+    /// Permit the event and skip next guards.
+    Permit,
+}
+/// A guard.
+pub trait Guard: Sync + Send + 'static {
+    /// Check the event.
+    fn check(&self, info: &FuseInfo, event: &FuseEvent) -> GuardAction;
+}
+impl<F> Guard for F
+where
+    F: Fn(&FuseInfo, &FuseEvent) -> GuardAction + Sync + Send + 'static,
+{
+    fn check(&self, info: &FuseInfo, event: &FuseEvent) -> GuardAction {
+        self(info, event)
+    }
+}
+
+/// Skip the quic connection.
+pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
+    if info.trans_proto.is_quic() {
+        GuardAction::Permit
+    } else {
+        GuardAction::ToNext
+    }
+}
 
 /// A simple fusewire.
-#[derive(Default)]
-pub struct SimpleFusewire {
-    trans_proto: TransProto,
+pub struct FlexFusewire {
+    info: FuseInfo,
+    guards: Arc<Vec<Box<dyn Guard>>>,
+
+    reject_token: CancellationToken,
 
     tcp_idle_timeout: Duration,
     tcp_idle_token: CancellationToken,
@@ -25,16 +60,15 @@ pub struct SimpleFusewire {
     tls_handshake_token: CancellationToken,
     tls_handshake_notify: Arc<Notify>,
 }
-
-impl SimpleFusewire {
-    /// Create a new `SimpleFusewire`.
-    pub fn new(trans_proto: TransProto) -> Self {
-        Self::builder().build(trans_proto)
+impl FlexFusewire {
+    /// Create a new `FlexFusewire`.
+    pub fn new(info: FuseInfo) -> Self {
+        Self::builder().build(info)
     }
 
-    /// Create a new `SimpleFactory`.
-    pub fn builder() -> SimpleFactory {
-        SimpleFactory::new()
+    /// Create a new `FlexFactory`.
+    pub fn builder() -> FlexFactory {
+        FlexFactory::new()
     }
     /// Get the timeout for close the idle tcp connection.
     pub fn tcp_idle_timeout(&self) -> Duration {
@@ -50,10 +84,19 @@ impl SimpleFusewire {
     }
 }
 #[async_trait]
-impl Fusewire for SimpleFusewire {
+impl Fusewire for FlexFusewire {
     fn event(&self, event: FuseEvent) {
-        if self.trans_proto.is_quic() {
-            return;
+        for guard in self.guards.iter() {
+            match guard.check(&self.info, &event) {
+                GuardAction::Permit => {
+                    return;
+                }
+                GuardAction::Reject => {
+                    self.reject_token.cancel();
+                    return;
+                }
+                _ => {}
+            }
         }
         self.tcp_idle_notify.notify_waiters();
         match event {
@@ -97,6 +140,7 @@ impl Fusewire for SimpleFusewire {
     }
     async fn fused(&self) {
         tokio::select! {
+            _ = self.reject_token.cancelled() => {}
             _ = self.tcp_idle_token.cancelled() => {}
             _ = self.tcp_frame_token.cancelled() => {}
             _ = self.tls_handshake_token.cancelled() => {}
@@ -104,27 +148,30 @@ impl Fusewire for SimpleFusewire {
     }
 }
 
-/// A [`SimpleFusewire`] builder.
-#[derive(Clone, Debug)]
-pub struct SimpleFactory {
+/// A [`FlexFusewire`] builder.
+#[derive(Clone)]
+pub struct FlexFactory {
     tcp_idle_timeout: Duration,
     tcp_frame_timeout: Duration,
     tls_handshake_timeout: Duration,
+
+    guards: Arc<Vec<Box<dyn Guard>>>,
 }
 
-impl Default for SimpleFactory {
+impl Default for FlexFactory {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SimpleFactory {
-    /// Create a new `SimpleFactory`.
+impl FlexFactory {
+    /// Create a new `FlexFactory`.
     pub fn new() -> Self {
         Self {
             tcp_idle_timeout: Duration::from_secs(30),
             tcp_frame_timeout: Duration::from_secs(60),
             tls_handshake_timeout: Duration::from_secs(10),
+            guards: Arc::new(vec![Box::new(skip_quic)]),
         }
     }
 
@@ -139,12 +186,26 @@ impl SimpleFactory {
         self
     }
 
-    /// Build a `SimpleFusewire`.
-    pub fn build(&self, trans_proto: TransProto) -> SimpleFusewire {
+    /// Set guards to new value.
+    pub fn guards(mut self, guards: Vec<Box<dyn Guard>>) -> Self {
+        self.guards = Arc::new(guards);
+        self
+    }
+    /// Add a guard.
+    pub fn add_guard(mut self, guard: impl Guard) -> Self {
+        Arc::get_mut(&mut self.guards)
+            .expect("guards get mut failed")
+            .push(Box::new(guard));
+        self
+    }
+
+    /// Build a `FlexFusewire`.
+    pub fn build(&self, info: FuseInfo) -> FlexFusewire {
         let Self {
             tcp_idle_timeout,
             tcp_frame_timeout,
             tls_handshake_timeout,
+            guards,
         } = self.clone();
 
         let tcp_idle_token = CancellationToken::new();
@@ -164,8 +225,11 @@ impl SimpleFactory {
                 }
             }
         });
-        SimpleFusewire {
-            trans_proto,
+        FlexFusewire {
+            info,
+            guards,
+
+            reject_token: CancellationToken::new(),
 
             tcp_idle_timeout,
             tcp_idle_token,
@@ -182,8 +246,8 @@ impl SimpleFactory {
     }
 }
 
-impl FuseFactory for SimpleFactory {
-    fn create(&self, trans_proto: TransProto) -> ArcFusewire {
-        Arc::new(self.build(trans_proto))
+impl FuseFactory for FlexFactory {
+    fn create(&self, info: FuseInfo) -> ArcFusewire {
+        Arc::new(self.build(info))
     }
 }

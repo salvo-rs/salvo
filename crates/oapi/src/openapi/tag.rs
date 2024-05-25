@@ -1,7 +1,7 @@
 //! Implements [OpenAPI Tag Object][tag] types.
 //!
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
-use std::cmp::{Ord, Ordering, PartialOrd};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};

@@ -10,7 +10,7 @@ not have any effect.
 You can use the Rust's own `#[deprecated]` attribute on any struct, enum or field to mark it as deprecated and it will
 reflect to the generated OpenAPI spec.
 
-`#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is is not supported in
+`#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is not supported in
 OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 
@@ -433,10 +433,10 @@ enum Random {
 }
 ```
 
-_**Add `symbol` to the enum.**_
+_**Add `name` to the enum.**_
 ```
 #[derive(salvo_oapi::ToSchema)]
-#[salvo(schema(symbol = "UserType"))]
+#[salvo(schema(name = UserType))]
 enum UserType {
     Admin,
     Moderator,
@@ -476,11 +476,11 @@ struct Value {
 }
 ```
 
-_**Use `as` attribute to change the name and the path of the schema in the generated OpenAPI
+_**Use `name` attribute to change the name and the path of the schema in the generated OpenAPI
 spec.**_
 ```
  #[derive(salvo_oapi::ToSchema)]
- #[salvo(schema(symbol = "api::models::person::Person"))]
+ #[salvo(schema(name = api::models::person::Person))]
  struct Person {
      name: String,
  }

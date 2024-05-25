@@ -10,12 +10,12 @@ OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is t
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 
 Doc comment at decorated function will be used for _`description`_ and _`summary`_ of the path.
-First line of the doc comment will be used as the _`summary`_ and the whole doc comment will be
+First line of the doc comment will be used as the _`summary`_ while the remaining lines will be
 used as _`description`_.
 ```
 /// This is a summary of the operation
 ///
-/// All lines of the doc comment will be included to operation description.
+/// The rest of the doc comment will be included to operation description.
 #[salvo_oapi::endpoint()]
 fn endpoint() {}
 ```

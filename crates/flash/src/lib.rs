@@ -291,7 +291,6 @@ mod tests {
     use salvo_core::http::header::{COOKIE, SET_COOKIE};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::writing::Redirect;
 
     use super::*;
 

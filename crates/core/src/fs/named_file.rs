@@ -92,8 +92,8 @@ impl NamedFileBuilder {
 
     /// Sets content type and returns `Self`.
     #[inline]
-    pub fn content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
-        self.content_type = Some(content_type.into());
+    pub fn content_type(mut self, content_type: mime::Mime) -> Self {
+        self.content_type = Some(content_type);
         self
     }
 

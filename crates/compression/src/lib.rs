@@ -189,7 +189,7 @@ impl Compression {
     #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     #[inline]
     pub fn disable_gzip(mut self) -> Self {
-        self.algos.remove(&CompressionAlgo::Gzip);
+        self.algos.shift_remove(&CompressionAlgo::Gzip);
         self
     }
     /// Enable zstd compression.
@@ -205,7 +205,7 @@ impl Compression {
     #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     #[inline]
     pub fn disable_zstd(mut self) -> Self {
-        self.algos.remove(&CompressionAlgo::Zstd);
+        self.algos.shift_remove(&CompressionAlgo::Zstd);
         self
     }
     /// Enable brotli compression.
@@ -221,7 +221,7 @@ impl Compression {
     #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     #[inline]
     pub fn disable_brotli(mut self) -> Self {
-        self.algos.remove(&CompressionAlgo::Brotli);
+        self.algos.shift_remove(&CompressionAlgo::Brotli);
         self
     }
 
@@ -239,7 +239,7 @@ impl Compression {
     #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     #[inline]
     pub fn disable_deflate(mut self) -> Self {
-        self.algos.remove(&CompressionAlgo::Deflate);
+        self.algos.shift_remove(&CompressionAlgo::Deflate);
         self
     }
 
@@ -399,7 +399,6 @@ impl Handler for Compression {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 

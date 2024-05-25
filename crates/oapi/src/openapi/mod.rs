@@ -1,29 +1,4 @@
 //! Rust implementation of Openapi Spec V3.
-use std::collections::{btree_map, BTreeSet};
-
-use once_cell::sync::Lazy;
-use regex::Regex;
-use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
-
-pub use self::{
-    components::Components,
-    content::Content,
-    example::Example,
-    external_docs::ExternalDocs,
-    header::Header,
-    info::{Contact, Info, License},
-    operation::{Operation, Operations},
-    parameter::{Parameter, ParameterIn, ParameterStyle, Parameters},
-    path::{PathItem, PathItemType, Paths},
-    request_body::RequestBody,
-    response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
-    security::{SecurityRequirement, SecurityScheme},
-    server::{Server, ServerVariable, ServerVariables, Servers},
-    tag::Tag,
-    xml::Xml,
-};
 
 mod components;
 mod content;
@@ -44,6 +19,31 @@ mod tag;
 mod xml;
 
 use crate::{routing::NormNode, Endpoint};
+use std::collections::{btree_map, BTreeSet};
+
+use once_cell::sync::Lazy;
+use regex::Regex;
+use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
+
+pub use self::{
+    components::Components,
+    content::Content,
+    example::Example,
+    external_docs::ExternalDocs,
+    header::Header,
+    info::{Contact, Info, License},
+    operation::{Operation, Operations},
+    parameter::{Parameter, ParameterIn, ParameterStyle, Parameters},
+    path::{PathItem, PathItemType, Paths},
+    request_body::RequestBody,
+    response::{Response, Responses},
+    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray},
+    security::{SecurityRequirement, SecurityScheme},
+    server::{Server, ServerVariable, ServerVariables, Servers},
+    tag::Tag,
+    xml::Xml,
+};
 
 static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
@@ -267,7 +267,7 @@ impl OpenApi {
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
-        self.components.schemas.insert(name.into(), schema.into());
+        self.components.schemas.insert(name, schema);
         self
     }
 
@@ -597,6 +597,7 @@ pub enum RefOr<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
     use std::str::FromStr;
 
     use bytes::Bytes;
@@ -605,13 +606,11 @@ mod tests {
     use super::{response::Response, *};
     use crate::{
         extract::*,
-        info::Info,
-        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme},
-        server::{Server, ServerVariable},
-        OpenApi, Operation, Paths, ToSchema,
+        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme},
+        server::Server,
+        ToSchema,
     };
 
-    use salvo_core::Router;
     use salvo_core::{http::ResBody, prelude::*};
 
     #[test]
@@ -911,7 +910,7 @@ mod tests {
                        "/pets/{id}": {
                           "get": {
                              "summary": "Get pet by id",
-                             "description": "Get pet by id\n\nGet pet from database by pet database id",
+                             "description": "Get pet from database by pet database id",
                              "operationId": "salvo_oapi.openapi.tests.simple_document_with_security.get_pet_by_id",
                              "parameters": [
                                 {
@@ -1138,6 +1137,200 @@ mod tests {
         assert_eq!(
             bytes,
             Bytes::from_static(b"{\n  \"openapi\": \"3.1.0\",\n  \"info\": {\n    \"title\": \"pet api\",\n    \"version\": \"0.1.0\"\n  },\n  \"paths\": {}\n}")
+        );
+    }
+
+    #[test]
+    fn test_openapi_schema_work_with_generics() {
+        #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+        #[salvo(schema(name = City))]
+        pub(crate) struct CityDTO {
+            #[salvo(schema(rename = "id"))]
+            pub(crate) id: String,
+            #[salvo(schema(rename = "name"))]
+            pub(crate) name: String,
+        }
+
+        #[derive(Serialize, Deserialize, Debug, ToSchema)]
+        #[salvo(schema(name = Response))]
+        pub(crate) struct ApiResponse<T: Serialize + ToSchema + Send + Debug + 'static> {
+            #[salvo(schema(rename = "status"))]
+            /// status code
+            pub(crate) status: String,
+            #[salvo(schema(rename = "msg"))]
+            /// Status msg
+            pub(crate) message: String,
+            #[salvo(schema(rename = "data"))]
+            /// The data returned
+            pub(crate) data: T,
+        }
+
+        #[salvo_oapi::endpoint(operation_id = "get_all_cities", tags("city"), status_codes(200, 400, 401, 403, 500))]
+        pub async fn get_all_cities() -> Result<Json<ApiResponse<Vec<CityDTO>>>, StatusError> {
+            Ok(Json(ApiResponse {
+                status: "200".to_string(),
+                message: "OK".to_string(),
+                data: vec![CityDTO {
+                    id: "1".to_string(),
+                    name: "Beijing".to_string(),
+                }],
+            }))
+        }
+
+        let doc = salvo_oapi::OpenApi::new("my application", "0.1.0")
+            .add_server(Server::new("/api/bar/").description("this is description of the server"));
+
+        let router = Router::with_path("/cities").get(get_all_cities);
+        let doc = doc.merge_router(&router);
+
+        assert_eq!(
+            json! {{
+                "openapi": "3.1.0",
+                "info": {
+                    "title": "my application",
+                    "version": "0.1.0"
+                },
+                "servers": [
+                    {
+                        "url": "/api/bar/",
+                        "description": "this is description of the server"
+                    }
+                ],
+                "paths": {
+                    "/cities": {
+                        "get": {
+                            "tags": [
+                                "city"
+                            ],
+                            "operationId": "get_all_cities",
+                            "responses": {
+                                "200": {
+                                    "description": "Response with json format data",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>"
+                                            }
+                                        }
+                                    }
+                                },
+                                "400": {
+                                    "description": "The request could not be understood by the server due to malformed syntax.",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                            }
+                                        }
+                                    }
+                                },
+                                "401": {
+                                    "description": "The request requires user authentication.",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                            }
+                                        }
+                                    }
+                                },
+                                "403": {
+                                    "description": "The server refused to authorize the request.",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                            }
+                                        }
+                                    }
+                                },
+                                "500": {
+                                    "description": "The server encountered an internal error while processing this request.",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/salvo_core.http.errors.status_error.StatusError"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "components": {
+                    "schemas": {
+                        "City": {
+                            "type": "object",
+                            "required": [
+                                "id",
+                                "name"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>": {
+                            "type": "object",
+                            "required": [
+                                "status",
+                                "msg",
+                                "data"
+                            ],
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/City"
+                                    }
+                                },
+                                "msg": {
+                                    "type": "string",
+                                    "description": "Status msg"
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "description": "status code"
+                                }
+                            }
+                        },
+                        "salvo_core.http.errors.status_error.StatusError": {
+                            "type": "object",
+                            "required": [
+                                "code",
+                                "name",
+                                "brief",
+                                "detail"
+                            ],
+                            "properties": {
+                                "brief": {
+                                    "type": "string"
+                                },
+                                "cause": {
+                                    "type": "string"
+                                },
+                                "code": {
+                                    "type": "integer",
+                                    "format": "int32",
+                                    "minimum": 0.0
+                                },
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }},
+            Value::from_str(&doc.to_json().unwrap()).unwrap()
         );
     }
 }

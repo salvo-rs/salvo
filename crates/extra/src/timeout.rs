@@ -1,4 +1,4 @@
-//! basic auth middleware.
+//! Middleware that provides support for timeout.
 //!
 //! Read more: <https://salvo.rs>
 use std::time::Duration;

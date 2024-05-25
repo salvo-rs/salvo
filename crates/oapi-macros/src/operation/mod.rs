@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
 
@@ -9,7 +9,7 @@ use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
-use crate::Array;
+use crate::{Array, DiagResult, TryToTokens};
 
 pub(crate) mod example;
 pub(crate) mod request_body;
@@ -23,7 +23,7 @@ pub(crate) struct Operation<'a> {
     operation_id: Option<&'a Expr>,
     tags: &'a Option<Vec<String>>,
     summary: Option<&'a String>,
-    description: Option<&'a Vec<String>>,
+    description: Option<&'a [String]>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
@@ -32,28 +32,44 @@ pub(crate) struct Operation<'a> {
 
 impl<'a> Operation<'a> {
     pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
+        let split_comment = attr
+            .doc_comments
+            .as_ref()
+            .and_then(|comments| comments.split_first())
+            .map(|(summary, description)| {
+                // Skip all whitespace lines
+                let start_pos = description.iter().position(|s| !s.chars().all(char::is_whitespace));
+
+                let trimmed = start_pos.and_then(|pos| description.get(pos..)).unwrap_or(description);
+
+                (summary, trimmed)
+            });
+
         Self {
             deprecated: &attr.deprecated,
             operation_id: attr.operation_id.as_ref(),
             tags: &attr.tags,
-            summary: attr.doc_comments.as_ref().and_then(|comments| comments.iter().next()),
-            description: attr.doc_comments.as_ref(),
+            summary: split_comment.map(|(summary, _)| summary),
+            description: split_comment.map(|(_, description)| description),
             parameters: attr.parameters.as_ref(),
             request_body: attr.request_body.as_ref(),
             responses: attr.responses.as_ref(),
             security: attr.security.as_ref(),
         }
     }
-    pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
+    pub(crate) fn modifiers(&self) -> DiagResult<Vec<TokenStream>> {
         let mut modifiers = vec![];
         let oapi = crate::oapi_crate();
 
         if let Some(rb) = self.request_body {
-            modifiers.push(quote! {
-                if let Some(request_body) = operation.request_body.as_mut() {
-                    request_body.merge(#rb);
-                } else {
-                    operation.request_body = Some(#rb);
+            modifiers.push({
+                let rb = rb.try_to_token_stream()?;
+                quote! {
+                    if let Some(request_body) = operation.request_body.as_mut() {
+                        request_body.merge(#rb);
+                    } else {
+                        operation.request_body = Some(#rb);
+                    }
                 }
             });
             if let Some(content) = &rb.content {
@@ -104,11 +120,16 @@ impl<'a> Operation<'a> {
             }
         }
 
-        self.parameters.iter().for_each(|parameter| {
-            modifiers.push(quote! {
-                #parameter
-            })
-        });
+        self.parameters
+            .iter()
+            .map(TryToTokens::try_to_token_stream)
+            .collect::<DiagResult<Vec<TokenStream>>>()?
+            .iter()
+            .for_each(|parameter| {
+                modifiers.push(quote! {
+                    #parameter
+                })
+            });
 
         for response in self.responses {
             match response {
@@ -134,17 +155,18 @@ impl<'a> Operation<'a> {
                             }
                         }
                     }
+                    let tuple = tuple.try_to_token_stream()?;
                     modifiers.push(quote! {
                         operation.responses.insert(#code, #tuple);
                     });
                 }
             }
         }
-        modifiers
+        Ok(modifiers)
     }
 }
 
-fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream2> {
+fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream> {
     let mut modifiers = vec![];
     match content {
         PathType::RefPath(path) => {
@@ -168,7 +190,7 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
 pub(crate) enum PathType<'p> {
     RefPath(Path),
     MediaType(InlineType<'p>),
-    InlineSchema(TokenStream2, Type),
+    InlineSchema(TokenStream, Type),
 }
 
 impl Parse for PathType<'_> {
@@ -200,7 +222,7 @@ pub(crate) struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    pub(crate) fn as_type_tree(&self) -> TypeTree {
+    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree> {
         TypeTree::from_type(&self.ty)
     }
 }
@@ -235,8 +257,8 @@ pub(crate) trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &str;
 
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool;
+    // /// Check whether [`TypeTree`] an option
+    // fn is_option(&self) -> bool;
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool;
@@ -271,10 +293,10 @@ impl PathTypeTree for TypeTree<'_> {
         }
     }
 
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool {
-        matches!(self.generic_type, Some(GenericType::Option))
-    }
+    // /// Check whether [`TypeTree`] an option
+    // fn is_option(&self) -> bool {
+    //     matches!(self.generic_type, Some(GenericType::Option))
+    // }
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool {

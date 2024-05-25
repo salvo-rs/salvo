@@ -15,6 +15,8 @@ pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointR
 pub mod extract;
 mod routing;
 pub use routing::RouterExt;
+/// Module for name schemas.
+pub mod naming;
 
 cfg_feature! {
     #![feature ="swagger-ui"]
@@ -125,6 +127,14 @@ pub trait ToSchema {
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema>;
+
+    // /// Optional set of alias schemas for the [`ToSchema::schema`].
+    // ///
+    // /// Typically there is no need to manually implement this method but it is instead implemented
+    // /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    // fn aliases() -> Vec<schema::Schema> {
+    //     Vec::new()
+    // }
 }
 
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
@@ -170,6 +180,7 @@ pub mod oapi {
 #[doc(hidden)]
 pub mod __private {
     pub use inventory;
+    pub use serde_json;
 }
 
 #[rustfmt::skip]
@@ -209,7 +220,7 @@ impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
 }
 #[cfg(feature = "indexmap")]
 impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] indexmap::IndexMap<K, V>).into()
     }
 }
@@ -263,39 +274,43 @@ impl<T: ToSchema> ToSchema for Option<T> {
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Default::default()).into()
+        Schema::Object(Object::default()).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }
 }
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let symbol = std::any::type_name::<StatusError>().replace("::", ".");
-        let schema = Schema::from(
-            Object::new()
-                .property("code", u16::to_schema(components))
-                .required("code")
-                .required("name")
-                .property("name", String::to_schema(components))
-                .required("brief")
-                .property("brief", String::to_schema(components))
-                .required("detail")
-                .property("detail", String::to_schema(components))
-                .property("cause", String::to_schema(components)),
-        );
-        components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        let name = crate::naming::assign_name::<StatusError>(Default::default());
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
+        if !components.schemas.contains_key(&name) {
+            components.schemas.insert(name.clone(), ref_or.clone());
+            let schema = Schema::from(
+                Object::new()
+                    .property("code", u16::to_schema(components))
+                    .required("code")
+                    .required("name")
+                    .property("name", String::to_schema(components))
+                    .required("brief")
+                    .property("brief", String::to_schema(components))
+                    .required("detail")
+                    .property("detail", String::to_schema(components))
+                    .property("cause", String::to_schema(components)),
+            );
+            components.schemas.insert(name, schema);
+        }
+        ref_or
     }
 }
 impl ToSchema for salvo_core::Error {
@@ -310,12 +325,27 @@ where
     E: ToSchema,
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let symbol = std::any::type_name::<Self>().replace("::", ".");
-        let schema = OneOf::new()
-            .item(T::to_schema(components))
-            .item(E::to_schema(components));
-        components.schemas.insert(symbol.clone(), schema.into());
-        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
+        let name = crate::naming::assign_name::<StatusError>(Default::default());
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
+        if !components.schemas.contains_key(&name) {
+            components.schemas.insert(name.clone(), ref_or.clone());
+            let schema = OneOf::new()
+                .item(T::to_schema(components))
+                .item(E::to_schema(components));
+            components.schemas.insert(name, schema);
+        }
+        ref_or
+    }
+}
+
+impl ToSchema for serde_json::Value {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Object::default()).into()
+    }
+}
+impl ToSchema for serde_json::Map<String, serde_json::Value> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline]HashMap<K, V>).into()
     }
 }
 

@@ -1,11 +1,13 @@
 //! Protecting the server from slow HTTP attacks.
 
-pub mod simple;
-pub use simple::{SimpleFactory, SimpleFusewire};
+pub mod flex;
+pub use flex::{FlexFactory, FlexFusewire};
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
+
+use crate::conn::SocketAddr;
 
 /// A transport protocol.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -49,10 +51,20 @@ pub enum FuseEvent {
 pub(crate) type ArcFuseFactory = Arc<dyn FuseFactory + Sync + Send + 'static>;
 pub(crate) type ArcFusewire = Arc<dyn Fusewire + Sync + Send + 'static>;
 
+/// A fuse info.
+#[derive(Clone, Debug)]
+pub struct FuseInfo {
+    /// Transport protocol.
+    pub trans_proto: TransProto,
+    /// Remote address.
+    pub remote_addr: SocketAddr,
+    /// Local address.
+    pub local_addr: SocketAddr,
+}
 /// A fuse factory.
 pub trait FuseFactory {
     /// Create a new fusewire.
-    fn create(&self, trans_proto: TransProto) -> ArcFusewire;
+    fn create(&self, info: FuseInfo) -> ArcFusewire;
 }
 
 /// A fusewire.
@@ -66,28 +78,10 @@ pub trait Fusewire {
 
 impl<T, F> FuseFactory for T
 where
-    T: Fn(TransProto) -> F,
+    T: Fn(FuseInfo) -> F,
     F: Fusewire + Sync + Send + 'static,
 {
-    fn create(&self, trans_proto: TransProto) -> ArcFusewire {
-        Arc::new((*self)(trans_proto))
-    }
-}
-
-impl FuseFactory for SteadyFusewire {
-    fn create(&self, _trans_proto: TransProto) -> ArcFusewire {
-        Arc::new(SteadyFusewire)
-    }
-}
-
-/// A fusewire never fused.
-///
-/// This fusewire will do nothing.
-pub struct SteadyFusewire;
-#[async_trait]
-impl Fusewire for SteadyFusewire {
-    fn event(&self, _event: FuseEvent) {}
-    async fn fused(&self) {
-        futures_util::future::pending::<()>().await;
+    fn create(&self, info: FuseInfo) -> ArcFusewire {
+        Arc::new((*self)(info))
     }
 }

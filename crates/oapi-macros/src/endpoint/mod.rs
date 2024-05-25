@@ -3,7 +3,7 @@ use quote::{quote, ToTokens};
 use syn::{Expr, Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, Array, InputType, Operation};
+use crate::{omit_type_path_lifetimes, parse_input_type, Array, DiagResult, InputType, Operation};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;
@@ -14,7 +14,7 @@ fn metadata(
     attr: EndpointAttr,
     name: &Ident,
     mut modifiers: Vec<TokenStream>,
-) -> syn::Result<TokenStream> {
+) -> DiagResult<TokenStream> {
     let tfn = Ident::new(
         &format!("__macro_gen_oapi_endpoint_type_id_{}", name),
         Span::call_site(),
@@ -24,7 +24,7 @@ fn metadata(
         Span::call_site(),
     );
     let opt = Operation::new(&attr);
-    modifiers.append(opt.modifiers().as_mut());
+    modifiers.append(opt.modifiers()?.as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
         Expr::Lit(lit) => {
             quote! {
@@ -37,6 +37,15 @@ fn metadata(
             }
         }
     }));
+    let modifiers = if modifiers.is_empty() {
+        None
+    } else {
+        Some(quote! {{
+            let mut components = &mut components;
+            let mut operation = &mut operation;
+            #(#modifiers)*
+        }})
+    };
     let stream = quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
@@ -44,13 +53,10 @@ fn metadata(
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                #(#modifiers)*
-            }
             let mut operation = #oapi::oapi::Operation::new();
-            modify(&mut components, &mut operation);
+            #modifiers
             if operation.operation_id.is_none() {
-                operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
+                operation.operation_id = Some(#oapi::oapi::naming::assign_name::<#name>(#oapi::oapi::naming::NameRule::Auto));
             }
             if !status_codes.is_empty() {
                 let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);

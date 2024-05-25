@@ -16,7 +16,7 @@ use salvo_http3::http3_quinn::{self, Endpoint};
 use super::H3Connection;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
-use crate::fuse::{ArcFuseFactory, TransProto};
+use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
 
 /// A wrapper of `Listener` with quinn.
@@ -109,7 +109,7 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self, fuse_factory: ArcFuseFactory) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) =
@@ -138,11 +138,16 @@ where
 
         if let Some(new_conn) = endpoint.accept().await {
             let remote_addr = new_conn.remote_address();
+            let local_addr = self.holdings[0].local_addr.clone();
             match new_conn.await {
                 Ok(conn) => {
                     let conn = http3_quinn::Connection::new(conn);
                     return Ok(Accepted {
-                        conn: H3Connection::new(conn, fuse_factory.create(TransProto::Quic)),
+                        conn: H3Connection::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
+                            trans_proto: TransProto::Quic,
+                            remote_addr: remote_addr.into(),
+                            local_addr: local_addr.clone()
+                        }))),
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),

@@ -47,6 +47,13 @@ impl From<tokio::net::unix::SocketAddr> for SocketAddr {
         SocketAddr::Unix(addr.into())
     }
 }
+#[cfg(unix)]
+impl From<Arc<tokio::net::unix::SocketAddr>> for SocketAddr {
+    #[inline]
+    fn from(addr: Arc<tokio::net::unix::SocketAddr>) -> Self {
+        SocketAddr::Unix(addr)
+    }
+}
 impl SocketAddr {
     /// Returns is a ipv4 socket address.
     #[inline]

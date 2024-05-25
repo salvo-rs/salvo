@@ -76,44 +76,44 @@ impl Parse for XmlAttr {
 }
 
 impl ToTokens for XmlAttr {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(quote! {
+        stream.extend(quote! {
             #oapi::oapi::Xml::new()
         });
 
         if let Some(ref name) = self.name {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .name(#name)
             })
         }
 
         if let Some(ref namespace) = self.namespace {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .namespace(#namespace)
             })
         }
 
         if let Some(ref prefix) = self.prefix {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .prefix(#prefix)
             })
         }
 
         if self.is_attribute {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .attribute(true)
             })
         }
 
         if self.is_wrapped.is_some() {
-            tokens.extend(quote! {
+            stream.extend(quote! {
                 .wrapped(true)
             });
 
             // if is wrapped and wrap name is defined use wrap name instead
             if let Some(ref wrap_name) = self.wrap_name {
-                tokens.extend(quote! {
+                stream.extend(quote! {
                     .name(#wrap_name)
                 })
             }
