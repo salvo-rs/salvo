@@ -22,7 +22,6 @@ impl FlattenedMapSchema {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
-        let description_stream = ComponentSchema::get_description(description);
 
         let example = features
             .pop_by(|feature| matches!(feature, Feature::Example(_)))
@@ -54,7 +53,7 @@ impl FlattenedMapSchema {
 
         tokens.extend(quote! {
             #schema_property
-                #description_stream
+                #description
                 #deprecated_stream
                 #default
         });

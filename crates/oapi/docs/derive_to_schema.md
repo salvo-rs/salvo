@@ -27,6 +27,10 @@ struct Pet {
 ```
 
 # Struct Optional Configuration Options for `#[salvo(schema(...))]`
+
+* `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+  `include_str!(...)` statement. This can be used to override **default** description what is
+  resolved from doc comments of the type.
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
@@ -44,6 +48,10 @@ struct Pet {
 * `skip` Can be used to skip this field.
 
 # Enum Optional Configuration Options for `#[salvo(schema(...))]`
+
+* `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+  `include_str!(...)` statement. This can be used to override **default** description what is
+  resolved from doc comments of the type.
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
@@ -66,6 +74,10 @@ _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If b
 _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 
 # Unnamed Field Struct Optional Configuration Options for `#[salvo(schema(...))]`
+
+* `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+  `include_str!(...)` statement. This can be used to override **default** description what is
+  resolved from doc comments of the type.
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
   only one field, the field's default value in the schema will be set from the struct's

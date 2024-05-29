@@ -2,12 +2,12 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated, Example,
-    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
-    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename,
-    RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated,
+    Description, Example, ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, MaxItems, MaxLength,
+    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern,
+    ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
 };
-use crate::{attribute, DiagResult, Diagnostic};
+use crate::{attribute, DiagResult, Diagnostic, IntoInner};
 
 #[derive(Debug)]
 pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);
@@ -26,6 +26,7 @@ impl Parse for NamedFieldStructFeatures {
             Inline,
             Default,
             Deprecated,
+            Description,
             Skip,
             Bound,
             SkipBound
@@ -50,6 +51,7 @@ impl Parse for UnnamedFieldStructFeatures {
             ValueType,
             Inline,
             Deprecated,
+            Description,
             Skip,
             Bound,
             SkipBound
@@ -72,6 +74,7 @@ impl Parse for EnumFeatures {
             RenameAll,
             Inline,
             Deprecated,
+            Description,
             Bound,
             SkipBound
         )))
@@ -93,6 +96,7 @@ impl Parse for ComplexEnumFeatures {
             Aliases,
             Inline,
             Deprecated,
+            Description,
             Bound,
             SkipBound,
         )))

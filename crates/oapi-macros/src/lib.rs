@@ -200,6 +200,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
     }
 }
 
+pub(crate) trait IntoInner<T> {
+    fn into_inner(self) -> T;
+}
+
 #[cfg(test)]
 mod tests {
     use quote::quote;

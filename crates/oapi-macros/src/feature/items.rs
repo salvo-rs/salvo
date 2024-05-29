@@ -459,13 +459,13 @@ impl_get_name!(ParameterIn = "parameter_in");
 
 /// Specify names of unnamed fields with `names(...) attribute for `ToParameters` derive.
 #[derive(Clone, Debug)]
-pub(crate) struct Names(pub(crate) Vec<String>);
-impl Names {
+pub(crate) struct ToParametersNames(pub(crate) Vec<String>);
+impl ToParametersNames {
     pub(crate) fn into_values(self) -> Vec<String> {
         self.0
     }
 }
-impl Parse for Names {
+impl Parse for ToParametersNames {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
             parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
@@ -475,12 +475,12 @@ impl Parse for Names {
         ))
     }
 }
-impl From<Names> for Feature {
-    fn from(value: Names) -> Self {
+impl From<ToParametersNames> for Feature {
+    fn from(value: ToParametersNames) -> Self {
         Feature::ToParametersNames(value)
     }
 }
-impl_get_name!(Names = "names");
+impl_get_name!(ToParametersNames = "names");
 
 #[derive(Clone, Debug)]
 pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);
@@ -947,13 +947,13 @@ impl From<SkipBound> for Feature {
 impl_get_name!(SkipBound = "skip_bound");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Description(pub(crate) String);
+pub(crate) struct Description(pub(crate) parse_utils::Value);
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next_literal_str_or_expr(input).map(Self)
     }
 }
 impl ToTokens for Description {
@@ -963,7 +963,7 @@ impl ToTokens for Description {
 }
 impl From<String> for Description {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 impl From<Description> for Feature {

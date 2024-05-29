@@ -13,13 +13,13 @@ use crate::doc_comment::CommentAttributes;
 use crate::feature::{
     self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
     AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format,
-    Inline, IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
-    Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, TryToTokensExt, WriteOnly, XmlAttr,
+    Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
+    Rename, RenameAll, SchemaWith, Style, ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
-use crate::{attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, Required, TryToTokens};
+use crate::{attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required, TryToTokens};
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
@@ -31,7 +31,7 @@ impl Parse for ToParametersFeatures {
         Ok(Self(parse_features!(
             input as DefaultStyle,
             feature::DefaultParameterIn,
-            Names,
+            ToParametersNames,
             RenameAll
         )))
     }
@@ -92,12 +92,8 @@ impl TryToTokens for ToParameters {
         }
 
         let names = parameters_features.as_mut().and_then(|features| {
-            features
-                .pop_by(|feature| matches!(feature, Feature::ToParametersNames(_)))
-                .and_then(|feature| match feature {
-                    Feature::ToParametersNames(names) => Some(names.into_values()),
-                    _ => None,
-                })
+            let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
+            IntoInner::<Option<ToParametersNames>>::into_inner(to_parameters_names).map(|names| names.into_values())
         });
 
         let default_style = pop_feature!(parameters_features => Feature::DefaultStyle(_));
