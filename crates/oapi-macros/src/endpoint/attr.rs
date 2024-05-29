@@ -18,12 +18,13 @@ pub(crate) struct EndpointAttr<'p> {
 
     pub(crate) doc_comments: Option<Vec<String>>,
     pub(crate) deprecated: Option<bool>,
+    pub(crate) description: Option<parse_utils::Value>,
+    pub(crate) summary: Option<parse_utils::Value>,
 }
 
 impl Parse for EndpointAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected identifier, expected any of: operation_id, request_body, responses, parameters, tags, security";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path, description, summary";
         let mut attr = EndpointAttr::default();
 
         while !input.is_empty() {
@@ -68,6 +69,8 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(security in input);
                     attr.security = Some(parse_utils::parse_groups(&security)?)
                 }
+                "description" => attr.description = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
+                "summary" => attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
                 _ => {
                     return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
                 }
