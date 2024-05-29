@@ -203,16 +203,12 @@ enum Description<'a> {
 impl ToTokens for Description<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => tokens.extend(quote! {
-                .description(Some(#value))
-            }),
+            Self::Value(value) => value.to_tokens(tokens),
             Self::Vec(vec) => {
                 let description = vec.join("\n\n");
 
                 if !description.is_empty() {
-                    tokens.extend(quote! {
-                        .description(Some(#description))
-                    })
+                    description.to_tokens(tokens)
                 }
             }
         }
@@ -228,12 +224,8 @@ enum Summary<'a> {
 impl ToTokens for Summary<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => tokens.extend(quote! {
-                .summary(Some(#value))
-            }),
-            Self::Str(str) if !str.is_empty() => tokens.extend(quote! {
-                .summary(Some(#str))
-            }),
+            Self::Value(value) => value.to_tokens(tokens),
+            Self::Str(str) if !str.is_empty() => str.to_tokens(tokens),
             _ => (),
         }
     }
