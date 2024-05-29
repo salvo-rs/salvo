@@ -9,7 +9,7 @@ use syn::{
     Error, Expr, LitBool, LitStr, Token,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum Value {
     LitStr(LitStr),
     Expr(Expr),
@@ -18,6 +18,12 @@ pub(crate) enum Value {
 impl Value {
     pub(crate) fn is_empty(&self) -> bool {
         matches!(self, Self::LitStr(s) if s.value().is_empty())
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Self::LitStr(LitStr::new(&value, proc_macro2::Span::call_site()))
     }
 }
 

@@ -11,11 +11,9 @@ pub(crate) use macros::*;
 mod items;
 pub(crate) use items::*;
 
-use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic, TryToTokens};
-use crate::{
-    schema_type::SchemaType,
-    type_tree::{GenericType, TypeTree},
-};
+use crate::schema_type::SchemaType;
+use crate::type_tree::{GenericType, TypeTree};
+use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
 
 /// Parse `LitInt` from parse stream
 fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
@@ -89,7 +87,7 @@ pub(crate) enum Feature {
     Explode(Explode),
     ParameterIn(ParameterIn),
     DefaultParameterIn(DefaultParameterIn),
-    ToParametersNames(Names),
+    ToParametersNames(ToParametersNames),
     MultipleOf(MultipleOf),
     Maximum(Maximum),
     Minimum(Minimum),
@@ -492,10 +490,6 @@ impl IsSkipped for Vec<Feature> {
             })
             .is_some()
     }
-}
-
-pub(crate) trait IntoInner<T> {
-    fn into_inner(self) -> T;
 }
 
 pub(crate) trait Merge<T>: IntoInner<Vec<Feature>> {

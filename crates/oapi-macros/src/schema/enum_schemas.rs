@@ -7,28 +7,25 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, Fields, Generics, Token, Variant};
 
-use crate::{
-    doc_comment::CommentAttributes,
-    feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt, IntoInner,
-        IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
-    },
-    schema::{Inline, VariantRename},
-    serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-    type_tree::{TypeTree, ValueType},
+use crate::component::ComponentDescription;
+use crate::doc_comment::CommentAttributes;
+use crate::feature::{
+    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt,
+    IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
 };
-use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
+use crate::schema::{Description, Inline, VariantRename};
+use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
+use crate::type_tree::{TypeTree, ValueType};
+use crate::{DiagLevel, DiagResult, IntoInner, Diagnostic, TryToTokens};
 
-use super::{
-    enum_variant::{
-        self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum,
-    },
-    feature::{
-        self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures, EnumUnnamedFieldVariantFeatures,
-        FromAttributes,
-    },
-    is_not_skipped, NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema,
+use super::enum_variant::{
+    self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum,
 };
+use super::feature::{
+    self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures, EnumUnnamedFieldVariantFeatures,
+    FromAttributes,
+};
+use super::{is_not_skipped, NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema};
 
 #[derive(Debug)]
 pub(crate) struct EnumSchema<'a> {
@@ -75,10 +72,12 @@ impl<'e> EnumSchema<'e> {
                         let name = pop_feature_as_inner!(repr_enum_features => Feature::Name(_v));
 
                         let inline: Option<Inline> = pop_feature_as_inner!(repr_enum_features => Feature::Inline(_v));
+                        let description = pop_feature!(repr_enum_features => Feature::Description(_)).into_inner();
                         Ok(Self {
                             schema_type: EnumSchemaType::Repr(ReprEnum {
                                 variants,
                                 attributes,
+                                description,
                                 enum_type,
                                 enum_features: repr_enum_features,
                             }),
@@ -98,9 +97,11 @@ impl<'e> EnumSchema<'e> {
 
                         let rename_all = simple_enum_features.pop_rename_all_feature();
                         let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
+                        let description = pop_feature!(simple_enum_features => Feature::Description(_)).into_inner();
                         Ok(Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
                                 attributes,
+                                description,
                                 variants,
                                 enum_features: simple_enum_features,
                                 rename_all,
@@ -131,9 +132,11 @@ impl<'e> EnumSchema<'e> {
 
                 let rename_all = simple_enum_features.pop_rename_all_feature();
                 let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
+                let description = pop_feature!(simple_enum_features => Feature::Description(_)).into_inner();
                 Ok(Self {
                     schema_type: EnumSchemaType::Simple(SimpleEnum {
                         attributes,
+                        description,
                         variants,
                         enum_features: simple_enum_features,
                         rename_all,
@@ -161,10 +164,12 @@ impl<'e> EnumSchema<'e> {
 
             let rename_all = enum_features.pop_rename_all_feature();
             let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
+            let description = pop_feature!(enum_features => Feature::Description(_)).into_inner();
             Ok(Self {
                 schema_type: EnumSchemaType::Complex(ComplexEnum {
                     enum_name,
                     attributes,
+                    description,
                     variants,
                     rename_all,
                     enum_features,
@@ -218,19 +223,19 @@ impl EnumSchemaType<'_> {
 
 impl TryToTokens for EnumSchemaType<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
-        let attributes = match self {
+        let (attributes, description) = match self {
             Self::Simple(simple) => {
                 simple.try_to_tokens(tokens)?;
-                simple.attributes
+                (simple.attributes, &simple.description)
             }
             #[cfg(feature = "repr")]
             Self::Repr(repr) => {
                 repr.try_to_tokens(tokens)?;
-                repr.attributes
+                (repr.attributes, &repr.description)
             }
             Self::Complex(complex) => {
                 complex.try_to_tokens(tokens)?;
-                complex.attributes
+                (complex.attributes, &complex.description)
             }
         };
 
@@ -238,12 +243,13 @@ impl TryToTokens for EnumSchemaType<'_> {
             tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
-        let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
-        if !description.is_empty() {
-            tokens.extend(quote! {
-                .description(#description)
-            })
-        }
+        let comments = CommentAttributes::from_attributes(attributes);
+        let description = description
+            .as_ref()
+            .map(ComponentDescription::Description)
+            .or(Some(ComponentDescription::CommentAttributes(&comments)));
+
+        description.to_tokens(tokens);
         Ok(())
     }
 }
@@ -253,6 +259,7 @@ impl TryToTokens for EnumSchemaType<'_> {
 pub(super) struct ReprEnum<'a> {
     variants: &'a Punctuated<Variant, Token![,]>,
     attributes: &'a [Attribute],
+    description: Option<Description>,
     enum_type: syn::TypePath,
     enum_features: Vec<Feature>,
 }
@@ -317,6 +324,7 @@ fn rename_enum_variant<'a>(
 #[derive(Debug)]
 pub(super) struct SimpleEnum<'a> {
     variants: &'a Punctuated<Variant, Token![,]>,
+    description: Option<Description>,
     attributes: &'a [Attribute],
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
@@ -417,6 +425,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
 pub(super) struct ComplexEnum<'a> {
     variants: &'a Punctuated<Variant, Token![,]>,
     attributes: &'a [Attribute],
+    description: Option<Description>,
     enum_name: Cow<'a, str>,
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
@@ -473,6 +482,7 @@ impl ComplexEnum<'_> {
                     item: NamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
+                        description: None,
                         rename_all: named_struct_features.pop_rename_all_feature(),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
@@ -516,6 +526,7 @@ impl ComplexEnum<'_> {
                     item: UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
+                        description: None,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         name: None,
@@ -589,6 +600,7 @@ impl ComplexEnum<'_> {
                 NamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
+                    description: None,
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
@@ -614,6 +626,7 @@ impl ComplexEnum<'_> {
                 UnnamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
+                    description: None,
                     features: Some(unnamed_struct_features),
                     fields: &unnamed_fields.unnamed,
                     name: None,
@@ -676,6 +689,7 @@ impl ComplexEnum<'_> {
                 let named_enum = NamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
+                    description: None,
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
@@ -724,6 +738,7 @@ impl ComplexEnum<'_> {
                     let unnamed_enum = UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
+                        description: None,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         name: None,
@@ -848,6 +863,7 @@ impl ComplexEnum<'_> {
                 let named_enum = NamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
+                    description: None,
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
@@ -895,6 +911,7 @@ impl ComplexEnum<'_> {
 
                     let unnamed_enum = UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
+                        description: None,
                         attributes: &variant.attrs,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,

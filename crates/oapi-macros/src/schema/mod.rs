@@ -21,14 +21,14 @@ pub(crate) use self::{
     xml::XmlAttr,
 };
 
-use super::{
-    feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
-    ComponentSchema, FieldRename, VariantRename,
+use super::{ComponentSchema, FieldRename, VariantRename};
+use crate::feature::{
+    pop_feature, pop_feature_as_inner, Alias, Bound, Description, Feature, FeaturesExt, Inline,  Name,
+    SkipBound,
 };
-use crate::feature::{Alias, Bound, Inline, Name, SkipBound};
 use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
-use crate::{bound, DiagLevel, DiagResult, Diagnostic, TryToTokens};
+use crate::{bound, DiagLevel, DiagResult, Diagnostic,IntoInner, TryToTokens};
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -195,9 +195,11 @@ impl<'a> SchemaVariant<'a> {
                     }
 
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
+                    let description = pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
+                        description,
                         features: unnamed_features,
                         fields: unnamed,
                         name,
@@ -222,9 +224,11 @@ impl<'a> SchemaVariant<'a> {
                     }
 
                     let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
+                    let description = pop_feature!(named_features => Feature::Description(_)).into_inner();
                     Ok(Self::Named(NamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
+                        description,
                         rename_all: named_features.pop_rename_all_feature(),
                         features: named_features,
                         fields: named,

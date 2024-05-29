@@ -5,18 +5,15 @@ use quote::{format_ident, quote, ToTokens};
 use syn::token::Comma;
 use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, Token};
 
-use crate::{
-    component::ComponentSchemaProps,
-    doc_comment::CommentAttributes,
-    feature::{
-        pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt, IntoInner, IsSkipped, Name, RenameAll,
-        SkipBound, TryToTokensExt,
-    },
-    schema::Inline,
-    serde_util::{self, SerdeContainer},
-    type_tree::TypeTree,
+use crate::component::{ComponentDescription, ComponentSchemaProps};
+use crate::doc_comment::CommentAttributes;
+use crate::feature::{
+    pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt, IsSkipped, Name, RenameAll,
+    SkipBound, TryToTokensExt,
 };
-use crate::{Deprecated, DiagLevel, DiagResult, Diagnostic, SerdeValue, TryToTokens};
+use crate::schema::{Description, Inline};
+use crate::type_tree::TypeTree;
+use crate::{Deprecated, IntoInner, serde_util, SerdeContainer, DiagLevel, DiagResult, Diagnostic, SerdeValue, TryToTokens};
 
 use super::{
     feature::{FromAttributes, NamedFieldFeatures},
@@ -28,6 +25,7 @@ pub(crate) struct NamedStructSchema<'a> {
     pub(crate) struct_name: Cow<'a, str>,
     pub(crate) fields: &'a Punctuated<Field, Token![,]>,
     pub(crate) attributes: &'a [Attribute],
+    pub(crate) description: Option<Description>,
     pub(crate) features: Option<Vec<Feature>>,
     pub(crate) rename_all: Option<RenameAll>,
     #[allow(dead_code)]
@@ -100,6 +98,7 @@ impl NamedStructSchema<'_> {
             .map(|value_type| value_type.as_type_tree())
             .transpose()?;
         let comments = CommentAttributes::from_attributes(&field.attrs);
+        let description = &ComponentDescription::CommentAttributes(&comments);
         let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
@@ -112,7 +111,7 @@ impl NamedStructSchema<'_> {
                 let cs = ComponentSchemaProps {
                     type_tree,
                     features: field_features,
-                    description: Some(&comments),
+                    description: Some(description),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                 };
@@ -290,12 +289,14 @@ impl TryToTokens for NamedStructSchema<'_> {
             tokens.extend(struct_features.try_to_token_stream()?)
         }
 
-        let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
-        if !description.is_empty() {
-            tokens.extend(quote! {
-                .description(#description)
-            })
-        }
+        let comments = CommentAttributes::from_attributes(self.attributes);
+        let description = self
+            .description
+            .as_ref()
+            .map(ComponentDescription::Description)
+            .or(Some(ComponentDescription::CommentAttributes(&comments)));
+
+        description.to_tokens(tokens);
 
         Ok(())
     }
@@ -305,6 +306,7 @@ impl TryToTokens for NamedStructSchema<'_> {
 pub(super) struct UnnamedStructSchema<'a> {
     pub(super) struct_name: Cow<'a, str>,
     pub(super) fields: &'a Punctuated<Field, Token![,]>,
+    pub(super) description: Option<Description>,
     pub(super) attributes: &'a [Attribute],
     pub(super) features: Option<Vec<Feature>>,
     pub(super) name: Option<Name>,
@@ -360,12 +362,18 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                     }
                 }
             }
+            let comments = CommentAttributes::from_attributes(self.attributes);
+            let description = self
+                .description
+                .as_ref()
+                .map(ComponentDescription::Description)
+                .or(Some(ComponentDescription::CommentAttributes(&comments)));
 
             tokens.extend(
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: override_type_tree.as_ref().unwrap_or(first_part),
                     features: unnamed_struct_features,
-                    description: Some(&CommentAttributes::from_attributes(self.attributes)),
+                    description: description.as_ref(),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                 })?
@@ -394,10 +402,18 @@ impl TryToTokens for UnnamedStructSchema<'_> {
         };
 
         if fields_len > 1 {
-            let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
-            tokens.extend(
-                quote!{ .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
-            )
+            let comments = CommentAttributes::from_attributes(self.attributes);
+            let description = self
+                .description
+                .as_ref()
+                .map(ComponentDescription::Description)
+                .or(Some(ComponentDescription::CommentAttributes(&comments)));
+            tokens.extend(quote! {
+            .to_array_builder()
+                .max_items(Some(#fields_len))
+                .min_items(Some(#fields_len))
+                #description
+            })
         }
         Ok(())
     }
