@@ -2,14 +2,14 @@ use std::borrow::Cow;
 use std::ops::Deref;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
 
 use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
-use crate::{Array, DiagResult, TryToTokens};
+use crate::{parse_utils, Array, DiagResult, TryToTokens};
 
 pub(crate) mod example;
 pub(crate) mod request_body;
@@ -22,12 +22,12 @@ pub(crate) struct Operation<'a> {
     deprecated: &'a Option<bool>,
     operation_id: Option<&'a Expr>,
     tags: &'a Option<Vec<String>>,
-    summary: Option<&'a String>,
-    description: Option<&'a [String]>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
+    summary: Option<Summary<'a>>,
+    description: Option<Description<'a>>,
 }
 
 impl<'a> Operation<'a> {
@@ -45,16 +45,28 @@ impl<'a> Operation<'a> {
                 (summary, trimmed)
             });
 
+        let summary = attr
+            .summary
+            .as_ref()
+            .map(Summary::Value)
+            .or_else(|| split_comment.as_ref().map(|(summary, _)| Summary::Str(summary)));
+
+        let description = attr.description.as_ref().map(Description::Value).or_else(|| {
+            split_comment
+                .as_ref()
+                .map(|(_, description)| Description::Vec(description))
+        });
+
         Self {
             deprecated: &attr.deprecated,
             operation_id: attr.operation_id.as_ref(),
             tags: &attr.tags,
-            summary: split_comment.map(|(summary, _)| summary),
-            description: split_comment.map(|(_, description)| description),
             parameters: attr.parameters.as_ref(),
             request_body: attr.request_body.as_ref(),
             responses: attr.responses.as_ref(),
             security: attr.security.as_ref(),
+            summary,
+            description,
         }
     }
     pub(crate) fn modifiers(&self) -> DiagResult<Vec<TokenStream>> {
@@ -105,19 +117,16 @@ impl<'a> Operation<'a> {
             })
         }
 
-        if let Some(summary) = self.summary {
+        if let Some(summary) = &self.summary {
             modifiers.push(quote! {
                 operation.summary = Some(#summary.into());
             })
         }
 
-        if let Some(description) = self.description {
-            let description = description.join("\n");
-            if !description.is_empty() {
-                modifiers.push(quote! {
-                    operation.description = Some(#description.into());
-                })
-            }
+        if let Some(description) = &self.description {
+            modifiers.push(quote! {
+                operation.description = Some(#description.into());
+            })
         }
 
         self.parameters
@@ -183,6 +192,43 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
         _ => {}
     }
     modifiers
+}
+
+#[derive(Debug)]
+enum Description<'a> {
+    Value(&'a parse_utils::Value),
+    Vec(&'a [String]),
+}
+
+impl ToTokens for Description<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Value(value) => value.to_tokens(tokens),
+            Self::Vec(vec) => {
+                let description = vec.join("\n\n");
+
+                if !description.is_empty() {
+                    description.to_tokens(tokens)
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Summary<'a> {
+    Value(&'a parse_utils::Value),
+    Str(&'a str),
+}
+
+impl ToTokens for Summary<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Value(value) => value.to_tokens(tokens),
+            Self::Str(str) if !str.is_empty() => str.to_tokens(tokens),
+            _ => (),
+        }
+    }
 }
 
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
