@@ -41,7 +41,7 @@ impl ToTokens for ComponentDescription<'_> {
 
         if !description.is_empty() {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             });
         }
     }
