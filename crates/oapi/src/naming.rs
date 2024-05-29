@@ -19,6 +19,20 @@ static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box
 static NAME_TYPES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);
 
 /// Set global namer.
+///
+/// Set global namer, all the types will be named by this namer. You should call this method before
+/// at before you generate OpenAPI schema.
+///
+/// # Example
+///
+/// ```rust
+/// # use salvo_oapi::extract::*;
+/// # use salvo_core::prelude::*;
+/// # #[tokio::main]
+/// # async fn main() {
+///     salvo_oapi::naming::set_namer(salvo_oapi::naming::FlexNamer::new().short_mode(true).generic_delimiter('_', '_'));
+/// # }
+/// ```
 pub fn set_namer(namer: impl Namer) {
     *GLOBAL_NAMER.write() = Box::new(namer);
     NAME_TYPES.write().clear();
