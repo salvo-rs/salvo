@@ -2,13 +2,12 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated, Example,
-    Description, 
-    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, MaxItems, MaxLength, MaxProperties,
-    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename,
-    RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated,
+    Description, Example, ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, MaxItems, MaxLength,
+    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern,
+    ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
 };
-use crate::{attribute, DiagResult, IntoInner, Diagnostic};
+use crate::{attribute, DiagResult, Diagnostic, IntoInner};
 
 #[derive(Debug)]
 pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);
@@ -73,7 +72,7 @@ impl Parse for EnumFeatures {
             Title,
             Aliases,
             RenameAll,
-            Inline,            
+            Inline,
             Deprecated,
             Description,
             Bound,

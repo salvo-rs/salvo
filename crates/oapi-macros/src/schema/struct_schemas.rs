@@ -8,12 +8,14 @@ use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, 
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt, IsSkipped, Name, RenameAll,
-    SkipBound, TryToTokensExt,
+    pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt, IsSkipped, Name, RenameAll, SkipBound,
+    TryToTokensExt,
 };
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
-use crate::{Deprecated, IntoInner, serde_util, SerdeContainer, DiagLevel, DiagResult, Diagnostic, SerdeValue, TryToTokens};
+use crate::{
+    serde_util, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue, TryToTokens,
+};
 
 use super::{
     feature::{FromAttributes, NamedFieldFeatures},

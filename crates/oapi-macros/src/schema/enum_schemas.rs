@@ -10,13 +10,13 @@ use syn::{Attribute, Fields, Generics, Token, Variant};
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt,
-    IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
+    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt, IsSkipped, Name,
+    Rename, RenameAll, SkipBound, TryToTokensExt,
 };
 use crate::schema::{Description, Inline, VariantRename};
 use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
 use crate::type_tree::{TypeTree, ValueType};
-use crate::{DiagLevel, DiagResult, IntoInner, Diagnostic, TryToTokens};
+use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
 
 use super::enum_variant::{
     self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum,

@@ -146,7 +146,6 @@ macro_rules! pop_feature_as_inner {
 
 pub(crate) use pop_feature_as_inner;
 
-
 macro_rules! impl_feature_into_inner {
     ( $( $feat:ident , )* ) => {
         $(

@@ -4,7 +4,8 @@ use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    pop_feature, Description, AdditionalProperties, Feature, FeaturesExt, IsInline, Minimum, Nullable, TryToTokensExt, Validatable,
+    pop_feature, AdditionalProperties, Description, Feature, FeaturesExt, IsInline, Minimum, Nullable, TryToTokensExt,
+    Validatable,
 };
 use crate::schema_type::{SchemaFormat, SchemaType};
 use crate::type_tree::{GenericType, TypeTree, ValueType};

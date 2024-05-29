@@ -12,14 +12,14 @@ use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
     self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
-    AllowReserved, DefaultStyle, ToParametersNames, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format,
-    Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf,  Nullable,
-    Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, TryToTokensExt, WriteOnly, XmlAttr,
+    AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format,
+    Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
+    Rename, RenameAll, SchemaWith, Style, ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
-use crate::{attribute, Array, IntoInner, DiagLevel, DiagResult, Diagnostic, FieldRename, Required, TryToTokens};
+use crate::{attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required, TryToTokens};
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
@@ -93,8 +93,7 @@ impl TryToTokens for ToParameters {
 
         let names = parameters_features.as_mut().and_then(|features| {
             let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
-            IntoInner::<Option<ToParametersNames>>::into_inner(to_parameters_names)
-                .map(|names| names.into_values())
+            IntoInner::<Option<ToParametersNames>>::into_inner(to_parameters_names).map(|names| names.into_values())
         });
 
         let default_style = pop_feature!(parameters_features => Feature::DefaultStyle(_));
