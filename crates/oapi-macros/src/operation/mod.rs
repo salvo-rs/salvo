@@ -118,15 +118,19 @@ impl<'a> Operation<'a> {
         }
 
         if let Some(summary) = &self.summary {
-            modifiers.push(quote! {
-                operation.summary = Some(#summary.into());
-            })
+            if !summary.is_empty() {
+                modifiers.push(quote! {
+                    operation.summary = Some(#summary.into());
+                })
+            }
         }
 
         if let Some(description) = &self.description {
-            modifiers.push(quote! {
-                operation.description = Some(#description.into());
-            })
+            if !description.is_empty() {
+                modifiers.push(quote! {
+                    operation.description = Some(#description.into());
+                })
+            }
         }
 
         self.parameters
@@ -199,11 +203,23 @@ enum Description<'a> {
     Value(&'a parse_utils::Value),
     Vec(&'a [String]),
 }
+impl<'a> Description<'a> {
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::Value(value) => value.is_empty(),
+            Self::Vec(vec) => vec.iter().all(|s| s.is_empty()),
+        }
+    }
+}
 
 impl ToTokens for Description<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => value.to_tokens(tokens),
+            Self::Value(value) => {
+                if !value.is_empty() {
+                    value.to_tokens(tokens)
+                }
+            }
             Self::Vec(vec) => {
                 let description = vec.join("\n\n");
 
@@ -220,12 +236,28 @@ enum Summary<'a> {
     Value(&'a parse_utils::Value),
     Str(&'a str),
 }
+impl<'a> Summary<'a> {
+    pub(crate) fn is_empty(&self) -> bool {
+        match self {
+            Self::Value(value) => value.is_empty(),
+            Self::Str(str) => str.is_empty(),
+        }
+    }
+}
 
 impl ToTokens for Summary<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => value.to_tokens(tokens),
-            Self::Str(str) if !str.is_empty() => str.to_tokens(tokens),
+            Self::Value(value) => {
+                if !value.is_empty() {
+                    value.to_tokens(tokens)
+                }
+            }
+            Self::Str(str) => {
+                if !str.is_empty() {
+                    str.to_tokens(tokens)
+                }
+            }
             _ => (),
         }
     }
