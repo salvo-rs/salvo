@@ -7,6 +7,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [Socketioxide](https://github.com/Totodore/socketioxide): A socket.io server implementation in Rust that integrates with the Tower ecosystem and the Tokio stack.
 - [Websocket](https://gitee.com/hubert22/salvo-websocket): This crate is websocket tool for salvo.
 - [SalvoRsTool](https://github.com/mdddj/SalvoRsTool): salvo Idea RustRover插件 快速生成dto router service模板代码
+- [protect-endpoints](https://github.com/DDtKey/protect-endpoints): Collection of crates to protect your endpoints
 
 ## Project showcase
 
