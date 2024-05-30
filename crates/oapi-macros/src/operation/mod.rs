@@ -258,7 +258,6 @@ impl ToTokens for Summary<'_> {
                     str.to_tokens(tokens)
                 }
             }
-            _ => (),
         }
     }
 }

@@ -8,7 +8,7 @@ use opentelemetry_sdk::{
 };
 use salvo::logging::Logger;
 use salvo::prelude::*;
-use tracing::{debug, info, instrument, level_filters::LevelFilter, warn};
+use tracing::{instrument, level_filters::LevelFilter};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
