@@ -165,7 +165,7 @@ impl Parse for ValueParameter<'_> {
 
         if input.fork().parse::<ParameterIn>().is_ok() {
             parameter.parameter_in = Some(input.parse()?);
-            input.parse::<Token![,]>()?;
+            input.parse::<Token![,]>().ok();
         }
 
         let (schema_features, parameter_features) = input.parse::<ParameterFeatures>()?.split_for_parameter_type();
