@@ -4,17 +4,25 @@
 use std::time::Duration;
 
 use salvo_core::http::{Request, Response, StatusError};
+use salvo_core::http::headers::{HeaderMapExt, Connection};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// Timeout
 pub struct Timeout {
     value: Duration,
+    error: Box<dyn Fn() -> StatusError + Send + Sync + 'static>,
 }
 impl Timeout {
     /// Create a new `Timeout`.
     #[inline]
     pub fn new(value: Duration) -> Self {
-        Timeout { value }
+        Timeout { value, error:  Box::new(||StatusError::service_unavailable().brief("Server process the request timeout."))}
+    }
+
+    /// Custom error returned when timeout.
+    pub fn error(mut self, error: impl Fn() -> StatusError + Send + Sync + 'static) -> Self {
+        self.error = Box::new(error);
+        self
     }
 }
 #[async_trait]
@@ -24,7 +32,8 @@ impl Handler for Timeout {
         tokio::select! {
             _ = ctrl.call_next(req, depot, res) => {},
             _ = tokio::time::sleep(self.value) => {
-                res.render(StatusError::internal_server_error().brief("Server process the request timeout."));
+                res.headers_mut().typed_insert(Connection::close());
+                res.render((self.error)());
                 ctrl.skip_rest();
             }
         }
