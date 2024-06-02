@@ -44,6 +44,8 @@ use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// Middleware for controlling request timeout.
+/// 
+/// View [module level documentation](index.html) for more details.
 pub struct Timeout {
     value: Duration,
     error: Box<dyn Fn() -> StatusError + Send + Sync + 'static>,

@@ -8,90 +8,85 @@
 #[macro_use]
 mod cfg;
 pub use salvo_core as core;
-#[doc(no_inline)]
+// #[doc(no_inline)]
 pub use salvo_core::*;
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo;
 
 cfg_feature! {
     #![feature ="affix"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::affix;
 }
 cfg_feature! {
     #![feature ="basic-auth"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::basic_auth;
 }
 cfg_feature! {
     #![feature ="caching-headers"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::caching_headers;
 }
 cfg_feature! {
     #![feature ="catch-panic"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::catch_panic;
 }
 cfg_feature! {
-    #![feature ="compression"]
-    #[doc(no_inline)]
-    pub use salvo_compression as compression;
-}
-cfg_feature! {
     #![feature ="force-https"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::force_https;
 }
 cfg_feature! {
-    #![feature ="jwt-auth"]
-    #[doc(no_inline)]
-    pub use salvo_jwt_auth as jwt_auth;
-}
-cfg_feature! {
     #![feature ="logging"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::logging;
 }
 cfg_feature! {
     #![feature ="concurrency-limiter"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::concurrency_limiter;
 }
 cfg_feature! {
     #![feature ="size-limiter"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::size_limiter;
 }
 cfg_feature! {
     #![feature ="sse"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::sse;
 }
 cfg_feature! {
     #![feature ="trailing-slash"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::trailing_slash;
 }
 cfg_feature! {
     #![feature ="timeout"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::timeout;
 }
 cfg_feature! {
     #![feature ="websocket"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::websocket;
 }
 cfg_feature! {
     #![feature ="request_id"]
-    #[doc(no_inline)]
+    // #[doc(no_inline)]
     pub use salvo_extra::request_id;
 }
 cfg_feature! {
     #![feature ="cache"]
     #[doc(no_inline)]
     pub use salvo_cache as cache;
+}
+cfg_feature! {
+    #![feature ="compression"]
+    #[doc(no_inline)]
+    pub use salvo_compression as compression;
 }
 cfg_feature! {
     #![feature ="cors"]
@@ -107,6 +102,11 @@ cfg_feature! {
     #![feature ="flash"]
     #[doc(no_inline)]
     pub use salvo_flash as flash;
+}
+cfg_feature! {
+    #![feature ="jwt-auth"]
+    #[doc(no_inline)]
+    pub use salvo_jwt_auth as jwt_auth;
 }
 cfg_feature! {
     #![feature ="proxy"]

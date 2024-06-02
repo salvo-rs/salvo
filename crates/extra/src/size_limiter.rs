@@ -1,11 +1,11 @@
-//! size limiter middleware.
+//! Middleware for limiting request size.
 //!
 //! Read more: <https://salvo.rs>
 use salvo_core::http::StatusError;
 use salvo_core::http::{Body, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
-/// MaxSize
+/// MaxSize limit for request size.
 pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
