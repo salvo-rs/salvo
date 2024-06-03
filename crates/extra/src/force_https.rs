@@ -1,4 +1,4 @@
-//! Force https middleware.
+//! Middleware force redirect to https.
 //!
 //! Read more: <https://salvo.rs>
 use std::borrow::Cow;

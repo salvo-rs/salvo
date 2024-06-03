@@ -1,4 +1,4 @@
-//! Simple logging middleware.
+//! A simple logging middleware.
 //!
 //! Read more: <https://salvo.rs>
 use std::time::Instant;

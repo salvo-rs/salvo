@@ -310,7 +310,7 @@ impl Handler for CorsHandler {
     }
 }
 
-/// Returns an iterator over the three request headers that may be involved in a CORS preflight request.
+/// Iterator over the three request headers that may be involved in a CORS preflight request.
 ///
 /// This is the default set of header names returned in the `vary` header
 pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {

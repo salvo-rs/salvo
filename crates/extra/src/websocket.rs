@@ -2,7 +2,7 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
 
-//! WebSocket implementation for Salvo web framework.
+//! WebSocket implementation.
 //!
 //! Read more: <https://salvo.rs>
 

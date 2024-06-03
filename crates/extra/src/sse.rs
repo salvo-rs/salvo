@@ -1,7 +1,8 @@
 // Copyright (c) 2018-2020 Sean McArthur
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/sse.rs
-//! Server-Sent Events (SSE)
+//! Middleware for Server-Sent Events (SSE)
+//! 
 //! # Example
 //!
 //! ```no_run

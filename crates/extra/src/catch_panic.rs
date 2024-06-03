@@ -1,6 +1,23 @@
-//! Catch panic middleware.
+//! Middleware for catch panic in handlers.
 //!
-//! Read more: <https://salvo.rs>
+//! This middleware catches panics and write `500 Internal Server Error` into response.
+//! This middleware should be used as the first middleware.
+//! 
+//! # Example
+//! ```
+//! use salvo_core::prelude::*;
+//! 
+//! #[handler]
+//! async fn hello() {
+//!     panic!("panic error!");
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Router::new().hoop(CatchPanic::new()).get(hello);
+//! }
+//! ```
+
 use std::panic::AssertUnwindSafe;
 
 use futures_util::FutureExt;
@@ -8,8 +25,10 @@ use futures_util::FutureExt;
 use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Error, Handler};
 
-/// This middleware catches panics and write `500 INTERNAL SERVER ERROR`
-/// into response. This middleware should be used as the first middleware.
+
+/// Middleware for catch panic in handlers.
+/// 
+/// View [module level documentation](index.html) for more details.
 #[derive(Default, Debug)]
 pub struct CatchPanic {}
 impl CatchPanic {
@@ -27,7 +46,7 @@ impl Handler for CatchPanic {
             tracing::error!(error = ?e, "panic occurred");
             res.render(
                 StatusError::internal_server_error()
-                    .brief("panic occurred on server")
+                    .brief("Panic occurred on server.")
                     .cause(Error::other(format!("{e:#?}"))),
             );
         }

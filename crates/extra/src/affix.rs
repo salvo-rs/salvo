@@ -1,4 +1,4 @@
-//! affix middleware is used to add any data to depot.
+//! Middleware for add any data to depot.
 //!
 //! Read more: <https://salvo.rs>
 
@@ -26,12 +26,16 @@ where
 }
 
 /// Inject a value into depot.
+/// 
+/// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
     insert(format!("{:?}", TypeId::of::<V>()), value)
 }
 
 /// Insert a key-value pair into depot.
+/// 
+/// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn insert<K, V>(key: K, value: V) -> AffixList
 where
@@ -42,6 +46,8 @@ where
 }
 
 /// AffixList is used to add any data to depot.
+/// 
+/// View [module level documentation](index.html) for more details.
 #[derive(Default)]
 pub struct AffixList(Vec<Box<dyn Affix + Send + Sync + 'static>>);
 

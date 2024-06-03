@@ -1,4 +1,4 @@
-//! concurrency limiter middleware.
+//! Middleware for limit concurrency.
 //!
 //! Read more: <https://salvo.rs>
 
