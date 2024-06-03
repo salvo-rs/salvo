@@ -80,7 +80,7 @@ enum ServerCommand {
     StopGraceful(Option<Duration>),
 }
 
-/// HTTP Server
+/// HTTP Server.
 ///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<A> {

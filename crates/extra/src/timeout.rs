@@ -9,9 +9,10 @@
 //!
 //! ```
 //! use std::time::Duration;
-
+//!
 //! use salvo_core::prelude::*;
-
+//! use salvo_extra::timeout::Timeout;
+//!
 //! #[handler]
 //! async fn fast() -> &'static str {
 //!     "hello"
@@ -24,16 +25,10 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     tracing_subscriber::fmt().init();
-//!
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-//!
 //!     let router = Router::new()
 //!         .hoop(Timeout::new(Duration::from_secs(5)))
 //!         .push(Router::with_path("slow").get(slow))
 //!         .push(Router::with_path("fast").get(fast));
-//!
-//!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
 
@@ -44,6 +39,8 @@ use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// Middleware for controlling request timeout.
+/// 
+/// View [module level documentation](index.html) for more details.
 pub struct Timeout {
     value: Duration,
     error: Box<dyn Fn() -> StatusError + Send + Sync + 'static>,

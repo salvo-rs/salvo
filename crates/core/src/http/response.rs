@@ -19,7 +19,7 @@ use bytes::Bytes;
 
 pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 
-/// Represents an HTTP response
+/// Represents an HTTP response.
 #[non_exhaustive]
 pub struct Response {
     /// The HTTP status code.WebTransportSession
