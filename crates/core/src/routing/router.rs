@@ -2,8 +2,8 @@ use std::fmt::{self, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use super::filters;
-use super::{DetectMatched, Filter, FnFilter, PathFilter, PathState};
+use super::filters::{self, FnFilter, PathFilter};
+use super::{DetectMatched, Filter, PathState};
 use crate::handler::{Handler, WhenHoop};
 use crate::http::uri::Scheme;
 use crate::{Depot, Request};

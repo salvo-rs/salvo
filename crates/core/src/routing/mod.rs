@@ -1,8 +1,8 @@
 #![doc = include_str!("../../docs/routing.md")]
 
 pub mod filters;
+pub use filters::Filter;
 mod router;
-pub use filters::*;
 pub use router::Router;
 
 use std::borrow::Cow;
