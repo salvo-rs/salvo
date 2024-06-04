@@ -14,10 +14,10 @@ use crate::http::Method;
 use crate::routing::{FlowCtrl, Router};
 use crate::{Depot, Error, Handler, Request, Response, Service};
 
-/// `RequestBuilder` is the main way of building requests.
+/// The main way of building [`Request`].
 ///
 /// You can create a `RequestBuilder` using the `new` or `try_new` method, but the recommended way
-/// or use one of the simpler constructors available in the crate root or on the `Session` struct,
+/// or use one of the simpler constructors available in the [`TestClient`](crate::test::TestClient) struct,
 /// such as `get`, `post`, etc.
 #[derive(Debug)]
 pub struct RequestBuilder {
@@ -251,7 +251,7 @@ impl RequestBuilder {
     }
 }
 
-/// Trait for sending request to target, such as [`Router`], [`Service`], [`Handler`]. for test usage.
+/// Trait for sending request to target, such as [`Router`], [`Service`], [`Handler`] for test usage.
 pub trait SendTarget {
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
     #[must_use = "future must be used"]

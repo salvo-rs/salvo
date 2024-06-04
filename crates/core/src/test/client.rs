@@ -2,7 +2,7 @@ use http::Method;
 
 use super::request::RequestBuilder;
 
-/// `TestClient` is a type that can carry settings over multiple requests. The settings applied to the
+/// A type that can carry settings over multiple requests. The settings applied to the
 /// `TestClient` are applied to every request created from this `TestClient`.
 #[derive(Debug, Default)]
 pub struct TestClient;

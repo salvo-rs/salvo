@@ -1,7 +1,7 @@
 #![doc = include_str!("../../docs/routing.md")]
 
 pub mod filters;
-pub use filters::Filter;
+pub use filters::*;
 mod router;
 pub use router::Router;
 
