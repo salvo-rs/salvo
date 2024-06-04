@@ -39,7 +39,6 @@ pub(crate) use self::{
     parameter::Parameter,
     response::derive::{ToResponse, ToResponses},
     response::Response,
-    schema::ToSchema,
     shared::*,
     type_tree::TypeTree,
 };
@@ -65,18 +64,9 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// [more]: ../salvo_oapi/derive.ToSchema.html
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        ident,
-        data,
-        generics,
-        vis,
-        ..
-    } = syn::parse_macro_input!(input);
-
-    match ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream()) {
+    match schema::to_schema(syn::parse_macro_input!(input)) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_item_tokens().into(),
+        Err(e) => e.emit_as_item_tokens().into(),
     }
 }
 
@@ -276,6 +266,47 @@ mod tests {
                 }
             }
             .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_schema() {
+        let input = quote! {
+            #[derive(ToSchema)]
+            struct User{
+                name: String,
+                age: i32,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToSchema for User {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let name = salvo::oapi::naming::assign_name::<User>(salvo::oapi::naming::NameRule::Auto);
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .property(
+                                    "name",
+                                    salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                )
+                                .required("name")
+                                .property(
+                                    "age",
+                                    salvo::oapi::Object::new()
+                                        .schema_type(salvo::oapi::SchemaType::Integer)
+                                        .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
+                                )
+                                .required("age");
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string()
         );
     }
 }
