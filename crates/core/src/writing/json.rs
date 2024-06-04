@@ -11,8 +11,9 @@ use crate::http::{Response, StatusError};
 ///
 /// ```
 /// use salvo_core::prelude::*;
+/// use serde::Serialize;
 ///
-/// #[serde::Serialize]
+/// #[derive(Serialize)]
 /// struct User {
 ///    name: String,
 /// }
