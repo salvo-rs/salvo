@@ -1,10 +1,10 @@
 //! Extra features for Savlo web framework.
 //!
 //! This library provides some common web features.
-//! 
+//!
 //! `salvo_extra` uses a set of [feature flags] to reduce the amount of compiled and
 //! optional dependencies.
-//! 
+//!
 //! # Feature flags
 //!
 //! | Feature | Description |

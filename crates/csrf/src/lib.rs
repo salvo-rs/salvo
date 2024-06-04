@@ -1,4 +1,4 @@
-//! CSRF middleware for Savlo web server framework.
+//! CSRF middleware for Savlo web framework.
 //!
 //! CSRF middleware for Salvo that provides CSRF (Cross-Site Request Forgery) protection.
 //!

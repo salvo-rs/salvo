@@ -3,7 +3,7 @@
 //! Force the current request to be redirected to the https protocol.
 //!
 //! Example:
-//! 
+//!
 //! ```no_run
 //! use salvo_core::prelude::*;
 //! use salvo_extra::force_https::ForceHttps;

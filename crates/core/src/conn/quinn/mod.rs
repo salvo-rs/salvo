@@ -1,4 +1,4 @@
-//! `QuinnListener`` and utils.
+//! `QuinnListener` and utils.
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
 use std::future::{ready, Ready};
