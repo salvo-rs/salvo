@@ -1,11 +1,11 @@
-//! filter module
+//! Various types of filters.
 //!
 //! This module provides filters for routing requests based on various criteria
 //! such as uri scheme, hostname, port, path, and HTTP method.
 
 mod opts;
 mod others;
-mod path;
+pub mod path;
 
 use std::fmt::{self, Formatter};
 
@@ -15,7 +15,7 @@ use crate::http::{Method, Request};
 use crate::routing::PathState;
 
 pub use others::*;
-pub use path::*;
+pub use path::PathFilter;
 
 /// Fiter trait for filter request.
 

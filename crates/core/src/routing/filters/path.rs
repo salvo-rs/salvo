@@ -1,3 +1,5 @@
+//! Path filter implementation.
+
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::sync::Arc;

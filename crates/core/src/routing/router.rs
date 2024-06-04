@@ -3,19 +3,19 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use super::filters;
-use super::{Filter, FnFilter, PathFilter, PathState};
+use super::{Filter, FnFilter, DetectMatched, PathFilter, PathState};
 use crate::handler::{Handler, WhenHoop};
 use crate::http::uri::Scheme;
 use crate::{Depot, Request};
 
-/// Router struct is used for route request to different handlers.
+/// Route request to different handlers.
 ///
 /// You can write routers in flat way, like this:
 ///
 /// # Example
 ///
 /// ```
-/// # use salvo_core::prelude::*;
+/// use salvo_core::prelude::*;
 ///
 /// # #[handler]
 /// # async fn create_writer(res: &mut Response) {
@@ -96,11 +96,6 @@ pub struct Router {
     pub hoops: Vec<Arc<dyn Handler>>,
     /// The final handler to handle request of current router.
     pub goal: Option<Arc<dyn Handler>>,
-}
-#[doc(hidden)]
-pub struct DetectMatched {
-    pub hoops: Vec<Arc<dyn Handler>>,
-    pub goal: Arc<dyn Handler>,
 }
 
 impl Default for Router {
