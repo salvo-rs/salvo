@@ -31,7 +31,7 @@ macro_rules! default_errors {
     }
 }
 
-/// StatusError contains http error information.
+/// HTTP status error information.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct StatusError {
@@ -48,17 +48,17 @@ pub struct StatusError {
 }
 
 impl StatusError {
-    /// Sets brief field and returns Self.
+    /// Sets brief field and returns `Self`.
     pub fn brief(mut self, brief: impl Into<String>) -> Self {
         self.brief = brief.into();
         self
     }
-    /// Sets detail field and returns Self.
+    /// Sets detail field and returns `Self`.
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
     }
-    /// Sets cause field and returns Self.
+    /// Sets cause field and returns `Self`.
     pub fn cause<C>(mut self, cause: C) -> Self
     where
         C: Into<Box<dyn StdError + Sync + Send + 'static>>,

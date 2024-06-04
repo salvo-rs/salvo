@@ -1,4 +1,3 @@
-//! Http body.
 use std::fmt::{self, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
@@ -15,7 +14,7 @@ use crate::BoxedError;
 pub(crate) type BoxedBody = Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
 pub(crate) type PollFrame = Poll<Option<Result<Frame<Bytes>, IoError>>>;
 
-/// Body for request.
+/// Body for HTTP request.
 #[non_exhaustive]
 #[derive(Default)]
 pub enum ReqBody {

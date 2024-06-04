@@ -1,4 +1,4 @@
-//! Http response.
+//! HTTP response.
 use std::collections::VecDeque;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;

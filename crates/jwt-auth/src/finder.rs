@@ -40,7 +40,7 @@ impl HeaderFinder {
         &mut self.header_names
     }
 
-    /// Sets header names and returns Self.
+    /// Sets header names and returns `Self`.
     #[inline]
     pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
         self.header_names = header_names.into();
@@ -52,7 +52,7 @@ impl HeaderFinder {
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list and returns Self.
+    /// Sets cared methods list and returns `Self`.
     #[inline]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;

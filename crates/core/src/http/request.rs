@@ -1,4 +1,4 @@
-//! Http request.
+//! HTTP request.
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 #[cfg(feature = "quinn")]

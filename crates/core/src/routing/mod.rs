@@ -1,6 +1,4 @@
-//! Routing and filters.
-//!
-//! Router can route http requests to different handlers.
+#![doc = include_str!("../../docs/routing.md")]
 
 pub mod filters;
 mod router;
