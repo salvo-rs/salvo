@@ -57,8 +57,8 @@ impl Service {
     /// # Example
     ///
     /// ```
-    /// # use salvo_core::prelude::*;
-    /// # use salvo_core::catcher::Catcher;
+    /// use salvo_core::prelude::*;
+    /// use salvo_core::catcher::Catcher;
     ///
     /// #[handler]
     /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
