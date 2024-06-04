@@ -1,5 +1,5 @@
 //! Routing and filters.
-//! 
+//!
 //! Router can route http requests to different handlers.
 
 pub mod filters;
@@ -133,8 +133,8 @@ pub enum FlowCtrlStage {
 ///
 /// When a request is coming, [`Router`] will detect it and get the matched router.
 /// And then salvo will collect all handlers (including added as middlewares) from the matched router tree.
-/// All handlers in this list will executed one by one. 
-/// 
+/// All handlers in this list will executed one by one.
+///
 /// Each handler can use `FlowCtrl` to control execute flow, let the flow call next handler or skip all rest handlers.
 ///
 /// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`] is returns false,

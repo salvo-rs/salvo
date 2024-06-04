@@ -6,7 +6,7 @@ use crate::Error;
 
 /// Response that redirects the request to another location.
 ///
-/// # Example 
+/// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;

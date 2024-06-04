@@ -3,8 +3,8 @@ use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::Response;
 
 /// Write text content to response as text content.
-/// 
-/// # Example 
+///
+/// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;

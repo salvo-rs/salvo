@@ -6,8 +6,8 @@ use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::{Response, StatusError};
 
 /// Write serializable content to response as json content. It will set `content-type` to `application/json; charset=utf-8`.
-/// 
-/// # Example 
+///
+/// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;
