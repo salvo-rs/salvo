@@ -39,7 +39,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["http1", "test"] }
+anyhow.workspace = true
+salvo = { path = "../salvo", features = ["http1", "test", "jwt-auth", "anyhow"] }
 time.workspace = true
 
 [lints]

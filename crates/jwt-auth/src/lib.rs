@@ -20,8 +20,6 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     tracing_subscriber::fmt().init();
-//!
 //!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
 //!         .finders(vec![
 //!             // Box::new(HeaderFinder::new()),
