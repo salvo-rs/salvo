@@ -9,19 +9,19 @@
 //! use salvo::prelude::*;
 //! use serde::{Deserialize, Serialize};
 //! use time::{Duration, OffsetDateTime};
-//! 
+//!
 //! const SECRET_KEY: &str = "YOUR SECRET_KEY";
-//! 
+//!
 //! #[derive(Debug, Serialize, Deserialize)]
 //! pub struct JwtClaims {
 //!     username: String,
 //!     exp: i64,
 //! }
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() {
 //!     tracing_subscriber::fmt().init();
-//! 
+//!
 //!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
 //!         .finders(vec![
 //!             // Box::new(HeaderFinder::new()),
@@ -29,7 +29,7 @@
 //!             // Box::new(CookieFinder::new("jwt_token")),
 //!         ])
 //!         .force_passed(true);
-//! 
+//!
 //!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
 //!     Server::new(acceptor)
 //!         .serve(Router::with_hoop(auth_handler).goal(index))
@@ -76,11 +76,11 @@
 //!     }
 //!     Ok(())
 //! }
-//! 
+//!
 //! fn validate(username: &str, password: &str) -> bool {
 //!     username == "root" && password == "pwd"
 //! }
-//! 
+//!
 //! static LOGIN_HTML: &str = r#"<!DOCTYPE html>
 //! <html>
 //!     <head>
@@ -91,10 +91,10 @@
 //!         <form action="/" method="post">
 //!         <label for="username"><b>Username</b></label>
 //!         <input type="text" placeholder="Enter Username" name="username" required>
-//! 
+//!
 //!         <label for="password"><b>Password</b></label>
 //!         <input type="password" placeholder="Enter Password" name="password" required>
-//! 
+//!
 //!         <button type="submit">Login</button>
 //!     </form>
 //!     </body>

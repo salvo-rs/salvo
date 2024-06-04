@@ -1,5 +1,5 @@
-//! The core crate of Savlo web framework. 
-//! 
+//! The core crate of Savlo web framework.
+//!
 //! `salvo_core` uses a set of [feature flags] to reduce the amount of compiled and
 //! optional dependencies.
 //!
