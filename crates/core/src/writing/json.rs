@@ -6,6 +6,21 @@ use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::{Response, StatusError};
 
 /// Write serializable content to response as json content. It will set `content-type` to `application/json; charset=utf-8`.
+/// 
+/// # Example 
+///
+/// ```
+/// use salvo_core::prelude::*;
+///
+/// #[serde::Serialize]
+/// struct User {
+///    name: String,
+/// }
+/// #[handler]
+/// async fn hello(res: &mut Response) -> Json<User> {
+///     Json(User { name: "jobs".into() })
+/// }
+/// ```
 pub struct Json<T>(pub T);
 
 #[async_trait]
