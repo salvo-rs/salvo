@@ -1,6 +1,25 @@
-//! Force https middleware.
+//! Middleware force redirect to https.
+//! 
+//! Force the current request to be redirected to the https protocol.
 //!
-//! Read more: <https://salvo.rs>
+//! Example:
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::force_https::ForceHttps;
+//!
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "hello"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::with_hoop(ForceHttps::new().https_port(1234)).goal(hello);
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
+//! }
+//! ```
 use std::borrow::Cow;
 
 use salvo_core::handler::Skipper;

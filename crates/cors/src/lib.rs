@@ -1,4 +1,4 @@
-//! Cross-Origin Resource Sharing (CORS) support for Savlo web server framework.
+//! Library adds CORS protection for Salvo web framework.
 //!
 //! [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 //!
@@ -166,13 +166,12 @@ impl Cors {
     ///
     /// # Example
     ///
-    ///
     /// ```
     /// use std::time::Duration;
     /// use salvo_core::prelude::*;
     /// use salvo_cors::Cors;
     ///
-    /// let cors = Cors::new().max_age(30); // 30u32 seconds
+    /// let cors = Cors::new().max_age(30); // 30 seconds
     /// let cors = Cors::new().max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]
@@ -310,7 +309,7 @@ impl Handler for CorsHandler {
     }
 }
 
-/// Returns an iterator over the three request headers that may be involved in a CORS preflight request.
+/// Iterator over the three request headers that may be involved in a CORS preflight request.
 ///
 /// This is the default set of header names returned in the `vary` header
 pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {

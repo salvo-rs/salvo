@@ -1,6 +1,6 @@
 # salvo-cors
 
-## Library to Provide a CORS protection for Salvo.
+## Library adds CORS protection for Salvo web framework.
 
 This is offical crate, so you can enable it in `Cargo.toml` like this:
 

@@ -1,6 +1,48 @@
 //! Trailing slash middleware.
 //!
-//! Read more: <https://salvo.rs>
+//! # Examples
+//!
+//! - Add trailing slash:
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::trailing_slash::add_slash;
+//! 
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "Hello"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::with_hoop(add_slash())
+//!         .push(Router::with_path("hello").get(hello))
+//!         .push(Router::with_path("hello.world").get(hello));
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
+//! }
+//! ```
+//!
+//! - Remove trailing slash:
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::trailing_slash::remove_slash;
+//!
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "Hello"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::with_hoop(remove_slash().redirect_code(StatusCode::TEMPORARY_REDIRECT))
+//!         .push(Router::with_path("hello").get(hello))
+//!         .push(Router::with_path("hello.world").get(hello));
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
+//! }
+//! ```
 use std::borrow::Cow;
 use std::str::FromStr;
 

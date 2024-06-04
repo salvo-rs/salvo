@@ -1,6 +1,32 @@
-//! basic auth middleware.
+//! Middleware for basic authentication.
 //!
-//! Read more: <https://salvo.rs>
+//! # Example
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::basic_auth::{BasicAuth, BasicAuthValidator};
+//!
+//! struct Validator;
+//! impl BasicAuthValidator for Validator {
+//!     async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
+//!         username == "root" && password == "pwd"
+//!     }
+//! }
+//! 
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "Hello"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let auth_handler = BasicAuth::new(Validator);
+//!     let router = Router::with_hoop(auth_handler).goal(hello);
+//!
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
+//! }
+//! ```
 use std::future::Future;
 
 use base64::engine::{general_purpose, Engine};

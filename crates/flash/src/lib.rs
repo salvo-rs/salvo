@@ -1,4 +1,4 @@
-//! The flash message lib for Savlo web server framework.
+//! The flash message lib for Savlo web framework.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

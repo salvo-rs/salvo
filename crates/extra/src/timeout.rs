@@ -7,7 +7,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```no_run
 //! use std::time::Duration;
 //!
 //! use salvo_core::prelude::*;
@@ -29,6 +29,9 @@
 //!         .hoop(Timeout::new(Duration::from_secs(5)))
 //!         .push(Router::with_path("slow").get(slow))
 //!         .push(Router::with_path("fast").get(fast));
+//!
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
 

@@ -2,9 +2,80 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
 
-//! WebSocket implementation for Salvo web framework.
+//! WebSocket implementation.
 //!
-//! Read more: <https://salvo.rs>
+//! # Example
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::websocket::WebSocketUpgrade;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Clone, Debug, Deserialize, Serialize)]
+//! struct User {
+//!     id: usize,
+//!     name: String,
+//! }
+//! #[handler]
+//! async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
+//!     let user = req.parse_queries::<User>();
+//!     WebSocketUpgrade::new()
+//!         .upgrade(req, res, |mut ws| async move {
+//!             println!("{user:#?} ");
+//!             while let Some(msg) = ws.recv().await {
+//!                 let msg = if let Ok(msg) = msg {
+//!                     msg
+//!                 } else {
+//!                     // client disconnected
+//!                     return;
+//!                 };
+//! 
+//!                 if ws.send(msg).await.is_err() {
+//!                     // client disconnected
+//!                     return;
+//!                 }
+//!             }
+//!         })
+//!         .await
+//! }
+//!
+//! #[handler]
+//! async fn index(res: &mut Response) {
+//!     res.render(Text::Html(INDEX_HTML));
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::new().get(index).push(Router::with_path("ws").goal(connect));
+//! 
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
+//! }
+//! 
+//! static INDEX_HTML: &str = r#"<!DOCTYPE html>
+//! <html>
+//!     <head>
+//!         <title>WS</title>
+//!     </head>
+//!     <body>
+//!         <h1>WS</h1>
+//!         <div id="status">
+//!             <p><em>Connecting...</em></p>
+//!         </div>
+//!         <script>
+//!             const status = document.getElementById('status');
+//!             const msg = document.getElementById('msg');
+//!             const submit = document.getElementById('submit');
+//!             const ws = new WebSocket(`ws://${location.host}/ws?id=123&name=chris`);
+//!
+//!             ws.onopen = function() {
+//!                 status.innerHTML = '<p><em>Connected!</em></p>';
+//!             };
+//!         </script>
+//!     </body>
+//! </html>
+//! "#;
+//!```
 
 use std::borrow::Cow;
 use std::fmt::{self, Formatter};

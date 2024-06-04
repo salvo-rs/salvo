@@ -1,4 +1,4 @@
-//! Test utils for unit tests.
+//! Utilities for testing application.
 
 mod client;
 mod request;

@@ -1,6 +1,26 @@
-//! Simple logging middleware.
+//! A simple logging middleware.
 //!
-//! Read more: <https://salvo.rs>
+//! # Example
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_extra::logging::Logger;
+//! 
+//! 
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "Hello World"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::new().get(hello);
+//!     let service = Service::new(router).hoop(Logger::new());
+//! 
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(service).await;
+//! }
+//! ```
 use std::time::Instant;
 
 use tracing::{Instrument, Level};

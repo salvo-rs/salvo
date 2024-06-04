@@ -1,6 +1,39 @@
-//!Salvo is a powerful web framework that can make your work easier.
+//! Salvo is a powerful web framework that can make your work easier.
 //!
-//! Read more: <https://salvo.rs>
+//! `salvo` uses a set of [feature flags] to reduce the amount of compiled and
+//! optional dependencies.
+//!
+//! # Feature flags
+//!
+//! | Feature | Description | Default? |
+//! | --- | --- | --- |
+//! | `cookie` | Support for Cookie | ✔️ |
+//! | `server`` | Built-in Server implementation | ✔️ |
+//! | `http1` | Support for HTTP 1.1 protocol | ✔️ |
+//! | `http2` | Support for HTTP 2 protocol | ✔️ |
+//! | `quinn` | Use quinn to support HTTP 3 protocol | ❌ |
+//! | `test` | Utilities for testing application | ✔️ |
+//! | `acme` | Automatically obtain certificates through ACME | ❌ |
+//! | `rustls` | TLS built on [`rustls`](https://crates.io/crates/rustls) | ❌ |
+//! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
+//! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
+//! | `unix` | Listener based on unix socket | ❌ |
+//! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
+//! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
+//! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
+//! | `affix` | Middleware for adding prefix and suffix to the request path | ❌ |
+//! | `basic-auth` | Middleware for basic authentication | ❌ |
+//! | `caching-headers` | Middleware for setting caching headers | ❌ |
+//! | `catch-panic` | Middleware for catching panics | ❌ |
+//! | `concurrency-limiter` | Middleware for limiting concurrency | ❌ |
+//! | `force-https` | Middleware for forcing HTTPS | ❌ |
+//! | `logging` | Middleware for logging requests and responses | ❌ |
+//! | `request-id` | Middleware for setting a request ID | ❌ |
+//! | `size-limiter` | Middleware for limiting request size | ❌ |
+//! | `sse` | Server-Sent Events (SSE) middleware | ❌ |
+//! | `timeout` | Middleware for setting a timeout | ❌ |
+//! | `trailing-slash` | Middleware for handling trailing slashes | ❌ |
+//! | `websocket` | WebSocket implementation | ❌ |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
