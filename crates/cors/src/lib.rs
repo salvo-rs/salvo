@@ -1,4 +1,4 @@
-//! Cross-Origin Resource Sharing (CORS) support for Savlo web server framework.
+//! Library adds CORS protection for Salvo web framework.
 //!
 //! [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 //!
@@ -166,13 +166,12 @@ impl Cors {
     ///
     /// # Example
     ///
-    ///
     /// ```
     /// use std::time::Duration;
     /// use salvo_core::prelude::*;
     /// use salvo_cors::Cors;
     ///
-    /// let cors = Cors::new().max_age(30); // 30u32 seconds
+    /// let cors = Cors::new().max_age(30); // 30 seconds
     /// let cors = Cors::new().max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]

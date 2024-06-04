@@ -4,6 +4,18 @@ use std::sync::Mutex;
 use salvo::affix;
 use salvo::prelude::*;
 
+#[allow(dead_code)]
+#[derive(Default, Clone, Debug)]
+struct Config {
+    username: String,
+    password: String,
+}
+
+#[derive(Default, Debug)]
+struct State {
+    fails: Mutex<Vec<String>>,
+}
+
 #[handler]
 async fn hello(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
@@ -17,29 +29,11 @@ async fn hello(depot: &mut Depot) -> String {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    Server::new(acceptor).serve(route()).await;
-}
-
-#[allow(dead_code)]
-#[derive(Default, Clone, Debug)]
-struct Config {
-    username: String,
-    password: String,
-}
-
-#[derive(Default, Debug)]
-struct State {
-    fails: Mutex<Vec<String>>,
-}
-
-fn route() -> Router {
     let config = Config {
         username: "root".to_string(),
         password: "pwd".to_string(),
     };
-    Router::new()
+    let router = Router::new()
         .hoop(
             affix::inject(config)
                 .inject(Arc::new(State {
@@ -48,5 +42,8 @@ fn route() -> Router {
                 .insert("custom_data", "I love this world!"),
         )
         .get(hello)
-        .push(Router::with_path("hello").get(hello))
+        .push(Router::with_path("hello").get(hello));
+
+    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

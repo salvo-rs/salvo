@@ -1,0 +1,12 @@
+[package]
+name = "example-trailing-slash"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+salvo = { workspace = true, features = ["trailing-slash"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

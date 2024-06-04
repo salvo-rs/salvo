@@ -2,7 +2,7 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/sse.rs
 //! Middleware for Server-Sent Events (SSE)
-//! 
+//!
 //! # Example
 //!
 //! ```no_run
@@ -45,9 +45,7 @@
 //! The events with multiple fields can be created by combining fields using tuples.
 //!
 //! See also the [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) API,
-//! which specifies the expected behavior of Server Sent Events..
-//!
-//! Read more: <https://salvo.rs>
+//! which specifies the expected behavior of Server Sent Events.
 
 use serde::Serialize;
 use std::borrow::Cow;

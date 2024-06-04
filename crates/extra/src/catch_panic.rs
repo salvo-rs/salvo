@@ -2,11 +2,13 @@
 //!
 //! This middleware catches panics and write `500 Internal Server Error` into response.
 //! This middleware should be used as the first middleware.
-//! 
+//!
 //! # Example
-//! ```
+//!
+//! ```no_run
 //! use salvo_core::prelude::*;
-//! 
+//! use salvo_extra::catch_panic::CatchPanic;
+//!
 //! #[handler]
 //! async fn hello() {
 //!     panic!("panic error!");
@@ -14,7 +16,9 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     Router::new().hoop(CatchPanic::new()).get(hello);
+//!     let router = Router::new().hoop(CatchPanic::new()).get(hello);
+//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
 

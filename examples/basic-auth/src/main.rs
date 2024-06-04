@@ -1,27 +1,28 @@
 use salvo::basic_auth::{BasicAuth, BasicAuthValidator};
 use salvo::prelude::*;
 
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt().init();
-
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    Server::new(acceptor).serve(route()).await;
-}
-fn route() -> Router {
-    let auth_handler = BasicAuth::new(Validator);
-    Router::with_hoop(auth_handler).goal(hello)
+struct Validator;
+impl BasicAuthValidator for Validator {
+    async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
+        username == "root" && password == "pwd"
+    }
 }
 #[handler]
 async fn hello() -> &'static str {
     "Hello"
 }
 
-struct Validator;
-impl BasicAuthValidator for Validator {
-    async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
-        username == "root" && password == "pwd"
-    }
+fn route() -> Router {
+    let auth_handler = BasicAuth::new(Validator);
+    Router::with_hoop(auth_handler).goal(hello)
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt().init();
+
+    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    Server::new(acceptor).serve(route()).await;
 }
 
 #[cfg(test)]

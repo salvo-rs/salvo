@@ -3,7 +3,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-/// Re-export `async_trait`.
+// Re-export `async_trait`.
 pub use async_trait::async_trait;
 pub use hyper;
 pub use salvo_macros::handler;
