@@ -228,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_schema() {
+    fn test_to_schema_struct() {
         let input = quote! {
             #[derive(ToSchema)]
             struct User{
@@ -259,6 +259,87 @@ mod tests {
                                         .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
                                 )
                                 .required("age");
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_schema_generics() {
+        let input = quote! {
+            #[derive(Serialize, Deserialize, ToSchema, Debug)]
+            #[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
+            struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
+                value: T,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string().replace("< ", "<").replace("> ", ">"),
+            quote! {
+                impl<T: ToSchema + std::fmt::Debug + 'static> salvo::oapi::ToSchema for MyObject<T>
+                where
+                    T: salvo::oapi::ToSchema + 'static
+                {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let mut name = None;
+                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<i32>>() {
+                            name = Some(salvo::oapi::naming::assign_name::<MyObject<i32>>(
+                                salvo::oapi::naming::NameRule::Force("MyI32")
+                            ));
+                        }
+                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<String>>() {
+                            name = Some(salvo::oapi::naming::assign_name::<MyObject<String>>(
+                                salvo::oapi::naming::NameRule::Force("MyStr")
+                            ));
+                        }
+                        let name = name
+                            .unwrap_or_else(|| salvo::oapi::naming::assign_name::<MyObject<T>>(salvo::oapi::naming::NameRule::Auto));
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .property(
+                                    "value",
+                                    salvo::oapi::RefOr::from(<T as salvo::oapi::ToSchema>::to_schema(components))
+                                )
+                                .required("value");
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string().replace("< ", "<").replace("> ", ">")
+        );
+    }
+
+    #[test]
+    fn test_to_schema_enum() {
+        let input = quote! {
+            #[derive(Serialize, Deserialize, ToSchema, Debug)]
+            #[salvo(schema(rename_all = "camelCase"))]
+            enum People {
+                Man,
+                Woman,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToSchema for People {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let name = salvo::oapi::naming::assign_name::<People>(salvo::oapi::naming::NameRule::Auto);
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .schema_type(salvo::oapi::SchemaType::String)
+                                .enum_values::<[&str; 2usize], &str>(["man", "woman",]);
                             components.schemas.insert(name, schema);
                         }
                         ref_or
