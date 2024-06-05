@@ -37,8 +37,8 @@ struct Pet {
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
   __serde__ will take precedence.
-* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
+* `name = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`name = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 * `default` Can be used to populate default values on all fields using the struct's
   [`Default`](std::default::Default) implementation.
@@ -57,8 +57,8 @@ struct Pet {
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
   are defined __serde__ will take precedence.
-* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
+* `name = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`name = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
@@ -90,8 +90,8 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
+* `name = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`name = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
@@ -257,8 +257,8 @@ their numeric value.
 
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
-* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
+* `name = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`name = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
 _**Create enum with numeric values.**_

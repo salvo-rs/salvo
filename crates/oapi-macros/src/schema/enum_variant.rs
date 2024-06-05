@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_quote, TypePath};
+use syn::parse_quote;
 
 use crate::feature::Feature;
 use crate::schema_type::SchemaType;
@@ -38,27 +38,30 @@ where
     }
 }
 
-pub(crate) struct ReprVariant<'r, T: ToTokens> {
-    pub(crate) value: T,
-    pub(crate) type_path: &'r TypePath,
-}
-
-impl<'r, T> Variant for ReprVariant<'r, T>
-where
-    T: ToTokens,
-{
-    fn to_tokens(&self) -> TokenStream {
-        self.value.to_token_stream()
+cfg_feature! {
+    #![feature ="repr"]
+    pub(crate) struct ReprVariant<'r, T: ToTokens> {
+        pub(crate) value: T,
+        pub(crate) type_path: &'r syn::TypePath,
     }
 
-    fn get_type(&self) -> (TokenStream, TokenStream) {
-        (
-            match SchemaType(&self.type_path.path).try_to_token_stream() {
-                Ok(stream) => stream,
-                Err(diag) => diag.emit_as_item_tokens(),
-            },
-            self.type_path.to_token_stream(),
-        )
+    impl<'r, T> Variant for ReprVariant<'r, T>
+    where
+        T: ToTokens,
+    {
+        fn to_tokens(&self) -> TokenStream {
+            self.value.to_token_stream()
+        }
+
+        fn get_type(&self) -> (TokenStream, TokenStream) {
+            (
+                match SchemaType(&self.type_path.path).try_to_token_stream() {
+                    Ok(stream) => stream,
+                    Err(diag) => diag.emit_as_item_tokens(),
+                },
+                self.type_path.to_token_stream(),
+            )
+        }
     }
 }
 

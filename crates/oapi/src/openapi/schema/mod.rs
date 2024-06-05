@@ -379,25 +379,26 @@ pub enum KnownFormat {
     ///
     /// **decimal** feature need to be enabled.
     #[cfg(any(feature = "decimal", feature = "decimal-float"))]
-    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "decimal", feature = "decimal-float"))))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "decimal", feature = "decimal-float"))))]
     Decimal,
     /// Used with [`String`] values to indicate value is in Url format.
     ///
     /// **url** feature need to be enabled.
     #[cfg(feature = "url")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "url")))]
     Url,
     /// Used with [`String`] values to indicate value is in ULID format.
     ///
     /// **ulid** feature need to be enabled.
     #[cfg(feature = "ulid")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "ulid")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ulid")))]
     Ulid,
+
     /// Used with [`String`] values to indicate value is in UUID format.
     ///
     /// **uuid** feature need to be enabled.
     #[cfg(feature = "uuid")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "uuid")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
     Uuid,
 }
 

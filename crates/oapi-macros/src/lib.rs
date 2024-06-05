@@ -14,6 +14,8 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Bracket;
 use syn::{bracketed, parse_macro_input, Ident, Item, Token};
 
+#[macro_use]
+mod cfg;
 mod attribute;
 pub(crate) mod bound;
 mod component;
@@ -230,10 +232,17 @@ mod tests {
     #[test]
     fn test_to_schema_struct() {
         let input = quote! {
+            /// This is user.
+            ///
+            /// This is user description.
             #[derive(ToSchema)]
             struct User{
+                #[salvo(schema(example = "chris", min_length = 1, max_length = 100, required))]
                 name: String,
+                #[salvo(schema(example = 16, default = 0, maximum=100, minimum=0,format = "int32"))]
                 age: i32,
+                #[deprecated = "There is deprecated"]
+                high: u32,
             }
         };
         assert_eq!(
@@ -249,7 +258,11 @@ mod tests {
                             let schema = salvo::oapi::Object::new()
                                 .property(
                                     "name",
-                                    salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                    salvo::oapi::Object::new()
+                                        .schema_type(salvo::oapi::SchemaType::String)
+                                        .example(salvo::oapi::__private::serde_json::json!("chris"))
+                                        .min_length(1usize)
+                                        .max_length(100usize)
                                 )
                                 .required("name")
                                 .property(
@@ -257,8 +270,23 @@ mod tests {
                                     salvo::oapi::Object::new()
                                         .schema_type(salvo::oapi::SchemaType::Integer)
                                         .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
+                                        .example(salvo::oapi::__private::serde_json::json!(16))
+                                        .default_value(salvo::oapi::__private::serde_json::json!(0))
+                                        .maximum(100f64)
+                                        .minimum(0f64)
+                                        .format(salvo::oapi::SchemaFormat::Custom(String::from("int32")))
                                 )
-                                .required("age");
+                                .required("age")
+                                .property(
+                                    "high",
+                                    salvo::oapi::Object::new()
+                                        .schema_type(salvo::oapi::SchemaType::Integer)
+                                        .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
+                                        .deprecated(salvo::oapi::Deprecated::True)
+                                        .minimum(0f64)
+                                )
+                                .required("high")
+                                .description("This is user.\n\nThis is user description.");
                             components.schemas.insert(name, schema);
                         }
                         ref_or
