@@ -7,15 +7,15 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Operation, Operations, Parameter, Parameters, Server, Servers};
+use super::{Operation, Operations, Parameter, Parameters, PathMap, Server, Servers};
 
 /// Implements [OpenAPI Path Object][paths] types.
 ///
 /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
-pub struct Paths(BTreeMap<String, PathItem>);
+pub struct Paths(PathMap<String, PathItem>);
 impl Deref for Paths {
-    type Target = BTreeMap<String, PathItem>;
+    type Target = PathMap<String, PathItem>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

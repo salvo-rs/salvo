@@ -520,7 +520,7 @@ mod tests {
             .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
             .property("tags", Object::with_type(SchemaType::String).to_array());
 
-        #[cfg(not(feature = "preserve_order"))]
+        #[cfg(not(feature = "preserve-order"))]
         assert_eq!(
             json_value.properties.keys().collect::<Vec<_>>(),
             vec!["history", "id", "name", "status", "tags"]

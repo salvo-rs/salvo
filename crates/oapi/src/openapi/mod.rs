@@ -47,6 +47,19 @@ pub use self::{
 
 static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
+
+/// The structure of the internal storage object paths.
+#[cfg(not(feature = "preserve-path-order"))]
+pub type PathMap<K, V> = std::collections::BTreeMap<K, V>;
+#[cfg(feature = "preserve-path-order")]
+pub type PathMap<K, V> = indexmap::IndexMap<K, V>;
+
+/// The structure of the internal storage object properties.
+#[cfg(not(feature = "preserve-prop-order"))]
+pub type PropMap<K, V> = std::collections::BTreeMap<K, V>;
+#[cfg(feature = "preserve-prop-order")]
+pub type PropMap<K, V> = indexmap::IndexMap<K, V>;
+
 /// Root object of the OpenAPI document.
 ///
 /// You can use [`OpenApi::new`] function to construct a new [`OpenApi`] instance and then
