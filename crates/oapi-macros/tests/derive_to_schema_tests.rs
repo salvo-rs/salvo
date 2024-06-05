@@ -177,8 +177,6 @@ fn test_derive_to_schema_generics() {
     );
 }
 
-
-
 #[test]
 fn test_derive_to_schema_enum() {
     #[derive(Serialize, Deserialize, ToSchema, Debug)]
@@ -199,8 +197,7 @@ fn test_derive_to_schema_enum() {
             .generic_delimiter('_', '_'),
     );
 
-    let router = Router::new()
-        .push(Router::with_path("hello").post(hello));
+    let router = Router::new().push(Router::with_path("hello").post(hello));
 
     let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
     println!("{}", doc.to_json().unwrap());
