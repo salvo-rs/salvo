@@ -381,17 +381,17 @@ impl Validator for IsString<'_> {
     }
 }
 
-pub(crate) struct IsInteger<'a>(&'a SchemaType<'a>);
+// pub(crate) struct IsInteger<'a>(&'a SchemaType<'a>);
 
-impl Validator for IsInteger<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0.is_integer() {
-            Ok(())
-        } else {
-            Err("can only be used with `integer` type")
-        }
-    }
-}
+// impl Validator for IsInteger<'_> {
+//     fn is_valid(&self) -> Result<(), &'static str> {
+//         if self.0.is_integer() {
+//             Ok(())
+//         } else {
+//             Err("can only be used with `integer` type")
+//         }
+//     }
+// }
 
 pub(crate) struct IsVec<'a>(&'a TypeTree<'a>);
 

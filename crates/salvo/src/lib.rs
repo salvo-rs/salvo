@@ -107,7 +107,7 @@ cfg_feature! {
     pub use salvo_extra::websocket;
 }
 cfg_feature! {
-    #![feature ="request_id"]
+    #![feature ="request-id"]
     // #[doc(no_inline)]
     pub use salvo_extra::request_id;
 }

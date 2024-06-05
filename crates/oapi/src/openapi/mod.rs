@@ -153,11 +153,12 @@ impl OpenApi {
         serde_json::to_string_pretty(self)
     }
 
-    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method.
-    #[cfg(feature = "yaml")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "yaml")))]
-    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(self)
+    cfg_feature! {
+        #![feature ="yaml"]
+        /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method.
+        pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
+            serde_yaml::to_string(self)
+        }
     }
 
     /// Merge `other` [`OpenApi`] consuming it and resuming it's content.

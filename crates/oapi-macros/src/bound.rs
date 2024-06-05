@@ -103,10 +103,8 @@ pub(crate) fn with_bound(
         }
 
         // Everything below is simply traversing the syntax tree.
-
         fn visit_type(&mut self, ty: &'ast syn::Type) {
             match ty {
-                #![cfg_attr(all(test, exhaustive), deny(non_exhaustive_omitted_patterns))]
                 syn::Type::Array(ty) => self.visit_type(&ty.elem),
                 syn::Type::BareFn(ty) => {
                     for arg in &ty.inputs {
@@ -158,7 +156,6 @@ pub(crate) fn with_bound(
                 syn::PathArguments::AngleBracketed(arguments) => {
                     for arg in &arguments.args {
                         match arg {
-                            #![cfg_attr(all(test, exhaustive), deny(non_exhaustive_omitted_patterns))]
                             syn::GenericArgument::Type(arg) => self.visit_type(arg),
                             syn::GenericArgument::AssocType(arg) => self.visit_type(&arg.ty),
                             syn::GenericArgument::Lifetime(_)
@@ -187,7 +184,6 @@ pub(crate) fn with_bound(
 
         fn visit_type_param_bound(&mut self, bound: &'ast syn::TypeParamBound) {
             match bound {
-                #![cfg_attr(all(test, exhaustive), deny(non_exhaustive_omitted_patterns))]
                 syn::TypeParamBound::Trait(bound) => self.visit_path(&bound.path),
                 syn::TypeParamBound::Lifetime(_) | syn::TypeParamBound::Verbatim(_) => {}
                 _ => {}

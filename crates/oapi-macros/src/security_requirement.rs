@@ -16,7 +16,6 @@ pub(crate) struct SecurityRequirementsAttrItem {
 }
 
 #[derive(Default, Debug)]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct SecurityRequirementsAttr(Punctuated<SecurityRequirementsAttrItem, Comma>);
 
 impl Parse for SecurityRequirementsAttr {
