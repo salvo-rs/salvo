@@ -2,24 +2,48 @@ use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
-use syn::{
-    parenthesized,
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned,
-    Attribute, Error, ExprPath, LitInt, LitStr, Token,
-};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::{parenthesized, Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token};
 
+use crate::component::ComponentSchema;
+use crate::feature::Inline;
+use crate::operation::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
+use crate::type_tree::TypeTree;
 use crate::{attribute, parse_utils, AnyValue, Array, DiagResult, Diagnostic, TryToTokens};
-use crate::{
-    component::ComponentSchema,
-    feature::Inline,
-    operation::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree},
-    type_tree::TypeTree,
-};
 
-pub(crate) mod derive;
+mod derive;
+use derive::{ToResponse, ToResponses};
 mod parse;
+
+pub(crate) fn to_response(input: DeriveInput) -> DiagResult<TokenStream> {
+    let DeriveInput {
+        attrs,
+        ident,
+        data,
+        generics,
+        ..
+    } = input;
+    ToResponse::new(&attrs, &data, &ident, &generics).and_then(|s| s.try_to_token_stream())
+}
+
+pub(crate) fn to_responses(input: DeriveInput) -> DiagResult<TokenStream> {
+    let DeriveInput {
+        attrs,
+        ident,
+        data,
+        generics,
+        ..
+    } = input;
+    ToResponses {
+        attributes: &attrs,
+        ident: &ident,
+        generics: &generics,
+        data: &data,
+    }
+    .try_to_token_stream()
+}
 
 #[derive(Debug)]
 pub(crate) enum Response<'r> {

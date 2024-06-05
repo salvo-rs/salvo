@@ -11,7 +11,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_quote,DeriveInput, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Visibility};
+use syn::{parse_quote, Attribute, Data, DeriveInput, Fields, FieldsNamed, FieldsUnnamed, Generics, Visibility};
 
 pub(crate) use self::{
     enum_schemas::*,
@@ -29,15 +29,16 @@ use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
 use crate::{bound, DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
 
-pub(crate) fn to_schema(DeriveInput {
-    attrs,
-    ident,
-    data,
-    generics,
-    vis,
-    ..
-}: DeriveInput) -> DiagResult<TokenStream> {
-    ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream())
+pub(crate) fn to_schema(input: DeriveInput) -> DiagResult<TokenStream> {
+    let DeriveInput {
+        attrs,
+        ident,
+        data,
+        generics,
+        vis,
+        ..
+    } = input;
+    ToSchema::new(&attrs, &data, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream())
 }
 
 pub(crate) struct ToSchema<'a> {
@@ -51,8 +52,8 @@ pub(crate) struct ToSchema<'a> {
 
 impl<'a> ToSchema<'a> {
     pub(crate) fn new(
-        data: &'a Data,
         attributes: &'a [Attribute],
+        data: &'a Data,
         ident: &'a Ident,
         generics: &'a Generics,
         _vis: &'a Visibility,

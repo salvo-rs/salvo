@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Chrislearn Young <chislearn@hotmail.com>"]
+authors = ["Chrislearn Young <chris@acroidea.com>"]
 
 [dependencies]
 proc-macro2 = { workspace = true }

@@ -18,29 +18,29 @@ use super::{
     ResponseTuple, ResponseValue,
 };
 
-pub(crate) struct ToResponse<'r> {
-    ident: Ident,
-    generics: Generics,
-    response: ResponseTuple<'r>,
+pub(crate) struct ToResponse<'a> {
+    ident: &'a Ident,
+    generics: &'a Generics,
+    response: ResponseTuple<'a>,
 }
 
-impl<'r> ToResponse<'r> {
+impl<'a> ToResponse<'a> {
     pub(crate) fn new(
-        attributes: Vec<Attribute>,
-        data: &'r Data,
-        generics: Generics,
-        ident: Ident,
-    ) -> DiagResult<ToResponse<'r>> {
+        attributes: &'a [Attribute],
+        data: &'a Data,
+        ident: &'a Ident,
+        generics: &'a Generics,
+    ) -> DiagResult<ToResponse<'a>> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named)?.0,
+                Fields::Named(fields) => ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0,
                 Fields::Unnamed(fields) => {
                     let field = fields.unnamed.iter().next().expect("unnamed struct must have 1 field");
-                    ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs)?.0
+                    ToResponseUnnamedStructResponse::new(attributes, &field.ty, &field.attrs)?.0
                 }
-                Fields::Unit => ToResponseUnitStructResponse::new(&attributes)?.0,
+                Fields::Unit => ToResponseUnitStructResponse::new(attributes)?.0,
             },
-            Data::Enum(enum_value) => EnumResponse::new(&ident, &enum_value.variants, &attributes)?.0,
+            Data::Enum(enum_value) => EnumResponse::new(ident, &enum_value.variants, attributes)?.0,
             Data::Union(_) => {
                 return Err(Diagnostic::spanned(
                     ident.span(),
@@ -87,20 +87,20 @@ impl TryToTokens for ToResponse<'_> {
     }
 }
 
-pub(crate) struct ToResponses {
-    pub(crate) attributes: Vec<Attribute>,
-    pub(crate) data: Data,
-    pub(crate) generics: Generics,
-    pub(crate) ident: Ident,
+pub(crate) struct ToResponses<'a> {
+    pub(crate) attributes: &'a [Attribute],
+    pub(crate) data: &'a Data,
+    pub(crate) generics: &'a Generics,
+    pub(crate) ident: &'a Ident,
 }
 
-impl TryToTokens for ToResponses {
+impl TryToTokens for ToResponses<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
-                    let response = NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0;
+                    let response = NamedStructResponse::new(self.attributes, self.ident, &fields.named)?.0;
                     let status_code = &response.status_code;
                     let response = response.try_to_token_stream()?;
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
@@ -108,13 +108,13 @@ impl TryToTokens for ToResponses {
                 Fields::Unnamed(fields) => {
                     let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
 
-                    let response = UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0;
+                    let response = UnnamedStructResponse::new(self.attributes, &field.ty, &field.attrs)?.0;
                     let status_code = &response.status_code;
                     let response = response.try_to_token_stream()?;
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unit => {
-                    let response = UnitStructResponse::new(&self.attributes)?.0;
+                    let response = UnitStructResponse::new(self.attributes)?.0;
                     let status_code = &response.status_code;
                     let response = response.try_to_token_stream()?;
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
