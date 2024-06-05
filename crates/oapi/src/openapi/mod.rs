@@ -47,7 +47,6 @@ pub use self::{
 
 static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
-
 /// The structure of the internal storage object paths.
 #[cfg(not(feature = "preserve-path-order"))]
 pub type PathMap<K, V> = std::collections::BTreeMap<K, V>;
