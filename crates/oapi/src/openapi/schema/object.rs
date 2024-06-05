@@ -1,16 +1,9 @@
-use std::collections::BTreeMap;
-
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::AdditionalProperties;
-use crate::{Deprecated, RefOr, Schema, SchemaFormat, SchemaType, ToArray, Xml};
-
-#[cfg(not(feature = "preserve_order"))]
-type ObjectPropertiesMap<K, V> = BTreeMap<K, V>;
-#[cfg(feature = "preserve_order")]
-type ObjectPropertiesMap<K, V> = indexmap::IndexMap<K, V>;
+use crate::{Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, ToArray, Xml};
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
@@ -56,16 +49,13 @@ pub struct Object {
 
     /// Map of fields with their [`Schema`] types.
     ///
-    /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
+    /// With **preserve-order** feature flag [`indexmap::IndexMap`] will be used as
     /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
     /// By default [`BTreeMap`] will be used.
     ///
     /// [to_schema]: crate::ToSchema
-    #[serde(
-        skip_serializing_if = "ObjectPropertiesMap::is_empty",
-        default = "ObjectPropertiesMap::new"
-    )]
-    pub properties: ObjectPropertiesMap<String, RefOr<Schema>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", default = "PropMap::new")]
+    pub properties: PropMap<String, RefOr<Schema>>,
 
     /// Additional [`Schema`] for non specified fields (Useful for typed maps).
     #[serde(skip_serializing_if = "Option::is_none")]
