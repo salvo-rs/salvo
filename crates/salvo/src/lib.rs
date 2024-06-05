@@ -8,7 +8,7 @@
 //! | Feature | Description | Default? |
 //! | --- | --- | :---: |
 //! | `cookie` | Support for Cookie | ✔️ |
-//! | `server`` | Built-in Server implementation | ✔️ |
+//! | `server` | Built-in Server implementation | ✔️ |
 //! | `http1` | Support for HTTP 1.1 protocol | ✔️ |
 //! | `http2` | Support for HTTP 2 protocol | ✔️ |
 //! | `quinn` | Use [quinn](https://crates.io/crates/quinn) to support HTTP 3 protocol | ❌ |
