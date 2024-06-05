@@ -43,7 +43,7 @@ impl io::Write for Writer {
     }
 }
 
-/// More utils functions for response.
+/// More utils functions for [`Response`].
 pub trait ResponseExt {
     /// Take body as `String` from response.
     fn take_string(&mut self) -> impl Future<Output = crate::Result<String>> + Send;

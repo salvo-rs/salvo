@@ -1,5 +1,3 @@
-//! Http body.
-
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::future::Future;
@@ -18,7 +16,7 @@ use crate::error::BoxedError;
 use crate::http::body::{BodyReceiver, BodySender, BytesFrame};
 use crate::prelude::StatusError;
 
-/// Response body type.
+/// Body for HTTP response.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
 #[derive(Default)]

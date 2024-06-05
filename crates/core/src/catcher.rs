@@ -3,7 +3,8 @@
 //! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then salvo
 //! will try to use `Catcher` to catch the error and display a friendly error page.
 //!
-//! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to [`Service`](crate::Service):
+//! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to
+//! [`Service`](crate::Service):
 //!
 //! # Example
 //!
@@ -30,8 +31,8 @@
 //! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`.
 //! The error handler is still [`Handler`].
 //!
-//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error handler can call
-//! the [`FlowCtrl::skip_rest`] method after handling the error to skip next error handlers and return early.
+//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error
+//! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
 use std::sync::Arc;

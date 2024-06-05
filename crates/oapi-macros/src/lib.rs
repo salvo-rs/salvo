@@ -12,7 +12,7 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::token::Bracket;
-use syn::{bracketed, parse_macro_input, DeriveInput, Ident, Item, Token};
+use syn::{bracketed, parse_macro_input, Ident, Item, Token};
 
 mod attribute;
 pub(crate) mod bound;
@@ -35,11 +35,8 @@ pub(crate) use self::{
     endpoint::EndpointAttr,
     feature::Feature,
     operation::Operation,
-    parameter::derive::ToParameters,
     parameter::Parameter,
-    response::derive::{ToResponse, ToResponses},
     response::Response,
-    schema::ToSchema,
     shared::*,
     type_tree::TypeTree,
 };
@@ -65,18 +62,9 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// [more]: ../salvo_oapi/derive.ToSchema.html
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        ident,
-        data,
-        generics,
-        vis,
-        ..
-    } = syn::parse_macro_input!(input);
-
-    match ToSchema::new(&data, &attrs, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream()) {
+    match schema::to_schema(syn::parse_macro_input!(input)) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_item_tokens().into(),
+        Err(e) => e.emit_as_item_tokens().into(),
     }
 }
 
@@ -85,24 +73,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [more]: ../salvo_oapi/derive.ToParameters.html
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        ident,
-        generics,
-        data,
-        ..
-    } = syn::parse_macro_input!(input);
-
-    let stream = ToParameters {
-        attrs,
-        generics,
-        data,
-        ident,
-    }
-    .try_to_token_stream();
-    match stream {
+    match parameter::to_parameters(syn::parse_macro_input!(input)) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_item_tokens().into(),
+        Err(e) => e.emit_as_item_tokens().into(),
     }
 }
 
@@ -112,18 +85,9 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
 /// [more]: ../salvo_oapi/derive.ToResponse.html
 #[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        ident,
-        generics,
-        data,
-        ..
-    } = syn::parse_macro_input!(input);
-
-    let stream = ToResponse::new(attrs, &data, generics, ident).and_then(|s| s.try_to_token_stream());
-    match stream {
+    match response::to_response(syn::parse_macro_input!(input)) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_item_tokens().into(),
+        Err(e) => e.emit_as_item_tokens().into(),
     }
 }
 
@@ -133,25 +97,9 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
 /// [more]: ../salvo_oapi/derive.ToResponses.html
 #[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        ident,
-        generics,
-        data,
-        ..
-    } = syn::parse_macro_input!(input);
-
-    let stream = ToResponses {
-        attributes: attrs,
-        ident,
-        generics,
-        data,
-    }
-    .try_to_token_stream();
-
-    match stream {
+    match response::to_responses(syn::parse_macro_input!(input)) {
         Ok(stream) => stream.into(),
-        Err(diag) => diag.emit_as_item_tokens().into(),
+        Err(e) => e.emit_as_item_tokens().into(),
     }
 }
 
@@ -212,7 +160,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_handler_for_fn() {
+    fn test_endpoint_for_fn() {
         let input = quote! {
             #[endpoint]
             async fn hello() {
@@ -273,6 +221,367 @@ mod tests {
                 }
                 salvo::oapi::__private::inventory::submit! {
                     salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
+                }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_schema_struct() {
+        let input = quote! {
+            #[derive(ToSchema)]
+            struct User{
+                name: String,
+                age: i32,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToSchema for User {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let name = salvo::oapi::naming::assign_name::<User>(salvo::oapi::naming::NameRule::Auto);
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .property(
+                                    "name",
+                                    salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                )
+                                .required("name")
+                                .property(
+                                    "age",
+                                    salvo::oapi::Object::new()
+                                        .schema_type(salvo::oapi::SchemaType::Integer)
+                                        .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
+                                )
+                                .required("age");
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_schema_generics() {
+        let input = quote! {
+            #[derive(Serialize, Deserialize, ToSchema, Debug)]
+            #[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
+            struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
+                value: T,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string().replace("< ", "<").replace("> ", ">"),
+            quote! {
+                impl<T: ToSchema + std::fmt::Debug + 'static> salvo::oapi::ToSchema for MyObject<T>
+                where
+                    T: salvo::oapi::ToSchema + 'static
+                {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let mut name = None;
+                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<i32>>() {
+                            name = Some(salvo::oapi::naming::assign_name::<MyObject<i32>>(
+                                salvo::oapi::naming::NameRule::Force("MyI32")
+                            ));
+                        }
+                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<String>>() {
+                            name = Some(salvo::oapi::naming::assign_name::<MyObject<String>>(
+                                salvo::oapi::naming::NameRule::Force("MyStr")
+                            ));
+                        }
+                        let name = name
+                            .unwrap_or_else(|| salvo::oapi::naming::assign_name::<MyObject<T>>(salvo::oapi::naming::NameRule::Auto));
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .property(
+                                    "value",
+                                    salvo::oapi::RefOr::from(<T as salvo::oapi::ToSchema>::to_schema(components))
+                                )
+                                .required("value");
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string().replace("< ", "<").replace("> ", ">")
+        );
+    }
+
+    #[test]
+    fn test_to_schema_enum() {
+        let input = quote! {
+            #[derive(Serialize, Deserialize, ToSchema, Debug)]
+            #[salvo(schema(rename_all = "camelCase"))]
+            enum People {
+                Man,
+                Woman,
+            }
+        };
+        assert_eq!(
+            schema::to_schema(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToSchema for People {
+                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
+                        let name = salvo::oapi::naming::assign_name::<People>(salvo::oapi::naming::NameRule::Auto);
+                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
+                        if !components.schemas.contains_key(&name) {
+                            components.schemas.insert(name.clone(), ref_or.clone());
+                            let schema = salvo::oapi::Object::new()
+                                .schema_type(salvo::oapi::SchemaType::String)
+                                .enum_values::<[&str; 2usize], &str>(["man", "woman",]);
+                            components.schemas.insert(name, schema);
+                        }
+                        ref_or
+                    }
+                }
+            } .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_response() {
+        let input = quote! {
+            #[derive(ToResponse)]
+            #[salvo(response(description = "Person response returns single Person entity"))]
+            struct User{
+                name: String,
+                age: i32,
+            }
+        };
+        assert_eq!(
+            response::to_response(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToResponse for User {
+                    fn to_response(
+                        components: &mut salvo::oapi::Components
+                    ) -> salvo::oapi::RefOr<salvo::oapi::Response> {
+                        let response = salvo::oapi::Response::new("Person response returns single Person entity").add_content(
+                            "application/json",
+                            salvo::oapi::Content::new(
+                                salvo::oapi::Object::new()
+                                    .property(
+                                        "name",
+                                        salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                    )
+                                    .required("name")
+                                    .property(
+                                        "age",
+                                        salvo::oapi::Object::new()
+                                            .schema_type(salvo::oapi::SchemaType::Integer)
+                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
+                                                salvo::oapi::KnownFormat::Int32
+                                            ))
+                                    )
+                                    .required("age")
+                            )
+                        );
+                        components.responses.insert("User", response);
+                        salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/responses/{}", "User")))
+                    }
+                }
+                impl salvo::oapi::EndpointOutRegister for User {
+                    fn register(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {
+                        operation
+                            .responses
+                            .insert("200", <Self as salvo::oapi::ToResponse>::to_response(components))
+                    }
+                }
+            } .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_responses() {
+        let input = quote! {
+            #[derive(salvo_oapi::ToResponses)]
+            enum UserResponses {
+                /// Success response description.
+                #[salvo(response(status_code = 200))]
+                Success { value: String },
+
+                #[salvo(response(status_code = 404))]
+                NotFound,
+
+                #[salvo(response(status_code = 400))]
+                BadRequest(BadRequest),
+
+                #[salvo(response(status_code = 500))]
+                ServerError(Response),
+
+                #[salvo(response(status_code = 418))]
+                TeaPot(Response),
+            }
+        };
+        assert_eq!(
+            response::to_responses(parse2(input).unwrap()).unwrap()
+                .to_string(),
+            quote! {
+                impl salvo::oapi::ToResponses for UserResponses {
+                    fn to_responses(components: &mut salvo::oapi::Components) -> salvo::oapi::response::Responses {
+                        [
+                            (
+                                "200",
+                                salvo::oapi::RefOr::from(
+                                    salvo::oapi::Response::new("Success response description.").add_content(
+                                        "application/json",
+                                        salvo::oapi::Content::new(
+                                            salvo::oapi::Object::new()
+                                                .property(
+                                                    "value",
+                                                    salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                                )
+                                                .required("value")
+                                                .description("Success response description.")
+                                        )
+                                    )
+                                )
+                            ),
+                            (
+                                "404",
+                                salvo::oapi::RefOr::from(salvo::oapi::Response::new(""))
+                            ),
+                            (
+                                "400",
+                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                    "application/json",
+                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
+                                        <BadRequest as salvo::oapi::ToSchema>::to_schema(components)
+                                    ))
+                                ))
+                            ),
+                            (
+                                "500",
+                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                    "application/json",
+                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
+                                        <Response as salvo::oapi::ToSchema>::to_schema(components)
+                                    ))
+                                ))
+                            ),
+                            (
+                                "418",
+                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                    "application/json",
+                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
+                                        <Response as salvo::oapi::ToSchema>::to_schema(components)
+                                    ))
+                                ))
+                            ),
+                        ]
+                        .into()
+                    }
+                }
+                impl salvo::oapi::EndpointOutRegister for UserResponses {
+                    fn register(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {
+                        operation
+                            .responses
+                            .append(&mut <Self as salvo::oapi::ToResponses>::to_responses(components));
+                    }
+                }
+            } .to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_parameters() {
+        let input = quote! {
+            #[derive(Deserialize, ToParameters)]
+            struct PetQuery {
+                /// Name of pet
+                name: Option<String>,
+                /// Age of pet
+                age: Option<i32>,
+                /// Kind of pet
+                #[salvo(parameter(inline))]
+                kind: PetKind
+            }
+        };
+        assert_eq!(
+            parameter::to_parameters(parse2(input).unwrap()).unwrap().to_string(),
+            quote! {
+                impl<'__macro_gen_ex> salvo::oapi::ToParameters<'__macro_gen_ex> for PetQuery {
+                    fn to_parameters(components: &mut salvo::oapi::Components) -> salvo::oapi::Parameters {
+                        salvo::oapi::Parameters(
+                            [
+                                salvo::oapi::parameter::Parameter::new("name")
+                                    .description("Name of pet")
+                                    .required(salvo::oapi::Required::False)
+                                    .schema(
+                                        salvo::oapi::Object::new()
+                                            .schema_type(salvo::oapi::SchemaType::String)
+                                            .nullable(true)
+                                    ),
+                                salvo::oapi::parameter::Parameter::new("age")
+                                    .description("Age of pet")
+                                    .required(salvo::oapi::Required::False)
+                                    .schema(
+                                        salvo::oapi::Object::new()
+                                            .schema_type(salvo::oapi::SchemaType::Integer)
+                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
+                                                salvo::oapi::KnownFormat::Int32
+                                            ))
+                                            .nullable(true)
+                                    ),
+                                salvo::oapi::parameter::Parameter::new("kind")
+                                    .description("Kind of pet")
+                                    .required(salvo::oapi::Required::True)
+                                    .schema(<PetKind as salvo::oapi::ToSchema>::to_schema(components)),
+                            ]
+                            .to_vec()
+                        )
+                    }
+                }
+                impl salvo::oapi::EndpointArgRegister for PetQuery {
+                    fn register(
+                        components: &mut salvo::oapi::Components,
+                        operation: &mut salvo::oapi::Operation,
+                        _arg: &str
+                    ) {
+                        for parameter in <Self as salvo::oapi::ToParameters>::to_parameters(components) {
+                            operation.parameters.insert(parameter);
+                        }
+                    }
+                }
+                impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
+                    fn metadata() -> &'__macro_gen_ex salvo::extract::Metadata {
+                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
+                            salvo::__private::once_cell::sync::OnceCell::new();
+                        METADATA.get_or_init(||
+                            salvo::extract::Metadata::new("PetQuery")
+                                .default_sources(vec![salvo::extract::metadata::Source::new(
+                                    salvo::extract::metadata::SourceFrom::Query,
+                                    salvo::extract::metadata::SourceParser::MultiMap
+                                )])
+                                .fields(vec![
+                                    salvo::extract::metadata::Field::new("name"),
+                                    salvo::extract::metadata::Field::new("age"),
+                                    salvo::extract::metadata::Field::new("kind")
+                                ])
+                        )
+                    }
+                    async fn extract(
+                        req: &'__macro_gen_ex mut salvo::Request
+                    ) -> Result<Self, impl salvo::Writer + Send + std::fmt::Debug + 'static> {
+                        salvo::serde::from_request(req, Self::metadata()).await
+                    }
+                    async fn extract_with_arg(
+                        req: &'__macro_gen_ex mut salvo::Request,
+                        _arg: &str
+                    ) -> Result<Self, impl salvo::Writer + Send + std::fmt::Debug + 'static> {
+                        Self::extract(req).await
+                    }
                 }
             }
             .to_string()

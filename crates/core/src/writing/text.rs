@@ -3,6 +3,17 @@ use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::Response;
 
 /// Write text content to response as text content.
+///
+/// # Example
+///
+/// ```
+/// use salvo_core::prelude::*;
+///
+/// #[handler]
+/// async fn hello(res: &mut Response) -> Text<&'static str> {
+///     Text::Plain("hello")
+/// }
+/// ```
 #[non_exhaustive]
 pub enum Text<C> {
     /// It will set `content-type` to `text/plain; charset=utf-8`.

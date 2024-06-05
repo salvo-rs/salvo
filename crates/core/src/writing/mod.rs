@@ -14,12 +14,11 @@ pub use text::Text;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::{async_trait, Depot, Request, Response};
 
-/// `Writer` is a trait allows you to implement custom writing logic for different data types.
+/// `Writer` is used to write data to [`Response`].
 ///
-/// Implementing the `Writer` trait for your data type allows you to use it writing the data to the
-/// [`Response`] object.
-///
-/// There are several built-in implementations of the `Writer` trait.
+/// `Writer` requires the use of [`Depot`] and Request, which allows for greater flexibility.
+/// For scenarios that do not require this flexibility, [`Scribe`] can be used, for example [`Text`], [`Json`] are
+/// implemented from [`Scribe`].
 #[async_trait]
 pub trait Writer {
     /// Write data to [`Response`].
@@ -29,7 +28,9 @@ pub trait Writer {
 
 /// `Scribe` is used to write data to [`Response`].
 ///
-/// `Scribe` is simpler than [`Writer`] and it implements [`Writer`].
+/// `Scribe` is simpler than [`Writer`] and it implements [`Writer`]. It does not require the use of Depot and Request.
+///
+/// There are several built-in implementations of the `Scribe` trait.
 pub trait Scribe {
     /// Render data to [`Response`].
     fn render(self, res: &mut Response);

@@ -5,6 +5,17 @@ use crate::http::{Response, StatusCode};
 use crate::Error;
 
 /// Response that redirects the request to another location.
+///
+/// # Example
+///
+/// ```
+/// use salvo_core::prelude::*;
+///
+/// #[handler]
+/// async fn hello(res: &mut Response) {
+///     res.render(Redirect::found("https://www.rust-lang.org/"))
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Redirect {
     status_code: StatusCode,

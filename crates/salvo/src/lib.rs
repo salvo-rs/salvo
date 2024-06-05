@@ -6,12 +6,12 @@
 //! # Feature flags
 //!
 //! | Feature | Description | Default? |
-//! | --- | --- | --- |
+//! | --- | --- | :---: |
 //! | `cookie` | Support for Cookie | ✔️ |
 //! | `server`` | Built-in Server implementation | ✔️ |
 //! | `http1` | Support for HTTP 1.1 protocol | ✔️ |
 //! | `http2` | Support for HTTP 2 protocol | ✔️ |
-//! | `quinn` | Use quinn to support HTTP 3 protocol | ❌ |
+//! | `quinn` | Use [quinn](https://crates.io/crates/quinn) to support HTTP 3 protocol | ❌ |
 //! | `test` | Utilities for testing application | ✔️ |
 //! | `acme` | Automatically obtain certificates through ACME | ❌ |
 //! | `rustls` | TLS built on [`rustls`](https://crates.io/crates/rustls) | ❌ |

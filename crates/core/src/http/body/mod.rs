@@ -1,4 +1,4 @@
-//! Http body.
+//! HTTP body.
 
 pub use hyper::body::{Body, Frame, SizeHint};
 

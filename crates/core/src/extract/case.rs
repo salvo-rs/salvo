@@ -2,28 +2,25 @@ use std::str::FromStr;
 
 use self::RenameRule::*;
 
-/// Rename rule for a field.
+/// Rename rule for field.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum RenameRule {
-    /// Rename direct children to "lowercase" style.
+    /// Rename to "lowercase" style.
     LowerCase,
-    /// Rename direct children to "UPPERCASE" style.
+    /// Rename to "UPPERCASE" style.
     UpperCase,
-    /// Rename direct children to "PascalCase" style, as typically used for
-    /// enum variants.
+    /// Rename to "PascalCase" style.
     PascalCase,
-    /// Rename direct children to "camelCase" style.
+    /// Rename to "camelCase" style.
     CamelCase,
-    /// Rename direct children to "snake_case" style, as commonly used for
-    /// fields.
+    /// Rename to "snake_case" style.
     SnakeCase,
-    /// Rename direct children to "SCREAMING_SNAKE_CASE" style, as commonly
-    /// used for constants.
+    /// Rename to "SCREAMING_SNAKE_CASE" style.
     ScreamingSnakeCase,
-    /// Rename direct children to "kebab-case" style.
+    /// Rename to "kebab-case" style.
     KebabCase,
-    /// Rename direct children to "SCREAMING-KEBAB-CASE" style.
+    /// Rename to "SCREAMING-KEBAB-CASE" style.
     ScreamingKebabCase,
 }
 

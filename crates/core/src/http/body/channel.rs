@@ -7,7 +7,7 @@ use bytes::Bytes;
 use futures_channel::{mpsc, oneshot};
 use hyper::HeaderMap;
 
-/// A sender half created through [`ResBody ::Channel`].
+/// A sender half created through [`ResBody::Channel`](super::ResBody::Channel).
 ///
 /// Useful when wanting to stream chunks from another thread.
 ///

@@ -2,13 +2,12 @@ use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{
-    parenthesized,
-    parse::{Parse, ParseBuffer, ParseStream},
-    Error, ExprPath, LitStr, Token,
-};
+use syn::parenthesized;
+use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::{DeriveInput, Error, ExprPath, LitStr, Token};
 
-pub(crate) mod derive;
+mod derive;
+use derive::ToParameters;
 
 use crate::{
     component::{self, ComponentSchema},
@@ -21,6 +20,23 @@ use crate::{
     parse_utils, Required,
 };
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
+
+pub(crate) fn to_parameters(input: DeriveInput) -> DiagResult<TokenStream> {
+    let DeriveInput {
+        attrs,
+        ident,
+        data,
+        generics,
+        ..
+    } = input;
+    ToParameters {
+        attrs,
+        generics,
+        data,
+        ident,
+    }
+    .try_to_token_stream()
+}
 
 /// Parameter of request such as in path, header, query or cookie
 ///

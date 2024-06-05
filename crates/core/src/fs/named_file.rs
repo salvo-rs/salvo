@@ -36,10 +36,10 @@ pub(crate) enum Flag {
 /// # Examples
 ///
 /// ```
-/// # use salvo_core::fs::NamedFile;
-/// # async fn open() {
-/// let file = NamedFile::open("foo.txt").await;
-/// # }
+/// use salvo_core::fs::NamedFile;
+/// async fn open() {
+///     let file = NamedFile::open("foo.txt").await;
+/// }
 ///
 #[derive(Debug)]
 pub struct NamedFile {
