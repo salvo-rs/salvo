@@ -43,21 +43,11 @@ cfg_feature! {
     #![feature = "force-https"]
     pub mod force_https;
 }
-
-cfg_feature! {
-    #![feature = "jwt-auth"]
-    pub mod jwt_auth;
-}
-
 cfg_feature! {
     #![feature = "catch-panic"]
     pub mod catch_panic;
 }
 
-cfg_feature! {
-    #![feature = "compression"]
-    pub mod compression;
-}
 cfg_feature! {
     #![feature = "logging"]
     pub mod logging;
