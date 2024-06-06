@@ -51,7 +51,7 @@ pub struct Object {
     ///
     /// With **preserve-order** feature flag [`indexmap::IndexMap`] will be used as
     /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
-    /// By default [`BTreeMap`] will be used.
+    /// By default [`BTreeMap`](std::collections::BTreeMap) will be used.
     ///
     /// [to_schema]: crate::ToSchema
     #[serde(skip_serializing_if = "PropMap::is_empty", default = "PropMap::new")]
