@@ -8,7 +8,7 @@ use std::fmt::{self, Formatter};
 /// for this request done.
 ///
 /// # Example
-/// We set `current_user` value in function `set_user` , and then use this value in the following 
+/// We set `current_user` value in function `set_user` , and then use this value in the following
 /// middlewares and handlers.
 ///
 /// ```no_run

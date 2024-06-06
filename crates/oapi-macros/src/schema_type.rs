@@ -442,7 +442,7 @@ impl Parse for Variant {
 }
 
 impl ToTokens for Variant {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
             Self::Int32 => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(

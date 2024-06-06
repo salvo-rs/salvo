@@ -44,7 +44,7 @@ impl Parse for Value {
 }
 
 impl ToTokens for Value {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         match self {
             Self::LitStr(str) => str.to_tokens(stream),
             Self::Expr(expr) => expr.to_tokens(stream),

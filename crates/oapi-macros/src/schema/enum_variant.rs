@@ -129,7 +129,7 @@ impl<T> ToTokens for Enum<'_, T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let title = &self.title;
@@ -197,7 +197,7 @@ impl<T> ToTokens for TaggedEnum<T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
@@ -290,7 +290,7 @@ impl<T> ToTokens for AdjacentlyTaggedEnum<T>
 where
     T: Variant,
 {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
@@ -365,7 +365,7 @@ impl<'c, T> ToTokens for CustomEnum<'c, T>
 where
     T: ToTokens,
 {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         self.items.to_tokens(stream);
 

@@ -1,4 +1,4 @@
-//! Form parse module
+//! Form parse module.
 use std::ffi::OsStr;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
@@ -42,7 +42,7 @@ impl FormData {
         }
     }
 
-    /// Parse MIME `multipart/*` information from a stream as a [`FormData`].
+    /// Parse MIME `multipart/*` information from a stream as a `FormData`.
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
