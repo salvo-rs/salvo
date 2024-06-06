@@ -97,6 +97,7 @@ nix = { workspace = true, features = ["fs", "user"] }
 
 [dev-dependencies]
 fastrand = { workspace = true }
+tower = { workspace = true, features = ["limit"]}
 
 [lints]
 workspace = true

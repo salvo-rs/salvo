@@ -7,7 +7,8 @@
 //! goes to <https://www.rust-lang.org>.
 //! 
 //! ```no_run
-//! use salvo::prelude::*;
+//! use salvo_core::prelude::*;
+//! use salvo_proxy::Proxy;
 //! 
 //! #[tokio::main]
 //! async fn main() {
