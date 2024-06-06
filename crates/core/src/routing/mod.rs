@@ -15,7 +15,27 @@
 //!
 //! We can write routers in flat way, like this:
 //!
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//!
+//! # #[handler]
+//! # async fn create_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn show_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn list_writers(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn edit_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn delete_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn list_writer_articles(res: &mut Response) {
+//! # }
 //! Router::with_path("writers").get(list_writers).post(create_writer);
 //! Router::with_path("writers/<id>").get(show_writer).patch(edit_writer).delete(delete_writer);
 //! Router::with_path("writers/<id>/articles").get(list_writer_articles);
@@ -25,7 +45,27 @@
 //!
 //! We can write router like a tree, this is also the recommended way:
 //!
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//! 
+//! # #[handler]
+//! # async fn create_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn show_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn list_writers(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn edit_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn delete_writer(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn list_writer_articles(res: &mut Response) {
+//! # }
 //! Router::with_path("writers")
 //!     .get(list_writers)
 //!     .post(create_writer)
@@ -44,7 +84,25 @@
 //! Sometimes, you need to decide how to route according to certain conditions, and the `Router` also provides `then`
 //! function, which is also easy to use:
 //!
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//! 
+//! # #[handler]
+//! # async fn list_articles(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn show_article(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn create_article(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn update_article(res: &mut Response) {
+//! # }
+//! # #[handler]
+//! # async fn delete_writer(res: &mut Response) {
+//! # }
+//! fn admin_mode() -> bool { true };
 //! Router::new()
 //!     .push(
 //!         Router::with_path("articles")
@@ -103,7 +161,16 @@
 //! 
 //! Middleware can be added via `hoop` method.
 //! 
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//! 
+//! # #[handler] fn create_writer() {}
+//! # #[handler] fn show_writer() {}
+//! # #[handler] fn list_writers() {}
+//! # #[handler] fn edit_writer() {}
+//! # #[handler] fn delete_writer() {}
+//! # #[handler] fn list_writer_articles() {}
+//! # #[handler] fn check_authed() {}
 //! Router::new()
 //!     .hoop(check_authed)
 //!     .path("writers")
@@ -124,7 +191,16 @@
 //! If we don't want to check user is authed when current user view writer informations and articles. We can write
 //! router like this:
 //! 
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//! 
+//! # #[handler] fn create_writer() {}
+//! # #[handler] fn show_writer() {}
+//! # #[handler] fn list_writers() {}
+//! # #[handler] fn edit_writer() {}
+//! # #[handler] fn delete_writer() {}
+//! # #[handler] fn list_writer_articles() {}
+//! # #[handler] fn check_authed() {}
 //! Router::new()
 //!     .push(
 //!         Router::new()
@@ -161,7 +237,14 @@
 //! 
 //! In addition, you can access it without logging in and put it under another route without authentication middleware:
 //!
-//! ```rust,compile_fail
+//! ```rust
+//! # use salvo_core::prelude::*;
+//! 
+//! # #[handler] fn list_articles() {}
+//! # #[handler] fn show_article() {}
+//! # #[handler] fn edit_article() {}
+//! # #[handler] fn delete_article() {}
+//! # #[handler] fn auth_check() {}
 //! Router::new()
 //!     .push(
 //!         Router::new()
@@ -185,8 +268,11 @@
 //! 
 //! We can use `and`, `or` to connect between filter conditions, for example:
 //! 
-//! ```rust,compile_fail
-//! Router::new().filter(filter::path("hello").and(filter::get()));
+//! ```rust
+//! use salvo_core::prelude::*;
+//! use salvo_core::routing::*;
+//! 
+//! Router::new().filter(filters::path("hello").and(filters::get()));
 //! ```
 //! 
 //! ## Path filter
@@ -194,9 +280,13 @@
 //! The filter is based on the request path is the most frequently used. Parameters can be defined in the path 
 //! filter, such as:
 //! 
-//! ```rust,compile_fail
+//! ```rust
+//! use salvo_core::prelude::*;
+//! 
+//! # #[handler] fn show_article() {}
+//! # #[handler] fn serve_file() {}
 //! Router::with_path("articles/<id>").get(show_article);
-//! Router::with_path("files/<**rest_path>").get(serve_file)
+//! Router::with_path("files/<**rest_path>").get(serve_file);
 //! ```
 //! 
 //! In `Handler`, it can be obtained through the `get_param` function of the `Request` object:
@@ -205,12 +295,12 @@
 //! use salvo_core::prelude::*;
 //! 
 //! #[handler]
-//! pub async fn show_article(req: &mut Request) {
+//! fn show_article(req: &mut Request) {
 //!     let article_id = req.param::<i64>("id");
 //! }
 //! 
 //! #[handler]
-//! pub async fn serve_file(req: &mut Request) {
+//! fn serve_file(req: &mut Request) {
 //!     let rest_path = req.param::<i64>("**rest_path");
 //! }
 //! ```
@@ -219,18 +309,27 @@
 //! 
 //! Filter requests based on the `HTTP` request's `Method`, for example:
 //! 
-//! ```rust,compile_fail
+//! ```rust
+//! use salvo_core::prelude::*;
+//! 
+//! # #[handler] fn show_article() {}
+//! # #[handler] fn update_article() {}
+//! # #[handler] fn delete_article() {}
 //! Router::new().get(show_article).patch(update_article).delete(delete_article);
 //! ```
 //! 
 //! Here `get`, `patch`, `delete` are all Method filters. It is actually equivalent to:
 //! 
-//! ```rust,compile_fail
-//! use salvo::routing::filter;
+//! ```rust
+//! use salvo_core::prelude::*;
+//! use salvo_core::routing::*;
+//! # #[handler] fn show_article() {}
+//! # #[handler] fn update_article() {}
+//! # #[handler] fn delete_article() {}
 //! 
-//! let show_router = Router::with_filter(filter::get()).handle(show_article);
-//! let update_router = Router::with_filter(filter::patch()).handle(update_article);
-//! let delete_router = Router::with_filter(filter::get()).handle(delete_article);
+//! let show_router = Router::with_filter(filters::get()).goal(show_article);
+//! let update_router = Router::with_filter(filters::patch()).goal(update_article);
+//! let delete_router = Router::with_filter(filters::get()).goal(delete_article);
 //! Router::new().push(show_router).push(update_router).push(delete_router);
 //! ```
 //! 
@@ -250,9 +349,12 @@
 //! However, writing this complex regular expression every time is prone to errors and hard-coding the regex is not
 //! ideal. We could separate the regex into its own Regex variable like so:
 //! 
-//! ```rust,compile_fail
+//! ```rust
 //! use salvo_core::prelude::*;
-//! use salvo_core::routing::filter::PathFilter;
+//! use salvo_core::routing::filters::PathFilter;
+//! 
+//! # #[handler] fn show_article() {}
+//! # #[handler] fn show_user() {}
 //! 
 //! #[tokio::main]
 //! async fn main() {

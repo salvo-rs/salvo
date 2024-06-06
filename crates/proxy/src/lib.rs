@@ -12,8 +12,6 @@
 //! 
 //! #[tokio::main]
 //! async fn main() {
-//!     tracing_subscriber::fmt().init();
-//! 
 //!     let router = Router::new()
 //!         .push(
 //!             Router::new()

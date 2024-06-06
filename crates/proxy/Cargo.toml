@@ -38,7 +38,7 @@ percent-encoding = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["stream"] }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["http1", "server", "test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
