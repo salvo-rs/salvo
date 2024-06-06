@@ -8,7 +8,7 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
-use crate::catcher::{write_error_default, Catcher};
+use crate::catching::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
 use crate::fuse::ArcFusewire;
 use crate::handler::{Handler, WhenHoop};

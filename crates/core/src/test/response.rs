@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use tokio::io::{Error as IoError, ErrorKind};
 use zstd::stream::write::Decoder as ZstdDecoder;
 
-use crate::catcher::status_error_bytes;
+use crate::catching::status_error_bytes;
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{ResBody, Response};
 use crate::Error;
