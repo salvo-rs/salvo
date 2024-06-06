@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use proc_macro2::{Group, Punct, Span, TokenStream};
+use proc_macro2::{Delimiter, Group, Punct, Span, TokenStream};
 use proc_macro2_diagnostics::Diagnostic;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{quote, ToTokens, TokenStreamExt};
@@ -172,14 +172,14 @@ impl<T> ToTokens for Array<'_, T>
 where
     T: Sized + ToTokens,
 {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let values = match self {
             Self::Owned(values) => values.iter(),
             Self::Borrowed(values) => values.iter(),
         };
 
         stream.append(Group::new(
-            proc_macro2::Delimiter::Bracket,
+            Delimiter::Bracket,
             values
                 .fold(Punctuated::new(), |mut punctuated, item| {
                     punctuated.push_value(item);
@@ -209,7 +209,7 @@ impl From<bool> for Deprecated {
 }
 
 impl ToTokens for Deprecated {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(match self {
             Self::False => quote! { #oapi::oapi::Deprecated::False },
@@ -242,7 +242,7 @@ impl From<feature::Required> for Required {
 }
 
 impl ToTokens for Required {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(match self {
             Self::False => quote! { #oapi::oapi::Required::False },
@@ -289,7 +289,7 @@ impl Parse for ExternalDocs {
 }
 
 impl ToTokens for ExternalDocs {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let url = &self.url;
         stream.extend(quote! {

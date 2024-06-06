@@ -1,4 +1,4 @@
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, token::Paren, Error, LitStr, Token};
 
@@ -76,7 +76,7 @@ impl Parse for XmlAttr {
 }
 
 impl ToTokens for XmlAttr {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(quote! {
             #oapi::oapi::Xml::new()

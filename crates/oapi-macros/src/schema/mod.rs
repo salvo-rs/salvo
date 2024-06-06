@@ -330,7 +330,7 @@ impl TryToTokens for SchemaVariant<'_> {
 struct UnitStructVariant;
 
 impl ToTokens for UnitStructVariant {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(quote! {
             #oapi::oapi::schema::empty()

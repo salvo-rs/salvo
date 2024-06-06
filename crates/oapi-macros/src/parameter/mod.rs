@@ -347,7 +347,7 @@ impl Parse for ParameterIn {
 }
 
 impl ToTokens for ParameterIn {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(match self {
             Self::Path => quote! { #oapi::oapi::parameter::ParameterIn::Path },

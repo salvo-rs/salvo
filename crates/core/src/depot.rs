@@ -2,13 +2,14 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
-/// `Depot` is for store temp data of current request.
+/// Store temp data for current request.
 ///
-/// A depot instance is created when server get a request from client. The depot will dropped when all process
-/// for this request done. For example, we can set ```current_user``` in ```set_user```, and then use this value
-/// in the following middlewares and handlers.
+/// A `Depot` created when server process a request from client. It will dropped when all process
+/// for this request done.
 ///
 /// # Example
+/// We set `current_user` value in function `set_user` , and then use this value in the following
+/// middlewares and handlers.
 ///
 /// ```no_run
 /// use salvo_core::prelude::*;

@@ -642,7 +642,7 @@ impl Parse for ResponseStatusCode {
 }
 
 impl ToTokens for ResponseStatusCode {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         self.0.to_tokens(stream);
     }
 }

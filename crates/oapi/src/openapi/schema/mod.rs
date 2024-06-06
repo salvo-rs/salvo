@@ -525,6 +525,12 @@ mod tests {
             json_value.properties.keys().collect::<Vec<_>>(),
             vec!["history", "id", "name", "status", "tags"]
         );
+
+        #[cfg(feature = "preserve-order")]
+        assert_eq!(
+            json_value.properties.keys().collect::<Vec<_>>(),
+            vec!["id", "name", "status", "history", "tags"]
+        );
     }
 
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties

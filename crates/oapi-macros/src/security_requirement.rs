@@ -1,3 +1,4 @@
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     bracketed,
@@ -45,7 +46,7 @@ impl Parse for SecurityRequirementsAttrItem {
 }
 
 impl ToTokens for SecurityRequirementsAttr {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         stream.extend(quote! {
             #oapi::oapi::security::SecurityRequirement::default()

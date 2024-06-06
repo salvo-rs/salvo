@@ -1,7 +1,7 @@
 //! Runtime module.
 //!
 //! Only supports tokio runtime in current version.
-//! More runtimes will be supported in the future.
+//! More runtimes support may be added in future releases.
 
 #[doc(hidden)]
 pub use hyper::rt::*;
