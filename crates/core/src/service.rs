@@ -216,13 +216,21 @@ impl HyperHandler {
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code.is_none() {
-                    res.status_code = Some(StatusCode::NOT_FOUND);
+                    res.status_code = Some(if path_state.has_any_goal {
+                        StatusCode::METHOD_NOT_ALLOWED
+                    } else {
+                        StatusCode::NOT_FOUND
+                    });
                 }
             } else {
-                res.status_code(StatusCode::NOT_FOUND);
+                res.status_code(if path_state.has_any_goal {
+                    StatusCode::METHOD_NOT_ALLOWED
+                } else {
+                    StatusCode::NOT_FOUND
+                });
             }
 
-            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+            let status = res.status_code.expect("Response status code should not `None`.");
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;

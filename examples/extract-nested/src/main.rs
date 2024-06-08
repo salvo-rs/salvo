@@ -57,8 +57,10 @@ async fn edit<'a>(good_man: GoodMan<'a>, res: &mut Response) {
 #[salvo(extract(default_source(from = "body")))]
 struct GoodMan<'a> {
     #[salvo(extract(source(from = "param")))]
+    #[serde(default)]
     id: i64,
     #[salvo(extract(source(from = "query")))]
+    #[serde(default)]
     username: &'a str,
     first_name: String,
     last_name: String,
@@ -71,8 +73,10 @@ struct GoodMan<'a> {
 #[salvo(extract(default_source(from = "body")))]
 struct Nested<'a> {
     #[salvo(extract(source(from = "param")))]
+    #[serde(default)]
     id: i64,
     #[salvo(extract(source(from = "query")))]
+    #[serde(default)]
     username: &'a str,
     first_name: String,
     last_name: String,
