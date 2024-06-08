@@ -398,6 +398,7 @@ pub struct PathState {
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
     pub(crate) end_slash: bool, // For rest match, we want include the last slash.
+    pub(crate) has_any_goal: bool,
 }
 impl PathState {
     /// Create new `PathState`.
@@ -421,6 +422,7 @@ impl PathState {
             cursor: (0, 0),
             params: PathParams::new(),
             end_slash,
+            has_any_goal: false,
         }
     }
 

@@ -15,7 +15,10 @@ impl MethodFilter {
 }
 impl Filter for MethodFilter {
     #[inline]
-    fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
+    fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+        if state.is_ended() {
+            state.has_any_goal = true;
+        }
         req.method() == self.0
     }
 }
