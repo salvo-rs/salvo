@@ -336,7 +336,6 @@ impl<A: Acceptor + Send> Server<A> {
             mut acceptor,
             builder,
             fuse_factory,
-            mut rx_cmd,
             ..
         } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
