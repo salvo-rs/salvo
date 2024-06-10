@@ -25,7 +25,7 @@ fn create_service() -> Service {
 
 #[handler]
 async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-    if let Some(StatusCode::NOT_FOUND) = res.status_code {
+    if StatusCode::NOT_FOUND == res.status_code.unwrap_or(StatusCode::NOT_FOUND) {
         res.render("Custom 404 Error Page");
         ctrl.skip_rest();
     }
