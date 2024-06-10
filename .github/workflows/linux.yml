@@ -120,9 +120,6 @@ jobs:
           cargo install cargo-tarpaulin
           cargo tarpaulin --all-features --out xml
 
-      - name: Upload to codecov
-        if: matrix.version == 'stable' && (github.ref == 'refs/heads/main' || github.event_name == 'push')
-        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:

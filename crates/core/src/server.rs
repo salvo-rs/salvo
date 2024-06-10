@@ -87,7 +87,9 @@ pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
     fuse_factory: Option<ArcFuseFactory>,
+    #[cfg(feature = "server-handle")]
     tx_cmd: UnboundedSender<ServerCommand>,
+    #[cfg(feature = "server-handle")]
     rx_cmd: UnboundedReceiver<ServerCommand>,
 }
 
@@ -111,12 +113,15 @@ impl<A: Acceptor + Send> Server<A> {
 
     /// Create new `Server` with [`Acceptor`] and [`HttpBuilder`].
     pub fn with_http_builder(acceptor: A, builder: HttpBuilder) -> Self {
+        #[cfg(feature = "server-handle")]
         let (tx_cmd, rx_cmd) = tokio::sync::mpsc::unbounded_channel();
         Self {
             acceptor,
             builder,
             fuse_factory: None,
+            #[cfg(feature = "server-handle")]
             tx_cmd,
+            #[cfg(feature = "server-handle")]
             rx_cmd,
         }
     }
@@ -211,6 +216,7 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Try to serve a [`Service`].
+    #[cfg(feature = "server-handle")]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
         S: Into<Service> + Send,
@@ -261,7 +267,7 @@ impl<A: Acceptor + Send> Server<A> {
                             let graceful_stop_token = graceful_stop_token.clone();
 
                             tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, graceful_stop_token.clone());
+                                let conn = conn.serve(handler, builder, Some(graceful_stop_token.clone()));
                                 tokio::select! {
                                     _ = conn => {
                                     },
@@ -317,6 +323,59 @@ impl<A: Acceptor + Send> Server<A> {
             tracing::info!("wait for all connections to close.");
             notify.notified().await;
         }
+
+        tracing::info!("server stopped");
+        Ok(())
+    }
+    #[cfg(not(feature = "server-handle"))]
+    pub async fn try_serve<S>(self, service: S) -> IoResult<()>
+        where
+            S: Into<Service> + Send,
+    {
+        let Self {
+            mut acceptor,
+            builder,
+            fuse_factory,
+            mut rx_cmd,
+            ..
+        } = self;
+        let alive_connections = Arc::new(AtomicUsize::new(0));
+        let notify = Arc::new(Notify::new());
+        let mut alt_svc_h3 = None;
+        for holding in acceptor.holdings() {
+            tracing::info!("listening {}", holding);
+            if holding.http_versions.contains(&Version::HTTP_3) {
+                if let Some(addr) = holding.local_addr.clone().into_std() {
+                    let port = addr.port();
+                    alt_svc_h3 = Some(
+                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                            .parse::<HeaderValue>()
+                            .expect("Parse alt-svc header failed."),
+                    );
+                }
+            }
+        }
+
+        let service: Arc<Service> = Arc::new(service.into());
+        let builder = Arc::new(builder);
+        loop {
+                    match acceptor.accept(fuse_factory.clone()).await {
+                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+
+                            let service = service.clone();
+                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                            let builder = builder.clone();
+
+                            tokio::spawn(async move {
+                                conn.serve(handler, builder, None).await;
+                            });
+                        },
+                        Err(e) => {
+                            tracing::error!(error = ?e, "accept connection failed");
+                        }
+                    }
+        }
+
 
         tracing::info!("server stopped");
         Ok(())

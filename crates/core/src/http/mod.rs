@@ -39,7 +39,7 @@ pub trait HttpConnection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> impl Future<Output = IoResult<()>> + Send;
 
     /// Get the fusewire of this connection.

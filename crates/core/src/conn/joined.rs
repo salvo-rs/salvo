@@ -121,7 +121,7 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         match self {
             JoinedStream::A(a) => a.serve(handler, builder, graceful_stop_token).await,

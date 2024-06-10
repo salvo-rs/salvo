@@ -39,7 +39,7 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> std::io::Result<()> {
         let fusewire = self.fusewire.clone();
         if let Some(fusewire) = &fusewire {
