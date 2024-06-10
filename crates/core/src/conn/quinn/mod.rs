@@ -72,7 +72,7 @@ impl HttpConnection for H3Connection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         builder.quinn.serve_connection(self, handler, graceful_stop_token).await
     }

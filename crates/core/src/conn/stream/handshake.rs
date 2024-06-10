@@ -54,9 +54,12 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         let fusewire = self.fusewire.clone();
+        if let Some(fusewire) = &fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
         builder
             .serve_connection(self, handler, fusewire, graceful_stop_token)
             .await
