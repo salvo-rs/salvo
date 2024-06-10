@@ -215,42 +215,34 @@ impl HyperHandler {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                if res.status_code.is_none() {
-                    res.status_code = Some(if path_state.has_any_goal {
-                        StatusCode::METHOD_NOT_ALLOWED
-                    } else {
-                        StatusCode::NOT_FOUND
-                    });
+                if res.status_code.is_none() && path_state.has_any_goal {
+                    res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
             } else {
-                res.status_code(if path_state.has_any_goal {
-                    StatusCode::METHOD_NOT_ALLOWED
-                } else {
-                    StatusCode::NOT_FOUND
-                });
+                if path_state.has_any_goal {
+                    res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
+                }
             }
 
-            let status = res.status_code.expect("Response status code should not `None`.");
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
             let has_error = status.is_client_error() || status.is_server_error();
-            if let Some(value) = res.headers().get(CONTENT_TYPE) {
-                let mut is_allowed = false;
-                if let Ok(value) = value.to_str() {
-                    if allowed_media_types.is_empty() {
-                        is_allowed = true;
-                    } else {
-                        let ctype: Result<Mime, _> = value.parse();
-                        if let Ok(ctype) = ctype {
-                            for mime in &*allowed_media_types {
-                                if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
-                                    is_allowed = true;
-                                    break;
-                                }
-                            }
+            if !allowed_media_types.is_empty() {
+                if let Some(ctype) = res
+                    .headers()
+                    .get(CONTENT_TYPE)
+                    .and_then(|c| c.to_str().ok())
+                    .and_then(|c| c.parse::<Mime>().ok())
+                {
+                    let mut is_allowed = false;
+                    for mime in &*allowed_media_types {
+                        if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
+                            is_allowed = true;
+                            break;
                         }
                     }
-                }
-                if !is_allowed {
-                    res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    if !is_allowed {
+                        res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    }
                 }
             } else if res.body.is_none()
                 && !has_error
