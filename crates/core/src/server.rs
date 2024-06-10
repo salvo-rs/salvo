@@ -147,20 +147,14 @@ impl<A: Acceptor + Send> Server<A> {
                 tx_cmd: self.tx_cmd.clone(),
             }
         }
-    }
 
-    cfg_feature! {
-        #![feature = "server-handle"]
         /// Force stop server.
         ///
         /// Call this function will stop server immediately.
         pub fn stop_forcible(&self) {
             self.tx_cmd.send(ServerCommand::StopForcible).ok();
         }
-    }
 
-    cfg_feature! {
-        #![feature = "server-handle"]
         /// Graceful stop server.
         ///
         /// Call this function will stop server after all connections are closed.
@@ -170,7 +164,7 @@ impl<A: Acceptor + Send> Server<A> {
             self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
         }
     }
-
+    
     /// Get holding information of this server.
     #[inline]
     pub fn holdings(&self) -> &[Holding] {

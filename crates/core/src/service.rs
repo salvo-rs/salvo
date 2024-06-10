@@ -225,7 +225,6 @@ impl HyperHandler {
             }
 
             let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
-            let has_error = status.is_client_error() || status.is_server_error();
             if !allowed_media_types.is_empty() {
                 if let Some(ctype) = res
                     .headers()
@@ -244,7 +243,9 @@ impl HyperHandler {
                         res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                     }
                 }
-            } else if res.body.is_none()
+            }
+            let has_error = status.is_client_error() || status.is_server_error();
+            if res.body.is_none()
                 && !has_error
                 && !status.is_redirection()
                 && res.status_code != Some(StatusCode::NO_CONTENT)
