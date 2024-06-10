@@ -54,7 +54,7 @@ where
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_stop_token: CancellationToken,
+        graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         let fusewire = self.fusewire.clone();
         builder
