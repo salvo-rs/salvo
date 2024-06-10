@@ -128,7 +128,7 @@ impl HttpBuilder {
                                     conn.await.ok();
                                 }
                             }
-                        },
+                        }
                         (None, Some(graceful_stop_token)) => {
                             tokio::select! {
                                 _ = &mut conn => {
@@ -143,7 +143,7 @@ impl HttpBuilder {
                                     conn.await.ok();
                                 }
                             }
-                        },
+                        }
                         (Some(fusewire), None) => {
                             tokio::select! {
                                 _ = &mut conn => {
@@ -154,11 +154,12 @@ impl HttpBuilder {
                                     tracing::info!("closing connection due to fused");
                                 }
                             }
-                        },
-                        (None, None) => {conn.await.ok(); }
+                        }
+                        (None, None) => {
+                            conn.await.ok();
+                        }
                     }
                 }
-
             }
             Version::HTTP_2 => {
                 #[cfg(not(feature = "http2"))]
@@ -185,7 +186,7 @@ impl HttpBuilder {
                                     conn.await.ok();
                                 }
                             }
-                        },
+                        }
                         (None, Some(graceful_stop_token)) => {
                             tokio::select! {
                                 _ = &mut conn => {
@@ -200,7 +201,7 @@ impl HttpBuilder {
                                     conn.await.ok();
                                 }
                             }
-                        },
+                        }
                         (Some(fusewire), None) => {
                             tokio::select! {
                                 _ = &mut conn => {
@@ -211,8 +212,10 @@ impl HttpBuilder {
                                     tracing::info!("closing connection due to fused");
                                 }
                             }
-                        },
-                        (None, None) => {conn.await.ok();}
+                        }
+                        (None, None) => {
+                            conn.await.ok();
+                        }
                     }
                 }
             }
