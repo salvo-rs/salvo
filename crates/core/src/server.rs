@@ -24,12 +24,16 @@ use crate::fuse::{ArcFuseFactory, FuseFactory};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
-/// Server handle is used to stop server.
-#[derive(Clone)]
-pub struct ServerHandle {
-    tx_cmd: UnboundedSender<ServerCommand>,
+cfg_feature! {
+    #![feature ="server-handle"]
+    /// Server handle is used to stop server.
+    #[derive(Clone)]
+    pub struct ServerHandle {
+        tx_cmd: UnboundedSender<ServerCommand>,
+    }
 }
 
+#[cfg(feature = "server-handle")]
 impl ServerHandle {
     /// Force stop server.
     ///
@@ -145,6 +149,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// Force stop server.
     ///
     /// Call this function will stop server immediately.
+        #[cfg(feature = "server-handle")]
     pub fn stop_forcible(&self) {
         self.tx_cmd.send(ServerCommand::StopForcible).ok();
     }
@@ -154,6 +159,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// Call this function will stop server after all connections are closed.
     /// You can specify a timeout to force stop server.
     /// If `timeout` is `None`, it will wait util all connections are closed.
+        #[cfg(feature = "server-handle")]
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
