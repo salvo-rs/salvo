@@ -139,29 +139,36 @@ impl<A: Acceptor + Send> Server<A> {
         self
     }
 
-    /// Get a [`ServerHandle`] to stop server.
-    pub fn handle(&self) -> ServerHandle {
-        ServerHandle {
-            tx_cmd: self.tx_cmd.clone(),
+    cfg_feature! {
+        #![feature = "server-handle"]
+        /// Get a [`ServerHandle`] to stop server.
+        pub fn handle(&self) -> ServerHandle {
+            ServerHandle {
+                tx_cmd: self.tx_cmd.clone(),
+            }
         }
     }
 
-    /// Force stop server.
-    ///
-    /// Call this function will stop server immediately.
-        #[cfg(feature = "server-handle")]
-    pub fn stop_forcible(&self) {
-        self.tx_cmd.send(ServerCommand::StopForcible).ok();
+    cfg_feature! {
+        #![feature = "server-handle"]
+        /// Force stop server.
+        ///
+        /// Call this function will stop server immediately.
+        pub fn stop_forcible(&self) {
+            self.tx_cmd.send(ServerCommand::StopForcible).ok();
+        }
     }
 
-    /// Graceful stop server.
-    ///
-    /// Call this function will stop server after all connections are closed.
-    /// You can specify a timeout to force stop server.
-    /// If `timeout` is `None`, it will wait util all connections are closed.
-        #[cfg(feature = "server-handle")]
-    pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
-        self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
+    cfg_feature! {
+        #![feature = "server-handle"]
+        /// Graceful stop server.
+        ///
+        /// Call this function will stop server after all connections are closed.
+        /// You can specify a timeout to force stop server.
+        /// If `timeout` is `None`, it will wait util all connections are closed.
+        pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
+            self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
+        }
     }
 
     /// Get holding information of this server.
