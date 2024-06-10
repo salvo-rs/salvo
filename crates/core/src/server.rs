@@ -351,8 +351,6 @@ impl<A: Acceptor + Send> Server<A> {
             fuse_factory,
             ..
         } = self;
-        let alive_connections = Arc::new(AtomicUsize::new(0));
-        let notify = Arc::new(Notify::new());
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
             tracing::info!("listening {}", holding);
@@ -371,23 +369,22 @@ impl<A: Acceptor + Send> Server<A> {
         let service: Arc<Service> = Arc::new(service.into());
         let builder = Arc::new(builder);
         loop {
-                    match acceptor.accept(fuse_factory.clone()).await {
-                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+            match acceptor.accept(fuse_factory.clone()).await {
+                Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
 
-                            let service = service.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
-                            let builder = builder.clone();
+                    let service = service.clone();
+                    let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                    let builder = builder.clone();
 
-                            tokio::spawn(async move {
-                                conn.serve(handler, builder, None).await;
-                            });
-                        },
-                        Err(e) => {
-                            tracing::error!(error = ?e, "accept connection failed");
-                        }
-                    }
+                    tokio::spawn(async move {
+                        conn.serve(handler, builder, None).await;
+                    });
+                },
+                Err(e) => {
+                    tracing::error!(error = ?e, "accept connection failed");
+                }
+            }
         }
-
 
         tracing::info!("server stopped");
         Ok(())
