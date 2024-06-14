@@ -141,7 +141,12 @@ pub struct TcpAcceptor {
 }
 
 impl TcpAcceptor {
-    /// Returns the local address that this listener is bound to.
+    /// Get the inner `TokioTcpListener`.
+    pub fn inner(&self) -> &TokioTcpListener {
+        &self.inner
+    }
+
+    /// Get the local address that this listener is bound to.
     ///
     /// This can be useful, for example, when binding to port 0 to figure out
     /// which port was actually bound.

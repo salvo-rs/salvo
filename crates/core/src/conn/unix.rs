@@ -122,6 +122,12 @@ pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
 }
+impl UnixAcceptor {
+    /// Get the inner `TokioUnixListener`.
+    pub fn inner(&self) -> &TokioUnixListener {
+        &self.inner
+    }
+}
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
