@@ -22,7 +22,7 @@ pub struct UnixListener<T> {
     permissions: Option<Permissions>,
     owner: Option<(Option<Uid>, Option<Gid>)>,
     #[cfg(feature = "socket2")]
-    backlog: u32,
+    backlog: Option<u32>,
 }
 #[cfg(unix)]
 impl<T> UnixListener<T> {
@@ -43,7 +43,7 @@ impl<T> UnixListener<T> {
         UnixListener {
             path,
             permissions: None,
-            owner: None, backlog: 2048
+            owner: None, backlog: None
         }
     }
 
@@ -66,7 +66,7 @@ impl<T> UnixListener<T> {
         /// Set backlog capacity.
         #[inline]
         pub fn backlog(mut self, backlog: u32) -> Self {
-            self.backlog = backlog;
+            self.backlog = Some(backlog);
             self
         }
     }
@@ -100,9 +100,9 @@ where
         };
 
         #[cfg(feature = "socket2")]
-        {
+        if let Some(backlog) = self.backlog {
             let socket = socket2::SockRef::from(&inner);
-            socket.listen(self.backlog as _)?;
+            socket.listen(backlog as _)?;
         }
 
         let holding = Holding {

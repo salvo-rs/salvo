@@ -30,8 +30,9 @@ use crate::conn::acme::AcmeListener;
 /// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {
     local_addr: T,
+    ttl: Option<u32>,
     #[cfg(feature = "socket2")]
-    backlog: u32,
+    backlog: Option<u32>,
 }
 impl<T: ToSocketAddrs + Send> TcpListener<T> {
     /// Bind to socket address.
@@ -47,7 +48,8 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     pub fn new(local_addr: T) -> Self {
         TcpListener {
             local_addr,
-            backlog: 2048,
+            ttl: None,
+            backlog: None,
         }
     }
 
@@ -106,12 +108,21 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         }
     }
 
+    /// Sets the value for the `IP_TTL` option on this socket.
+    ///
+    /// This value sets the time-to-live field that is used in every packet sent
+    /// from this socket.
+    pub fn ttl(mut self, ttl: u32) -> Self {
+        self.ttl = Some(ttl);
+        self
+    }
+
     cfg_feature! {
         #![feature = "socket2"]
         /// Set backlog capacity.
         #[inline]
         pub fn backlog(mut self, backlog: u32) -> Self {
-            self.backlog = backlog;
+            self.backlog = Some(backlog);
             self
         }
     }
@@ -126,9 +137,12 @@ where
         let inner = TokioTcpListener::bind(self.local_addr).await?;
 
         #[cfg(feature = "socket2")]
-        {
+        if let Some(backlog) = self.backlog {
             let socket = socket2::SockRef::from(&inner);
-            socket.listen(self.backlog as _)?;
+            socket.listen(backlog as _)?;
+        }
+        if let Some(ttl) = self.ttl {
+            inner.set_ttl(ttl)?;
         }
 
         Ok(inner.try_into()?)
