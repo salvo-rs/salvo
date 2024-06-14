@@ -21,16 +21,29 @@ pub struct UnixListener<T> {
     path: T,
     permissions: Option<Permissions>,
     owner: Option<(Option<Uid>, Option<Gid>)>,
+    #[cfg(feature = "socket2")]
+    backlog: Option<u32>,
 }
 #[cfg(unix)]
 impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
+    #[cfg(not(feature = "socket2"))]
     #[inline]
     pub fn new(path: T) -> UnixListener<T> {
         UnixListener {
             path,
             permissions: None,
             owner: None,
+        }
+    }
+    /// Creates a new `UnixListener` bind to the specified path.
+    #[cfg(feature = "socket2")]
+    #[inline]
+    pub fn new(path: T) -> UnixListener<T> {
+        UnixListener {
+            path,
+            permissions: None,
+            owner: None, backlog: None
         }
     }
 
@@ -46,6 +59,16 @@ impl<T> UnixListener<T> {
     pub fn owner(mut self, uid: Option<u32>, gid: Option<u32>) -> Self {
         self.owner = Some((uid.map(Uid::from_raw), gid.map(Gid::from_raw)));
         self
+    }
+
+    cfg_feature! {
+        #![feature = "socket2"]
+        /// Set backlog capacity.
+        #[inline]
+        pub fn backlog(mut self, backlog: u32) -> Self {
+            self.backlog = Some(backlog);
+            self
+        }
     }
 }
 
@@ -76,6 +99,12 @@ where
             (None, None) => TokioUnixListener::bind(self.path)?,
         };
 
+        #[cfg(feature = "socket2")]
+        if let Some(backlog) = self.backlog {
+            let socket = socket2::SockRef::from(&inner);
+            socket.listen(backlog as _)?;
+        }
+
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
             http_versions: vec![Version::HTTP_11],
@@ -92,6 +121,12 @@ where
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
+}
+impl UnixAcceptor {
+    /// Get the inner `TokioUnixListener`.
+    pub fn inner(&self) -> &TokioUnixListener {
+        &self.inner
+    }
 }
 
 #[cfg(unix)]

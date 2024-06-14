@@ -106,6 +106,11 @@ where
             _phantom: PhantomData,
         }
     }
+
+    /// Get the inner `Acceptor`.
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
 }
 
 impl<S, C, T, E> Acceptor for RustlsAcceptor<S, C, T, E>

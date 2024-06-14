@@ -218,10 +218,8 @@ impl HyperHandler {
                 if res.status_code.is_none() && path_state.has_any_goal {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
-            } else {
-                if path_state.has_any_goal {
-                    res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
-                }
+            } else if path_state.has_any_goal {
+                res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
             let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);

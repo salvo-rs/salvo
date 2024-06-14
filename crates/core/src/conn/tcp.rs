@@ -30,12 +30,27 @@ use crate::conn::acme::AcmeListener;
 /// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {
     local_addr: T,
+    ttl: Option<u32>,
+    #[cfg(feature = "socket2")]
+    backlog: Option<u32>,
 }
 impl<T: ToSocketAddrs + Send> TcpListener<T> {
     /// Bind to socket address.
+    #[cfg(not(feature = "socket2"))]
     #[inline]
     pub fn new(local_addr: T) -> Self {
-        TcpListener { local_addr }
+        #[cfg(not(feature = "socket2"))]
+        TcpListener { local_addr, ttl: None }
+    }
+    /// Bind to socket address.
+    #[cfg(feature = "socket2")]
+    #[inline]
+    pub fn new(local_addr: T) -> Self {
+        TcpListener {
+            local_addr,
+            ttl: None,
+            backlog: None,
+        }
     }
 
     cfg_feature! {
@@ -92,6 +107,25 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
             AcmeListener::new(self)
         }
     }
+
+    /// Sets the value for the `IP_TTL` option on this socket.
+    ///
+    /// This value sets the time-to-live field that is used in every packet sent
+    /// from this socket.
+    pub fn ttl(mut self, ttl: u32) -> Self {
+        self.ttl = Some(ttl);
+        self
+    }
+
+    cfg_feature! {
+        #![feature = "socket2"]
+        /// Set backlog capacity.
+        #[inline]
+        pub fn backlog(mut self, backlog: u32) -> Self {
+            self.backlog = Some(backlog);
+            self
+        }
+    }
 }
 impl<T> Listener for TcpListener<T>
 where
@@ -100,7 +134,18 @@ where
     type Acceptor = TcpAcceptor;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(TokioTcpListener::bind(self.local_addr).await?.try_into()?)
+        let inner = TokioTcpListener::bind(self.local_addr).await?;
+
+        #[cfg(feature = "socket2")]
+        if let Some(backlog) = self.backlog {
+            let socket = socket2::SockRef::from(&inner);
+            socket.listen(backlog as _)?;
+        }
+        if let Some(ttl) = self.ttl {
+            inner.set_ttl(ttl)?;
+        }
+
+        Ok(inner.try_into()?)
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.
@@ -110,7 +155,12 @@ pub struct TcpAcceptor {
 }
 
 impl TcpAcceptor {
-    /// Returns the local address that this listener is bound to.
+    /// Get the inner `TokioTcpListener`.
+    pub fn inner(&self) -> &TokioTcpListener {
+        &self.inner
+    }
+
+    /// Get the local address that this listener is bound to.
     ///
     /// This can be useful, for example, when binding to port 0 to figure out
     /// which port was actually bound.
