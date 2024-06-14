@@ -45,7 +45,10 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     #[cfg(feature = "socket2")]
     #[inline]
     pub fn new(local_addr: T) -> Self {
-        TcpListener { local_addr, backlog: 2048 }
+        TcpListener {
+            local_addr,
+            backlog: 2048,
+        }
     }
 
     cfg_feature! {
