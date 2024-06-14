@@ -40,7 +40,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     #[inline]
     pub fn new(local_addr: T) -> Self {
         #[cfg(not(feature = "socket2"))]
-        TcpListener { local_addr }
+        TcpListener { local_addr, ttl: None }
     }
     /// Bind to socket address.
     #[cfg(feature = "socket2")]
