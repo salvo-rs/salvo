@@ -30,12 +30,22 @@ use crate::conn::acme::AcmeListener;
 /// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {
     local_addr: T,
+    #[cfg(feature = "socket2")]
+    backlog: u32,
 }
 impl<T: ToSocketAddrs + Send> TcpListener<T> {
     /// Bind to socket address.
+    #[cfg(not(feature = "socket2"))]
     #[inline]
     pub fn new(local_addr: T) -> Self {
+        #[cfg(not(feature = "socket2"))]
         TcpListener { local_addr }
+    }
+    /// Bind to socket address.
+    #[cfg(feature = "socket2")]
+    #[inline]
+    pub fn new(local_addr: T) -> Self {
+        TcpListener { local_addr, backlog: 2048 }
     }
 
     cfg_feature! {
@@ -92,6 +102,16 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
             AcmeListener::new(self)
         }
     }
+
+    cfg_feature! {
+        #![feature = "socket2"]
+        /// Set backlog capacity.
+        #[inline]
+        pub fn backlog(mut self, backlog: u32) -> Self {
+            self.backlog = backlog;
+            self
+        }
+    }
 }
 impl<T> Listener for TcpListener<T>
 where
@@ -100,7 +120,15 @@ where
     type Acceptor = TcpAcceptor;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(TokioTcpListener::bind(self.local_addr).await?.try_into()?)
+        let inner = TokioTcpListener::bind(self.local_addr).await?;
+
+        #[cfg(feature = "socket2")]
+        {
+            let socket = socket2::SockRef::from(&inner);
+            socket.listen(self.backlog as _)?;
+        }
+
+        Ok(inner.try_into()?)
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.

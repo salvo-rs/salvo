@@ -79,6 +79,7 @@ impl ServerHandle {
     }
 }
 
+#[cfg(feature = "server-handle")]
 enum ServerCommand {
     StopForcible,
     StopGraceful(Option<Duration>),
