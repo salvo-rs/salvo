@@ -151,7 +151,6 @@ where
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
-                        http_version: Version::HTTP_3,
                     });
                 }
                 Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),

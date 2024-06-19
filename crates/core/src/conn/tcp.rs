@@ -227,7 +227,6 @@ impl Acceptor for TcpAcceptor {
                 ),
                 remote_addr: remote_addr.into(),
                 local_addr,
-                http_version: Version::HTTP_11,
                 http_scheme: Scheme::HTTP,
             }
         })

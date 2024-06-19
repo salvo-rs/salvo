@@ -105,14 +105,21 @@ where
             socket.listen(backlog as _)?;
         }
 
-        let holding = Holding {
+        let holdings = vec![Holding {
             local_addr: inner.local_addr()?.into(),
+            #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
             http_versions: vec![Version::HTTP_11],
+            #[cfg(all(feature = "http1", not(feature = "http2")))]
+            http_versions: vec![Version::HTTP_11],
+            #[cfg(all(not(feature = "http1"), feature = "http2"))]
+            http_versions: vec![Version::HTTP_2],
+            #[cfg(all(feature = "http1", feature = "http2"))]
+            http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
-        };
+        }];
         Ok(UnixAcceptor {
             inner,
-            holdings: vec![holding],
+            holdings,
         })
     }
 }
@@ -143,17 +150,17 @@ impl Acceptor for UnixAcceptor {
         self.inner.accept().await.map(move |(conn, remote_addr)|{
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
-             Accepted {
-            conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
-                trans_proto: TransProto::Tcp,
+            Accepted {
+                conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
+                    trans_proto: TransProto::Tcp,
+                    remote_addr: remote_addr.clone().into(),
+                    local_addr: local_addr.clone()
+                }))),
+                local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.clone().into(),
-                local_addr: local_addr.clone()
-            }))),
-            local_addr: self.holdings[0].local_addr.clone(),
-            remote_addr: remote_addr.clone().into(),
-            http_version: Version::HTTP_11,
-            http_scheme: Scheme::HTTP,
-        }})
+                http_scheme: Scheme::HTTP,
+            }
+        })
     }
 }
 
