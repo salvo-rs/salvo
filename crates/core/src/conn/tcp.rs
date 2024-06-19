@@ -198,10 +198,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
             http_scheme: Scheme::HTTP,
         }];
 
-        Ok(TcpAcceptor {
-            inner,
-            holdings,
-        })
+        Ok(TcpAcceptor { inner, holdings })
     }
 }
 
