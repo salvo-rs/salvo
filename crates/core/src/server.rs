@@ -1,5 +1,6 @@
 //! Server module
 use std::io::Result as IoResult;
+#[cfg(feature = "server-handle")]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -12,9 +13,13 @@ compile_error!(
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::Notify;
-use tokio::time::Duration;
+#[cfg(feature = "server-handle")]
+use tokio::{
+    time::Duration,sync::{
+    Notify,
+    mpsc::{UnboundedReceiver, UnboundedSender}
+}};
+#[cfg(feature = "server-handle")]
 use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "quinn")]
@@ -335,6 +340,7 @@ impl<A: Acceptor + Send> Server<A> {
         tracing::info!("server stopped");
         Ok(())
     }
+    /// Try to serve a [`Service`].
     #[cfg(not(feature = "server-handle"))]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
         where
@@ -372,7 +378,7 @@ impl<A: Acceptor + Send> Server<A> {
                     let builder = builder.clone();
 
                     tokio::spawn(async move {
-                        conn.serve(handler, builder, None).await;
+                        conn.serve(handler, builder, None).await.ok();
                     });
                 },
                 Err(e) => {
@@ -380,9 +386,6 @@ impl<A: Acceptor + Send> Server<A> {
                 }
             }
         }
-
-        tracing::info!("server stopped");
-        Ok(())
     }
 }
 
