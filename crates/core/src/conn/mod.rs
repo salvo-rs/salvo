@@ -96,8 +96,6 @@ where
     pub remote_addr: SocketAddr,
     /// Http scheme.
     pub http_scheme: Scheme,
-    /// Http version.
-    pub http_version: Version,
 }
 
 impl<C> Accepted<C>
@@ -114,14 +112,12 @@ where
             conn,
             local_addr,
             remote_addr,
-            http_version,
             http_scheme,
         } = self;
         Accepted {
             conn: wrap_fn(conn),
             local_addr,
             remote_addr,
-            http_version,
             http_scheme,
         }
     }

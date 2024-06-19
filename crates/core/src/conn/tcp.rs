@@ -185,16 +185,16 @@ impl TcpAcceptor {
 impl TryFrom<TokioTcpListener> for TcpAcceptor {
     type Error = IoError;
     fn try_from(inner: TokioTcpListener) -> Result<Self, Self::Error> {
-        let holding = Holding {
+        let holdings = vec![Holding {
             local_addr: inner.local_addr()?.into(),
+            #[cfg(not(feature = "http2-cleartext"))]
             http_versions: vec![Version::HTTP_11],
+            #[cfg(feature = "http2-cleartext")]
+            http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
-        };
+        }];
 
-        Ok(TcpAcceptor {
-            inner,
-            holdings: vec![holding],
-        })
+        Ok(TcpAcceptor { inner, holdings })
     }
 }
 
@@ -223,7 +223,6 @@ impl Acceptor for TcpAcceptor {
                 ),
                 remote_addr: remote_addr.into(),
                 local_addr,
-                http_version: Version::HTTP_11,
                 http_scheme: Scheme::HTTP,
             }
         })

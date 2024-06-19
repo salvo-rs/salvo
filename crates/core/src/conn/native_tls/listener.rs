@@ -161,7 +161,6 @@ where
             conn,
             local_addr,
             remote_addr,
-            http_version,
             ..
         } = self.inner.accept(fuse_factory.clone()).await?;
         let fusewire = conn.fusewire();
@@ -175,7 +174,6 @@ where
             conn: HandshakeStream::new(conn, fusewire),
             local_addr,
             remote_addr,
-            http_version,
             http_scheme: Scheme::HTTPS,
         })
     }
