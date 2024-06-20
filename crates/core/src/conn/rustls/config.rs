@@ -251,7 +251,12 @@ impl RustlsConfig {
                 certified_keys,
                 fallback,
             }));
-        config.alpn_protocols = self.alpn_protocols;
+        let mut alpn_protocols = self.alpn_protocols;
+        let h3_alpn = b"h3".to_vec();
+        if !alpn_protocols.contains(&h3_alpn) {
+            alpn_protocols.push(h3_alpn);
+        }
+        config.alpn_protocols = alpn_protocols;
         Ok(config)
     }
 
@@ -278,7 +283,7 @@ cfg_feature! {
         type Error = IoError;
 
         fn try_into(self) -> IoResult<crate::conn::quinn::ServerConfig> {
-            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::new(ErrorKind::Other, "failed to build quic server config"))?;
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::new(ErrorKind::Other, "failed to build quinn server config"))?;
             Ok(crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto)))
         }
     }
