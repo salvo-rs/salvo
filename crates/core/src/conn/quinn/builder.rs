@@ -99,7 +99,7 @@ impl Builder {
                     break;
                 }
                 Err(e) => {
-                    tracing::warn!(error = ?e, "accept failed");
+                    tracing::debug!(error = ?e, "accept stopped {:?}", e.get_error_level());
                     match e.get_error_level() {
                         ErrorLevel::ConnectionError => break,
                         ErrorLevel::StreamError => continue,
