@@ -47,22 +47,23 @@ To configure security requirements, you need to add one or more security schemes
 as indicated in the example:
 
 ```rust
-use salvo::oapi::security::Http;
-use salvo::oapi::SecurityScheme;
+use salvo_oapi::security::{Http, HttpAuthScheme};
+use salvo_oapi::{OpenApi, SecurityScheme};
 
 #[tokio::main]
 async fn main() {
     let doc = OpenApi::new("test", "0.1")
         .add_security_scheme(
             "bearer",
-            SecurityScheme::Http(Http::new(salvo::oapi::security::HttpAuthScheme::Bearer).bearer_format("JSON")))
-        .merge_router(&router);
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JSON")));
 }
 ```
 
 And, accordingly, when using the `endpoint` macro, specify the scheme:
 
 ```rust
+use salvo_oapi::endpoint;
+
 #[endpoint(security(["bearer" = ["bearer"]]))]
 pub async fn authenticated_action() {}
 ```
