@@ -220,7 +220,7 @@ cfg_feature! {
     pub(crate) mod h3 {
         use std::boxed::Box;
         use std::pin::Pin;
-        use std::task::{Context, Poll};
+        use std::task::{ready, Context, Poll};
 
         use hyper::body::{Body, Frame, SizeHint};
         use salvo_http3::quic::RecvStream;
@@ -255,20 +255,16 @@ cfg_feature! {
 
             fn poll_frame(
                 mut self: Pin<&mut Self>,
-                _cx: &mut Context<'_>,
+                cx: &mut Context<'_>,
             ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
                 let this = &mut *self;
-                let rt = tokio::runtime::Runtime::new().expect("create tokio runtime failed");
-                // TODO: how to remove block?
-                Poll::Ready(Some(rt.block_on(async move {
-                    match this.inner.recv_data().await {
-                        Ok(Some(buf)) => {
-                            Ok(Frame::data(Bytes::copy_from_slice(buf.chunk())))
-                        }
-                        Ok(None) => Ok(Frame::data(Bytes::new())),
-                        Err(e) => Err(e.into()),
+                match ready!(this.inner.poll_recv_data(cx)) {
+                    Ok(Some(buf)) => {
+                        Poll::Ready(Some(Ok(Frame::data(Bytes::copy_from_slice(buf.chunk())))))
                     }
-                })))
+                    Ok(None) => Poll::Ready(None),
+                    Err(e) => Poll::Ready(Some(Err(e.into()))),
+                }
             }
 
             fn is_end_stream(&self) -> bool {
