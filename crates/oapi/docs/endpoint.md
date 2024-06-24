@@ -41,6 +41,32 @@ fn endpoint() {}
 
 * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 
+# Security Attributes
+
+To configure security requirements, you need to add one or more security schemes when creating an `OpenApi` object,
+as indicated in the example:
+
+```rust
+use salvo::oapi::security::Http;
+use salvo::oapi::SecurityScheme;
+
+#[tokio::main]
+async fn main() {
+    let doc = OpenApi::new("test", "0.1")
+        .add_security_scheme(
+            "bearer",
+            SecurityScheme::Http(Http::new(salvo::oapi::security::HttpAuthScheme::Bearer).bearer_format("JSON")))
+        .merge_router(&router);
+}
+```
+
+And, accordingly, when using the `endpoint` macro, specify the scheme:
+
+```rust
+#[endpoint(security(["bearer" = ["bearer"]]))]
+pub async fn authenticated_action() {}
+```
+
 # Request Body Attributes
 
 **Simple format definition by `request_body = ...`**
