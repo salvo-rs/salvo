@@ -28,7 +28,7 @@ impl<T> Deref for CookieParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().expect("`CookieParam<T, true>` defref get `None`")
+        self.0.as_ref().expect("`CookieParam<T, true>` deref get `None`")
     }
 }
 impl<T> Deref for CookieParam<T, false> {
@@ -41,7 +41,7 @@ impl<T> Deref for CookieParam<T, false> {
 
 impl<T> DerefMut for CookieParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().expect("`CookieParam<T, true>` defref_mut get `None`")
+        self.0.as_mut().expect("`CookieParam<T, true>` deref_mut get `None`")
     }
 }
 impl<T> DerefMut for CookieParam<T, false> {
