@@ -46,7 +46,8 @@ use crate::handler::{Handler, WhenHoop};
 use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
 use crate::{Depot, FlowCtrl};
 
-static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> = LazyLock::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> =
+    LazyLock::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 const EMPTY_CAUSE_MSG: &str = "There is no more detailed explanation.";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 

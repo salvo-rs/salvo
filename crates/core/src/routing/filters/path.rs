@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::sync::{LazyLock, Arc};
+use std::sync::{Arc, LazyLock};
 
 use indexmap::IndexSet;
 use parking_lot::RwLock;

@@ -25,7 +25,6 @@ use regex::Regex;
 use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
-use crate::{routing::NormNode, Endpoint};
 pub use self::{
     components::Components,
     content::Content,
@@ -44,6 +43,7 @@ pub use self::{
     tag::Tag,
     xml::Xml,
 };
+use crate::{routing::NormNode, Endpoint};
 
 static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
