@@ -391,7 +391,10 @@ impl Handler for Compression {
                     }
                 }
             }
-            _ => {}
+            body => {
+                res.body(body);
+                return;
+            }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
     }
