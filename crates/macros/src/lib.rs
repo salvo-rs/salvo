@@ -180,8 +180,7 @@ mod tests {
             quote!{
                 impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
-                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
-                            salvo::__private::once_cell::sync::OnceCell::new();
+                        static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(|| {
                             let mut metadata = salvo::extract::Metadata::new("BadMan");
                             metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
@@ -233,8 +232,7 @@ mod tests {
             quote!{
                 impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
-                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
-                            salvo::__private::once_cell::sync::OnceCell::new();
+                        static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(|| {
                             let mut metadata = salvo::extract::Metadata::new("BadMan");
                             metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(

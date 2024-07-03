@@ -7,7 +7,6 @@ publish.workspace = true
 
 [dependencies]
 futures-util.workspace = true
-once_cell = "1"
 salvo = { workspace = true, features = ["websocket"] }
 tokio = { workspace = true, features = ["macros"] }
 tokio-stream = { workspace = true, features = ["net"] }

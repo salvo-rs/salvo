@@ -7,7 +7,6 @@ version.workspace = true
 
 [dependencies]
 async-std.workspace = true
-once_cell.workspace = true
 rbatis.workspace = true
 rbdc.workspace = true
 rbdc-mysql.workspace = true

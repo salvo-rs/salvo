@@ -3,6 +3,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 #[cfg(feature = "quinn")]
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -15,7 +16,6 @@ use http::Extensions;
 use http_body_util::{BodyExt, Limited};
 use indexmap::IndexMap;
 use multimap::MultiMap;
-use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use serde::de::Deserialize;
 
@@ -64,7 +64,7 @@ pub struct Request {
     pub(crate) params: IndexMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
-    pub(crate) queries: OnceCell<MultiMap<String, String>>,
+    pub(crate) queries: OnceLock<MultiMap<String, String>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
     pub(crate) payload: tokio::sync::OnceCell<Bytes>,
 
@@ -111,7 +111,7 @@ impl Request {
             #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
             params: IndexMap::new(),
-            queries: OnceCell::new(),
+            queries: OnceLock::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             version: Version::default(),
@@ -162,7 +162,7 @@ impl Request {
         };
 
         Request {
-            queries: OnceCell::new(),
+            queries: OnceLock::new(),
             uri,
             headers,
             body: body.into(),
@@ -174,7 +174,7 @@ impl Request {
             params: IndexMap::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
-            // multipart: OnceCell::new(),
+            // multipart: OnceLock::new(),
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
             version,
@@ -266,7 +266,7 @@ impl Request {
     #[inline]
     pub fn set_uri(&mut self, uri: Uri) {
         self.uri = uri;
-        self.queries = OnceCell::new();
+        self.queries = OnceLock::new();
     }
 
     /// Returns a reference to the associated HTTP method.

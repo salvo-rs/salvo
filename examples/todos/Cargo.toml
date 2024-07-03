@@ -6,7 +6,6 @@ publish.workspace = true
 
 
 [dependencies]
-once_cell = "1"
 salvo = { workspace = true, features = ["size-limiter"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["macros"] }

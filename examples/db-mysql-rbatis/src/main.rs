@@ -2,13 +2,14 @@
 extern crate rbatis;
 extern crate rbdc;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use rbatis::RBatis;
 use rbdc_mysql::driver::MysqlDriver;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub static RB: Lazy<RBatis> = Lazy::new(RBatis::new);
+pub static RB: LazyLock<RBatis> = LazyLock::new(RBatis::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {

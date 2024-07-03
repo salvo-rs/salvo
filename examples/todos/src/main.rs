@@ -1,4 +1,5 @@
-use once_cell::sync::Lazy;
+
+use std::sync::LazyLock;
 
 use salvo::prelude::*;
 use salvo::size_limiter;

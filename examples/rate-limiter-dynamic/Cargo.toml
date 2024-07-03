@@ -9,4 +9,3 @@ salvo = { workspace = true, features = ["rate-limiter"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-once_cell = "1"

@@ -1,5 +1,5 @@
-use once_cell::sync::Lazy;
-use std::sync::Arc;
+
+use std::sync::{Arc, LazyLock};
 
 use salvo::affix;
 use salvo::http::header::{self, HeaderValue};

@@ -2,10 +2,9 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::sync::Arc;
+use std::sync::{LazyLock, Arc};
 
 use indexmap::IndexSet;
-use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use regex::Regex;
 
@@ -36,7 +35,7 @@ pub trait WispBuilder: Send + Sync {
 }
 
 type WispBuilderMap = RwLock<HashMap<String, Arc<Box<dyn WispBuilder>>>>;
-static WISP_BUILDERS: Lazy<WispBuilderMap> = Lazy::new(|| {
+static WISP_BUILDERS: LazyLock<WispBuilderMap> = LazyLock::new(|| {
     let mut map: HashMap<String, Arc<Box<dyn WispBuilder>>> = HashMap::with_capacity(8);
     map.insert("num".into(), Arc::new(Box::new(CharsWispBuilder::new(is_num))));
     map.insert("hex".into(), Arc::new(Box::new(CharsWispBuilder::new(is_hex))));

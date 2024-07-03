@@ -1,10 +1,12 @@
-use once_cell::sync::Lazy;
+
+use std::sync::LazyLock;
+
 use salvo::oapi::{extract::*, ToSchema};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 pub type Db = Mutex<Vec<Todo>>;
 
 pub fn new_store() -> Db {

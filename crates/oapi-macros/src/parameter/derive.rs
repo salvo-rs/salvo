@@ -220,7 +220,7 @@ impl TryToTokens for ToParameters {
             }
             impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #where_clause {
                 fn metadata() -> &'__macro_gen_ex #salvo::extract::Metadata {
-                    static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
+                    static METADATA: ::std::sync::OnceLock<#salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                     METADATA.get_or_init(||
                         #salvo::extract::Metadata::new(#name)
                             .default_sources(vec![#default_source])

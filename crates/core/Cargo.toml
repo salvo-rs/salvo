@@ -59,7 +59,6 @@ mime-infer = { workspace = true }
 multer = { workspace = true }
 multimap = { workspace = true, features = ["serde"] }
 native-tls = { workspace = true, optional = true, features = ["alpn"] }
-once_cell = { workspace = true }
 openssl = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 pin-project = { workspace = true }

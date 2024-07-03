@@ -351,7 +351,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mt = name.to_string();
     let metadata = quote! {
         fn metadata() ->  &'static #salvo::extract::Metadata {
-            static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
+            static METADATA: ::std::cell::OnceLock<#salvo::extract::Metadata> = ::std::sync::OnceLock::new();
             METADATA.get_or_init(|| {
                 let mut metadata = #salvo::extract::Metadata::new(#mt);
                 #(

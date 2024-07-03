@@ -1,6 +1,7 @@
+use std::sync::OnceLock;
+
 use futures::stream::TryStreamExt;
 use mongodb::{bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection, IndexModel};
-use once_cell::sync::OnceCell;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 

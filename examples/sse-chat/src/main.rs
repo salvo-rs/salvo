@@ -5,9 +5,9 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::LazyLock;
 
 use futures_util::StreamExt;
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
