@@ -25,7 +25,7 @@ impl Exporter {
             Ok(()) => {
                 res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true)
                     .ok();
-                res.body(body.into());
+                res.body(body);
             }
             Err(_) => {
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
