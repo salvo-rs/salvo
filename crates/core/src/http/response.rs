@@ -177,8 +177,8 @@ impl Response {
     }
     /// Sets body.
     #[inline]
-    pub fn body(&mut self, body: ResBody) -> &mut Self {
-        self.body = body;
+    pub fn body(&mut self, body: impl Into<ResBody>) -> &mut Self {
+        self.body = body.into();
         self
     }
 
