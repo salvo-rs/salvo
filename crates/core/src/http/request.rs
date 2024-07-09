@@ -331,12 +331,12 @@ impl Request {
         &mut self.remote_addr
     }
 
-    /// Get request remote address reference.
+    /// Get request local address reference.
     #[inline]
     pub fn local_addr(&self) -> &SocketAddr {
         &self.local_addr
     }
-    /// Get mutable request remote address reference.
+    /// Get mutable request local address reference.
     #[inline]
     pub fn local_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.local_addr
