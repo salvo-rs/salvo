@@ -7,12 +7,12 @@ use opentelemetry::{
 };
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use reqwest::{Client, Method, Url};
 
-fn init_tracer() -> Tracer {
+fn init_tracer() {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_otlp::new_pipeline()
+    let provider = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
             opentelemetry_otlp::new_exporter()
@@ -20,12 +20,13 @@ fn init_tracer() -> Tracer {
                 .with_endpoint("http://localhost:14268/api/traces"),
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .unwrap()
+        .unwrap();
+    let _ = global::set_tracer_provider(provider);
 }
 
 #[tokio::main]
 async fn main() {
-    let _tracer = init_tracer();
+    init_tracer();
     let client = Client::new();
     let span = global::tracer("example-opentelemetry/client").start("request/server1");
     let cx = Context::current_with_span(span);

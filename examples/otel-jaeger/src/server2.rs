@@ -1,17 +1,17 @@
-use opentelemetry::{global, KeyValue};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer, Resource};
+use opentelemetry::{global, trace::TracerProvider as _, KeyValue};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider, Resource};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 
 mod exporter;
 use exporter::Exporter;
 
-fn init_tracer() -> Tracer {
+fn init_tracer_provider() -> TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_trace_config(
-            opentelemetry_sdk::trace::config()
+            opentelemetry_sdk::trace::Config::default()
                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "server2")])),
         )
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
@@ -28,7 +28,7 @@ async fn index(req: &mut Request) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let tracer = init_tracer();
+    let tracer = init_tracer_provider().tracer("app");
     let router = Router::new()
         .hoop(Metrics::new())
         .hoop(Tracing::new(tracer))
