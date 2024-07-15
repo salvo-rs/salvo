@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use opentelemetry::metrics::{Counter, Histogram, Unit};
+use opentelemetry::metrics::{Counter, Histogram};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_semantic_conventions::trace;
 use salvo_core::http::ResBody;
@@ -34,7 +34,7 @@ impl Metrics {
                 .init(),
             duration: meter
                 .f64_histogram("salvo_request_duration_ms")
-                .with_unit(Unit::new("milliseconds"))
+                .with_unit("milliseconds")
                 .with_description("request duration histogram (in milliseconds, since start of service)")
                 .init(),
         }

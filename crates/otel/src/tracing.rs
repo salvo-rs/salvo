@@ -1,9 +1,8 @@
-use headers03::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
 use opentelemetry::{global, Context, KeyValue};
 use opentelemetry_http::HeaderExtractor;
-use opentelemetry_semantic_conventions::{resource, trace};
-use salvo_core::http::headers::{self, HeaderMapExt};
+use opentelemetry_semantic_conventions::{attribute, resource, trace};
+use salvo_core::http::headers::{self, HeaderMap, HeaderMapExt, HeaderName, HeaderValue};
 use salvo_core::prelude::*;
 
 /// Middleware for tracing with OpenTelemetry.
@@ -74,7 +73,10 @@ where
             span.add_event(event.to_string(), vec![]);
             span.set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, status.as_u16() as i64));
             if let Some(content_length) = res.headers().typed_get::<headers::ContentLength>() {
-                span.set_attribute(KeyValue::new(trace::HTTP_RESPONSE_BODY_SIZE, content_length.0 as i64));
+                span.set_attribute(KeyValue::new(
+                    attribute::HTTP_RESPONSE_BODY_SIZE,
+                    content_length.0 as i64,
+                ));
             }
         }
         .with_context(Context::current_with_span(span))
