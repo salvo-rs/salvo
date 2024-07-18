@@ -304,18 +304,13 @@ Benchmark 测试结果可以从这里查看:
 
 [https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
-## 🩸 贡献
+## 🩸 贡献者
 
-非常欢迎大家为项目贡献力量，可以通过以下方法为项目作出贡献:
+<a href="https://github.com/salvo-rs/salvo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=salvo-rs/salvo" />
+</a>
 
-- 在 issue 中提交功能需求和 bug report;
-- 在 issues 或者 require feedback 下留下自己的意见;
-- 通过 pull requests 提交代码;
-- 在博客或者技术平台发表 Salvo 相关的技术文章。
-
-All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
-
-## ☕ 支持
+## ☕ 捐助
 
 `Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**请我喝杯咖啡**](https://ko-fi.com/chrislearn).
 <p style="text-align: center;">
