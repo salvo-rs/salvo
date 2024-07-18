@@ -296,18 +296,13 @@ Benchmark testing result can be found from here:
 
 [https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
-## 🩸 Contributing
+## 🩸 Contributors
 
-Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
+<a href="https://github.com/salvo-rs/salvo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=salvo-rs/salvo" />
+</a>
 
-- Submit a feature request or bug report as an issue;
-- Comment on issues that require feedback;
-- Contribute code via pull requests;
-- Publish Salvo-related technical articles on blogs or technical platforms。
-
-All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
-
-## ☕ Supporters
+## ☕ Donate
 
 Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
 
