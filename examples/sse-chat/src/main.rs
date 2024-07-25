@@ -18,7 +18,7 @@ use salvo::sse::{SseEvent, SseKeepAlive};
 type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;
 
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-static ONLINE_USERS: Lazy<Users> = Lazy::new(Users::default);
+static ONLINE_USERS: LazyLock<Users> = LazyLock::new(Users::default);
 
 #[tokio::main]
 async fn main() {

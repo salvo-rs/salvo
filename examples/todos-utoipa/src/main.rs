@@ -1,4 +1,3 @@
-
 use std::sync::{Arc, LazyLock};
 
 use salvo::affix;
@@ -13,7 +12,7 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::Config;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 
 #[handler]
 async fn hello(res: &mut Response) {

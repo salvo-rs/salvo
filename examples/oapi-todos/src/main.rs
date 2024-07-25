@@ -1,4 +1,3 @@
-
 use std::sync::LazyLock;
 
 use salvo::oapi::{extract::*, ToSchema};

@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
         assert_eq!(res.take_string().await.unwrap(), "POST");
     }
-    #[cfg(feadture = "hmac-cipher")]
+    #[cfg(feature = "hmac-cipher")]
     #[tokio::test]
     async fn test_validates_token_in_alternate_query() {
         let csrf = Csrf::new(

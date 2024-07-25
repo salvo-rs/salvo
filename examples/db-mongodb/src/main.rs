@@ -32,7 +32,7 @@ struct User {
     email: String,
 }
 
-static MONGODB_CLIENT: OnceCell<Client> = OnceCell::new();
+static MONGODB_CLIENT: OnceLock<Client> = OnceLock::new();
 
 #[inline]
 pub fn get_mongodb_client() -> &'static Client {

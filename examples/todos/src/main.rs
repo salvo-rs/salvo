@@ -1,4 +1,3 @@
-
 use std::sync::LazyLock;
 
 use salvo::prelude::*;
@@ -6,7 +5,7 @@ use salvo::size_limiter;
 
 use self::models::*;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 
 #[tokio::main]
 async fn main() {
