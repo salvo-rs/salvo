@@ -1,7 +1,7 @@
 use std::any::TypeId;
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard};
 use regex::Regex;
 
@@ -15,8 +15,8 @@ pub enum NameRule {
     Force(&'static str),
 }
 
-static GLOBAL_NAMER: Lazy<RwLock<Box<dyn Namer>>> = Lazy::new(|| RwLock::new(Box::new(FlexNamer::new())));
-static NAME_TYPES: Lazy<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = Lazy::new(Default::default);
+static GLOBAL_NAMER: LazyLock<RwLock<Box<dyn Namer>>> = LazyLock::new(|| RwLock::new(Box::new(FlexNamer::new())));
+static NAME_TYPES: LazyLock<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = LazyLock::new(Default::default);
 
 /// Set global namer.
 ///

@@ -1,9 +1,10 @@
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
+
 use salvo::prelude::*;
 use serde::Serialize;
 use sqlx::{FromRow, PgPool};
 
-static POSTGRES: OnceCell<PgPool> = OnceCell::new();
+static POSTGRES: OnceLock<PgPool> = OnceLock::new();
 
 #[inline]
 pub fn get_postgres() -> &'static PgPool {

@@ -584,8 +584,7 @@ mod tests {
                 }
                 impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
                     fn metadata() -> &'__macro_gen_ex salvo::extract::Metadata {
-                        static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
-                            salvo::__private::once_cell::sync::OnceCell::new();
+                        static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(||
                             salvo::extract::Metadata::new("PetQuery")
                                 .default_sources(vec![salvo::extract::metadata::Source::new(

@@ -1,11 +1,11 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use salvo::prelude::*;
 use salvo::size_limiter;
 
 use self::models::*;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 
 #[tokio::main]
 async fn main() {
@@ -34,7 +34,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         .clone()
         .into_iter()
         .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
+        .take(opts.limit.unwrap_or(usize::MAX))
         .collect();
     res.render(Json(todos));
 }

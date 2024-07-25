@@ -18,10 +18,9 @@ pub mod server;
 mod tag;
 mod xml;
 
-use crate::{routing::NormNode, Endpoint};
 use std::collections::{btree_map, BTreeSet};
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
@@ -44,8 +43,9 @@ pub use self::{
     tag::Tag,
     xml::Xml,
 };
+use crate::{routing::NormNode, Endpoint};
 
-static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
+static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
 /// The structure of the internal storage object paths.
 #[cfg(not(feature = "preserve-path-order"))]

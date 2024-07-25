@@ -227,8 +227,8 @@ where
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::sync::LazyLock;
 
-    use once_cell::sync::Lazy;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::Error;
@@ -250,7 +250,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fixed_dynmaic_quota() {
-        static USER_QUOTAS: Lazy<HashMap<String, BasicQuota>> = Lazy::new(|| {
+        static USER_QUOTAS: LazyLock<HashMap<String, BasicQuota>> = LazyLock::new(|| {
             let mut map = HashMap::new();
             map.insert("user1".into(), BasicQuota::per_second(1));
             map.insert("user2".into(), BasicQuota::set_seconds(1, 5));
@@ -330,7 +330,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sliding_dynmaic_quota() {
-        static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
+        static USER_QUOTAS: LazyLock<HashMap<String, CelledQuota>> = LazyLock::new(|| {
             let mut map = HashMap::new();
             map.insert("user1".into(), CelledQuota::per_second(1, 1));
             map.insert("user2".into(), CelledQuota::set_seconds(1, 1, 5));

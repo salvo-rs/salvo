@@ -5,9 +5,9 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::LazyLock;
 
 use futures_util::{FutureExt, StreamExt};
-use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -17,7 +17,7 @@ use salvo::websocket::{Message, WebSocket, WebSocketUpgrade};
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
 
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-static ONLINE_USERS: Lazy<Users> = Lazy::new(Users::default);
+static ONLINE_USERS: LazyLock<Users> = LazyLock::new(Users::default);
 
 #[tokio::main]
 async fn main() {

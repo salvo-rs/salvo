@@ -503,28 +503,22 @@ fn list_xml(current: &CurrentInfo) -> String {
     ftxt.push_str("</list>");
     ftxt
 }
-fn human_size(x: u64) -> String {
-    let unit = 1000; // mac unix 1000 windows 1024
+fn human_size(bytes: u64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    let mut index = 0;
+    let mut bytes = bytes as f64;
 
-    let units = ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-    let mut l = 0;
-    let mut n_float = 0.00; // just for integer part
-
-    let mut n = x;
-    while n >= unit && l < units.len() {
-        n_float = (n as f64) / (unit as f64);
-        n /= unit;
-        l += 1;
+    while bytes >= 1024.0 && index < units.len() - 1 {
+        bytes /= 1024.0;
+        index += 1;
     }
 
-    let part_integer = format!("{}", n);
-    let mut res = part_integer.to_string();
-    if n_float.fract() != 0.0 {
-        let s = format!("{}", n_float.fract());
-        let substring = &s[2..3]; // 0.99 get 9
-        res = format!("{}.{}", part_integer, substring)
+    bytes = (bytes * 100.0).round() / 100.0;
+    if bytes == 1024.0 && index < units.len() - 1 {
+        index += 1;
+        bytes = 1.0;
     }
-    format!("{} {}", res, units[l]) // integer part add digit
+    format!("{} {}", bytes, units[index])
 }
 fn list_html(current: &CurrentInfo) -> String {
     fn header_links(path: &str) -> String {
@@ -641,22 +635,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
-        println!("{}", human_size(98595176)); // 98.59 MB on mac
+        assert_eq!("94.03 MB", human_size(98595176)); // 98.59 MB
 
-        let unit = 1000;
-        println!("{}", human_size(unit)); // 1 KB
-        println!("{}", human_size(unit - 1)); // 1023.9 B
+        let unit = 1024;
+        assert_eq!("1 KB", human_size(unit));
+        assert_eq!("1023 B", human_size(unit - 1));
 
-        println!("{}", human_size(unit * unit)); // 1 MB
-        println!("{}", human_size(unit * unit - 1)); // 1023.9 KB
+        assert_eq!("1 MB", human_size(unit * unit));
+        assert_eq!("1 MB", human_size(unit * unit - 1));
+        assert_eq!("1023.99 KB", human_size(unit * unit - 10));
 
-        println!("{}", human_size(unit * unit * unit)); // 1 GB
-        println!("{}", human_size(unit * unit * unit - 1)); // 1023.9 MB
+        assert_eq!("1 GB", human_size(unit * unit * unit));
+        assert_eq!("1 GB", human_size(unit * unit * unit - 1));
 
-        println!("{}", human_size(unit * unit * unit * unit)); // 1 TB
-        println!("{}", human_size(unit * unit * unit * unit - 1)); // 1023.9 GB
+        assert_eq!("1 TB", human_size(unit * unit * unit * unit));
+        assert_eq!("1 TB", human_size(unit * unit * unit * unit - 1));
 
-        println!("{}", human_size(unit * unit * unit * unit * unit)); // 1 PB
-        println!("{}", human_size(unit * unit * unit * unit * unit - 1)); //1023.9 TB
+        assert_eq!("1 PB", human_size(unit * unit * unit * unit * unit));
+        assert_eq!("1 PB", human_size(unit * unit * unit * unit * unit - 1));
     }
 }

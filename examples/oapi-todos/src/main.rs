@@ -1,10 +1,11 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use salvo::oapi::{extract::*, ToSchema};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 pub type Db = Mutex<Vec<Todo>>;
 
 pub fn new_store() -> Db {
@@ -80,7 +81,7 @@ pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usiz
         .clone()
         .into_iter()
         .skip(offset.into_inner().unwrap_or(0))
-        .take(limit.into_inner().unwrap_or(std::usize::MAX))
+        .take(limit.into_inner().unwrap_or(usize::MAX))
         .collect();
     Json(todos)
 }

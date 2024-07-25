@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 publish = false
-rust-version = "1.76"
+rust-version = "1.80"
 description = """
 Salvo is a powerful web framework that can make your work easier.
 """
@@ -43,7 +43,6 @@ tokio-stream = "0.1.14"
 async-stream = "0.3.5"
 futures-util = { version = "0.3", default-features = true }
 jsonwebtoken = "9"
-once_cell = "1"
 parking_lot = "0.12"
 reqwest = "0.12"
 salvo = { path = "../crates/salvo", default-features = true }

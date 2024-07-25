@@ -35,19 +35,19 @@
 //! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
 use bytes::Bytes;
 use mime::Mime;
-use once_cell::sync::Lazy;
 use serde::Serialize;
 
 use crate::handler::{Handler, WhenHoop};
 use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
 use crate::{Depot, FlowCtrl};
 
-static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> =
+    LazyLock::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 const EMPTY_CAUSE_MSG: &str = "There is no more detailed explanation.";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 

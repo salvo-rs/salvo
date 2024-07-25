@@ -1,5 +1,4 @@
-use once_cell::sync::Lazy;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use salvo::affix;
 use salvo::http::header::{self, HeaderValue};
@@ -13,7 +12,7 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::Config;
 
-static STORE: Lazy<Db> = Lazy::new(new_store);
+static STORE: LazyLock<Db> = LazyLock::new(new_store);
 
 #[handler]
 async fn hello(res: &mut Response) {
@@ -121,7 +120,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         .clone()
         .into_iter()
         .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
+        .take(opts.limit.unwrap_or(usize::MAX))
         .collect();
     res.render(Json(todos));
 }

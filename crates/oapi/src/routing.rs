@@ -1,8 +1,7 @@
 use std::any::TypeId;
 use std::collections::{BTreeSet, HashMap};
-use std::sync::RwLock;
+use std::sync::{LazyLock, RwLock};
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use salvo_core::Router;
 
@@ -76,7 +75,7 @@ impl NormNode {
 
 /// A component for save router metadata.
 type MetadataMap = RwLock<HashMap<usize, Metadata>>;
-static METADATA_REGISTRY: Lazy<MetadataMap> = Lazy::new(MetadataMap::default);
+static METADATA_REGISTRY: LazyLock<MetadataMap> = LazyLock::new(MetadataMap::default);
 
 /// Router extension trait for openapi metadata.
 pub trait RouterExt {
