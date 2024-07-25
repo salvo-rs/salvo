@@ -81,7 +81,7 @@ pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usiz
         .clone()
         .into_iter()
         .skip(offset.into_inner().unwrap_or(0))
-        .take(limit.into_inner().unwrap_or(std::usize::MAX))
+        .take(limit.into_inner().unwrap_or(usize::MAX))
         .collect();
     Json(todos)
 }

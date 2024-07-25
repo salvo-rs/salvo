@@ -143,7 +143,7 @@
 //!
 //! - `<id:num>`, matches any number of numeric characters;
 //! - `<id:num[10]>`, only matches a certain number of numeric characters, where 10 means that the match only matches
-//! 10 numeric characters;
+//!   10 numeric characters;
 //! - `<id:num(..10)>` means matching 1 to 9 numeric characters;
 //! - `<id:num(3..10)>` means matching 3 to 9 numeric characters;
 //! - `<id:num(..=10)>` means matching 1 to 10 numeric characters;

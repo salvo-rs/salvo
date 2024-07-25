@@ -120,7 +120,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         .clone()
         .into_iter()
         .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
+        .take(opts.limit.unwrap_or(usize::MAX))
         .collect();
     res.render(Json(todos));
 }

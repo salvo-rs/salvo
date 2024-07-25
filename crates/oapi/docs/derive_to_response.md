@@ -99,9 +99,9 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
   _`application/json`_ for struct and complex enum types.
   Content type can also be slice of **content_type** values if the endpoint support returning multiple
- response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
- _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
- the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 
 * `headers(...)` Slice of response headers that are returned back to a caller.
 
