@@ -1,5 +1,5 @@
 use std::error::Error as StdError;
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter, Write};
 
 use crate::http::{ResBody, StatusCode};
 
@@ -192,12 +192,14 @@ impl StdError for StatusError {}
 
 impl Display for StatusError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "code: {}", self.code)?;
-        write!(f, "name: {}", self.name)?;
-        write!(f, "brief: {:?}", self.brief)?;
-        write!(f, "detail: {:?}", self.detail)?;
-        write!(f, "cause: {:?}", self.cause)?;
-        Ok(())
+        let mut str_error = format!("code: {} name: {} brief: {}", self.code, self.name, self.brief);
+        if let Some(detail) = &self.detail {
+            write!(&mut str_error, " detail: {}", detail)?;
+        }
+        if let Some(cause) = &self.cause {
+            write!(&mut str_error, " cause: {}", cause)?;
+        }
+        f.write_str(&str_error)
     }
 }
 
