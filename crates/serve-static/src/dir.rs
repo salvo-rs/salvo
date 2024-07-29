@@ -293,7 +293,7 @@ impl Handler for StaticDir {
         } else {
             &*decode_url_path_safely(req_path)
         };
-        let rel_path = format_url_path_safely(&rel_path);
+        let rel_path = format_url_path_safely(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let is_dot_file = Path::new(&rel_path)

@@ -431,8 +431,8 @@ impl PathParams {
         if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
             self.inner.insert(name[2..].to_owned(), value);
             self.greedy = true;
-        } else if name.starts_with('*') {
-            self.inner.insert(name[1..].to_owned(), value);
+        } else if let Some(name) = name.strip_prefix('*') {
+            self.inner.insert(name.to_owned(), value);
             self.greedy = true;
         } else {
             self.inner.insert(name.to_owned(), value);

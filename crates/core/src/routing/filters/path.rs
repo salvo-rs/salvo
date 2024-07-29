@@ -298,7 +298,7 @@ impl CombWisp {
 impl PathWisp for CombWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let mut offline = if let Some(part) = state.parts.get_mut(state.cursor.0) {
+        let mut offline = if let Some(part) = state.parts.get(state.cursor.0) {
             part.clone()
         } else {
             return false;

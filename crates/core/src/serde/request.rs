@@ -206,16 +206,16 @@ impl<'de> RequestDeserializer<'de> {
             return false;
         };
 
-        let field_name: Cow<'_, str> = if let Some(rename) = field.rename {
-            Cow::from(rename)
+        let field_name = if let Some(rename) = field.rename {
+           rename
         } else if let Some(serde_rename) = field.serde_rename {
-            Cow::from(serde_rename)
+            serde_rename
         } else if let Some(rename_all) = self.metadata.rename_all {
-            rename_all.apply_to_field(field.decl_name).into()
+            &*rename_all.apply_to_field(field.decl_name)
         } else if let Some(serde_rename_all) = self.metadata.serde_rename_all {
-            serde_rename_all.apply_to_field(field.decl_name).into()
+            &*serde_rename_all.apply_to_field(field.decl_name)
         } else {
-            field.decl_name.into()
+            field.decl_name
         };
 
         for source in sources {
@@ -237,7 +237,7 @@ impl<'de> RequestDeserializer<'de> {
                     }
                 }
                 SourceFrom::Query => {
-                    let mut value = self.queries.get_vec(field_name.as_ref());
+                    let mut value = self.queries.get_vec(field_name);
                     if value.is_none() {
                         for alias in &field.aliases {
                             value = self.queries.get_vec(*alias);
@@ -254,8 +254,8 @@ impl<'de> RequestDeserializer<'de> {
                 }
                 SourceFrom::Header => {
                     let mut value = None;
-                    if self.headers.contains_key(field_name.as_ref()) {
-                        value = Some(self.headers.get_all(field_name.as_ref()))
+                    if self.headers.contains_key(field_name) {
+                        value = Some(self.headers.get_all(field_name))
                     } else {
                         for alias in &field.aliases {
                             if self.headers.contains_key(*alias) {
@@ -301,7 +301,7 @@ impl<'de> RequestDeserializer<'de> {
                             if let Some(payload) = &self.payload {
                                 match payload {
                                     Payload::FormData(form_data) => {
-                                        let mut value = form_data.fields.get(field_name.as_ref());
+                                        let mut value = form_data.fields.get(field_name);
                                         if value.is_none() {
                                             for alias in &field.aliases {
                                                 value = form_data.fields.get(*alias);
@@ -318,7 +318,7 @@ impl<'de> RequestDeserializer<'de> {
                                         return false;
                                     }
                                     Payload::JsonMap(ref map) => {
-                                        let mut value = map.get(field_name.as_ref());
+                                        let mut value = map.get(field_name);
                                         if value.is_none() {
                                             for alias in &field.aliases {
                                                 value = map.get(alias);
@@ -346,7 +346,7 @@ impl<'de> RequestDeserializer<'de> {
                         }
                         SourceParser::MultiMap => {
                             if let Some(Payload::FormData(form_data)) = self.payload {
-                                let mut value = form_data.fields.get_vec(field_name.as_ref());
+                                let mut value = form_data.fields.get_vec(field_name);
                                 if value.is_none() {
                                     for alias in &field.aliases {
                                         value = form_data.fields.get_vec(*alias);
