@@ -416,9 +416,11 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 ///      static METADATA: Metadata = Metadata::new("");
 ///      &METADATA
 ///    }
+///    #[allow(refining_impl_trait)]
 ///    async fn extract(req: &'ex mut Request) -> Result<Self, salvo_core::http::ParseError> {
 ///        salvo_core::serde::from_request(req, Self::metadata()).await
 ///    }
+///    #[allow(refining_impl_trait)]
 ///    async fn extract_with_arg(req: &'ex mut Request, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
 ///        Self::extract(req).await
 ///    }
