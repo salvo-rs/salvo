@@ -158,7 +158,7 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.params_mut().insert("param".to_string(), "param".to_string());
+        req.params_mut().insert("param", "param".to_string());
         let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
         assert_eq!(result.unwrap().0, "param");
     }

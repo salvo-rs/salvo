@@ -190,21 +190,21 @@ mod tests {
 
         let router = Router::new()
             .push(Router::with_path("test1.txt").get(Assets::get("test1.txt").unwrap().into_handler()))
-            .push(Router::with_path("files/<*path>").get(serve_file))
+            .push(Router::with_path("files/<**path>").get(serve_file))
             .push(
-                Router::with_path("dir/<*path>").get(
+                Router::with_path("dir/<**path>").get(
                     static_embed::<Assets>()
                         .defaults("index.html")
                         .fallback("fallback.html"),
                 ),
             )
-            .push(Router::with_path("dir2/<*path>").get(static_embed::<Assets>()))
-            .push(Router::with_path("dir3/<*path>").get(static_embed::<Assets>().fallback("notexist.html")));
+            .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
+            .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().fallback("notexist.html")));
         let service = Service::new(router);
 
         #[handler]
         async fn serve_file(req: &mut Request, res: &mut Response) {
-            let path = req.param::<String>("*path").unwrap();
+            let path = req.param::<String>("path").unwrap();
             if let Some(file) = Assets::get(&path) {
                 file.render(req, res);
             }

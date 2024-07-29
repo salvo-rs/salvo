@@ -114,11 +114,10 @@ where
     T: RustEmbed + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let req_path = if let Some((_, value)) = param {
-            value.clone()
+        let req_path = if let Some(rest) = req.params().tail() {
+            rest
         } else {
-            decode_url_path_safely(req.uri().path())
+            &*decode_url_path_safely(req.uri().path())
         };
         let req_path = format_url_path_safely(&req_path);
         let mut key_path = Cow::Borrowed(&*req_path);
