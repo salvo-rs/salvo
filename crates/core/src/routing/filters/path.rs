@@ -759,7 +759,7 @@ impl PathParser {
             let mut scaned = self.scan_wisps()?;
             if scaned.len() > 1 {
                 wisps.push(CombWisp(scaned).into());
-            } else if let Some(wisp)  = scaned.pop() {
+            } else if let Some(wisp) = scaned.pop() {
                 wisps.push(wisp);
             } else {
                 return Err("scan parts is empty".to_owned());
