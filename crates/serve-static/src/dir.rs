@@ -287,12 +287,11 @@ impl DirInfo {
 #[async_trait]
 impl Handler for StaticDir {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
-        let rel_path = if let Some((_, value)) = param {
-            value.clone()
+        let rel_path = if let Some(rest) = req.params().star() {
+            rest
         } else {
-            decode_url_path_safely(req_path)
+            &*decode_url_path_safely(req_path)
         };
         let rel_path = format_url_path_safely(&rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();

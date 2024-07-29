@@ -14,7 +14,6 @@ pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http::Extensions;
 use http_body_util::{BodyExt, Limited};
-use indexmap::IndexMap;
 use multimap::MultiMap;
 use parking_lot::RwLock;
 use serde::de::Deserialize;
@@ -25,6 +24,7 @@ use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
+use crate::routing::PathParams;
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 
@@ -61,7 +61,7 @@ pub struct Request {
     #[cfg(feature = "cookie")]
     pub(crate) cookies: CookieJar,
 
-    pub(crate) params: IndexMap<String, String>,
+    pub(crate) params: PathParams,
 
     // accept: Option<Vec<Mime>>,
     pub(crate) queries: OnceLock<MultiMap<String, String>>,
@@ -110,7 +110,7 @@ impl Request {
             method: Method::default(),
             #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
-            params: IndexMap::new(),
+            params: PathParams::new(),
             queries: OnceLock::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
@@ -171,7 +171,7 @@ impl Request {
             #[cfg(feature = "cookie")]
             cookies,
             // accept: None,
-            params: IndexMap::new(),
+            params: PathParams::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             // multipart: OnceLock::new(),
@@ -567,12 +567,12 @@ impl Request {
     }
     /// Get params reference.
     #[inline]
-    pub fn params(&self) -> &IndexMap<String, String> {
+    pub fn params(&self) -> &PathParams {
         &self.params
     }
     /// Get params mutable reference.
     #[inline]
-    pub fn params_mut(&mut self) -> &mut IndexMap<String, String> {
+    pub fn params_mut(&mut self) -> &mut PathParams {
         &mut self.params
     }
 

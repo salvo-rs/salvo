@@ -254,13 +254,13 @@ impl PathWisp for CharsWisp {
                 }
                 if chars.len() == max_width {
                     state.forward(max_width);
-                    insert_param_to_state(state, &self.name, chars.into_iter().collect());
+                    state.params.insert(&self.name, chars.into_iter().collect());
                     return true;
                 }
             }
             if chars.len() >= self.min_width {
                 state.forward(chars.len());
-                insert_param_to_state(state, &self.name, chars.into_iter().collect());
+                state.params.insert(&self.name, chars.into_iter().collect());
                 true
             } else {
                 false
@@ -274,7 +274,7 @@ impl PathWisp for CharsWisp {
             }
             if chars.len() >= self.min_width {
                 state.forward(chars.len());
-                insert_param_to_state(state, &self.name, chars.into_iter().collect());
+                state.params.insert(&self.name, chars.into_iter().collect());
                 true
             } else {
                 false
@@ -403,7 +403,7 @@ impl PathWisp for NamedWisp {
             }
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.to_string();
-                insert_param_to_state(state, &self.0, rest);
+                state.params.insert(&self.0, rest);
                 state.cursor.0 = state.parts.len();
                 true
             } else {
@@ -416,7 +416,7 @@ impl PathWisp for NamedWisp {
             }
             let picked = picked.expect("picked should not be `None`").to_owned();
             state.forward(picked.len());
-            insert_param_to_state(state, &self.0, picked);
+            state.params.insert(&self.0, picked);
             true
         }
     }
@@ -456,7 +456,7 @@ impl PathWisp for RegexWisp {
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
-                    insert_param_to_state(state, &self.name, cap);
+                    state.params.insert(&self.name, cap);
                     true
                 } else {
                     false
@@ -472,7 +472,7 @@ impl PathWisp for RegexWisp {
             if let Some(cap) = cap {
                 let cap = cap.as_str().to_owned();
                 state.forward(cap.len());
-                insert_param_to_state(state, &self.name, cap);
+                state.params.insert(&self.name, cap);
                 true
             } else {
                 false
@@ -912,17 +912,6 @@ impl PathFilter {
             }
         }
         true
-    }
-}
-
-#[inline]
-fn insert_param_to_state(state: &mut PathState, name: &str, value: String) {
-    if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
-        state.params.insert(name[2..].to_owned(), value);
-    } else if name.starts_with('*') {
-        state.params.insert(name[1..].to_owned(), value);
-    } else {
-        state.params.insert(name.to_owned(), value);
     }
 }
 
