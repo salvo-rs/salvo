@@ -238,7 +238,7 @@ impl Handler for SwaggerUi {
             redirect_to_dir_url(req.uri(), res);
             return;
         }
-        let Some(path) = req.params().star() else {
+        let Some(path) = req.params().tail() else {
             res.render(StatusError::not_found().detail("The router params is incorrect. The params should ending with a wildcard."));
             return;
         };

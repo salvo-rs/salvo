@@ -412,7 +412,7 @@ impl PathParams {
         self.greedy
     }
     /// Get the last param starts with '*', for example: <**rest>, <*?rest>.
-    pub fn star(&self) -> Option<&str> {
+    pub fn tail(&self) -> Option<&str> {
         if self.greedy {
             self.inner.last().map(|(_, v)| &**v)
         } else {

@@ -137,7 +137,7 @@ pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send +
 /// This getter will get the last param as the rest url path from request.
 /// In most case you should use wildcard param, like `<**rest>`, `<*+rest>`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
-    req.params().star().map(encode_url_path)
+    req.params().tail().map(encode_url_path)
 }
 /// Default url query getter. This getter just return the query string from request uri.
 pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String> {

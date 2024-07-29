@@ -114,7 +114,7 @@ where
     T: RustEmbed + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let req_path = if let Some(rest) = req.params().star() {
+        let req_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
             &*decode_url_path_safely(req.uri().path())
