@@ -207,7 +207,7 @@ impl<'de> RequestDeserializer<'de> {
         };
 
         let field_name = if let Some(rename) = field.rename {
-           rename
+            rename
         } else if let Some(serde_rename) = field.serde_rename {
             serde_rename
         } else if let Some(rename_all) = self.metadata.rename_all {
