@@ -301,7 +301,7 @@
 //!
 //! #[handler]
 //! fn serve_file(req: &mut Request) {
-//!     let rest_path = req.param::<i64>("**rest_path");
+//!     let rest_path = req.param::<i64>("rest_path");
 //! }
 //! ```
 //!

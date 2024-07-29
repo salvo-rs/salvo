@@ -233,7 +233,7 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let path = req.params().get("**").map(|s| &**s).unwrap_or_default();
+        let path = req.params().last().map(|(_, s)| &**s).unwrap_or_default();
         // Redirect to dir url if path is empty and not end with '/'
         if path.is_empty() && !req.uri().path().ends_with('/') {
             redirect_to_dir_url(req.uri(), res);
