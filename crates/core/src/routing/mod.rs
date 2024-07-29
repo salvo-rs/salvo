@@ -391,7 +391,7 @@ pub struct DetectMatched {
 
 /// The path parameters.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct PathParams{
+pub struct PathParams {
     inner: IndexMap<String, String>,
     greedy: bool,
 }
@@ -414,7 +414,7 @@ impl PathParams {
     /// Get the last param starts with '*', for example: <**rest>, <*?rest>.
     pub fn star(&self) -> Option<&str> {
         if self.greedy {
-            self.inner.last().map(|(_, v)|&**v)
+            self.inner.last().map(|(_, v)| &**v)
         } else {
             None
         }
@@ -422,7 +422,7 @@ impl PathParams {
 
     /// Insert new param.
     pub fn insert(&mut self, name: &str, value: String) {
-        #[cfg(debug_assertions)] 
+        #[cfg(debug_assertions)]
         {
             if self.greedy {
                 panic!("only one wildcard param is allowed and it must be the last one.");
