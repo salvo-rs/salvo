@@ -169,7 +169,7 @@ impl StaticDir {
         }
     }
 
-    /// Sets include_dot_files and returns a new `StaticDirOptions`.
+    /// Sets include_dot_files.
     #[inline]
     pub fn include_dot_files(mut self, include_dot_files: bool) -> Self {
         self.include_dot_files = include_dot_files;
@@ -188,14 +188,14 @@ impl StaticDir {
         self
     }
 
-    /// Sets auto_list and returns a new `StaticDirOptions`.
+    /// Sets auto_list.
     #[inline]
     pub fn auto_list(mut self, auto_list: bool) -> Self {
         self.auto_list = auto_list;
         self
     }
 
-    /// Sets compressed_variations and returns a new `StaticDirOptions`.
+    /// Sets compressed_variations.
     #[inline]
     pub fn compressed_variation<A>(mut self, algo: A, exts: &str) -> Self
     where
@@ -206,14 +206,14 @@ impl StaticDir {
         self
     }
 
-    /// Sets defaults and returns a new `StaticDirOptions`.
+    /// Sets defaults.
     #[inline]
     pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
-    /// Sets fallback and returns a new `StaticDirOptions`.
+    /// Sets fallback.
     pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
