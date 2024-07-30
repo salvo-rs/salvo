@@ -470,7 +470,21 @@ impl Response {
     {
         self.body = ResBody::stream(stream);
     }
-    /// Set response's body to channel.
+
+    /// Create a `Body` stream with an associated sender half.
+    ///
+    /// Useful when wanting to stream chunks from another thread.
+    /// 
+    /// # Example
+    /// use salvo_core::prelude::*;
+    /// #[handler]
+    /// async fn hello(res: &mut Response) {
+    ///     res.add_header("content-type", "text/plain", true).unwrap();
+    ///     let mut tx = res.channel();
+    ///     tokio::spawn(async move {
+    ///         tx.send_data("Hello world").await.unwrap();
+    ///     });
+    /// }
     #[inline]
     pub fn channel(&mut self) -> BodySender {
         let (sender, body) = ResBody::channel();
