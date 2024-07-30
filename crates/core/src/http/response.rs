@@ -474,7 +474,7 @@ impl Response {
     /// Create a `Body` stream with an associated sender half.
     ///
     /// Useful when wanting to stream chunks from another thread.
-    /// 
+    ///
     /// # Example
     /// use salvo_core::prelude::*;
     /// #[handler]
