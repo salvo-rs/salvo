@@ -257,6 +257,14 @@ impl Router {
         self.filter(filters::host(host))
     }
 
+    /// Create a new [`HostFilter`] and set host filter.
+    ///
+    /// [`HostFilter`]: super::filters::HostFilter
+    #[inline]
+    pub fn with_host(self, host: impl Into<String>) -> Self {
+        Router::with_filter(filters::host(host))
+    }
+
     /// Add a [`PortFilter`] to current router.
     ///
     /// [`PortFilter`]: super::filters::PortFilter
