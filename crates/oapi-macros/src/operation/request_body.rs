@@ -84,10 +84,10 @@ impl Parse for RequestBodyAttr<'_> {
                             })?);
                     }
                     "content_type" => {
-                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
+                        request_body_attr.content_type = Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
                     }
                     "description" => {
-                        request_body_attr.description = Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
+                        request_body_attr.description = Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
                     }
                     "example" => {
                         request_body_attr.example =

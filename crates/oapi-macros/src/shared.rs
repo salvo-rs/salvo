@@ -271,10 +271,10 @@ impl Parse for ExternalDocs {
 
             match attr_name {
                 "url" => {
-                    external_docs.url = parse_utils::parse_next_literal_str(input)?;
+                    external_docs.url = parse_utils::parse_next_lit_str(input)?;
                 }
                 "description" => {
-                    external_docs.description = Some(parse_utils::parse_next_literal_str(input)?);
+                    external_docs.description = Some(parse_utils::parse_next_lit_str(input)?);
                 }
                 _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
             }
