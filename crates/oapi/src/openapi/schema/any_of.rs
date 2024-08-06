@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Discriminator, RefOr, Schema};
+use crate::{Discriminator, PropMap, RefOr, Schema};
 
 /// AnyOf [Composite Object][allof] component holds
 /// multiple components together where API endpoint will return a combination of all of them.
@@ -40,6 +40,10 @@ pub struct AnyOf {
     /// Set `true` to allow `"null"` to be used as value for given type.
     #[serde(default, skip_serializing_if = "super::is_false")]
     pub nullable: bool,
+
+    /// Optional extensions `x-something`.
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl AnyOf {
@@ -108,6 +112,12 @@ impl AnyOf {
     /// Add or change nullable flag for [Object][crate::Object].
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`AnyOf`].
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
@@ -181,5 +191,14 @@ mod tests {
                 "anyOf": []
             })
         )
+    }
+
+    #[test]
+    fn test_anyof_with_extensions() {
+        let expected = json!("value");
+        let json_value = AnyOf::new().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
+
+        let value = serde_json::to_value(&json_value).unwrap();
+        assert_eq!(value.get("x-some-extension"), Some(&expected));
     }
 }

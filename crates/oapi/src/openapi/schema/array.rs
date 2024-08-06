@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Deprecated, RefOr, Schema, SchemaType, Xml};
+use crate::{Deprecated, PropMap, RefOr, Schema, SchemaType, Xml};
 
 /// Array represents [`Vec`] or [`slice`] type  of items.
 ///
@@ -57,6 +57,10 @@ pub struct Array {
     /// Set `true` to allow `"null"` to be used as value for given type.
     #[serde(default, skip_serializing_if = "super::is_false")]
     pub nullable: bool,
+
+    /// Optional extensions `x-something`.
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl Default for Array {
@@ -74,6 +78,7 @@ impl Default for Array {
             min_items: Default::default(),
             xml: Default::default(),
             nullable: Default::default(),
+            extensions: Default::default(),
         }
     }
 }
@@ -88,9 +93,9 @@ impl Array {
     /// # use salvo_oapi::schema::{Schema, Array, SchemaType, Object};
     /// let string_array = Array::new(Object::with_type(SchemaType::String));
     /// ```
-    pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
+    pub fn new<I: Into<RefOr<Schema>>>(items: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: Box::new(items.into()),
             ..Default::default()
         }
     }
@@ -157,6 +162,12 @@ impl Array {
     /// Add or change nullable flag for [Object][crate::Object].
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Array`].
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
@@ -243,5 +254,14 @@ mod tests {
                 }
             })
         )
+    }
+
+    #[test]
+    fn test_array_with_extensions() {
+        let expected = json!("value");
+        let json_value = Array::default().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
+
+        let value = serde_json::to_value(&json_value).unwrap();
+        assert_eq!(value.get("x-some-extension"), Some(&expected));
     }
 }

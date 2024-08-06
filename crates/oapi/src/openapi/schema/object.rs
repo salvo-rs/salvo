@@ -134,6 +134,10 @@ pub struct Object {
     /// `0` will have same effect as omitting the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_properties: Option<usize>,
+
+    /// Optional extensions `x-something`.
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl Object {
@@ -312,6 +316,12 @@ impl Object {
         self.min_properties = Some(min_properties);
         self
     }
+
+    /// Add openapi extensions (`x-something`) for [`Object`].
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
+        self
+    }
 }
 
 impl From<Object> for Schema {
@@ -416,5 +426,14 @@ mod tests {
                 "maxProperties": 10
             })
         );
+    }
+
+    #[test]
+    fn test_object_with_extensions() {
+        let expected = json!("value");
+        let json_value = Object::new().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
+
+        let value = serde_json::to_value(&json_value).unwrap();
+        assert_eq!(value.get("x-some-extension"), Some(&expected));
     }
 }
