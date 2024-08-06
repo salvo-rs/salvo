@@ -93,9 +93,9 @@ impl Array {
     /// # use salvo_oapi::schema::{Schema, Array, SchemaType, Object};
     /// let string_array = Array::new(Object::with_type(SchemaType::String));
     /// ```
-    pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
+    pub fn new<I: Into<RefOr<Schema>>>(items: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: Box::new(items.into()),
             ..Default::default()
         }
     }
@@ -259,9 +259,7 @@ mod tests {
     #[test]
     fn test_array_with_extensions() {
         let expected = json!("value");
-        let json_value = ArrayBuilder::new()
-            .extensions(Some([("x-some-extension".to_string(), expected.clone())].into()))
-            .build();
+        let json_value = Array::default().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

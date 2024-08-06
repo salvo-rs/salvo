@@ -431,9 +431,9 @@ mod tests {
     #[test]
     fn test_object_with_extensions() {
         let expected = json!("value");
-        let json_value = ObjectBuilder::new()
+        let json_value = Object::new()
             .extensions(Some([("x-some-extension".to_string(), expected.clone())].into()))
-            .build();
+           ;
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
