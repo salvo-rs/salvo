@@ -3,10 +3,10 @@ use std::fmt::Display;
 use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
 use syn::{
-    parenthesized, Path,
+    parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Expr, LitBool, LitStr, Token,
+    Expr, LitBool, LitStr, Path, Token,
 };
 
 #[derive(Clone, Debug)]
