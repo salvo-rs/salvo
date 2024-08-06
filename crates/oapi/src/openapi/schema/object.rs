@@ -137,7 +137,7 @@ pub struct Object {
 
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl Object {
@@ -318,8 +318,9 @@ impl Object {
     }
 
     /// Add openapi extensions (`x-something`) for [`Object`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
-        set_value!(self extensions extensions)
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 

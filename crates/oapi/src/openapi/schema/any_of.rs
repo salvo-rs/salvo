@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Discriminator, RefOr, Schema};
+use crate::{Discriminator, PropMap, RefOr, Schema};
 
 /// AnyOf [Composite Object][allof] component holds
 /// multiple components together where API endpoint will return a combination of all of them.
@@ -43,7 +43,7 @@ pub struct AnyOf {
 
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl AnyOf {
@@ -116,8 +116,9 @@ impl AnyOf {
     }
 
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
-        set_value!(self extensions extensions)
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 

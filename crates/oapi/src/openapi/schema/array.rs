@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Deprecated, RefOr, Schema, SchemaType, Xml};
+use crate::{Deprecated, RefOr, Schema, SchemaType,PropMap, Xml};
 
 /// Array represents [`Vec`] or [`slice`] type  of items.
 ///
@@ -60,7 +60,7 @@ pub struct Array {
 
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
 }
 
 impl Default for Array {
@@ -166,8 +166,9 @@ impl Array {
     }
 
     /// Add openapi extensions (`x-something`) for [`Array`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
-        set_value!(self extensions extensions)
+    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
