@@ -69,8 +69,8 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(security in input);
                     attr.security = Some(parse_utils::parse_groups(&security)?)
                 }
-                "description" => attr.description = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
-                "summary" => attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
+                "description" => attr.description = Some(parse_utils::parse_next_lit_str_or_expr(input)?),
+                "summary" => attr.summary = Some(parse_utils::parse_next_lit_str_or_expr(input)?),
                 _ => {
                     return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
                 }

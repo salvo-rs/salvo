@@ -222,10 +222,10 @@ impl From<ReadOnly> for Feature {
 impl_get_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Name(pub(crate) TypePath);
+pub(crate) struct Name(pub(crate) String);
 impl Parse for Name {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse()).map(Self)
+        parse_utils::parse_next_path_or_lit_str(input).map(Self)
     }
 }
 impl ToTokens for Name {
@@ -244,7 +244,7 @@ impl_get_name!(Name = "name");
 pub(crate) struct Title(pub(crate) String);
 impl Parse for Title {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next_lit_str(input).map(Self)
     }
 }
 impl ToTokens for Title {
@@ -292,7 +292,7 @@ impl Rename {
 }
 impl Parse for Rename {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next_path_or_lit_str(input).map(Self)
     }
 }
 impl ToTokens for Rename {
@@ -953,7 +953,7 @@ impl Parse for Description {
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next_literal_str_or_expr(input).map(Self)
+        parse_utils::parse_next_lit_str_or_expr(input).map(Self)
     }
 }
 impl ToTokens for Description {

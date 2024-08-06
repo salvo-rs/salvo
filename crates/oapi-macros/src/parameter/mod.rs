@@ -335,13 +335,13 @@ impl Parse for ParameterIn {
                 .join(", ");
             format!("unexpected in, expected one of: {variants}")
         }
-        let style = input.parse::<Ident>()?;
-        match &*style.to_string().to_lowercase() {
+        let style = parse_utils::parse_path_or_lit_str(input)?.to_lowercase();
+        match &*style {
             "path" => Ok(Self::Path),
             "query" => Ok(Self::Query),
             "header" => Ok(Self::Header),
             "cookie" => Ok(Self::Cookie),
-            _ => Err(Error::new(style.span(), expected_style())),
+            _ => Err(Error::new(input.span(), expected_style())),
         }
     }
 }

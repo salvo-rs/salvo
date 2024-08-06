@@ -125,8 +125,6 @@ impl TryToTokens for ToSchema<'_> {
         let name_rule = if inline {
             None
         } else if let Some(name) = variant.name() {
-            let name = name.0.path.to_token_stream();
-            let name = quote!(#name).to_string();
             Some(quote! { #oapi::oapi::naming::NameRule::Force(#name) })
         } else {
             Some(quote! { #oapi::oapi::naming::NameRule::Auto })

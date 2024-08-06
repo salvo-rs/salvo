@@ -6,7 +6,7 @@ use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Error, Expr, LitBool, LitStr, Token,
+    Expr, LitBool, LitStr, Path, Token,
 };
 
 #[derive(Clone, Debug)]
@@ -36,7 +36,7 @@ impl Default for Value {
 impl Parse for Value {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+            Ok::<Value, syn::Error>(Value::LitStr(input.parse::<LitStr>()?))
         } else {
             Ok(Value::Expr(input.parse::<Expr>()?))
         }
@@ -66,11 +66,14 @@ pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> sy
     next()
 }
 
-pub(crate) fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
+pub(crate) fn parse_next_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
+    parse_next(input, || parse_path_or_lit_str(input))
+}
+pub(crate) fn parse_next_lit_str(input: ParseStream) -> syn::Result<String> {
     Ok(parse_next(input, || input.parse::<LitStr>())?.value())
 }
 
-pub(crate) fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
+pub(crate) fn parse_next_lit_str_or_expr(input: ParseStream) -> syn::Result<Value> {
     parse_next(input, || Value::parse(input)).map_err(|error| {
         syn::Error::new(
             error.span(),
@@ -117,7 +120,7 @@ pub(crate) fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenSt
     if input.peek(syn::Ident) && input.peek2(Token![!]) {
         input.parse::<Ident>().and_then(|ident| {
             if ident != "json" {
-                return Err(Error::new(
+                return Err(syn::Error::new(
                     ident.span(),
                     format!("unexpected token {ident}, expected: json!(...)"),
                 ));
@@ -129,6 +132,16 @@ pub(crate) fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenSt
 
         Ok(input.parse::<Group>()?.stream())
     } else {
-        Err(Error::new(input.span(), "unexpected token, expected json!(...)"))
+        Err(syn::Error::new(input.span(), "unexpected token, expected json!(...)"))
+    }
+}
+
+pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
+    if let Ok(path) = input.parse::<Path>() {
+        Ok(path.to_token_stream().to_string())
+    } else if let Ok(lit) = input.parse::<LitStr>() {
+        Ok(lit.value())
+    } else {
+        Err(syn::Error::new(input.span(), "invalid indent or lit str"))
     }
 }

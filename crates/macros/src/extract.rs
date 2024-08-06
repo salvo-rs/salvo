@@ -4,7 +4,7 @@ use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
+use syn::{DeriveInput, Error, Expr, ExprLit, ExprPath, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
 use crate::{
     attribute, omit_type_path_lifetimes, salvo_crate,
@@ -98,12 +98,12 @@ impl Parse for ExtractFieldInfo {
                 "rename" => {
                     input.parse::<Token![=]>()?;
                     let expr = input.parse::<Expr>()?;
-                    extract.rename = Some(expr_lit_value(&expr)?);
+                    extract.rename = Some(parse_path_or_lit_str(&expr)?);
                 }
                 "alias" => {
                     input.parse::<Token![=]>()?;
                     let expr = input.parse::<Expr>()?;
-                    extract.aliases.push(expr_lit_value(&expr)?);
+                    extract.aliases.push(parse_path_or_lit_str(&expr)?);
                 }
                 "flatten" => {
                     extract.flatten = Some(true);
@@ -133,9 +133,9 @@ impl Parse for SourceInfo {
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
         for field in fields {
             if field.path.is_ident("from") {
-                source.from = expr_lit_value(&field.value)?;
+                source.from = parse_path_or_lit_str(&field.value)?.to_lowercase();
             } else if field.path.is_ident("parse") {
-                source.parser = expr_lit_value(&field.value)?;
+                source.parser = parse_path_or_lit_str(&field.value)?.to_lowercase();
             } else {
                 return Err(input.error("unexpected attribute"));
             }
@@ -202,7 +202,7 @@ impl ExtractibleArgs {
                             }
                             Meta::NameValue(meta) => {
                                 if meta.path.is_ident("rename_all") {
-                                    rename_all = Some(expr_lit_value(&meta.value)?.parse::<RenameRule>()?);
+                                    rename_all = Some(parse_path_or_lit_str(&meta.value)?.parse::<RenameRule>()?);
                                 }
                             }
                             _ => {}
@@ -406,10 +406,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     Ok(code)
 }
 
-fn expr_lit_value(expr: &Expr) -> syn::Result<String> {
-    if let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = expr {
-        Ok(s.value())
-    } else {
-        Err(Error::new_spanned(expr, "invalid from expression"))
+fn parse_path_or_lit_str(expr: &Expr) -> syn::Result<String> {
+    match expr {
+        Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(s.value()),
+        Expr::Path(ExprPath { path, .. }) => Ok(path.require_ident()?.to_string()),
+        _ => Err(Error::new_spanned(expr, "invalid indent or lit str")),
     }
 }

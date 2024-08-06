@@ -221,7 +221,7 @@ impl<'de> RequestDeserializer<'de> {
         for source in sources {
             match source.from {
                 SourceFrom::Param => {
-                    let mut value = self.params.get(&*field_name);
+                    let mut value = self.params.get(field_name);
                     if value.is_none() {
                         for alias in &field.aliases {
                             value = self.params.get(*alias);

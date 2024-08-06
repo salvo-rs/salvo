@@ -10,7 +10,7 @@ use super::Header;
 
 #[inline]
 pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
-    parse_utils::parse_next_literal_str_or_expr(input)
+    parse_utils::parse_next_lit_str_or_expr(input)
 }
 
 #[inline]
