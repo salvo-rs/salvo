@@ -40,6 +40,10 @@ pub struct AllOf {
     /// Set `true` to allow `"null"` to be used as value for given type.
     #[serde(default, skip_serializing_if = "super::is_false")]
     pub nullable: bool,
+
+    /// Optional extensions `x-something`.
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl AllOf {
@@ -109,6 +113,11 @@ impl AllOf {
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;
         self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`AllOf`].
+    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 
@@ -181,5 +190,18 @@ mod tests {
                 "allOf": []
             })
         )
+    }
+
+    #[test]
+    fn test_allof_with_extensions() {
+        let expected = json!("value");
+        let json_value = AllOfBuilder::new()
+            .extensions(Some(
+                [("x-some-extension".to_string(), expected.clone())].into(),
+            ))
+            .build();
+
+        let value = serde_json::to_value(&json_value).unwrap();
+        assert_eq!(value.get("x-some-extension"), Some(&expected));
     }
 }

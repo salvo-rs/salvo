@@ -57,6 +57,10 @@ pub struct Array {
     /// Set `true` to allow `"null"` to be used as value for given type.
     #[serde(default, skip_serializing_if = "super::is_false")]
     pub nullable: bool,
+
+    /// Optional extensions `x-something`.
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl Default for Array {
@@ -74,6 +78,7 @@ impl Default for Array {
             min_items: Default::default(),
             xml: Default::default(),
             nullable: Default::default(),
+            extensions: Default::default(),
         }
     }
 }
@@ -159,6 +164,11 @@ impl Array {
         self.nullable = nullable;
         self
     }
+
+    /// Add openapi extensions (`x-something`) for [`Array`].
+    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 impl From<Array> for Schema {
@@ -243,5 +253,18 @@ mod tests {
                 }
             })
         )
+    }
+
+    #[test]
+    fn test_array_with_extensions() {
+        let expected = json!("value");
+        let json_value = ArrayBuilder::new()
+            .extensions(Some(
+                [("x-some-extension".to_string(), expected.clone())].into(),
+            ))
+            .build();
+
+        let value = serde_json::to_value(&json_value).unwrap();
+        assert_eq!(value.get("x-some-extension"), Some(&expected));
     }
 }
