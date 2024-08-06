@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Discriminator, RefOr, Schema, PropMap};
+use crate::{Discriminator, PropMap, RefOr, Schema};
 
 /// OneOf [Composite Object][oneof] component holds
 /// multiple components together where API endpoint could return any of them.
@@ -197,9 +197,7 @@ mod tests {
     fn test_oneof_with_extensions() {
         let expected = json!("value");
         let json_value = OneOfBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+            .extensions(Some([("x-some-extension".to_string(), expected.clone())].into()))
             .build();
 
         let value = serde_json::to_value(&json_value).unwrap();

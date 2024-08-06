@@ -432,9 +432,7 @@ mod tests {
     fn test_object_with_extensions() {
         let expected = json!("value");
         let json_value = ObjectBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+            .extensions(Some([("x-some-extension".to_string(), expected.clone())].into()))
             .build();
 
         let value = serde_json::to_value(&json_value).unwrap();

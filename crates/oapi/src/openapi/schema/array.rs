@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Deprecated, RefOr, Schema, SchemaType,PropMap, Xml};
+use crate::{Deprecated, PropMap, RefOr, Schema, SchemaType, Xml};
 
 /// Array represents [`Vec`] or [`slice`] type  of items.
 ///
@@ -260,9 +260,7 @@ mod tests {
     fn test_array_with_extensions() {
         let expected = json!("value");
         let json_value = ArrayBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+            .extensions(Some([("x-some-extension".to_string(), expected.clone())].into()))
             .build();
 
         let value = serde_json::to_value(&json_value).unwrap();
