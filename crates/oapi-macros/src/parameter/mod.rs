@@ -335,7 +335,7 @@ impl Parse for ParameterIn {
                 .join(", ");
             format!("unexpected in, expected one of: {variants}")
         }
-        let style = parse_utils::parse_ident_or_lit_str(input)?.to_lowercase();
+        let style = parse_utils::parse_path_or_lit_str(input)?.to_lowercase();
         match &*style {
             "path" => Ok(Self::Path),
             "query" => Ok(Self::Query),

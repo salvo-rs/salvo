@@ -3,7 +3,7 @@ use std::fmt::Display;
 use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
 use syn::{
-    parenthesized,
+    parenthesized, Path,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     Expr, LitBool, LitStr, Token,
@@ -66,8 +66,8 @@ pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> sy
     next()
 }
 
-pub(crate) fn parse_next_ident_or_lit_str(input: ParseStream) -> syn::Result<String> {
-    parse_next(input, || parse_ident_or_lit_str(input))
+pub(crate) fn parse_next_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
+    parse_next(input, || parse_path_or_lit_str(input))
 }
 pub(crate) fn parse_next_lit_str(input: ParseStream) -> syn::Result<String> {
     Ok(parse_next(input, || input.parse::<LitStr>())?.value())
@@ -136,9 +136,9 @@ pub(crate) fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenSt
     }
 }
 
-pub(crate) fn parse_ident_or_lit_str(input: ParseStream) -> syn::Result<String> {
-    if let Ok(ident) = input.parse::<Ident>() {
-        Ok(ident.to_string())
+pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
+    if let Ok(path) = input.parse::<Path>() {
+        Ok(path.to_token_stream().to_string())
     } else if let Ok(lit) = input.parse::<LitStr>() {
         Ok(lit.value())
     } else {
