@@ -8,6 +8,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [Websocket](https://gitee.com/hubert22/salvo-websocket): This crate is websocket tool for salvo.
 - [SalvoRsTool](https://github.com/mdddj/SalvoRsTool): salvo Idea RustRover插件 快速生成dto router service模板代码
 - [protect-endpoints](https://github.com/DDtKey/protect-endpoints): Collection of crates to protect your endpoints
+- [salvo-captcha](https://git.4rs.nl/awiteb/salvo-captcha): A captcha middleware for Salvo framework.
 
 ## Project showcase
 
