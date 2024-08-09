@@ -303,86 +303,88 @@ impl PathWisp for CombWisp {
         } else {
             return false;
         };
-        let mut ostate = state.clone();
-        ostate
-            .parts
-            .get_mut(state.cursor.0)
-            .expect("part should be exists")
-            .clear();
-        let inner_detect = move |state: &mut PathState| {
-            let row = state.cursor.0;
-            for (index, wisp) in self.0.iter().enumerate() {
-                let online_all_matched = if let Some(part) = state.parts.get(state.cursor.0) {
-                    state.cursor.0 > row || state.cursor.1 >= part.len()
-                } else {
-                    true
-                };
-                // Child wisp may changed the state.cursor.0 point to next row if all matched.
-                // The last wisp can change it if it is rest named wisp.
-                if state.cursor.0 > row {
-                    state.cursor = (row, 0);
-                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) = "".into();
-                }
-                if online_all_matched {
-                    state.cursor.1 = 0;
-                    if let Some((next_const_index, next_const_wisp)) = self.find_const_wisp_from(index) {
-                        if next_const_index == self.0.len() - 1 {
-                            if offline.ends_with(&next_const_wisp.0) {
-                                if index == next_const_index {
-                                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) = offline;
-                                    offline = "".into();
-                                } else {
-                                    *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
-                                        offline.trim_end_matches(&next_const_wisp.0).into();
-                                    offline.clone_from(&next_const_wisp.0);
-                                }
+        let origin_part = offline.clone();
+        state
+        .parts
+        .get_mut(state.cursor.0)
+        .expect("part should be exists")
+        .clear();
+        let row = state.cursor.0;
+        for (index, wisp) in self.0.iter().enumerate() {
+            let online_all_matched = if let Some(part) = state.parts.get(state.cursor.0) {
+                state.cursor.0 > row || state.cursor.1 >= part.len()
+            } else {
+                true
+            };
+            // Child wisp may changed the state.cursor.0 point to next row if all matched.
+            // The last wisp can change it if it is rest named wisp.
+            if state.cursor.0 > row {
+                state.cursor = (row, 0);
+                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = "".into();
+            }
+            if online_all_matched {
+                state.cursor.1 = 0;
+                if let Some((next_const_index, next_const_wisp)) = self.find_const_wisp_from(index) {
+                    if next_const_index == self.0.len() - 1 {
+                        if offline.ends_with(&next_const_wisp.0) {
+                            if index == next_const_index {
+                                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = offline;
+                                offline = "".into();
                             } else {
-                                return false;
-                            }
-                        } else if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
-                            if next_const_index == index {
-                                state
-                                    .parts
-                                    .get_mut(state.cursor.0)
-                                    .expect("part should be exists")
-                                    .clone_from(&next_const_wisp.0);
-                                offline = new_offline.into();
-                            } else {
-                                *(state.parts.get_mut(state.cursor.0).expect("part should be exists")) =
-                                    new_online.into();
-                                offline = format!("{}{}", next_const_wisp.0, new_offline);
+                                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) =
+                                    offline.trim_end_matches(&next_const_wisp.0).into();
+                                offline.clone_from(&next_const_wisp.0);
                             }
                         } else {
                             return false;
                         }
-                    } else if !offline.is_empty() {
-                        *(state.parts.get_mut(state.cursor.0).expect("part shoule be exists")) = offline;
-                        offline = "".into();
+                    } else if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
+                        if next_const_index == index {
+                            if !new_online.is_empty() {
+                                return false;
+                            }
+                            state
+                                .parts
+                                .get_mut(state.cursor.0)
+                                .expect("path state part should be exists")
+                                .clone_from(&next_const_wisp.0);
+                            offline = new_offline.into();
+                        } else {
+                            *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = new_online.into();
+                            offline = format!("{}{}", next_const_wisp.0, new_offline);
+                        }
+                    } else {
+                        return false;
                     }
-                }
-                if !wisp.detect(state) {
-                    return false;
+                } else if !offline.is_empty() {
+                    *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = offline;
+                    offline = "".into();
                 }
             }
-            offline.is_empty()
-        };
-        if !inner_detect(&mut ostate) {
-            false
-        } else {
-            *state = ostate;
-            true
+            if !wisp.detect(state) {
+                return false;
+            }
         }
+        *(state.parts.get_mut(row).expect("path state part should be exists")) = origin_part;
+        offline.is_empty()
     }
     fn validate(&self) -> Result<(), String> {
         let mut index = 0;
         while index < self.0.len() - 2 {
             let curr = self.0.get(index).expect("index is out of range");
             let next = self.0.get(index + 1).expect("index is out of range");
-            if let (WispKind::Named(_), WispKind::Named(_)) = (curr, next) {
-                return Err(format!(
-                    "named wisp: `{:?}` can't be followed by another named wisp: `{:?}`",
-                    curr, next
-                ));
+            if let (WispKind::Named(curr), WispKind::Named(next)) = (curr, next) {
+                if curr.0.starts_with('*') {
+                    return Err(format!(
+                        "wildcard named wisp: `{:?}` must be the last one, but another named wisp: `{:?}` followed.",
+                        curr, next
+                    ));
+                } else if !next.0.starts_with('*') {
+                    return Err(format!(
+                        "named wisp: `{:?}` can't be followed by another named wisp: `{:?}`",
+                        curr, next
+                    ));
+                }
             }
             index += 1;
         }
@@ -1113,6 +1115,15 @@ mod tests {
         let filter = PathFilter::new("/<id>/<name>!hello.bu");
         let mut state = PathState::new("123/gold!hello.bu");
         assert!(filter.detect(&mut state));
+    }
+    #[test]
+    fn test_parse_comb_4() {
+        let filter = PathFilter::new("/abc/l<**rest>");
+        let mut state = PathState::new("abc/llo1");
+        assert!(filter.detect(&mut state));
+
+        let mut state = PathState::new("abc/hello1");
+        assert!(!filter.detect(&mut state));
     }
 
     #[test]
