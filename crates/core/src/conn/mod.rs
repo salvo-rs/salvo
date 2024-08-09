@@ -188,6 +188,7 @@ pub trait Listener {
     }
 }
 
+#[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
 pub(crate) fn alpn_protocols() -> Vec<Vec<u8>> {
     let mut alpn_protocols = Vec::with_capacity(3);
     #[cfg(feature = "quinn")]
