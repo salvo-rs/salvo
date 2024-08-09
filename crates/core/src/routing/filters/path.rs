@@ -305,10 +305,10 @@ impl PathWisp for CombWisp {
         };
         let origin_part = offline.clone();
         state
-        .parts
-        .get_mut(state.cursor.0)
-        .expect("part should be exists")
-        .clear();
+            .parts
+            .get_mut(state.cursor.0)
+            .expect("part should be exists")
+            .clear();
         let row = state.cursor.0;
         for (index, wisp) in self.0.iter().enumerate() {
             let online_all_matched = if let Some(part) = state.parts.get(state.cursor.0) {
@@ -320,7 +320,10 @@ impl PathWisp for CombWisp {
             // The last wisp can change it if it is rest named wisp.
             if state.cursor.0 > row {
                 state.cursor = (row, 0);
-                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = "".into();
+                *(state
+                    .parts
+                    .get_mut(state.cursor.0)
+                    .expect("path state part should be exists")) = "".into();
             }
             if online_all_matched {
                 state.cursor.1 = 0;
@@ -328,10 +331,16 @@ impl PathWisp for CombWisp {
                     if next_const_index == self.0.len() - 1 {
                         if offline.ends_with(&next_const_wisp.0) {
                             if index == next_const_index {
-                                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = offline;
+                                *(state
+                                    .parts
+                                    .get_mut(state.cursor.0)
+                                    .expect("path state part should be exists")) = offline;
                                 offline = "".into();
                             } else {
-                                *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) =
+                                *(state
+                                    .parts
+                                    .get_mut(state.cursor.0)
+                                    .expect("path state part should be exists")) =
                                     offline.trim_end_matches(&next_const_wisp.0).into();
                                 offline.clone_from(&next_const_wisp.0);
                             }
@@ -350,14 +359,20 @@ impl PathWisp for CombWisp {
                                 .clone_from(&next_const_wisp.0);
                             offline = new_offline.into();
                         } else {
-                            *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = new_online.into();
+                            *(state
+                                .parts
+                                .get_mut(state.cursor.0)
+                                .expect("path state part should be exists")) = new_online.into();
                             offline = format!("{}{}", next_const_wisp.0, new_offline);
                         }
                     } else {
                         return false;
                     }
                 } else if !offline.is_empty() {
-                    *(state.parts.get_mut(state.cursor.0).expect("path state part should be exists")) = offline;
+                    *(state
+                        .parts
+                        .get_mut(state.cursor.0)
+                        .expect("path state part should be exists")) = offline;
                     offline = "".into();
                 }
             }
