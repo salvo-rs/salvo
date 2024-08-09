@@ -89,7 +89,8 @@ impl Keycert {
 }
 
 fn alpn_protocols() -> Vec<u8> {
-    let mut alpn_protocols = Vec::with_capacity(3);
+    #[allow(unused_mut)]
+    let mut alpn_protocols: Vec<Vec<u8>> = Vec::with_capacity(3);
     #[cfg(feature = "quinn")]
     alpn_protocols.push(b"\x02h3".to_vec());
     #[cfg(feature = "http2")]

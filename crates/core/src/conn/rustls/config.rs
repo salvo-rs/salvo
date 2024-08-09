@@ -139,6 +139,7 @@ pub enum TlsClientAuth {
 }
 
 fn alpn_protocols() -> Vec<Vec<u8>> {
+    #[allow(unused_mut)]
     let mut alpn_protocols = Vec::with_capacity(3);
     #[cfg(feature = "quinn")]
     alpn_protocols.push(b"h3".to_vec());

@@ -16,12 +16,7 @@ use super::SslAcceptorBuilder;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::{HttpConnection, Version};
-
-#[cfg(not(any(feature = "http1", feature = "http2")))]
-compile_error!(
-    "You have enabled `openssl` feature, it requires at least one of the following features: http1, http2."
-);
+use crate::http::{HttpConnection,};
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -87,14 +82,15 @@ where
             .holdings()
             .iter()
             .map(|h| {
+                #[allow(unused_mut)]
                 let mut versions = h.http_versions.clone();
                 #[cfg(feature = "http1")]
-                if !versions.contains(&Version::HTTP_11) {
-                    versions.push(Version::HTTP_11);
+                if !versions.contains(&crate::http::Version::HTTP_11) {
+                    versions.push(crate::http::Version::HTTP_11);
                 }
                 #[cfg(feature = "http2")]
-                if !versions.contains(&Version::HTTP_2) {
-                    versions.push(Version::HTTP_2);
+                if !versions.contains(&crate::http::Version::HTTP_2) {
+                    versions.push(crate::http::Version::HTTP_2);
                 }
                 Holding {
                     local_addr: h.local_addr.clone(),
