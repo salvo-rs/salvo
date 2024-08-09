@@ -107,9 +107,9 @@ where
 
         let holdings = vec![Holding {
             local_addr: inner.local_addr()?.into(),
-            #[cfg(not(feature = "http2-cleartext"))]
+            #[cfg(not(feature = "http2"))]
             http_versions: vec![Version::HTTP_11],
-            #[cfg(feature = "http2-cleartext")]
+            #[cfg(feature = "http2")]
             http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
         }];
