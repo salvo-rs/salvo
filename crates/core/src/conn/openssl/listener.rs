@@ -18,6 +18,11 @@ use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream
 use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
 
+#[cfg(not(any(feature = "http1", feature = "http2")))]
+compile_error!(
+    "You have enabled `openssl` feature, it requires at least one of the following features: http1, http2."
+);
+
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
     config_stream: S,

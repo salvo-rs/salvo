@@ -141,11 +141,16 @@ pub(crate) enum TlsClientAuth {
 /// Builder to set the configuration for the Tls server.
 #[derive(Clone, Debug)]
 pub struct RustlsConfig {
-    fallback: Option<Keycert>,
-    keycerts: HashMap<String, Keycert>,
-    client_auth: TlsClientAuth,
-    alpn_protocols: Vec<Vec<u8>>,
+    // Fallback keycert.
+    pub fallback: Option<Keycert>,
+    // Keycerts.
+    pub keycerts: HashMap<String, Keycert>,
+    // Client auth.
+    pub client_auth: TlsClientAuth,
+    // Protocols through ALPN (Application-Layer Protocol Negotiation).
+    pub alpn_protocols: Vec<Vec<u8>>,
 }
+
 
 impl RustlsConfig {
     /// Create new `RustlsConfig`
@@ -155,7 +160,7 @@ impl RustlsConfig {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
-            alpn_protocols: vec![b"h2".to_vec(), b"http/1.1".to_vec()],
+            alpn_protocols: crate::conn::alpn_protocols(),
         }
     }
 
@@ -209,7 +214,7 @@ impl RustlsConfig {
         self
     }
 
-    /// Add a new keycert to be used for the given SNI `name`.
+    /// Set specific protocols through ALPN (Application-Layer Protocol Negotiation).
     #[inline]
     pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<Vec<u8>>>) -> Self {
         self.alpn_protocols = alpn_protocols.into();
@@ -251,12 +256,7 @@ impl RustlsConfig {
                 certified_keys,
                 fallback,
             }));
-        let mut alpn_protocols = self.alpn_protocols;
-        let h3_alpn = b"h3".to_vec();
-        if !alpn_protocols.contains(&h3_alpn) {
-            alpn_protocols.push(h3_alpn);
-        }
-        config.alpn_protocols = alpn_protocols;
+        config.alpn_protocols = self.alpn_protocols;
         Ok(config)
     }
 

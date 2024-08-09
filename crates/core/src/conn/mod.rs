@@ -187,3 +187,14 @@ pub trait Listener {
         JoinedListener::new(self, other)
     }
 }
+
+pub(crate) fn alpn_protocols() -> Vec<Vec<u8>> {
+    let mut alpn_protocols = Vec::with_capacity(3);
+    #[cfg(feature = "quinn")]
+    alpn_protocols.push(b"h3".to_vec());
+    #[cfg(feature = "http2")]
+    alpn_protocols.push(b"h2".to_vec());
+    #[cfg(feature = "http1")]
+    alpn_protocols.push(b"http/1.1".to_vec());
+    alpn_protocols
+}

@@ -18,6 +18,11 @@ use crate::http::{HttpConnection, Version};
 
 use super::ServerConfig;
 
+#[cfg(not(any(feature = "http1", feature = "http2")))]
+compile_error!(
+    "You have enabled `rustls` feature, it requires at least one of the following features: http1, http2."
+);
+
 /// A wrapper of `Listener` with rustls.
 pub struct RustlsListener<S, C, T, E> {
     config_stream: S,
