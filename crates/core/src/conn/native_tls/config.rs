@@ -19,8 +19,6 @@ pub struct NativeTlsConfig {
     pub pkcs12: Vec<u8>,
     /// The password for the pkcs12 data.
     pub password: String,
-    // Protocols through ALPN (Application-Layer Protocol Negotiation).
-    pub alpn_protocols: Vec<Vec<u8>>,
 }
 
 impl fmt::Debug for NativeTlsConfig {
@@ -44,7 +42,6 @@ impl NativeTlsConfig {
             pkcs12_path: None,
             pkcs12: vec![],
             password: String::new(),
-            alpn_protocols: crate::conn::alpn_protocols(),
         }
     }
 

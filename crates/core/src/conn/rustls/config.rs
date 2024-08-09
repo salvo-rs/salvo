@@ -129,7 +129,7 @@ impl Keycert {
 
 /// Tls client authentication configuration.
 #[derive(Clone, Debug)]
-pub(crate) enum TlsClientAuth {
+pub enum TlsClientAuth {
     /// No client auth.
     Off,
     /// Allow any anonymous or authenticated client.
@@ -138,16 +138,27 @@ pub(crate) enum TlsClientAuth {
     Required(Vec<u8>),
 }
 
+fn alpn_protocols() -> Vec<Vec<u8>> {
+    let mut alpn_protocols = Vec::with_capacity(3);
+    #[cfg(feature = "quinn")]
+    alpn_protocols.push(b"h3".to_vec());
+    #[cfg(feature = "http2")]
+    alpn_protocols.push(b"h2".to_vec());
+    #[cfg(feature = "http1")]
+    alpn_protocols.push(b"http/1.1".to_vec());
+    alpn_protocols
+}
+
 /// Builder to set the configuration for the Tls server.
 #[derive(Clone, Debug)]
 pub struct RustlsConfig {
-    // Fallback keycert.
+    /// Fallback keycert.
     pub fallback: Option<Keycert>,
-    // Keycerts.
+    /// Keycerts.
     pub keycerts: HashMap<String, Keycert>,
-    // Client auth.
+    /// Client auth.
     pub client_auth: TlsClientAuth,
-    // Protocols through ALPN (Application-Layer Protocol Negotiation).
+    /// Protocols through ALPN (Application-Layer Protocol Negotiation).
     pub alpn_protocols: Vec<Vec<u8>>,
 }
 
@@ -160,7 +171,7 @@ impl RustlsConfig {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
-            alpn_protocols: crate::conn::alpn_protocols(),
+            alpn_protocols: alpn_protocols(),
         }
     }
 

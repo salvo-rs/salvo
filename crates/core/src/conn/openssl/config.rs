@@ -88,16 +88,27 @@ impl Keycert {
     }
 }
 
+fn alpn_protocols() -> Vec<u8> {
+    let mut alpn_protocols = Vec::with_capacity(3);
+    #[cfg(feature = "quinn")]
+    alpn_protocols.push(b"\x02h3".to_vec());
+    #[cfg(feature = "http2")]
+    alpn_protocols.push(b"\x02h2".to_vec());
+    #[cfg(feature = "http1")]
+    alpn_protocols.push(b"\x08http/1.1".to_vec());
+    alpn_protocols.into_iter().flatten().collect()
+}
+
 type BuilderModifier = Box<dyn FnMut(&mut SslAcceptorBuilder) + Send + 'static>;
 /// Builder to set the configuration for the Tls server.
 #[non_exhaustive]
 pub struct OpensslConfig {
-    // Key and certificate.
+    /// Key and certificate.
     pub keycert: Keycert,
     /// Builder modifier.
     pub builder_modifier: Option<BuilderModifier>,
-    // Protocols through ALPN (Application-Layer Protocol Negotiation).
-    pub alpn_protocols: Vec<Vec<u8>>,
+    /// Protocols through ALPN (Application-Layer Protocol Negotiation).
+    pub alpn_protocols: Vec<u8>,
 }
 
 impl fmt::Debug for OpensslConfig {
@@ -114,7 +125,7 @@ impl OpensslConfig {
         OpensslConfig {
             keycert,
             builder_modifier: None,
-            alpn_protocols: crate::conn::alpn_protocols(),
+            alpn_protocols: alpn_protocols(),
         }
     }
 
@@ -129,7 +140,7 @@ impl OpensslConfig {
 
     /// Set specific protocols through ALPN (Application-Layer Protocol Negotiation).
     #[inline]
-    pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<Vec<u8>>>) -> Self {
+    pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<u8>>) -> Self {
         self.alpn_protocols = alpn_protocols.into();
         self
     }
@@ -150,10 +161,11 @@ impl OpensslConfig {
         builder.set_private_key(PKey::private_key_from_pem(self.keycert.key()?)?.as_ref())?;
 
         // set ALPN protocols
-        builder.set_alpn_protos(&self.alpn_protocols)?;
+        let alpn_protocols = self.alpn_protocols.clone();
+        builder.set_alpn_protos(&alpn_protocols)?;
         // set uo ALPN selection routine - as select_next_proto
         builder.set_alpn_select_callback(move |_: &mut SslRef, list: &[u8]| {
-            openssl::ssl::select_next_proto(&self.alpn_protocols, list).ok_or(openssl::ssl::AlpnError::NOACK)
+            openssl::ssl::select_next_proto(&alpn_protocols, list).ok_or(openssl::ssl::AlpnError::NOACK)
         });
         if let Some(modifier) = &mut self.builder_modifier {
             modifier(&mut builder);

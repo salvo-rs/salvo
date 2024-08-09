@@ -158,7 +158,7 @@ where
         }
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "openssl: invalid tls config.")),
+            None => return Err(IoError::new(ErrorKind::Other, "openssl: tls_acceptor is none.")),
         };
 
         let Accepted {
