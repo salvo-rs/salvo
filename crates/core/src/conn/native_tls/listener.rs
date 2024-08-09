@@ -16,6 +16,11 @@ use crate::http::{HttpConnection, Version};
 
 use super::Identity;
 
+#[cfg(not(any(feature = "http1", feature = "http2")))]
+compile_error!(
+    "You have enabled `native-tls` feature, it requires at least one of the following features: http1, http2."
+);
+
 /// NativeTlsListener
 pub struct NativeTlsListener<S, C, T, E> {
     config_stream: S,
