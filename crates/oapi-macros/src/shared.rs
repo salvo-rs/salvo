@@ -251,6 +251,7 @@ impl ToTokens for Required {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Default, Debug)]
 pub(crate) struct ExternalDocs {
     url: String,

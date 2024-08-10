@@ -14,7 +14,7 @@ use tokio_rustls::server::TlsStream;
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::{HttpConnection, Version};
+use crate::http::{HttpConnection};
 
 use super::ServerConfig;
 
@@ -82,14 +82,15 @@ where
             .holdings()
             .iter()
             .map(|h| {
+                #[allow(unused_mut)]
                 let mut versions = h.http_versions.clone();
                 #[cfg(feature = "http1")]
-                if !versions.contains(&Version::HTTP_11) {
-                    versions.push(Version::HTTP_11);
+                if !versions.contains(&crate::http::Version::HTTP_11) {
+                    versions.push(crate::http::Version::HTTP_11);
                 }
                 #[cfg(feature = "http2")]
-                if !versions.contains(&Version::HTTP_2) {
-                    versions.push(Version::HTTP_2);
+                if !versions.contains(&crate::http::Version::HTTP_2) {
+                    versions.push(crate::http::Version::HTTP_2);
                 }
                 Holding {
                     local_addr: h.local_addr.clone(),
