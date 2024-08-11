@@ -29,9 +29,9 @@ pub struct Array {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
 
-    /// Example shown in UI of the value for richer documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub example: Option<Value>,
+    /// Examples shown in UI of the value for richer documentation.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub examples: Vec<Value>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
     #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
@@ -124,11 +124,11 @@ impl Array {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
-
+    
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);

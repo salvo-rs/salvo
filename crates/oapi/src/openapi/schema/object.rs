@@ -65,9 +65,9 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
 
-    /// Example shown in UI of the value for richer documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub example: Option<Value>,
+    /// Examples shown in UI of the value for richer documentation.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub examples: Vec<Value>,
 
     /// Write only property will be only sent in _write_ requests like _POST, PUT_.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -227,9 +227,9 @@ impl Object {
         self
     }
 
-    /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 

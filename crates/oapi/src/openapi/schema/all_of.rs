@@ -29,8 +29,8 @@ pub struct AllOf {
     pub default_value: Option<Value>,
 
     /// Example shown in UI of the value for richer documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub example: Option<Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub examples: Vec<Value>,
 
     /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
     /// specific schema.
@@ -97,9 +97,9 @@ impl AllOf {
         self
     }
 
-    /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, example: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
