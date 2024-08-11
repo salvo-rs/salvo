@@ -79,7 +79,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 will be inlined. **warning:** Don't use this for recursive data types!
 
 _**Inline unnamed field variant schemas.**_
-```rust
+```
 use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
 enum Number {
@@ -92,8 +92,8 @@ enum Color {
 }
 #[derive(ToSchema)]
 enum Card {
-    Number(#[schema(inline)] Number),
-    Color(#[schema(inline)] Color),
+    Number(#[salvo(schema(inline))] Number),
+    Color(#[salvo(schema(inline))] Color),
 }
 ```
 
