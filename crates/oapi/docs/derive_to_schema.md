@@ -73,6 +73,30 @@ In addition to the variant type specific configuration options enum variants sup
 _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If both _serde_
 _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 
+## Enum Unnamed Variant Field Configuration Options
+
+* `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
+will be inlined. **warning:** Don't use this for recursive data types!
+
+_**Inline unnamed field variant schemas.**_
+```rust
+use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
+enum Number {
+    One,
+}
+
+#[derive(ToSchema)]
+enum Color {
+    Spade,
+}
+#[derive(ToSchema)]
+enum Card {
+    Number(#[schema(inline)] Number),
+    Color(#[schema(inline)] Color),
+}
+```
+
 # Unnamed Field Struct Optional Configuration Options for `#[salvo(schema(...))]`
 
 * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
