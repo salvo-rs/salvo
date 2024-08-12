@@ -142,7 +142,7 @@ pub trait Acceptor {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Holding {
-    /// Local addr.
+    /// Local address.
     pub local_addr: SocketAddr,
     /// Http versions.
     pub http_versions: Vec<Version>,
