@@ -239,7 +239,7 @@ mod tests {
             struct User {
                 #[salvo(schema(examples("chris"), min_length = 1, max_length = 100, required))]
                 name: String,
-                #[salvo(schema(examples(16), default = 0, maximum=100, minimum=0,format = "int32"))]
+                #[salvo(schema(example = 16, default = 0, maximum=100, minimum=0,format = "int32"))]
                 age: i32,
                 #[deprecated = "There is deprecated"]
                 high: u32,
@@ -260,7 +260,7 @@ mod tests {
                                     "name",
                                     salvo::oapi::Object::new()
                                         .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
-                                        .example(salvo::oapi::__private::serde_json::json!("chris"))
+                                        .examples([salvo::oapi::__private::serde_json::json!("chris"),])
                                         .min_length(1usize)
                                         .max_length(100usize)
                                 )
