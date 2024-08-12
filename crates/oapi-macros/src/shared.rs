@@ -172,13 +172,13 @@ impl<T> ToTokens for Array<'_, T>
 where
     T: Sized + ToTokens,
 {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let values = match self {
             Self::Owned(values) => values.iter(),
             Self::Borrowed(values) => values.iter(),
         };
 
-        stream.append(Group::new(
+        tokens.append(Group::new(
             Delimiter::Bracket,
             values
                 .fold(Punctuated::new(), |mut punctuated, item| {
@@ -209,9 +209,9 @@ impl From<bool> for Deprecated {
 }
 
 impl ToTokens for Deprecated {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        stream.extend(match self {
+        tokens.extend(match self {
             Self::False => quote! { #oapi::oapi::Deprecated::False },
             Self::True => quote! { #oapi::oapi::Deprecated::True },
         })
@@ -290,16 +290,16 @@ impl Parse for ExternalDocs {
 }
 
 impl ToTokens for ExternalDocs {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let url = &self.url;
-        stream.extend(quote! {
+        tokens.extend(quote! {
             #oapi::oapi::external_docs::ExternalDocsBuilder::new()
                 .url(#url)
         });
 
         if let Some(ref description) = self.description {
-            stream.extend(quote! {
+            tokens.extend(quote! {
                 .description(#description)
             });
         }
@@ -322,18 +322,11 @@ impl AnyValue {
 
     pub(crate) fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
-            if input.peek(LitStr) {
-                let lit_str = input
-                    .parse::<LitStr>()
-                    .expect("parse `LitStr` failed")
-                    .to_token_stream();
-
-                Ok(AnyValue::Json(lit_str))
-            } else {
-                let lit = input.parse::<Lit>().expect("parse `Lit` failed").to_token_stream();
-
-                Ok(AnyValue::Json(lit))
-            }
+            let lit = input
+                .parse::<Lit>()
+                .expect("parse_any: parse `Lit` failed")
+                .to_token_stream();
+            Ok(AnyValue::Json(lit))
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
@@ -362,7 +355,7 @@ impl AnyValue {
             Ok(AnyValue::String(
                 input
                     .parse::<LitStr>()
-                    .expect("parse `LitStr` failed")
+                    .expect("parse_lit_str_or_json: parse `LitStr` failed")
                     .to_token_stream(),
             ))
         } else {

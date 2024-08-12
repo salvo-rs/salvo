@@ -61,6 +61,7 @@ impl<'e> EnumSchema<'e> {
                         let mut repr_enum_features = feature::parse_schema_features_with(attributes, |input| {
                             Ok(parse_features!(
                                 input as crate::feature::Example,
+                                crate::feature::Examples,
                                 crate::feature::Default,
                                 crate::feature::Name,
                                 crate::feature::Title,
@@ -767,7 +768,7 @@ impl ComplexEnum<'_> {
                                 #title
                                 .item(#unnamed_enum)
                                 .item(#oapi::oapi::schema::Object::new()
-                                    .schema_type(#oapi::oapi::schema::SchemaType::Object)
+                                    .schema_type(#oapi::oapi::schema::BasicType::Object)
                                     .property(#tag, #variant_name_tokens)
                                     .required(#tag)
                                 )
@@ -776,7 +777,7 @@ impl ComplexEnum<'_> {
                         Ok(Some(quote! {
                             #unnamed_enum
                                 #name
-                                .schema_type(#oapi::oapi::schema::SchemaType::Object)
+                                .schema_type(#oapi::oapi::schema::BasicType::Object)
                                 .property(#tag, #variant_name_tokens)
                                 .required(#tag)
                         }))
@@ -881,7 +882,7 @@ impl ComplexEnum<'_> {
                 Ok(Some(quote! {
                     #oapi::oapi::schema::Object::new()
                         #title
-                        .schema_type(#oapi::oapi::schema::SchemaType::Object)
+                        .schema_type(#oapi::oapi::schema::BasicType::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                         .property(#content, #named_enum)
@@ -933,7 +934,7 @@ impl ComplexEnum<'_> {
                     Ok(Some(quote! {
                         #oapi::oapi::schema::Object::new()
                             #title
-                            .schema_type(#oapi::oapi::schema::SchemaType::Object)
+                            .schema_type(#oapi::oapi::schema::BasicType::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
                             .property(#content, #unnamed_enum)

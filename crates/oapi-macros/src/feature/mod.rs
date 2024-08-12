@@ -68,6 +68,7 @@ pub(crate) trait Parse {
 #[derive(Clone, Debug)]
 pub(crate) enum Feature {
     Example(Example),
+    Examples(Examples),
     Default(Default),
     Inline(Inline),
     XmlAttr(XmlAttr),
@@ -108,6 +109,8 @@ pub(crate) enum Feature {
     Required(Required),
     SkipBound(SkipBound),
     Bound(Bound),
+    ContentEncoding(ContentEncoding),
+    ContentMediaType(ContentMediaType),
 }
 
 impl Feature {
@@ -167,6 +170,7 @@ impl TryToTokens for Feature {
                 }
             }
             Feature::Example(example) => quote! { .example(#example) },
+            Feature::Examples(examples) => quote! { .examples(#examples) },
             Feature::XmlAttr(xml) => quote! { .xml(#xml) },
             Feature::Format(format) => {
                 let format = format.try_to_token_stream()?;
@@ -176,13 +180,20 @@ impl TryToTokens for Feature {
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
             Feature::Name(name) => quote! { .name(#name) },
             Feature::Title(title) => quote! { .title(#title) },
-            Feature::Aliases(_) => quote! {
+            Feature::Aliases(_) => {
                 return Err(Diagnostic::spanned(
-                Span::call_site(),
-                DiagLevel::Error,
-                "Aliases feature does not support `TryToTokens`",
-            )); },
-            Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "Aliases feature does not support `TryToTokens`",
+                ))
+            }
+            Feature::Nullable(_) => {
+                return Err(Diagnostic::spanned(
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "Nullable does not support `TryToTokens`",
+                ))
+            }
             Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),
             Feature::Style(style) => quote! { .style(#style) },
@@ -220,6 +231,8 @@ impl TryToTokens for Feature {
             Feature::AdditionalProperties(additional_properties) => {
                 quote! { .additional_properties(#additional_properties) }
             }
+            Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
+            Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
             Feature::RenameAll(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
@@ -262,6 +275,7 @@ impl Display for Feature {
         match self {
             Feature::Default(default) => default.fmt(f),
             Feature::Example(example) => example.fmt(f),
+            Feature::Examples(examples) => examples.fmt(f),
             Feature::XmlAttr(xml) => xml.fmt(f),
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
@@ -301,6 +315,8 @@ impl Display for Feature {
             Feature::Required(required) => required.fmt(f),
             Feature::SkipBound(skip) => skip.fmt(f),
             Feature::Bound(bound) => bound.fmt(f),
+            Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
+            Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
         }
     }
 }
@@ -310,6 +326,7 @@ impl Validatable for Feature {
         match &self {
             Feature::Default(default) => default.is_validatable(),
             Feature::Example(example) => example.is_validatable(),
+            Feature::Examples(examples) => examples.is_validatable(),
             Feature::XmlAttr(xml) => xml.is_validatable(),
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
@@ -349,6 +366,8 @@ impl Validatable for Feature {
             Feature::Required(required) => required.is_validatable(),
             Feature::SkipBound(skip) => skip.is_validatable(),
             Feature::Bound(bound) => bound.is_validatable(),
+            Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
+            Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
         }
     }
 }

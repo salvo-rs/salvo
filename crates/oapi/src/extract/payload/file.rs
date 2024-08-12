@@ -8,9 +8,7 @@ use salvo_core::http::{HeaderMap, Mime, ParseError};
 use salvo_core::{async_trait, Request};
 
 use crate::endpoint::EndpointArgRegister;
-use crate::{
-    Array, Components, Content, KnownFormat, Object, Operation, RequestBody, Schema, SchemaFormat, SchemaType,
-};
+use crate::{Array, BasicType, Components, Content, KnownFormat, Object, Operation, RequestBody, Schema, SchemaFormat};
 
 /// Represents the upload file.
 #[derive(Clone, Debug)]
@@ -97,7 +95,7 @@ impl EndpointArgRegister for FormFile {
     fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
         let schema = Schema::from(Object::new().property(
             arg,
-            Object::with_type(SchemaType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
+            Object::with_type(BasicType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
         ));
 
         if let Some(request_body) = &mut operation.request_body {
@@ -168,8 +166,8 @@ impl EndpointArgRegister for FormFiles {
     fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
         let schema = Schema::from(Object::new().property(
             arg,
-            Array::new(Schema::from(
-                Object::with_type(SchemaType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
+            Array::new().items(Schema::from(
+                Object::with_type(BasicType::String).format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
             )),
         ));
         if let Some(request_body) = &mut operation.request_body {

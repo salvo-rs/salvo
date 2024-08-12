@@ -5,12 +5,51 @@ use syn::{parse::Parse, Error, Ident, LitStr, Path};
 
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
+/// Represents data type of [`Schema`].
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) enum SchemaTypeInner {
+    /// Generic schema type allows "properties" with custom types
+    Object,
+    /// Indicates string type of content.
+    String,
+    /// Indicates integer type of content.    
+    Integer,
+    /// Indicates floating point number type of content.
+    Number,
+    /// Indicates boolean type of content.
+    Boolean,
+    /// Indicates array type of content.
+    Array,
+    /// Null type. Used together with other type to indicate nullable values.
+    Null,
+}
+
+impl ToTokens for SchemaTypeInner {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let oapi = crate::oapi_crate();
+        let ty = match self {
+            Self::Object => quote! { #oapi::oapi::schema::BasicType::Object },
+            Self::String => quote! { #oapi::oapi::schema::BasicType::String },
+            Self::Integer => quote! { #oapi::oapi::schema::BasicType::Integer },
+            Self::Number => quote! { #oapi::oapi::schema::BasicType::Number },
+            Self::Boolean => quote! { #oapi::oapi::schema::BasicType::Boolean },
+            Self::Array => quote! { #oapi::oapi::schema::BasicType::Array },
+            Self::Null => quote! { #oapi::oapi::schema::BasicType::Null },
+        };
+        tokens.extend(ty)
+    }
+}
+
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub(crate) struct SchemaType<'a>(pub(crate) &'a syn::Path);
+pub(crate) struct SchemaType<'a> {
+    pub path: &'a syn::Path,
+    pub nullable: bool,
+}
 
 impl SchemaType<'_> {
     fn last_segment_to_string(&self) -> String {
-        self.0
+        self.path
             .segments
             .last()
             .expect("Expected at least one segment is_integer")
@@ -18,9 +57,13 @@ impl SchemaType<'_> {
             .to_string()
     }
 
+    pub(crate) fn is_value(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "Value")
+    }
+
     /// Check whether type is known to be primitive in which case returns true.
     pub(crate) fn is_primitive(&self) -> bool {
-        let SchemaType(path) = self;
+        let SchemaType { path, .. } = self;
         let last_segment = match path.segments.last() {
             Some(segment) => segment,
             None => return false,
@@ -140,45 +183,61 @@ fn is_primitive(name: &str) -> bool {
 impl TryToTokens for SchemaType<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let last_segment = self.0.segments.last().ok_or_else(|| {
+        let last_segment = self.path.segments.last().ok_or_else(|| {
             Diagnostic::spanned(
-                self.0.span(),
+                self.path.span(),
                 DiagLevel::Error,
                 "schema type should have at least one segment in the path",
             )
         })?;
         let name = &*last_segment.ident.to_string();
 
-        match name {
-            "String" | "str" | "char" => tokens.extend(quote! {#oapi::oapi::SchemaType::String}),
-            "bool" => tokens.extend(quote! { #oapi::oapi::SchemaType::Boolean }),
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaType::Integer })
+        fn schema_type_tokens(
+            tokens: &mut TokenStream,
+            oapi: syn::Ident,
+            schema_type: SchemaTypeInner,
+            nullable: bool,
+        ) {
+            if nullable {
+                tokens.extend(quote! { #oapi::oapi::schema::SchemaType::from_iter([
+                    #schema_type,
+                    #oapi::oapi::schema::BasicType::Null
+                ])})
+            } else {
+                tokens.extend(quote! { #oapi::oapi::schema::SchemaType::basic(#schema_type)});
             }
-            "f32" | "f64" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
+        }
+
+        match name {
+            "String" | "str" | "char" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "bool" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Boolean, self.nullable),
+            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::Integer, self.nullable)
+            }
+            "f32" | "f64" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable),
             #[cfg(feature = "chrono")]
-            "DateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "chrono")]
-            "NaiveDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "chrono")]
-            "NaiveDate" => tokens.extend(quote!(#oapi::oapi::SchemaType::String)),
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
             #[cfg(any(feature = "chrono", feature = "time"))]
-            "Date" | "Duration" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Date" | "Duration" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
+            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable),
             #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Url" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "ulid")]
-            "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Ulid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Uuid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "time")]
-            "PrimitiveDateTime" | "OffsetDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            _ => tokens.extend(quote! { #oapi::oapi::SchemaType::Object }),
+            "PrimitiveDateTime" | "OffsetDateTime" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
+            _ => schema_type_tokens(tokens, oapi, SchemaTypeInner::Object, self.nullable),
         };
         Ok(())
     }
@@ -442,49 +501,49 @@ impl Parse for Variant {
 }
 
 impl ToTokens for Variant {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            Self::Int32 => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Int32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int32
             ))),
-            Self::Int64 => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Int64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int64
             ))),
-            Self::Float => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Float => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Float
             ))),
-            Self::Double => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Double => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Double
             ))),
-            Self::Byte => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Byte => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Byte
             ))),
-            Self::Binary => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Binary => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Binary
             ))),
-            Self::Date => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Date => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Date
             ))),
-            Self::DateTime => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::DateTime => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::DateTime
             ))),
-            Self::Password => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Password => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Password
             ))),
             #[cfg(feature = "uuid")]
-            Self::Uuid => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Uuid => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Uuid
             ))),
             #[cfg(feature = "ulid")]
-            Self::Ulid => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Ulid => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Ulid
             ))),
             #[cfg(feature = "url")]
-            Self::Url => stream.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+            Self::Url => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Url
             ))),
-            Self::Custom(value) => stream.extend(quote!(#oapi::oapi::SchemaFormat::Custom(
+            Self::Custom(value) => tokens.extend(quote!(#oapi::oapi::SchemaFormat::Custom(
                 String::from(#value)
             ))),
         };

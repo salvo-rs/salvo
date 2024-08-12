@@ -15,12 +15,9 @@ use crate::{Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, ToArra
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    // #[doc(hidden)]
-    // #[serde(skip)]
-    // pub origin_type_id: Option<TypeId>,
-    /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
+    /// Type of [`Object`] e.g. [`Type::Object`] for `object` and [`Type::String`] for
     /// `string` types.
-    #[serde(rename = "type")]
+    #[serde(rename = "type", skip_serializing_if = "SchemaType::is_any_value")]
     pub schema_type: SchemaType,
 
     /// Changes the [`Object`] name.
@@ -81,10 +78,6 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xml: Option<Xml>,
 
-    /// Set `true` to allow `"null"` to be used as value for given type.
-    #[serde(default, skip_serializing_if = "super::is_false")]
-    pub nullable: bool,
-
     /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
     /// divided by the _`multiple_of`_ value results an integer.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -138,6 +131,24 @@ pub struct Object {
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<PropMap<String, serde_json::Value>>,
+
+    /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
+    /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+    ///
+    /// Typically this is either unset for _`string`_ content types which then uses the content
+    /// encoding of the underying JSON document. If the content is in _`binary`_ format such as an image or an audio
+    /// set it to `base64` to encode it as _`Base64`_.
+    ///
+    /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
+    #[serde(skip_serializing_if = "String::is_empty", default)]
+    pub content_encoding: String,
+
+    /// The _`content_media_type`_ keyword specifies the MIME type of the contents of a string,
+    /// as described in [RFC 2046](https://tools.ietf.org/html/rfc2046).
+    ///
+    /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
+    #[serde(skip_serializing_if = "String::is_empty", default)]
+    pub content_media_type: String,
 }
 
 impl Object {
@@ -151,18 +162,20 @@ impl Object {
     ///
     /// Create [`std::string`] object type which can be used to define `string` field of an object.
     /// ```
-    /// # use salvo_oapi::schema::{Object, SchemaType};
-    /// let object = Object::with_type(SchemaType::String);
+    /// # use salvo_oapi::schema::{Object, BasicType};
+    /// let object = Object::with_type(BasicType::String);
     /// ```
-    pub fn with_type(schema_type: SchemaType) -> Self {
+    pub fn with_type<T: Into<SchemaType>>(schema_type: T) -> Self {
         Self {
-            schema_type,
+            schema_type: schema_type.into(),
             ..Default::default()
         }
     }
-    /// Add or change type of the object e.g [`SchemaType::String`].
-    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
-        self.schema_type = schema_type;
+
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        self.schema_type = schema_type.into();
         self
     }
 
@@ -227,6 +240,15 @@ impl Object {
         self
     }
 
+    /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`Object::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
+    pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
+        self.examples.push(example.into());
+        self
+    }
+
     /// Add or change examples shown in UI of the value for richer documentation.
     pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
         self.examples = examples.into_iter().map(Into::into).collect();
@@ -248,12 +270,6 @@ impl Object {
     /// Add or change additional [`Xml`] formatting of the [`Object`].
     pub fn xml(mut self, xml: Xml) -> Self {
         self.xml = Some(xml);
-        self
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
         self
     }
 
@@ -322,6 +338,20 @@ impl Object {
         self.extensions = extensions;
         self
     }
+
+    /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
+    /// example.
+    pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
+        self.content_encoding = content_encoding.into();
+        self
+    }
+
+    /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
+    /// `application/json`.
+    pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
+        self.content_media_type = content_media_type.into();
+        self
+    }
 }
 
 impl From<Object> for Schema {
@@ -344,11 +374,12 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::BasicType;
 
     #[test]
     fn test_build_string_object() {
         let object = Object::new()
-            .schema_type(SchemaType::String)
+            .schema_type(BasicType::String)
             .deprecated(Deprecated::True)
             .write_only(false)
             .read_only(true)
@@ -375,7 +406,7 @@ mod tests {
     #[test]
     fn test_build_number_object() {
         let object = Object::new()
-            .schema_type(SchemaType::Number)
+            .schema_type(BasicType::Number)
             .deprecated(Deprecated::True)
             .write_only(false)
             .read_only(true)
@@ -406,7 +437,7 @@ mod tests {
     #[test]
     fn test_build_object_object() {
         let object = Object::new()
-            .schema_type(SchemaType::Object)
+            .schema_type(BasicType::Object)
             .deprecated(Deprecated::True)
             .write_only(false)
             .read_only(true)

@@ -66,7 +66,7 @@ impl FlattenedMapSchema {
 }
 
 impl ToTokens for FlattenedMapSchema {
-    fn to_tokens(&self, stream: &mut TokenStream) {
-        self.tokens.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens);
     }
 }

@@ -14,7 +14,7 @@ use crate::{
     schema_type::SchemaFormat,
     serde_util::RenameRule,
     type_tree::{GenericType, TypeTree},
-    AnyValue, DiagLevel, DiagResult, Diagnostic, TryToTokens,
+    AnyValue, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens,
 };
 
 #[derive(Clone, Debug)]
@@ -27,8 +27,8 @@ impl Parse for Example {
 }
 
 impl ToTokens for Example {
-    fn to_tokens(&self, stream: &mut TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 
@@ -38,6 +38,38 @@ impl From<Example> for Feature {
     }
 }
 impl_get_name!(Example = "example");
+
+#[derive(Clone, Debug)]
+pub(crate) struct Examples(Vec<AnyValue>);
+
+impl Parse for Examples {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        let examples;
+        parenthesized!(examples in input);
+
+        Ok(Self(
+            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(&examples, AnyValue::parse_any)?
+                .into_iter()
+                .collect(),
+        ))
+    }
+}
+
+impl ToTokens for Examples {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if !self.0.is_empty() {
+            let examples = Array::Borrowed(&self.0).to_token_stream();
+            examples.to_tokens(tokens);
+        }
+    }
+}
+
+impl From<Examples> for Feature {
+    fn from(value: Examples) -> Self {
+        Feature::Examples(value)
+    }
+}
+impl_get_name!(Examples = "examples");
 
 #[derive(Clone, Debug)]
 pub(crate) struct Default(pub(crate) Option<AnyValue>);
@@ -56,10 +88,10 @@ impl Parse for Default {
     }
 }
 impl ToTokens for Default {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match &self.0 {
-            Some(inner) => stream.extend(quote! {Some(#inner)}),
-            None => stream.extend(quote! {None}),
+            Some(inner) => tokens.extend(quote! {Some(#inner)}),
+            None => tokens.extend(quote! {None}),
         }
     }
 }
@@ -132,8 +164,8 @@ impl Parse for XmlAttr {
     }
 }
 impl ToTokens for XmlAttr {
-    fn to_tokens(&self, stream: &mut TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<XmlAttr> for Feature {
@@ -191,8 +223,8 @@ impl Parse for WriteOnly {
     }
 }
 impl ToTokens for WriteOnly {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<WriteOnly> for Feature {
@@ -210,8 +242,8 @@ impl Parse for ReadOnly {
     }
 }
 impl ToTokens for ReadOnly {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<ReadOnly> for Feature {
@@ -229,8 +261,8 @@ impl Parse for Name {
     }
 }
 impl ToTokens for Name {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<Name> for Feature {
@@ -248,8 +280,8 @@ impl Parse for Title {
     }
 }
 impl ToTokens for Title {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<Title> for Feature {
@@ -265,6 +297,19 @@ impl Nullable {
     pub(crate) fn new() -> Self {
         Self(true)
     }
+
+    pub(crate) fn value(&self) -> bool {
+        self.0
+    }
+
+    pub(crate) fn into_schema_type_token_stream(self) -> TokenStream {
+        if self.0 {
+            let oapi = crate::oapi_crate();
+            quote! {#oapi::oapi::schema::BasicType::Null}
+        } else {
+            TokenStream::new()
+        }
+    }
 }
 impl Parse for Nullable {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -272,8 +317,8 @@ impl Parse for Nullable {
     }
 }
 impl ToTokens for Nullable {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 impl From<Nullable> for Feature {
@@ -296,8 +341,8 @@ impl Parse for Rename {
     }
 }
 impl ToTokens for Rename {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        stream.extend(self.0.to_token_stream())
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 
@@ -346,8 +391,8 @@ impl Parse for DefaultStyle {
     }
 }
 impl ToTokens for DefaultStyle {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream)
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
 impl From<DefaultStyle> for Feature {
@@ -370,8 +415,8 @@ impl Parse for Style {
     }
 }
 impl ToTokens for Style {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream)
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
 impl From<Style> for Feature {
@@ -389,8 +434,8 @@ impl Parse for AllowReserved {
     }
 }
 impl ToTokens for AllowReserved {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream)
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
 impl From<AllowReserved> for Feature {
@@ -408,8 +453,8 @@ impl Parse for Explode {
     }
 }
 impl ToTokens for Explode {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream)
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
 impl From<Explode> for Feature {
@@ -427,8 +472,8 @@ impl Parse for DefaultParameterIn {
     }
 }
 impl ToTokens for DefaultParameterIn {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<DefaultParameterIn> for Feature {
@@ -446,8 +491,8 @@ impl Parse for ParameterIn {
     }
 }
 impl ToTokens for ParameterIn {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<ParameterIn> for Feature {
@@ -506,8 +551,8 @@ impl Parse for MultipleOf {
     }
 }
 impl ToTokens for MultipleOf {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MultipleOf> for Feature {
@@ -541,8 +586,8 @@ impl Parse for Maximum {
     }
 }
 impl ToTokens for Maximum {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<Maximum> for Feature {
@@ -581,7 +626,7 @@ impl Parse for Minimum {
     }
 }
 impl ToTokens for Minimum {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, stream: &mut TokenStream) {
         self.0.to_tokens(stream);
     }
 }
@@ -613,8 +658,8 @@ impl Parse for ExclusiveMaximum {
     }
 }
 impl ToTokens for ExclusiveMaximum {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<ExclusiveMaximum> for Feature {
@@ -645,8 +690,8 @@ impl Parse for ExclusiveMinimum {
     }
 }
 impl ToTokens for ExclusiveMinimum {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<ExclusiveMinimum> for Feature {
@@ -683,8 +728,8 @@ impl Parse for MaxLength {
     }
 }
 impl ToTokens for MaxLength {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MaxLength> for Feature {
@@ -721,8 +766,8 @@ impl Parse for MinLength {
     }
 }
 impl ToTokens for MinLength {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MinLength> for Feature {
@@ -756,8 +801,8 @@ impl Parse for Pattern {
     }
 }
 impl ToTokens for Pattern {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<Pattern> for Feature {
@@ -791,8 +836,8 @@ impl Parse for MaxItems {
     }
 }
 impl ToTokens for MaxItems {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MaxItems> for Feature {
@@ -826,8 +871,8 @@ impl Parse for MinItems {
     }
 }
 impl ToTokens for MinItems {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MinItems> for Feature {
@@ -849,8 +894,8 @@ impl Parse for MaxProperties {
     }
 }
 impl ToTokens for MaxProperties {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MaxProperties> for Feature {
@@ -872,8 +917,8 @@ impl Parse for MinProperties {
     }
 }
 impl ToTokens for MinProperties {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<MinProperties> for Feature {
@@ -891,9 +936,9 @@ impl Parse for SchemaWith {
     }
 }
 impl ToTokens for SchemaWith {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = &self.0;
-        stream.extend(quote! {
+        tokens.extend(quote! {
             #path()
         })
     }
@@ -918,7 +963,7 @@ impl Parse for Bound {
     }
 }
 impl TryToTokens for Bound {
-    fn try_to_tokens(&self, _stream: &mut TokenStream) -> DiagResult<()> {
+    fn try_to_tokens(&self, _tokens: &mut TokenStream) -> DiagResult<()> {
         Ok(())
     }
 }
@@ -937,7 +982,7 @@ impl Parse for SkipBound {
     }
 }
 impl ToTokens for SkipBound {
-    fn to_tokens(&self, _stream: &mut proc_macro2::TokenStream) {}
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
 }
 impl From<SkipBound> for Feature {
     fn from(value: SkipBound) -> Self {
@@ -957,8 +1002,8 @@ impl Parse for Description {
     }
 }
 impl ToTokens for Description {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 impl From<String> for Description {
@@ -988,9 +1033,9 @@ impl Parse for Deprecated {
     }
 }
 impl ToTokens for Deprecated {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let deprecated: crate::Deprecated = self.0.into();
-        deprecated.to_tokens(stream);
+        deprecated.to_tokens(tokens);
     }
 }
 impl From<Deprecated> for Feature {
@@ -1036,10 +1081,10 @@ impl Parse for AdditionalProperties {
     }
 }
 impl ToTokens for AdditionalProperties {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let additional_properties = &self.0;
-        stream.extend(quote!(
+        tokens.extend(quote!(
             #oapi::oapi::schema::AdditionalProperties::FreeForm(
                 #additional_properties
             )
@@ -1066,8 +1111,8 @@ impl Parse for Required {
     }
 }
 impl ToTokens for Required {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        self.0.to_tokens(stream)
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
 impl From<crate::Required> for Required {
@@ -1170,3 +1215,55 @@ impl From<Aliases> for Feature {
     }
 }
 impl_get_name!(Aliases = "aliases");
+
+#[derive(Clone, Debug)]
+pub(crate) struct ContentEncoding(String);
+
+impl Parse for ContentEncoding {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_lit_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentEncoding {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl_get_name!(ContentEncoding = "content_encoding");
+
+impl From<ContentEncoding> for Feature {
+    fn from(value: ContentEncoding) -> Self {
+        Self::ContentEncoding(value)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ContentMediaType(String);
+
+impl Parse for ContentMediaType {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_lit_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentMediaType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ContentMediaType> for Feature {
+    fn from(value: ContentMediaType) -> Self {
+        Self::ContentMediaType(value)
+    }
+}
+
+impl_get_name!(ContentMediaType = "content_media_type");

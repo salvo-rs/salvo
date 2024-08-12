@@ -7,9 +7,9 @@ use crate::feature::{
     pop_feature, AdditionalProperties, Description, Feature, FeaturesExt, IsInline, Minimum, Nullable, TryToTokensExt,
     Validatable,
 };
-use crate::schema_type::{SchemaFormat, SchemaType};
+use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
-use crate::{Deprecated, DiagResult, Diagnostic, TryToTokens};
+use crate::{Deprecated, DiagResult, Diagnostic, IntoInner, TryToTokens};
 
 #[derive(Debug)]
 pub(crate) struct ComponentSchemaProps<'c> {
@@ -78,23 +78,7 @@ impl<'c> ComponentSchema {
                     deprecated_stream,
                 )?
             }
-            Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
-            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
-            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -132,11 +116,7 @@ impl<'c> ComponentSchema {
                 })?
                 .to_tokens(&mut tokens);
             }
-            Some(GenericType::Cow)
-            | Some(GenericType::Box)
-            | Some(GenericType::Arc)
-            | Some(GenericType::Rc)
-            | Some(GenericType::RefCell) => {
+            Some(GenericType::Cow | GenericType::Box | GenericType::Arc | GenericType::Rc | GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
@@ -165,6 +145,23 @@ impl<'c> ComponentSchema {
         Ok(Self { tokens })
     }
 
+    /// Create `.schema_type(...)` override token stream if nullable is true from given [`SchemaTypeInner`].
+    fn get_schema_type_override(nullable: Option<Nullable>, schema_type_inner: SchemaTypeInner) -> Option<TokenStream> {
+        if let Some(nullable) = nullable {
+            let nullable_schema_type = nullable.into_schema_type_token_stream();
+            let schema_type = if nullable.value() && !nullable_schema_type.is_empty() {
+                let oapi = crate::oapi_crate();
+                Some(quote! { #oapi::oapi::schema::SchemaType::from_iter([#schema_type_inner, #nullable_schema_type]) })
+            } else {
+                None
+            };
+
+            schema_type.map(|schema_type| quote! { .schema_type(#schema_type) })
+        } else {
+            None
+        }
+    }
+
     fn map_to_tokens(
         tokens: &mut TokenStream,
         mut features: Vec<Feature>,
@@ -176,7 +173,7 @@ impl<'c> ComponentSchema {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
-        let nullable = pop_feature!(features => Feature::Nullable(_));
+        let nullable: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
@@ -207,8 +204,11 @@ impl<'c> ComponentSchema {
                 Ok::<_, Diagnostic>(Some(quote! { .additional_properties(#schema_property) }))
             })?;
 
+        let schema_type = ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
+
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
+                #schema_type
                 #additional_properties
                 #description_stream
                 #deprecated_stream
@@ -217,9 +217,6 @@ impl<'c> ComponentSchema {
 
         if let Some(example) = example {
             example.try_to_tokens(tokens)?;
-        }
-        if let Some(nullable) = nullable {
-            nullable.try_to_tokens(tokens)?;
         }
         Ok(())
     }
@@ -237,7 +234,7 @@ impl<'c> ComponentSchema {
         let xml = features.extract_vec_xml_feature(type_tree);
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
-        let nullable = pop_feature!(features => Feature::Nullable(_));
+        let nullable: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
@@ -252,43 +249,36 @@ impl<'c> ComponentSchema {
 
         let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
 
-        // is octet-stream
-        let schema = if child
-            .path
-            .as_ref()
-            .map(|path| SchemaType(path).is_byte())
-            .unwrap_or(false)
-        {
-            quote! {
-                #oapi::oapi::Object::new()
-                    .schema_type(#oapi::oapi::schema::SchemaType::String)
-                    .format(#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Binary))
-            }
-        } else {
-            let component_schema = ComponentSchema::new(ComponentSchemaProps {
-                type_tree: child,
-                features: Some(features),
-                description: None,
-                deprecated: None,
-                object_name,
-            })?;
+        let component_schema = ComponentSchema::new(ComponentSchemaProps {
+            type_tree: child,
+            features: Some(features),
+            description: None,
+            deprecated: None,
+            object_name,
+        })?
+        .to_token_stream();
 
-            let unique = match unique {
-                true => quote! {
-                    .unique_items(true)
-                },
-                false => quote! {},
-            };
+        let unique = match unique {
+            true => quote! {
+                .unique_items(true)
+            },
+            false => quote! {},
+        };
+        let schema_type = ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Array);
 
-            quote! {
-                #oapi::oapi::schema::Array::new(#component_schema)
-                #unique
-            }
+        let schema = quote! {
+            #oapi::oapi::schema::Array::new().items(#component_schema)
+            #schema_type
+            .items(#component_schema)
+            #unique
         };
 
         let validate = |feature: &Feature| {
             let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
-            let schema_type = SchemaType(type_path);
+            let schema_type = SchemaType {
+                path: type_path,
+                nullable: nullable.map(|nullable| nullable.value()).unwrap_or_default(),
+            };
             feature.validate(&schema_type, type_tree)
         };
 
@@ -318,9 +308,6 @@ impl<'c> ComponentSchema {
         if let Some(xml) = xml {
             xml.try_to_tokens(tokens)?;
         }
-        if let Some(nullable) = nullable {
-            nullable.try_to_tokens(tokens)?;
-        }
         Ok(())
     }
 
@@ -333,14 +320,16 @@ impl<'c> ComponentSchema {
         deprecated_stream: Option<TokenStream>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let nullable = pop_feature!(features => Feature::Nullable(_))
-            .map(|f| f.try_to_token_stream())
-            .transpose()?;
+        let nullable_feat: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
+        let nullable = nullable_feat.map(|nullable| nullable.value()).unwrap_or_default();
 
         match type_tree.value_type {
             ValueType::Primitive => {
                 let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
-                let schema_type = SchemaType(type_path);
+                let schema_type = SchemaType {
+                    path: type_path,
+                    nullable,
+                };
                 if schema_type.is_unsigned_integer() {
                     // add default minimum feature only when there is no explicit minimum
                     // provided
@@ -370,40 +359,47 @@ impl<'c> ComponentSchema {
                     feature.validate(&schema_type, type_tree)?;
                 }
                 tokens.extend(features.try_to_token_stream()?);
-
-                nullable.to_tokens(tokens);
+            }
+            ValueType::Value => {
+                // since OpenAPI 3.1 the type is an array, thus nullable should not be necessary
+                // for value type that is going to allow all types of content.
+                if type_tree.is_value() {
+                    tokens.extend(quote! {
+                        #oapi::oapi::Object::new()
+                            .schema_type(#oapi::oapi::schema::SchemaType::AnyValue)
+                            #description_stream #deprecated_stream
+                    })
+                }
             }
             ValueType::Object => {
                 let is_inline = features.is_inline();
 
-                let default = pop_feature!(features => Feature::Default(_))
-                    .map(|f| f.try_to_token_stream())
-                    .transpose()?;
                 if type_tree.is_object() {
                     let oapi = crate::oapi_crate();
-                    let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
-                    let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_))
-                        .unwrap_or_else(|| Feature::AdditionalProperties(AdditionalProperties(true)))
-                        .try_to_token_stream()?;
-
+                    let nullable_schema_type =
+                        ComponentSchema::get_schema_type_override(nullable_feat, SchemaTypeInner::Object);
                     tokens.extend(quote! {
                         #oapi::oapi::Object::new()
-                            #additional_properties
-                            #description_stream
-                            #deprecated_stream
-                            #default
-                    });
-                    if let Some(example) = example {
-                        example.try_to_tokens(tokens)?;
-                    }
-                    nullable.to_tokens(tokens);
+                            #nullable_schema_type
+                            #description_stream #deprecated_stream
+                    })
                 } else {
                     let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
+                    let nullable_item = if nullable {
+                        Some(
+                            quote! { .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::BasicType::Null)) },
+                        )
+                    } else {
+                        None
+                    };
                     if is_inline {
-                        let schema = if default.is_some() || nullable.is_some() {
+                        let default = pop_feature!(features => Feature::Default(_))
+                            .map(|feature| feature.try_to_token_stream())
+                            .transpose()?;
+                        let schema = if default.is_some() || nullable {
                             quote_spanned! {type_path.span()=>
                                 #oapi::oapi::schema::AllOf::new()
-                                    #nullable
+                                    #nullable_item
                                     .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 #default
                             }
@@ -414,13 +410,21 @@ impl<'c> ComponentSchema {
                         };
                         schema.to_tokens(tokens);
                     } else {
+                        let default = pop_feature!(features => Feature::Default(_))
+                            .map(|feature| feature.try_to_token_stream())
+                            .transpose()?;
+
                         let schema = quote! {
                             #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                         };
-                        let schema = if default.is_some() || nullable.is_some() {
+
+                        // TODO: refs support `summary` field but currently there is no such field
+                        // on schemas more over there is no way to distinct the `summary` from
+                        // `description` of the ref. Should we consider supporting the summary?
+                        let schema = if default.is_some() || nullable {
                             quote! {
                                 #oapi::oapi::schema::AllOf::new()
-                                    #nullable
+                                    #nullable_item
                                     .item(#schema)
                                     #default
                             }
@@ -467,9 +471,11 @@ impl<'c> ComponentSchema {
                                 all_of
                             },
                         );
+                        let nullable_schema_type =
+                            ComponentSchema::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
                         quote! {
-                            #oapi::oapi::schema::Array::new(#all_of)
-                                #nullable
+                            #oapi::oapi::schema::Array::new().items(#all_of)
+                                #nullable_schema_type
                                 #description_stream
                                 #deprecated_stream
                         }

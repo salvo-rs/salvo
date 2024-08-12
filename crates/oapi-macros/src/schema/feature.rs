@@ -2,10 +2,11 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, Default, Deprecated,
-    Description, Example, ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, MaxItems, MaxLength,
-    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name, Nullable, Pattern,
-    ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, ContentEncoding,
+    ContentMediaType, Default, Deprecated, Description, Example, Examples, ExclusiveMaximum, ExclusiveMinimum, Feature,
+    Format, Inline, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
+    MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title,
+    ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, DiagResult, Diagnostic, IntoInner};
 
@@ -16,6 +17,7 @@ impl Parse for NamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
+            Examples,
             XmlAttr,
             Name,
             Title,
@@ -43,6 +45,7 @@ impl Parse for UnnamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
+            Examples,
             Default,
             Name,
             Title,
@@ -67,6 +70,7 @@ impl Parse for EnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(EnumFeatures(parse_features!(
             input as Example,
+            Examples,
             Default,
             Name,
             Title,
@@ -89,6 +93,7 @@ impl Parse for ComplexEnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(ComplexEnumFeatures(parse_features!(
             input as Example,
+            Examples,
             Default,
             RenameAll,
             Name,
@@ -111,6 +116,7 @@ impl Parse for NamedFieldFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(NamedFieldFeatures(parse_features!(
             input as Example,
+            Examples,
             ValueType,
             Format,
             Default,
@@ -134,7 +140,9 @@ impl Parse for NamedFieldFeatures {
             AdditionalProperties,
             Required,
             Deprecated,
-            Skip
+            Skip,
+            ContentEncoding,
+            ContentMediaType
         )))
     }
 }
@@ -147,6 +155,7 @@ impl Parse for EnumNamedFieldVariantFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(EnumNamedFieldVariantFeatures(parse_features!(
             input as Example,
+            Examples,
             XmlAttr,
             Title,
             Rename,
@@ -165,6 +174,7 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
             input as Example,
+            Examples,
             Default,
             Title,
             Format,

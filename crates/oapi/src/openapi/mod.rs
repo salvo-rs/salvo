@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3.
+//! Rust implementation of Openapi Spec V3.1.
 
 mod components;
 mod content;
@@ -19,11 +19,13 @@ mod tag;
 mod xml;
 
 use std::collections::{btree_map, BTreeSet};
+use std::fmt::Formatter;
 use std::sync::LazyLock;
 
 use regex::Regex;
 use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
+use serde::de::{Error, Expected, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::{
     components::Components,
@@ -37,7 +39,9 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray},
+    schema::{
+        Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray,
+    },
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
@@ -121,6 +125,13 @@ pub struct OpenApi {
     /// See more details at <https://spec.openapis.org/oas/latest.html#external-documentation-object>.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
+
+    /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
+    /// “<https://spec.openapis.org/oas/3.1/dialect/base>”.
+    ///
+    /// All the references and invidual files could use their own schema dialect.
+    #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
+    pub schema: String,
 }
 
 impl OpenApi {
@@ -187,7 +198,7 @@ impl OpenApi {
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
     /// comparison.
     ///
-    /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
+    /// **Note!** `info`, `openapi` and `external_docs` and `schema` will not be merged.
     pub fn merge(mut self, mut other: OpenApi) -> Self {
         self.servers.append(&mut other.servers);
         self.paths.append(&mut other.paths);
@@ -290,14 +301,14 @@ impl OpenApi {
     ///
     /// # Examples
     /// ```
-    /// # use salvo_oapi::{OpenApi, Object, SchemaType, Schema};
+    /// # use salvo_oapi::{OpenApi, Object, BasicType, Schema};
     /// OpenApi::new("api", "0.0.1").extend_schemas([(
     ///     "Pet",
     ///     Schema::from(
     ///         Object::new()
     ///             .property(
     ///                 "name",
-    ///                 Object::new().schema_type(SchemaType::String),
+    ///                 Object::new().schema_type(BasicType::String),
     ///             )
     ///             .required("name")
     ///     ),
@@ -347,6 +358,20 @@ impl OpenApi {
     /// Add [`ExternalDocs`] for referring additional documentation.
     pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
         self.external_docs = Some(external_docs);
+        self
+    }
+
+    /// Override default `$schema` dialect for the Open API doc.
+    ///
+    /// # Examples
+    ///
+    /// _**Override default schema dialect.**_
+    /// ```rust
+    /// # use salvo_oapi::OpenApi;
+    /// let _ = OpenApi::new("openapi", "0.1.0").schema("http://json-schema.org/draft-07/schema#");
+    /// ```
+    pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
+        self.schema = schema.into();
         self
     }
 
@@ -468,16 +493,51 @@ impl Handler for OpenApi {
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Clone, PartialEq, Eq, Default, Debug)]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.1.0` the latest from 3.0 serde.
+    /// Will serialize to `3.1.0` the latest released OpenAPI version.
     #[serde(rename = "3.1.0")]
-    Version3,
+    #[default]
+    Version3_1,
 }
 
-impl Default for OpenApiVersion {
-    fn default() -> Self {
-        Self::Version3
+impl<'de> Deserialize<'de> for OpenApiVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VersionVisitor;
+
+        impl<'v> Visitor<'v> for VersionVisitor {
+            type Value = OpenApiVersion;
+
+            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+                formatter.write_str("a version string in 3.1.x format")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                self.visit_string(v.to_string())
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                let version = v.split('.').flat_map(|digit| digit.parse::<i8>()).collect::<Vec<_>>();
+
+                if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
+                    Ok(OpenApiVersion::Version3_1)
+                } else {
+                    let expected: &dyn Expected = &"3.1.0";
+                    Err(Error::invalid_value(serde::de::Unexpected::Str(&v), expected))
+                }
+            }
+        }
+
+        deserializer.deserialize_string(VersionVisitor)
     }
 }
 
@@ -630,7 +690,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
-        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.1.0");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3_1)?, "3.1.0");
         Ok(())
     }
 
@@ -783,8 +843,8 @@ mod tests {
                 Components::new().add_schema(
                     "User2",
                     Object::new()
-                        .schema_type(SchemaType::Object)
-                        .property("name", Object::new().schema_type(SchemaType::String)),
+                        .schema_type(BasicType::Object)
+                        .property("name", Object::new().schema_type(BasicType::String)),
                 ),
             );
 
@@ -847,9 +907,9 @@ mod tests {
     }
 
     #[test]
-    fn simple_document_with_security() {
+    fn test_simple_document_with_security() {
         #[derive(Deserialize, Serialize, ToSchema)]
-        #[salvo(schema(example = json!({"name": "bob the cat", "id": 1})))]
+        #[salvo(schema(examples(json!({"name": "bob the cat", "id": 1}))))]
         struct Pet {
             id: u64,
             name: String,
@@ -926,7 +986,7 @@ mod tests {
                           "get": {
                              "summary": "Get pet by id",
                              "description": "Get pet from database by pet database id",
-                             "operationId": "salvo_oapi.openapi.tests.simple_document_with_security.get_pet_by_id",
+                             "operationId": "salvo_oapi.openapi.tests.test_simple_document_with_security.get_pet_by_id",
                              "parameters": [
                                 {
                                    "name": "pet_id",
@@ -975,7 +1035,7 @@ mod tests {
                     },
                     "components": {
                        "schemas": {
-                          "salvo_oapi.openapi.tests.simple_document_with_security.Pet": {
+                          "salvo_oapi.openapi.tests.test_simple_document_with_security.Pet": {
                              "type": "object",
                              "required": [
                                 "id",
@@ -983,9 +1043,8 @@ mod tests {
                              ],
                              "properties": {
                                 "age": {
-                                   "type": "integer",
-                                   "format": "int32",
-                                   "nullable": true
+                                   "type": ["integer", "null"],
+                                   "format": "int32"
                                 },
                                 "id": {
                                    "type": "integer",
@@ -996,10 +1055,10 @@ mod tests {
                                    "type": "string"
                                 }
                              },
-                             "example": {
+                             "examples": [{
                                 "id": 1,
                                 "name": "bob the cat"
-                             }
+                             }]
                           }
                        },
                        "securitySchemes": {

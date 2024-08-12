@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Object, RefOr, Schema, SchemaType};
+use super::{BasicType, Object, RefOr, Schema};
 
 /// Implements [OpenAPI Header Object][header] for response headers.
 ///
@@ -28,8 +28,8 @@ impl Header {
     ///
     /// Create new [`Header`] with integer type.
     /// ```
-    /// # use salvo_oapi::{Header, Object, SchemaType};
-    /// let header = Header::new(Object::with_type(SchemaType::Integer));
+    /// # use salvo_oapi::{Header, Object, BasicType};
+    /// let header = Header::new(Object::with_type(BasicType::Integer));
     /// ```
     ///
     /// Create a new [`Header`] with default type `String`
@@ -60,7 +60,7 @@ impl Default for Header {
     fn default() -> Self {
         Self {
             description: Default::default(),
-            schema: Object::with_type(SchemaType::String).into(),
+            schema: Object::with_type(BasicType::String).into(),
         }
     }
 }
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_build_header() {
-        let header = Header::new(Object::with_type(SchemaType::String));
+        let header = Header::new(Object::with_type(BasicType::String));
         assert_json_eq!(
             header,
             json!({
@@ -86,7 +86,7 @@ mod tests {
 
         let header = header
             .description("test description")
-            .schema(Object::with_type(SchemaType::Number));
+            .schema(Object::with_type(BasicType::Number));
         assert_json_eq!(
             header,
             json!({

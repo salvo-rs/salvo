@@ -272,7 +272,7 @@ _**Use `schema_with` to manually implement schema for a field.**_
 # use salvo_oapi::schema::Object;
 fn custom_type() -> Object {
     Object::new()
-        .schema_type(salvo_oapi::SchemaType::String)
+        .schema_type(salvo_oapi::BasicType::String)
         .format(salvo_oapi::SchemaFormat::Custom(
             "email".to_string(),
         ))
