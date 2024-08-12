@@ -213,12 +213,17 @@ impl<'t> TypeTree<'t> {
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let is_primitive = SchemaType(path).is_primitive();
+        let schema_type = SchemaType {
+            path,
+            nullable: matches!(generic_type, Some(GenericType::Option)),
+        };
 
         Self {
             path: Some(Cow::Borrowed(path)),
-            value_type: if is_primitive {
+            value_type: if schema_type.is_primitive() {
                 ValueType::Primitive
+            } else if schema_type.is_value() {
+                ValueType::Value
             } else {
                 ValueType::Object
             },
@@ -292,6 +297,12 @@ impl<'t> TypeTree<'t> {
         self.is("Object")
     }
 
+    /// `Value` virtual type is used when any JSON value is required in OpenAPI spec. Typically used
+    /// with `value_type` attribute for a member of type `serde_json::Value`.
+    pub(crate) fn is_value(&self) -> bool {
+        self.is("Value")
+    }
+
     /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Option`]
     pub(crate) fn is_option(&self) -> bool {
         matches!(self.generic_type, Some(GenericType::Option))
@@ -308,6 +319,7 @@ pub(crate) enum ValueType {
     Primitive,
     Object,
     Tuple,
+    Value,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

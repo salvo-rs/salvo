@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Discriminator, PropMap, RefOr, Schema};
+use crate::{Discriminator, PropMap, RefOr, Schema, SchemaType};
 
 /// OneOf [Composite Object][oneof] component holds
 /// multiple components together where API endpoint could return any of them.
@@ -10,11 +10,22 @@ use crate::{Discriminator, PropMap, RefOr, Schema};
 ///
 /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct OneOf {
     /// Components of _OneOf_ component.
     #[serde(rename = "oneOf")]
     pub items: Vec<RefOr<Schema>>,
+
+    /// Type of [`OneOf`] e.g. `SchemaType::basic(BasicType::Object)` for `object`.
+    ///
+    /// By default this is [`SchemaType::AnyValue`] as the type is defined by items
+    /// themselves.
+    #[serde(
+        rename = "type",
+        default = "SchemaType::any",
+        skip_serializing_if = "SchemaType::is_any_value"
+    )]
+    pub schema_type: SchemaType,
 
     /// Changes the [`OneOf`] title.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -28,22 +39,33 @@ pub struct OneOf {
     #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
     pub default_value: Option<Value>,
 
-    /// Example shown in UI of the value for richer documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub example: Option<Value>,
+    /// Examples shown in UI of the value for richer documentation.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub examples: Vec<Value>,
 
     /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
     /// specific schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discriminator: Option<Discriminator>,
 
-    /// Set `true` to allow `"null"` to be used as value for given type.
-    #[serde(default, skip_serializing_if = "super::is_false")]
-    pub nullable: bool,
-
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<PropMap<String, serde_json::Value>>,
+}
+
+impl Default for OneOf {
+    fn default() -> Self {
+        Self {
+            items: Default::default(),
+            schema_type: SchemaType::AnyValue,
+            title: Default::default(),
+            description: Default::default(),
+            default_value: Default::default(),
+            examples: Default::default(),
+            discriminator: Default::default(),
+            extensions: Default::default(),
+        }
+    }
 }
 
 impl OneOf {
@@ -79,6 +101,13 @@ impl OneOf {
         self
     }
 
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        self.schema_type = schema_type.into();
+        self
+    }
+
     /// Add or change the title of the [`OneOf`].
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
@@ -98,20 +127,23 @@ impl OneOf {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`OneOf::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
+    pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
+        self.examples.push(example.into());
+        self
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
     pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
         self.discriminator = Some(discriminator);
-        self
-    }
-
-    /// Add or change nullable flag for [Object][crate::Object].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
         self
     }
 
@@ -147,9 +179,11 @@ mod tests {
             .title("title")
             .description("description")
             .default_value(Value::String("default".to_string()))
-            .example(Value::String("example".to_string()))
-            .discriminator(Discriminator::new("discriminator".to_string()))
-            .nullable(true);
+            .examples([
+                Value::String("example1".to_string()),
+                Value::String("example2".to_string()),
+            ])
+            .discriminator(Discriminator::new("discriminator".to_string()));
 
         assert_eq!(one_of.items.len(), 0);
         assert_eq!(one_of.items.capacity(), 5);
@@ -160,11 +194,10 @@ mod tests {
                 "title": "title",
                 "description": "description",
                 "default": "default",
-                "example": "example",
+                "examples": ["example1", "example2"],
                 "discriminator": {
                     "propertyName": "discriminator"
-                },
-                "nullable": true
+                }
             })
         )
     }

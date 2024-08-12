@@ -46,9 +46,9 @@ impl Parse for SecurityRequirementsAttrItem {
 }
 
 impl ToTokens for SecurityRequirementsAttr {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        stream.extend(quote! {
+        tokens.extend(quote! {
             #oapi::oapi::security::SecurityRequirement::default()
         });
 
@@ -57,7 +57,7 @@ impl ToTokens for SecurityRequirementsAttr {
                 let scopes = scopes.iter().collect::<Array<&String>>();
                 let scopes_len = scopes.len();
 
-                stream.extend(quote! {
+                tokens.extend(quote! {
                     .add::<&str, [&str; #scopes_len], &str>(#name, #scopes)
                 });
             }

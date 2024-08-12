@@ -347,9 +347,9 @@ impl Parse for ParameterIn {
 }
 
 impl ToTokens for ParameterIn {
-    fn to_tokens(&self, stream: &mut TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        stream.extend(match self {
+        tokens.extend(match self {
             Self::Path => quote! { #oapi::oapi::parameter::ParameterIn::Path },
             Self::Query => quote! { #oapi::oapi::parameter::ParameterIn::Query },
             Self::Header => quote! { #oapi::oapi::parameter::ParameterIn::Header },
@@ -390,20 +390,20 @@ impl Parse for ParameterStyle {
 }
 
 impl ToTokens for ParameterStyle {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            ParameterStyle::Matrix => stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix }),
-            ParameterStyle::Label => stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label }),
-            ParameterStyle::Form => stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form }),
-            ParameterStyle::Simple => stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple }),
+            ParameterStyle::Matrix => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix }),
+            ParameterStyle::Label => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label }),
+            ParameterStyle::Form => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form }),
+            ParameterStyle::Simple => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple }),
             ParameterStyle::SpaceDelimited => {
-                stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
             }
             ParameterStyle::PipeDelimited => {
-                stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
             }
-            ParameterStyle::DeepObject => stream.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject }),
+            ParameterStyle::DeepObject => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject }),
         }
     }
 }

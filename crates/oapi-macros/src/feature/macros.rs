@@ -35,6 +35,7 @@ macro_rules! is_validatable {
 is_validatable! {
     Default => false,
     Example => false,
+    Examples => false,
     XmlAttr => false,
     Format => false,
     WriteOnly => false,
@@ -74,6 +75,8 @@ is_validatable! {
     Required => false,
     SkipBound => false,
     Bound => false,
+    ContentEncoding => false,
+    ContentMediaType => false
 }
 
 macro_rules! parse_features {
@@ -163,6 +166,7 @@ macro_rules! impl_feature_into_inner {
 
 impl_feature_into_inner! {
     Example,
+    Examples,
     Default,
     Inline,
     XmlAttr,

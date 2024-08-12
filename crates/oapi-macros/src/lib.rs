@@ -236,8 +236,8 @@ mod tests {
             ///
             /// This is user description.
             #[derive(ToSchema)]
-            struct User{
-                #[salvo(schema(example = "chris", min_length = 1, max_length = 100, required))]
+            struct User {
+                #[salvo(schema(examples("chris"), min_length = 1, max_length = 100, required))]
                 name: String,
                 #[salvo(schema(example = 16, default = 0, maximum=100, minimum=0,format = "int32"))]
                 age: i32,
@@ -259,8 +259,8 @@ mod tests {
                                 .property(
                                     "name",
                                     salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::SchemaType::String)
-                                        .example(salvo::oapi::__private::serde_json::json!("chris"))
+                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                        .examples([salvo::oapi::__private::serde_json::json!("chris"),])
                                         .min_length(1usize)
                                         .max_length(100usize)
                                 )
@@ -268,7 +268,7 @@ mod tests {
                                 .property(
                                     "age",
                                     salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::SchemaType::Integer)
+                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
                                         .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
                                         .example(salvo::oapi::__private::serde_json::json!(16))
                                         .default_value(salvo::oapi::__private::serde_json::json!(0))
@@ -280,7 +280,7 @@ mod tests {
                                 .property(
                                     "high",
                                     salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::SchemaType::Integer)
+                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
                                         .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
                                         .deprecated(salvo::oapi::Deprecated::True)
                                         .minimum(0f64)
@@ -366,7 +366,7 @@ mod tests {
                         if !components.schemas.contains_key(&name) {
                             components.schemas.insert(name.clone(), ref_or.clone());
                             let schema = salvo::oapi::Object::new()
-                                .schema_type(salvo::oapi::SchemaType::String)
+                                .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
                                 .enum_values::<[&str; 2usize], &str>(["man", "woman",]);
                             components.schemas.insert(name, schema);
                         }
@@ -401,13 +401,13 @@ mod tests {
                                 salvo::oapi::Object::new()
                                     .property(
                                         "name",
-                                        salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                        salvo::oapi::Object::new().schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
                                     )
                                     .required("name")
                                     .property(
                                         "age",
                                         salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::SchemaType::Integer)
+                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
                                             .format(salvo::oapi::SchemaFormat::KnownFormat(
                                                 salvo::oapi::KnownFormat::Int32
                                             ))
@@ -453,8 +453,7 @@ mod tests {
             }
         };
         assert_eq!(
-            response::to_responses(parse2(input).unwrap()).unwrap()
-                .to_string(),
+            response::to_responses(parse2(input).unwrap()).unwrap().to_string(),
             quote! {
                 impl salvo::oapi::ToResponses for UserResponses {
                     fn to_responses(components: &mut salvo::oapi::Components) -> salvo::oapi::response::Responses {
@@ -468,7 +467,7 @@ mod tests {
                                             salvo::oapi::Object::new()
                                                 .property(
                                                     "value",
-                                                    salvo::oapi::Object::new().schema_type(salvo::oapi::SchemaType::String)
+                                                    salvo::oapi::Object::new().schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
                                                 )
                                                 .required("value")
                                                 .description("Success response description.")
@@ -518,7 +517,8 @@ mod tests {
                             .append(&mut <Self as salvo::oapi::ToResponses>::to_responses(components));
                     }
                 }
-            } .to_string()
+            }
+            .to_string()
         );
     }
 
@@ -548,19 +548,17 @@ mod tests {
                                     .required(salvo::oapi::Required::False)
                                     .schema(
                                         salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::SchemaType::String)
-                                            .nullable(true)
+                                            .schema_type(salvo::oapi::schema::SchemaType::from_iter([salvo::oapi::schema::BasicType::String, salvo::oapi::schema::BasicType::Null]))
                                     ),
                                 salvo::oapi::parameter::Parameter::new("age")
                                     .description("Age of pet")
                                     .required(salvo::oapi::Required::False)
                                     .schema(
                                         salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::SchemaType::Integer)
+                                            .schema_type(salvo::oapi::schema::SchemaType::from_iter([salvo::oapi::schema::BasicType::Integer, salvo::oapi::schema::BasicType::Null]))
                                             .format(salvo::oapi::SchemaFormat::KnownFormat(
                                                 salvo::oapi::KnownFormat::Int32
                                             ))
-                                            .nullable(true)
                                     ),
                                 salvo::oapi::parameter::Parameter::new("kind")
                                     .description("Kind of pet")

@@ -83,7 +83,7 @@ extern crate self as salvo_oapi;
 ///
 /// Following manual implementation is equal to above derive one.
 /// ```
-/// use salvo_oapi::{Components, ToSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
+/// use salvo_oapi::{Components, ToSchema, RefOr, Schema, SchemaFormat, BasicType, SchemaType, KnownFormat, Object};
 /// # struct Pet {
 /// #     id: u64,
 /// #     name: String,
@@ -96,7 +96,7 @@ extern crate self as salvo_oapi;
 ///             .property(
 ///                 "id",
 ///                 Object::new()
-///                     .schema_type(SchemaType::Integer)
+///                     .schema_type(BasicType::Integer)
 ///                     .format(SchemaFormat::KnownFormat(
 ///                         KnownFormat::Int64,
 ///                     )),
@@ -105,13 +105,13 @@ extern crate self as salvo_oapi;
 ///             .property(
 ///                 "name",
 ///                 Object::new()
-///                     .schema_type(SchemaType::String),
+///                     .schema_type(BasicType::String),
 ///             )
 ///             .required("name")
 ///             .property(
 ///                 "age",
 ///                 Object::new()
-///                     .schema_type(SchemaType::Integer)
+///                     .schema_type(BasicType::Integer)
 ///                     .format(SchemaFormat::KnownFormat(
 ///                         KnownFormat::Int32,
 ///                     )),
@@ -395,7 +395,7 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 ///                 .description("Id of pet")
 ///                 .schema(
 ///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::SchemaType::Integer)
+///                         .schema_type(salvo_oapi::schema::BasicType::Integer)
 ///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::schema::KnownFormat::Int64)),
 ///                 ),
 ///         ).parameter(
@@ -405,7 +405,7 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 ///                 .description("Name of pet")
 ///                 .schema(
 ///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::SchemaType::String),
+///                         .schema_type(salvo_oapi::schema::BasicType::String),
 ///                 ),
 ///         )
 ///     }

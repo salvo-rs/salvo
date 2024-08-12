@@ -642,8 +642,8 @@ impl Parse for ResponseStatusCode {
 }
 
 impl ToTokens for ResponseStatusCode {
-    fn to_tokens(&self, stream: &mut TokenStream) {
-        self.0.to_tokens(stream);
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
     }
 }
 

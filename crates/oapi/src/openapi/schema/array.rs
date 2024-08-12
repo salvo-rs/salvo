@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::schema::BasicType;
 use crate::{Deprecated, PropMap, RefOr, Schema, SchemaType, Xml};
 
 /// Array represents [`Vec`] or [`slice`] type  of items.
@@ -29,9 +30,9 @@ pub struct Array {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
 
-    /// Example shown in UI of the value for richer documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub example: Option<Value>,
+    /// Examples shown in UI of the value for richer documentation.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub examples: Vec<Value>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
     #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
@@ -54,10 +55,6 @@ pub struct Array {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xml: Option<Xml>,
 
-    /// Set `true` to allow `"null"` to be used as value for given type.
-    #[serde(default, skip_serializing_if = "super::is_false")]
-    pub nullable: bool,
-
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<PropMap<String, serde_json::Value>>,
@@ -67,17 +64,16 @@ impl Default for Array {
     fn default() -> Self {
         Self {
             title: Default::default(),
-            schema_type: SchemaType::Array,
+            schema_type: BasicType::Array.into(),
             unique_items: bool::default(),
             items: Default::default(),
             description: Default::default(),
             deprecated: Default::default(),
-            example: Default::default(),
+            examples: Default::default(),
             default_value: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
-            nullable: Default::default(),
             extensions: Default::default(),
         }
     }
@@ -88,20 +84,34 @@ impl Array {
     ///
     /// # Examples
     ///
-    /// Create a `String` array component.
+    /// _**Create a `String` array component.**_
     /// ```
-    /// # use salvo_oapi::schema::{Schema, Array, SchemaType, Object};
-    /// let string_array = Array::new(Object::with_type(SchemaType::String));
+    /// # use salvo_oapi::schema::{Schema, Array, SchemaType, BasicType, Object};
+    /// let string_array = Array::new().items(Object::with_type(BasicType::String));
     /// ```
-    pub fn new<I: Into<RefOr<Schema>>>(items: I) -> Self {
-        Self {
-            items: Box::new(items.into()),
-            ..Default::default()
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
     /// Set [`Schema`] type for the [`Array`].
-    pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        self.items = Box::new(component.into());
+    pub fn items<I: Into<RefOr<Schema>>>(mut self, items: I) -> Self {
+        self.items = Box::new(items.into());
+        self
+    }
+
+    /// Change type of the array e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    ///
+    /// # Examples
+    ///
+    /// _**Make nullable string array.**_
+    /// ```rust
+    /// # use salvo_oapi::schema::{Array, BasicType, SchemaType, Object};
+    /// let _ = Array::new()
+    ///     .schema_type(SchemaType::from_iter([BasicType::Array, BasicType::Null]))
+    ///     .items(Object::with_type(BasicType::String));
+    /// ```
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        self.schema_type = schema_type.into();
         self
     }
 
@@ -124,8 +134,17 @@ impl Array {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`Array::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
+    pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
+        self.examples.push(example.into());
+        self
+    }
+
+    /// Add or change example shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
@@ -159,12 +178,6 @@ impl Array {
         self
     }
 
-    /// Add or change nullable flag for [Object][crate::Object].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-
     /// Add openapi extensions (`x-something`) for [`Array`].
     pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
         self.extensions = extensions;
@@ -194,7 +207,7 @@ where
 {
     /// Convert a type to [`Array`].
     fn to_array(self) -> Array {
-        Array::new(self)
+        Array::new().items(self)
     }
 }
 
@@ -208,18 +221,20 @@ mod tests {
 
     #[test]
     fn test_build_array() {
-        let array = Array::new(Object::with_type(SchemaType::Object))
-            .items(Object::with_type(SchemaType::String))
+        let array = Array::new()
+            .items(Object::with_type(BasicType::String))
             .title("title")
             .description("description")
             .deprecated(Deprecated::False)
-            .example(Value::String("example".to_string()))
+            .examples([
+                Value::String("example1".to_string()),
+                Value::String("example2".to_string()),
+            ])
             .default_value(Value::String("default".to_string()))
             .max_items(10)
             .min_items(1)
             .unique_items(true)
-            .xml(Xml::new())
-            .nullable(false);
+            .xml(Xml::new());
 
         assert_json_eq!(
             array,
@@ -231,7 +246,7 @@ mod tests {
                 "title": "title",
                 "description": "description",
                 "deprecated": false,
-                "example": "example",
+                "examples": ["example1", "example2"],
                 "default": "default",
                 "maxItems": 10,
                 "minItems": 1,

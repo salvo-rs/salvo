@@ -115,7 +115,11 @@ impl Schemas {
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(Object::new().nullable(true).default_value(serde_json::Value::Null))
+    Schema::Object(
+        Object::new()
+            .schema_type(SchemaType::AnyValue)
+            .default_value(serde_json::Value::Null),
+    )
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -253,6 +257,17 @@ pub struct Ref {
     /// Reference location of the actual component.
     #[serde(rename = "$ref")]
     pub ref_location: String,
+
+    /// A description which by default should override that of the referenced component.
+    /// Description supports markdown syntax. If referenced object type does not support
+    /// description this field does not have effect.
+    #[serde(skip_serializing_if = "String::is_empty", default)]
+    pub description: String,
+
+    /// A short summary which by default should override that of the referenced component. If
+    /// referenced component does not support summary field this does not have effect.
+    #[serde(skip_serializing_if = "String::is_empty", default)]
+    pub summary: String,
 }
 
 impl Ref {
@@ -261,6 +276,7 @@ impl Ref {
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
             ref_location: ref_location.into(),
+            ..Default::default()
         }
     }
 
@@ -274,6 +290,36 @@ impl Ref {
     /// references the reusable response.
     pub fn from_response_name<I: Into<String>>(response_name: I) -> Self {
         Self::new(format!("#/components/responses/{}", response_name.into()))
+    }
+
+    /// Add or change reference location of the actual component.
+    pub fn ref_location(mut self, ref_location: String) -> Self {
+        self.ref_location = ref_location;
+        self
+    }
+
+    /// Add or change reference location of the actual component automatically formatting the $ref
+    /// to `#/components/schemas/...` format.
+    pub fn ref_location_from_schema_name<S: Into<String>>(mut self, schema_name: S) -> Self {
+        self.ref_location = format!("#/components/schemas/{}", schema_name.into());
+        self
+    }
+
+    // TODO: REMOVE THE unnecesary description Option wrapping.
+
+    /// Add or change description which by default should override that of the referenced component.
+    /// Description supports markdown syntax. If referenced object type does not support
+    /// description this field does not have effect.
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        self.description = description.into();
+        self
+    }
+
+    /// Add or change short summary which by default should override that of the referenced component. If
+    /// referenced component does not support summary field this does not have effect.
+    pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
+        self.summary = summary.into();
+        self
     }
 }
 
@@ -297,12 +343,91 @@ impl Default for RefOr<Schema> {
 
 impl ToArray for RefOr<Schema> {}
 
-/// Represents data type of [`Schema`].
+/// Represents type of [`Schema`].
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum SchemaType {
-    /// Used with [`Object`]. Objects always have
-    /// _schema_type_ [`SchemaType::Object`].
+    /// Single type known from OpenAPI spec 3.0
+    Basic(BasicType),
+    /// Multiple types rendered as [`slice`]
+    Array(Vec<BasicType>),
+    /// Type that is considred typeless. _`AnyValue`_ will omit the type definition from the schema
+    /// making it to accept any type possible.
+    AnyValue,
+}
+
+impl Default for SchemaType {
+    fn default() -> Self {
+        Self::Basic(BasicType::default())
+    }
+}
+
+impl From<BasicType> for SchemaType {
+    fn from(value: BasicType) -> Self {
+        SchemaType::basic(value)
+    }
+}
+
+impl FromIterator<BasicType> for SchemaType {
+    fn from_iter<T: IntoIterator<Item = BasicType>>(iter: T) -> Self {
+        Self::Array(iter.into_iter().collect())
+    }
+}
+impl SchemaType {
+    /// Instantiate new [`SchemaType`] of given [`BasicType`]
+    ///
+    /// Method accpets one argument `type` to create [`SchemaType`] for.
+    ///
+    /// # Examples
+    ///
+    /// _**Create string [`SchemaType`]**_
+    /// ```rust
+    /// # use salvo_oapi::schema::{SchemaType, BasicType};
+    /// let ty = SchemaType::basic(BasicType::String);
+    /// ```
+    pub fn basic(r#type: BasicType) -> Self {
+        Self::Basic(r#type)
+    }
+
+    //// Instantiate new [`SchemaType::AnyValue`].
+    ///
+    /// This is same as calling [`SchemaType::AnyValue`] but in a function form `() -> SchemaType`
+    /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
+    pub fn any() -> Self {
+        SchemaType::AnyValue
+    }
+
+    /// Check whether this [`SchemaType`] is any value _(typeless)_ returning true on any value
+    /// schema type.
+    pub fn is_any_value(&self) -> bool {
+        matches!(self, Self::AnyValue)
+    }
+}
+
+/// Represents data type fragment of [`Schema`].
+///
+/// [`BasicType`] is used to create a [`SchemaType`] that defines the type of the [`Schema`].
+/// [`SchemaType`] can be created from a single [`BasicType`] or multiple [`BasicType`]s according to the
+/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definiton of
+/// the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
+///
+/// # Examples
+/// _**Create nullable string [`SchemaType`]**_
+/// ```rust
+/// # use std::iter::FromIterator;
+/// # use salvo_oapi::schema::{BasicType, SchemaType};
+/// let _: SchemaType = [BasicType::String, BasicType::Null].into_iter().collect();
+/// ```
+/// _**Create string [`SchemaType`]**_
+/// ```rust
+/// # use salvo_oapi::schema::{BasicType, SchemaType};
+/// let _ = SchemaType::basic(BasicType::String);
+/// ```
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BasicType {
+    /// Used with [`Object`] to describe schema that has _properties_ describing fields. have
+    #[default]
     Object,
     /// Indicates string type of content. Used with [`Object`] on a `string`
     /// field.
@@ -318,12 +443,8 @@ pub enum SchemaType {
     Boolean,
     /// Used with [`Array`]. Indicates array type of content.
     Array,
-}
-
-impl Default for SchemaType {
-    fn default() -> Self {
-        Self::Object
-    }
+    /// Null type. Used together with other type to indicate nullable values.
+    Null,
 }
 
 /// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
@@ -341,8 +462,12 @@ pub enum SchemaFormat {
 }
 
 /// Known schema format modifier property to provide fine detail of the primitive type.
+///
+/// Known format is defined in <https://spec.openapis.org/oas/latest.html#data-types> and
+/// <https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-00#section-7.3> as
+/// well as by few known data types that are enabled by specific feature flag e.g. _`uuid`_.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum KnownFormat {
     /// 8 bit integer.
     Int8,
@@ -368,11 +493,14 @@ pub enum KnownFormat {
     Byte,
     /// binary data (octet).
     Binary,
+    /// ISO-8601 full time format [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
+    Time,
     /// ISO-8601 full date [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     Date,
     /// ISO-8601 full date time [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
-    #[serde(rename = "date-time")]
     DateTime,
+    /// duration format from [RFC3339 Appendix-A](https://datatracker.ietf.org/doc/html/rfc3339#appendix-A).
+    Duration,
     /// Hint to UI to obscure input.
     Password,
     /// Used with [`String`] values to indicate value is in decimal format.
@@ -381,25 +509,65 @@ pub enum KnownFormat {
     #[cfg(any(feature = "decimal", feature = "decimal-float"))]
     #[cfg_attr(docsrs, doc(cfg(any(feature = "decimal", feature = "decimal-float"))))]
     Decimal,
+    /// Used with [`String`] values to indicate value is in ULID format.
+    #[cfg(feature = "ulid")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ulid")))]
+    Ulid,
+
+    /// Used with [`String`] values to indicate value is in UUID format.
+    #[cfg(feature = "uuid")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
+    Uuid,
     /// Used with [`String`] values to indicate value is in Url format.
     ///
     /// **url** feature need to be enabled.
     #[cfg(feature = "url")]
     #[cfg_attr(docsrs, doc(cfg(feature = "url")))]
     Url,
-    /// Used with [`String`] values to indicate value is in ULID format.
+    /// A string instance is valid against this attribute if it is a valid URI Reference
+    /// (either a URI or a relative-reference) according to
+    /// [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986).
+    #[cfg(feature = "url")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "url")))]
+    UriReference,
+    /// A string instance is valid against this attribute if it is a
+    /// valid IRI, according to [RFC3987](https://datatracker.ietf.org/doc/html/rfc3987).
+    #[cfg(feature = "url")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "url")))]
+    Iri,
+    /// A string instance is valid against this attribute if it is a valid IRI Reference
+    /// (either an IRI or a relative-reference)
+    /// according to [RFC3987](https://datatracker.ietf.org/doc/html/rfc3987).
+    #[cfg(feature = "url")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "url")))]
+    IriReference,
+    /// As defined in "Mailbox" rule [RFC5321](https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.2).
+    Email,
+    /// As defined by extended "Mailbox" rule [RFC6531](https://datatracker.ietf.org/doc/html/rfc6531#section-3.3).
+    IdnEmail,
+    /// As defined by [RFC1123](https://datatracker.ietf.org/doc/html/rfc1123#section-2.1), including host names
+    /// produced using the Punycode algorithm
+    /// specified in [RFC5891](https://datatracker.ietf.org/doc/html/rfc5891#section-4.4).
+    Hostname,
+    /// As defined by either [RFC1123](https://datatracker.ietf.org/doc/html/rfc1123#section-2.1) as for hostname,
+    /// or an internationalized hostname as defined by [RFC5890](https://datatracker.ietf.org/doc/html/rfc5890#section-2.3.2.3).
+    IdnHostname,
+    /// An IPv4 address according to [RFC2673](https://datatracker.ietf.org/doc/html/rfc2673#section-3.2).
+    Ipv4,
+    /// An IPv6 address according to [RFC4291](https://datatracker.ietf.org/doc/html/rfc4291#section-2.2).
+    Ipv6,
+    /// A string instance is a valid URI Template if it is according to
+    /// [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570).
     ///
-    /// **ulid** feature need to be enabled.
-    #[cfg(feature = "ulid")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "ulid")))]
-    Ulid,
-
-    /// Used with [`String`] values to indicate value is in UUID format.
-    ///
-    /// **uuid** feature need to be enabled.
-    #[cfg(feature = "uuid")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
-    Uuid,
+    /// _**Note!**_ There are no separate IRL template.
+    UriTemplate,
+    /// A valid JSON string representation of a JSON Pointer according to [RFC6901](https://datatracker.ietf.org/doc/html/rfc6901#section-5).
+    JsonPointer,
+    /// A valid relative JSON Pointer according to [draft-handrews-relative-json-pointer-01](https://datatracker.ietf.org/doc/html/draft-handrews-relative-json-pointer-01).
+    RelativeJsonPointer,
+    /// Regular expression, which SHOULD be valid according to the
+    /// [ECMA-262](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-00#ref-ecma262).
+    Regex,
 }
 
 #[cfg(test)]
@@ -422,7 +590,7 @@ mod tests {
                             .property(
                                 "id",
                                 Object::new()
-                                    .schema_type(SchemaType::Integer)
+                                    .schema_type(BasicType::Integer)
                                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                                     .description("Id of credential")
                                     .default_value(json!(1i32)),
@@ -430,19 +598,19 @@ mod tests {
                             .property(
                                 "name",
                                 Object::new()
-                                    .schema_type(SchemaType::String)
+                                    .schema_type(BasicType::String)
                                     .description("Name of credential"),
                             )
                             .property(
                                 "status",
                                 Object::new()
-                                    .schema_type(SchemaType::String)
+                                    .schema_type(BasicType::String)
                                     .default_value(json!("Active"))
                                     .description("Credential status")
                                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
                             )
-                            .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
-                            .property("tags", Object::with_type(SchemaType::String).to_array()),
+                            .property("history", Array::new().items(Ref::from_schema_name("UpdateHistory")))
+                            .property("tags", Object::with_type(BasicType::String).to_array()),
                     ),
                 ),
         );
@@ -498,7 +666,7 @@ mod tests {
             .property(
                 "id",
                 Object::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(BasicType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
                     .default_value(json!(1i32)),
@@ -506,19 +674,19 @@ mod tests {
             .property(
                 "name",
                 Object::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(BasicType::String)
                     .description("Name of credential"),
             )
             .property(
                 "status",
                 Object::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(BasicType::String)
                     .default_value(json!("Active"))
                     .description("Credential status")
                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
             )
-            .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
-            .property("tags", Object::with_type(SchemaType::String).to_array());
+            .property("history", Array::new().items(Ref::from_schema_name("UpdateHistory")))
+            .property("tags", Object::with_type(BasicType::String).to_array());
 
         #[cfg(not(feature = "preserve-order"))]
         assert_eq!(
@@ -536,7 +704,7 @@ mod tests {
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
     #[test]
     fn test_additional_properties() {
-        let json_value = Object::new().additional_properties(Object::new().schema_type(SchemaType::String));
+        let json_value = Object::new().additional_properties(Object::new().schema_type(BasicType::String));
         assert_json_eq!(
             json_value,
             json!({
@@ -547,7 +715,8 @@ mod tests {
             })
         );
 
-        let json_value = Object::new().additional_properties(Array::new(Object::new().schema_type(SchemaType::Number)));
+        let json_value =
+            Object::new().additional_properties(Array::new().items(Object::new().schema_type(BasicType::Number)));
         assert_json_eq!(
             json_value,
             json!({
@@ -586,9 +755,9 @@ mod tests {
     }
 
     #[test]
-    fn derive_object_with_example() {
-        let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
-        let json_value = Object::new().example(json!({"age": 20, "name": "bob the cat"}));
+    fn test_derive_object_with_examples() {
+        let expected = r#"{"type":"object","examples":[{"age":20,"name":"bob the cat"}]}"#;
+        let json_value = Object::new().examples([json!({"age": 20, "name": "bob the cat"})]);
 
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(
@@ -605,34 +774,34 @@ mod tests {
 
     #[test]
     fn test_array_new() {
-        let array = Array::new(
+        let array = Array::new().items(
             Object::new().property(
                 "id",
                 Object::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(BasicType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
                     .default_value(json!(1i32)),
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Basic(BasicType::Array)));
     }
 
     #[test]
     fn test_array_builder() {
-        let array: Array = Array::new(
+        let array: Array = Array::new().items(
             Object::new().property(
                 "id",
                 Object::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(BasicType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
                     .default_value(json!(1i32)),
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Basic(BasicType::Array)));
     }
 
     #[test]
@@ -642,7 +811,7 @@ mod tests {
                 "Comp",
                 Schema::from(
                     Object::new()
-                        .property("name", Object::new().schema_type(SchemaType::String))
+                        .property("name", Object::new().schema_type(BasicType::String))
                         .required("name"),
                 ),
             )])
@@ -664,7 +833,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_object_component() {
         let prop = Object::new()
-            .property("name", Object::new().schema_type(SchemaType::String))
+            .property("name", Object::new().schema_type(BasicType::String))
             .required("name");
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
@@ -678,7 +847,7 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = Object::new().schema_type(SchemaType::String);
+        let prop = Object::new().schema_type(BasicType::String);
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object = serde_json::from_str(serialized_components.as_str()).unwrap();
@@ -693,7 +862,7 @@ mod tests {
     fn serialize_deserialize_array_within_ref_or_t_object_builder() {
         let ref_or_schema = RefOr::T(Schema::Object(Object::new().property(
             "test",
-            RefOr::T(Schema::Array(Array::new(RefOr::T(Schema::Object(
+            RefOr::T(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
             ))))),
         )));
@@ -718,10 +887,10 @@ mod tests {
                 "test",
                 RefOr::T(Schema::OneOf(
                     OneOf::new()
-                        .item(Schema::Array(Array::new(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
-                        .item(Schema::Array(Array::new(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))))),
                 )),
@@ -742,13 +911,13 @@ mod tests {
     }
 
     #[test]
-    fn serialize_deserialize_all_of_of_within_ref_or_t_object_builder() {
+    fn serialize_deserialize_all_of_of_within_ref_or_t_object() {
         let ref_or_schema = RefOr::T(Schema::Object(
             Object::new().property(
                 "test",
                 RefOr::T(Schema::AllOf(
                     AllOf::new()
-                        .item(Schema::Array(Array::new(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
                         .item(RefOr::T(Schema::Object(
@@ -772,13 +941,13 @@ mod tests {
     }
 
     #[test]
-    fn serialize_deserialize_any_of_of_within_ref_or_t_object_builder() {
+    fn serialize_deserialize_any_of_of_within_ref_or_t_object() {
         let ref_or_schema = RefOr::T(Schema::Object(
             Object::new().property(
                 "test",
                 RefOr::T(Schema::AnyOf(
                     AnyOf::new()
-                        .item(Schema::Array(Array::new(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
                         .item(RefOr::T(Schema::Object(
@@ -803,7 +972,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
-        let ref_or_schema = RefOr::T(Schema::Array(Array::new(RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::T(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )))));
 
@@ -821,8 +990,8 @@ mod tests {
     }
 
     #[test]
-    fn serialize_deserialize_schema_array_builder() {
-        let ref_or_schema = Array::new(RefOr::T(Schema::Object(
+    fn serialize_deserialize_schema_array() {
+        let ref_or_schema = Array::new().items(RefOr::T(Schema::Object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )));
 
@@ -863,7 +1032,7 @@ mod tests {
     fn serialize_deserialize_schema_with_additional_properties_object() {
         let schema = Schema::Object(Object::new().property(
             "map",
-            Object::new().additional_properties(Object::new().property("name", Object::with_type(SchemaType::String))),
+            Object::new().additional_properties(Object::new().property("name", Object::with_type(BasicType::String))),
         ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
@@ -909,13 +1078,47 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_reserialize_one_of_default_type() {
+        let a = OneOf::new()
+            .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
+            )))))
+            .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
+            )))));
+
+        let serialized_json = serde_json::to_string(&a).expect("should serialize to json");
+        let b: OneOf = serde_json::from_str(&serialized_json).expect("should deserialize OneOf");
+        let reserialized_json = serde_json::to_string(&b).expect("reserialized json");
+
+        println!("{serialized_json}");
+        println!("{reserialized_json}",);
+        assert_eq!(serialized_json, reserialized_json);
+    }
+
+    #[test]
+    fn serialize_deserialize_object_with_multiple_schema_types() {
+        let object = Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
+
+        let json_str = serde_json::to_string(&object).unwrap();
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: Object = serde_json::from_str(&json_str).unwrap();
+
+        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
     fn test_empty_schema() {
         let schema = empty();
         assert_json_eq!(
             schema,
             json!({
-                "type": "object",
-                "nullable": true,
                 "default": null
             })
         )

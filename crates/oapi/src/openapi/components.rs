@@ -89,14 +89,14 @@ impl Components {
     ///
     /// # Examples
     /// ```
-    /// # use salvo_oapi::{Components, Object, SchemaType, Schema};
+    /// # use salvo_oapi::{Components, Object, BasicType, Schema};
     /// Components::new().extend_schemas([(
     ///     "Pet",
     ///     Schema::from(
     ///         Object::new()
     ///             .property(
     ///                 "name",
-    ///                 Object::new().schema_type(SchemaType::String),
+    ///                 Object::new().schema_type(BasicType::String),
     ///             )
     ///             .required("name")
     ///     ),
