@@ -191,7 +191,7 @@ pub trait TowerLayerCompat {
 impl<T> TowerLayerCompat for T where T: Layer<FlowCtrlService> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
-pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(Buffer<Svc, hyper::Request<QB>>);
+pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(Buffer<hyper::Request<QB>, Svc::Future>);
 
 #[async_trait]
 impl<Svc, QB, SB, E> Handler for TowerLayerHandler<Svc, QB>
