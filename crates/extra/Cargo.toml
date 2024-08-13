@@ -31,13 +31,13 @@ trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
 websocket = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
 request-id = ["dep:ulid"]
-tower-compat = ["dep:tower"]
+tower-compat = ["dep:futures-util", "dep:http-body-util", "dep:tower", "dep:tracing"]
 
 [dependencies]
 base64 = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 futures-util = { workspace = true, optional = true }
-http-body-util = { workspace = true }
+http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"], optional = true }
 pin-project = { workspace = true, optional = true }
 salvo_core = { workspace = true }
