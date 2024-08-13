@@ -11,10 +11,10 @@ use syn::{
 use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
-    AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format,
-    Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
-    Rename, RenameAll, SchemaWith, Style, ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
+    self, impl_into_inner, impl_merge, parse_features, pop_feature, AdditionalProperties, AllowReserved, DefaultStyle,
+    Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline, MaxItems, MaxLength,
+    Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
+    SchemaWith, Style, ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
@@ -568,15 +568,14 @@ impl TryToTokens for Parameter<'_> {
                 .transpose()?
                 .unwrap_or(type_tree);
 
-            let required = pop_feature_as_inner!(param_features => Feature::Required(_v))
-                .as_ref()
-                .map(crate::feature::Required::is_true)
-                .unwrap_or(false);
+            let required: Option<feature::Required> = pop_feature!(param_features => Feature::Required(_)).into_inner();
+            let component_required =
+                !component.is_option() && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
 
-            let non_required = (component.is_option() && !required)
-                || !crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
-            let required: Required = (!non_required).into();
-
+            let required = match (required, component_required) {
+                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
+                (None, component_required) => Into::<Required>::into(component_required),
+            };
             tokens.extend(quote! {
                 .required(#required)
             });
