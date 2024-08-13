@@ -233,16 +233,13 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        // Redirect to dir url if path is not end with '/'
-        if !req.uri().path().ends_with('/') {
+        let path = req.params().tail().unwrap_or_default();
+        // Redirect to dir url if path is empty and not end with '/'
+        if path.is_empty() && !req.uri().path().ends_with('/') {
             redirect_to_dir_url(req.uri(), res);
             return;
         }
-        let Some(path) = req.params().tail() else {
-            res.render(StatusError::not_found().detail("The router params is incorrect. The params should ending with a wildcard."));
-            return;
-        };
-        
+
         let keywords = self
             .keywords
             .as_ref()
