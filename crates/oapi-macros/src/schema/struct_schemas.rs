@@ -194,12 +194,13 @@ impl TryToTokens for NamedStructSchema<'_> {
                 .property(#name, #property)
             });
 
-            if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
-                || required
-                    .as_ref()
-                    .map(crate::feature::Required::is_true)
-                    .unwrap_or(false)
-            {
+            let component_required = !is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref());
+            let required = match (required, component_required) {
+                (Some(required), _) => required.is_true(),
+                (None, component_required) => component_required,
+            };
+
+            if required {
                 object_tokens.extend(quote! {
                     .required(#name)
                 })

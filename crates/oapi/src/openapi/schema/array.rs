@@ -134,9 +134,6 @@ impl Array {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    ///
-    /// **Deprecated since 3.0.x. Prefer [`Array::examples`] instead**
-    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
         self
