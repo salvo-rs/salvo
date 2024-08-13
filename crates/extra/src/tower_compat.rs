@@ -35,8 +35,8 @@ use hyper::body::{Body, Bytes};
 use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
-use crate::http::{ReqBody, ResBody, StatusError};
-use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::http::{ReqBody, ResBody, StatusError};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 /// Trait for tower service compat.
 pub trait TowerServiceCompat<QB, SB, E, Fut> {
@@ -262,8 +262,8 @@ where
 mod tests {
 
     use super::*;
-    use crate::test::{ResponseExt, TestClient};
-    use crate::{handler, Router};
+    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::{handler, Router};
 
     #[tokio::test]
     async fn test_tower_layer() {

@@ -241,6 +241,10 @@ pub mod prelude {
         pub use salvo_extra::timeout::Timeout;
     }
     cfg_feature! {
+        #![feature ="tower-compat"]
+        pub use salvo_extra::tower_compat::{TowerServiceCompat, TowerLayerCompat};
+    }
+    cfg_feature! {
         #![feature ="websocket"]
         pub use salvo_extra::websocket::WebSocketUpgrade;
     }
