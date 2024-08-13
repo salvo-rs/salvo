@@ -1,10 +1,11 @@
 //! Adapters for [`tower::Layer`](https://docs.rs/tower/latest/tower/trait.Layer.html) and
 //! [`tower::Service`](https://docs.rs/tower/latest/tower/trait.Service.html).
-//! 
+//!
 //! # Example
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_extra::tower_compat::*;
 //! use tokio::time::Duration;
 //! use tower::limit::RateLimitLayer;
 //!

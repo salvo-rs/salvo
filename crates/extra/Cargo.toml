@@ -51,9 +51,10 @@ tracing = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true, features = ["std"] }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["http1", "test"] }
+salvo_core = { workspace = true, features = ["http1", "server", "test"] }
 time = { workspace = true }
 tokio-stream = { workspace = true }
+tower = { workspace = true, features = ["limit"]}
 tracing-test = { workspace = true }
 http-body-util = { workspace = true }
 
