@@ -21,6 +21,7 @@
 //! | [`sse`] | Server-Sent Events (SSE) middleware |
 //! | [`timeout`] | Middleware for setting a timeout |
 //! | [`trailing-slash`](trailing_slash) | Middleware for handling trailing slashes |
+//! | [`tower-compat`](tower_compat) | Adapters for `tower::Layer` and `tower::Service` |
 //! | [`websocket`] | WebSocket implementation |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -83,4 +84,9 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "request-id"]
     pub mod request_id;
+}
+cfg_feature! {
+    #![feature ="tower-compat"]
+    pub mod tower_compat;
+    pub use tower_compat::{TowerServiceCompat, TowerLayerCompat};
 }

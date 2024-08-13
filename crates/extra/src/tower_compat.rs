@@ -1,10 +1,11 @@
 //! Adapters for [`tower::Layer`](https://docs.rs/tower/latest/tower/trait.Layer.html) and
 //! [`tower::Service`](https://docs.rs/tower/latest/tower/trait.Service.html).
-//! 
+//!
 //! # Example
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_extra::tower_compat::*;
 //! use tokio::time::Duration;
 //! use tower::limit::RateLimitLayer;
 //!
@@ -35,8 +36,8 @@ use hyper::body::{Body, Bytes};
 use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
-use crate::http::{ReqBody, ResBody, StatusError};
-use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::http::{ReqBody, ResBody, StatusError};
+use salvo_core::{async_trait, hyper, Depot, FlowCtrl, Handler, Request, Response};
 
 /// Trait for tower service compat.
 pub trait TowerServiceCompat<QB, SB, E, Fut> {
@@ -191,7 +192,7 @@ pub trait TowerLayerCompat {
 impl<T> TowerLayerCompat for T where T: Layer<FlowCtrlService> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
-pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(Buffer<Svc, hyper::Request<QB>>);
+pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(Buffer<hyper::Request<QB>, Svc::Future>);
 
 #[async_trait]
 impl<Svc, QB, SB, E> Handler for TowerLayerHandler<Svc, QB>
@@ -262,8 +263,8 @@ where
 mod tests {
 
     use super::*;
-    use crate::test::{ResponseExt, TestClient};
-    use crate::{handler, Router};
+    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::{handler, Router};
 
     #[tokio::test]
     async fn test_tower_layer() {

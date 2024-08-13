@@ -19,7 +19,6 @@
 //! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
 //! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
 //! | `unix` | Listener based on unix socket | ❌ |
-//! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -67,11 +66,6 @@ cfg_feature! {
     #![feature ="quinn"]
     pub use proto::webtransport;
 }
-cfg_feature! {
-    #![feature ="tower-compat"]
-    pub mod tower_compat;
-    pub use tower_compat::{TowerServiceCompat, TowerLayerCompat};
-}
 
 pub use self::conn::Listener;
 pub use self::depot::Depot;
@@ -115,10 +109,6 @@ pub mod prelude {
     cfg_feature! {
         #![unix]
         pub use crate::conn::UnixListener;
-    }
-    cfg_feature! {
-        #![feature ="tower-compat"]
-        pub use crate::tower_compat::{TowerServiceCompat, TowerLayerCompat};
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::handler::{self, Handler};
