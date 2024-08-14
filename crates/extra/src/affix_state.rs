@@ -7,7 +7,7 @@
 //! use std::sync::Mutex;
 //!
 //! use salvo_core::prelude::*;
-//! use salvo_extra::affix;
+//! use salvo_extra::affix_state;
 //!
 //! #[allow(dead_code)]
 //! #[derive(Default, Clone, Debug)]
@@ -39,7 +39,7 @@
 //!     };
 //!     let router = Router::new()
 //!         .hoop(
-//!             affix::inject(config)
+//!             affix_state::inject(config)
 //!                 .inject(Arc::new(State {
 //!                     fails: Mutex::new(Vec::new()),
 //!                 }))
@@ -58,8 +58,8 @@ use std::any::TypeId;
 use salvo_core::handler;
 use salvo_core::prelude::*;
 
-trait Affix {
-    fn attach(&self, depot: &mut Depot);
+trait AffixState {
+    fn affix_to(&self, depot: &mut Depot);
 }
 
 #[derive(Default)]
@@ -67,11 +67,11 @@ struct AffixCell<V> {
     key: String,
     value: V,
 }
-impl<T> Affix for AffixCell<T>
+impl<T> AffixState for AffixCell<T>
 where
     T: Send + Sync + Clone + 'static,
 {
-    fn attach(&self, depot: &mut Depot) {
+    fn affix_to(&self, depot: &mut Depot) {
         depot.insert(self.key.clone(), self.value.clone());
     }
 }
@@ -100,7 +100,7 @@ where
 /// 
 /// View [module level documentation](index.html) for more details.
 #[derive(Default)]
-pub struct AffixList(Vec<Box<dyn Affix + Send + Sync + 'static>>);
+pub struct AffixList(Vec<Box<dyn AffixState + Send + Sync + 'static>>);
 
 #[handler]
 impl AffixList {
@@ -125,7 +125,7 @@ impl AffixList {
     }
     async fn handle(&self, depot: &mut Depot) {
         for cell in &self.0 {
-            cell.attach(depot);
+            cell.affix_to(depot);
         }
     }
 }
