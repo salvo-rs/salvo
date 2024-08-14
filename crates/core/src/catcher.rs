@@ -94,7 +94,7 @@ impl Catcher {
         self
     }
 
-    /// Alternative to hoop, Add a handler as middleware, it will run the handler when error catched.
+    /// Alternative to hoop. Add a handler as middleware, it will run the handler when error catched.
     #[inline]
     pub fn middleware<H: Handler>(mut self, handler: H) -> Self {
         self.hoops.push(Arc::new(handler));
