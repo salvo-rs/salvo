@@ -163,6 +163,14 @@ impl Router {
         self
     }
 
+    /// An alternative to hoop, it will run the handler in current router or it's descendants
+    /// handle the request.
+    #[inline]
+    pub fn middleware<H: Handler>(mut self, handler: H) -> Self {
+        self.hoops.push(Arc::new(handler));
+        self
+    }
+
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request. This middleware only effective when the filter return true.
     #[inline]
