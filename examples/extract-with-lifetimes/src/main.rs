@@ -47,20 +47,6 @@ struct BadMan<'a> {
     last_name: String,
     lovers: Vec<String>,
 }
-#[derive(Serialize, Deserialize, Extractible, Debug)]
-#[salvo(
-    default_source(from = "query"),
-    default_source(from = "param"),
-    default_source(from = "body")
-)]
-struct GoodMan<'a> {
-    id: i64,
-    username: &'a str,
-    first_name: String,
-    last_name: String,
-    #[salvo(alias = "lovers")]
-    lover: String,
-}
 
 #[tokio::main]
 async fn main() {

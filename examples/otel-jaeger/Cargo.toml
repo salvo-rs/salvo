@@ -17,7 +17,7 @@ name = "example-otel-server2"
 path = "src/server2.rs"
 
 [dependencies]
-salvo = { workspace = true, features = ["affix", "otel"] }
+salvo = { workspace = true, features = ["affix-state", "otel"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

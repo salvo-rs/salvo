@@ -6,7 +6,7 @@ publish.workspace = true
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-salvo = { workspace = true, features = ["affix", "serve-static"] }
+salvo = { workspace = true, features = ["affix-state", "serve-static"] }
 tracing .workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 serde = { workspace = true, features = ["derive"] }

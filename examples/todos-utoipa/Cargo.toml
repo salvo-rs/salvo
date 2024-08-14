@@ -5,7 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
-salvo = { workspace = true, features = ["affix", "size-limiter"] }
+salvo = { workspace = true, features = ["affix-state", "size-limiter"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1"
 tokio = { workspace = true, features = ["macros"] }

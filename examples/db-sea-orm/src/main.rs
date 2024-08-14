@@ -2,7 +2,7 @@ use std::env;
 
 use entity::post;
 use migration::{Migrator, MigratorTrait};
-use salvo::affix;
+use salvo::affix_state;
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
 use salvo::writing::Text;
@@ -166,7 +166,7 @@ async fn main() {
     println!("Starting server at {server_url}");
 
     let router = Router::new()
-        .hoop(affix::inject(state))
+        .hoop(affix_state::inject(state))
         .post(create)
         .get(list)
         .push(Router::with_path("new").get(new))

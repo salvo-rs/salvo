@@ -48,9 +48,9 @@ pub use salvo_core::*;
 extern crate self as salvo;
 
 cfg_feature! {
-    #![feature ="affix"]
+    #![feature ="affix-state"]
     // #[doc(no_inline)]
-    pub use salvo_extra::affix;
+    pub use salvo_extra::affix_state;
 }
 cfg_feature! {
     #![feature ="basic-auth"]
@@ -177,8 +177,8 @@ cfg_feature! {
 pub mod prelude {
     pub use salvo_core::prelude::*;
     cfg_feature! {
-        #![feature ="affix"]
-        pub use salvo_extra::affix;
+        #![feature ="affix-state"]
+        pub use salvo_extra::affix_state;
     }
     cfg_feature! {
         #![feature ="basic-auth"]

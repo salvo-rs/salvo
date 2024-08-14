@@ -1,6 +1,6 @@
 use std::sync::{Arc, LazyLock};
 
-use salvo::affix;
+use salvo::affix_state;
 use salvo::http::header::{self, HeaderValue};
 use salvo::http::response::ResBody;
 use salvo::prelude::*;
@@ -73,7 +73,7 @@ pub(crate) fn route() -> Router {
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
         .push(
             Router::with_path("/swagger-ui/<**>")
-                .hoop(affix::inject(config))
+                .hoop(affix_state::inject(config))
                 .get(serve_swagger),
         )
 }
