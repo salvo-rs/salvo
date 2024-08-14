@@ -69,7 +69,7 @@ async fn main() {
 
     let tracer = init_tracer_provider().tracer("app");
     let router = Router::new()
-        .hoop(affix::inject(Arc::new(tracer.clone())))
+        .hoop(affix_state::inject(Arc::new(tracer.clone())))
         .hoop(Metrics::new())
         .hoop(Tracing::new(tracer))
         .push(Router::with_path("api1").get(index))
