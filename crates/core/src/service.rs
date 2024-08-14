@@ -86,6 +86,13 @@ impl Service {
         self
     }
 
+     /// An alternative to hoop. Add a handler as middleware, it will run the handler when request received.
+    #[inline]
+    pub fn middleware<H: Handler>(mut self, handler: H) -> Self {
+        self.hoops.push(Arc::new(handler));
+        self
+    }
+
     /// Add a handler as middleware, it will run the handler when request received.
     ///
     /// This middleware only effective when the filter return true.
