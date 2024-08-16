@@ -69,9 +69,9 @@ impl Default for Catcher {
 }
 impl Catcher {
     /// Create new `Catcher`.
-    pub fn new<H: Into<Arc<dyn Handler>>>(goal: H) -> Self {
+    pub fn new<H: Handler>(goal: H) -> Self {
         Catcher {
-            goal: goal.into(),
+            goal: Arc::new(goal),
             hoops: vec![],
         }
     }
@@ -111,15 +111,6 @@ impl Catcher {
     pub async fn catch(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&self.goal]).cloned().collect());
         ctrl.call_next(req, depot, res).await;
-    }
-}
-
-impl<H> From<H> for Catcher
-where
-    H: Into<Arc<dyn Handler>>,
-{
-    fn from(goal: H) -> Self {
-        Catcher::new(goal)
     }
 }
 
