@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use salvo::affix_state;
 use salvo::prelude::*;
 
 #[allow(dead_code)]

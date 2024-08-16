@@ -2,7 +2,6 @@ use std::env;
 
 use entity::post;
 use migration::{Migrator, MigratorTrait};
-use salvo::affix_state;
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
 use salvo::writing::Text;
