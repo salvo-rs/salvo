@@ -274,7 +274,7 @@ impl TryToTokens for UntaggedEnum {
 
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
-                 .schema_type(#oapi::oapi::openapi::schema::BasicType::Null)
+                 .schema_type(#oapi::oapi::schema::BasicType::Null)
                 .default_value(#oapi::oapi::__private::serde_json::Value::Null)
                 #title
         });
