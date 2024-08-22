@@ -123,7 +123,6 @@ impl Scribe for std::convert::Infallible {
     fn render(self, _res: &mut Response) {}
 }
 
-
 macro_rules! writer_tuple_impls {
     ($(
         $Tuple:tt {
