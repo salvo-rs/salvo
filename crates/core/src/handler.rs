@@ -275,9 +275,9 @@ impl HoopedHandler {
 }
 #[async_trait]
 impl Handler for HoopedHandler {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let inner: Arc<dyn Handler> = self.inner.clone();
-        ctrl.handlers.extend(self.hoops.iter().chain([&inner]).cloned());
+        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&inner]).cloned().collect());
         ctrl.call_next(req, depot, res).await;
     }
 }
