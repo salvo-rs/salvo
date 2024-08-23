@@ -123,6 +123,26 @@ impl Scribe for std::convert::Infallible {
     fn render(self, _res: &mut Response) {}
 }
 
+macro_rules! writer_tuple_impls {
+    ($(
+        $Tuple:tt {
+            $(($idx:tt) -> $T:ident,)+
+        }
+    )+) => {$(
+        #[async_trait::async_trait]
+        impl<$($T,)+> Writer for ($($T,)+) where $($T: Writer + Send,)+
+        {
+            async fn write(self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                $(
+                    self.$idx.write(req, depot, res).await;
+                )+
+            }
+        })+
+    }
+}
+
+crate::for_each_tuple!(writer_tuple_impls);
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
