@@ -166,6 +166,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! for_each_tuple {
     ($callback:ident) => {

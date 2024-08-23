@@ -9,10 +9,11 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
+use salvo_core::handler::{Handler, HoopedHandler};
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::writing::Text;
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
+use salvo_core::{async_trait, Depot, FlowCtrl, IntoVecString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::{macros::format_description, OffsetDateTime};
@@ -157,7 +158,7 @@ impl StaticDir {
         compressed_variations.insert(CompressionAlgo::Gzip, vec!["gz".to_owned()]);
         compressed_variations.insert(CompressionAlgo::Deflate, vec!["deflate".to_owned()]);
 
-        StaticDir {
+        Self {
             roots: roots.collect(),
             chunk_size: None,
             include_dot_files: false,
@@ -239,6 +240,30 @@ impl StaticDir {
             }
         }
         false
+    }
+
+    /// Wrap to `HoopedHandler`.
+    #[inline]
+    pub fn hooped<H: Handler>(self) -> HoopedHandler {
+        HoopedHandler::new(self)
+    }
+
+    /// Add a handler as middleware, it will run the handler when error catched.
+    #[inline]
+    pub fn hoop<H: Handler>(self, hoop: H) -> HoopedHandler {
+        HoopedHandler::new(self).hoop(hoop)
+    }
+
+    /// Add a handler as middleware, it will run the handler when error catched.
+    ///
+    /// This middleware only effective when the filter return true.
+    #[inline]
+    pub fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        HoopedHandler::new(self).hoop_when(hoop, filter)
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
