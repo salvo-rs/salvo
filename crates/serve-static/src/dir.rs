@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
-use salvo_core::handler::{Handler, };
+use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::writing::Text;
@@ -241,7 +241,6 @@ impl StaticDir {
         }
         false
     }
-
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct CurrentInfo {

@@ -141,13 +141,19 @@ pub trait Handler: Send + Sync + 'static {
 
     /// Wrap to `HoopedHandler`.
     #[inline]
-    fn hooped<H: Handler>(self) -> HoopedHandler where Self: Sized {
+    fn hooped<H: Handler>(self) -> HoopedHandler
+    where
+        Self: Sized,
+    {
         HoopedHandler::new(self)
     }
 
     /// Hoop this handler with middleware.
     #[inline]
-    fn hoop<H: Handler>(self, hoop: H) -> HoopedHandler where Self: Sized {
+    fn hoop<H: Handler>(self, hoop: H) -> HoopedHandler
+    where
+        Self: Sized,
+    {
         HoopedHandler::new(self).hoop(hoop)
     }
 
@@ -157,7 +163,7 @@ pub trait Handler: Send + Sync + 'static {
     #[inline]
     fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
     where
-    Self: Sized,
+        Self: Sized,
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
