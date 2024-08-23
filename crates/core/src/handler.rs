@@ -117,6 +117,8 @@
 //!     }
 //! }
 //! ```
+use std::sync::Arc;
+
 use crate::http::StatusCode;
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
@@ -160,6 +162,11 @@ pub struct WhenHoop<H, F> {
     pub inner: H,
     pub filter: F,
 }
+impl<H, F> WhenHoop<H, F> {
+    pub fn new(inner: H, filter: F) -> Self {
+        Self { inner, filter }
+    }
+}
 #[async_trait]
 impl<H, F> Handler for WhenHoop<H, F>
 where
@@ -186,6 +193,61 @@ where
 {
     fn skipped(&self, req: &mut Request, depot: &Depot) -> bool {
         (self)(req, depot)
+    }
+}
+
+/// Handler that wrap [`Handler`] to let it use middlwares.
+#[non_exhaustive]
+pub struct HoopedHandler {
+    inner: Arc<dyn Handler>,
+    hoops: Vec<Arc<dyn Handler>>,
+}
+impl HoopedHandler {
+    /// Create new `HoopedHandler`.
+    pub fn new<H: Handler>(inner: H) -> Self {
+        Self {
+            inner: Arc::new(inner),
+            hoops: vec![],
+        }
+    }
+
+    /// Get current catcher's middlewares reference.
+    #[inline]
+    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.hoops
+    }
+    /// Get current catcher's middlewares mutable reference.
+    #[inline]
+    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.hoops
+    }
+
+    /// Add a handler as middleware, it will run the handler when error catched.
+    #[inline]
+    pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
+        self.hoops.push(Arc::new(hoop));
+        self
+    }
+
+    /// Add a handler as middleware, it will run the handler when error catched.
+    ///
+    /// This middleware only effective when the filter return true.
+    #[inline]
+    pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        self.hoops.push(Arc::new(WhenHoop::new(hoop, filter)));
+        self
+    }
+}
+#[async_trait]
+impl Handler for HoopedHandler {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        let inner: Arc<dyn Handler> = self.inner.clone();
+        ctrl.handlers.extend(self.hoops.iter().chain([&inner]).cloned());
+        ctrl.call_next(req, depot, res).await;
     }
 }
 
