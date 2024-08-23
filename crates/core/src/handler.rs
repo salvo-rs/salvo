@@ -138,6 +138,31 @@ pub trait Handler: Send + Sync + 'static {
     /// Handle http request.
     #[must_use = "handle future must be used"]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
+
+    /// Wrap to `HoopedHandler`.
+    #[inline]
+    fn hooped<H: Handler>(self) -> HoopedHandler where Self: Sized {
+        HoopedHandler::new(self)
+    }
+
+    /// Hoop this handler with middleware.
+    #[inline]
+    fn hoop<H: Handler>(self, hoop: H) -> HoopedHandler where Self: Sized {
+        HoopedHandler::new(self).hoop(hoop)
+    }
+
+    /// Hoop this handler with middleware.
+    ///
+    /// This middleware only effective when the filter return true.
+    #[inline]
+    fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
+    where
+    Self: Sized,
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        HoopedHandler::new(self).hoop_when(hoop, filter)
+    }
 }
 
 #[doc(hidden)]

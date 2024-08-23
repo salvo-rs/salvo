@@ -5,7 +5,7 @@ use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{HeaderValue, Mime, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, IntoVecString};
-use salvo_core::handler::{HoopedHandler, Handler};
+use salvo_core::handler::{ Handler};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
 
@@ -107,30 +107,6 @@ where
     pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
-    }
-
-    /// Wrap to `HoopedHandler`.
-    #[inline]
-    pub fn hooped<H: Handler>(self) -> HoopedHandler {
-        HoopedHandler::new(self)
-    }
-
-    /// Add a handler as middleware, it will run the handler when error catched.
-    #[inline]
-    pub fn hoop<H: Handler>(self, hoop: H) -> HoopedHandler {
-        HoopedHandler::new(self).hoop(hoop)
-    }
-
-    /// Add a handler as middleware, it will run the handler when error catched.
-    ///
-    /// This middleware only effective when the filter return true.
-    #[inline]
-    pub fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
-    where
-        H: Handler,
-        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
-    {
-        HoopedHandler::new(self).hoop_when(hoop, filter)
     }
 }
 #[async_trait]
