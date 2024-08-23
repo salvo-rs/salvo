@@ -4,7 +4,8 @@ use std::marker::PhantomData;
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{HeaderValue, Mime, Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
+use salvo_core::{async_trait, Depot, FlowCtrl, IntoVecString};
+use salvo_core::handler::{HoopedHandler, Handler};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
 
