@@ -78,7 +78,10 @@ impl Redirect {
     }
 
     /// Create a new [`Redirect`] that uses a status code.
-    pub fn with_status_code(status_code: StatusCode, uri: impl TryInto<Uri>) -> Result<Self, Error> {
+    pub fn with_status_code(
+        status_code: StatusCode,
+        uri: impl TryInto<Uri>,
+    ) -> Result<Self, Error> {
         if !status_code.is_redirection() {
             return Err(Error::other("not a redirection status code"));
         }
@@ -89,7 +92,8 @@ impl Redirect {
                 .try_into()
                 .map_err(|_| Error::other("It isn't a valid URI"))
                 .and_then(|uri| {
-                    HeaderValue::try_from(uri.to_string()).map_err(|_| Error::other("URI isn't a valid header value"))
+                    HeaderValue::try_from(uri.to_string())
+                        .map_err(|_| Error::other("URI isn't a valid header value"))
                 })?,
         })
     }
@@ -98,7 +102,10 @@ impl Redirect {
 impl Scribe for Redirect {
     #[inline]
     fn render(self, res: &mut Response) {
-        let Self { status_code, location } = self;
+        let Self {
+            status_code,
+            location,
+        } = self;
         res.status_code(status_code);
         res.headers_mut().insert(LOCATION, location);
     }

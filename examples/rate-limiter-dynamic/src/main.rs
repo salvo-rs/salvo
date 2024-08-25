@@ -4,7 +4,9 @@ use std::hash::Hash;
 use std::sync::LazyLock;
 
 use salvo::prelude::*;
-use salvo::rate_limiter::{CelledQuota, MokaStore, QuotaGetter, RateIssuer, RateLimiter, SlidingGuard};
+use salvo::rate_limiter::{
+    CelledQuota, MokaStore, QuotaGetter, RateIssuer, RateLimiter, SlidingGuard,
+};
 use salvo::Error;
 
 static USER_QUOTAS: LazyLock<HashMap<String, CelledQuota>> = LazyLock::new(|| {
@@ -53,7 +55,12 @@ async fn home() -> Text<&'static str> {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let limiter = RateLimiter::new(SlidingGuard::new(), MokaStore::new(), UserIssuer, CustomQuotaGetter);
+    let limiter = RateLimiter::new(
+        SlidingGuard::new(),
+        MokaStore::new(),
+        UserIssuer,
+        CustomQuotaGetter,
+    );
     let router = Router::new()
         .get(home)
         .push(Router::with_path("limited").hoop(limiter).get(limited));

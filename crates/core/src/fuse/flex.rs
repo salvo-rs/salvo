@@ -106,9 +106,12 @@ impl Fusewire for FlexFusewire {
                 let tls_handshake_token = self.tls_handshake_token.clone();
                 tokio::spawn(async move {
                     loop {
-                        if tokio::time::timeout(tls_handshake_timeout, tls_handshake_notify.notified())
-                            .await
-                            .is_err()
+                        if tokio::time::timeout(
+                            tls_handshake_timeout,
+                            tls_handshake_notify.notified(),
+                        )
+                        .await
+                        .is_err()
                         {
                             tls_handshake_token.cancel();
                             break;

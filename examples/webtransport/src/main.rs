@@ -120,9 +120,12 @@ async fn main() {
     let cert = include_bytes!("../certs/cert.pem").to_vec();
     let key = include_bytes!("../certs/key.pem").to_vec();
 
-    let router = Router::new().push(Router::with_path("counter").goal(connect)).push(
-        Router::with_path("<*path>").get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
-    );
+    let router = Router::new()
+        .push(Router::with_path("counter").goal(connect))
+        .push(
+            Router::with_path("<*path>")
+                .get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
+        );
 
     let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
     let listener = TcpListener::new(("0.0.0.0", 5800)).rustls(config.clone());

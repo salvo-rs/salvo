@@ -23,7 +23,13 @@ where
     T: Tracer + Sync + Send + 'static,
     T::Span: Send + Sync + 'static,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let remote_addr = req.remote_addr().to_string();
 
         //TODO: Will remove after opentelemetry_http updated
@@ -34,16 +40,24 @@ where
             (name, value)
         }));
 
-        let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(&headers)));
+        let parent_cx = global::get_text_map_propagator(|propagator| {
+            propagator.extract(&HeaderExtractor(&headers))
+        });
 
         let mut attributes = Vec::new();
-        attributes.push(KeyValue::new(resource::TELEMETRY_SDK_NAME, env!("CARGO_CRATE_NAME")));
+        attributes.push(KeyValue::new(
+            resource::TELEMETRY_SDK_NAME,
+            env!("CARGO_CRATE_NAME"),
+        ));
         attributes.push(KeyValue::new(
             resource::TELEMETRY_SDK_VERSION,
             env!("CARGO_PKG_VERSION"),
         ));
         attributes.push(KeyValue::new(resource::TELEMETRY_SDK_LANGUAGE, "rust"));
-        attributes.push(KeyValue::new(trace::HTTP_REQUEST_METHOD, req.method().to_string()));
+        attributes.push(KeyValue::new(
+            trace::HTTP_REQUEST_METHOD,
+            req.method().to_string(),
+        ));
         attributes.push(KeyValue::new(trace::URL_FULL, req.uri().to_string()));
         attributes.push(KeyValue::new(trace::CLIENT_ADDRESS, remote_addr));
         attributes.push(KeyValue::new(
@@ -71,7 +85,10 @@ where
                 "request.success"
             };
             span.add_event(event.to_string(), vec![]);
-            span.set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, status.as_u16() as i64));
+            span.set_attribute(KeyValue::new(
+                trace::HTTP_RESPONSE_STATUS_CODE,
+                status.as_u16() as i64,
+            ));
             if let Some(content_length) = res.headers().typed_get::<headers::ContentLength>() {
                 span.set_attribute(KeyValue::new(
                     attribute::HTTP_RESPONSE_BODY_SIZE,

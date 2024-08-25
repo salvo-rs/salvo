@@ -9,7 +9,9 @@ use syn::{parenthesized, Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr
 
 use crate::component::ComponentSchema;
 use crate::feature::Inline;
-use crate::operation::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
+use crate::operation::{
+    example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree,
+};
 use crate::type_tree::TypeTree;
 use crate::{attribute, parse_utils, AnyValue, Array, DiagResult, Diagnostic, TryToTokens};
 
@@ -81,7 +83,11 @@ impl<'r> ResponseTuple<'r> {
         if self.inner.is_none() {
             self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
         }
-        if let ResponseTupleInner::Value(val) = self.inner.as_mut().expect("inner value shoule not be `None`") {
+        if let ResponseTupleInner::Value(val) = self
+            .inner
+            .as_mut()
+            .expect("inner value shoule not be `None`")
+        {
             Ok(val)
         } else {
             Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
@@ -93,7 +99,9 @@ impl<'r> ResponseTuple<'r> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
-            Some(ResponseTupleInner::Value(_)) => return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG)),
+            Some(ResponseTupleInner::Value(_)) => {
+                return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
+            }
         }
         Ok(())
     }
@@ -112,14 +120,18 @@ impl Parse for ResponseTuple<'_> {
         let mut response = ResponseTuple::default();
 
         while !input.is_empty() {
-            let ident = input
-                .parse::<Ident>()
-                .map_err(|error| Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}")))?;
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
+                )
+            })?;
             let attr_name = &*ident.to_string();
 
             match attr_name {
                 "status_code" => {
-                    response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
+                    response.status_code =
+                        parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
                 }
                 "description" => {
                     response.as_value(input.span())?.description = parse::description(input)?;
@@ -129,7 +141,8 @@ impl Parse for ResponseTuple<'_> {
                         Some(parse_utils::parse_next(input, || input.parse())?);
                 }
                 "content_type" => {
-                    response.as_value(input.span())?.content_type = Some(parse::content_type(input)?);
+                    response.as_value(input.span())?.content_type =
+                        Some(parse::content_type(input)?);
                 }
                 "headers" => {
                     response.as_value(input.span())?.headers = parse::headers(input)?;
@@ -145,7 +158,10 @@ impl Parse for ResponseTuple<'_> {
                         parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "response" => {
-                    response.set_ref_type(input.span(), parse_utils::parse_next(input, || input.parse())?)?;
+                    response.set_ref_type(
+                        input.span(),
+                        parse_utils::parse_next(input, || input.parse())?,
+                    )?;
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -222,7 +238,10 @@ pub(crate) struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: parse_utils::Value) -> Self {
+    fn from_derive_to_response_value(
+        derive_value: DeriveToResponseValue,
+        description: parse_utils::Value,
+    ) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -237,7 +256,10 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_to_responses_value(response_value: DeriveToResponsesValue, description: parse_utils::Value) -> Self {
+    fn from_derive_to_responses_value(
+        response_value: DeriveToResponsesValue,
+        description: parse_utils::Value,
+    ) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -261,7 +283,11 @@ impl<'r> ResponseValue<'r> {
 impl TryToTokens for ResponseTuple<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        match self.inner.as_ref().expect("inner value should not be `None`") {
+        match self
+            .inner
+            .as_ref()
+            .expect("inner value should not be `None`")
+        {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
                 tokens.extend(quote_spanned! {path.span()=>
@@ -523,7 +549,8 @@ impl Parse for DeriveToResponsesValue {
             .map_err(|error| Error::new(error.span(), MISSING_STATUS_ERROR))?;
 
         if status_ident == "status_code" {
-            response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
+            response.status_code =
+                parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
         } else {
             return Err(Error::new(status_ident.span(), MISSING_STATUS_ERROR));
         }
@@ -675,12 +702,20 @@ impl Parse for Content<'_> {
             let ident = content.parse::<Ident>()?;
             let attr_name = &*ident.to_string();
             match attr_name {
-                "example" => example = Some(parse_utils::parse_next(&content, || AnyValue::parse_json(&content))?),
-                "examples" => examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?),
+                "example" => {
+                    example = Some(parse_utils::parse_next(&content, || {
+                        AnyValue::parse_json(&content)
+                    })?)
+                }
+                "examples" => {
+                    examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
+                }
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {ident}, expected one of: example, examples"),
+                        format!(
+                            "unexpected attribute: {ident}, expected one of: example, examples"
+                        ),
                     ));
                 }
             }
@@ -816,7 +851,10 @@ impl Parse for Header {
                 })
                 .and_then(|ident| {
                     if ident != "description" {
-                        return Err(Error::new(ident.span(), "unexpected attribute, expected: description"));
+                        return Err(Error::new(
+                            ident.span(),
+                            "unexpected attribute, expected: description",
+                        ));
                     }
                     Ok(ident)
                 })?;

@@ -10,10 +10,9 @@ fn init_tracer_provider() -> TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_trace_config(
-            opentelemetry_sdk::trace::Config::default()
-                .with_resource(Resource::new(vec![KeyValue::new("service.name", "server2")])),
-        )
+        .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(
+            Resource::new(vec![KeyValue::new("service.name", "server2")]),
+        ))
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
@@ -21,7 +20,10 @@ fn init_tracer_provider() -> TracerProvider {
 
 #[handler]
 async fn index(req: &mut Request) -> String {
-    format!("Body: {}", std::str::from_utf8(req.payload().await.unwrap()).unwrap())
+    format!(
+        "Body: {}",
+        std::str::from_utf8(req.payload().await.unwrap()).unwrap()
+    )
 }
 
 #[tokio::main]

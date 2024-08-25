@@ -188,14 +188,22 @@ impl Object {
     /// Add new property to the [`Object`].
     ///
     /// Method accepts property name and property component as an arguments.
-    pub fn property<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, property_name: S, component: I) -> Self {
-        self.properties.insert(property_name.into(), component.into());
+    pub fn property<S: Into<String>, I: Into<RefOr<Schema>>>(
+        mut self,
+        property_name: S,
+        component: I,
+    ) -> Self {
+        self.properties
+            .insert(property_name.into(), component.into());
 
         self
     }
 
     /// Add additional properties to the [`Object`].
-    pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(mut self, additional_properties: I) -> Self {
+    pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
+        mut self,
+        additional_properties: I,
+    ) -> Self {
         self.additional_properties = Some(Box::new(additional_properties.into()));
         self
     }
@@ -236,7 +244,12 @@ impl Object {
         I: IntoIterator<Item = E>,
         E: Into<Value>,
     {
-        self.enum_values = Some(enum_values.into_iter().map(|enum_value| enum_value.into()).collect());
+        self.enum_values = Some(
+            enum_values
+                .into_iter()
+                .map(|enum_value| enum_value.into())
+                .collect(),
+        );
         self
     }
 
@@ -459,7 +472,9 @@ mod tests {
     #[test]
     fn test_object_with_extensions() {
         let expected = json!("value");
-        let json_value = Object::new().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
+        let json_value = Object::new().extensions(Some(
+            [("x-some-extension".to_string(), expected.clone())].into(),
+        ));
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

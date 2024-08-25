@@ -66,7 +66,11 @@ impl Content {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
-    pub fn extend_examples<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<RefOr<Example>>>(
+    pub fn extend_examples<
+        E: IntoIterator<Item = (N, V)>,
+        N: Into<String>,
+        V: Into<RefOr<Example>>,
+    >(
         mut self,
         examples: E,
     ) -> Self {
@@ -87,7 +91,11 @@ impl Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
-    pub fn encoding<S: Into<String>, E: Into<Encoding>>(mut self, property_name: S, encoding: E) -> Self {
+    pub fn encoding<S: Into<String>, E: Into<Encoding>>(
+        mut self,
+        property_name: S,
+        encoding: E,
+    ) -> Self {
         self.encoding.insert(property_name.into(), encoding.into());
         self
     }
@@ -116,7 +124,10 @@ mod tests {
                 "schema".into(),
                 Value::String("MySchema".to_string()),
             )])))
-            .encoding("schema".to_string(), Encoding::default().content_type("text/plain"));
+            .encoding(
+                "schema".to_string(),
+                Encoding::default().content_type("text/plain"),
+            );
         assert_json_eq!(
             content,
             json!({

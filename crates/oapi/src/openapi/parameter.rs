@@ -44,10 +44,9 @@ impl Parameters {
     /// Inserts a parameter into the instance.
     pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
         let parameter = parameter.into();
-        let exist_item = self
-            .0
-            .iter_mut()
-            .find(|item| item.name == parameter.name && item.parameter_in == parameter.parameter_in);
+        let exist_item = self.0.iter_mut().find(|item| {
+            item.name == parameter.name && item.parameter_in == parameter.parameter_in
+        });
 
         if let Some(exist_item) = exist_item {
             exist_item.merge(parameter);

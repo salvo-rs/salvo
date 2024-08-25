@@ -14,7 +14,9 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    let router = Router::new().get(hello).push(Router::with_path("你好").get(hello_zh));
+    let router = Router::new()
+        .get(hello)
+        .push(Router::with_path("你好").get(hello_zh));
     println!("{:?}", router);
     Server::new(acceptor).serve(router).await;
 }

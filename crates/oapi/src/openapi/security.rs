@@ -49,7 +49,10 @@ impl SecurityRequirement {
     /// # use salvo_oapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
-    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(name: N, scopes: S) -> Self {
+    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+        name: N,
+        scopes: S,
+    ) -> Self {
         Self {
             value: BTreeMap::from_iter(iter::once_with(|| {
                 (
@@ -73,7 +76,11 @@ impl SecurityRequirement {
     /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
     /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
     /// Scopes must match to the ones defined in [`SecurityScheme`].
-    pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(mut self, name: N, scopes: S) -> Self {
+    pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+        mut self,
+        name: N,
+        scopes: S,
+    ) -> Self {
         self.value.insert(
             Into::<String>::into(name),
             scopes.into_iter().map(Into::<String>::into).collect(),
@@ -447,7 +454,10 @@ impl OAuth2 {
     ///    ),
     /// ], "my oauth2 flow");
     /// ```
-    pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(flows: I, description: S) -> Self {
+    pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(
+        flows: I,
+        description: S,
+    ) -> Self {
         Self {
             flows: BTreeMap::from_iter(
                 flows
@@ -559,7 +569,11 @@ impl Implicit {
     ///     "https://localhost/refresh-token"
     /// );
     /// ```
-    pub fn with_refresh_url<S: Into<String>>(authorization_url: S, scopes: Scopes, refresh_url: S) -> Self {
+    pub fn with_refresh_url<S: Into<String>>(
+        authorization_url: S,
+        scopes: Scopes,
+        refresh_url: S,
+    ) -> Self {
         Self {
             authorization_url: authorization_url.into(),
             refresh_url: Some(refresh_url.into()),
@@ -617,7 +631,11 @@ impl AuthorizationCode {
     ///     Scopes::new(),
     /// );
     /// ```
-    pub fn new<A: Into<String>, T: Into<String>>(authorization_url: A, token_url: T, scopes: Scopes) -> Self {
+    pub fn new<A: Into<String>, T: Into<String>>(
+        authorization_url: A,
+        token_url: T,
+        scopes: Scopes,
+    ) -> Self {
         Self {
             authorization_url: authorization_url.into(),
             token_url: token_url.into(),

@@ -130,13 +130,21 @@ mod tests {
         assert!(content.contains("test3.txt") && content.contains("dir2"));
 
         let content = access(&service, "text/xml", "http://127.0.0.1:5801/dir1/").await;
-        assert!(content.starts_with("<list>") && content.contains("test3.txt") && content.contains("dir2"));
+        assert!(
+            content.starts_with("<list>")
+                && content.contains("test3.txt")
+                && content.contains("dir2")
+        );
 
         let content = access(&service, "text/html", "http://127.0.0.1:5801/dir1/").await;
-        assert!(content.contains("<html>") && content.contains("test3.txt") && content.contains("dir2"));
+        assert!(
+            content.contains("<html>") && content.contains("test3.txt") && content.contains("dir2")
+        );
 
         let content = access(&service, "application/json", "http://127.0.0.1:5801/dir1/").await;
-        assert!(content.starts_with('{') && content.contains("test3.txt") && content.contains("dir2"));
+        assert!(
+            content.starts_with('{') && content.contains("test3.txt") && content.contains("dir2")
+        );
 
         let content = access(&service, "text/plain", "http://127.0.0.1:5801/test1.txt").await;
         assert!(content.contains("copy1"));
@@ -144,16 +152,41 @@ mod tests {
         let content = access(&service, "text/plain", "http://127.0.0.1:5801/test3.txt").await;
         assert!(content.contains("Not Found"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:5801/../girl/love/eat.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:5801/../girl/love/eat.txt",
+        )
+        .await;
         assert!(content.contains("Not Found"));
-        let content = access(&service, "text/plain", "http://127.0.0.1:5801/..\\girl\\love\\eat.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:5801/..\\girl\\love\\eat.txt",
+        )
+        .await;
         assert!(content.contains("Not Found"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/test3.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:5801/dir1/test3.txt",
+        )
+        .await;
         assert!(content.contains("copy3"));
-        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/dir2/test3.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:5801/dir1/dir2/test3.txt",
+        )
+        .await;
         assert!(content == "dir2 test3");
-        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/../dir1/test3.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:5801/dir1/../dir1/test3.txt",
+        )
+        .await;
         assert!(content == "copy3");
         let content = access(
             &service,
@@ -167,11 +200,18 @@ mod tests {
     #[tokio::test]
     async fn test_serve_static_file() {
         let router = Router::new()
-            .push(Router::with_path("test1.txt").get(StaticFile::new("test/static/test1.txt").chunk_size(1024)))
-            .push(Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")));
+            .push(
+                Router::with_path("test1.txt")
+                    .get(StaticFile::new("test/static/test1.txt").chunk_size(1024)),
+            )
+            .push(
+                Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")),
+            );
         let service = Service::new(router);
 
-        let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
@@ -189,7 +229,10 @@ mod tests {
         struct Assets;
 
         let router = Router::new()
-            .push(Router::with_path("test1.txt").get(Assets::get("test1.txt").unwrap().into_handler()))
+            .push(
+                Router::with_path("test1.txt")
+                    .get(Assets::get("test1.txt").unwrap().into_handler()),
+            )
             .push(Router::with_path("files/<**path>").get(serve_file))
             .push(
                 Router::with_path("dir/<**path>").get(
@@ -199,7 +242,10 @@ mod tests {
                 ),
             )
             .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
-            .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().fallback("notexist.html")));
+            .push(
+                Router::with_path("dir3/<**path>")
+                    .get(static_embed::<Assets>().fallback("notexist.html")),
+            );
         let service = Service::new(router);
 
         #[handler]
@@ -226,16 +272,26 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
-        assert!(response.take_string().await.unwrap().contains("Fallback page"));
+        assert!(response
+            .take_string()
+            .await
+            .unwrap()
+            .contains("Fallback page"));
 
-        let response = TestClient::get("http://127.0.0.1:5801/dir").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:5801/dir")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
 
-        let mut response = TestClient::get("http://127.0.0.1:5801/dir/").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:5801/dir/")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Index page"));
 
-        let response = TestClient::get("http://127.0.0.1:5801/dir2/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:5801/dir2/")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
 
         let response = TestClient::get("http://127.0.0.1:5801/dir3/abc.txt")

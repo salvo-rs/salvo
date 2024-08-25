@@ -589,7 +589,12 @@ impl FlowCtrl {
     ///
     /// **NOTE**: If response status code is error or is redirection, all reset handlers will be skipped.
     #[inline]
-    pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
+    pub async fn call_next(
+        &mut self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+    ) -> bool {
         if self.catching.is_none() {
             self.catching = Some(res.is_stamped());
         }
@@ -669,7 +674,9 @@ mod tests {
                 .unwrap()
         }
 
-        assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));
+        assert!(access(&service, "127.0.0.1")
+            .await
+            .contains("404: Not Found"));
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 }

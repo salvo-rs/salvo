@@ -40,7 +40,10 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     #[inline]
     pub fn new(local_addr: T) -> Self {
         #[cfg(not(feature = "socket2"))]
-        TcpListener { local_addr, ttl: None }
+        TcpListener {
+            local_addr,
+            ttl: None,
+        }
     }
     /// Bind to socket address.
     #[cfg(feature = "socket2")]
@@ -207,7 +210,10 @@ impl Acceptor for TcpAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let local_addr = self.holdings[0].local_addr.clone();
             Accepted {
@@ -239,7 +245,11 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
         let mut acceptor = TcpListener::new(addr).bind().await;
-        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();

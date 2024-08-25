@@ -2,7 +2,10 @@ use salvo::prelude::*;
 
 #[handler]
 async fn index(req: &mut Request, res: &mut Response) {
-    res.render(Text::Plain(format!("remote address: {:?}", req.remote_addr())));
+    res.render(Text::Plain(format!(
+        "remote address: {:?}",
+        req.remote_addr()
+    )));
 }
 
 #[tokio::main]

@@ -104,7 +104,11 @@ impl ParseError {
 #[async_trait]
 impl Writer for ParseError {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render(StatusError::bad_request().brief("parse http data failed.").cause(self));
+        res.render(
+            StatusError::bad_request()
+                .brief("parse http data failed.")
+                .cause(self),
+        );
     }
 }
 

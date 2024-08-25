@@ -52,7 +52,10 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                 }
             }
             let Some(hmtd) = hmtd else {
-                return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
+                return Err(syn::Error::new_spanned(
+                    item_impl.impl_token,
+                    "missing handle function",
+                ));
             };
             let hfn = handle_fn(&salvo, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
@@ -102,7 +105,10 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     call_args.push(ident.ident.clone());
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = pat.pat.to_token_stream().to_string();
-                    let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
+                    let idv = idv
+                        .rsplit_once(' ')
+                        .map(|(_, v)| v.to_owned())
+                        .unwrap_or(idv);
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
 

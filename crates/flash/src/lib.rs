@@ -182,7 +182,11 @@ impl Display for FlashLevel {
 /// `FlashStore` is for stores flash messages.
 pub trait FlashStore: Debug + Send + Sync + 'static {
     /// Get the flash messages from the store.
-    fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> impl Future<Output = Option<Flash>> + Send;
+    fn load_flash(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+    ) -> impl Future<Output = Option<Flash>> + Send;
     /// Save the flash messages to the store.
     fn save_flash(
         &self,
@@ -192,7 +196,8 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
         flash: Flash,
     ) -> impl Future<Output = ()> + Send;
     /// Clear the flash store.
-    fn clear_flash(&self, depot: &mut Depot, res: &mut Response) -> impl Future<Output = ()> + Send;
+    fn clear_flash(&self, depot: &mut Depot, res: &mut Response)
+        -> impl Future<Output = ()> + Send;
 }
 
 /// A trait for `Depot` to get flash messages.
@@ -251,7 +256,9 @@ impl<S> FlashHandler<S> {
 impl<S: FlashStore> fmt::Debug for FlashHandler<S> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FlashHandler").field("store", &self.store).finish()
+        f.debug_struct("FlashHandler")
+            .field("store", &self.store)
+            .finish()
     }
 }
 #[async_trait]
@@ -259,7 +266,13 @@ impl<S> Handler for FlashHandler<S>
 where
     S: FlashStore,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let mut has_incoming = false;
         if let Some(flash) = self.store.load_flash(req, depot).await {
             has_incoming = !flash.is_empty();
@@ -272,7 +285,9 @@ where
             return;
         }
 
-        let mut flash = depot.remove::<Flash>(OUTGOING_FLASH_KEY).unwrap_or_default();
+        let mut flash = depot
+            .remove::<Flash>(OUTGOING_FLASH_KEY)
+            .unwrap_or_default();
         if let Some(min_level) = self.minimum_level {
             flash.0.retain(|msg| msg.level >= min_level);
         }
@@ -322,7 +337,9 @@ mod tests {
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/set")
+            .send(&service)
+            .await;
         assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
@@ -362,7 +379,9 @@ mod tests {
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/set")
+            .send(&service)
+            .await;
         assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();

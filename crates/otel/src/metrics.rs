@@ -35,7 +35,9 @@ impl Metrics {
             duration: meter
                 .f64_histogram("salvo_request_duration_ms")
                 .with_unit("milliseconds")
-                .with_description("request duration histogram (in milliseconds, since start of service)")
+                .with_description(
+                    "request duration histogram (in milliseconds, since start of service)",
+                )
                 .init(),
         }
     }
@@ -43,9 +45,18 @@ impl Metrics {
 
 #[async_trait]
 impl Handler for Metrics {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let mut labels = Vec::with_capacity(3);
-        labels.push(KeyValue::new(trace::HTTP_REQUEST_METHOD, req.method().to_string()));
+        labels.push(KeyValue::new(
+            trace::HTTP_REQUEST_METHOD,
+            req.method().to_string(),
+        ));
         labels.push(KeyValue::new(trace::URL_FULL, req.uri().to_string()));
 
         let s = Instant::now();
@@ -53,7 +64,10 @@ impl Handler for Metrics {
         let elapsed = s.elapsed();
 
         let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
-        labels.push(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, status.as_u16() as i64));
+        labels.push(KeyValue::new(
+            trace::HTTP_RESPONSE_STATUS_CODE,
+            status.as_u16() as i64,
+        ));
         if status.is_client_error() || status.is_server_error() {
             self.error_count.add(1, &labels);
             let msg = if let ResBody::Error(body) = &res.body {
@@ -65,6 +79,7 @@ impl Handler for Metrics {
         }
 
         self.request_count.add(1, &labels);
-        self.duration.record(elapsed.as_secs_f64() * 1000.0, &labels);
+        self.duration
+            .record(elapsed.as_secs_f64() * 1000.0, &labels);
     }
 }

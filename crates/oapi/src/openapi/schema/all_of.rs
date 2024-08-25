@@ -226,7 +226,9 @@ mod tests {
     #[test]
     fn test_allof_with_extensions() {
         let expected = json!("value");
-        let json_value = AllOf::new().extensions(Some([("x-some-extension".to_string(), expected.clone())].into()));
+        let json_value = AllOf::new().extensions(Some(
+            [("x-some-extension".to_string(), expected.clone())].into(),
+        ));
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

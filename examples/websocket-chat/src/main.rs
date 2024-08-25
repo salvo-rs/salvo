@@ -31,7 +31,9 @@ async fn main() {
 
 #[handler]
 async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
-    WebSocketUpgrade::new().upgrade(req, res, handle_socket).await
+    WebSocketUpgrade::new()
+        .upgrade(req, res, handle_socket)
+        .await
 }
 async fn handle_socket(ws: WebSocket) {
     // Use a counter to assign a new unique ID for this user.

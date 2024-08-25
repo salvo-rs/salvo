@@ -207,7 +207,11 @@ impl Server {
     ///   `{username}` substitution then the name should be `username`.
     /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
     ///   within the url.
-    pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(mut self, name: N, variable: V) -> Self {
+    pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(
+        mut self,
+        name: N,
+        variable: V,
+    ) -> Self {
         self.variables.insert(name.into(), variable.into());
         self
     }
@@ -238,7 +242,11 @@ impl ServerVariables {
         self.0.is_empty()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
-    pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(mut self, key: K, variable: V) -> Self {
+    pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(
+        mut self,
+        key: K,
+        variable: V,
+    ) -> Self {
         self.insert(key, variable);
         self
     }
@@ -316,7 +324,10 @@ impl ServerVariable {
     }
 
     /// Add or change possible values used to substitute parameter.
-    pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(mut self, enum_values: I) -> Self {
+    pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(
+        mut self,
+        enum_values: I,
+    ) -> Self {
         self.enum_values = enum_values.into_iter().map(|value| value.into()).collect();
         self
     }

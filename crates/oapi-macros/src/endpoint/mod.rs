@@ -146,7 +146,10 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 }
             }
             let Some(hmtd) = hmtd else {
-                return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
+                return Err(syn::Error::new_spanned(
+                    item_impl.impl_token,
+                    "missing handle function",
+                ));
             };
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
@@ -170,7 +173,11 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
     }
 }
 
-fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+fn handle_fn(
+    salvo: &Ident,
+    oapi: &Ident,
+    sig: &Signature,
+) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
@@ -201,7 +208,10 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = pat.pat.to_token_stream().to_string();
                     // If id like `mut pdata`, then idv is `pdata`;
-                    let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
+                    let idv = idv
+                        .rsplit_once(' ')
+                        .map(|(_, v)| v.to_owned())
+                        .unwrap_or(idv);
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{

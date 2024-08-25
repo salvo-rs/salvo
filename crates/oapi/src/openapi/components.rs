@@ -57,7 +57,8 @@ impl Components {
         name: N,
         security_scheme: S,
     ) -> Self {
-        self.security_schemes.insert(name.into(), security_scheme.into());
+        self.security_schemes
+            .insert(name.into(), security_scheme.into());
 
         self
     }
@@ -68,19 +69,30 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
-    pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn extend_security_schemes<
+        I: IntoIterator<Item = (N, S)>,
+        N: Into<String>,
+        S: Into<SecurityScheme>,
+    >(
         mut self,
         schemas: I,
     ) -> Self {
-        self.security_schemes
-            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+        self.security_schemes.extend(
+            schemas
+                .into_iter()
+                .map(|(name, item)| (name.into(), item.into())),
+        );
         self
     }
 
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
-    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(
+        mut self,
+        name: S,
+        schema: I,
+    ) -> Self {
         self.schemas.insert(name, schema);
         self
     }
@@ -108,19 +120,30 @@ impl Components {
         C: Into<RefOr<Schema>>,
         S: Into<String>,
     {
-        self.schemas
-            .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
+        self.schemas.extend(
+            schemas
+                .into_iter()
+                .map(|(name, schema)| (name.into(), schema.into())),
+        );
         self
     }
 
     /// Add a new response and returns `self`.
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, name: S, response: R) -> Self {
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        name: S,
+        response: R,
+    ) -> Self {
         self.responses.insert(name.into(), response.into());
         self
     }
 
     /// Extends responses with the contents of an iterator.
-    pub fn extend_responses<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
+    pub fn extend_responses<
+        I: IntoIterator<Item = (S, R)>,
+        S: Into<String>,
+        R: Into<RefOr<Response>>,
+    >(
         mut self,
         responses: I,
     ) -> Self {
@@ -137,10 +160,14 @@ impl Components {
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Components) {
-        other.schemas.retain(|name, _| !self.schemas.contains_key(name));
+        other
+            .schemas
+            .retain(|name, _| !self.schemas.contains_key(name));
         self.schemas.append(&mut other.schemas);
 
-        other.responses.retain(|name, _| !self.responses.contains_key(name));
+        other
+            .responses
+            .retain(|name, _| !self.responses.contains_key(name));
         self.responses.append(&mut other.responses);
 
         other

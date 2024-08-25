@@ -22,7 +22,10 @@ async fn upload(req: &mut Request, res: &mut Response) {
                 msgs.push(dest);
             }
         }
-        res.render(Text::Plain(format!("Files uploaded:\n\n{}", msgs.join("\n"))));
+        res.render(Text::Plain(format!(
+            "Files uploaded:\n\n{}",
+            msgs.join("\n")
+        )));
     } else {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Text::Plain("file not found in request"));

@@ -56,7 +56,11 @@ pub trait RateIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request.
-    fn issue(&self, req: &mut Request, depot: &Depot) -> impl Future<Output = Option<Self::Key>> + Send;
+    fn issue(
+        &self,
+        req: &mut Request,
+        depot: &Depot,
+    ) -> impl Future<Output = Option<Self::Key>> + Send;
 }
 impl<F, K> RateIssuer for F
 where
@@ -117,7 +121,11 @@ pub trait RateStore: Send + Sync + 'static {
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
     /// Save the guard from the store.
-    fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    fn save_guard(
+        &self,
+        key: Self::Key,
+        guard: Self::Guard,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// `RateLimiter` is the main struct to used limit user request.
@@ -168,7 +176,13 @@ where
     P: QuotaGetter<I::Key>,
     I: RateIssuer,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if self.skipper.skipped(req, depot) {
             return;
         }
@@ -203,15 +217,18 @@ where
         if self.add_headers {
             res.headers_mut().insert(
                 "X-RateLimit-Limit",
-                HeaderValue::from_str(&guard.limit(&quota).await.to_string()).expect("Invalid header value"),
+                HeaderValue::from_str(&guard.limit(&quota).await.to_string())
+                    .expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Remaining",
-                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string()).expect("Invalid header value"),
+                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string())
+                    .expect("Invalid header value"),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Reset",
-                HeaderValue::from_str(&guard.reset(&quota).await.to_string()).expect("Invalid header value"),
+                HeaderValue::from_str(&guard.reset(&quota).await.to_string())
+                    .expect("Invalid header value"),
             );
         }
         if !verified {

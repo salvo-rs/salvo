@@ -1,7 +1,10 @@
 use std::sync::OnceLock;
 
 use futures::stream::TryStreamExt;
-use mongodb::{bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection, IndexModel};
+use mongodb::{
+    bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection,
+    IndexModel,
+};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -78,7 +81,10 @@ async fn get_user(req: &mut Request, res: &mut Response) {
     let coll_users: Collection<User> = client.database(DB_NAME).collection(COLL_NAME);
 
     let username = req.param::<String>("username").unwrap();
-    match coll_users.find_one(doc! { "username": &username }, None).await {
+    match coll_users
+        .find_one(doc! { "username": &username }, None)
+        .await
+    {
         Ok(Some(user)) => res.render(Json(user)),
         Ok(None) => res.render(format!("No user found with username {username}")),
         Err(e) => res.render(format!("error {e:?}")),
@@ -103,8 +109,11 @@ async fn create_username_index(client: &Client) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let mongodb_uri = std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://10.1.1.80:27017".into());
-    let client = Client::with_uri_str(mongodb_uri).await.expect("failed to connect");
+    let mongodb_uri =
+        std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://10.1.1.80:27017".into());
+    let client = Client::with_uri_str(mongodb_uri)
+        .await
+        .expect("failed to connect");
     create_username_index(&client).await;
 
     MONGODB_CLIENT.set(client).unwrap();

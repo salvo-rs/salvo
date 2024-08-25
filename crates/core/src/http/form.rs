@@ -50,7 +50,10 @@ impl FormData {
             .and_then(|v| v.parse().ok());
         match ctype {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
-                let data = BodyExt::collect(body).await.map_err(ParseError::other)?.to_bytes();
+                let data = BodyExt::collect(body)
+                    .await
+                    .map_err(ParseError::other)?
+                    .to_bytes();
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
@@ -67,7 +70,9 @@ impl FormData {
                     while let Some(mut field) = multipart.next_field().await? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {
                             if field.headers().get(CONTENT_TYPE).is_some() {
-                                form_data.files.insert(name, FilePart::create(&mut field).await?);
+                                form_data
+                                    .files
+                                    .insert(name, FilePart::create(&mut field).await?);
                             } else {
                                 form_data.fields.insert(name, field.text().await?);
                             }
@@ -150,10 +155,11 @@ impl FilePart {
     /// deleted once the FilePart object goes out of scope).
     pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
         // Setup a file to capture the contents.
-        let mut path = tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
-            .await
-            .expect("Runtime spawn blocking poll error")?
-            .into_path();
+        let mut path =
+            tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
+                .await
+                .expect("Runtime spawn blocking poll error")?
+                .into_path();
         let temp_dir = Some(path.clone());
         let name = field.file_name().map(|s| s.to_owned());
         path.push(format!(

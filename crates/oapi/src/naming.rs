@@ -15,8 +15,10 @@ pub enum NameRule {
     Force(&'static str),
 }
 
-static GLOBAL_NAMER: LazyLock<RwLock<Box<dyn Namer>>> = LazyLock::new(|| RwLock::new(Box::new(FlexNamer::new())));
-static NAME_TYPES: LazyLock<RwLock<BTreeMap<String, (TypeId, &'static str)>>> = LazyLock::new(Default::default);
+static GLOBAL_NAMER: LazyLock<RwLock<Box<dyn Namer>>> =
+    LazyLock::new(|| RwLock::new(Box::new(FlexNamer::new())));
+static NAME_TYPES: LazyLock<RwLock<BTreeMap<String, (TypeId, &'static str)>>> =
+    LazyLock::new(Default::default);
 
 /// Set global namer.
 ///
@@ -49,8 +51,14 @@ pub fn type_info_by_name(name: &str) -> Option<(TypeId, &'static str)> {
 }
 
 /// Set type info by name.
-pub fn set_name_type_info(name: String, type_id: TypeId, type_name: &'static str) -> Option<(TypeId, &'static str)> {
-    NAME_TYPES.write().insert(name.clone(), (type_id, type_name))
+pub fn set_name_type_info(
+    name: String,
+    type_id: TypeId,
+    type_name: &'static str,
+) -> Option<(TypeId, &'static str)> {
+    NAME_TYPES
+        .write()
+        .insert(name.clone(), (type_id, type_name))
 }
 
 /// Assign name to type and returns the name.
@@ -75,7 +83,10 @@ pub fn get_name<T: 'static>() -> String {
             return name.clone();
         }
     }
-    panic!("Type not found in the name registry: {:?}", std::any::type_name::<T>());
+    panic!(
+        "Type not found in the name registry: {:?}",
+        std::any::type_name::<T>()
+    );
 }
 
 fn type_generic_part(type_name: &str) -> String {

@@ -78,7 +78,11 @@ pub struct CelledQuota {
 impl CelledQuota {
     /// Create new `CelledQuota`.
     pub const fn new(limit: usize, cells: usize, period: Duration) -> Self {
-        Self { limit, cells, period }
+        Self {
+            limit,
+            cells,
+            period,
+        }
     }
 
     /// Sets the limit of the quota per second.

@@ -48,8 +48,10 @@ async fn main() {
 
     let bcrypt_csrf = bcrypt_session_csrf(form_finder.clone());
     let hmac_csrf = hmac_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
-    let aes_gcm_session_csrf = aes_gcm_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
-    let ccp_session_csrf = ccp_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
+    let aes_gcm_session_csrf =
+        aes_gcm_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
+    let ccp_session_csrf =
+        ccp_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
 
     let session_handler = salvo::session::SessionHandler::builder(
         salvo::session::MemoryStore::new(),
@@ -66,7 +68,12 @@ async fn main() {
                 .get(get_page)
                 .post(post_page),
         )
-        .push(Router::with_hoop(hmac_csrf).path("hmac").get(get_page).post(post_page))
+        .push(
+            Router::with_hoop(hmac_csrf)
+                .path("hmac")
+                .get(get_page)
+                .post(post_page),
+        )
         .push(
             Router::with_hoop(aes_gcm_session_csrf)
                 .path("aes_gcm")

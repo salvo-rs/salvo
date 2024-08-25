@@ -29,7 +29,11 @@ where
     B: AsyncRead + Send + Unpin + 'static,
 {
     #[inline]
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
             JoinedStream::B(b) => Pin::new(b).poll_read(cx, buf),
@@ -95,7 +99,12 @@ where
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let a = self.a.try_bind().await?;
         let b = self.b.try_bind().await?;
-        let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
+        let holdings = a
+            .holdings()
+            .iter()
+            .chain(b.holdings().iter())
+            .cloned()
+            .collect();
         Ok(JoinedAcceptor { a, b, holdings })
     }
 }
@@ -148,7 +157,10 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
                 Ok(accepted?.map_conn(JoinedStream::A))
@@ -173,7 +185,10 @@ mod tests {
         let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
         let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
 
-        let mut acceptor = TcpListener::new(addr1).join(TcpListener::new(addr2)).bind().await;
+        let mut acceptor = TcpListener::new(addr1)
+            .join(TcpListener::new(addr2))
+            .bind()
+            .await;
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr1).await.unwrap();
             stream.write_i32(50).await.unwrap();

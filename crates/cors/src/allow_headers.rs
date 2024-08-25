@@ -16,7 +16,9 @@ use salvo_core::{Depot, Request};
 #[must_use]
 pub struct AllowHeaders(AllowHeadersInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static>;
+type JudgeFn = Arc<
+    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
+>;
 impl AllowHeaders {
     /// Allow any headers by sending a wildcard (`*`)
     ///
@@ -81,7 +83,10 @@ impl AllowHeaders {
             AllowHeadersInner::None => return None,
             AllowHeadersInner::Exact(v) => v.clone(),
             AllowHeadersInner::Judge(f) => f(origin?, req, depot),
-            AllowHeadersInner::MirrorRequest => req.headers().get(header::ACCESS_CONTROL_REQUEST_HEADERS)?.clone(),
+            AllowHeadersInner::MirrorRequest => req
+                .headers()
+                .get(header::ACCESS_CONTROL_REQUEST_HEADERS)?
+                .clone(),
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_HEADERS, allow_headers))

@@ -45,7 +45,9 @@ pub(crate) trait FeaturesExt {
 
 impl FeaturesExt for Vec<Feature> {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature> {
-        self.iter().position(op).map(|index| self.swap_remove(index))
+        self.iter()
+            .position(op)
+            .map(|index| self.swap_remove(index))
     }
 
     fn pop_value_type_feature(&mut self) -> Option<ValueType> {
@@ -113,23 +115,28 @@ impl FeaturesExt for Option<Vec<Feature>> {
     }
 
     fn pop_value_type_feature(&mut self) -> Option<ValueType> {
-        self.as_mut().and_then(|features| features.pop_value_type_feature())
+        self.as_mut()
+            .and_then(|features| features.pop_value_type_feature())
     }
 
     fn pop_parameter_in_feature(&mut self) -> Option<ParameterIn> {
-        self.as_mut().and_then(|features| features.pop_parameter_in_feature())
+        self.as_mut()
+            .and_then(|features| features.pop_parameter_in_feature())
     }
 
     fn pop_style_feature(&mut self) -> Option<Style> {
-        self.as_mut().and_then(|features| features.pop_style_feature())
+        self.as_mut()
+            .and_then(|features| features.pop_style_feature())
     }
 
     fn pop_rename_feature(&mut self) -> Option<Rename> {
-        self.as_mut().and_then(|features| features.pop_rename_feature())
+        self.as_mut()
+            .and_then(|features| features.pop_rename_feature())
     }
 
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
-        self.as_mut().and_then(|features| features.pop_rename_all_feature())
+        self.as_mut()
+            .and_then(|features| features.pop_rename_all_feature())
     }
 
     fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {

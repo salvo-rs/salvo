@@ -39,7 +39,12 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                 // such as:
                 // `::std::vec::Vec` is `Vec`
                 // `Vec` is `Vec`
-                let ident = &nty.path.segments.last().expect("path segment should exists").ident;
+                let ident = &nty
+                    .path
+                    .segments
+                    .last()
+                    .expect("path segment should exists")
+                    .ident;
                 if ident == "Request" {
                     InputType::Request(p)
                 } else if ident == "Response" {

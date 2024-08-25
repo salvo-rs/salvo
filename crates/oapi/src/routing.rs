@@ -30,7 +30,9 @@ impl NormNode {
             .expect("failed to lock METADATA_REGISTRY for read");
         if let Some(metadata) = registry.get(&router.id) {
             node.metadata.tags.extend(metadata.tags.iter().cloned());
-            node.metadata.securities.extend(metadata.securities.iter().cloned());
+            node.metadata
+                .securities
+                .extend(metadata.securities.iter().cloned());
         }
 
         let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).expect("invalid regex");
@@ -66,7 +68,8 @@ impl NormNode {
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {
-                node.children.push(NormNode::new(router, node.metadata.clone()));
+                node.children
+                    .push(NormNode::new(router, node.metadata.clone()));
             }
         }
         node

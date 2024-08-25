@@ -18,7 +18,10 @@ pub struct Endpoint {
 impl Endpoint {
     /// Create new `Endpoint` with given operation and components.
     pub fn new(operation: Operation, components: Components) -> Self {
-        Self { operation, components }
+        Self {
+            operation,
+            components,
+        }
     }
 }
 
@@ -39,7 +42,9 @@ where
 {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
-        operation.responses.insert("200", Self::to_response(components));
+        operation
+            .responses
+            .insert("200", Self::to_response(components));
     }
 }
 impl<T, E> EndpointOutRegister for Result<T, E>
@@ -67,7 +72,9 @@ where
 impl EndpointOutRegister for StatusError {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
-        operation.responses.append(&mut Self::to_responses(components));
+        operation
+            .responses
+            .append(&mut Self::to_responses(components));
     }
 }
 impl EndpointOutRegister for StatusCode {
@@ -103,13 +110,17 @@ impl EndpointOutRegister for StatusCode {
                 ),
             )
         }
-        operation.responses.append(&mut StatusError::to_responses(components));
+        operation
+            .responses
+            .append(&mut StatusError::to_responses(components));
     }
 }
 impl EndpointOutRegister for salvo_core::Error {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
-        operation.responses.append(&mut Self::to_responses(components));
+        operation
+            .responses
+            .append(&mut Self::to_responses(components));
     }
 }
 

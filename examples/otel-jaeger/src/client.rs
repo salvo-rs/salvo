@@ -32,7 +32,10 @@ async fn main() {
     let cx = Context::current_with_span(span);
 
     let req = {
-        let mut req = reqwest::Request::new(Method::GET, Url::from_str("http://localhost:5800/api1").unwrap());
+        let mut req = reqwest::Request::new(
+            Method::GET,
+            Url::from_str("http://localhost:5800/api1").unwrap(),
+        );
         global::get_text_map_propagator(|propagator| {
             propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut()));
             println!("{:?}", req.headers_mut());

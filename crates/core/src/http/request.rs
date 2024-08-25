@@ -25,7 +25,9 @@ use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
 use crate::routing::PathParams;
-use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
+use crate::serde::{
+    from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val,
+};
 use crate::Error;
 
 static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
@@ -152,7 +154,9 @@ impl Request {
             for header in headers.get_all(http::header::COOKIE) {
                 if let Ok(header) = header.to_str() {
                     for cookie_str in header.split(';').map(|s| s.trim()) {
-                        if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
+                        if let Ok(cookie) =
+                            Cookie::parse_encoded(cookie_str).map(|c| c.into_owned())
+                        {
                             cookie_jar.add_original(cookie);
                         }
                     }
@@ -391,7 +395,12 @@ impl Request {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
+    pub fn add_header<N, V>(
+        &mut self,
+        name: N,
+        value: V,
+        overwrite: bool,
+    ) -> crate::Result<&mut Self>
     where
         N: IntoHeaderName,
         V: TryInto<HeaderValue>,
@@ -596,7 +605,9 @@ impl Request {
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
-        self.queries.get_mut().expect("queries should be initialized")
+        self.queries
+            .get_mut()
+            .expect("queries should be initialized")
     }
 
     /// Get query value from queries.
@@ -605,7 +616,9 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        self.queries().get_vec(key).and_then(|vs| from_str_multi_val(vs).ok())
+        self.queries()
+            .get_vec(key)
+            .and_then(|vs| from_str_multi_val(vs).ok())
     }
 
     /// Get field data from form.
@@ -667,7 +680,10 @@ impl Request {
     /// Get [`FilePart`] list reference from request.
     #[inline]
     pub async fn files<'a>(&'a mut self, key: &'a str) -> Option<&'a Vec<FilePart>> {
-        self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
+        self.form_data()
+            .await
+            .ok()
+            .and_then(|ps| ps.files.get_vec(key))
     }
 
     /// Get [`FilePart`] list reference from request.
@@ -738,7 +754,10 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
+    pub async fn extract_with_metadata<'de, T>(
+        &'de mut self,
+        metadata: &'de Metadata,
+    ) -> Result<T, ParseError>
     where
         T: Deserialize<'de> + Send,
     {
@@ -804,22 +823,28 @@ impl Request {
     }
     /// Parse json body as type `T` from request with max size limit.
     #[inline]
-    pub async fn parse_json_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
+    pub async fn parse_json_with_max_size<'de, T>(
+        &'de mut self,
+        max_size: usize,
+    ) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
         let ctype = self.content_type();
         if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
-                return self.payload_with_max_size(max_size).await.and_then(|payload| {
-                    // fix issue https://github.com/salvo-rs/salvo/issues/545
-                    let payload = if payload.is_empty() {
-                        "null".as_bytes()
-                    } else {
-                        payload.as_ref()
-                    };
-                    serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
-                });
+                return self
+                    .payload_with_max_size(max_size)
+                    .await
+                    .and_then(|payload| {
+                        // fix issue https://github.com/salvo-rs/salvo/issues/545
+                        let payload = if payload.is_empty() {
+                            "null".as_bytes()
+                        } else {
+                            payload.as_ref()
+                        };
+                        serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
+                    });
             }
         }
         Err(ParseError::InvalidContentType)
@@ -833,7 +858,8 @@ impl Request {
     {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+                return from_str_multi_map(self.form_data().await?.fields.iter_all())
+                    .map_err(ParseError::Deserialize);
             }
         }
         Err(ParseError::InvalidContentType)
@@ -849,18 +875,21 @@ impl Request {
     }
 
     /// Parse json body or form body as type `T` from request with max size.
-    pub async fn parse_body_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
+    pub async fn parse_body_with_max_size<'de, T>(
+        &'de mut self,
+        max_size: usize,
+    ) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+                return from_str_multi_map(self.form_data().await?.fields.iter_all())
+                    .map_err(ParseError::Deserialize);
             } else if ctype.subtype() == mime::JSON {
-                return self
-                    .payload_with_max_size(max_size)
-                    .await
-                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+                return self.payload_with_max_size(max_size).await.and_then(|body| {
+                    serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson)
+                });
             }
         }
         Err(ParseError::InvalidContentType)
@@ -913,14 +942,23 @@ mod tests {
             name: String,
         }
         let mut req = TestClient::get("http://127.0.0.1:5800/hello")
-            .json(&User { name: "jobs".into() })
+            .json(&User {
+                name: "jobs".into(),
+            })
             .build();
-        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
+        assert_eq!(
+            req.parse_json::<User>().await.unwrap(),
+            User {
+                name: "jobs".into()
+            }
+        );
     }
     #[tokio::test]
     async fn test_query() {
-        let req = TestClient::get("http://127.0.0.1:5801/hello?name=rust&name=25&name=a&name=2&weapons=98&weapons=gun")
-            .build();
+        let req = TestClient::get(
+            "http://127.0.0.1:5801/hello?name=rust&name=25&name=a&name=2&weapons=98&weapons=gun",
+        )
+        .build();
         assert_eq!(req.queries().len(), 2);
         assert_eq!(req.query::<String>("name").unwrap(), "rust");
         assert_eq!(req.query::<&str>("name").unwrap(), "rust");

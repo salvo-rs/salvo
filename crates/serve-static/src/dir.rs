@@ -18,7 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::{macros::format_description, OffsetDateTime};
 
-use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url};
+use super::{
+    decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,
+};
 
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
@@ -202,8 +204,10 @@ impl StaticDir {
     where
         A: Into<CompressionAlgo>,
     {
-        self.compressed_variations
-            .insert(algo.into(), exts.split(',').map(|s| s.trim().to_string()).collect());
+        self.compressed_variations.insert(
+            algo.into(),
+            exts.split(',').map(|s| s.trim().to_string()).collect(),
+        );
         self
     }
 
@@ -266,7 +270,10 @@ impl FileInfo {
         FileInfo {
             name,
             size: metadata.len(),
-            modified: metadata.modified().unwrap_or_else(|_| SystemTime::now()).into(),
+            modified: metadata
+                .modified()
+                .unwrap_or_else(|_| SystemTime::now())
+                .into(),
         }
     }
 }
@@ -280,14 +287,23 @@ impl DirInfo {
     fn new(name: String, metadata: Metadata) -> DirInfo {
         DirInfo {
             name,
-            modified: metadata.modified().unwrap_or_else(|_| SystemTime::now()).into(),
+            modified: metadata
+                .modified()
+                .unwrap_or_else(|_| SystemTime::now())
+                .into(),
         }
     }
 }
 
 #[async_trait]
 impl Handler for StaticDir {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         let req_path = req.uri().path();
         let rel_path = if let Some(rest) = req.params().tail() {
             rest
@@ -363,8 +379,14 @@ impl Handler for StaticDir {
         };
 
         if abs_path.is_file() {
-            let ext = abs_path.extension().and_then(|s| s.to_str()).map(|s| s.to_lowercase());
-            let is_compressed_ext = ext.as_deref().map(|ext| self.is_compressed_ext(ext)).unwrap_or(false);
+            let ext = abs_path
+                .extension()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_lowercase());
+            let is_compressed_ext = ext
+                .as_deref()
+                .map(|ext| self.is_compressed_ext(ext))
+                .unwrap_or(false);
             let mut content_encoding = None;
             let named_path = if !is_compressed_ext {
                 if !self.compressed_variations.is_empty() {
@@ -406,8 +428,10 @@ impl Handler for StaticDir {
             };
 
             let builder = {
-                let mut builder = NamedFile::builder(named_path)
-                    .content_type(mime_infer::from_ext(ext.as_deref().unwrap_or_default()).first_or_octet_stream());
+                let mut builder = NamedFile::builder(named_path).content_type(
+                    mime_infer::from_ext(ext.as_deref().unwrap_or_default())
+                        .first_or_octet_stream(),
+                );
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);
                 }
@@ -522,7 +546,10 @@ fn human_size(bytes: u64) -> String {
 }
 fn list_html(current: &CurrentInfo) -> String {
     fn header_links(path: &str) -> String {
-        let segments = path.trim_start_matches('/').trim_end_matches('/').split('/');
+        let segments = path
+            .trim_start_matches('/')
+            .trim_end_matches('/')
+            .split('/');
         let mut link = "".to_string();
         format!(
             r#"<a href="/">{}</a>{}"#,
@@ -553,7 +580,11 @@ fn list_html(current: &CurrentInfo) -> String {
         if !(current.path.is_empty() || current.path == "/") {
             write!(ftxt, "<a href=\"../\">[..]</a>").ok();
         }
-        write!(ftxt, "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>").ok();
+        write!(
+            ftxt,
+            "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>"
+        )
+        .ok();
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
             write!(

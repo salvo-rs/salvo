@@ -49,13 +49,15 @@ impl ConstDecoder {
 
     /// If you're using HMAC with a base64 encoded secret, use this.
     pub fn from_base64_secret(secret: &str) -> Result<Self, JwtError> {
-        DecodingKey::from_base64_secret(secret).map(|key| Self::with_validation(key, Validation::default()))
+        DecodingKey::from_base64_secret(secret)
+            .map(|key| Self::with_validation(key, Validation::default()))
     }
 
     /// If you are loading a public RSA key in a PEM format, use this.
     /// Only exists if the feature `use_pem` is enabled.
     pub fn from_rsa_pem(key: &[u8]) -> Result<Self, JwtError> {
-        DecodingKey::from_rsa_pem(key).map(|key| Self::with_validation(key, Validation::new(Algorithm::RS256)))
+        DecodingKey::from_rsa_pem(key)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::RS256)))
     }
 
     /// If you have (n, e) RSA public key components as strings, use this.
@@ -75,38 +77,51 @@ impl ConstDecoder {
     /// If you have a ECDSA public key in PEM format, use this.
     /// Only exists if the feature `use_pem` is enabled.
     pub fn from_ec_pem(key: &[u8]) -> Result<Self, JwtError> {
-        DecodingKey::from_ec_pem(key).map(|key| Self::with_validation(key, Validation::new(Algorithm::ES256)))
+        DecodingKey::from_ec_pem(key)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::ES256)))
     }
 
     /// If you have (x,y) ECDSA key components
     pub fn from_ec_components(x: &str, y: &str) -> Result<Self, JwtError> {
-        DecodingKey::from_ec_components(x, y).map(|key| Self::with_validation(key, Validation::new(Algorithm::ES256)))
+        DecodingKey::from_ec_components(x, y)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::ES256)))
     }
 
     /// If you have a EdDSA public key in PEM format, use this.
     /// Only exists if the feature `use_pem` is enabled.
     pub fn from_ed_pem(key: &[u8]) -> Result<Self, JwtError> {
-        DecodingKey::from_ed_pem(key).map(|key| Self::with_validation(key, Validation::new(Algorithm::EdDSA)))
+        DecodingKey::from_ed_pem(key)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::EdDSA)))
     }
 
     /// If you know what you're doing and have a RSA DER encoded public key, use this.
     pub fn from_rsa_der(der: &[u8]) -> Self {
-        Self::with_validation(DecodingKey::from_rsa_der(der), Validation::new(Algorithm::RS256))
+        Self::with_validation(
+            DecodingKey::from_rsa_der(der),
+            Validation::new(Algorithm::RS256),
+        )
     }
 
     /// If you know what you're doing and have a RSA EC encoded public key, use this.
     pub fn from_ec_der(der: &[u8]) -> Self {
-        Self::with_validation(DecodingKey::from_ec_der(der), Validation::new(Algorithm::ES256))
+        Self::with_validation(
+            DecodingKey::from_ec_der(der),
+            Validation::new(Algorithm::ES256),
+        )
     }
 
     /// If you know what you're doing and have a Ed DER encoded public key, use this.
     pub fn from_ed_der(der: &[u8]) -> Self {
-        Self::with_validation(DecodingKey::from_ed_der(der), Validation::new(Algorithm::EdDSA))
+        Self::with_validation(
+            DecodingKey::from_ed_der(der),
+            Validation::new(Algorithm::EdDSA),
+        )
     }
 
     /// From x part (base64 encoded) of the JWK encoding
     pub fn from_ed_components(x: &str) -> Result<Self, JwtError> {
-        DecodingKey::from_ed_components(x).map(|key| Self::with_validation(key, Validation::new(Algorithm::EdDSA)))
+        DecodingKey::from_ed_components(x)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::EdDSA)))
     }
 }
 

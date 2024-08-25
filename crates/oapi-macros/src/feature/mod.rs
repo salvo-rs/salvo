@@ -114,28 +114,36 @@ pub(crate) enum Feature {
 }
 
 impl Feature {
-    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> DiagResult<()> {
+    pub(crate) fn validate(
+        &self,
+        schema_type: &SchemaType,
+        type_tree: &TypeTree,
+    ) -> DiagResult<()> {
         match self {
-            Feature::MultipleOf(multiple_of) => {
-                multiple_of.validate(ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)))
-            }
+            Feature::MultipleOf(multiple_of) => multiple_of.validate(
+                ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)),
+            ),
             Feature::Maximum(maximum) => maximum.validate(IsNumber(schema_type)),
             Feature::Minimum(minimum) => minimum.validate(IsNumber(schema_type)),
-            Feature::ExclusiveMaximum(exclusive_maximum) => exclusive_maximum.validate(IsNumber(schema_type)),
-            Feature::ExclusiveMinimum(exclusive_minimum) => exclusive_minimum.validate(IsNumber(schema_type)),
-            Feature::MaxLength(max_length) => {
-                max_length.validate(ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(max_length.0)))
+            Feature::ExclusiveMaximum(exclusive_maximum) => {
+                exclusive_maximum.validate(IsNumber(schema_type))
             }
-            Feature::MinLength(min_length) => {
-                min_length.validate(ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(min_length.0)))
+            Feature::ExclusiveMinimum(exclusive_minimum) => {
+                exclusive_minimum.validate(IsNumber(schema_type))
             }
+            Feature::MaxLength(max_length) => max_length.validate(
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(max_length.0)),
+            ),
+            Feature::MinLength(min_length) => min_length.validate(
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(min_length.0)),
+            ),
             Feature::Pattern(pattern) => pattern.validate(IsString(schema_type)),
-            Feature::MaxItems(max_items) => {
-                max_items.validate(ValidatorChain::new(&AboveZeroUsize(max_items.0)).next(&IsVec(type_tree)))
-            }
-            Feature::MinItems(min_items) => {
-                min_items.validate(ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)))
-            }
+            Feature::MaxItems(max_items) => max_items.validate(
+                ValidatorChain::new(&AboveZeroUsize(max_items.0)).next(&IsVec(type_tree)),
+            ),
+            Feature::MinItems(min_items) => min_items.validate(
+                ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)),
+            ),
             _unsupported_variant => {
                 const SUPPORTED_VARIANTS: [&str; 10] = [
                     "multiple_of",
@@ -366,7 +374,9 @@ impl Validatable for Feature {
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
             Feature::Skip(skip) => skip.is_validatable(),
-            Feature::AdditionalProperties(additional_properites) => additional_properites.is_validatable(),
+            Feature::AdditionalProperties(additional_properites) => {
+                additional_properites.is_validatable()
+            }
             Feature::Required(required) => required.is_validatable(),
             Feature::SkipBound(skip) => skip.is_validatable(),
             Feature::Bound(bound) => bound.is_validatable(),

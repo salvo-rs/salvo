@@ -61,7 +61,10 @@ impl Display for Value {
     }
 }
 
-pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> syn::Result<T>) -> syn::Result<T> {
+pub(crate) fn parse_next<T: Sized>(
+    input: ParseStream,
+    next: impl FnOnce() -> syn::Result<T>,
+) -> syn::Result<T> {
     input.parse::<Token![=]>()?;
     next()
 }
@@ -96,7 +99,9 @@ where
     })
 }
 
-pub(crate) fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Token![,]>>
+pub(crate) fn parse_punctuated_within_parenthesis<T>(
+    input: ParseStream,
+) -> syn::Result<Punctuated<T, Token![,]>>
 where
     T: Parse,
 {
@@ -132,7 +137,10 @@ pub(crate) fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenSt
 
         Ok(input.parse::<Group>()?.stream())
     } else {
-        Err(syn::Error::new(input.span(), "unexpected token, expected json!(...)"))
+        Err(syn::Error::new(
+            input.span(),
+            "unexpected token, expected json!(...)",
+        ))
     }
 }
 

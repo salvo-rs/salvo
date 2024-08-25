@@ -47,13 +47,21 @@ impl Operations {
         self.0.is_empty()
     }
     /// Add a new operation and returns `self`.
-    pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(mut self, item_type: K, operation: O) -> Self {
+    pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(
+        mut self,
+        item_type: K,
+        operation: O,
+    ) -> Self {
         self.insert(item_type, operation);
         self
     }
 
     /// Inserts a key-value pair into the instance.
-    pub fn insert<K: Into<PathItemType>, O: Into<Operation>>(&mut self, item_type: K, operation: O) {
+    pub fn insert<K: Into<PathItemType>, O: Into<Operation>>(
+        &mut self,
+        item_type: K,
+        operation: O,
+    ) {
         self.0.insert(item_type.into(), operation.into());
     }
 
@@ -202,7 +210,10 @@ impl Operation {
     }
 
     /// Add or change parameters of the [`Operation`].
-    pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(mut self, parameters: I) -> Self {
+    pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
+        mut self,
+        parameters: I,
+    ) -> Self {
         self.parameters
             .extend(parameters.into_iter().map(|parameter| parameter.into()));
         self
@@ -228,7 +239,11 @@ impl Operation {
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
-    pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
+    pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        code: S,
+        response: R,
+    ) -> Self {
         self.responses.insert(code, response);
         self
     }
@@ -240,7 +255,10 @@ impl Operation {
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
-    pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(mut self, securities: I) -> Self {
+    pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(
+        mut self,
+        securities: I,
+    ) -> Self {
         self.securities = securities.into_iter().collect();
         self
     }
@@ -277,7 +295,8 @@ mod tests {
 
     use super::{Operation, Operations};
     use crate::{
-        security::SecurityRequirement, server::Server, Deprecated, Parameter, PathItemType, RequestBody, Responses,
+        security::SecurityRequirement, server::Server, Deprecated, Parameter, PathItemType,
+        RequestBody, Responses,
     };
 
     #[test]
@@ -350,7 +369,8 @@ mod tests {
 
     #[test]
     fn operation_security() {
-        let security_requirement1 = SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+        let security_requirement1 =
+            SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = Operation::new()
             .add_security(security_requirement1)

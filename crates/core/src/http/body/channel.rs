@@ -79,17 +79,18 @@ impl BodySender {
 }
 
 impl futures_util::AsyncWrite for BodySender {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
         match self.data_tx.poll_ready(cx) {
             Poll::Ready(Ok(())) => {
                 let data: Bytes = Bytes::from(buf.to_vec());
                 let len = buf.len();
-                Poll::Ready(
-                    self.data_tx
-                        .try_send(Ok(data))
-                        .map(|_| len)
-                        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))),
-                )
+                Poll::Ready(self.data_tx.try_send(Ok(data)).map(|_| len).map_err(|e| {
+                    IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))
+                }))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
                 ErrorKind::Other,
@@ -113,17 +114,18 @@ impl futures_util::AsyncWrite for BodySender {
 }
 
 impl tokio::io::AsyncWrite for BodySender {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
         match self.data_tx.poll_ready(cx) {
             Poll::Ready(Ok(())) => {
                 let data: Bytes = Bytes::from(buf.to_vec());
                 let len = buf.len();
-                Poll::Ready(
-                    self.data_tx
-                        .try_send(Ok(data))
-                        .map(|_| len)
-                        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))),
-                )
+                Poll::Ready(self.data_tx.try_send(Ok(data)).map(|_| len).map_err(|e| {
+                    IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))
+                }))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
                 ErrorKind::Other,

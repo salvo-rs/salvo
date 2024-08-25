@@ -64,6 +64,9 @@ mod tests {
             .description("description");
 
         assert_eq!(external_docs_with_url.url, "https://pet-api.external.docs");
-        assert_eq!(external_docs_with_url.description, Some("description".to_string()));
+        assert_eq!(
+            external_docs_with_url.description,
+            Some("description".to_string())
+        );
     }
 }

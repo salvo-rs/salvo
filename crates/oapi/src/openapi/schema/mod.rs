@@ -32,7 +32,12 @@ where
     R: Into<RefOr<Schema>>,
 {
     fn from(inner: BTreeMap<K, R>) -> Self {
-        Self(inner.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+        Self(
+            inner
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
     }
 }
 impl<K, R, const N: usize> From<[(K, R); N]> for Schemas
@@ -609,7 +614,10 @@ mod tests {
                                     .description("Credential status")
                                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
                             )
-                            .property("history", Array::new().items(Ref::from_schema_name("UpdateHistory")))
+                            .property(
+                                "history",
+                                Array::new().items(Ref::from_schema_name("UpdateHistory")),
+                            )
                             .property("tags", Object::with_type(BasicType::String).to_array()),
                     ),
                 ),
@@ -639,19 +647,27 @@ mod tests {
             "could not find path: components.schemas.Credential.properties.history"
         );
         assert_json_eq!(
-            credential.get("id").unwrap_or(&serde_json::value::Value::Null),
+            credential
+                .get("id")
+                .unwrap_or(&serde_json::value::Value::Null),
             json!({"type":"integer","format":"int32","description":"Id of credential","default":1})
         );
         assert_json_eq!(
-            credential.get("name").unwrap_or(&serde_json::value::Value::Null),
+            credential
+                .get("name")
+                .unwrap_or(&serde_json::value::Value::Null),
             json!({"type":"string","description":"Name of credential"})
         );
         assert_json_eq!(
-            credential.get("status").unwrap_or(&serde_json::value::Value::Null),
+            credential
+                .get("status")
+                .unwrap_or(&serde_json::value::Value::Null),
             json!({"default":"Active","description":"Credential status","enum":["Active","NotActive","Locked","Expired"],"type":"string"})
         );
         assert_json_eq!(
-            credential.get("history").unwrap_or(&serde_json::value::Value::Null),
+            credential
+                .get("history")
+                .unwrap_or(&serde_json::value::Value::Null),
             json!({"items":{"$ref":"#/components/schemas/UpdateHistory"},"type":"array"})
         );
         assert_eq!(person, &json!({"$ref":"#/components/PersonModel"}));
@@ -685,7 +701,10 @@ mod tests {
                     .description("Credential status")
                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
             )
-            .property("history", Array::new().items(Ref::from_schema_name("UpdateHistory")))
+            .property(
+                "history",
+                Array::new().items(Ref::from_schema_name("UpdateHistory")),
+            )
             .property("tags", Object::with_type(BasicType::String).to_array());
 
         #[cfg(not(feature = "preserve-order"))]
@@ -704,7 +723,8 @@ mod tests {
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
     #[test]
     fn test_additional_properties() {
-        let json_value = Object::new().additional_properties(Object::new().schema_type(BasicType::String));
+        let json_value =
+            Object::new().additional_properties(Object::new().schema_type(BasicType::String));
         assert_json_eq!(
             json_value,
             json!({
@@ -715,8 +735,9 @@ mod tests {
             })
         );
 
-        let json_value =
-            Object::new().additional_properties(Array::new().items(Object::new().schema_type(BasicType::Number)));
+        let json_value = Object::new().additional_properties(
+            Array::new().items(Object::new().schema_type(BasicType::Number)),
+        );
         assert_json_eq!(
             json_value,
             json!({
@@ -785,7 +806,10 @@ mod tests {
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Basic(BasicType::Array)));
+        assert!(matches!(
+            array.schema_type,
+            SchemaType::Basic(BasicType::Array)
+        ));
     }
 
     #[test]
@@ -801,7 +825,10 @@ mod tests {
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Basic(BasicType::Array)));
+        assert!(matches!(
+            array.schema_type,
+            SchemaType::Basic(BasicType::Array)
+        ));
     }
 
     #[test]
@@ -818,11 +845,15 @@ mod tests {
             .response("204", Response::new("No Content"))
             .extend_responses(vec![("200", Response::new("Okay"))])
             .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None })
-            .extend_security_schemes(vec![("APIKey", SecurityScheme::Http(security::Http::default()))]);
+            .extend_security_schemes(vec![(
+                "APIKey",
+                SecurityScheme::Http(security::Http::default()),
+            )]);
 
         let serialized_components = serde_json::to_string(&components).unwrap();
 
-        let deserialized_components: Components = serde_json::from_str(serialized_components.as_str()).unwrap();
+        let deserialized_components: Components =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
 
         assert_eq!(
             serialized_components,
@@ -837,7 +868,8 @@ mod tests {
             .required("name");
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
-        let deserialized_components: Object = serde_json::from_str(serialized_components.as_str()).unwrap();
+        let deserialized_components: Object =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
 
         assert_eq!(
             serialized_components,
@@ -850,7 +882,8 @@ mod tests {
         let prop = Object::new().schema_type(BasicType::String);
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
-        let deserialized_components: Object = serde_json::from_str(serialized_components.as_str()).unwrap();
+        let deserialized_components: Object =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
 
         assert_eq!(
             serialized_components,
@@ -1032,7 +1065,9 @@ mod tests {
     fn serialize_deserialize_schema_with_additional_properties_object() {
         let schema = Schema::Object(Object::new().property(
             "map",
-            Object::new().additional_properties(Object::new().property("name", Object::with_type(BasicType::String))),
+            Object::new().additional_properties(
+                Object::new().property("name", Object::with_type(BasicType::String)),
+            ),
         ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
@@ -1098,7 +1133,8 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_object_with_multiple_schema_types() {
-        let object = Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
+        let object =
+            Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
 
         let json_str = serde_json::to_string(&object).unwrap();
         println!("----------------------------");
@@ -1148,7 +1184,8 @@ mod tests {
 
     #[test]
     fn test_additional_properties_from_ref_or() {
-        let additional_properties = AdditionalProperties::from(RefOr::T(Schema::Object(Object::new())));
+        let additional_properties =
+            AdditionalProperties::from(RefOr::T(Schema::Object(Object::new())));
         assert_json_eq!(
             additional_properties,
             json!({

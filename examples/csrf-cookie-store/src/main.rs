@@ -48,8 +48,10 @@ async fn main() {
 
     let bcrypt_csrf = bcrypt_cookie_csrf(form_finder.clone());
     let hmac_csrf = hmac_cookie_csrf(*b"01234567012345670123456701234567", form_finder.clone());
-    let aes_gcm_cookie_csrf = aes_gcm_cookie_csrf(*b"01234567012345670123456701234567", form_finder.clone());
-    let ccp_cookie_csrf = ccp_cookie_csrf(*b"01234567012345670123456701234567", form_finder.clone());
+    let aes_gcm_cookie_csrf =
+        aes_gcm_cookie_csrf(*b"01234567012345670123456701234567", form_finder.clone());
+    let ccp_cookie_csrf =
+        ccp_cookie_csrf(*b"01234567012345670123456701234567", form_finder.clone());
 
     let router = Router::new()
         .get(home)
@@ -59,7 +61,12 @@ async fn main() {
                 .get(get_page)
                 .post(post_page),
         )
-        .push(Router::with_hoop(hmac_csrf).path("hmac").get(get_page).post(post_page))
+        .push(
+            Router::with_hoop(hmac_csrf)
+                .path("hmac")
+                .get(get_page)
+                .post(post_page),
+        )
         .push(
             Router::with_hoop(aes_gcm_cookie_csrf)
                 .path("aes_gcm")

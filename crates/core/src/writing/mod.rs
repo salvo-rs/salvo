@@ -97,24 +97,30 @@ impl Scribe for StatusCode {
 impl Scribe for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut()
-            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.headers_mut().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
         res.write_body(self).ok();
     }
 }
 impl<'a> Scribe for &'a String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut()
-            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.headers_mut().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
         res.write_body(self.as_bytes().to_vec()).ok();
     }
 }
 impl Scribe for String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut()
-            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.headers_mut().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
         res.write_body(self).ok();
     }
 }
@@ -158,9 +164,14 @@ mod tests {
 
         let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
-        assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
     }
 
     #[tokio::test]
@@ -171,8 +182,13 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
-        assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
     }
 }

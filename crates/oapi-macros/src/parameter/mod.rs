@@ -12,9 +12,9 @@ use derive::ToParameters;
 use crate::{
     component::{self, ComponentSchema},
     feature::{
-        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature,
-        Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly,
-        Style, TryToTokensExt, WriteOnly, XmlAttr,
+        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
+        Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
+        MultipleOf, Nullable, Pattern, ReadOnly, Style, TryToTokensExt, WriteOnly, XmlAttr,
     },
     operation::InlineType,
     parse_utils, Required,
@@ -59,7 +59,9 @@ pub(crate) enum Parameter<'a> {
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::Struct(StructParameter { path: input.parse()? }))
+            Ok(Self::Struct(StructParameter {
+                path: input.parse()?,
+            }))
         } else {
             Ok(Self::Value(input.parse()?))
         }
@@ -184,7 +186,9 @@ impl Parse for ValueParameter<'_> {
             input.parse::<Token![,]>().ok();
         }
 
-        let (schema_features, parameter_features) = input.parse::<ParameterFeatures>()?.split_for_parameter_type();
+        let (schema_features, parameter_features) = input
+            .parse::<ParameterFeatures>()?
+            .split_for_parameter_type();
 
         parameter.features = (schema_features.clone(), parameter_features);
         if let Some(parameter_schema) = &mut parameter.parameter_schema {
@@ -311,7 +315,8 @@ pub(crate) enum ParameterIn {
 }
 
 impl ParameterIn {
-    pub(crate) const VARIANTS: &'static [Self] = &[Self::Query, Self::Path, Self::Header, Self::Cookie];
+    pub(crate) const VARIANTS: &'static [Self] =
+        &[Self::Query, Self::Path, Self::Header, Self::Cookie];
 }
 
 impl Display for ParameterIn {
@@ -393,17 +398,27 @@ impl ToTokens for ParameterStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            ParameterStyle::Matrix => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix }),
-            ParameterStyle::Label => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label }),
-            ParameterStyle::Form => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form }),
-            ParameterStyle::Simple => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple }),
+            ParameterStyle::Matrix => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix })
+            }
+            ParameterStyle::Label => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label })
+            }
+            ParameterStyle::Form => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form })
+            }
+            ParameterStyle::Simple => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple })
+            }
             ParameterStyle::SpaceDelimited => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
             }
             ParameterStyle::PipeDelimited => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
             }
-            ParameterStyle::DeepObject => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject }),
+            ParameterStyle::DeepObject => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject })
+            }
         }
     }
 }

@@ -564,7 +564,10 @@ impl ToResponses for StatusError {
         for StatusError { code, brief, .. } in errors {
             responses.insert(
                 code.as_str(),
-                Response::new(brief).add_content("application/json", Content::new(StatusError::to_schema(components))),
+                Response::new(brief).add_content(
+                    "application/json",
+                    Content::new(StatusError::to_schema(components)),
+                ),
             )
         }
         responses
@@ -643,8 +646,16 @@ mod tests {
                 i64::to_schema(&mut components),
                 json!({"type": "integer", "format": "int64"}),
             ),
-            ("i128", i128::to_schema(&mut components), json!({"type": "integer"})),
-            ("isize", isize::to_schema(&mut components), json!({"type": "integer"})),
+            (
+                "i128",
+                i128::to_schema(&mut components),
+                json!({"type": "integer"}),
+            ),
+            (
+                "isize",
+                isize::to_schema(&mut components),
+                json!({"type": "integer"}),
+            ),
             (
                 "u8",
                 u8::to_schema(&mut components),
@@ -675,10 +686,26 @@ mod tests {
                 usize::to_schema(&mut components),
                 json!({"type": "integer", "minimum": 0.0 }),
             ),
-            ("bool", bool::to_schema(&mut components), json!({"type": "boolean"})),
-            ("str", str::to_schema(&mut components), json!({"type": "string"})),
-            ("String", String::to_schema(&mut components), json!({"type": "string"})),
-            ("char", char::to_schema(&mut components), json!({"type": "string"})),
+            (
+                "bool",
+                bool::to_schema(&mut components),
+                json!({"type": "boolean"}),
+            ),
+            (
+                "str",
+                str::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "String",
+                String::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "char",
+                char::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
             (
                 "f32",
                 f32::to_schema(&mut components),
@@ -690,7 +717,10 @@ mod tests {
                 json!({"type": "number", "format": "double"}),
             ),
         ] {
-            println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
+            println!(
+                "{name}: {json}",
+                json = serde_json::to_string(&schema).unwrap()
+            );
             let schema = serde_json::to_value(schema).unwrap();
             assert_json_eq!(schema, value);
         }

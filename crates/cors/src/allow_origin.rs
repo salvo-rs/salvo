@@ -15,7 +15,8 @@ use super::{Any, WILDCARD};
 #[must_use]
 pub struct AllowOrigin(OriginInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
+type JudgeFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
 impl AllowOrigin {
     /// Allow any origin by sending a wildcard (`*`)
     ///

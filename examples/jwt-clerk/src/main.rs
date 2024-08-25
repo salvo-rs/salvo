@@ -25,7 +25,10 @@ async fn main() {
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     let router = Router::new()
         .push(Router::with_hoop(auth_handler).path("welcome").get(welcome))
-        .push(Router::with_path("<**rest>").goal(Proxy::new(vec!["http://localhost:5801"], HyperClient::default())));
+        .push(Router::with_path("<**rest>").goal(Proxy::new(
+            vec!["http://localhost:5801"],
+            HyperClient::default(),
+        )));
     Server::new(acceptor).serve(router).await;
 }
 #[handler]
@@ -33,7 +36,10 @@ async fn welcome(depot: &mut Depot) -> Result<String, StatusError> {
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
-            Ok(format!("Hi {}, have logged in successfully!", data.claims.sub))
+            Ok(format!(
+                "Hi {}, have logged in successfully!",
+                data.claims.sub
+            ))
         }
         JwtAuthState::Unauthorized => Err(StatusError::unauthorized()),
         _ => Err(StatusError::forbidden()),

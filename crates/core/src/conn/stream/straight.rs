@@ -59,7 +59,11 @@ impl<C> AsyncRead for StraightStream<C>
 where
     C: AsyncRead,
 {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<IoResult<()>> {
         let this = self.project();
         let remaining = buf.remaining();
         match this.inner.poll_read(cx, buf) {
@@ -119,7 +123,11 @@ where
         this.inner.poll_shutdown(cx)
     }
 
-    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<IoResult<usize>> {
         let this = self.project();
         if let Some(fusewire) = &this.fusewire {
             fusewire.event(FuseEvent::Alive);

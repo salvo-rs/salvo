@@ -69,7 +69,13 @@ impl FromStr for RenameRule {
             .join(", ");
         RENAME_RULES
             .into_iter()
-            .find_map(|(case, rule)| if case == rename_all_str { Some(rule) } else { None })
+            .find_map(|(case, rule)| {
+                if case == rename_all_str {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
             .ok_or_else(|| {
                 Error::new(
                     Span::call_site(),
@@ -98,7 +104,9 @@ impl RenameRule {
             }
             ScreamingSnakeCase => SnakeCase.apply_to_variant(variant).to_ascii_uppercase(),
             KebabCase => SnakeCase.apply_to_variant(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase.apply_to_variant(variant).replace('_', "-"),
+            ScreamingKebabCase => ScreamingSnakeCase
+                .apply_to_variant(variant)
+                .replace('_', "-"),
         }
     }
 
@@ -159,7 +167,10 @@ fn rename_variants() {
         assert_eq!(SnakeCase.apply_to_variant(original), snake);
         assert_eq!(ScreamingSnakeCase.apply_to_variant(original), screaming);
         assert_eq!(KebabCase.apply_to_variant(original), kebab);
-        assert_eq!(ScreamingKebabCase.apply_to_variant(original), screaming_kebab);
+        assert_eq!(
+            ScreamingKebabCase.apply_to_variant(original),
+            screaming_kebab
+        );
     }
 }
 

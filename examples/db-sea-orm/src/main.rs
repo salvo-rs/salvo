@@ -48,11 +48,16 @@ async fn list(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
         .obtain::<AppState>()
         .map_err(|_| StatusError::internal_server_error())?;
     let page = req.query("page").unwrap_or(1);
-    let posts_per_page = req.query("posts_per_page").unwrap_or(DEFAULT_POSTS_PER_PAGE);
+    let posts_per_page = req
+        .query("posts_per_page")
+        .unwrap_or(DEFAULT_POSTS_PER_PAGE);
     let paginator = post::Entity::find()
         .order_by_asc(post::Column::Id)
         .paginate(&state.conn, posts_per_page);
-    let num_pages = paginator.num_pages().await.map_err(|_| StatusError::bad_request())?;
+    let num_pages = paginator
+        .num_pages()
+        .await
+        .map_err(|_| StatusError::bad_request())?;
     let posts = paginator
         .fetch_page(page - 1)
         .await
@@ -171,7 +176,10 @@ async fn main() {
         .push(Router::with_path("new").get(new))
         .push(Router::with_path("<id>").get(edit).post(update))
         .push(Router::with_path("delete/<id>").post(delete))
-        .push(Router::with_path("static/<**>").get(StaticDir::new(concat!(env!("CARGO_MANIFEST_DIR"), "/static"))));
+        .push(Router::with_path("static/<**>").get(StaticDir::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/static"
+        ))));
 
     let acceptor = TcpListener::new(&server_url).bind().await;
     Server::new(acceptor).serve(router).await;

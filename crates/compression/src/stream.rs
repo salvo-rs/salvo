@@ -37,7 +37,8 @@ impl<B> EncodeStream<B> {
 impl EncodeStream<BoxStream<'static, Result<Bytes, BoxedError>>> {
     #[inline]
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
-        Stream::poll_next(Pin::new(&mut self.body), cx).map_err(|e| IoError::new(ErrorKind::Other, e))
+        Stream::poll_next(Pin::new(&mut self.body), cx)
+            .map_err(|e| IoError::new(ErrorKind::Other, e))
     }
 }
 impl EncodeStream<BoxStream<'static, Result<BytesFrame, BoxedError>>> {

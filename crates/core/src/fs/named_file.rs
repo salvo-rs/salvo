@@ -170,7 +170,9 @@ impl NamedFileBuilder {
                 && ct.get_param(mime::CHARSET).is_none()
             {
                 //TODO: auto detect charset
-                format!("{ct}; charset=utf-8").parse::<mime::Mime>().unwrap_or(ct)
+                format!("{ct}; charset=utf-8")
+                    .parse::<mime::Mime>()
+                    .unwrap_or(ct)
             } else {
                 ct
             }
@@ -178,7 +180,11 @@ impl NamedFileBuilder {
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
-            Some(content_encoding) => Some(content_encoding.parse::<HeaderValue>().map_err(Error::other)?),
+            Some(content_encoding) => Some(
+                content_encoding
+                    .parse::<HeaderValue>()
+                    .map_err(Error::other)?,
+            ),
             None => None,
         };
 
@@ -215,9 +221,8 @@ fn build_content_disposition(
             "attachment"
         } else {
             match (content_type.type_(), content_type.subtype()) {
-                (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _) | (_, mime::JAVASCRIPT | mime::JSON) => {
-                    "inline"
-                }
+                (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
+                | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
                 _ => "attachment",
             }
         }
@@ -236,7 +241,9 @@ fn build_content_disposition(
             .parse::<HeaderValue>()
             .map_err(Error::other)?
     } else {
-        disposition_type.parse::<HeaderValue>().map_err(Error::other)?
+        disposition_type
+            .parse::<HeaderValue>()
+            .map_err(Error::other)?
     };
     Ok(content_disposition)
 }
@@ -427,7 +434,8 @@ impl NamedFile {
             true
         } else if req_headers.contains_key(IF_NONE_MATCH) {
             false
-        } else if let (Some(last_modified), Some(since)) = (&last_modified, req_headers.typed_get::<IfModifiedSince>())
+        } else if let (Some(last_modified), Some(since)) =
+            (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
             !since.is_modified(*last_modified)
         } else {
@@ -436,12 +444,14 @@ impl NamedFile {
 
         if self.flags.contains(Flag::ContentDisposition) {
             if let Some(content_disposition) = self.content_disposition.take() {
-                res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
+                res.headers_mut()
+                    .insert(CONTENT_DISPOSITION, content_disposition);
             } else if !res.headers().contains_key(CONTENT_DISPOSITION) {
                 // skip to set CONTENT_DISPOSITION header if it is already set.
                 match build_content_disposition(&self.path, &self.content_type, None, None) {
                     Ok(content_disposition) => {
-                        res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
+                        res.headers_mut()
+                            .insert(CONTENT_DISPOSITION, content_disposition);
                     }
                     Err(e) => {
                         tracing::error!(error = ?e, "build file's content disposition failed");
@@ -462,7 +472,8 @@ impl NamedFile {
 
         let mut length = self.metadata.len();
         if let Some(content_encoding) = &self.content_encoding {
-            res.headers_mut().insert(CONTENT_ENCODING, content_encoding.clone());
+            res.headers_mut()
+                .insert(CONTENT_ENCODING, content_encoding.clone());
         }
         let mut offset = 0;
 
@@ -474,7 +485,8 @@ impl NamedFile {
                     length = range[0].length;
                     offset = range[0].start;
                 } else {
-                    res.headers_mut().typed_insert(ContentRange::unsatisfied_bytes(length));
+                    res.headers_mut()
+                        .typed_insert(ContentRange::unsatisfied_bytes(length));
                     res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
@@ -509,7 +521,8 @@ impl NamedFile {
                 state: ChunkedState::File(Some(self.file.into_std().await)),
                 buffer_size: self.buffer_size,
             };
-            res.headers_mut().typed_insert(ContentLength(reader.total_size));
+            res.headers_mut()
+                .typed_insert(ContentLength(reader.total_size));
             res.stream(reader);
         } else {
             res.status_code(StatusCode::OK);

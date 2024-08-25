@@ -2,10 +2,11 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound, ContentEncoding,
-    ContentMediaType, Default, Deprecated, Description, Example, Examples, ExclusiveMaximum, ExclusiveMinimum, Feature,
-    Format, Inline, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
-    MultipleOf, Name, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Aliases, Bound,
+    ContentEncoding, ContentMediaType, Default, Deprecated, Description, Example, Examples,
+    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, MaxItems, MaxLength,
+    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Name,
+    Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title,
     ValueType, WriteOnly, XmlAttr,
 };
 use crate::{attribute, DiagResult, Diagnostic, IntoInner};
@@ -222,7 +223,9 @@ impl_merge!(
     EnumUnnamedFieldVariantFeatures
 );
 
-pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> DiagResult<Option<T>> {
+pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(
+    attributes: &[Attribute],
+) -> DiagResult<Option<T>> {
     Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("salvo"))

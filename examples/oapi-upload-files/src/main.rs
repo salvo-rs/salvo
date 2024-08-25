@@ -21,7 +21,10 @@ async fn upload(files: FormFiles, res: &mut Response) {
             msgs.push(dest);
         }
     }
-    res.render(Text::Plain(format!("Files uploaded:\n\n{}", msgs.join("\n"))));
+    res.render(Text::Plain(format!(
+        "Files uploaded:\n\n{}",
+        msgs.join("\n")
+    )));
 }
 
 #[tokio::main]

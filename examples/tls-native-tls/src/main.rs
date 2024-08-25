@@ -10,12 +10,17 @@ async fn hello(res: &mut Response) {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().with_max_level(Level::DEBUG).init();
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
 
     let router = Router::new().get(hello);
     let config = NativeTlsConfig::new()
         .pkcs12(include_bytes!("../certs/identity.p12").to_vec())
         .password("mypass");
-    let acceptor = TcpListener::new("0.0.0.0:5800").native_tls(config).bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:5800")
+        .native_tls(config)
+        .bind()
+        .await;
     Server::new(acceptor).serve(router).await;
 }

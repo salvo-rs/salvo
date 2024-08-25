@@ -69,7 +69,10 @@ fn init_tracer() -> anyhow::Result<Tracer> {
                 .with_id_generator(RandomIdGenerator::default())
                 .with_max_events_per_span(32)
                 .with_max_attributes_per_span(64)
-                .with_resource(Resource::new(vec![KeyValue::new("service.name", "salvo-tracing")])),
+                .with_resource(Resource::new(vec![KeyValue::new(
+                    "service.name",
+                    "salvo-tracing",
+                )])),
         )
         .install_batch(runtime::Tokio)?;
     Ok(tracer)

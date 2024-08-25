@@ -219,7 +219,11 @@ where
         &mut self.client
     }
 
-    async fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
+    async fn build_proxied_request(
+        &self,
+        req: &mut Request,
+        depot: &Depot,
+    ) -> Result<HyperRequest, Error> {
         let upstream = self.upstreams.elect().await.map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
@@ -247,13 +251,18 @@ where
             format!("{}/{}", upstream, rest)
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
-        let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
+        let mut build = hyper::Request::builder()
+            .method(req.method())
+            .uri(&forward_url);
         for (key, value) in req.headers() {
             if key != HOST {
                 build = build.header(key, value);
             }
         }
-        if let Some(host) = forward_url.host().and_then(|host| HeaderValue::from_str(host).ok()) {
+        if let Some(host) = forward_url
+            .host()
+            .and_then(|host| HeaderValue::from_str(host).ok())
+        {
             build = build.header(HeaderName::from_static("host"), host);
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";
@@ -285,7 +294,13 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
                 match self
@@ -339,7 +354,10 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
         .unwrap_or(false)
     {
         if let Some(upgrade_value) = headers.get(&UPGRADE) {
-            tracing::debug!("Found upgrade header with value: {:?}", upgrade_value.to_str());
+            tracing::debug!(
+                "Found upgrade header with value: {:?}",
+                upgrade_value.to_str()
+            );
             return upgrade_value.to_str().ok();
         }
     }

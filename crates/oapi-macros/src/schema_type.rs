@@ -97,7 +97,10 @@ impl SchemaType<'_> {
 
             #[cfg(feature = "chrono")]
             if !primitive {
-                primitive = matches!(name, "DateTime" | "NaiveDate" | "Duration" | "NaiveDateTime");
+                primitive = matches!(
+                    name,
+                    "DateTime" | "NaiveDate" | "Duration" | "NaiveDateTime"
+                );
             }
             #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             if !primitive {
@@ -117,7 +120,10 @@ impl SchemaType<'_> {
             }
             #[cfg(feature = "time")]
             if !primitive {
-                primitive = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration");
+                primitive = matches!(
+                    name,
+                    "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
+                );
             }
 
             primitive
@@ -127,7 +133,17 @@ impl SchemaType<'_> {
     pub(crate) fn is_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+            "i8" | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "isize"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
         )
     }
 
@@ -209,18 +225,25 @@ impl TryToTokens for SchemaType<'_> {
         }
 
         match name {
-            "String" | "str" | "char" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "String" | "str" | "char" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
             "bool" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Boolean, self.nullable),
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => {
+            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
+            | "u128" | "usize" => {
                 schema_type_tokens(tokens, oapi, SchemaTypeInner::Integer, self.nullable)
             }
-            "f32" | "f64" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable),
+            "f32" | "f64" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable)
+            }
             #[cfg(feature = "chrono")]
             "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
                 schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(any(feature = "chrono", feature = "time"))]
-            "Date" | "Duration" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Date" | "Duration" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
             "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
@@ -446,8 +469,8 @@ pub(crate) enum Variant {
 impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const FORMATS: [&str; 12] = [
-            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password", "Ulid", "Uuid",
-            "Url",
+            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
+            "Ulid", "Uuid", "Url",
         ];
         let excluded_format: &[&str] = &[
             #[cfg(not(feature = "url"))]

@@ -17,7 +17,9 @@ use super::{separated_by_commas, Any, WILDCARD};
 #[must_use]
 pub struct AllowMethods(AllowMethodsInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static>;
+type JudgeFn = Arc<
+    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
+>;
 impl AllowMethods {
     /// Allow any method by sending a wildcard (`*`)
     ///
@@ -93,7 +95,10 @@ impl AllowMethods {
             AllowMethodsInner::None => return None,
             AllowMethodsInner::Exact(v) => v.clone(),
             AllowMethodsInner::Judge(f) => f(origin?, req, depot),
-            AllowMethodsInner::MirrorRequest => req.headers().get(header::ACCESS_CONTROL_REQUEST_METHOD)?.clone(),
+            AllowMethodsInner::MirrorRequest => req
+                .headers()
+                .get(header::ACCESS_CONTROL_REQUEST_METHOD)?
+                .clone(),
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_METHODS, allow_methods))

@@ -75,26 +75,33 @@ impl Parse for RequestBodyAttr<'_> {
 
                 match attr_name {
                     "content" => {
-                        request_body_attr.content =
-                            Some(parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
+                        request_body_attr.content = Some(
+                            parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
                                 Error::new(
                                     error.span(),
-                                    format!("unexpected token, expected type such as String, {error}",),
+                                    format!(
+                                        "unexpected token, expected type such as String, {error}",
+                                    ),
                                 )
-                            })?);
+                            })?,
+                        );
                     }
                     "content_type" => {
-                        request_body_attr.content_type = Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
+                        request_body_attr.content_type =
+                            Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
                     }
                     "description" => {
-                        request_body_attr.description = Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
+                        request_body_attr.description =
+                            Some(parse_utils::parse_next_lit_str_or_expr(&group)?)
                     }
                     "example" => {
-                        request_body_attr.example =
-                            Some(parse_utils::parse_next(&group, || AnyValue::parse_json(&group))?)
+                        request_body_attr.example = Some(parse_utils::parse_next(&group, || {
+                            AnyValue::parse_json(&group)
+                        })?)
                     }
                     "examples" => {
-                        request_body_attr.examples = Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                        request_body_attr.examples =
+                            Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
@@ -192,7 +199,9 @@ impl TryToTokens for RequestBodyAttr<'_> {
                     });
                 }
                 PathType::InlineSchema(_, _) => {
-                    unreachable!("`PathType::InlineSchema` is not implemented for `RequestBodyAttr`");
+                    unreachable!(
+                        "`PathType::InlineSchema` is not implemented for `RequestBodyAttr`"
+                    );
                 }
             }
         }

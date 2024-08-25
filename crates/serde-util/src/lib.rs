@@ -16,7 +16,9 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
     match next.token_tree() {
         Some((tt, next)) => match tt {
             TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
-            TokenTree::Literal(literal) => Some((literal.to_string().replace('\"', ""), literal.span())),
+            TokenTree::Literal(literal) => {
+                Some((literal.to_string().replace('\"', ""), literal.span()))
+            }
             _ => None,
         },
         _ => None,
@@ -49,11 +51,15 @@ impl SerdeValue {
             while let Some((tt, next)) = rest.token_tree() {
                 match tt {
                     TokenTree::Ident(ident)
-                        if ident == "skip" || ident == "skip_serializing" || ident == "skip_deserializing" =>
+                        if ident == "skip"
+                            || ident == "skip_serializing"
+                            || ident == "skip_deserializing" =>
                     {
                         value.skip = true
                     }
-                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => value.skip_serializing_if = true,
+                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => {
+                        value.skip_serializing_if = true
+                    }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {
@@ -139,12 +145,17 @@ impl SerdeContainer {
             "tag" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
-                        SerdeEnumRepr::ExternallyTagged => SerdeEnumRepr::InternallyTagged { tag: literal },
-                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { content } => SerdeEnumRepr::AdjacentlyTagged {
-                            tag: literal,
-                            content: content.clone(),
-                        },
-                        SerdeEnumRepr::InternallyTagged { .. } | SerdeEnumRepr::AdjacentlyTagged { .. } => {
+                        SerdeEnumRepr::ExternallyTagged => {
+                            SerdeEnumRepr::InternallyTagged { tag: literal }
+                        }
+                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { content } => {
+                            SerdeEnumRepr::AdjacentlyTagged {
+                                tag: literal,
+                                content: content.clone(),
+                            }
+                        }
+                        SerdeEnumRepr::InternallyTagged { .. }
+                        | SerdeEnumRepr::AdjacentlyTagged { .. } => {
                             return Err(Error::new(span, "Duplicate serde tag argument"));
                         }
                         SerdeEnumRepr::Untagged => {
@@ -156,14 +167,17 @@ impl SerdeContainer {
             "content" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
-                        SerdeEnumRepr::InternallyTagged { tag } => SerdeEnumRepr::AdjacentlyTagged {
-                            tag: tag.clone(),
-                            content: literal,
-                        },
+                        SerdeEnumRepr::InternallyTagged { tag } => {
+                            SerdeEnumRepr::AdjacentlyTagged {
+                                tag: tag.clone(),
+                                content: literal,
+                            }
+                        }
                         SerdeEnumRepr::ExternallyTagged => {
                             SerdeEnumRepr::UnfinishedAdjacentlyTagged { content: literal }
                         }
-                        SerdeEnumRepr::AdjacentlyTagged { .. } | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                        SerdeEnumRepr::AdjacentlyTagged { .. }
+                        | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
                             return Err(Error::new(span, "Duplicate serde content argument"));
                         }
                         SerdeEnumRepr::Untagged => {

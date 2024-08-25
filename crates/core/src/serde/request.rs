@@ -17,7 +17,10 @@ use crate::Request;
 
 use super::{CowValue, VecValue};
 
-pub async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
+pub async fn from_request<'de, T>(
+    req: &'de mut Request,
+    metadata: &'de Metadata,
+) -> Result<T, ParseError>
 where
     T: Deserialize<'de>,
 {
@@ -77,7 +80,10 @@ pub(crate) struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(
+        request: &'de Request,
+        metadata: &'de Metadata,
+    ) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;
 
         if metadata.has_body_required() {
@@ -90,7 +96,9 @@ impl<'de> RequestDeserializer<'de> {
                         if let Some(data) = request.payload.get() {
                             if !data.is_empty() {
                                 // https://github.com/serde-rs/json/issues/903
-                                payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                                payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(
+                                    data,
+                                ) {
                                     Ok(map) => Some(Payload::JsonMap(map)),
                                     Err(e) => {
                                         tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
@@ -247,7 +255,8 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     }
                     if let Some(value) = value {
-                        self.field_vec_value = Some(value.iter().map(|v| CowValue(v.into())).collect());
+                        self.field_vec_value =
+                            Some(value.iter().map(|v| CowValue(v.into())).collect());
                         self.field_source = Some(source);
                         return true;
                     }
@@ -356,7 +365,9 @@ impl<'de> RequestDeserializer<'de> {
                                     }
                                 }
                                 if let Some(value) = value {
-                                    self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
+                                    self.field_vec_value = Some(
+                                        value.iter().map(|v| CowValue(Cow::from(v))).collect(),
+                                    );
                                     self.field_source = Some(source);
                                     return true;
                                 }
@@ -443,7 +454,11 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
     }
 
     #[inline]
-    fn next_entry_seed<TK, TV>(&mut self, kseed: TK, vseed: TV) -> Result<Option<(TK::Value, TV::Value)>, Self::Error>
+    fn next_entry_seed<TK, TV>(
+        &mut self,
+        kseed: TK,
+        vseed: TV,
+    ) -> Result<Option<(TK::Value, TV::Value)>, Self::Error>
     where
         TK: de::DeserializeSeed<'de>,
         TV: de::DeserializeSeed<'de>,
@@ -699,7 +714,10 @@ mod tests {
             data,
             RequestData {
                 p2: "921",
-                user: User { name: "chris", age: 20 }
+                user: User {
+                    name: "chris",
+                    age: 20
+                }
             }
         );
     }
@@ -712,8 +730,10 @@ mod tests {
             #[salvo(extract(rename = "currAge"))]
             curr_age: usize,
         }
-        let mut req =
-            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let mut req = TestClient::get(
+            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+        )
+        .build();
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -733,8 +753,10 @@ mod tests {
             #[salvo(extract(rename = "currAge"))]
             curr_age: usize,
         }
-        let mut req =
-            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let mut req = TestClient::get(
+            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+        )
+        .build();
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -754,8 +776,10 @@ mod tests {
             #[salvo(extract(rename = "currAge"))]
             curr_age: usize,
         }
-        let mut req =
-            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let mut req = TestClient::get(
+            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+        )
+        .build();
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,

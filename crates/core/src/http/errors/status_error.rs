@@ -192,7 +192,10 @@ impl StdError for StatusError {}
 
 impl Display for StatusError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut str_error = format!("code: {} name: {} brief: {}", self.code, self.name, self.brief);
+        let mut str_error = format!(
+            "code: {} name: {} brief: {}",
+            self.code, self.name, self.brief
+        );
         if let Some(detail) = &self.detail {
             write!(&mut str_error, " detail: {}", detail)?;
         }
@@ -214,7 +217,9 @@ impl StatusError {
             StatusCode::NOT_FOUND => Some(StatusError::not_found()),
             StatusCode::METHOD_NOT_ALLOWED => Some(StatusError::method_not_allowed()),
             StatusCode::NOT_ACCEPTABLE => Some(StatusError::not_acceptable()),
-            StatusCode::PROXY_AUTHENTICATION_REQUIRED => Some(StatusError::proxy_authentication_required()),
+            StatusCode::PROXY_AUTHENTICATION_REQUIRED => {
+                Some(StatusError::proxy_authentication_required())
+            }
             StatusCode::REQUEST_TIMEOUT => Some(StatusError::request_timeout()),
             StatusCode::CONFLICT => Some(StatusError::conflict()),
             StatusCode::GONE => Some(StatusError::gone()),
@@ -233,19 +238,27 @@ impl StatusError {
             StatusCode::UPGRADE_REQUIRED => Some(StatusError::upgrade_required()),
             StatusCode::PRECONDITION_REQUIRED => Some(StatusError::precondition_required()),
             StatusCode::TOO_MANY_REQUESTS => Some(StatusError::too_many_requests()),
-            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => Some(StatusError::request_header_fields_toolarge()),
-            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(StatusError::unavailable_for_legalreasons()),
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => {
+                Some(StatusError::request_header_fields_toolarge())
+            }
+            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => {
+                Some(StatusError::unavailable_for_legalreasons())
+            }
             StatusCode::INTERNAL_SERVER_ERROR => Some(StatusError::internal_server_error()),
             StatusCode::NOT_IMPLEMENTED => Some(StatusError::not_implemented()),
             StatusCode::BAD_GATEWAY => Some(StatusError::bad_gateway()),
             StatusCode::SERVICE_UNAVAILABLE => Some(StatusError::service_unavailable()),
             StatusCode::GATEWAY_TIMEOUT => Some(StatusError::gateway_timeout()),
-            StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(StatusError::http_version_not_supported()),
+            StatusCode::HTTP_VERSION_NOT_SUPPORTED => {
+                Some(StatusError::http_version_not_supported())
+            }
             StatusCode::VARIANT_ALSO_NEGOTIATES => Some(StatusError::variant_also_negotiates()),
             StatusCode::INSUFFICIENT_STORAGE => Some(StatusError::insufficient_storage()),
             StatusCode::LOOP_DETECTED => Some(StatusError::loop_detected()),
             StatusCode::NOT_EXTENDED => Some(StatusError::not_extended()),
-            StatusCode::NETWORK_AUTHENTICATION_REQUIRED => Some(StatusError::network_authentication_required()),
+            StatusCode::NETWORK_AUTHENTICATION_REQUIRED => {
+                Some(StatusError::network_authentication_required())
+            }
             _ => None,
         }
     }

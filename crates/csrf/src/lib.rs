@@ -260,7 +260,13 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
 
 #[async_trait]
 impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         match self.store.load(req, depot, &self.cipher).await {
             Some((token, proof)) => {
                 depot.insert(CSRF_TOKEN_KEY, token);
@@ -269,7 +275,9 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                     if let Some(token) = &self.find_token(req).await {
                         tracing::debug!("csrf token: {token}");
                         if !self.cipher.verify(token, &proof) {
-                            tracing::debug!("rejecting request due to invalid or expired CSRF token");
+                            tracing::debug!(
+                                "rejecting request due to invalid or expired CSRF token"
+                            );
                             res.status_code(StatusCode::FORBIDDEN);
                             ctrl.skip_rest();
                             return;
@@ -357,13 +365,17 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:5801")
@@ -385,13 +397,17 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:5801")
@@ -405,17 +421,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_validates_token_in_query() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new("csrf-token"));
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("csrf-token"),
+        );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:5801?a=1&b=2")
@@ -437,13 +461,17 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:5801?a=1&b=2")
@@ -466,13 +494,17 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:5801")
@@ -493,13 +525,17 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_string().await.unwrap();
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
         let mut res = TestClient::post("http://127.0.0.1:5801")
             .add_header("cookie", cookie.to_string(), true)
@@ -520,17 +556,25 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:5801")
             .add_header("x-csrf-token", "aGVsbG8=", true)
-            .add_header("cookie", cookie.to_string().split_once('.').unwrap().0, true)
+            .add_header(
+                "cookie",
+                cookie.to_string().split_once('.').unwrap().0,
+                true,
+            )
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
@@ -546,17 +590,25 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:5801")
             .add_header("x-csrf-token", "aGVsbG8", true)
-            .add_header("cookie", cookie.to_string().split_once('.').unwrap().0, true)
+            .add_header(
+                "cookie",
+                cookie.to_string().split_once('.').unwrap().0,
+                true,
+            )
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
@@ -572,20 +624,30 @@ mod tests {
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
         let csrf_token = res.take_string().await.unwrap();
 
-        let res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
         let cookie = res.cookie("salvo.csrf").unwrap();
 
-        let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:5801")
             .add_header("x-csrf-token", csrf_token, true)
-            .add_header("cookie", cookie.to_string().split_once('.').unwrap().0, true)
+            .add_header(
+                "cookie",
+                cookie.to_string().split_once('.').unwrap().0,
+                true,
+            )
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);

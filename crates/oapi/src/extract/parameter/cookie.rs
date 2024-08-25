@@ -14,7 +14,8 @@ pub struct CookieParam<T, const REQUIRED: bool>(Option<T>);
 impl<T> CookieParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
-        self.0.expect("`CookieParam<T, true>` into_inner get `None`")
+        self.0
+            .expect("`CookieParam<T, true>` into_inner get `None`")
     }
 }
 impl<T> CookieParam<T, false> {
@@ -28,7 +29,9 @@ impl<T> Deref for CookieParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().expect("`CookieParam<T, true>` deref get `None`")
+        self.0
+            .as_ref()
+            .expect("`CookieParam<T, true>` deref get `None`")
     }
 }
 impl<T> Deref for CookieParam<T, false> {
@@ -41,7 +44,9 @@ impl<T> Deref for CookieParam<T, false> {
 
 impl<T> DerefMut for CookieParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().expect("`CookieParam<T, true>` deref_mut get `None`")
+        self.0
+            .as_mut()
+            .expect("`CookieParam<T, true>` deref_mut get `None`")
     }
 }
 impl<T> DerefMut for CookieParam<T, false> {
@@ -102,7 +107,10 @@ where
             .get(arg)
             .and_then(|v| from_str_val(v.value()).ok())
             .ok_or_else(|| {
-                ParseError::other(format!("cookie parameter {} not found or convert to type failed", arg))
+                ParseError::other(format!(
+                    "cookie parameter {} not found or convert to type failed",
+                    arg
+                ))
             })?;
         Ok(Self(value))
     }
@@ -122,7 +130,10 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
+        let value = req
+            .cookies()
+            .get(arg)
+            .and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))
     }
 }

@@ -17,7 +17,9 @@ use super::{separated_by_commas, Any, WILDCARD};
 #[must_use]
 pub struct ExposeHeaders(ExposeHeadersInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static>;
+type JudgeFn = Arc<
+    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
+>;
 impl ExposeHeaders {
     /// Expose any / all headers by sending a wildcard (`*`)
     ///

@@ -270,7 +270,11 @@ impl UntaggedEnum {
 impl TryToTokens for UntaggedEnum {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let title = self.title.as_ref().map(|f| f.try_to_token_stream()).transpose()?;
+        let title = self
+            .title
+            .as_ref()
+            .map(|f| f.try_to_token_stream())
+            .transpose()?;
 
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
@@ -289,7 +293,9 @@ pub(crate) struct AdjacentlyTaggedEnum<T: Variant> {
 }
 
 impl<V: Variant> AdjacentlyTaggedEnum<V> {
-    pub(crate) fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(items: I) -> Self {
+    pub(crate) fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(
+        items: I,
+    ) -> Self {
         items.into_iter().collect()
     }
 }

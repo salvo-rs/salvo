@@ -4,7 +4,9 @@ use syn::{parenthesized, parse::Parse};
 use syn::{Expr, LitStr};
 
 use crate::operation::request_body::RequestBodyAttr;
-use crate::{parse_utils, security_requirement::SecurityRequirementsAttr, Array, Parameter, Response, Token};
+use crate::{
+    parse_utils, security_requirement::SecurityRequirementsAttr, Array, Parameter, Response, Token,
+};
 
 #[derive(Default, Debug)]
 pub(crate) struct EndpointAttr<'p> {
@@ -28,12 +30,16 @@ impl Parse for EndpointAttr<'_> {
         let mut attr = EndpointAttr::default();
 
         while !input.is_empty() {
-            let ident = input
-                .parse::<Ident>()
-                .map_err(|error| syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}")))?;
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(
+                    error.span(),
+                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
+                )
+            })?;
             match &*ident.to_string() {
                 "operation_id" => {
-                    attr.operation_id = Some(parse_utils::parse_next(input, || Expr::parse(input))?);
+                    attr.operation_id =
+                        Some(parse_utils::parse_next(input, || Expr::parse(input))?);
                 }
                 "request_body" => {
                     attr.request_body = Some(input.parse::<RequestBodyAttr>()?);
@@ -41,27 +47,36 @@ impl Parse for EndpointAttr<'_> {
                 "responses" => {
                     let responses;
                     parenthesized!(responses in input);
-                    attr.responses = Punctuated::<Response, Token![,]>::parse_terminated(&responses)
-                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                    attr.responses =
+                        Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
                 }
                 "status_codes" => {
                     let status_codes;
                     parenthesized!(status_codes in input);
-                    attr.status_codes = Punctuated::<Expr, Token![,]>::parse_terminated(&status_codes)
-                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?;
+                    attr.status_codes =
+                        Punctuated::<Expr, Token![,]>::parse_terminated(&status_codes)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?;
                 }
                 "parameters" => {
                     let parameters;
                     parenthesized!(parameters in input);
-                    attr.parameters = Punctuated::<Parameter, Token![,]>::parse_terminated(&parameters)
-                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
+                    attr.parameters =
+                        Punctuated::<Parameter, Token![,]>::parse_terminated(&parameters)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "tags" => {
                     let tags;
                     parenthesized!(tags in input);
                     attr.tags = Some(
-                        Punctuated::<LitStr, Token![,]>::parse_terminated(&tags)
-                            .map(|punctuated| punctuated.into_iter().map(|t| t.value()).collect::<Vec<_>>())?,
+                        Punctuated::<LitStr, Token![,]>::parse_terminated(&tags).map(
+                            |punctuated| {
+                                punctuated
+                                    .into_iter()
+                                    .map(|t| t.value())
+                                    .collect::<Vec<_>>()
+                            },
+                        )?,
                     );
                 }
                 "security" => {
@@ -69,7 +84,9 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(security in input);
                     attr.security = Some(parse_utils::parse_groups(&security)?)
                 }
-                "description" => attr.description = Some(parse_utils::parse_next_lit_str_or_expr(input)?),
+                "description" => {
+                    attr.description = Some(parse_utils::parse_next_lit_str_or_expr(input)?)
+                }
                 "summary" => attr.summary = Some(parse_utils::parse_next_lit_str_or_expr(input)?),
                 _ => {
                     return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));

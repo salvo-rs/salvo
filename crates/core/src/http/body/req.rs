@@ -11,7 +11,8 @@ use bytes::Bytes;
 use crate::fuse::{ArcFusewire, FuseEvent};
 use crate::BoxedError;
 
-pub(crate) type BoxedBody = Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
+pub(crate) type BoxedBody =
+    Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
 pub(crate) type PollFrame = Poll<Option<Result<Frame<Bytes>, IoError>>>;
 
 /// Body for HTTP request.
@@ -167,7 +168,10 @@ impl From<Bytes> for ReqBody {
 }
 impl From<Incoming> for ReqBody {
     fn from(inner: Incoming) -> Self {
-        Self::Hyper { inner, fusewire: None }
+        Self::Hyper {
+            inner,
+            fusewire: None,
+        }
     }
 }
 impl From<String> for ReqBody {
@@ -180,10 +184,16 @@ impl TryFrom<ReqBody> for Incoming {
     type Error = crate::Error;
     fn try_from(body: ReqBody) -> Result<Self, Self::Error> {
         match body {
-            ReqBody::None => Err(crate::Error::other("ReqBody::None cannot convert to Incoming")),
-            ReqBody::Once(_) => Err(crate::Error::other("ReqBody::Bytes cannot convert to Incoming")),
+            ReqBody::None => Err(crate::Error::other(
+                "ReqBody::None cannot convert to Incoming",
+            )),
+            ReqBody::Once(_) => Err(crate::Error::other(
+                "ReqBody::Bytes cannot convert to Incoming",
+            )),
             ReqBody::Hyper { inner, .. } => Ok(inner),
-            ReqBody::Boxed { .. } => Err(crate::Error::other("ReqBody::Boxed cannot convert to Incoming")),
+            ReqBody::Boxed { .. } => Err(crate::Error::other(
+                "ReqBody::Boxed cannot convert to Incoming",
+            )),
         }
     }
 }
@@ -293,7 +303,10 @@ impl fmt::Debug for ReqBody {
         match self {
             ReqBody::None => write!(f, "ReqBody::None"),
             ReqBody::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),
-            ReqBody::Hyper { inner, .. } => f.debug_struct("ReqBody::Hyper").field("inner", inner).finish(),
+            ReqBody::Hyper { inner, .. } => f
+                .debug_struct("ReqBody::Hyper")
+                .field("inner", inner)
+                .finish(),
             ReqBody::Boxed { .. } => write!(f, "ReqBody::Boxed{{..}}"),
         }
     }

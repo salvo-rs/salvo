@@ -12,7 +12,9 @@ use salvo_core::{Depot, Request};
 #[must_use]
 pub struct MaxAge(MaxAgeInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static>;
+type JudgeFn = Arc<
+    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
+>;
 
 impl MaxAge {
     /// Set a static max-age value

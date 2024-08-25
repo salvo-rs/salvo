@@ -11,7 +11,10 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_quote, Attribute, Data, DeriveInput, Fields, FieldsNamed, FieldsUnnamed, Generics, Visibility};
+use syn::{
+    parse_quote, Attribute, Data, DeriveInput, Fields, FieldsNamed, FieldsUnnamed, Generics,
+    Visibility,
+};
 
 pub(crate) use self::{
     enum_schemas::*,
@@ -23,7 +26,8 @@ pub(crate) use self::{
 
 use super::{ComponentSchema, FieldRename, VariantRename};
 use crate::feature::{
-    pop_feature, pop_feature_as_inner, Alias, Bound, Description, Feature, FeaturesExt, Inline, Name, SkipBound,
+    pop_feature, pop_feature_as_inner, Alias, Bound, Description, Feature, FeaturesExt, Inline,
+    Name, SkipBound,
 };
 use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
@@ -116,7 +120,11 @@ impl TryToTokens for ToSchema<'_> {
         if skip_bound != Some(SkipBound(true)) {
             generics = match bound {
                 Some(predicates) => bound::with_where_predicates(&generics, &predicates),
-                None => bound::with_bound(self.data, &generics, parse_quote!(#oapi::oapi::ToSchema + 'static)),
+                None => bound::with_bound(
+                    self.data,
+                    &generics,
+                    parse_quote!(#oapi::oapi::ToSchema + 'static),
+                ),
             };
         }
 
@@ -190,11 +198,14 @@ impl<'a> SchemaVariant<'a> {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
-                    let mut unnamed_features = attributes.parse_features::<UnnamedFieldStructFeatures>()?.into_inner();
+                    let mut unnamed_features = attributes
+                        .parse_features::<UnnamedFieldStructFeatures>()?
+                        .into_inner();
 
                     let name = pop_feature_as_inner!(unnamed_features => Feature::Name(_v));
                     let aliases = pop_feature_as_inner!(unnamed_features => Feature::Aliases(_v));
-                    if generics.type_params().count() == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
+                    if generics.type_params().count() == 0
+                        && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
                     {
                         return Err(Diagnostic::spanned(
                             ident.span(),
@@ -204,7 +215,8 @@ impl<'a> SchemaVariant<'a> {
                     }
 
                     let inline = pop_feature_as_inner!(unnamed_features => Feature::Inline(_v));
-                    let description = pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
+                    let description =
+                        pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
@@ -218,13 +230,16 @@ impl<'a> SchemaVariant<'a> {
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    let mut named_features: Option<Vec<Feature>> =
-                        attributes.parse_features::<NamedFieldStructFeatures>()?.into_inner();
+                    let mut named_features: Option<Vec<Feature>> = attributes
+                        .parse_features::<NamedFieldStructFeatures>()?
+                        .into_inner();
 
                     let generic_count = generics.type_params().count();
                     let name = pop_feature_as_inner!(named_features => Feature::Name(_v));
                     let aliases = pop_feature_as_inner!(named_features => Feature::Aliases(_v));
-                    if generic_count == 0 && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true) {
+                    if generic_count == 0
+                        && !aliases.as_ref().map(|a| a.0.is_empty()).unwrap_or(true)
+                    {
                         return Err(Diagnostic::spanned(
                             ident.span(),
                             DiagLevel::Error,
@@ -233,7 +248,8 @@ impl<'a> SchemaVariant<'a> {
                     }
 
                     let inline = pop_feature_as_inner!(named_features => Feature::Inline(_v));
-                    let description = pop_feature!(named_features => Feature::Description(_)).into_inner();
+                    let description =
+                        pop_feature!(named_features => Feature::Description(_)).into_inner();
                     Ok(Self::Named(NamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
@@ -250,7 +266,8 @@ impl<'a> SchemaVariant<'a> {
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
             Data::Enum(content) => {
-                let mut enum_features: Option<Vec<Feature>> = attributes.parse_features::<EnumFeatures>()?.into_inner();
+                let mut enum_features: Option<Vec<Feature>> =
+                    attributes.parse_features::<EnumFeatures>()?.into_inner();
                 let aliases = pop_feature_as_inner!(enum_features => Feature::Aliases(_v));
                 Ok(Self::Enum(EnumSchema::new(
                     Cow::Owned(ident.to_string()),

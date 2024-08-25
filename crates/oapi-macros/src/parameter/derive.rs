@@ -4,22 +4,26 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 use syn::{
-    parse::Parse, punctuated::Punctuated, Attribute, Data, Field, GenericParam, Generics, Ident, Lifetime,
-    LifetimeParam, Token,
+    parse::Parse, punctuated::Punctuated, Attribute, Data, Field, GenericParam, Generics, Ident,
+    Lifetime, LifetimeParam, Token,
 };
 
 use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    self, impl_into_inner, impl_merge, parse_features, pop_feature, AdditionalProperties, AllowReserved, DefaultStyle,
-    Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline, MaxItems, MaxLength,
-    Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-    SchemaWith, Style, ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
+    self, impl_into_inner, impl_merge, parse_features, pop_feature, AdditionalProperties,
+    AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature,
+    FeaturesExt, Format, Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum,
+    MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
+    ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
-use crate::{attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required, TryToTokens};
+use crate::{
+    attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required,
+    TryToTokens,
+};
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
@@ -68,7 +72,11 @@ impl TryToTokens for ToParameters {
             .attrs
             .iter()
             .filter(|attr| attr.path().is_ident("salvo"))
-            .filter_map(|attr| attribute::find_nested_list(attr, "parameters").ok().flatten())
+            .filter_map(|attr| {
+                attribute::find_nested_list(attr, "parameters")
+                    .ok()
+                    .flatten()
+            })
             .map(|meta| {
                 meta.parse_args::<ToParametersFeatures>()
                     .map_err(Diagnostic::from)
@@ -81,7 +89,11 @@ impl TryToTokens for ToParameters {
 
         // #[param] is only supported over fields
         if self.attrs.iter().any(|attr| {
-            attr.path().is_ident("salvo") && attribute::find_nested_list(attr, "parameter").ok().flatten().is_some()
+            attr.path().is_ident("salvo")
+                && attribute::find_nested_list(attr, "parameter")
+                    .ok()
+                    .flatten()
+                    .is_some()
         }) {
             return Err(Diagnostic::spanned(
                 ident.span(),
@@ -93,25 +105,27 @@ impl TryToTokens for ToParameters {
 
         let names = parameters_features.as_mut().and_then(|features| {
             let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
-            IntoInner::<Option<ToParametersNames>>::into_inner(to_parameters_names).map(|names| names.into_values())
+            IntoInner::<Option<ToParametersNames>>::into_inner(to_parameters_names)
+                .map(|names| names.into_values())
         });
 
         let default_style = pop_feature!(parameters_features => Feature::DefaultStyle(_));
-        let default_parameter_in = pop_feature!(parameters_features => Feature::DefaultParameterIn(_));
+        let default_parameter_in =
+            pop_feature!(parameters_features => Feature::DefaultParameterIn(_));
         let rename_all = pop_feature!(parameters_features => Feature::RenameAll(_));
-        let default_source_from =
-            if let Some(Feature::DefaultParameterIn(feature::DefaultParameterIn(default_parameter_in))) =
-                default_parameter_in
-            {
-                match default_parameter_in {
-                    ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
-                    ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
-                    ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
-                    ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
-                }
-            } else {
-                quote! { #salvo::extract::metadata::SourceFrom::Query }
-            };
+        let default_source_from = if let Some(Feature::DefaultParameterIn(
+            feature::DefaultParameterIn(default_parameter_in),
+        )) = default_parameter_in
+        {
+            match default_parameter_in {
+                ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
+                ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
+                ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
+                ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
+            }
+        } else {
+            quote! { #salvo::extract::metadata::SourceFrom::Query }
+        };
         let default_source = quote! { #salvo::extract::metadata::Source::new(#default_source_from, #salvo::extract::metadata::SourceParser::MultiMap) };
         let params = self
             .get_struct_fields(&names.as_ref())?
@@ -190,15 +204,17 @@ impl TryToTokens for ToParameters {
                 _ => None,
             })
             .unwrap_or_else(|| None);
-        let serde_rename_all =
-            if let Some(serde_rename_all) = serde_container.as_ref().and_then(|container| container.rename_all) {
-                let rule = quote_rename_rule(&salvo, &serde_rename_all);
-                Some(quote! {
-                    .serde_rename_all(#rule)
-                })
-            } else {
-                None
-            };
+        let serde_rename_all = if let Some(serde_rename_all) = serde_container
+            .as_ref()
+            .and_then(|container| container.rename_all)
+        {
+            let rule = quote_rename_rule(&salvo, &serde_rename_all);
+            Some(quote! {
+                .serde_rename_all(#rule)
+            })
+        } else {
+            None
+        };
 
         let name = ident.to_string();
         let params = params
@@ -245,7 +261,10 @@ impl ToParameters {
     fn is_named_struct(&self) -> bool {
         matches!(&self.data, Data::Struct(data_struct) if matches!(&data_struct.fields, syn::Fields::Named(_)))
     }
-    fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> DiagResult<impl Iterator<Item = &Field>> {
+    fn get_struct_fields(
+        &self,
+        field_names: &Option<&Vec<String>>,
+    ) -> DiagResult<impl Iterator<Item = &Field>> {
         let ident = &self.ident;
         let abort = |note: &str| {
             let msg = format!("unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
@@ -451,7 +470,9 @@ impl Parameter<'_> {
             .expect("struct field name should be exists")
             .to_string();
 
-        let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
+        let rename = param_features
+            .pop_rename_feature()
+            .map(|rename| rename.into_value());
         let rename = rename.map(|rename| quote!(.rename(#rename)));
         let serde_rename = self.field_serde_params.as_ref().map(|field_param_serde| {
             field_param_serde
@@ -518,7 +539,9 @@ impl TryToTokens for Parameter<'_> {
             .or_else(|| {
                 self.field_serde_params
                     .as_ref()
-                    .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
+                    .and_then(|field_param_serde| {
+                        field_param_serde.rename.as_deref().map(Cow::Borrowed)
+                    })
             });
         let rename_all = self
             .container_attributes
@@ -529,7 +552,8 @@ impl TryToTokens for Parameter<'_> {
                     .as_ref()
                     .and_then(|serde_container| serde_container.rename_all.as_ref())
             });
-        let name = crate::rename::<FieldRename>(name, rename, rename_all).unwrap_or(Cow::Borrowed(name));
+        let name =
+            crate::rename::<FieldRename>(name, rename, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty)?;
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
@@ -556,7 +580,8 @@ impl TryToTokens for Parameter<'_> {
         if let Some(schema_with) = schema_with {
             tokens.extend(quote! { .schema(#schema_with) });
         } else {
-            let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+            let description =
+                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
             if !description.is_empty() {
                 tokens.extend(quote! { .description(#description)})
             }
@@ -568,9 +593,10 @@ impl TryToTokens for Parameter<'_> {
                 .transpose()?
                 .unwrap_or(type_tree);
 
-            let required: Option<feature::Required> = pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required =
-                !component.is_option() && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
+            let required: Option<feature::Required> =
+                pop_feature!(param_features => Feature::Required(_)).into_inner();
+            let component_required = !component.is_option()
+                && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
 
             let required = match (required, component_required) {
                 (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),

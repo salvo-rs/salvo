@@ -43,7 +43,9 @@ pub struct Xml {
 impl Xml {
     /// Construct a new [`Xml`] object.
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self {
+            ..Default::default()
+        }
     }
 }
 

@@ -8,7 +8,10 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use regex::Regex;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Attribute, ExprPath, FnArg, Ident, Lit, LitStr, Member, PatType, Receiver, Token, Type, TypePath};
+use syn::{
+    Attribute, ExprPath, FnArg, Ident, Lit, LitStr, Member, PatType, Receiver, Token, Type,
+    TypePath,
+};
 
 use crate::{feature, parse_utils, RenameRule, SerdeContainer, SerdeValue};
 
@@ -58,7 +61,12 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                 // such as:
                 // `::std::vec::Vec` is `Vec`
                 // `Vec` is `Vec`
-                let ident = &nty.path.segments.last().expect("path segments is empty").ident;
+                let ident = &nty
+                    .path
+                    .segments
+                    .last()
+                    .expect("path segments is empty")
+                    .ident;
                 if ident == "Request" {
                     InputType::Request(p)
                 } else if ident == "Response" {
@@ -106,15 +114,27 @@ pub(crate) type DiagResult<T> = Result<T, Diagnostic>;
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
 #[inline]
-pub(crate) fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&SerdeValue>) -> bool {
-    container_rules.as_ref().map(|rule| rule.is_default).unwrap_or(false)
-        || field_rule.as_ref().map(|rule| rule.is_default).unwrap_or(false)
+pub(crate) fn is_default(
+    container_rules: &Option<&SerdeContainer>,
+    field_rule: &Option<&SerdeValue>,
+) -> bool {
+    container_rules
+        .as_ref()
+        .map(|rule| rule.is_default)
+        .unwrap_or(false)
+        || field_rule
+            .as_ref()
+            .map(|rule| rule.is_default)
+            .unwrap_or(false)
 }
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
 pub(crate) fn get_deprecated(attributs: &[Attribute]) -> Option<crate::Deprecated> {
-    if attributs.iter().any(|attr| attr.path().is_ident("deprecated")) {
+    if attributs
+        .iter()
+        .any(|attr| attr.path().is_ident("deprecated"))
+    {
         Some(Deprecated::True)
     } else {
         None
@@ -125,8 +145,13 @@ pub(crate) fn get_deprecated(attributs: &[Attribute]) -> Option<crate::Deprecate
 ///
 /// * If field has not serde's `skip_serializing_if`
 /// * Field is not default
-pub(crate) fn is_required(field_rule: Option<&SerdeValue>, container_rules: Option<&SerdeContainer>) -> bool {
-    !field_rule.map(|rule| rule.skip_serializing_if).unwrap_or(false)
+pub(crate) fn is_required(
+    field_rule: Option<&SerdeValue>,
+    container_rules: Option<&SerdeContainer>,
+) -> bool {
+    !field_rule
+        .map(|rule| rule.skip_serializing_if)
+        .unwrap_or(false)
         && !field_rule.map(|rule| rule.double_option).unwrap_or(false)
         && !is_default(&container_rules, &field_rule)
 }
@@ -265,9 +290,9 @@ impl Parse for ExternalDocs {
         let mut external_docs = ExternalDocs::default();
 
         while !input.is_empty() {
-            let ident = input
-                .parse::<Ident>()
-                .map_err(|error| syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))?;
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
+            })?;
             let attr_name = &*ident.to_string();
 
             match attr_name {
@@ -311,7 +336,10 @@ impl ToTokens for ExternalDocs {
 pub(crate) enum AnyValue {
     String(TokenStream),
     Json(TokenStream),
-    DefaultTrait { struct_ident: Ident, field_ident: Member },
+    DefaultTrait {
+        struct_ident: Ident,
+        field_ident: Member,
+    },
 }
 
 impl AnyValue {
@@ -342,7 +370,10 @@ impl AnyValue {
                 Ok(AnyValue::Json(json))
             } else {
                 let method = input.parse::<ExprPath>().map_err(|error| {
-                    syn::Error::new(error.span(), "expected literal value, json!(...) or method reference")
+                    syn::Error::new(
+                        error.span(),
+                        "expected literal value, json!(...) or method reference",
+                    )
                 })?;
 
                 Ok(AnyValue::Json(quote! { #method() }))

@@ -38,24 +38,32 @@ impl<'a> Operation<'a> {
             .and_then(|comments| comments.split_first())
             .map(|(summary, description)| {
                 // Skip all whitespace lines
-                let start_pos = description.iter().position(|s| !s.chars().all(char::is_whitespace));
+                let start_pos = description
+                    .iter()
+                    .position(|s| !s.chars().all(char::is_whitespace));
 
-                let trimmed = start_pos.and_then(|pos| description.get(pos..)).unwrap_or(description);
+                let trimmed = start_pos
+                    .and_then(|pos| description.get(pos..))
+                    .unwrap_or(description);
 
                 (summary, trimmed)
             });
 
-        let summary = attr
-            .summary
-            .as_ref()
-            .map(Summary::Value)
-            .or_else(|| split_comment.as_ref().map(|(summary, _)| Summary::Str(summary)));
-
-        let description = attr.description.as_ref().map(Description::Value).or_else(|| {
+        let summary = attr.summary.as_ref().map(Summary::Value).or_else(|| {
             split_comment
                 .as_ref()
-                .map(|(_, description)| Description::Vec(description))
+                .map(|(summary, _)| Summary::Str(summary))
         });
+
+        let description = attr
+            .description
+            .as_ref()
+            .map(Description::Value)
+            .or_else(|| {
+                split_comment
+                    .as_ref()
+                    .map(|(_, description)| Description::Vec(description))
+            });
 
         Self {
             deprecated: &attr.deprecated,
@@ -163,7 +171,8 @@ impl<'a> Operation<'a> {
                             }
                             ResponseTupleInner::Value(value) => {
                                 if let Some(content) = &value.response_type {
-                                    modifiers.append(&mut generate_register_schemas(&oapi, content));
+                                    modifiers
+                                        .append(&mut generate_register_schemas(&oapi, content));
                                 }
                             }
                         }

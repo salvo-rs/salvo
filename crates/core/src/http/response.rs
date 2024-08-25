@@ -135,7 +135,12 @@ impl Response {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
+    pub fn add_header<N, V>(
+        &mut self,
+        name: N,
+        value: V,
+        overwrite: bool,
+    ) -> crate::Result<&mut Self>
     where
         N: IntoHeaderName,
         V: TryInto<HeaderValue>,
@@ -430,25 +435,33 @@ impl Response {
                 chunks.push_back(data.into());
             }
             ResBody::Hyper(_) => {
-                tracing::error!("current body's kind is `ResBody::Hyper`, it is not allowed to write bytes");
+                tracing::error!(
+                    "current body's kind is `ResBody::Hyper`, it is not allowed to write bytes"
+                );
                 return Err(Error::other(
                     "current body's kind is `ResBody::Hyper`, it is not allowed to write bytes",
                 ));
             }
             ResBody::Boxed(_) => {
-                tracing::error!("current body's kind is `ResBody::Boxed`, it is not allowed to write bytes");
+                tracing::error!(
+                    "current body's kind is `ResBody::Boxed`, it is not allowed to write bytes"
+                );
                 return Err(Error::other(
                     "current body's kind is `ResBody::Boxed`, it is not allowed to write bytes",
                 ));
             }
             ResBody::Stream(_) => {
-                tracing::error!("current body's kind is `ResBody::Stream`, it is not allowed to write bytes");
+                tracing::error!(
+                    "current body's kind is `ResBody::Stream`, it is not allowed to write bytes"
+                );
                 return Err(Error::other(
                     "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
                 ));
             }
             ResBody::Channel { .. } => {
-                tracing::error!("current body's kind is `ResBody::Channel`, it is not allowed to write bytes");
+                tracing::error!(
+                    "current body's kind is `ResBody::Channel`, it is not allowed to write bytes"
+                );
                 return Err(Error::other(
                     "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));

@@ -28,7 +28,9 @@ impl<T> Deref for QueryParam<T, true> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().expect("`QueryParam<T, true>` defref get `None`")
+        self.0
+            .as_ref()
+            .expect("`QueryParam<T, true>` defref get `None`")
     }
 }
 impl<T> Deref for QueryParam<T, false> {
@@ -41,7 +43,9 @@ impl<T> Deref for QueryParam<T, false> {
 
 impl<T> DerefMut for QueryParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().expect("`QueryParam<T, true>` defref_mut get `None`")
+        self.0
+            .as_mut()
+            .expect("`QueryParam<T, true>` defref_mut get `None`")
     }
 }
 impl<T> DerefMut for QueryParam<T, false> {
@@ -76,7 +80,10 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.as_ref().expect("`QueryParam<T, true>` as_ref get `None`").fmt(f)
+        self.0
+            .as_ref()
+            .expect("`QueryParam<T, true>` as_ref get `None`")
+            .fmt(f)
     }
 }
 
@@ -94,9 +101,12 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req
-            .query(arg)
-            .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
+        let value = req.query(arg).ok_or_else(|| {
+            ParseError::other(format!(
+                "query parameter {} not found or convert to type failed",
+                arg
+            ))
+        })?;
         Ok(Self(value))
     }
 }
@@ -212,7 +222,8 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.queries_mut().insert("param".to_string(), "param".to_string());
+        req.queries_mut()
+            .insert("param".to_string(), "param".to_string());
         let result = QueryParam::<String, true>::extract_with_arg(&mut req, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
@@ -245,7 +256,8 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.queries_mut().insert("param".to_string(), "param".to_string());
+        req.queries_mut()
+            .insert("param".to_string(), "param".to_string());
         let result = QueryParam::<String, false>::extract_with_arg(&mut req, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }

@@ -10,7 +10,9 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
-use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
+use salvo_core::http::header::{
+    HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
+};
 use salvo_core::http::{self, mime, Mime, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
@@ -264,7 +266,11 @@ impl Compression {
         self
     }
 
-    fn negotiate(&self, req: &Request, res: &Response) -> Option<(CompressionAlgo, CompressionLevel)> {
+    fn negotiate(
+        &self,
+        req: &Request,
+        res: &Response,
+    ) -> Option<(CompressionAlgo, CompressionLevel)> {
         if req.headers().contains_key(&CONTENT_ENCODING) {
             return None;
         }
@@ -289,7 +295,10 @@ impl Compression {
                 return None;
             }
         }
-        let header = req.headers().get(ACCEPT_ENCODING).and_then(|v| v.to_str().ok())?;
+        let header = req
+            .headers()
+            .get(ACCEPT_ENCODING)
+            .and_then(|v| v.to_str().ok())?;
 
         let accept_algos = http::parse_accept_encoding(header)
             .into_iter()
@@ -302,7 +311,10 @@ impl Compression {
             })
             .collect::<Vec<_>>();
         if self.force_priority {
-            let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
+            let accept_algos = accept_algos
+                .into_iter()
+                .map(|(algo, _)| algo)
+                .collect::<Vec<_>>();
             self.algos
                 .iter()
                 .find(|(algo, _level)| accept_algos.contains(algo))
@@ -317,7 +329,13 @@ impl Compression {
 
 #[async_trait]
 impl Handler for Compression {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
             return;

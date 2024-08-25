@@ -30,7 +30,13 @@ impl StaticFile {
 #[async_trait]
 impl Handler for StaticFile {
     #[inline]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         match self.0.clone().build().await {
             Ok(file) => file.write(req, depot, res).await,
             Err(_) => {

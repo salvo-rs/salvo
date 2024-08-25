@@ -33,7 +33,12 @@ async fn main() {
     create_dir_all("temp").unwrap();
     let router = Router::new()
         .get(index)
-        .push(Router::new().hoop(max_concurrency(1)).path("limited").post(upload))
+        .push(
+            Router::new()
+                .hoop(max_concurrency(1))
+                .path("limited")
+                .post(upload),
+        )
         .push(Router::with_path("unlimit").post(upload));
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;

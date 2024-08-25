@@ -101,7 +101,9 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> DiagResult<impl Iterator<Item = TypeTree<'t>>> {
+    fn convert_types(
+        paths: Vec<TypeTreeValue<'t>>,
+    ) -> DiagResult<impl Iterator<Item = TypeTree<'t>>> {
         paths
             .into_iter()
             .map(|value| {
@@ -155,7 +157,10 @@ impl<'t> TypeTree<'t> {
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> DiagResult<TypeTree<'t>> {
+    fn resolve_schema_type(
+        path: &'t Path,
+        last_segment: &'t PathSegment,
+    ) -> DiagResult<TypeTree<'t>> {
         if last_segment.arguments.is_empty() {
             return Err(Diagnostic::spanned(
                 last_segment.ident.span(),
@@ -169,18 +174,24 @@ impl<'t> TypeTree<'t> {
         let mut generic_types = match &last_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed_args) => {
                 // if all type arguments are lifetimes we ignore the generic type
-                if angle_bracketed_args
-                    .args
-                    .iter()
-                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
-                {
+                if angle_bracketed_args.args.iter().all(|arg| {
+                    matches!(
+                        arg,
+                        GenericArgument::Lifetime(_) | GenericArgument::Const(_)
+                    )
+                }) {
                     None
                 } else {
                     Some(
                         angle_bracketed_args
                             .args
                             .iter()
-                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
+                            .filter(|arg| {
+                                !matches!(
+                                    arg,
+                                    GenericArgument::Lifetime(_) | GenericArgument::Const(_)
+                                )
+                            })
                             .map(|arg| match arg {
                                 GenericArgument::Type(arg) => Ok(arg),
                                 _ => Err(Diagnostic::spanned(

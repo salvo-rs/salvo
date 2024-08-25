@@ -6,7 +6,9 @@ use quote::quote;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Token, Type, TypePath, Variant};
+use syn::{
+    Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Token, Type, TypePath, Variant,
+};
 
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
@@ -14,8 +16,8 @@ use crate::schema::{EnumSchema, NamedStructSchema};
 use crate::{attribute, parse_utils, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
 use super::{
-    Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue, DeriveToResponsesValue,
-    ResponseTuple, ResponseValue,
+    Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue,
+    DeriveToResponsesValue, ResponseTuple, ResponseValue,
 };
 
 pub(crate) struct ToResponse<'a> {
@@ -33,9 +35,15 @@ impl<'a> ToResponse<'a> {
     ) -> DiagResult<ToResponse<'a>> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0,
+                Fields::Named(fields) => {
+                    ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0
+                }
                 Fields::Unnamed(fields) => {
-                    let field = fields.unnamed.iter().next().expect("unnamed struct must have 1 field");
+                    let field = fields
+                        .unnamed
+                        .iter()
+                        .next()
+                        .expect("unnamed struct must have 1 field");
                     ToResponseUnnamedStructResponse::new(attributes, &field.ty, &field.attrs)?.0
                 }
                 Fields::Unit => ToResponseUnitStructResponse::new(attributes)?.0,
@@ -100,15 +108,21 @@ impl TryToTokens for ToResponses<'_> {
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
-                    let response = NamedStructResponse::new(self.attributes, self.ident, &fields.named)?.0;
+                    let response =
+                        NamedStructResponse::new(self.attributes, self.ident, &fields.named)?.0;
                     let status_code = &response.status_code;
                     let response = response.try_to_token_stream()?;
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unnamed(fields) => {
-                    let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
+                    let field = fields
+                        .unnamed
+                        .iter()
+                        .next()
+                        .expect("Unnamed struct must have 1 field");
 
-                    let response = UnnamedStructResponse::new(self.attributes, &field.ty, &field.attrs)?.0;
+                    let response =
+                        UnnamedStructResponse::new(self.attributes, &field.ty, &field.attrs)?.0;
                     let status_code = &response.status_code;
                     let response = response.try_to_token_stream()?;
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
@@ -124,9 +138,12 @@ impl TryToTokens for ToResponses<'_> {
                 .variants
                 .iter()
                 .map(|variant| match &variant.fields {
-                    Fields::Named(fields) => {
-                        Ok(NamedStructResponse::new(&variant.attrs, &variant.ident, &fields.named)?.0)
-                    }
+                    Fields::Named(fields) => Ok(NamedStructResponse::new(
+                        &variant.attrs,
+                        &variant.ident,
+                        &fields.named,
+                    )?
+                    .0),
                     Fields::Unnamed(fields) => {
                         let field = fields
                             .unnamed
@@ -186,10 +203,13 @@ trait Response {
     }
 
     fn has_no_field_attributes(attr: &Attribute) -> (bool, &'static str) {
-        const ERROR: &str = "Unexpected field attribute, field attributes are only supported at unnamed fields";
+        const ERROR: &str =
+            "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
         if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
-            if let Ok(metas) = metas.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
+            if let Ok(metas) =
+                metas.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            {
                 for meta in metas {
                     if meta.path().is_ident("name") || meta.path().is_ident("content") {
                         return (false, ERROR);
@@ -207,7 +227,11 @@ trait Response {
         attributes.into_iter().filter_map(move |attribute| {
             let (valid, message) = validate(attribute);
             if !valid {
-                Some(Diagnostic::spanned(attribute.span(), DiagLevel::Error, message))
+                Some(Diagnostic::spanned(
+                    attribute.span(),
+                    DiagLevel::Error,
+                    message,
+                ))
             } else {
                 None
             }
@@ -220,10 +244,15 @@ struct UnnamedStructResponse<'u>(ResponseTuple<'u>);
 impl Response for UnnamedStructResponse<'_> {}
 
 impl<'u> UnnamedStructResponse<'u> {
-    fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> DiagResult<Self> {
+    fn new(
+        attributes: &[Attribute],
+        ty: &'u Type,
+        inner_attributes: &[Attribute],
+    ) -> DiagResult<Self> {
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().is_ident("salvo") && attribute::has_nested_path(attr, "response", "inline").unwrap_or(false)
+            if attr.path().is_ident("salvo")
+                && attribute::has_nested_path(attr, "response", "inline").unwrap_or(false)
             {
                 is_inline = true;
                 break;
@@ -239,12 +268,11 @@ impl<'u> UnnamedStructResponse<'u> {
         Ok(Self(
             (
                 status_code,
-                ResponseValue::from_derive_to_responses_value(derive_value, description).response_type(
-                    PathType::MediaType(InlineType {
+                ResponseValue::from_derive_to_responses_value(derive_value, description)
+                    .response_type(PathType::MediaType(InlineType {
                         ty: Cow::Borrowed(ty),
                         is_inline,
-                    }),
-                ),
+                    })),
             )
                 .into(),
         ))
@@ -256,7 +284,11 @@ struct NamedStructResponse<'n>(ResponseTuple<'n>);
 impl Response for NamedStructResponse<'_> {}
 
 impl NamedStructResponse<'_> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Token![,]>) -> DiagResult<Self> {
+    fn new(
+        attributes: &[Attribute],
+        ident: &Ident,
+        fields: &Punctuated<Field, Token![,]>,
+    ) -> DiagResult<Self> {
         if let Some(diag) = Self::validate_attributes(attributes, Self::has_no_field_attributes)
             .chain(Self::validate_attributes(
                 fields.iter().flat_map(|field| &field.attrs),
@@ -294,7 +326,10 @@ impl NamedStructResponse<'_> {
             (
                 status_code,
                 ResponseValue::from_derive_to_responses_value(derive_value, description)
-                    .response_type(PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty)),
+                    .response_type(PathType::InlineSchema(
+                        inline_schema.try_to_token_stream()?,
+                        ty,
+                    )),
             )
                 .into(),
         ))
@@ -307,7 +342,9 @@ impl Response for UnitStructResponse<'_> {}
 
 impl UnitStructResponse<'_> {
     fn new(attributes: &[Attribute]) -> DiagResult<Self> {
-        if let Some(diagnostics) = Self::validate_attributes(attributes, Self::has_no_field_attributes).next() {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes).next()
+        {
             return Err(diagnostics);
         }
 
@@ -334,7 +371,11 @@ struct ToResponseNamedStructResponse<'p>(ResponseTuple<'p>);
 impl Response for ToResponseNamedStructResponse<'_> {}
 
 impl<'p> ToResponseNamedStructResponse<'p> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Token![,]>) -> DiagResult<Self> {
+    fn new(
+        attributes: &[Attribute],
+        ident: &Ident,
+        fields: &Punctuated<Field, Token![,]>,
+    ) -> DiagResult<Self> {
         if let Some(diag) = Self::validate_attributes(attributes, Self::has_no_field_attributes)
             .chain(Self::validate_attributes(
                 fields.iter().flat_map(|field| &field.attrs),
@@ -381,7 +422,11 @@ struct ToResponseUnnamedStructResponse<'c>(ResponseTuple<'c>);
 impl Response for ToResponseUnnamedStructResponse<'_> {}
 
 impl<'u> ToResponseUnnamedStructResponse<'u> {
-    fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> DiagResult<Self> {
+    fn new(
+        attributes: &[Attribute],
+        ty: &'u Type,
+        inner_attributes: &[Attribute],
+    ) -> DiagResult<Self> {
         if let Some(diag) = Self::validate_attributes(attributes, Self::has_no_field_attributes)
             .chain(Self::validate_attributes(inner_attributes, |attribute| {
                 const ERROR: &str = "Unexpected attribute, `content` is only supported on unnamed field enum variant";
@@ -404,7 +449,9 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().is_ident("salvo") && attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
+            if attr.path().is_ident("salvo")
+                && attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false)
+            {
                 is_inline = true;
                 break;
             }
@@ -434,7 +481,11 @@ struct EnumResponse<'r>(ResponseTuple<'r>);
 impl Response for EnumResponse<'_> {}
 
 impl<'r> EnumResponse<'r> {
-    fn new(ident: &Ident, variants: &'r Punctuated<Variant, Token![,]>, attributes: &[Attribute]) -> DiagResult<Self> {
+    fn new(
+        ident: &Ident,
+        variants: &'r Punctuated<Variant, Token![,]>,
+        attributes: &[Attribute],
+    ) -> DiagResult<Self> {
         if let Some(diag) = Self::validate_attributes(attributes, Self::has_no_field_attributes)
             .chain(Self::validate_attributes(
                 variants.iter().flat_map(|variant| &variant.attrs),
@@ -482,9 +533,18 @@ impl<'r> EnumResponse<'r> {
             description,
         });
         response_value.response_type = if contents.is_empty() {
-            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes, None, None)?;
+            let inline_schema = EnumSchema::new(
+                Cow::Owned(ident.to_string()),
+                variants,
+                attributes,
+                None,
+                None,
+            )?;
 
-            Some(PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty))
+            Some(PathType::InlineSchema(
+                inline_schema.try_to_token_stream()?,
+                ty,
+            ))
         } else {
             None
         };
@@ -494,7 +554,8 @@ impl<'r> EnumResponse<'r> {
     }
 
     fn parse_variant_attributes(variant: &Variant) -> DiagResult<VariantAttributes> {
-        let variant_derive_response_value = DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
+        let variant_derive_response_value =
+            DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
         // named enum variant should not have field attributes
         if let Fields::Named(named_fields) = &variant.fields {
             if let Some(diagnostic) = Self::validate_attributes(
@@ -513,7 +574,8 @@ impl<'r> EnumResponse<'r> {
         if let Some(attrs) = field.map(|f| &f.attrs) {
             for attr in attrs {
                 if attr.path().is_ident("salvo") {
-                    if let Some(metas) = attribute::find_nested_list(attr, "content").ok().flatten() {
+                    if let Some(metas) = attribute::find_nested_list(attr, "content").ok().flatten()
+                    {
                         content_type = Some(
                             metas
                                 .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
@@ -581,7 +643,9 @@ impl Response for ToResponseUnitStructResponse<'_> {}
 
 impl ToResponseUnitStructResponse<'_> {
     fn new(attributes: &[Attribute]) -> DiagResult<Self> {
-        if let Some(diag) = Self::validate_attributes(attributes, Self::has_no_field_attributes).next() {
+        if let Some(diag) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes).next()
+        {
             return Err(diag);
         }
 

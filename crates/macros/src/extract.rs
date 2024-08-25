@@ -4,7 +4,10 @@ use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{DeriveInput, Error, Expr, ExprLit, ExprPath, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
+use syn::{
+    DeriveInput, Error, Expr, ExprLit, ExprPath, Field, Generics, Lit, Meta, MetaNameValue, Token,
+    Type,
+};
 
 use crate::{
     attribute, omit_type_path_lifetimes, salvo_crate,
@@ -49,19 +52,27 @@ impl TryFrom<&Field> for FieldInfo {
         sources.dedup();
         aliases.dedup();
 
-        let (serde_rename, serde_flatten) =
-            if let Some(SerdeValue { rename, flatten, .. }) = serde_util::parse_value(&field.attrs) {
-                (rename, flatten)
-            } else {
-                (None, false)
-            };
+        let (serde_rename, serde_flatten) = if let Some(SerdeValue {
+            rename, flatten, ..
+        }) = serde_util::parse_value(&field.attrs)
+        {
+            (rename, flatten)
+        } else {
+            (None, false)
+        };
         let flatten = flatten.unwrap_or(serde_flatten);
         if flatten {
             if !sources.is_empty() {
-                return Err(Error::new_spanned(ident, "flatten field should not define souces."));
+                return Err(Error::new_spanned(
+                    ident,
+                    "flatten field should not define souces.",
+                ));
             }
             if !aliases.is_empty() {
-                return Err(Error::new_spanned(ident, "flatten field should not define aliases."));
+                return Err(Error::new_spanned(
+                    ident,
+                    "flatten field should not define aliases.",
+                ));
             }
         }
 
@@ -192,7 +203,8 @@ impl ExtractibleArgs {
         for attr in &attrs {
             if attr.path().is_ident("salvo") {
                 if let Ok(Some(metas)) = attribute::find_nested_list(attr, "extract") {
-                    let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
+                    let nested =
+                        metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
                     for meta in nested {
                         match meta {
                             Meta::List(meta) => {
@@ -202,7 +214,10 @@ impl ExtractibleArgs {
                             }
                             Meta::NameValue(meta) => {
                                 if meta.path.is_ident("rename_all") {
-                                    rename_all = Some(parse_path_or_lit_str(&meta.value)?.parse::<RenameRule>()?);
+                                    rename_all = Some(
+                                        parse_path_or_lit_str(&meta.value)?
+                                            .parse::<RenameRule>()?,
+                                    );
                                 }
                             }
                             _ => {}
@@ -225,7 +240,10 @@ impl ExtractibleArgs {
 }
 
 fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
-    let from = Ident::new(&RenameRule::PascalCase.apply_to_field(&source.from), Span::call_site());
+    let from = Ident::new(
+        &RenameRule::PascalCase.apply_to_field(&source.from),
+        Span::call_site(),
+    );
     let parser = if source.parser.to_lowercase() == "multimap" {
         Ident::new("MultiMap", Span::call_site())
     } else {
@@ -320,7 +338,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             }
         }
         if nested_metadata.is_some() && field.sources.len() > 1 {
-            return Err(Error::new_spanned(name, "Only one source can be from request."));
+            return Err(Error::new_spanned(
+                name,
+                "Only one source can be from request.",
+            ));
         }
         let aliases = field.aliases.iter().map(|alias| {
             quote! {
@@ -368,8 +389,8 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     };
     let life_param = args.generics.lifetimes().next();
     let code = if let Some(life_param) = life_param {
-        let ex_life_def =
-            syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime)).expect("Invalid lifetime.");
+        let ex_life_def = syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime))
+            .expect("Invalid lifetime.");
         let mut generics = args.generics.clone();
         generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
@@ -408,7 +429,9 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
 
 fn parse_path_or_lit_str(expr: &Expr) -> syn::Result<String> {
     match expr {
-        Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(s.value()),
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) => Ok(s.value()),
         Expr::Path(ExprPath { path, .. }) => Ok(path.require_ident()?.to_string()),
         _ => Err(Error::new_spanned(expr, "invalid indent or lit str")),
     }

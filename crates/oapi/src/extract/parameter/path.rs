@@ -75,9 +75,12 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req
-            .param(arg)
-            .ok_or_else(|| ParseError::other(format!("path parameter {} not found or convert to type failed", arg)))?;
+        let value = req.param(arg).ok_or_else(|| {
+            ParseError::other(format!(
+                "path parameter {} not found or convert to type failed",
+                arg
+            ))
+        })?;
         Ok(Self(value))
     }
 }

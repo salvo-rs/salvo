@@ -4,8 +4,8 @@ use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    pop_feature, AdditionalProperties, Description, Feature, FeaturesExt, IsInline, Minimum, Nullable, TryToTokensExt,
-    Validatable,
+    pop_feature, AdditionalProperties, Description, Feature, FeaturesExt, IsInline, Minimum,
+    Nullable, TryToTokensExt, Validatable,
 };
 use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
@@ -78,14 +78,16 @@ impl<'c> ComponentSchema {
                     deprecated_stream,
                 )?
             }
-            Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
+            Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description,
+                    deprecated_stream,
+                )?
+            }
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -97,7 +99,10 @@ impl<'c> ComponentSchema {
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
-                if !features.iter().any(|feature| matches!(feature, Feature::Nullable(_))) {
+                if !features
+                    .iter()
+                    .any(|feature| matches!(feature, Feature::Nullable(_)))
+                {
                     features.push(Nullable::new().into());
                 }
 
@@ -116,7 +121,13 @@ impl<'c> ComponentSchema {
                 })?
                 .to_tokens(&mut tokens);
             }
-            Some(GenericType::Cow | GenericType::Box | GenericType::Arc | GenericType::Rc | GenericType::RefCell) => {
+            Some(
+                GenericType::Cow
+                | GenericType::Box
+                | GenericType::Arc
+                | GenericType::Rc
+                | GenericType::RefCell,
+            ) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
@@ -146,12 +157,17 @@ impl<'c> ComponentSchema {
     }
 
     /// Create `.schema_type(...)` override token stream if nullable is true from given [`SchemaTypeInner`].
-    fn get_schema_type_override(nullable: Option<Nullable>, schema_type_inner: SchemaTypeInner) -> Option<TokenStream> {
+    fn get_schema_type_override(
+        nullable: Option<Nullable>,
+        schema_type_inner: SchemaTypeInner,
+    ) -> Option<TokenStream> {
         if let Some(nullable) = nullable {
             let nullable_schema_type = nullable.into_schema_type_token_stream();
             let schema_type = if nullable.value() && !nullable_schema_type.is_empty() {
                 let oapi = crate::oapi_crate();
-                Some(quote! { #oapi::oapi::schema::SchemaType::from_iter([#schema_type_inner, #nullable_schema_type]) })
+                Some(
+                    quote! { #oapi::oapi::schema::SchemaType::from_iter([#schema_type_inner, #nullable_schema_type]) },
+                )
             } else {
                 None
             };
@@ -173,7 +189,8 @@ impl<'c> ComponentSchema {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
-        let nullable: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
+        let nullable: Option<Nullable> =
+            pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
@@ -204,7 +221,8 @@ impl<'c> ComponentSchema {
                 Ok::<_, Diagnostic>(Some(quote! { .additional_properties(#schema_property) }))
             })?;
 
-        let schema_type = ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
+        let schema_type =
+            ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
 
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
@@ -234,7 +252,8 @@ impl<'c> ComponentSchema {
         let xml = features.extract_vec_xml_feature(type_tree);
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
-        let nullable: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
+        let nullable: Option<Nullable> =
+            pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
@@ -264,7 +283,8 @@ impl<'c> ComponentSchema {
             },
             false => quote! {},
         };
-        let schema_type = ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Array);
+        let schema_type =
+            ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Array);
 
         let schema = quote! {
             #oapi::oapi::schema::Array::new().items(#component_schema)
@@ -277,7 +297,9 @@ impl<'c> ComponentSchema {
             let type_path = &**type_tree.path.as_ref().expect("path should not be `None`");
             let schema_type = SchemaType {
                 path: type_path,
-                nullable: nullable.map(|nullable| nullable.value()).unwrap_or_default(),
+                nullable: nullable
+                    .map(|nullable| nullable.value())
+                    .unwrap_or_default(),
             };
             feature.validate(&schema_type, type_tree)
         };
@@ -320,8 +342,11 @@ impl<'c> ComponentSchema {
         deprecated_stream: Option<TokenStream>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let nullable_feat: Option<Nullable> = pop_feature!(features => Feature::Nullable(_)).into_inner();
-        let nullable = nullable_feat.map(|nullable| nullable.value()).unwrap_or_default();
+        let nullable_feat: Option<Nullable> =
+            pop_feature!(features => Feature::Nullable(_)).into_inner();
+        let nullable = nullable_feat
+            .map(|nullable| nullable.value())
+            .unwrap_or_default();
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -333,7 +358,10 @@ impl<'c> ComponentSchema {
                 if schema_type.is_unsigned_integer() {
                     // add default minimum feature only when there is no explicit minimum
                     // provided
-                    if !features.iter().any(|feature| matches!(&feature, Feature::Minimum(_))) {
+                    if !features
+                        .iter()
+                        .any(|feature| matches!(&feature, Feature::Minimum(_)))
+                    {
                         features.push(Minimum::new(0f64, type_path.span()).into());
                     }
                 }
@@ -376,8 +404,10 @@ impl<'c> ComponentSchema {
 
                 if type_tree.is_object() {
                     let oapi = crate::oapi_crate();
-                    let nullable_schema_type =
-                        ComponentSchema::get_schema_type_override(nullable_feat, SchemaTypeInner::Object);
+                    let nullable_schema_type = ComponentSchema::get_schema_type_override(
+                        nullable_feat,
+                        SchemaTypeInner::Object,
+                    );
                     tokens.extend(quote! {
                         #oapi::oapi::Object::new()
                             #nullable_schema_type
@@ -471,8 +501,10 @@ impl<'c> ComponentSchema {
                                 all_of
                             },
                         );
-                        let nullable_schema_type =
-                            ComponentSchema::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
+                        let nullable_schema_type = ComponentSchema::get_schema_type_override(
+                            nullable_feat,
+                            SchemaTypeInner::Array,
+                        );
                         quote! {
                             #oapi::oapi::schema::Array::new().items(#all_of)
                                 #nullable_schema_type

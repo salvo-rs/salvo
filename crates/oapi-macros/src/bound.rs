@@ -23,7 +23,10 @@ pub(crate) fn without_defaults(generics: &syn::Generics) -> syn::Generics {
     }
 }
 
-pub(crate) fn with_where_predicates(generics: &syn::Generics, predicates: &[syn::WherePredicate]) -> syn::Generics {
+pub(crate) fn with_where_predicates(
+    generics: &syn::Generics,
+    predicates: &[syn::WherePredicate],
+) -> syn::Generics {
     let mut generics = generics.clone();
     generics
         .make_where_clause()
@@ -199,7 +202,10 @@ pub(crate) fn with_bound(
         fn visit_macro(&mut self, _mac: &'ast syn::Macro) {}
     }
 
-    let all_type_params = generics.type_params().map(|param| param.ident.clone()).collect();
+    let all_type_params = generics
+        .type_params()
+        .map(|param| param.ident.clone())
+        .collect();
 
     let mut visitor = FindTyParams {
         all_type_params,
@@ -243,6 +249,9 @@ pub(crate) fn with_bound(
         });
 
     let mut generics = generics.clone();
-    generics.make_where_clause().predicates.extend(new_predicates);
+    generics
+        .make_where_clause()
+        .predicates
+        .extend(new_predicates);
     generics
 }

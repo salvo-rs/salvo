@@ -48,9 +48,12 @@ impl Parse for Examples {
         parenthesized!(examples in input);
 
         Ok(Self(
-            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(&examples, AnyValue::parse_any)?
-                .into_iter()
-                .collect(),
+            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(
+                &examples,
+                AnyValue::parse_any,
+            )?
+            .into_iter()
+            .collect(),
         ))
     }
 }
@@ -126,7 +129,10 @@ pub(crate) struct XmlAttr(pub(crate) schema::XmlAttr);
 impl XmlAttr {
     /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
     /// one is for a vec and second one is for object field.
-    pub(crate) fn split_for_vec(&mut self, type_tree: &TypeTree) -> DiagResult<(Option<XmlAttr>, Option<XmlAttr>)> {
+    pub(crate) fn split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> DiagResult<(Option<XmlAttr>, Option<XmlAttr>)> {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
             let mut value_xml = mem::take(self);
             let vec_xml = schema::XmlAttr::with_wrapped(
@@ -797,7 +803,8 @@ impl Parse for Pattern {
     where
         Self: Sized,
     {
-        parse_utils::parse_next(input, || input.parse::<LitStr>()).map(|pattern| Self(pattern.value(), ident))
+        parse_utils::parse_next(input, || input.parse::<LitStr>())
+            .map(|pattern| Self(pattern.value(), ident))
     }
 }
 impl ToTokens for Pattern {

@@ -268,7 +268,13 @@ pub struct CorsHandler(Cors);
 
 #[async_trait]
 impl Handler for CorsHandler {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let origin = req.headers().get(&header::ORIGIN);
 
         let mut headers = HeaderMap::new();
@@ -370,7 +376,9 @@ mod tests {
         assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_some());
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_some());
 
-        let res = TestClient::options("https://google.com").send(&service).await;
+        let res = TestClient::options("https://google.com")
+            .send(&service)
+            .await;
         let headers = res.headers();
         assert!(
             headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none(),

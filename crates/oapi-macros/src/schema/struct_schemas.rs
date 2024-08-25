@@ -8,13 +8,14 @@ use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, 
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt, IsSkipped, Name, RenameAll,
-    SkipBound, TryToTokensExt,
+    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt,
+    IsSkipped, Name, RenameAll, SkipBound, TryToTokensExt,
 };
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
 use crate::{
-    serde_util, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue, TryToTokens,
+    serde_util, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer,
+    SerdeValue, TryToTokens,
 };
 
 use super::{
@@ -59,34 +60,48 @@ impl NamedStructSchema<'_> {
     ) -> DiagResult<NamedStructFieldOptions<'_>> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
 
-        let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>()?.into_inner();
+        let mut field_features = field
+            .attrs
+            .parse_features::<NamedFieldFeatures>()?
+            .into_inner();
 
         let schema_default = self
             .features
             .as_ref()
             .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
             .unwrap_or(false);
-        let serde_default = container_rules.as_ref().map(|rules| rules.is_default).unwrap_or(false);
+        let serde_default = container_rules
+            .as_ref()
+            .map(|rules| rules.is_default)
+            .unwrap_or(false);
 
         if schema_default || serde_default {
             let features_inner = field_features.get_or_insert(vec![]);
-            if !features_inner.iter().any(|f| matches!(f, Feature::Default(_))) {
-                let field_ident = field.ident.as_ref().expect("field ident shoule be exist").to_owned();
+            if !features_inner
+                .iter()
+                .any(|f| matches!(f, Feature::Default(_)))
+            {
+                let field_ident = field
+                    .ident
+                    .as_ref()
+                    .expect("field ident shoule be exist")
+                    .to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
-                features_inner.push(Feature::Default(crate::feature::Default::new_default_trait(
-                    struct_ident,
-                    field_ident.into(),
-                )));
+                features_inner.push(Feature::Default(
+                    crate::feature::Default::new_default_trait(struct_ident, field_ident.into()),
+                ));
             }
         }
 
-        let rename_field = pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
-            Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
-            _ => None,
-        });
+        let rename_field =
+            pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
+                Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
+                _ => None,
+            });
 
         let deprecated = crate::get_deprecated(&field.attrs).or_else(|| {
-            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature {
+            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature
+            {
                 Feature::Deprecated(_) => Some(Deprecated::True),
                 _ => None,
             })
@@ -165,7 +180,11 @@ impl TryToTokens for NamedStructSchema<'_> {
 
         let mut object_tokens = quote! { #oapi::oapi::Object::new() };
         for (field, field_rule) in field_values {
-            let mut field_name = &*field.ident.as_ref().expect("field ident shoule be exists").to_string();
+            let mut field_name = &*field
+                .ident
+                .as_ref()
+                .expect("field ident shoule be exists")
+                .to_string();
 
             if field_name.starts_with("r#") {
                 field_name = &field_name[2..];
@@ -184,17 +203,22 @@ impl TryToTokens for NamedStructSchema<'_> {
             let rename_all = container_rules
                 .as_ref()
                 .and_then(|container_rule| container_rule.rename_all.as_ref())
-                .or_else(|| self.rename_all.as_ref().map(|rename_all| rename_all.as_rename_rule()));
+                .or_else(|| {
+                    self.rename_all
+                        .as_ref()
+                        .map(|rename_all| rename_all.as_rename_rule())
+                });
 
-            let name =
-                crate::rename::<FieldRename>(field_name, rename_to, rename_all).unwrap_or(Cow::Borrowed(field_name));
+            let name = crate::rename::<FieldRename>(field_name, rename_to, rename_all)
+                .unwrap_or(Cow::Borrowed(field_name));
 
             let property = property.try_to_token_stream()?;
             object_tokens.extend(quote! {
                 .property(#name, #property)
             });
 
-            let component_required = !is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref());
+            let component_required =
+                !is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref());
             let required = match (required, component_required) {
                 (Some(required), _) => required.is_true(),
                 (None, component_required) => component_required,
@@ -232,7 +256,8 @@ impl TryToTokens for NamedStructSchema<'_> {
                     Property::FlattenedMap(_) => match flattened_map_field {
                         None => {
                             let property = property.try_to_token_stream()?;
-                            object_tokens.extend(quote! { .additional_properties(Some(#property)) });
+                            object_tokens
+                                .extend(quote! { .additional_properties(Some(#property)) });
                             flattened_map_field = Some(field);
                         }
                         Some(flattened_map_field) => {
@@ -362,13 +387,14 @@ impl TryToTokens for UnnamedStructSchema<'_> {
 
                     features.extend(inline);
 
-                    if pop_feature!(features => Feature::Default(crate::feature::Default(None))).is_some() {
+                    if pop_feature!(features => Feature::Default(crate::feature::Default(None)))
+                        .is_some()
+                    {
                         let struct_ident = format_ident!("{}", &self.struct_name);
                         let index: syn::Index = 0.into();
-                        features.push(Feature::Default(crate::feature::Default::new_default_trait(
-                            struct_ident,
-                            index.into(),
-                        )));
+                        features.push(Feature::Default(
+                            crate::feature::Default::new_default_trait(struct_ident, index.into()),
+                        ));
                     }
                 }
             }

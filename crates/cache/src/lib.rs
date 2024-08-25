@@ -44,7 +44,11 @@ pub trait CacheIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request. If it returns `None`, the request will not be cached.
-    fn issue(&self, req: &mut Request, depot: &Depot) -> impl Future<Output = Option<Self::Key>> + Send;
+    fn issue(
+        &self,
+        req: &mut Request,
+        depot: &Depot,
+    ) -> impl Future<Output = Option<Self::Key>> + Send;
 }
 impl<F, K> CacheIssuer for F
 where
@@ -153,7 +157,11 @@ pub trait CacheStore: Send + Sync + 'static {
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
     /// Save the cache item from the store.
-    fn save_entry(&self, key: Self::Key, data: CachedEntry) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    fn save_entry(
+        &self,
+        key: Self::Key,
+        data: CachedEntry,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// `CachedBody` is used to save response body to `CachedStore`.
@@ -207,7 +215,11 @@ pub struct CachedEntry {
 impl CachedEntry {
     /// Create a new `CachedEntry`.
     pub fn new(status: Option<StatusCode>, headers: HeaderMap, body: CachedBody) -> Self {
-        Self { status, headers, body }
+        Self {
+            status,
+            headers,
+            body,
+        }
     }
 
     /// Get the response status.
@@ -279,7 +291,13 @@ where
     S: CacheStore<Key = I::Key>,
     I: CacheIssuer,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if self.skipper.skipped(req, depot) {
             return;
         }
@@ -309,7 +327,11 @@ where
                 return;
             }
         };
-        let CachedEntry { status, headers, body } = cache;
+        let CachedEntry {
+            status,
+            headers,
+            body,
+        } = cache;
         if let Some(status) = status {
             res.status_code(status);
         }
@@ -328,7 +350,10 @@ mod tests {
 
     #[handler]
     async fn cached() -> String {
-        format!("Hello World, my birth time is {}", OffsetDateTime::now_utc())
+        format!(
+            "Hello World, my birth time is {}",
+            OffsetDateTime::now_utc()
+        )
     }
 
     #[tokio::test]
@@ -342,19 +367,25 @@ mod tests {
         let router = Router::new().hoop(cache).goal(cached);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content0 = res.take_string().await.unwrap();
 
-        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content1 = res.take_string().await.unwrap();
         assert_eq!(content0, content1);
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
-        let mut res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
+        let mut res = TestClient::post("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
         let content2 = res.take_string().await.unwrap();
 
         assert_ne!(content0, content2);

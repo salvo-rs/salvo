@@ -23,7 +23,11 @@ fn route() -> Router {
         .hoop(size_limiter::max_size(1024 * 16))
         .get(list_todos)
         .post(create_todo)
-        .push(Router::with_path("<id>").put(update_todo).delete(delete_todo))
+        .push(
+            Router::with_path("<id>")
+                .put(update_todo)
+                .delete(delete_todo),
+        )
 }
 
 #[handler]

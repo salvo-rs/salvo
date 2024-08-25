@@ -102,7 +102,11 @@ impl HttpBuilder {
         match version {
             Version::HTTP_10 | Version::HTTP_11 => {
                 #[cfg(not(feature = "http1"))]
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "http1 feature not enabled").into());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "http1 feature not enabled",
+                )
+                .into());
                 #[cfg(feature = "http1")]
                 {
                     let mut conn = self
@@ -163,7 +167,11 @@ impl HttpBuilder {
             }
             Version::HTTP_2 => {
                 #[cfg(not(feature = "http2"))]
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "http2 feature not enabled").into());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "http2 feature not enabled",
+                )
+                .into());
                 #[cfg(feature = "http2")]
                 {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
@@ -305,7 +313,11 @@ impl<T> AsyncRead for Rewind<T>
 where
     T: AsyncRead + Unpin,
 {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<IoResult<()>> {
         if let Some(mut prefix) = self.pre.take() {
             // If there are no remaining bytes, let the bytes get dropped.
             if !prefix.is_empty() {
@@ -328,7 +340,11 @@ impl<T> AsyncWrite for Rewind<T>
 where
     T: AsyncWrite + Unpin,
 {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
         Pin::new(&mut self.inner).poll_write(cx, buf)
     }
 

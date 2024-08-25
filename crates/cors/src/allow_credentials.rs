@@ -13,7 +13,8 @@ use salvo_core::{Depot, Request};
 #[must_use]
 pub struct AllowCredentials(AllowCredentialsInner);
 
-type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
+type JudgeFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
 impl AllowCredentials {
     /// Allow credentials for all requests
     ///

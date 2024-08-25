@@ -11,11 +11,17 @@ async fn home() -> Text<&'static str> {
 }
 #[handler]
 async fn short() -> String {
-    format!("Hello World, my birth time is {}", OffsetDateTime::now_utc())
+    format!(
+        "Hello World, my birth time is {}",
+        OffsetDateTime::now_utc()
+    )
 }
 #[handler]
 async fn long() -> String {
-    format!("Hello World, my birth time is {}", OffsetDateTime::now_utc())
+    format!(
+        "Hello World, my birth time is {}",
+        OffsetDateTime::now_utc()
+    )
 }
 
 #[tokio::main]
@@ -23,11 +29,15 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let short_cache = Cache::new(
-        MokaStore::builder().time_to_live(Duration::from_secs(5)).build(),
+        MokaStore::builder()
+            .time_to_live(Duration::from_secs(5))
+            .build(),
         RequestIssuer::default(),
     );
     let long_cache = Cache::new(
-        MokaStore::builder().time_to_live(Duration::from_secs(60)).build(),
+        MokaStore::builder()
+            .time_to_live(Duration::from_secs(60))
+            .build(),
         RequestIssuer::default(),
     );
     let router = Router::new()

@@ -47,7 +47,9 @@ impl Depot {
     /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
     #[inline]
     pub fn new() -> Depot {
-        Depot { map: HashMap::new() }
+        Depot {
+            map: HashMap::new(),
+        }
     }
 
     /// Get reference to depot inner map.
@@ -92,7 +94,9 @@ impl Depot {
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn obtain_mut<T: Any + Send + Sync>(&mut self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
+    pub fn obtain_mut<T: Any + Send + Sync>(
+        &mut self,
+    ) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
         self.get_mut(&type_key::<T>())
     }
 
@@ -125,7 +129,10 @@ impl Depot {
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Result<&V, Option<&Box<dyn Any + Send + Sync>>> {
+    pub fn get<V: Any + Send + Sync>(
+        &self,
+        key: &str,
+    ) -> Result<&V, Option<&Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.get(key) {
             value.downcast_ref::<V>().ok_or(Some(value))
         } else {
@@ -143,7 +150,9 @@ impl Depot {
     ) -> Result<&mut V, Option<&mut Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.get_mut(key) {
             if value.downcast_mut::<V>().is_some() {
-                Ok(value.downcast_mut::<V>().expect("downcast_mut shuold not be failed"))
+                Ok(value
+                    .downcast_mut::<V>()
+                    .expect("downcast_mut shuold not be failed"))
             } else {
                 Err(Some(value))
             }
@@ -154,7 +163,10 @@ impl Depot {
 
     /// Remove value from depot and returning the value at the key if the key was previously in the depot.
     #[inline]
-    pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
+    pub fn remove<V: Any + Send + Sync>(
+        &mut self,
+        key: &str,
+    ) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.remove(key) {
             value.downcast::<V>().map(|b| *b).map_err(Some)
         } else {
@@ -170,14 +182,18 @@ impl Depot {
 
     /// Remove value from depot and returning the value if the type was previously in the depot.
     #[inline]
-    pub fn scrape<T: Any + Send + Sync>(&mut self) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
+    pub fn scrape<T: Any + Send + Sync>(
+        &mut self,
+    ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
         self.remove(&type_key::<T>())
     }
 }
 
 impl fmt::Debug for Depot {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Depot").field("keys", &self.map.keys()).finish()
+        f.debug_struct("Depot")
+            .field("keys", &self.map.keys())
+            .finish()
     }
 }
 
@@ -197,19 +213,30 @@ mod test {
         assert!(depot.contains_key("one"));
 
         assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
-        assert_eq!(depot.get_mut::<String>("one").unwrap(), &mut "ONE".to_owned());
+        assert_eq!(
+            depot.get_mut::<String>("one").unwrap(),
+            &mut "ONE".to_owned()
+        );
     }
 
     #[tokio::test]
     async fn test_middleware_use_depot() {
         #[handler]
-        async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn set_user(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
             depot.insert("user", "client");
             ctrl.call_next(req, depot, res).await;
         }
         #[handler]
         async fn hello(depot: &mut Depot) -> String {
-            format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
+            format!(
+                "Hello {}",
+                depot.get::<&str>("user").copied().unwrap_or_default()
+            )
         }
         let router = Router::new().hoop(set_user).goal(hello);
         let service = Service::new(router);

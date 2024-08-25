@@ -254,8 +254,8 @@ where
             key,
             fallback_keys,
         } = self;
-        let hmac =
-            Hmac::<Sha256>::new_from_slice(key.signing()).map_err(|_| Error::Other("invalid key length".into()))?;
+        let hmac = Hmac::<Sha256>::new_from_slice(key.signing())
+            .map_err(|_| Error::Other("invalid key length".into()))?;
         let fallback_hmacs = fallback_keys
             .iter()
             .map(|key| Hmac::<Sha256>::new_from_slice(key.signing()))
@@ -308,7 +308,13 @@ impl<S> Handler for SessionHandler<S>
 where
     S: SessionStore,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let cookie = req.cookies().get(&self.cookie_name);
         let cookie_value = cookie.and_then(|cookie| self.verify_signature(cookie.value()).ok());
 
@@ -363,7 +369,9 @@ where
             None => None,
         };
 
-        session.and_then(|session| session.validate()).unwrap_or_default()
+        session
+            .and_then(|session| session.validate())
+            .unwrap_or_default()
     }
     // the following is reused verbatim from
     // https://github.com/SergioBenitez/cookie-rs/blob/master/src/secure/signed.rs#L51-L66
@@ -372,12 +380,15 @@ where
     /// an `Err` with a string describing the issue.
     fn verify_signature(&self, cookie_value: &str) -> Result<String, Error> {
         if cookie_value.len() < BASE64_DIGEST_LEN {
-            return Err(Error::Other("length of value is <= BASE64_DIGEST_LEN".into()));
+            return Err(Error::Other(
+                "length of value is <= BASE64_DIGEST_LEN".into(),
+            ));
         }
 
         // Split [MAC | original-value] into its two parts.
         let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
-        let digest = base64::decode(digest_str).map_err(|_| Error::Other("bad base64 digest".into()))?;
+        let digest =
+            base64::decode(digest_str).map_err(|_| Error::Other("bad base64 digest".into()))?;
 
         // Perform the verification.
         let mut hmac = self.hmac.clone();
@@ -521,10 +532,14 @@ mod tests {
             .await;
         assert_eq!(respone.take_string().await.unwrap(), "salvo");
 
-        let respone = TestClient::get("http://127.0.0.1:5800/logout").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/logout")
+            .send(&service)
+            .await;
         assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
 
-        let mut respone = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        let mut respone = TestClient::get("http://127.0.0.1:5800/")
+            .send(&service)
+            .await;
         assert_eq!(respone.take_string().await.unwrap(), "home");
     }
 }

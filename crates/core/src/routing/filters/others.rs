@@ -41,7 +41,10 @@ pub struct SchemeFilter {
 impl SchemeFilter {
     /// Create a new `SchemeFilter`.
     pub fn new(scheme: Scheme) -> Self {
-        Self { scheme, lack: false }
+        Self {
+            scheme,
+            lack: false,
+        }
     }
     /// Set lack value and return `Self`.
     pub fn lack(mut self, lack: bool) -> Self {
@@ -52,7 +55,10 @@ impl SchemeFilter {
 impl Filter for SchemeFilter {
     #[inline]
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        req.uri().scheme().map(|s| s == &self.scheme).unwrap_or(self.lack)
+        req.uri()
+            .scheme()
+            .map(|s| s == &self.scheme)
+            .unwrap_or(self.lack)
     }
 }
 impl fmt::Debug for SchemeFilter {

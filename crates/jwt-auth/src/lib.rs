@@ -107,7 +107,9 @@
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
-pub use jsonwebtoken::{decode, errors::Error as JwtError, Algorithm, DecodingKey, TokenData, Validation};
+pub use jsonwebtoken::{
+    decode, errors::Error as JwtError, Algorithm, DecodingKey, TokenData, Validation,
+};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
@@ -319,7 +321,13 @@ where
     C: DeserializeOwned + Send + Sync + 'static,
     D: JwtAuthDecoder + Send + Sync + 'static,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         let token = self.find_token(req).await;
         if let Some(token) = token {
             match self.decoder.decode::<C>(&token, depot).await {
@@ -365,8 +373,8 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF"))
-            .finders(vec![
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF")).finders(vec![
                 Box::new(HeaderFinder::new()),
                 Box::new(QueryFinder::new("jwt_token")),
                 Box::new(CookieFinder::new("jwt_token")),

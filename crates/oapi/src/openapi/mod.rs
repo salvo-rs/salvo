@@ -40,7 +40,8 @@ pub use self::{
     request_body::RequestBody,
     response::{Response, Responses},
     schema::{
-        Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, Schemas, ToArray,
+        Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat,
+        SchemaType, Schemas, ToArray,
     },
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
@@ -49,7 +50,8 @@ pub use self::{
 };
 use crate::{routing::NormNode, Endpoint};
 
-static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
+static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
 
 /// The structure of the internal storage object paths.
 #[cfg(not(feature = "preserve-path-order"))]
@@ -279,20 +281,30 @@ impl OpenApi {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
-    pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn extend_security_schemes<
+        I: IntoIterator<Item = (N, S)>,
+        N: Into<String>,
+        S: Into<SecurityScheme>,
+    >(
         mut self,
         schemas: I,
     ) -> Self {
-        self.components
-            .security_schemes
-            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+        self.components.security_schemes.extend(
+            schemas
+                .into_iter()
+                .map(|(name, item)| (name.into(), item.into())),
+        );
         self
     }
 
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
-    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(
+        mut self,
+        name: S,
+        schema: I,
+    ) -> Self {
         self.components.schemas.insert(name, schema);
         self
     }
@@ -320,20 +332,32 @@ impl OpenApi {
         C: Into<RefOr<Schema>>,
         S: Into<String>,
     {
-        self.components
-            .schemas
-            .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
+        self.components.schemas.extend(
+            schemas
+                .into_iter()
+                .map(|(name, schema)| (name.into(), schema.into())),
+        );
         self
     }
 
     /// Add a new response and returns `self`.
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, name: S, response: R) -> Self {
-        self.components.responses.insert(name.into(), response.into());
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        name: S,
+        response: R,
+    ) -> Self {
+        self.components
+            .responses
+            .insert(name.into(), response.into());
         self
     }
 
     /// Extends responses with the contents of an iterator.
-    pub fn extend_responses<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
+    pub fn extend_responses<
+        I: IntoIterator<Item = (S, R)>,
+        S: Into<String>,
+        R: Into<RefOr<Response>>,
+    >(
         mut self,
         responses: I,
     ) -> Self {
@@ -410,7 +434,12 @@ impl OpenApi {
                 captures
                     .iter()
                     .skip(1)
-                    .map(|capture| capture.expect("Regex captures should not be None.").as_str().to_owned())
+                    .map(|capture| {
+                        capture
+                            .expect("Regex captures should not be None.")
+                            .as_str()
+                            .to_owned()
+                    })
                     .next()
             })
             .collect::<Vec<_>>();
@@ -422,7 +451,9 @@ impl OpenApi {
                     ..
                 } = (creator)();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
-                operation.securities.extend(node.metadata.securities.iter().cloned());
+                operation
+                    .securities
+                    .extend(node.metadata.securities.iter().cloned());
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
                 } else {
@@ -437,7 +468,10 @@ impl OpenApi {
                     .parameters
                     .0
                     .iter()
-                    .filter(|p| p.parameter_in == ParameterIn::Path && !path_parameter_names.contains(&p.name))
+                    .filter(|p| {
+                        p.parameter_in == ParameterIn::Path
+                            && !path_parameter_names.contains(&p.name)
+                    })
                     .map(|p| &p.name)
                     .collect::<Vec<_>>();
                 if !not_exist_parameters.is_empty() {
@@ -448,7 +482,8 @@ impl OpenApi {
                     .filter(|name| {
                         !name.starts_with('*')
                             && !operation.parameters.0.iter().any(|parameter| {
-                                parameter.name == **name && parameter.parameter_in == ParameterIn::Path
+                                parameter.name == **name
+                                    && parameter.parameter_in == ParameterIn::Path
                             })
                     })
                     .collect::<Vec<_>>();
@@ -460,7 +495,11 @@ impl OpenApi {
                     if let btree_map::Entry::Vacant(e) = path_item.operations.entry(method) {
                         e.insert(operation.clone());
                     } else {
-                        tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
+                        tracing::warn!(
+                            "path `{}` already contains operation for method `{:?}`",
+                            path,
+                            method
+                        );
                     }
                 }
                 self.components.append(&mut components);
@@ -481,7 +520,11 @@ impl Handler for OpenApi {
         res: &mut salvo_core::Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
+        let pretty = req
+            .queries()
+            .get("pretty")
+            .map(|v| &**v != "false")
+            .unwrap_or(false);
         let content = if pretty {
             self.to_pretty_json().unwrap_or_default()
         } else {
@@ -526,13 +569,19 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             where
                 E: Error,
             {
-                let version = v.split('.').flat_map(|digit| digit.parse::<i8>()).collect::<Vec<_>>();
+                let version = v
+                    .split('.')
+                    .flat_map(|digit| digit.parse::<i8>())
+                    .collect::<Vec<_>>();
 
                 if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
                     Ok(OpenApiVersion::Version3_1)
                 } else {
                     let expected: &dyn Expected = &"3.1.0";
-                    Err(Error::invalid_value(serde::de::Unexpected::Str(&v), expected))
+                    Err(Error::invalid_value(
+                        serde::de::Unexpected::Str(&v),
+                        expected,
+                    ))
                 }
             }
         }
@@ -828,7 +877,8 @@ mod tests {
                         "/ap/v2/user",
                         PathItem::new(
                             PathItemType::Get,
-                            Operation::new().add_response("200", Response::new("Get user success 2")),
+                            Operation::new()
+                                .add_response("200", Response::new("Get user success 2")),
                         ),
                     )
                     .path(
@@ -1081,7 +1131,10 @@ mod tests {
         let _doc = OpenApi::new("pet api", "0.1.0")
             .info(Info::new("my pet api", "0.2.0"))
             .servers(Servers::new())
-            .add_path("/api/v1", PathItem::new(PathItemType::Get, Operation::new()))
+            .add_path(
+                "/api/v1",
+                PathItem::new(PathItemType::Get, Operation::new()),
+            )
             .security([SecurityRequirement::default()])
             .add_security_scheme(
                 "api_key",
@@ -1192,7 +1245,8 @@ mod tests {
         let doc = OpenApi::new("pet api", "0.1.0");
 
         let mut req = Request::new();
-        req.queries_mut().insert("pretty".to_string(), "true".to_string());
+        req.queries_mut()
+            .insert("pretty".to_string(), "true".to_string());
 
         let mut depot = Depot::new();
         let mut res = salvo_core::Response::new();
@@ -1239,7 +1293,11 @@ mod tests {
             pub(crate) data: T,
         }
 
-        #[salvo_oapi::endpoint(operation_id = "get_all_cities", tags("city"), status_codes(200, 400, 401, 403, 500))]
+        #[salvo_oapi::endpoint(
+            operation_id = "get_all_cities",
+            tags("city"),
+            status_codes(200, 400, 401, 403, 500)
+        )]
         pub async fn get_all_cities() -> Result<Json<ApiResponse<Vec<CityDTO>>>, StatusError> {
             Ok(Json(ApiResponse {
                 status: "200".to_string(),

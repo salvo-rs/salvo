@@ -137,7 +137,13 @@ pub trait Handler: Send + Sync + 'static {
     }
     /// Handle http request.
     #[must_use = "handle future must be used"]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    );
 
     /// Wrap to `HoopedHandler`.
     #[inline]
@@ -175,7 +181,13 @@ pub trait Handler: Send + Sync + 'static {
 pub struct EmptyHandler;
 #[async_trait]
 impl Handler for EmptyHandler {
-    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        _req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         res.status_code(StatusCode::OK);
     }
 }
@@ -204,7 +216,13 @@ where
     H: Handler,
     F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if (self.filter)(req, depot) {
             self.inner.handle(req, depot, res, ctrl).await;
         }
@@ -275,7 +293,13 @@ impl HoopedHandler {
 }
 #[async_trait]
 impl Handler for HoopedHandler {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         let inner: Arc<dyn Handler> = self.inner.clone();
         let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&inner]).cloned().collect());
         ctrl.call_next(req, depot, res).await;

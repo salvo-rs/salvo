@@ -26,7 +26,12 @@ where
     R: Into<RefOr<Response>>,
 {
     fn from(inner: BTreeMap<K, R>) -> Self {
-        Self(inner.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+        Self(
+            inner
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
     }
 }
 impl<K, R, const N: usize> From<[(K, R); N]> for Responses
@@ -73,7 +78,11 @@ impl Responses {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and retuns `self`.
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, key: S, response: R) -> Self {
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        key: S,
+        response: R,
+    ) -> Self {
         self.insert(key, response);
         self
     }
@@ -98,8 +107,10 @@ impl Responses {
         C: Into<String>,
         R: Into<RefOr<Response>>,
     {
-        self.0
-            .extend(iter.into_iter().map(|(key, response)| (key.into(), response.into())));
+        self.0.extend(
+            iter.into_iter()
+                .map(|(key, response)| (key.into(), response.into())),
+        );
     }
 }
 
@@ -116,7 +127,8 @@ where
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
         Self(BTreeMap::from_iter(
-            iter.into_iter().map(|(key, response)| (key.into(), response.into())),
+            iter.into_iter()
+                .map(|(key, response)| (key.into(), response.into())),
         ))
     }
 }
@@ -205,7 +217,10 @@ mod tests {
                 "application/json",
                 Content::new(Ref::from_schema_name("MySchemaPayload")),
             )
-            .add_header("content-type", Header::default().description("application/json"));
+            .add_header(
+                "content-type",
+                Header::default().description("application/json"),
+            );
 
         assert_json_eq!(
             request_body,
@@ -239,8 +254,14 @@ mod tests {
         ]);
 
         let expected = Responses(BTreeMap::from([
-            ("response1".to_string(), RefOr::T(Response::new("response1"))),
-            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            (
+                "response1".to_string(),
+                RefOr::T(Response::new("response1")),
+            ),
+            (
+                "response2".to_string(),
+                RefOr::T(Response::new("response2")),
+            ),
         ]));
 
         let actual = Responses::from(input);
@@ -256,8 +277,14 @@ mod tests {
         ];
 
         let expected = Responses(BTreeMap::from([
-            ("response1".to_string(), RefOr::T(Response::new("response1"))),
-            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            (
+                "response1".to_string(),
+                RefOr::T(Response::new("response1")),
+            ),
+            (
+                "response2".to_string(),
+                RefOr::T(Response::new("response2")),
+            ),
         ]));
 
         let actual = Responses::from(input);
@@ -273,8 +300,14 @@ mod tests {
         ];
 
         let expected = Responses(BTreeMap::from([
-            ("response1".to_string(), RefOr::T(Response::new("response1"))),
-            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            (
+                "response1".to_string(),
+                RefOr::T(Response::new("response1")),
+            ),
+            (
+                "response2".to_string(),
+                RefOr::T(Response::new("response2")),
+            ),
         ]));
 
         let actual = Responses::from_iter(input);
@@ -292,8 +325,14 @@ mod tests {
     #[test]
     fn test_btree_map_from_responses() {
         let expected = BTreeMap::from([
-            ("response1".to_string(), RefOr::T(Response::new("response1"))),
-            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            (
+                "response1".to_string(),
+                RefOr::T(Response::new("response1")),
+            ),
+            (
+                "response2".to_string(),
+                RefOr::T(Response::new("response2")),
+            ),
         ]);
 
         let actual = BTreeMap::from(

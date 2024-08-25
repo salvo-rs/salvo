@@ -41,8 +41,13 @@ where
 
         match self.state {
             ChunkedState::File(ref mut file) => {
-                let mut file = file.take().expect("`ChunkedReadFile` polled after completion");
-                let max_bytes = cmp::min(self.total_size.saturating_sub(self.read_size), self.buffer_size) as usize;
+                let mut file = file
+                    .take()
+                    .expect("`ChunkedReadFile` polled after completion");
+                let max_bytes = cmp::min(
+                    self.total_size.saturating_sub(self.read_size),
+                    self.buffer_size,
+                ) as usize;
                 let offset = self.offset;
                 let fut = tokio::task::spawn_blocking(move || {
                     let mut buf = Vec::with_capacity(max_bytes);
@@ -58,8 +63,8 @@ where
                 self.poll_next(cx)
             }
             ChunkedState::Future(ref mut fut) => {
-                let (file, bytes) =
-                    ready!(Pin::new(fut).poll(cx)).map_err(|_| IoError::new(ErrorKind::Other, "BlockingErr"))??;
+                let (file, bytes) = ready!(Pin::new(fut).poll(cx))
+                    .map_err(|_| IoError::new(ErrorKind::Other, "BlockingErr"))??;
                 self.state = ChunkedState::File(Some(file));
 
                 self.offset += bytes.len() as u64;
@@ -121,7 +126,9 @@ mod test {
         assert_eq!(file.content_type(), &Mime::from_str("text/html").unwrap());
         assert_eq!(
             file.content_disposition(),
-            Some(&HeaderValue::from_static("attachment; filename=attach.file"))
+            Some(&HeaderValue::from_static(
+                "attachment; filename=attach.file"
+            ))
         );
     }
 }

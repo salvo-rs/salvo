@@ -17,7 +17,9 @@ async fn main() {
 async fn listen_shutdown_signal(handle: ServerHandle) {
     // Wait Shutdown Signal
     let ctrl_c = async {
-        signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
     };
 
     #[cfg(unix)]

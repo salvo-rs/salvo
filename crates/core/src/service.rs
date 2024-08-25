@@ -95,7 +95,10 @@ impl Service {
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        self.hoops.push(Arc::new(WhenHoop { inner: hoop, filter }));
+        self.hoops.push(Arc::new(WhenHoop {
+            inner: hoop,
+            filter,
+        }));
         self
     }
 
@@ -257,7 +260,10 @@ impl HyperHandler {
                     "http response content type header not set"
                 );
             }
-            if Method::HEAD != *req.method() && (res.body.is_none() || res.body.is_error()) && has_error {
+            if Method::HEAD != *req.method()
+                && (res.body.is_none() || res.body.is_error())
+                && has_error
+            {
                 if let Some(catcher) = catcher {
                     catcher.catch(&mut req, &mut depot, &mut res).await;
                 } else {
@@ -272,22 +278,23 @@ impl HyperHandler {
             {
                 use bytes::Bytes;
                 use parking_lot::Mutex;
-                if let Some(session) = req
-                    .extensions
-                    .remove::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>()
+                if let Some(session) =
+                    req.extensions.remove::<crate::proto::WebTransportSession<
+                        salvo_http3::http3_quinn::Connection,
+                        Bytes,
+                    >>()
                 {
                     res.extensions.insert(Arc::new(session));
                 }
-                if let Some(conn) = req
-                    .extensions
-                    .remove::<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>()
-                {
+                if let Some(conn) = req.extensions.remove::<Mutex<
+                    salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>,
+                >>() {
                     res.extensions.insert(Arc::new(conn));
                 }
-                if let Some(stream) = req
-                    .extensions
-                    .remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>()
-                {
+                if let Some(stream) = req.extensions.remove::<salvo_http3::server::RequestStream<
+                    salvo_http3::http3_quinn::BidiStream<Bytes>,
+                    Bytes,
+                >>() {
                     res.extensions.insert(Arc::new(stream));
                 }
             }
@@ -310,7 +317,11 @@ where
         #[cfg(not(feature = "fix-http1-request-uri"))] req: HyperRequest<B>,
         #[cfg(feature = "fix-http1-request-uri")] mut req: HyperRequest<B>,
     ) -> Self::Future {
-        let scheme = req.uri().scheme().cloned().unwrap_or_else(|| self.http_scheme.clone());
+        let scheme = req
+            .uri()
+            .scheme()
+            .cloned()
+            .unwrap_or_else(|| self.http_scheme.clone());
         // https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         if req.uri().scheme().is_none() {
@@ -343,7 +354,12 @@ mod tests {
     #[tokio::test]
     async fn test_service() {
         #[handler]
-        async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn before1(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
             res.render(Text::Plain("before1"));
             if req.query::<String>("b").unwrap_or_default() == "1" {
                 ctrl.skip_rest();
@@ -352,7 +368,12 @@ mod tests {
             }
         }
         #[handler]
-        async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn before2(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
             res.render(Text::Plain("before2"));
             if req.query::<String>("b").unwrap_or_default() == "2" {
                 ctrl.skip_rest();
@@ -361,7 +382,12 @@ mod tests {
             }
         }
         #[handler]
-        async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn before3(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
             res.render(Text::Plain("before3"));
             if req.query::<String>("b").unwrap_or_default() == "3" {
                 ctrl.skip_rest();

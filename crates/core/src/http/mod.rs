@@ -87,7 +87,12 @@ pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let dmime: Mime = default_type.unwrap_or(mime::TEXT_HTML);
     let accept = req.accept();
-    accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
+    accept
+        .first()
+        .unwrap_or(&dmime)
+        .to_string()
+        .parse()
+        .unwrap_or(dmime)
 }
 
 #[cfg(test)]
