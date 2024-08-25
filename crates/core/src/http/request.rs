@@ -23,24 +23,48 @@ use crate::extract::{Extractible, Metadata};
 use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError, Version};
+use crate::http::{Mime, ParseError, Response, Version};
 use crate::routing::PathParams;
 use crate::serde::{
     from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val,
 };
-use crate::Error;
+use crate::{async_trait, Depot, Error, FlowCtrl, Handler};
 
-static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
+static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
 /// Get global secure max size, default value is 64KB.
-pub fn secure_max_size() -> usize {
-    *SECURE_MAX_SIZE.read()
+pub fn global_secure_max_size() -> usize {
+    *GLOBAL_SECURE_MAX_SIZE.read()
 }
 
 /// Set secure max size globally.
-pub fn set_secure_max_size(size: usize) {
-    let mut lock = SECURE_MAX_SIZE.write();
+///
+/// It is recommended to use the [`SecureMaxSize`] middleware to have finer-grained
+/// control over [`Request`].
+pub fn set_global_secure_max_size(size: usize) {
+    let mut lock = GLOBAL_SECURE_MAX_SIZE.write();
     *lock = size;
+}
+
+/// Middleware for set the maximum size of request body.
+pub struct SecureMaxSize(pub usize);
+impl SecureMaxSize {
+    /// Create a new `SecureMaxSize` instance.
+    pub fn new(size: usize) -> Self {
+        SecureMaxSize(size)
+    }
+}
+#[async_trait]
+impl Handler for SecureMaxSize {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        _res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
+        req.secure_max_size = Some(self.0);
+    }
 }
 
 /// Represents an HTTP request.
@@ -75,6 +99,8 @@ pub struct Request {
     pub(crate) scheme: Scheme,
     pub(crate) local_addr: SocketAddr,
     pub(crate) remote_addr: SocketAddr,
+
+    pub(crate) secure_max_size: Option<usize>,
 }
 
 impl fmt::Debug for Request {
@@ -120,6 +146,7 @@ impl Request {
             scheme: Scheme::HTTP,
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
+            secure_max_size: None,
         }
     }
     #[doc(hidden)]
@@ -183,6 +210,7 @@ impl Request {
             remote_addr: SocketAddr::Unknown,
             version,
             scheme,
+            secure_max_size: None,
         }
     }
 
@@ -453,6 +481,16 @@ impl Request {
         &self.extensions
     }
 
+    /// Set secure max size, default value is 64KB.
+    pub fn set_secure_max_size(&mut self, size: usize) {
+        self.secure_max_size = Some(size);
+    }
+
+    /// Get secure max size, default value is 64KB.
+    pub fn secure_max_size(&self) -> usize {
+        self.secure_max_size.unwrap_or_else(global_secure_max_size)
+    }
+
     cfg_feature! {
         #![feature = "quinn"]
 
@@ -702,7 +740,7 @@ impl Request {
     /// *Notice: This method takes body.
     #[inline]
     pub async fn payload(&mut self) -> Result<&Bytes, ParseError> {
-        self.payload_with_max_size(secure_max_size()).await
+        self.payload_with_max_size(self.secure_max_size()).await
     }
 
     /// Get request payload with max size limit.
@@ -819,7 +857,7 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        self.parse_json_with_max_size(secure_max_size()).await
+        self.parse_json_with_max_size(self.secure_max_size()).await
     }
     /// Parse json body as type `T` from request with max size limit.
     #[inline]
@@ -871,7 +909,7 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        self.parse_body_with_max_size(secure_max_size()).await
+        self.parse_body_with_max_size(self.secure_max_size()).await
     }
 
     /// Parse json body or form body as type `T` from request with max size.
