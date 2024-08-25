@@ -28,7 +28,7 @@ use crate::routing::PathParams;
 use crate::serde::{
     from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val,
 };
-use crate::{Depot,async_trait, Error, FlowCtrl, Handler};
+use crate::{async_trait, Depot, Error, FlowCtrl, Handler};
 
 static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
@@ -488,8 +488,7 @@ impl Request {
 
     /// Get secure max size, default value is 64KB.
     pub fn secure_max_size(&self) -> usize {
-        self.secure_max_size
-            .unwrap_or_else(global_secure_max_size)
+        self.secure_max_size.unwrap_or_else(global_secure_max_size)
     }
 
     cfg_feature! {
