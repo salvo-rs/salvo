@@ -1,6 +1,6 @@
 # salvo-otel
 
-## OpenTelemetry support for Salvo(Just placeholder now, will publish soon...).
+## OpenTelemetry support for Salvo.
 
 This is offical crate, so you can enable it in `Cargo.toml` like this:
 
