@@ -489,7 +489,7 @@ impl Request {
     /// Get secure max size, default value is 64KB.
     pub fn secure_max_size(&self) -> usize {
         self.secure_max_size
-            .unwrap_or_else(|| global_secure_max_size())
+            .unwrap_or_else(global_secure_max_size)
     }
 
     cfg_feature! {
