@@ -6,7 +6,6 @@ publish.workspace = true
 
 
 [dependencies]
-hyper = { workspace = true, features = ["server"] }
 salvo = { workspace = true, features = ["tower-compat"] }
 tokio = { workspace = true, features = ["macros"] }
 tower = { version = "0.4", features = ["limit"] }
