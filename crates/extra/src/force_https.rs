@@ -1,11 +1,22 @@
 //! Middleware force redirect to https.
-//! 
-//! Force the current request to be redirected to the https protocol.
+//!
+//! The force-https middleware can force all requests to use the HTTPS protocol.
+//!
+//! If this middleware is applied to the Router, the protocol will be forced to
+//! convert only when the route is matched. If the page does not exist, it will
+//! not be redirected.
+//!
+//! But the more common requirement is to expect any request to be
+//! automatically redirected, even when the route fails to match and returns a
+//! 404 error. At this time, the middleware can be added to the Service.
+//! Regardless of whether the request is successfully matched by the route,
+//! the middleware added to the Service will always be executed.
 //!
 //! Example:
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_core::conn::rustls::{Keycert, RustlsConfig};
 //! use salvo_extra::force_https::ForceHttps;
 //!
 //! #[handler]
@@ -15,9 +26,20 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let router = Router::with_hoop(ForceHttps::new().https_port(1234)).goal(hello);
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-//!     Server::new(acceptor).serve(router).await;
+//!     let router = Router::new().get(hello);
+//!     let service = Service::new(router).hoop(ForceHttps::new().https_port(5443));
+//!
+//!     let config = RustlsConfig::new(
+//!         Keycert::new()
+//!             .cert(include_bytes!("../../core/certs/cert.pem").as_ref())
+//!             .key(include_bytes!("../../core/certs/key.pem").as_ref()),
+//!     );
+//!     let acceptor = TcpListener::new("0.0.0.0:5443")
+//!         .rustls(config)
+//!         .join(TcpListener::new("0.0.0.0:5800"))
+//!         .bind()
+//!         .await;
+//!     Server::new(acceptor).serve(service).await;
 //! }
 //! ```
 use std::borrow::Cow;
