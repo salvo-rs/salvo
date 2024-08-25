@@ -9,7 +9,7 @@
 //!
 //! | Feature | Description |
 //! | --- | --- |
-//! | [`affix-state`] | Middleware for adding prefix and suffix to the request path |
+//! | [`affix-state`](affix_state) | Middleware for adding prefix and suffix to the request path |
 //! | [`basic-auth`](basic_auth) | Middleware for basic authentication |
 //! | [`caching-headers`](caching_headers) | Middleware for setting caching headers |
 //! | [`catch-panic`](catch_panic) | Middleware for catching panics |

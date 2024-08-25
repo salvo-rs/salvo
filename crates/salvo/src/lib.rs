@@ -22,7 +22,7 @@
 //! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
-//! | `affix` | Middleware for adding prefix and suffix to the request path | ❌ |
+//! | `affix-state` | Middleware for adding prefix and suffix to the request path | ❌ |
 //! | `basic-auth` | Middleware for basic authentication | ❌ |
 //! | `caching-headers` | Middleware for setting caching headers | ❌ |
 //! | `catch-panic` | Middleware for catching panics | ❌ |
