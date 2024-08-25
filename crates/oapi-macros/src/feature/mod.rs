@@ -231,8 +231,12 @@ impl TryToTokens for Feature {
             Feature::AdditionalProperties(additional_properties) => {
                 quote! { .additional_properties(#additional_properties) }
             }
-            Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
-            Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
+            Feature::ContentEncoding(content_encoding) => {
+                quote! { .content_encoding(#content_encoding) }
+            }
+            Feature::ContentMediaType(content_media_type) => {
+                quote! { .content_media_type(#content_media_type) }
+            }
             Feature::RenameAll(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),

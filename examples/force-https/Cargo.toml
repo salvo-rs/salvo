@@ -1,0 +1,12 @@
+[package]
+name = "example-force-https"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+salvo = { workspace = true, features = ["rustls", "force-https"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
