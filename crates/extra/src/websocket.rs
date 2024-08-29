@@ -151,11 +151,11 @@ impl WebSocketUpgrade {
     /// in the case the write buffer is filling up due to write errors.
     /// The default value is unlimited.
     ///
-    /// Note: The write buffer only builds up past [`write_buffer_size`](Self::write_buffer_size)
+    /// **Note**: The write buffer only builds up past [`write_buffer_size`](Self::write_buffer_size)
     /// when writes to the underlying stream are failing. So the **write buffer can not
     /// fill up if you are not observing write errors even if not flushing**.
     ///
-    /// Note: Should always be at least [`write_buffer_size + 1 message`](Self::write_buffer_size)
+    /// Should always be at least [`write_buffer_size + 1 message`](Self::write_buffer_size)
     /// and probably a little more depending on error handling strategy.
     #[inline]
     pub fn max_write_buffer_size(mut self, max: usize) -> Self {

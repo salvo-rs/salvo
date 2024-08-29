@@ -57,7 +57,7 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
 
 4. By decorating `enum` with variants having `#[salvo(content(...))]` attribute. This allows users to
    define multiple response content schemas to single response according to OpenAPI spec.
-   **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
+   **Note**: Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
    these variants can also be used with `#[salvo(schema(...))]` attribute to inline the variant's type schema
    if it implements [`ToSchema`] derive macro.

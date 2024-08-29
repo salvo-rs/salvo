@@ -1,8 +1,9 @@
-/*! Ways to cache account data and certificates.
-A default implementation for `AsRef<Path>` (`Sting`, `OsString`, `PathBuf`, ...)
-allows the use of a local directory as cache.
-Note that the files contain private keys.
-*/
+//! Ways to cache account data and certificates.
+//! A default implementation for `AsRef<Path>` (`Sting`, `OsString`, `PathBuf`, ...)
+//! allows the use of a local directory as cache.
+//!
+//! **Note**: The files contain private keys.
+
 
 use std::error::Error as StdError;
 use std::future::Future;

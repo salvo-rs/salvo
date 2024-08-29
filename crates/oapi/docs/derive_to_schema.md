@@ -213,7 +213,7 @@ enum representation](https://serde.rs/enum-representations.html#untagged).
 
 Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 
-**Note!** `tag` attribute has some limitations like it cannot be used
+**Note**: `tag` attribute has some limitations like it cannot be used
 with **unnamed field structs** and **tuple types**.  See more at
 [enum representation docs](https://serde.rs/enum-representations.html).
 

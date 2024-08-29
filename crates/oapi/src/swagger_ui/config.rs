@@ -657,7 +657,7 @@ impl<'a> Config<'a> {
     /// Set `with_credentials` to enable passing credentials to CORS requests send by browser as defined
     /// [fetch standards](https://fetch.spec.whatwg.org/#credentials).
     ///
-    /// **Note!** that Swagger UI cannot currently set cookies cross-domain
+    /// **Note**: that Swagger UI cannot currently set cookies cross-domain
     /// (see [swagger-js#1163](https://github.com/swagger-api/swagger-js/issues/1163)) -
     /// as a result, you will have to rely on browser-supplied cookies (which this setting enables sending)
     /// that Swagger UI cannot control.

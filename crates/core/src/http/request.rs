@@ -32,21 +32,33 @@ use crate::{async_trait, Depot, Error, FlowCtrl, Handler};
 
 static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
-/// Get global secure max size, default value is 64KB.
+/// Get global secure maximum size, default value is 64KB.
+///
+/// **Note**: The security maximum value is only effective when directly obtaining data
+/// from the body. For uploaded files, the files are written to temporary files
+/// and the bytes is not directly obtained, so they will not be affected.
 pub fn global_secure_max_size() -> usize {
     *GLOBAL_SECURE_MAX_SIZE.read()
 }
 
-/// Set secure max size globally.
+/// Set secure maximum size globally.
 ///
 /// It is recommended to use the [`SecureMaxSize`] middleware to have finer-grained
 /// control over [`Request`].
+///
+/// **Note**: The security maximum value is only effective when directly obtaining data
+/// from the body. For uploaded files, the files are written to temporary files
+/// and the bytes is not directly obtained, so they will not be affected.
 pub fn set_global_secure_max_size(size: usize) {
     let mut lock = GLOBAL_SECURE_MAX_SIZE.write();
     *lock = size;
 }
 
-/// Middleware for set the maximum size of request body.
+/// Middleware for set the secure maximum size of request body.
+///
+/// **Note**: The security maximum value is only effective when directly obtaining data
+/// from the body. For uploaded files, the files are written to temporary files
+/// and the bytes is not directly obtained, so they will not be affected.
 pub struct SecureMaxSize(pub usize);
 impl SecureMaxSize {
     /// Create a new `SecureMaxSize` instance.

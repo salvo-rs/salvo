@@ -22,7 +22,7 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 ///
 /// ## Streamed bodies
 ///
-/// Note that this handler does not currently provide an etag trailer for
+/// **Note**: This handler does not currently provide an etag trailer for
 /// streamed bodies, but may do so in the future.
 ///
 /// ## Strong vs weak comparison

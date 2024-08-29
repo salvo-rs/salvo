@@ -118,7 +118,7 @@ impl Depot {
     }
     /// Check is there a value is injected to the depot.
     ///
-    /// **Note: This is only check injected value.**
+    /// **Note**: This is only check injected value.
     #[inline]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
         self.map.contains_key(&type_key::<T>())
