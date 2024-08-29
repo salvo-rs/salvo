@@ -27,8 +27,7 @@ fn endpoint() {}
   as its result can be converted to a `String` using `String::from`.
 
 * `tags(...)` Can be used to group operations. Operations with same tag are grouped together. By default
-  this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
-  then default value _`crate`_ is used instead.
+  this is derived from the handler that is given to [`OpenApi`][openapi].
 
 * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
   the performed request.
