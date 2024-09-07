@@ -45,12 +45,12 @@ pub trait BasicAuthValidator: Send + Sync {
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
     /// Get basic auth username reference.
-    fn basic_auth_username(&self) -> Option<&String>;
+    fn basic_auth_username(&self) -> Option<&str>;
 }
 
 impl BasicAuthDepotExt for Depot {
-    fn basic_auth_username(&self) -> Option<&String> {
-        self.get(USERNAME_KEY).ok()
+    fn basic_auth_username(&self) -> Option<&str> {
+        self.get::<String>(USERNAME_KEY).map(|v|&**v).ok()
     }
 }
 

@@ -26,6 +26,19 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 /// Key for incoming flash messages in depot.
 pub const REQUST_ID_KEY: &str = "::salvo::request_id";
 
+/// Extesion for Depot.
+pub trait RequestIdDepotExt {
+    /// Get request id reference from depot.
+    fn csrf_token(&self) -> Option<&str>;
+}
+
+impl RequestIdDepotExt for Depot {
+    #[inline]
+    fn csrf_token(&self) -> Option<&str> {
+        self.get::<String>(REQUST_ID_KEY).map(|v|&**v).ok()
+    }
+}
+
 /// A middleware for generate request id.
 #[non_exhaustive]
 pub struct RequestId {
@@ -105,7 +118,7 @@ impl IdGenerator for UlidGenerator {
 #[async_trait]
 impl Handler for RequestId {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, _res: &mut Response, _ctrl: &mut FlowCtrl) {
-        if !self.overwrite && req.headers().contains_key(REQUST_ID_KEY) {
+        if !self.overwrite && req.headers().contains_key(&self.header_name) {
             return;
         }
         let id = self.generator.generate(req, depot);
