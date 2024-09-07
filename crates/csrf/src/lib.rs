@@ -203,7 +203,7 @@ pub trait CsrfDepotExt {
 impl CsrfDepotExt for Depot {
     #[inline]
     fn csrf_token(&self) -> Option<&str> {
-        self.get::<String>(CSRF_TOKEN_KEY).map(|v|&**v).ok()
+        self.get::<String>(CSRF_TOKEN_KEY).map(|v| &**v).ok()
     }
 }
 

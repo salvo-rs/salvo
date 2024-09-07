@@ -226,7 +226,7 @@ pub trait JwtAuthDepotExt {
 impl JwtAuthDepotExt for Depot {
     #[inline]
     fn jwt_auth_token(&self) -> Option<&str> {
-        self.get::<String>(JWT_AUTH_TOKEN_KEY).map(|v|&**v).ok()
+        self.get::<String>(JWT_AUTH_TOKEN_KEY).map(|v| &**v).ok()
     }
 
     #[inline]
