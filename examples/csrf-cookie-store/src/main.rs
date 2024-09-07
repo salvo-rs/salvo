@@ -22,7 +22,7 @@ pub async fn home(res: &mut Response) {
 
 #[handler]
 pub async fn get_page(depot: &mut Depot, res: &mut Response) {
-    let new_token = depot.csrf_token().map(|s| &**s).unwrap_or_default();
+    let new_token = depot.csrf_token().unwrap_or_default();
     res.render(Text::Html(get_page_html(new_token, "")));
 }
 
@@ -35,7 +35,7 @@ pub async fn post_page(req: &mut Request, depot: &mut Depot, res: &mut Response)
     }
     let data = req.parse_form::<Data>().await.unwrap();
     tracing::info!("posted data: {:?}", data);
-    let new_token = depot.csrf_token().map(|s| &**s).unwrap_or_default();
+    let new_token = depot.csrf_token().unwrap_or_default();
     let html = get_page_html(new_token, &format!("{data:#?}"));
     res.render(Text::Html(html));
 }

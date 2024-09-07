@@ -197,13 +197,13 @@ pub trait CsrfCipher: Send + Sync + 'static {
 /// Extesion for Depot.
 pub trait CsrfDepotExt {
     /// Get csrf token reference from depot.
-    fn csrf_token(&self) -> Option<&String>;
+    fn csrf_token(&self) -> Option<&str>;
 }
 
 impl CsrfDepotExt for Depot {
     #[inline]
-    fn csrf_token(&self) -> Option<&String> {
-        self.get(CSRF_TOKEN_KEY).ok()
+    fn csrf_token(&self) -> Option<&str> {
+        self.get::<String>(CSRF_TOKEN_KEY).map(|v| &**v).ok()
     }
 }
 

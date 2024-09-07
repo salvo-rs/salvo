@@ -212,7 +212,7 @@ pub enum JwtAuthState {
 /// JwtAuthDepotExt
 pub trait JwtAuthDepotExt {
     /// get jwt auth token reference from depot.
-    fn jwt_auth_token(&self) -> Option<&String>;
+    fn jwt_auth_token(&self) -> Option<&str>;
     /// get jwt auth decoded data from depot.
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
@@ -225,8 +225,8 @@ pub trait JwtAuthDepotExt {
 
 impl JwtAuthDepotExt for Depot {
     #[inline]
-    fn jwt_auth_token(&self) -> Option<&String> {
-        self.get(JWT_AUTH_TOKEN_KEY).ok()
+    fn jwt_auth_token(&self) -> Option<&str> {
+        self.get::<String>(JWT_AUTH_TOKEN_KEY).map(|v| &**v).ok()
     }
 
     #[inline]
