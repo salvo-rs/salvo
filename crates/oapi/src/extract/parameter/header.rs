@@ -9,7 +9,7 @@ use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by header.
-pub struct HeaderParam<T, const REQUIRED: bool>(Option<T>);
+pub struct HeaderParam<T, const REQUIRED: bool = true>(Option<T>);
 impl<T> HeaderParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
