@@ -452,8 +452,9 @@ pub enum BasicType {
     Null,
 }
 
-/// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
-/// supported by the UI it may default back to [`SchemaType`] alone.
+/// Additional format for [`SchemaType`] to fine tune the data type used.
+///
+/// If the **format** is not supported by the UI it may default back to [`SchemaType`] alone.
 /// Format is an open value, so you can use any formats, even not those defined by the
 /// OpenAPI Specification.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]

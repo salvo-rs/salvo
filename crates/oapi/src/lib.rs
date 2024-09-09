@@ -137,7 +137,9 @@ pub trait ToSchema {
     // }
 }
 
-/// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
+/// Represents _`nullable`_ type.
+///
+/// This can be used anywhere where "nothing" needs to be evaluated.
 /// This will serialize to _`null`_ in JSON and [`schema::empty`] is used to create the
 /// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
