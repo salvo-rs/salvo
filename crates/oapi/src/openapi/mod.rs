@@ -138,7 +138,6 @@ pub struct OpenApi {
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<PropMap<String, serde_json::Value>>,
-
 }
 
 impl OpenApi {
