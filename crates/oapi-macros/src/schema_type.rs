@@ -414,7 +414,7 @@ impl TryToTokens for Type<'_> {
             #[cfg(feature="non-strict-integers")]
             "u32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt32) }),
             #[cfg(feature="non-strict-integers")]
-            "u64" => tokens.extend(quote! { #oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt64) }),
+            "u64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt64) }),
 
             #[cfg(not(feature="non-strict-integers"))]
             "i8" | "i16" | "u8" | "u16" | "u32" => {
