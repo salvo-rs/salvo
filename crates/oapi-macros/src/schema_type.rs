@@ -591,13 +591,13 @@ impl ToTokens for Variant {
             Self::Int8 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
             #[cfg(feature = "non-strict-integers")]
             Self::Int16 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
-            
+
             Self::Int32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int32
             ))),
             Self::Int64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int64
-            ))), 
+            ))),
             #[cfg(feature = "non-strict-integers")]
             Self::UInt8 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
             #[cfg(feature = "non-strict-integers")]
