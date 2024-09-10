@@ -7,9 +7,12 @@ use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, 
 
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
+use crate::feature::attributes::{
+    self, Alias, Bound, Default, Name, RenameAll, Required, SkipBound,
+};
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Feature, FeaturesExt,
-    IsSkipped, Name, RenameAll, SkipBound, TryToTokensExt,
+    parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IsSkipped,
+    TryToTokensExt,
 };
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
@@ -41,7 +44,7 @@ pub(crate) struct NamedStructSchema<'a> {
 struct NamedStructFieldOptions<'a> {
     property: Property,
     rename_field_value: Option<Cow<'a, str>>,
-    required: Option<crate::feature::Required>,
+    required: Option<Required>,
     is_option: bool,
 }
 
@@ -87,9 +90,10 @@ impl NamedStructSchema<'_> {
                     .expect("field ident shoule be exist")
                     .to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
-                features_inner.push(Feature::Default(
-                    crate::feature::Default::new_default_trait(struct_ident, field_ident.into()),
-                ));
+                features_inner.push(Feature::Default(Default::new_default_trait(
+                    struct_ident,
+                    field_ident.into(),
+                )));
             }
         }
 
@@ -381,20 +385,19 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             if fields_len == 1 {
                 if let Some(ref mut features) = unnamed_struct_features {
                     let inline = parse_schema_features_with(&first_field.attrs, |input| {
-                        Ok(parse_features!(input as crate::feature::Inline))
+                        Ok(parse_features!(input as attributes::Inline))
                     })?
                     .unwrap_or_default();
 
                     features.extend(inline);
 
-                    if pop_feature!(features => Feature::Default(crate::feature::Default(None)))
-                        .is_some()
-                    {
+                    if pop_feature!(features => Feature::Default(Default(None))).is_some() {
                         let struct_ident = format_ident!("{}", &self.struct_name);
                         let index: syn::Index = 0.into();
-                        features.push(Feature::Default(
-                            crate::feature::Default::new_default_trait(struct_ident, index.into()),
-                        ));
+                        features.push(Feature::Default(Default::new_default_trait(
+                            struct_ident,
+                            index.into(),
+                        )));
                     }
                 }
             }

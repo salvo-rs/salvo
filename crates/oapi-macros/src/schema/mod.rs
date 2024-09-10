@@ -25,10 +25,8 @@ pub(crate) use self::{
 };
 
 use super::{ComponentSchema, FieldRename, VariantRename};
-use crate::feature::{
-    pop_feature, pop_feature_as_inner, Alias, Bound, Description, Feature, FeaturesExt, Inline,
-    Name, SkipBound,
-};
+use crate::feature::attributes::{Alias, Bound, Description, Inline, Name, SkipBound};
+use crate::feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt};
 use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
 use crate::{bound, DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};

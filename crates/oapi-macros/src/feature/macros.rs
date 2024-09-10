@@ -1,4 +1,6 @@
-use crate::feature::{items::*, Feature, Validatable};
+use crate::feature::attributes::*;
+use crate::feature::validation::*;
+use crate::feature::{Feature, Validatable};
 use crate::IntoInner;
 
 macro_rules! impl_get_name {

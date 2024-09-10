@@ -10,12 +10,18 @@ use syn::{
 
 use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;
+use crate::feature::attributes::{
+    self, AdditionalProperties, AllowReserved, DefaultParameterIn, DefaultStyle, Example, Explode,
+    Format, Inline, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToParametersNames,
+    ValueType, WriteOnly, XmlAttr,
+};
+use crate::feature::validation::{
+    ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
+    MultipleOf, Pattern,
+};
 use crate::feature::{
-    self, impl_into_inner, impl_merge, parse_features, pop_feature, AdditionalProperties,
-    AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature,
-    FeaturesExt, Format, Inline, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum,
-    MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
-    ToParametersNames, TryToTokensExt, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, pop_feature, Feature, FeaturesExt, Merge,
+    TryToTokensExt,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
@@ -34,7 +40,7 @@ impl Parse for ToParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             input as DefaultStyle,
-            feature::DefaultParameterIn,
+            DefaultParameterIn,
             ToParametersNames,
             RenameAll
         )))
@@ -113,19 +119,19 @@ impl TryToTokens for ToParameters {
         let default_parameter_in =
             pop_feature!(parameters_features => Feature::DefaultParameterIn(_));
         let rename_all = pop_feature!(parameters_features => Feature::RenameAll(_));
-        let default_source_from = if let Some(Feature::DefaultParameterIn(
-            feature::DefaultParameterIn(default_parameter_in),
-        )) = default_parameter_in
-        {
-            match default_parameter_in {
-                ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
-                ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
-                ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
-                ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
-            }
-        } else {
-            quote! { #salvo::extract::metadata::SourceFrom::Query }
-        };
+        let default_source_from =
+            if let Some(Feature::DefaultParameterIn(DefaultParameterIn(default_parameter_in))) =
+                default_parameter_in
+            {
+                match default_parameter_in {
+                    ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
+                    ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
+                    ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
+                    ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
+                }
+            } else {
+                quote! { #salvo::extract::metadata::SourceFrom::Query }
+            };
         let default_source = quote! { #salvo::extract::metadata::Source::new(#default_source_from, #salvo::extract::metadata::SourceParser::MultiMap) };
         let params = self
             .get_struct_fields(&names.as_ref())?
@@ -353,19 +359,19 @@ impl Parse for FieldFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             // param features
-            input as feature::ValueType,
+            input as ValueType,
             Rename,
             Style,
-            feature::ParameterIn,
+            attributes::ParameterIn,
             AllowReserved,
             Example,
             Explode,
             SchemaWith,
-            feature::Required,
+            attributes::Required,
             // param schema features
             Inline,
             Format,
-            feature::Default,
+            attributes::Default,
             WriteOnly,
             ReadOnly,
             Nullable,
@@ -482,16 +488,16 @@ impl Parameter<'_> {
         });
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
-                feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
+                attributes::ParameterIn(crate::parameter::ParameterIn::Query) => {
                     quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Query, #salvo::extract::metadata::SourceParser::Smart) }
                 }
-                feature::ParameterIn(crate::parameter::ParameterIn::Header) => {
+                attributes::ParameterIn(crate::parameter::ParameterIn::Header) => {
                     quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Header, #salvo::extract::metadata::SourceParser::Smart) }
                 }
-                feature::ParameterIn(crate::parameter::ParameterIn::Path) => {
+                attributes::ParameterIn(crate::parameter::ParameterIn::Path) => {
                     quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Param, #salvo::extract::metadata::SourceParser::Smart) }
                 }
-                feature::ParameterIn(crate::parameter::ParameterIn::Cookie) => {
+                attributes::ParameterIn(crate::parameter::ParameterIn::Cookie) => {
                     quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Cookie, #salvo::extract::metadata::SourceParser::Smart) }
                 }
             };
@@ -593,7 +599,7 @@ impl TryToTokens for Parameter<'_> {
                 .transpose()?
                 .unwrap_or(type_tree);
 
-            let required: Option<feature::Required> =
+            let required: Option<attributes::Required> =
                 pop_feature!(param_features => Feature::Required(_)).into_inner();
             let component_required = !component.is_option()
                 && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
