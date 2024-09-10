@@ -422,12 +422,12 @@ impl TryToTokens for Type<'_> {
             }
 
             #[cfg(not(feature="non-strict-integers"))]
-            "u64" => tokens.extend(quote! { crate::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
+            "u64" => tokens.extend(quote! { #oapi:::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
 
-            "i32" => tokens.extend(quote! { crate::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) }),
-            "i64" => tokens.extend(quote! { crate::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
-            "f32" => tokens.extend(quote! { crate::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
-            "f64" => tokens.extend(quote! { crate::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
+            "i32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) }),
+            "i64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
+            "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
+            "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
 
             #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             "Decimal" => {
@@ -588,9 +588,9 @@ impl ToTokens for Variant {
         let oapi = crate::oapi_crate();
         match self {
             #[cfg(feature = "non-strict-integers")]
-            Self::Int8 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
+            Self::Int8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
             #[cfg(feature = "non-strict-integers")]
-            Self::Int16 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
+            Self::Int16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
 
             Self::Int32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int32
@@ -599,15 +599,15 @@ impl ToTokens for Variant {
                 #oapi::oapi::KnownFormat::Int64
             ))),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt8 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
+            Self::UInt8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt16 => tokens.extend(quote! {crate::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
+            Self::UInt16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt32 => tokens.extend(quote!(crate::oapi::SchemaFormat::KnownFormat(
+            Self::UInt32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::UInt32
             ))),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt64 => tokens.extend(quote!(crate::oapi::SchemaFormat::KnownFormat(
+            Self::UInt64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::UInt64
             ))),
             Self::Float => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(

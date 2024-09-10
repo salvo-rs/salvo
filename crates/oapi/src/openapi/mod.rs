@@ -1045,7 +1045,7 @@ mod tests {
                                    "required": true,
                                    "schema": {
                                       "type": "integer",
-                                      "format": "int64",
+                                      "format": "uint64",
                                       "minimum": 0.0
                                    }
                                 },
@@ -1098,7 +1098,7 @@ mod tests {
                                 },
                                 "id": {
                                    "type": "integer",
-                                   "format": "int64",
+                                   "format": "uint64",
                                    "minimum": 0.0
                                 },
                                 "name": {
@@ -1448,7 +1448,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "int32",
+                                    "format": "uint16",
                                     "minimum": 0.0
                                 },
                                 "detail": {
