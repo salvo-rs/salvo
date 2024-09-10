@@ -26,6 +26,7 @@ time = []
 smallvec = []
 repr = []
 indexmap = []
+non-strict-integers = []
 
 [dependencies]
 proc-macro2 = { workspace = true }

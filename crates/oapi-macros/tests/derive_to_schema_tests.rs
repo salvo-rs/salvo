@@ -78,7 +78,7 @@ fn test_derive_to_schema_generics() {
                 "properties": {
                     "value": {
                         "type": "integer",
-                        "format": "int64",
+                        "format": "uint64",
                         "minimum": 0.0
                     }
                 }

@@ -484,12 +484,16 @@ pub enum KnownFormat {
     /// 64 bit integer.
     Int64,
     /// 8 bit unsigned integer.
+    #[serde(rename = "uint8")]
     UInt8,
     /// 16 bit unsigned integer.
+    #[serde(rename = "uint16")]
     UInt16,
     /// 32 bit unsigned integer.
+    #[serde(rename = "uint32")]
     UInt32,
     /// 64 bit unsigned integer.
+    #[serde(rename = "uint64")]
     UInt64,
     /// floating point number.
     Float,

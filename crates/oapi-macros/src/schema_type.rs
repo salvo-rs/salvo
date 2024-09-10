@@ -402,14 +402,33 @@ impl TryToTokens for Type<'_> {
         let name = &*last_segment.ident.to_string();
 
         match name {
-            "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
+            #[cfg(feature="non-strict-integers")]
+            "i8" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int8) }),
+            #[cfg(feature="non-strict-integers")]
+            "u8" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt8) }),
+            #[cfg(feature="non-strict-integers")]
+            "i16" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int16) }),
+            #[cfg(feature="non-strict-integers")]
+            "u16" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt16) }),
+            #[cfg(feature="non-strict-integers")]
+            #[cfg(feature="non-strict-integers")]
+            "u32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt32) }),
+            #[cfg(feature="non-strict-integers")]
+            "u64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt64) }),
+
+            #[cfg(not(feature="non-strict-integers"))]
+            "i8" | "i16" | "u8" | "u16" | "u32" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) })
             }
-            "i64" | "u64" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) })
-            }
+
+            #[cfg(not(feature="non-strict-integers"))]
+            "u64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
+
+            "i32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) }),
+            "i64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
             "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
             "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
+
             #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             "Decimal" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
@@ -448,8 +467,20 @@ impl TryToTokens for Type<'_> {
 /// [`Parse`] and [`ToTokens`] implementation for [`salvo_oapi::schema::SchemaFormat`].
 #[derive(Clone, Debug)]
 pub(crate) enum Variant {
+    #[cfg(feature = "non-strict-integers")]
+    Int8,
+    #[cfg(feature = "non-strict-integers")]
+    Int16,
     Int32,
     Int64,
+    #[cfg(feature = "non-strict-integers")]
+    UInt8,
+    #[cfg(feature = "non-strict-integers")]
+    UInt16,
+    #[cfg(feature = "non-strict-integers")]
+    UInt32,
+    #[cfg(feature = "non-strict-integers")]
+    UInt64,
     Float,
     Double,
     Byte,
@@ -468,22 +499,42 @@ pub(crate) enum Variant {
 
 impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const FORMATS: [&str; 12] = [
-            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
-            "Ulid", "Uuid", "Url",
-        ];
-        let excluded_format: &[&str] = &[
-            #[cfg(not(feature = "url"))]
-            "Uri",
-            #[cfg(not(feature = "uuid"))]
+        let default_formats = [
+            "Int32",
+            "Int64",
+            "Float",
+            "Double",
+            "Byte",
+            "Binary",
+            "Date",
+            "DateTime",
+            "Password",
+            #[cfg(feature = "uuid")]
             "Uuid",
-            #[cfg(not(feature = "ulid"))]
+            #[cfg(feature = "ulid")]
             "Ulid",
+            #[cfg(feature = "url")]
+            "Uri",
         ];
-        let known_formats = FORMATS
-            .into_iter()
-            .filter(|format| !excluded_format.contains(format))
-            .collect::<Vec<_>>();
+        #[cfg(feature = "non-strict-integers")]
+        let non_strict_integer_formats = [
+            "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64",
+        ];
+
+        #[cfg(feature = "non-strict-integers")]
+        let formats = {
+            let mut formats = default_formats
+                .into_iter()
+                .chain(non_strict_integer_formats)
+                .collect::<Vec<_>>();
+            formats.sort_unstable();
+            formats.join(", ")
+        };
+        #[cfg(not(feature = "non-strict-integers"))]
+        let formats = {
+            let formats = default_formats.into_iter().collect::<Vec<_>>();
+            formats.join(", ")
+        };
 
         let lookahead = input.lookahead1();
         if lookahead.peek(Ident) {
@@ -491,8 +542,20 @@ impl Parse for Variant {
             let name = &*format.to_string();
 
             match name {
+                #[cfg(feature = "non-strict-integers")]
+                "Int8" => Ok(Self::Int8),
+                #[cfg(feature = "non-strict-integers")]
+                "Int16" => Ok(Self::Int16),
                 "Int32" => Ok(Self::Int32),
                 "Int64" => Ok(Self::Int64),
+                #[cfg(feature = "non-strict-integers")]
+                "UInt8" => Ok(Self::UInt8),
+                #[cfg(feature = "non-strict-integers")]
+                "UInt16" => Ok(Self::UInt16),
+                #[cfg(feature = "non-strict-integers")]
+                "UInt32" => Ok(Self::UInt32),
+                #[cfg(feature = "non-strict-integers")]
+                "UInt64" => Ok(Self::UInt64),
                 "Float" => Ok(Self::Float),
                 "Double" => Ok(Self::Double),
                 "Byte" => Ok(Self::Byte),
@@ -508,10 +571,7 @@ impl Parse for Variant {
                 "Ulid" => Ok(Self::Ulid),
                 _ => Err(Error::new(
                     format.span(),
-                    format!(
-                        "unexpected format: {name}, expected one of: {}",
-                        known_formats.join(", ")
-                    ),
+                    format!("unexpected format: {name}, expected one of: {formats}"),
                 )),
             }
         } else if lookahead.peek(LitStr) {
@@ -527,11 +587,28 @@ impl ToTokens for Variant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
+            #[cfg(feature = "non-strict-integers")]
+            Self::Int8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
+            #[cfg(feature = "non-strict-integers")]
+            Self::Int16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
+
             Self::Int32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int32
             ))),
             Self::Int64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int64
+            ))),
+            #[cfg(feature = "non-strict-integers")]
+            Self::UInt8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
+            #[cfg(feature = "non-strict-integers")]
+            Self::UInt16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
+            #[cfg(feature = "non-strict-integers")]
+            Self::UInt32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::UInt32
+            ))),
+            #[cfg(feature = "non-strict-integers")]
+            Self::UInt64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::UInt64
             ))),
             Self::Float => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Float

@@ -631,12 +631,12 @@ mod tests {
             (
                 "i8",
                 i8::to_schema(&mut components),
-                json!({"type": "integer", "format": "int32"}),
+                json!({"type": "integer", "format": "int8"}),
             ),
             (
                 "i16",
                 i16::to_schema(&mut components),
-                json!({"type": "integer", "format": "int32"}),
+                json!({"type": "integer", "format": "int16"}),
             ),
             (
                 "i32",
@@ -661,22 +661,22 @@ mod tests {
             (
                 "u8",
                 u8::to_schema(&mut components),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint8", "minimum": 0.0}),
             ),
             (
                 "u16",
                 u16::to_schema(&mut components),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint16", "minimum": 0.0}),
             ),
             (
                 "u32",
                 u32::to_schema(&mut components),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint32", "minimum": 0.0}),
             ),
             (
                 "u64",
                 u64::to_schema(&mut components),
-                json!({"type": "integer", "format": "int64", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint64", "minimum": 0.0}),
             ),
             (
                 "u128",
