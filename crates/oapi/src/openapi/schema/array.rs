@@ -271,9 +271,9 @@ mod tests {
     #[test]
     fn test_array_with_extensions() {
         let expected = json!("value");
-        let json_value = Array::default().extensions(Some(
+        let json_value = Array::default().extensions(
             [("x-some-extension".to_string(), expected.clone())].into(),
-        ));
+        );
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
