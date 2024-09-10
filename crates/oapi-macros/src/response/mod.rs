@@ -8,7 +8,7 @@ use syn::spanned::Spanned;
 use syn::{parenthesized, Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token};
 
 use crate::component::ComponentSchema;
-use crate::feature::Inline;
+use crate::feature::attributes::Inline;
 use crate::operation::{
     example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree,
 };

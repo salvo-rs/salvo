@@ -1,12 +1,11 @@
 use proc_macro2::TokenStream;
 
-use crate::{
-    feature::{Feature, Rename, RenameAll, Style, ValueType},
-    type_tree::TypeTree,
-    DiagResult, TryToTokens,
-};
+use crate::feature::attributes::{Rename, RenameAll, Style, ValueType};
+use crate::feature::Feature;
+use crate::type_tree::TypeTree;
+use crate::{DiagResult, TryToTokens};
 
-use super::ParameterIn;
+use super::attributes::ParameterIn;
 
 pub(crate) trait TryToTokensExt {
     fn try_to_token_stream(&self) -> DiagResult<TokenStream>;

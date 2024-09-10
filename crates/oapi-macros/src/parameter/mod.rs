@@ -9,16 +9,17 @@ use syn::{DeriveInput, Error, ExprPath, LitStr, Token};
 mod derive;
 use derive::ToParameters;
 
-use crate::{
-    component::{self, ComponentSchema},
-    feature::{
-        parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
-        Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
-        MultipleOf, Nullable, Pattern, ReadOnly, Style, TryToTokensExt, WriteOnly, XmlAttr,
-    },
-    operation::InlineType,
-    parse_utils, Required,
+use crate::component::{self, ComponentSchema};
+use crate::feature::attributes::{
+    AllowReserved, Deprecated, Description, Example, Explode, Format, Nullable, ReadOnly, Style,
+    WriteOnly, XmlAttr,
 };
+use crate::feature::validation::{
+    ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
+    MultipleOf, Pattern,
+};
+use crate::feature::{parse_features, Feature, TryToTokensExt};
+use crate::{operation::InlineType, parse_utils, Required};
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
 pub(crate) fn to_parameters(input: DeriveInput) -> DiagResult<TokenStream> {
@@ -210,7 +211,7 @@ impl Parse for ParameterFeatures {
             Explode,
             AllowReserved,
             Example,
-            crate::feature::Deprecated,
+            Deprecated,
             Description,
             // param schema features
             Format,

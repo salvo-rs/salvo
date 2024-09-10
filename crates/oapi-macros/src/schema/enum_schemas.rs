@@ -9,9 +9,12 @@ use syn::{Attribute, Fields, Generics, Token, Variant};
 
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
+use crate::feature::attributes::{
+    Alias, Bound, Example, Name, Rename, RenameAll, SkipBound, Title,
+};
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Alias, Bound, Example, Feature, FeaturesExt,
-    IsSkipped, Name, Rename, RenameAll, SkipBound, TryToTokensExt,
+    parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IsSkipped,
+    TryToTokensExt,
 };
 use crate::schema::{Description, Inline, VariantRename};
 use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
@@ -65,12 +68,12 @@ impl<'e> EnumSchema<'e> {
                         let mut repr_enum_features =
                             feature::parse_schema_features_with(attributes, |input| {
                                 Ok(parse_features!(
-                                    input as crate::feature::Example,
-                                    crate::feature::Examples,
-                                    crate::feature::Default,
-                                    crate::feature::Name,
-                                    crate::feature::Title,
-                                    crate::feature::Inline
+                                    input as Example,
+                                    crate::feature::attributes::Examples,
+                                    crate::feature::attributes::Default,
+                                    Name,
+                                    Title,
+                                    crate::feature::attributes::Inline
                                 ))
                             })?
                             .unwrap_or_default();
@@ -579,12 +582,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(
-                            input as crate::feature::Title,
-                            RenameAll,
-                            Rename,
-                            Example
-                        ))
+                        Ok(parse_features!(input as Title, RenameAll, Rename, Example))
                     })?
                     .unwrap_or_default();
 
@@ -684,7 +682,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as crate::feature::Title))
+                        Ok(parse_features!(input as Title))
                     })?
                     .unwrap_or_default();
 
@@ -844,7 +842,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as crate::feature::Title, Rename))
+                        Ok(parse_features!(input as Title, Rename))
                     })?
                     .unwrap_or_default();
 
@@ -1013,7 +1011,7 @@ impl ComplexEnum<'_> {
                 // In this case `content` is simply ignored - there is nothing to put in it.
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as crate::feature::Title, Rename))
+                        Ok(parse_features!(input as Title, Rename))
                     })?
                     .unwrap_or_default();
 

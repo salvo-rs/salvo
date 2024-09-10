@@ -13,7 +13,8 @@ use syn::{
     TypePath,
 };
 
-use crate::{feature, parse_utils, RenameRule, SerdeContainer, SerdeValue};
+use crate::feature::attributes;
+use crate::{parse_utils, RenameRule, SerdeContainer, SerdeValue};
 
 #[allow(dead_code)]
 pub(crate) enum InputType<'a> {
@@ -259,9 +260,9 @@ impl From<bool> for Required {
     }
 }
 
-impl From<feature::Required> for Required {
-    fn from(value: feature::Required) -> Self {
-        let feature::Required(required) = value;
+impl From<attributes::Required> for Required {
+    fn from(value: attributes::Required) -> Self {
+        let attributes::Required(required) = value;
         crate::Required::from(required)
     }
 }

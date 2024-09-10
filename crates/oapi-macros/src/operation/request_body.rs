@@ -4,7 +4,7 @@ use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::ComponentSchema;
-use crate::feature::Inline;
+use crate::feature::attributes::Inline;
 use crate::{parse_utils, AnyValue, Array, DiagResult, Required, TryToTokens};
 
 use super::example::Example;
