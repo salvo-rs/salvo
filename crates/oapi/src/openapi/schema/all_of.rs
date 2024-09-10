@@ -145,8 +145,8 @@ impl AllOf {
     }
 
     /// Add openapi extensions (`x-something`) for [`AllOf`].
-    pub fn extensions(mut self, extensions: Option<PropMap<String, serde_json::Value>>) -> Self {
-        self.extensions = extensions;
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = Some(extensions);
         self
     }
 }
