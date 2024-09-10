@@ -134,6 +134,11 @@ pub struct OpenApi {
     /// All the references and invidual files could use their own schema dialect.
     #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
     pub schema: String,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<PropMap<String, serde_json::Value>>,
+
 }
 
 impl OpenApi {
@@ -396,6 +401,12 @@ impl OpenApi {
     /// ```
     pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
         self.schema = schema.into();
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`OpenApi`].
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = Some(extensions);
         self
     }
 
