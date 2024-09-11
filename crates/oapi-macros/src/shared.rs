@@ -351,11 +351,10 @@ impl AnyValue {
 
     pub(crate) fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
-            let lit = input
-                .parse::<Lit>()
-                .expect("parse_any: parse `Lit` failed")
-                .to_token_stream();
-            Ok(AnyValue::Json(lit))
+            let punct = input.parse::<Option<Token![-]>>()?;
+            let lit = input.parse::<Lit>().unwrap();
+
+            Ok(AnyValue::Json(quote! { #punct #lit}))
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
