@@ -276,17 +276,14 @@ pub enum CallNext {
 
 /// CorsHandler
 #[derive(Clone, Debug)]
-pub struct CorsHandler{
+pub struct CorsHandler {
     cors: Cors,
     call_next: CallNext,
 }
 impl CorsHandler {
     /// Create a new `CorsHandler`.
     pub fn new(cors: Cors, call_next: CallNext) -> Self {
-        Self {
-            cors,
-            call_next,
-        }
+        Self { cors, call_next }
     }
 }
 
