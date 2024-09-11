@@ -31,6 +31,8 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use std::default;
+
 use bytes::{BufMut, BytesMut};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::{Method, Request, Response, StatusCode};
@@ -230,7 +232,7 @@ impl Cors {
     /// Returns a new `CorsHandler` using current cors settings.
     pub fn into_handler(self) -> CorsHandler {
         self.ensure_usable_cors_rules();
-        CorsHandler(self)
+        CorsHandler::new(self, CallNext::default())
     }
 
     fn ensure_usable_cors_rules(&self) {
@@ -262,9 +264,31 @@ impl Cors {
     }
 }
 
+/// Enum to control when to call next handler.
+#[non_exhaustive]
+#[derive(Default, Clone, Copy, Debug)]
+pub enum CallNext {
+    /// Call next handlers before [`CorsHandler`] write data to response.
+    Before,
+    /// Call next handlers after [`CorsHandler`] write data to response.
+    After,
+}
+
 /// CorsHandler
 #[derive(Clone, Debug)]
-pub struct CorsHandler(Cors);
+pub struct CorsHandler{
+    cors: Cors,
+    call_next: CallNext,
+}
+impl CorsHandler {
+    /// Create a new `CorsHandler`.
+    pub fn new(cors: Cors, call_next: CallNext) -> Self {
+        Self {
+            cors,
+            call_next,
+        }
+    }
+}
 
 #[async_trait]
 impl Handler for CorsHandler {
@@ -275,13 +299,15 @@ impl Handler for CorsHandler {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        let origin = req.headers().get(&header::ORIGIN);
+        if self.call_next == CallNext::Before {
+            ctrl.call_next(req, depot, res).await;
+        }
 
+        let origin = req.headers().get(&header::ORIGIN);
         let mut headers = HeaderMap::new();
 
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
-
         headers.extend(self.0.allow_origin.to_header(origin, req, depot));
         headers.extend(self.0.allow_credentials.to_header(origin, req, depot));
 
@@ -311,7 +337,10 @@ impl Handler for CorsHandler {
             headers.extend(self.0.expose_headers.to_header(origin, req, depot));
         }
         res.headers_mut().extend(headers);
-        ctrl.call_next(req, depot, res).await;
+
+        if self.call_next == CallNext::After {
+            ctrl.call_next(req, depot, res).await;
+        }
     }
 }
 
