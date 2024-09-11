@@ -31,8 +31,6 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::default;
-
 use bytes::{BufMut, BytesMut};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::{Method, Request, Response, StatusCode};
@@ -266,9 +264,10 @@ impl Cors {
 
 /// Enum to control when to call next handler.
 #[non_exhaustive]
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CallNext {
     /// Call next handlers before [`CorsHandler`] write data to response.
+    #[default]
     Before,
     /// Call next handlers after [`CorsHandler`] write data to response.
     After,
@@ -305,10 +304,10 @@ impl Handler for CorsHandler {
 
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
-        headers.extend(self.0.allow_origin.to_header(origin, req, depot));
-        headers.extend(self.0.allow_credentials.to_header(origin, req, depot));
+        headers.extend(self.cors.allow_origin.to_header(origin, req, depot));
+        headers.extend(self.cors.allow_credentials.to_header(origin, req, depot));
 
-        let mut vary_headers = self.0.vary.values();
+        let mut vary_headers = self.cors.vary.values();
         if let Some(first) = vary_headers.next() {
             let mut header = match headers.entry(header::VARY) {
                 header::Entry::Occupied(_) => {
@@ -325,13 +324,13 @@ impl Handler for CorsHandler {
         // Return results immediately upon preflight request
         if req.method() == Method::OPTIONS {
             // These headers are applied only to preflight requests
-            headers.extend(self.0.allow_methods.to_header(origin, req, depot));
-            headers.extend(self.0.allow_headers.to_header(origin, req, depot));
-            headers.extend(self.0.max_age.to_header(origin, req, depot));
+            headers.extend(self.cors.allow_methods.to_header(origin, req, depot));
+            headers.extend(self.cors.allow_headers.to_header(origin, req, depot));
+            headers.extend(self.cors.max_age.to_header(origin, req, depot));
             res.status_code = Some(StatusCode::NO_CONTENT);
         } else {
             // This header is applied only to non-preflight requests
-            headers.extend(self.0.expose_headers.to_header(origin, req, depot));
+            headers.extend(self.cors.expose_headers.to_header(origin, req, depot));
         }
         res.headers_mut().extend(headers);
 
