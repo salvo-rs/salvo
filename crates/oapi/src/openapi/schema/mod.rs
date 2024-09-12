@@ -899,9 +899,9 @@ mod tests {
     fn serialize_deserialize_array_within_ref_or_t_object_builder() {
         let ref_or_schema = RefOr::Type(Schema::Object(Object::new().property(
             "test",
-            RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-            ))))),
+            RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(
+                Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+            )))),
         )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -917,12 +917,16 @@ mod tests {
                 "test",
                 RefOr::Type(Schema::OneOf(
                     OneOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                            Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-                        )))))
-                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                            Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
-                        ))))),
+                        .item(Schema::Array(Array::new().items(RefOr::Type(
+                            Schema::Object(
+                                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
+                            ),
+                        ))))
+                        .item(Schema::Array(Array::new().items(RefOr::Type(
+                            Schema::Object(
+                                Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
+                            ),
+                        )))),
                 )),
             ),
         ));
@@ -940,9 +944,11 @@ mod tests {
                 "test",
                 RefOr::Type(Schema::AllOf(
                     AllOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                            Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-                        )))))
+                        .item(Schema::Array(Array::new().items(RefOr::Type(
+                            Schema::Object(
+                                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
+                            ),
+                        ))))
                         .item(RefOr::Type(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
@@ -963,9 +969,11 @@ mod tests {
                 "test",
                 RefOr::Type(Schema::AnyOf(
                     AnyOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                            Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-                        )))))
+                        .item(Schema::Array(Array::new().items(RefOr::Type(
+                            Schema::Object(
+                                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
+                            ),
+                        ))))
                         .item(RefOr::Type(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
@@ -982,9 +990,9 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
-        let ref_or_schema = RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-            Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-        )))));
+        let ref_or_schema = RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(
+            Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+        ))));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
@@ -1064,12 +1072,12 @@ mod tests {
     #[test]
     fn deserialize_reserialize_one_of_default_type() {
         let a = OneOf::new()
-            .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
-            )))))
-            .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
-                Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
-            )))));
+            .item(Schema::Array(Array::new().items(RefOr::Type(
+                Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+            ))))
+            .item(Schema::Array(Array::new().items(RefOr::Type(
+                Schema::Object(Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar")))),
+            ))));
 
         let serialized_json = serde_json::to_string(&a).expect("should serialize to json");
         let b: OneOf = serde_json::from_str(&serialized_json).expect("should deserialize OneOf");
