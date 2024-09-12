@@ -597,7 +597,7 @@ impl From<SkipBound> for Feature {
 impl_get_name!(SkipBound = "skip_bound");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Description(pub(crate) parse_utils::Value);
+pub(crate) struct Description(pub(crate) parse_utils::LitStrOrExpr);
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where

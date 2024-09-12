@@ -1,12 +1,11 @@
 //! Implements [OpenAPI Parameter Object][parameter] types.
 //!
 //! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{Deprecated, RefOr, Required, Schema};
+use crate::PropMap;
 
 /// Collection for OpenAPI Parameter Objects.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
@@ -140,8 +139,8 @@ pub struct Parameter {
     example: Option<Value>,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Parameter {
@@ -212,16 +211,8 @@ impl Parameter {
         if let Some(example) = example {
             self.example = Some(example);
         }
-        if let Some(extensions) = extensions {
-            if self.extensions.is_none() {
-                self.extensions = Some(HashMap::new());
-            } else {
-                self.extensions
-                    .as_mut()
-                    .expect("Parameter extensions should not be None.")
-                    .extend(extensions);
-            }
-        }
+
+        self.extensions.extend(extensions);
         true
     }
 
@@ -395,14 +386,10 @@ mod tests {
             .allow_reserved(true)
             .example(Value::String("example".to_string()));
 
-        parameter1.extensions = Some(HashMap::from([(
-            "key1".to_string(),
-            Value::String("value1".to_string()),
-        )]));
-        parameter2.extensions = Some(HashMap::from([(
-            "key2".to_string(),
-            Value::String("value2".to_string()),
-        )]));
+        parameter1.extensions =
+            PropMap::from([("key1".to_string(), Value::String("value1".to_string()))]);
+        parameter2.extensions =
+            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(
@@ -439,10 +426,8 @@ mod tests {
             .allow_reserved(true)
             .example(Value::String("example".to_string()));
 
-        parameter2.extensions = Some(HashMap::from([(
-            "key2".to_string(),
-            Value::String("value2".to_string()),
-        )]));
+        parameter2.extensions =
+            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(
@@ -460,6 +445,7 @@ mod tests {
                 "explode": true,
                 "allowReserved": true,
                 "example": "example",
+                "key2": "value2",
             })
         )
     }

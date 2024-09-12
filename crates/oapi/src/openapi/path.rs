@@ -1,13 +1,12 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::collections::BTreeMap;
 use std::iter;
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Operation, Operations, Parameter, Parameters, PathMap, Server, Servers};
+use super::{Operation, Operations, Parameter, Parameters, PathMap, PropMap, Server, Servers};
 
 /// Implements [OpenAPI Path Object][paths] types.
 ///
@@ -116,7 +115,7 @@ pub struct PathItem {
 impl PathItem {
     /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`PathItemType`].
     pub fn new<O: Into<Operation>>(path_item_type: PathItemType, operation: O) -> Self {
-        let operations = BTreeMap::from_iter(iter::once((path_item_type, operation.into())));
+        let operations = PropMap::from_iter(iter::once((path_item_type, operation.into())));
 
         Self {
             operations: Operations(operations),

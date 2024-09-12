@@ -6,9 +6,10 @@
 //! [info]: <https://spec.openapis.org/oas/latest.html#info-object>
 //! [openapi_trait]: ../../trait.OpenApi.html
 //! [derive]: ../../derive.OpenApi.html
-use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+
+use crate::PropMap;
 
 /// # Examples
 ///
@@ -58,8 +59,8 @@ pub struct Info {
     pub version: String,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Info {

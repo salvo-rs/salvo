@@ -29,6 +29,7 @@ mod response;
 mod schema;
 mod schema_type;
 mod security_requirement;
+mod server;
 mod shared;
 mod type_tree;
 
@@ -39,6 +40,7 @@ pub(crate) use self::{
     operation::Operation,
     parameter::Parameter,
     response::Response,
+    server::Server,
     shared::*,
     type_tree::TypeTree,
 };

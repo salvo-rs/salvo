@@ -20,8 +20,8 @@ pub(crate) struct EndpointAttr<'p> {
 
     pub(crate) doc_comments: Option<Vec<String>>,
     pub(crate) deprecated: Option<bool>,
-    pub(crate) description: Option<parse_utils::Value>,
-    pub(crate) summary: Option<parse_utils::Value>,
+    pub(crate) description: Option<parse_utils::LitStrOrExpr>,
+    pub(crate) summary: Option<parse_utils::LitStrOrExpr>,
 }
 
 impl Parse for EndpointAttr<'_> {

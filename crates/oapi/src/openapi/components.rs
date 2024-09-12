@@ -2,11 +2,9 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
-use crate::{RefOr, Response, Responses, Schema, Schemas, SecurityScheme};
+use crate::{PropMap, RefOr, Response, Responses, Schema, Schemas, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.
@@ -22,7 +20,7 @@ pub struct Components {
     /// Map of reusable [OpenAPI Schema Object][schema]s.
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub schemas: Schemas,
 
     /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
@@ -30,14 +28,14 @@ pub struct Components {
     ///
     /// [response]: https://spec.openapis.org/oas/latest.html#response-object
     /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub responses: Responses,
 
     /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
     ///
     /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub security_schemes: BTreeMap<String, SecurityScheme>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub security_schemes: PropMap<String, SecurityScheme>,
 }
 
 impl Components {

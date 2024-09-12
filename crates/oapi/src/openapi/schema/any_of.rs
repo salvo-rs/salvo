@@ -50,8 +50,8 @@ pub struct AnyOf {
     pub discriminator: Option<Discriminator>,
 
     /// Optional extensions `x-something`.
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<PropMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Default for AnyOf {
@@ -127,14 +127,8 @@ impl AnyOf {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
+    pub fn add_example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
-        self
-    }
-
-    /// Add or change examples shown in UI of the value for richer documentation.
-    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
-        self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
@@ -144,9 +138,9 @@ impl AnyOf {
         self
     }
 
-    /// Add openapi extensions (`x-something`) for [`AnyOf`].
-    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
-        self.extensions = Some(extensions);
+    /// Add openapi extension (`x-something`) for [`AnyOf`].
+    pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
+        self.extensions.insert(key.into(), value);
         self
     }
 }
@@ -159,7 +153,7 @@ impl From<AnyOf> for Schema {
 
 impl From<AnyOf> for RefOr<Schema> {
     fn from(one_of: AnyOf) -> Self {
-        Self::T(Schema::AnyOf(one_of))
+        Self::Type(Schema::AnyOf(one_of))
     }
 }
 
@@ -176,10 +170,8 @@ mod tests {
             .title("title")
             .description("description")
             .default_value(Value::String("default".to_string()))
-            .examples([
-                Value::String("example1".to_string()),
-                Value::String("example2".to_string()),
-            ])
+            .add_example(Value::String("example1".to_string()))
+            .add_example(Value::String("example2".to_string()))
             .discriminator(Discriminator::new("discriminator".to_string()));
 
         assert_eq!(any_of.items.len(), 0);
@@ -226,8 +218,7 @@ mod tests {
     #[test]
     fn test_anyof_with_extensions() {
         let expected = json!("value");
-        let json_value =
-            AnyOf::new().extensions([("x-some-extension".to_string(), expected.clone())].into());
+        let json_value = AnyOf::new().add_extension("x-some-extension", expected.clone());
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

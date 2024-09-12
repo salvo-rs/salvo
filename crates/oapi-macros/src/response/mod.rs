@@ -1,3 +1,7 @@
+mod derive;
+mod link;
+mod parse;
+
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
@@ -5,6 +9,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::token::Comma;
 use syn::{parenthesized, Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token};
 
 use crate::component::ComponentSchema;
@@ -15,9 +20,8 @@ use crate::operation::{
 use crate::type_tree::TypeTree;
 use crate::{attribute, parse_utils, AnyValue, Array, DiagResult, Diagnostic, TryToTokens};
 
-mod derive;
-use derive::{ToResponse, ToResponses};
-mod parse;
+use self::derive::{ToResponse, ToResponses};
+use self::link::LinkTuple;
 
 pub(crate) fn to_response(input: DeriveInput) -> DiagResult<TokenStream> {
     let DeriveInput {
@@ -157,6 +161,10 @@ impl Parse for ResponseTuple<'_> {
                     response.as_value(input.span())?.contents =
                         parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
+                "links" => {
+                    response.as_value(input.span())?.links =
+                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                }
                 "response" => {
                     response.set_ref_type(
                         input.span(),
@@ -199,7 +207,7 @@ impl<'r> From<(ResponseStatusCode, ResponseValue<'r>)> for ResponseTuple<'r> {
 
 pub(crate) struct DeriveResponsesAttributes<T> {
     derive_value: T,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
 }
 
 impl<'r> From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'r> {
@@ -228,19 +236,20 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 
 #[derive(Default, Debug)]
 pub(crate) struct ResponseValue<'r> {
-    pub(crate) description: parse_utils::Value,
+    pub(crate) description: parse_utils::LitStrOrExpr,
     pub(crate) response_type: Option<PathType<'r>>,
-    pub(crate) content_type: Option<Vec<parse_utils::Value>>,
+    pub(crate) content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
     pub(crate) example: Option<AnyValue>,
     pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
     contents: Punctuated<Content<'r>, Token![,]>,
+    links: Punctuated<LinkTuple, Comma>,
 }
 
 impl<'r> ResponseValue<'r> {
     fn from_derive_to_response_value(
         derive_value: DeriveToResponseValue,
-        description: parse_utils::Value,
+        description: parse_utils::LitStrOrExpr,
     ) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
@@ -258,7 +267,7 @@ impl<'r> ResponseValue<'r> {
 
     fn from_derive_to_responses_value(
         response_value: DeriveToResponsesValue,
-        description: parse_utils::Value,
+        description: parse_utils::LitStrOrExpr,
     ) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
@@ -404,6 +413,12 @@ impl TryToTokens for ResponseTuple<'_> {
                         .add_header(#name, #header)
                     })
                 });
+
+                val.links.iter().for_each(|LinkTuple(name, link)| {
+                    tokens.extend(quote! {
+                        .add_link(#name, #link)
+                    })
+                });
             }
         }
         Ok(())
@@ -434,9 +449,9 @@ trait DeriveResponseValue: Parse {
 
 #[derive(Default, Debug)]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<parse_utils::Value>>,
+    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }
@@ -507,9 +522,9 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveToResponsesValue {
     status_code: ResponseStatusCode,
-    content_type: Option<Vec<parse_utils::Value>>,
+    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }

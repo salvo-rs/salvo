@@ -37,21 +37,21 @@ pub struct Object {
     pub default_value: Option<Value>,
 
     /// Enum variants of fields that can be represented as `unit` type `enums`
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    pub enum_values: Option<Vec<Value>>,
+    #[serde(default, rename = "enum", skip_serializing_if = "Vec::is_empty")]
+    pub enum_values: Vec<Value>,
 
     /// Vector of required field names.
-    #[serde(skip_serializing_if = "IndexSet::is_empty", default = "IndexSet::new")]
+    #[serde(default, skip_serializing_if = "IndexSet::is_empty")]
     pub required: IndexSet<String>,
 
     /// Map of fields with their [`Schema`] types.
     ///
     /// With **preserve-order** feature flag [`indexmap::IndexMap`] will be used as
     /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
-    /// By default [`BTreeMap`](std::collections::BTreeMap) will be used.
+    /// By default [`PropMap`] will be used.
     ///
     /// [to_schema]: crate::ToSchema
-    #[serde(skip_serializing_if = "PropMap::is_empty", default = "PropMap::new")]
+    #[serde(default, skip_serializing_if = "PropMap::is_empty")]
     pub properties: PropMap<String, RefOr<Schema>>,
 
     /// Additional [`Schema`] for non specified fields (Useful for typed maps).
@@ -129,8 +129,8 @@ pub struct Object {
     pub min_properties: Option<usize>,
 
     /// Optional extensions `x-something`.
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<PropMap<String, serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 
     /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
     /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
@@ -244,12 +244,10 @@ impl Object {
         I: IntoIterator<Item = E>,
         E: Into<Value>,
     {
-        self.enum_values = Some(
-            enum_values
-                .into_iter()
-                .map(|enum_value| enum_value.into())
-                .collect(),
-        );
+        self.enum_values = enum_values
+            .into_iter()
+            .map(|enum_value| enum_value.into())
+            .collect();
         self
     }
 
@@ -343,9 +341,9 @@ impl Object {
         self
     }
 
-    /// Add openapi extensions (`x-something`) for [`Object`].
-    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
-        self.extensions = Some(extensions);
+    /// Add openapi extension (`x-something`) for [`Object`].
+    pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
+        self.extensions.insert(key.into(), value);
         self
     }
 
@@ -374,7 +372,7 @@ impl ToArray for Object {}
 
 impl From<Object> for RefOr<Schema> {
     fn from(obj: Object) -> Self {
-        Self::T(Schema::Object(obj))
+        Self::Type(Schema::Object(obj))
     }
 }
 
@@ -472,8 +470,7 @@ mod tests {
     #[test]
     fn test_object_with_extensions() {
         let expected = json!("value");
-        let json_value =
-            Object::new().extensions([("x-some-extension".to_string(), expected.clone())].into());
+        let json_value = Object::new().add_extension("x-some-extension", expected.clone());
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

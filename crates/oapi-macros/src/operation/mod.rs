@@ -6,10 +6,11 @@ use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
 
 use crate::endpoint::EndpointAttr;
+use crate::parse_utils::LitStrOrExpr;
 use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
-use crate::{parse_utils, Array, DiagResult, TryToTokens};
+use crate::{Array, DiagResult, TryToTokens};
 
 pub(crate) mod example;
 pub(crate) mod request_body;
@@ -49,16 +50,20 @@ impl<'a> Operation<'a> {
                 (summary, trimmed)
             });
 
-        let summary = attr.summary.as_ref().map(Summary::Value).or_else(|| {
-            split_comment
-                .as_ref()
-                .map(|(summary, _)| Summary::Str(summary))
-        });
+        let summary = attr
+            .summary
+            .as_ref()
+            .map(Summary::LitStrOrExpr)
+            .or_else(|| {
+                split_comment
+                    .as_ref()
+                    .map(|(summary, _)| Summary::Str(summary))
+            });
 
         let description = attr
             .description
             .as_ref()
-            .map(Description::Value)
+            .map(Description::LitStrOrExpr)
             .or_else(|| {
                 split_comment
                     .as_ref()
@@ -209,14 +214,14 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
 
 #[derive(Debug)]
 enum Description<'a> {
-    Value(&'a parse_utils::Value),
+    LitStrOrExpr(&'a LitStrOrExpr),
     Vec(&'a [String]),
 }
 impl<'a> Description<'a> {
     fn is_empty(&self) -> bool {
         match self {
-            Self::Value(value) => value.is_empty(),
-            Self::Vec(vec) => vec.iter().all(|s| s.is_empty()),
+            Self::LitStrOrExpr(value) => value.is_empty(),
+            Self::Vec(value) => value.iter().all(|s| s.is_empty()),
         }
     }
 }
@@ -224,13 +229,13 @@ impl<'a> Description<'a> {
 impl ToTokens for Description<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => {
+            Self::LitStrOrExpr(value) => {
                 if !value.is_empty() {
                     value.to_tokens(tokens)
                 }
             }
-            Self::Vec(vec) => {
-                let description = vec.join("\n\n");
+            Self::Vec(value) => {
+                let description = value.join("\n\n");
 
                 if !description.is_empty() {
                     description.to_tokens(tokens)
@@ -242,14 +247,14 @@ impl ToTokens for Description<'_> {
 
 #[derive(Debug)]
 enum Summary<'a> {
-    Value(&'a parse_utils::Value),
+    LitStrOrExpr(&'a LitStrOrExpr),
     Str(&'a str),
 }
 impl<'a> Summary<'a> {
     pub(crate) fn is_empty(&self) -> bool {
         match self {
-            Self::Value(value) => value.is_empty(),
-            Self::Str(str) => str.is_empty(),
+            Self::LitStrOrExpr(value) => value.is_empty(),
+            Self::Str(value) => value.is_empty(),
         }
     }
 }
@@ -257,14 +262,14 @@ impl<'a> Summary<'a> {
 impl ToTokens for Summary<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Value(value) => {
+            Self::LitStrOrExpr(value) => {
                 if !value.is_empty() {
                     value.to_tokens(tokens)
                 }
             }
-            Self::Str(str) => {
-                if !str.is_empty() {
-                    str.to_tokens(tokens)
+            Self::Str(value) => {
+                if !value.is_empty() {
+                    value.to_tokens(tokens)
                 }
             }
         }
