@@ -1,7 +1,6 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
-use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
@@ -11,13 +10,13 @@ use super::{
     response::{Response, Responses},
     Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
-use crate::{Parameter, Parameters, PathItemType, Servers};
+use crate::{Parameter, Parameters, PathItemType, PropMap, Servers};
 
 /// Collection for save [`Operation`]s.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
-pub struct Operations(pub BTreeMap<PathItemType, Operation>);
+pub struct Operations(pub PropMap<PathItemType, Operation>);
 impl Deref for Operations {
-    type Target = BTreeMap<PathItemType, Operation>;
+    type Target = PropMap<PathItemType, Operation>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -30,7 +29,7 @@ impl DerefMut for Operations {
 }
 impl IntoIterator for Operations {
     type Item = (PathItemType, Operation);
-    type IntoIter = <BTreeMap<PathItemType, Operation> as IntoIterator>::IntoIter;
+    type IntoIter = <PropMap<PathItemType, Operation> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -166,8 +165,8 @@ pub struct Operation {
     pub servers: Servers,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Operation {

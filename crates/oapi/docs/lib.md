@@ -26,8 +26,7 @@ you can use to annotate your code to have items documented.
 
 - **`smallvec`** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 
-- **`indexmap`** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
-  `BTreeMap` and `HashMap`.
+- **`indexmap`** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to `BTreeMap` and `HashMap`.
 
 # Go beyond the surface
 

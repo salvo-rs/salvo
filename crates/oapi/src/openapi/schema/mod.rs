@@ -14,24 +14,23 @@ pub use array::{Array, ToArray};
 pub use object::Object;
 pub use one_of::OneOf;
 
-use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use crate::RefOr;
+use crate::{PropMap, RefOr};
 
 /// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Schemas(pub BTreeMap<String, RefOr<Schema>>);
+pub struct Schemas(pub PropMap<String, RefOr<Schema>>);
 
-impl<K, R> From<BTreeMap<K, R>> for Schemas
+impl<K, R> From<PropMap<K, R>> for Schemas
 where
     K: Into<String>,
     R: Into<RefOr<Schema>>,
 {
-    fn from(inner: BTreeMap<K, R>) -> Self {
+    fn from(inner: PropMap<K, R>) -> Self {
         Self(
             inner
                 .into_iter()
@@ -56,7 +55,7 @@ where
 }
 
 impl Deref for Schemas {
-    type Target = BTreeMap<String, RefOr<Schema>>;
+    type Target = PropMap<String, RefOr<Schema>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -71,7 +70,7 @@ impl DerefMut for Schemas {
 
 impl IntoIterator for Schemas {
     type Item = (String, RefOr<Schema>);
-    type IntoIter = <BTreeMap<String, RefOr<Schema>> as IntoIterator>::IntoIter;
+    type IntoIter = <PropMap<String, RefOr<Schema>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -190,8 +189,8 @@ pub struct Discriminator {
     /// An object to hold mappings between payload values and schema names or references.
     /// This field can only be populated manually. There is no macro support and no
     /// validation.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub mapping: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub mapping: PropMap<String, String>,
 }
 
 impl Discriminator {
@@ -207,7 +206,7 @@ impl Discriminator {
     pub fn new<I: Into<String>>(property_name: I) -> Self {
         Self {
             property_name: property_name.into(),
-            mapping: BTreeMap::new(),
+            mapping: PropMap::new(),
         }
     }
 }
@@ -236,13 +235,13 @@ impl<T> From<RefOr<T>> for AdditionalProperties<T> {
 
 impl From<Object> for AdditionalProperties<Schema> {
     fn from(value: Object) -> Self {
-        Self::RefOr(RefOr::T(Schema::Object(value)))
+        Self::RefOr(RefOr::Type(Schema::Object(value)))
     }
 }
 
 impl From<Array> for AdditionalProperties<Schema> {
     fn from(value: Array) -> Self {
-        Self::RefOr(RefOr::T(Schema::Array(value)))
+        Self::RefOr(RefOr::Type(Schema::Array(value)))
     }
 }
 
@@ -336,13 +335,13 @@ impl From<Ref> for RefOr<Schema> {
 
 impl<T> From<T> for RefOr<T> {
     fn from(t: T) -> Self {
-        Self::T(t)
+        Self::Type(t)
     }
 }
 
 impl Default for RefOr<Schema> {
     fn default() -> Self {
-        Self::T(Schema::Object(Object::new()))
+        Self::Type(Schema::Object(Object::new()))
     }
 }
 
@@ -898,37 +897,30 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_array_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(Object::new().property(
+        let ref_or_schema = RefOr::Type(Schema::Object(Object::new().property(
             "test",
-            RefOr::T(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+            RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
             ))))),
         )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_deserialize_one_of_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::Object(
             Object::new().property(
                 "test",
-                RefOr::T(Schema::OneOf(
+                RefOr::Type(Schema::OneOf(
                     OneOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
-                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))))),
                 )),
@@ -936,29 +928,22 @@ mod tests {
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_deserialize_all_of_of_within_ref_or_t_object() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::Object(
             Object::new().property(
                 "test",
-                RefOr::T(Schema::AllOf(
+                RefOr::Type(Schema::AllOf(
                     AllOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
-                        .item(RefOr::T(Schema::Object(
+                        .item(RefOr::Type(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
                 )),
@@ -966,29 +951,22 @@ mod tests {
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_deserialize_any_of_of_within_ref_or_t_object() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::Object(
             Object::new().property(
                 "test",
-                RefOr::T(Schema::AnyOf(
+                RefOr::Type(Schema::AnyOf(
                     AnyOf::new()
-                        .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+                        .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                         )))))
-                        .item(RefOr::T(Schema::Object(
+                        .item(RefOr::Type(Schema::Object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
                 )),
@@ -996,53 +974,33 @@ mod tests {
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
         assert!(json_str.contains("\"anyOf\""));
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
-        let ref_or_schema = RefOr::T(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )))));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_deserialize_schema_array() {
-        let ref_or_schema = Array::new().items(RefOr::T(Schema::Object(
+        let ref_or_schema = Array::new().items(RefOr::Type(Schema::Object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
-
         let json_de_str = serde_json::to_string(&deserialized).expect("");
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
@@ -1054,15 +1012,8 @@ mod tests {
         ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
-
         let json_de_str = serde_json::to_string(&deserialized).unwrap();
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
@@ -1076,15 +1027,8 @@ mod tests {
         ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
-
         let json_de_str = serde_json::to_string(&deserialized).unwrap();
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
@@ -1093,7 +1037,7 @@ mod tests {
         let mut discriminator = Discriminator::new("type");
         discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
             .into_iter()
-            .collect::<BTreeMap<_, _>>();
+            .collect::<PropMap<_, _>>();
         let one_of = OneOf::new()
             .item(Ref::from_schema_name("MyInt"))
             .discriminator(discriminator);
@@ -1120,10 +1064,10 @@ mod tests {
     #[test]
     fn deserialize_reserialize_one_of_default_type() {
         let a = OneOf::new()
-            .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+            .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
             )))))
-            .item(Schema::Array(Array::new().items(RefOr::T(Schema::Object(
+            .item(Schema::Array(Array::new().items(RefOr::Type(Schema::Object(
                 Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
             )))));
 
@@ -1131,8 +1075,6 @@ mod tests {
         let b: OneOf = serde_json::from_str(&serialized_json).expect("should deserialize OneOf");
         let reserialized_json = serde_json::to_string(&b).expect("reserialized json");
 
-        println!("{serialized_json}");
-        println!("{reserialized_json}",);
         assert_eq!(serialized_json, reserialized_json);
     }
 
@@ -1142,15 +1084,8 @@ mod tests {
             Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
 
         let json_str = serde_json::to_string(&object).unwrap();
-        println!("----------------------------");
-        println!("{json_str}");
-
         let deserialized: Object = serde_json::from_str(&json_str).unwrap();
-
         let json_de_str = serde_json::to_string(&deserialized).unwrap();
-        println!("----------------------------");
-        println!("{json_de_str}");
-
         assert_eq!(json_str, json_de_str);
     }
 
@@ -1190,7 +1125,7 @@ mod tests {
     #[test]
     fn test_additional_properties_from_ref_or() {
         let additional_properties =
-            AdditionalProperties::from(RefOr::T(Schema::Object(Object::new())));
+            AdditionalProperties::from(RefOr::Type(Schema::Object(Object::new())));
         assert_json_eq!(
             additional_properties,
             json!({

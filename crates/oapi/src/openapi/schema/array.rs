@@ -56,8 +56,8 @@ pub struct Array {
     pub xml: Option<Xml>,
 
     /// Optional extensions `x-something`.
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<PropMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Default for Array {
@@ -175,9 +175,9 @@ impl Array {
         self
     }
 
-    /// Add openapi extensions (`x-something`) for [`Array`].
-    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
-        self.extensions = Some(extensions);
+    /// Add openapi extension (`x-something`) for [`Array`].
+    pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
+        self.extensions.insert(key.into(), value);
         self
     }
 }
@@ -190,7 +190,7 @@ impl From<Array> for Schema {
 
 impl From<Array> for RefOr<Schema> {
     fn from(array: Array) -> Self {
-        Self::T(Schema::Array(array))
+        Self::Type(Schema::Array(array))
     }
 }
 
@@ -271,8 +271,7 @@ mod tests {
     #[test]
     fn test_array_with_extensions() {
         let expected = json!("value");
-        let json_value = Array::default()
-            .extensions([("x-some-extension".to_string(), expected.clone())].into());
+        let json_value = Array::default().add_extension("x-some-extension", expected.clone());
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

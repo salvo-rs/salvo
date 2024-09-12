@@ -2,11 +2,11 @@
 //!
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use super::external_docs::ExternalDocs;
+use crate::PropMap;
 
 /// Implements [OpenAPI Tag Object][tag].
 ///
@@ -29,8 +29,8 @@ pub struct Tag {
     pub external_docs: Option<ExternalDocs>,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 impl Ord for Tag {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -83,6 +83,12 @@ impl Tag {
         self.external_docs = Some(external_docs);
         self
     }
+
+    /// Add openapi extension (`x-something`) for [`Tag`].
+    pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
+        self.extensions.insert(key.into(), value);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -96,7 +102,7 @@ mod tests {
         assert_eq!(tag.name, "tag name");
         assert!(tag.description.is_none());
         assert!(tag.external_docs.is_none());
-        assert!(tag.extensions.is_none());
+        assert!(tag.extensions.is_empty());
 
         let tag = tag.name("new tag name");
         assert_eq!(tag.name, "new tag name");

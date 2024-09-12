@@ -1,14 +1,14 @@
 //! Implements [OpenApi Responses][responses].
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Ref, RefOr};
+use crate::{PropMap, Ref, RefOr};
 
+use super::link::Link;
 use super::{header::Header, Content};
 
 /// Implements [OpenAPI Responses Object][responses].
@@ -18,14 +18,14 @@ use super::{header::Header, Content};
 /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Responses(BTreeMap<String, RefOr<Response>>);
+pub struct Responses(PropMap<String, RefOr<Response>>);
 
-impl<K, R> From<BTreeMap<K, R>> for Responses
+impl<K, R> From<PropMap<K, R>> for Responses
 where
     K: Into<String>,
     R: Into<RefOr<Response>>,
 {
-    fn from(inner: BTreeMap<K, R>) -> Self {
+    fn from(inner: PropMap<K, R>) -> Self {
         Self(
             inner
                 .into_iter()
@@ -50,7 +50,7 @@ where
 }
 
 impl Deref for Responses {
-    type Target = BTreeMap<String, RefOr<Response>>;
+    type Target = PropMap<String, RefOr<Response>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -65,7 +65,7 @@ impl DerefMut for Responses {
 
 impl IntoIterator for Responses {
     type Item = (String, RefOr<Response>);
-    type IntoIter = <BTreeMap<String, RefOr<Response>> as IntoIterator>::IntoIter;
+    type IntoIter = <PropMap<String, RefOr<Response>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -114,7 +114,7 @@ impl Responses {
     }
 }
 
-impl From<Responses> for BTreeMap<String, RefOr<Response>> {
+impl From<Responses> for PropMap<String, RefOr<Response>> {
     fn from(responses: Responses) -> Self {
         responses.0
     }
@@ -126,7 +126,7 @@ where
     R: Into<RefOr<Response>>,
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
-        Self(BTreeMap::from_iter(
+        Self(PropMap::from_iter(
             iter.into_iter()
                 .map(|(key, response)| (key.into(), response.into())),
         ))
@@ -146,8 +146,8 @@ pub struct Response {
     pub description: String,
 
     /// Map of headers identified by their name. `Content-Type` header will be ignored.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub headers: BTreeMap<String, Header>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub headers: PropMap<String, Header>,
 
     /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
     ///
@@ -158,8 +158,13 @@ pub struct Response {
     pub contents: IndexMap<String, Content>,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
+
+    /// A map of operations links that can be followed from the response. The key of the
+    /// map is a short name for the link.
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub links: PropMap<String, RefOr<Link>>,
 }
 
 impl Response {
@@ -189,6 +194,19 @@ impl Response {
         self.headers.insert(name.into(), header);
         self
     }
+
+    /// Add openapi extension (`x-something`) for [`Response`].
+    pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
+        self.extensions.insert(key.into(), value);
+        self
+    }
+
+    /// Add link that can be followed from the response.
+    pub fn add_link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
+        self.links.insert(name.into(), link.into());
+
+        self
+    }
 }
 
 impl From<Ref> for RefOr<Response> {
@@ -199,7 +217,7 @@ impl From<Ref> for RefOr<Response> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BTreeMap, Content, Header, Ref, RefOr, Response, Responses};
+    use super::{Content, Header, PropMap, Ref, RefOr, Response, Responses};
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
@@ -248,19 +266,19 @@ mod tests {
 
     #[test]
     fn test_responses_from_btree_map() {
-        let input = BTreeMap::from([
+        let input = PropMap::from([
             ("response1".to_string(), Response::new("response1")),
             ("response2".to_string(), Response::new("response2")),
         ]);
 
-        let expected = Responses(BTreeMap::from([
+        let expected = Responses(PropMap::from([
             (
                 "response1".to_string(),
-                RefOr::T(Response::new("response1")),
+                RefOr::Type(Response::new("response1")),
             ),
             (
                 "response2".to_string(),
-                RefOr::T(Response::new("response2")),
+                RefOr::Type(Response::new("response2")),
             ),
         ]));
 
@@ -276,14 +294,14 @@ mod tests {
             ("response2".to_string(), Response::new("response2")),
         ];
 
-        let expected = Responses(BTreeMap::from([
+        let expected = Responses(PropMap::from([
             (
                 "response1".to_string(),
-                RefOr::T(Response::new("response1")),
+                RefOr::Type(Response::new("response1")),
             ),
             (
                 "response2".to_string(),
-                RefOr::T(Response::new("response2")),
+                RefOr::Type(Response::new("response2")),
             ),
         ]));
 
@@ -299,14 +317,14 @@ mod tests {
             ("response2".to_string(), Response::new("response2")),
         ];
 
-        let expected = Responses(BTreeMap::from([
+        let expected = Responses(PropMap::from([
             (
                 "response1".to_string(),
-                RefOr::T(Response::new("response1")),
+                RefOr::Type(Response::new("response1")),
             ),
             (
                 "response2".to_string(),
-                RefOr::T(Response::new("response2")),
+                RefOr::Type(Response::new("response2")),
             ),
         ]));
 
@@ -324,18 +342,18 @@ mod tests {
 
     #[test]
     fn test_btree_map_from_responses() {
-        let expected = BTreeMap::from([
+        let expected = PropMap::from([
             (
                 "response1".to_string(),
-                RefOr::T(Response::new("response1")),
+                RefOr::Type(Response::new("response1")),
             ),
             (
                 "response2".to_string(),
-                RefOr::T(Response::new("response2")),
+                RefOr::Type(Response::new("response2")),
             ),
         ]);
 
-        let actual = BTreeMap::from(
+        let actual = PropMap::from(
             Responses::new()
                 .response("response1", Response::new("response1"))
                 .response("response2", Response::new("response2")),

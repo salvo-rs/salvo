@@ -1,11 +1,10 @@
 //! Implements content object for request body and response.
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
 use super::example::Example;
+use super::PropMap;
 use super::{encoding::Encoding, RefOr, Schema};
 
 /// Content holds request body content or response content.
@@ -23,8 +22,8 @@ pub struct Content {
     /// media type and specified schema if present. [`Content::examples`] and
     /// [`Content::example`] are mutually exclusive. If both are defined `examples` will
     /// override value in `example`.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub examples: BTreeMap<String, RefOr<Example>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty")]
+    pub examples: PropMap<String, RefOr<Example>>,
 
     /// A map between a property name and its encoding information.
     ///
@@ -34,8 +33,8 @@ pub struct Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub encoding: BTreeMap<String, Encoding>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub encoding: PropMap<String, Encoding>,
 }
 
 impl Content {

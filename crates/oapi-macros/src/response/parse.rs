@@ -9,24 +9,24 @@ use crate::{parse_utils, AnyValue};
 use super::Header;
 
 #[inline]
-pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
+pub(super) fn description(input: ParseStream) -> Result<parse_utils::LitStrOrExpr> {
     parse_utils::parse_next_lit_str_or_expr(input)
 }
 
 #[inline]
-pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
+pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::LitStrOrExpr>> {
     parse_utils::parse_next(input, || {
         let look_content_type = input.lookahead1();
         if look_content_type.peek(Bracket) {
             let content_types;
             bracketed!(content_types in input);
             Ok(
-                Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
+                Punctuated::<parse_utils::LitStrOrExpr, Comma>::parse_terminated(&content_types)?
                     .into_iter()
                     .collect(),
             )
         } else {
-            Ok(vec![input.parse::<parse_utils::Value>()?])
+            Ok(vec![input.parse::<parse_utils::LitStrOrExpr>()?])
         }
     })
 }

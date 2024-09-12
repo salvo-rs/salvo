@@ -3,12 +3,12 @@
 //! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-use std::{
-    collections::{BTreeMap, HashMap},
-    iter,
-};
+use std::collections::BTreeMap;
+use std::iter;
 
 use serde::{Deserialize, Serialize};
+
+use crate::PropMap;
 
 /// OpenAPI [security requirement][security] object.
 ///
@@ -373,15 +373,15 @@ impl OpenIdConnect {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
-    pub flows: BTreeMap<String, Flow>,
+    pub flows: PropMap<String, Flow>,
 
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// Optional extensions "x-something"
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl OAuth2 {
@@ -416,13 +416,13 @@ impl OAuth2 {
     /// ```
     pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
         Self {
-            flows: BTreeMap::from_iter(
+            flows: PropMap::from_iter(
                 flows
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: None,
-            extensions: None,
+            extensions: Default::default(),
         }
     }
 
@@ -459,13 +459,13 @@ impl OAuth2 {
         description: S,
     ) -> Self {
         Self {
-            flows: BTreeMap::from_iter(
+            flows: PropMap::from_iter(
                 flows
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: Some(description.into()),
-            extensions: None,
+            extensions: Default::default(),
         }
     }
 }
@@ -871,7 +871,7 @@ impl ClientCredentials {
 /// ```
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Scopes {
-    scopes: BTreeMap<String, String>,
+    scopes: PropMap<String, String>,
 }
 
 impl Scopes {
@@ -903,7 +903,7 @@ impl Scopes {
     /// ```
     pub fn one<S: Into<String>>(scope: S, description: S) -> Self {
         Self {
-            scopes: BTreeMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),
+            scopes: PropMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),
         }
     }
 }

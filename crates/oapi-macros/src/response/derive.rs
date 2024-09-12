@@ -262,7 +262,7 @@ impl<'u> UnnamedStructResponse<'u> {
             .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let status_code = mem::take(&mut derive_value.status_code);
         Ok(Self(
@@ -303,7 +303,7 @@ impl NamedStructResponse<'_> {
             .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let status_code = mem::take(&mut derive_value.status_code);
 
@@ -353,7 +353,7 @@ impl UnitStructResponse<'_> {
         let status_code = mem::take(&mut derive_value.status_code);
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
 
         Ok(Self(
@@ -389,7 +389,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let ty = Self::to_type(ident);
 
@@ -444,7 +444,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
 
         let mut is_inline = false;
@@ -499,7 +499,7 @@ impl<'r> EnumResponse<'r> {
         let ty = Self::to_type(ident);
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
 
         let variants_content = variants
@@ -652,7 +652,7 @@ impl ToResponseUnitStructResponse<'_> {
         let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
-            parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
+            parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             derive_value,

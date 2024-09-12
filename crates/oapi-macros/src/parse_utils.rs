@@ -10,40 +10,40 @@ use syn::{
 };
 
 #[derive(Clone, Debug)]
-pub(crate) enum Value {
+pub(crate) enum LitStrOrExpr {
     LitStr(LitStr),
     Expr(Expr),
 }
 
-impl Value {
+impl LitStrOrExpr {
     pub(crate) fn is_empty(&self) -> bool {
         matches!(self, Self::LitStr(s) if s.value().is_empty())
     }
 }
 
-impl From<String> for Value {
+impl From<String> for LitStrOrExpr {
     fn from(value: String) -> Self {
         Self::LitStr(LitStr::new(&value, proc_macro2::Span::call_site()))
     }
 }
 
-impl Default for Value {
+impl Default for LitStrOrExpr {
     fn default() -> Self {
         Self::LitStr(LitStr::new("", proc_macro2::Span::call_site()))
     }
 }
 
-impl Parse for Value {
+impl Parse for LitStrOrExpr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok::<Value, syn::Error>(Value::LitStr(input.parse::<LitStr>()?))
+            Ok::<LitStrOrExpr, syn::Error>(LitStrOrExpr::LitStr(input.parse::<LitStr>()?))
         } else {
-            Ok(Value::Expr(input.parse::<Expr>()?))
+            Ok(LitStrOrExpr::Expr(input.parse::<Expr>()?))
         }
     }
 }
 
-impl ToTokens for Value {
+impl ToTokens for LitStrOrExpr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::LitStr(str) => str.to_tokens(tokens),
@@ -52,7 +52,7 @@ impl ToTokens for Value {
     }
 }
 
-impl Display for Value {
+impl Display for LitStrOrExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LitStr(str) => write!(f, "{str}", str = str.value()),
@@ -76,8 +76,8 @@ pub(crate) fn parse_next_lit_str(input: ParseStream) -> syn::Result<String> {
     Ok(parse_next(input, || input.parse::<LitStr>())?.value())
 }
 
-pub(crate) fn parse_next_lit_str_or_expr(input: ParseStream) -> syn::Result<Value> {
-    parse_next(input, || Value::parse(input)).map_err(|error| {
+pub(crate) fn parse_next_lit_str_or_expr(input: ParseStream) -> syn::Result<LitStrOrExpr> {
+    parse_next(input, || LitStrOrExpr::parse(input)).map_err(|error| {
         syn::Error::new(
             error.span(),
             format!("expected literal string or expression argument: {error}"),

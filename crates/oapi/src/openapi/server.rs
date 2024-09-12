@@ -39,10 +39,12 @@
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
+
+use crate::PropMap;
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 
@@ -219,9 +221,9 @@ impl Server {
 
 /// Server Variables information for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq, Debug)]
-pub struct ServerVariables(pub BTreeMap<String, ServerVariable>);
+pub struct ServerVariables(pub PropMap<String, ServerVariable>);
 impl Deref for ServerVariables {
-    type Target = BTreeMap<String, ServerVariable>;
+    type Target = PropMap<String, ServerVariable>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
