@@ -28,4 +28,3 @@ opentelemetry-prometheus.workspace = true
 opentelemetry-http.workspace = true
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 opentelemetry-otlp = { workspace = true, features = ["http-proto", "trace", "reqwest"] }
- 
