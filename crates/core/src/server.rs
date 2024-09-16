@@ -1,4 +1,5 @@
 //! Server module
+use std::future::Future;
 use std::io::Result as IoResult;
 #[cfg(feature = "server-handle")]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -230,115 +231,117 @@ impl<A: Acceptor + Send> Server<A> {
 
     /// Try to serve a [`Service`].
     #[cfg(feature = "server-handle")]
-    pub async fn try_serve<S>(self, service: S) -> IoResult<()>
+    pub fn try_serve<S>(self, service: S) -> impl Future<Output=IoResult<()>> + Send
     where
         S: Into<Service> + Send,
     {
-        let Self {
-            mut acceptor,
-            builder,
-            fuse_factory,
-            mut rx_cmd,
-            ..
-        } = self;
-        let alive_connections = Arc::new(AtomicUsize::new(0));
-        let notify = Arc::new(Notify::new());
-        let force_stop_token = CancellationToken::new();
-        let graceful_stop_token = CancellationToken::new();
+        async{
+            let Self {
+                mut acceptor,
+                builder,
+                fuse_factory,
+                mut rx_cmd,
+                ..
+            } = self;
+            let alive_connections = Arc::new(AtomicUsize::new(0));
+            let notify = Arc::new(Notify::new());
+            let force_stop_token = CancellationToken::new();
+            let graceful_stop_token = CancellationToken::new();
 
-        let mut alt_svc_h3 = None;
-        for holding in acceptor.holdings() {
-            tracing::info!("listening {}", holding);
-            if holding.http_versions.contains(&Version::HTTP_3) {
-                if let Some(addr) = holding.local_addr.clone().into_std() {
-                    let port = addr.port();
-                    alt_svc_h3 = Some(
-                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
-                            .parse::<HeaderValue>()
-                            .expect("Parse alt-svc header should not failed."),
-                    );
-                }
-            }
-        }
-
-        let service: Arc<Service> = Arc::new(service.into());
-        let builder = Arc::new(builder);
-        loop {
-            tokio::select! {
-                accepted = acceptor.accept(fuse_factory.clone()) => {
-                    match accepted {
-                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
-                            alive_connections.fetch_add(1, Ordering::Release);
-
-                            let service = service.clone();
-                            let alive_connections = alive_connections.clone();
-                            let notify = notify.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
-                            let builder = builder.clone();
-
-                            let force_stop_token = force_stop_token.clone();
-                            let graceful_stop_token = graceful_stop_token.clone();
-
-                            tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, Some(graceful_stop_token.clone()));
-                                tokio::select! {
-                                    _ = conn => {
-                                    },
-                                    _ = force_stop_token.cancelled() => {
-                                    }
-                                }
-
-                                if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
-                                    // notify only if shutdown is initiated, to prevent notification when server is active.
-                                    // It's a valid state to have 0 alive connections when server is not shutting down.
-                                    if graceful_stop_token.is_cancelled() {
-                                        notify.notify_one();
-                                    }
-                                }
-                            });
-                        },
-                        Err(e) => {
-                            tracing::error!(error = ?e, "accept connection failed");
-                        }
+            let mut alt_svc_h3 = None;
+            for holding in acceptor.holdings() {
+                tracing::info!("listening {}", holding);
+                if holding.http_versions.contains(&Version::HTTP_3) {
+                    if let Some(addr) = holding.local_addr.clone().into_std() {
+                        let port = addr.port();
+                        alt_svc_h3 = Some(
+                            format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                                .parse::<HeaderValue>()
+                                .expect("Parse alt-svc header should not failed."),
+                        );
                     }
                 }
-                Some(cmd) = rx_cmd.recv() => {
-                    match cmd {
-                        ServerCommand::StopGraceful(timeout) => {
-                            let graceful_stop_token = graceful_stop_token.clone();
-                            graceful_stop_token.cancel();
-                            if let Some(timeout) = timeout {
-                                tracing::info!(
-                                    timeout_in_seconds = timeout.as_secs_f32(),
-                                    "initiate graceful stop server",
-                                );
+            }
+
+            let service: Arc<Service> = Arc::new(service.into());
+            let builder = Arc::new(builder);
+            loop {
+                tokio::select! {
+                    accepted = acceptor.accept(fuse_factory.clone()) => {
+                        match accepted {
+                            Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+                                alive_connections.fetch_add(1, Ordering::Release);
+
+                                let service = service.clone();
+                                let alive_connections = alive_connections.clone();
+                                let notify = notify.clone();
+                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                                let builder = builder.clone();
 
                                 let force_stop_token = force_stop_token.clone();
+                                let graceful_stop_token = graceful_stop_token.clone();
+
                                 tokio::spawn(async move {
-                                    tokio::time::sleep(timeout).await;
-                                    force_stop_token.cancel();
+                                    let conn = conn.serve(handler, builder, Some(graceful_stop_token.clone()));
+                                    tokio::select! {
+                                        _ = conn => {
+                                        },
+                                        _ = force_stop_token.cancelled() => {
+                                        }
+                                    }
+
+                                    if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
+                                        // notify only if shutdown is initiated, to prevent notification when server is active.
+                                        // It's a valid state to have 0 alive connections when server is not shutting down.
+                                        if graceful_stop_token.is_cancelled() {
+                                            notify.notify_one();
+                                        }
+                                    }
                                 });
-                            } else {
-                                tracing::info!("initiate graceful stop server");
+                            },
+                            Err(e) => {
+                                tracing::error!(error = ?e, "accept connection failed");
                             }
-                        },
-                        ServerCommand::StopForcible => {
-                            tracing::info!("force stop server");
-                            force_stop_token.cancel();
-                        },
+                        }
                     }
-                    break;
-                },
+                    Some(cmd) = rx_cmd.recv() => {
+                        match cmd {
+                            ServerCommand::StopGraceful(timeout) => {
+                                let graceful_stop_token = graceful_stop_token.clone();
+                                graceful_stop_token.cancel();
+                                if let Some(timeout) = timeout {
+                                    tracing::info!(
+                                        timeout_in_seconds = timeout.as_secs_f32(),
+                                        "initiate graceful stop server",
+                                    );
+
+                                    let force_stop_token = force_stop_token.clone();
+                                    tokio::spawn(async move {
+                                        tokio::time::sleep(timeout).await;
+                                        force_stop_token.cancel();
+                                    });
+                                } else {
+                                    tracing::info!("initiate graceful stop server");
+                                }
+                            },
+                            ServerCommand::StopForcible => {
+                                tracing::info!("force stop server");
+                                force_stop_token.cancel();
+                            },
+                        }
+                        break;
+                    },
+                }
             }
-        }
 
-        if alive_connections.load(Ordering::Acquire) > 0 {
-            tracing::info!("wait for all connections to close.");
-            notify.notified().await;
-        }
+            if alive_connections.load(Ordering::Acquire) > 0 {
+                tracing::info!("wait for all connections to close.");
+                notify.notified().await;
+            }
 
-        tracing::info!("server stopped");
-        Ok(())
+            tracing::info!("server stopped");
+            Ok(())
+        }
     }
     /// Try to serve a [`Service`].
     #[cfg(not(feature = "server-handle"))]
@@ -461,5 +464,91 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("<code>404</code>"));
+    }
+
+    #[test]
+    fn test_regression_209() {
+        #[cfg(feature = "acme")]
+        let _: &dyn Send = &async {
+            let acceptor = TcpListener::new("127.0.0.1:0")
+                .acme()
+                .add_domain("test.salvo.rs")
+                .bind()
+                .await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        #[cfg(feature = "native-tls")]
+        let _: &dyn Send = &async {
+            use crate::conn::native_tls::NativeTlsConfig;
+
+            let identity = if cfg!(target_os = "macos") {
+                include_bytes!("../certs/identity-legacy.p12").to_vec()
+            } else {
+                include_bytes!("../certs/identity.p12").to_vec()
+            };
+            let acceptor = TcpListener::new("127.0.0.1:0")
+                .native_tls(NativeTlsConfig::new().pkcs12(identity).password("mypass"))
+                .bind()
+                .await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        #[cfg(feature = "openssl")]
+        let _: &dyn Send = &async {
+            use crate::conn::openssl::{Keycert, OpensslConfig};
+
+            let acceptor = TcpListener::new("127.0.0.1:0")
+            .openssl(OpensslConfig::new(
+                Keycert::new()
+                    .key_from_path("certs/key.pem")
+                    .unwrap()
+                    .cert_from_path("certs/cert.pem")
+                    .unwrap(),
+            )).bind()
+            .await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        #[cfg(feature = "rustls")]
+        let _: &dyn Send = &async {
+            use crate::conn::rustls::{Keycert, RustlsConfig};
+
+            let acceptor = TcpListener::new("127.0.0.1:0")
+                .rustls(RustlsConfig::new(
+                    Keycert::new()
+                        .key_from_path("certs/key.pem")
+                        .unwrap()
+                        .cert_from_path("certs/cert.pem")
+                        .unwrap(),
+                ))
+                .bind()
+                .await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        #[cfg(feature = "quinn")]
+        let _: &dyn Send = &async {
+            use crate::conn::rustls::{Keycert, RustlsConfig};
+
+            let cert = include_bytes!("../certs/cert.pem").to_vec();
+            let key = include_bytes!("../certs/key.pem").to_vec();
+            let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
+            let listener = TcpListener::new(("127.0.0.1", 2048)).rustls(config.clone());
+            let acceptor = QuinnListener::new(config, ("127.0.0.1", 2048))
+                .join(listener)
+                .bind()
+                .await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        let _: &dyn Send = &async {
+            let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
+            let acceptor = TcpListener::new(addr).bind().await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
+        #[cfg(unix)]
+        let _: &dyn Send = &async {
+            use crate::conn::UnixListener;
+
+            let sock_file = "/tmp/test-salvo.sock";
+            let acceptor = UnixListener::new(sock_file).bind().await;
+            Server::new(acceptor).serve(Router::new()).await;
+        };
     }
 }
