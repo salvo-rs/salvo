@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -93,8 +93,8 @@ impl AllowHeaders {
     }
 }
 
-impl fmt::Debug for AllowHeaders {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for AllowHeaders {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             AllowHeadersInner::None => f.debug_tuple("None").finish(),
             AllowHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),

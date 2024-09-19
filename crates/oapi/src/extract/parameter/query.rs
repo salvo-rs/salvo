@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
@@ -66,19 +66,13 @@ where
     }
 }
 
-impl<T, const R: bool> fmt::Debug for QueryParam<T, R>
-where
-    T: fmt::Debug,
-{
+impl<T: Debug, const R: bool> Debug for QueryParam<T, R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<T> fmt::Display for QueryParam<T, true>
-where
-    T: fmt::Display,
-{
+impl<T: Display> Display for QueryParam<T, true> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0
             .as_ref()

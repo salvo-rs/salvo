@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Display, Formatter};
+
 use super::Scribe;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::Response;
@@ -102,6 +104,38 @@ impl<'a> Scribe for Text<&'a String> {
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
         res.write_body(content.as_bytes().to_vec()).ok();
+    }
+}
+impl<C: Debug> Debug for Text<C> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Text::Plain(content) => f.debug_tuple("Text::Plain").field(content).finish(),
+            Text::Json(content) => f.debug_tuple("Text::Json").field(content).finish(),
+            Text::Xml(content) => f.debug_tuple("Text::Xml").field(content).finish(),
+            Text::Html(content) => f.debug_tuple("Text::Html").field(content).finish(),
+            Text::Js(content) => f.debug_tuple("Text::Js").field(content).finish(),
+            Text::Css(content) => f.debug_tuple("Text::Css").field(content).finish(),
+            Text::Csv(content) => f.debug_tuple("Text::Csv").field(content).finish(),
+            Text::Atom(content) => f.debug_tuple("Text::Atom").field(content).finish(),
+            Text::Rss(content) => f.debug_tuple("Text::Rss").field(content).finish(),
+            Text::Rdf(content) => f.debug_tuple("Text::Rdf").field(content).finish(),
+        }
+    }
+}
+impl<C: Display> Display for Text<C> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Text::Plain(content) => Display::fmt(content, f),
+            Text::Json(content) => Display::fmt(content, f),
+            Text::Xml(content) => Display::fmt(content, f),
+            Text::Html(content) => Display::fmt(content, f),
+            Text::Js(content) => Display::fmt(content, f),
+            Text::Css(content) => Display::fmt(content, f),
+            Text::Csv(content) => Display::fmt(content, f),
+            Text::Atom(content) => Display::fmt(content, f),
+            Text::Rss(content) => Display::fmt(content, f),
+            Text::Rdf(content) => Display::fmt(content, f),
+        }
     }
 }
 

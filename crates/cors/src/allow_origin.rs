@@ -1,4 +1,5 @@
-use std::{fmt, sync::Arc};
+use std::fmt::{self, Debug, Formatter};
+use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
@@ -98,8 +99,8 @@ impl AllowOrigin {
     }
 }
 
-impl fmt::Debug for AllowOrigin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for AllowOrigin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             OriginInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
             OriginInner::List(inner) => f.debug_tuple("List").field(inner).finish(),

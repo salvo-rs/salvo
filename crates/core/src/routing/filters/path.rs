@@ -1,7 +1,7 @@
 //! Path filter implementation.
 
 use std::collections::HashMap;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
 
 use indexmap::IndexSet;
@@ -92,7 +92,7 @@ impl PathWisp for WispKind {
         }
     }
 }
-impl fmt::Debug for WispKind {
+impl Debug for WispKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Const(wisp) => wisp.fmt(f),
@@ -240,7 +240,7 @@ pub struct CharsWisp {
     min_width: usize,
     max_width: Option<usize>,
 }
-impl fmt::Debug for CharsWisp {
+impl Debug for CharsWisp {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
@@ -905,7 +905,7 @@ pub struct PathFilter {
     path_wisps: Vec<WispKind>,
 }
 
-impl fmt::Debug for PathFilter {
+impl Debug for PathFilter {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "path:{}", &self.raw_value)
     }

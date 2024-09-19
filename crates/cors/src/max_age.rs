@@ -1,4 +1,5 @@
-use std::{fmt, sync::Arc, time::Duration};
+use std::fmt::{self, Debug, Formatter};
+use std::{sync::Arc, time::Duration};
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
@@ -57,8 +58,8 @@ impl MaxAge {
     }
 }
 
-impl fmt::Debug for MaxAge {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for MaxAge {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             MaxAgeInner::None => f.debug_tuple("None").finish(),
             MaxAgeInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),

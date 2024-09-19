@@ -4,7 +4,7 @@
 //!
 //! Read more: <https://salvo.rs>
 
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 use indexmap::IndexMap;
@@ -90,7 +90,7 @@ impl FromStr for CompressionAlgo {
 impl Display for CompressionAlgo {
     #[allow(unreachable_patterns)]
     #[allow(unused_variables)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             #[cfg(feature = "brotli")]
             CompressionAlgo::Brotli => write!(f, "br"),

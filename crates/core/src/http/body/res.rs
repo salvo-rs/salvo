@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
@@ -286,7 +286,7 @@ where
 }
 
 impl Debug for ResBody {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::None => write!(f, "ResBody::None"),
             Self::Once(value) => f.debug_tuple("ResBody::Once").field(value).finish(),

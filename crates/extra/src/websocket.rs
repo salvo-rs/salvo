@@ -78,7 +78,7 @@
 //!```
 
 use std::borrow::Cow;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
@@ -345,7 +345,7 @@ impl Sink<Message> for WebSocket {
     }
 }
 
-impl fmt::Debug for WebSocket {
+impl Debug for WebSocket {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("WebSocket").finish()
@@ -482,7 +482,7 @@ impl Message {
     }
 }
 
-impl fmt::Debug for Message {
+impl Debug for Message {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)

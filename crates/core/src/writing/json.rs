@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Display, Formatter};
+
 use async_trait::async_trait;
 use serde::Serialize;
 
@@ -45,6 +47,16 @@ where
                 res.render(StatusError::internal_server_error());
             }
         }
+    }
+}
+impl<T: Debug> Debug for Json<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.debug_tuple("Json").field(&self.0).finish()
+    }
+}
+impl<T: Display> Display for Json<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 

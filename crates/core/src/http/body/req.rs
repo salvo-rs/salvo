@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -298,8 +298,8 @@ cfg_feature! {
     }
 }
 
-impl fmt::Debug for ReqBody {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Debug for ReqBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ReqBody::None => write!(f, "ReqBody::None"),
             ReqBody::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),

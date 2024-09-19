@@ -1,5 +1,5 @@
 //! openssl module
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug,  Formatter};
 use std::fs::File;
 use std::future::{Ready, ready};
 use std::io::{Error as IoError, Read, Result as IoResult};
@@ -112,7 +112,7 @@ pub struct OpensslConfig {
     pub alpn_protocols: Vec<u8>,
 }
 
-impl fmt::Debug for OpensslConfig {
+impl Debug for OpensslConfig {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("OpensslConfig").finish()

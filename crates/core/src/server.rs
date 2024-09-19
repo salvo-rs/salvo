@@ -231,6 +231,7 @@ impl<A: Acceptor + Send> Server<A> {
 
     /// Try to serve a [`Service`].
     #[cfg(feature = "server-handle")]
+    #[allow(clippy::manual_async_fn)]//Fix: https://github.com/salvo-rs/salvo/issues/902
     pub fn try_serve<S>(self, service: S) -> impl Future<Output=IoResult<()>> + Send
     where
         S: Into<Service> + Send,

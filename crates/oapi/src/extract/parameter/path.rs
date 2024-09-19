@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
@@ -45,7 +45,7 @@ where
 
 impl<T> fmt::Debug for PathParam<T>
 where
-    T: fmt::Debug,
+    T: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)

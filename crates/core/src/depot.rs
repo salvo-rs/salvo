@@ -1,6 +1,6 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 /// Store temp data for current request.
 ///
@@ -189,7 +189,7 @@ impl Depot {
     }
 }
 
-impl fmt::Debug for Depot {
+impl Debug for Depot {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Depot")
             .field("keys", &self.map.keys())

@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::{self, Display, Write};
+use std::fmt::{self, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -51,7 +51,7 @@ impl FromStr for CompressionAlgo {
 }
 
 impl Display for CompressionAlgo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Brotli => write!(f, "br"),
             Self::Deflate => write!(f, "deflate"),

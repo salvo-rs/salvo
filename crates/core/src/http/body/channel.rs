@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -148,8 +148,8 @@ impl tokio::io::AsyncWrite for BodySender {
     }
 }
 
-impl fmt::Debug for BodySender {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for BodySender {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut builder = f.debug_tuple("BodySender");
 
         builder.finish()
