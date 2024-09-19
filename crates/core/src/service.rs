@@ -225,7 +225,12 @@ impl HyperHandler {
                 res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
-            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+            let status_code = if let Some(status_code) = res.status_code {
+                status_code
+            } else {
+                res.status_code = Some(StatusCode::NOT_FOUND);
+                StatusCode::NOT_FOUND
+            };
             if !allowed_media_types.is_empty() {
                 if let Some(ctype) = res
                     .headers()
@@ -245,12 +250,12 @@ impl HyperHandler {
                     }
                 }
             }
-            let has_error = status.is_client_error() || status.is_server_error();
+            let has_error = status_code.is_client_error() || status_code.is_server_error();
             if res.body.is_none()
                 && !has_error
-                && !status.is_redirection()
-                && res.status_code != Some(StatusCode::NO_CONTENT)
-                && res.status_code != Some(StatusCode::SWITCHING_PROTOCOLS)
+                && !status_code.is_redirection()
+                && status_code != StatusCode::NO_CONTENT
+                && status_code != StatusCode::SWITCHING_PROTOCOLS
                 && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())
             {
                 // check for avoid warning when errors (404 etc.)
