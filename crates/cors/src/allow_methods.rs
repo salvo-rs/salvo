@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
@@ -105,8 +105,8 @@ impl AllowMethods {
     }
 }
 
-impl fmt::Debug for AllowMethods {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for AllowMethods {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             AllowMethodsInner::None => f.debug_tuple("None").finish(),
             AllowMethodsInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),

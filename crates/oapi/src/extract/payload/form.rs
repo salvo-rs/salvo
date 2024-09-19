@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
@@ -48,17 +48,14 @@ where
 
 impl<T> fmt::Debug for FormBody<T>
 where
-    T: fmt::Debug,
+    T: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<T> fmt::Display for FormBody<T>
-where
-    T: fmt::Display,
-{
+impl<T: Display> Display for FormBody<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }

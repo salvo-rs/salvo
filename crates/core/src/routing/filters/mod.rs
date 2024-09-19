@@ -7,7 +7,7 @@ mod opts;
 mod others;
 mod path;
 
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 use self::opts::*;
 use crate::http::uri::Scheme;
@@ -21,7 +21,7 @@ pub use path::*;
 ///
 /// View [module level documentation](../index.html) for more details.
 
-pub trait Filter: fmt::Debug + Send + Sync + 'static {
+pub trait Filter: Debug + Send + Sync + 'static {
     #[doc(hidden)]
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<Self>()

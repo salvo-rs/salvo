@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
@@ -19,7 +19,7 @@ impl Filter for MethodFilter {
         req.method() == self.0
     }
 }
-impl fmt::Debug for MethodFilter {
+impl Debug for MethodFilter {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "method:{:?}", self.0)
@@ -58,7 +58,7 @@ impl Filter for SchemeFilter {
             .unwrap_or(self.lack)
     }
 }
-impl fmt::Debug for SchemeFilter {
+impl Debug for SchemeFilter {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "scheme:{:?}", self.scheme)
@@ -113,7 +113,7 @@ impl Filter for HostFilter {
         .unwrap_or(self.lack)
     }
 }
-impl fmt::Debug for HostFilter {
+impl Debug for HostFilter {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "host:{:?}", self.host)
@@ -168,7 +168,7 @@ impl Filter for PortFilter {
         .unwrap_or(self.lack)
     }
 }
-impl fmt::Debug for PortFilter {
+impl Debug for PortFilter {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "port:{:?}", self.port)

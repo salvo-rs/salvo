@@ -1,5 +1,5 @@
 //! native_tls module
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::fs::File;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult, Read};
 use std::path::{Path, PathBuf};
@@ -21,7 +21,7 @@ pub struct NativeTlsConfig {
     pub password: String,
 }
 
-impl fmt::Debug for NativeTlsConfig {
+impl Debug for NativeTlsConfig {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("NativeTlsConfig").finish()

@@ -1,6 +1,6 @@
 //! HTTP request.
 use std::error::Error as StdError;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 #[cfg(feature = "quinn")]
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -115,7 +115,7 @@ pub struct Request {
     pub(crate) secure_max_size: Option<usize>,
 }
 
-impl fmt::Debug for Request {
+impl Debug for Request {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Request")
             .field("method", self.method())

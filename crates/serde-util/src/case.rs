@@ -1,7 +1,7 @@
 //! Code to convert the Rust-styled field/variant (e.g. `my_field`, `MyType`) to the
 //! case of the source (e.g. `my-field`, `MY_FIELD`).
 
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
 
 use proc_macro2::Span;
@@ -45,7 +45,7 @@ pub(crate) const RENAME_RULES: [(&str, RenameRule); 8] = [
 ];
 
 impl Display for RenameRule {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             LowerCase => "lowercase",
             UpperCase => "UPPERCASE",

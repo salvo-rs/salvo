@@ -1,6 +1,6 @@
 //! HTTP response.
 use std::collections::VecDeque;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
 
 #[cfg(feature = "cookie")]
@@ -506,7 +506,7 @@ impl Response {
     }
 }
 
-impl fmt::Debug for Response {
+impl Debug for Response {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Response")
             .field("status_code", &self.status_code)

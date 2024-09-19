@@ -1,4 +1,5 @@
-use std::{fmt, sync::Arc};
+use std::fmt::{self, Debug, Formatter};
+use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
@@ -69,8 +70,8 @@ impl From<bool> for AllowCredentials {
     }
 }
 
-impl fmt::Debug for AllowCredentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for AllowCredentials {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self.0 {
             AllowCredentialsInner::Yes => f.debug_tuple("Yes").finish(),
             AllowCredentialsInner::No => f.debug_tuple("No").finish(),

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -77,8 +77,8 @@ impl ExposeHeaders {
     }
 }
 
-impl fmt::Debug for ExposeHeaders {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for ExposeHeaders {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             ExposeHeadersInner::None => f.debug_tuple("None").finish(),
             ExposeHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),

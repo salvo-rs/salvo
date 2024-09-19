@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -337,7 +337,7 @@ const SYMBOL_DOWN: &str = "│";
 const SYMBOL_TEE: &str = "├";
 const SYMBOL_ELL: &str = "└";
 const SYMBOL_RIGHT: &str = "─";
-impl fmt::Debug for Router {
+impl Debug for Router {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fn print(f: &mut Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
             let mut path = "".to_owned();
