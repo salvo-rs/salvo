@@ -322,6 +322,10 @@ impl Handler for StaticDir {
         if self.include_dot_files || !is_dot_file {
             for root in &self.roots {
                 let raw_path = join_path!(root, &rel_path);
+                // Security check to ensure that the accessed path is a subpath of the current root path.
+                if !Path::new(&raw_path).starts_with(root) {
+                    continue;
+                }
                 for filter in &self.exclude_filters {
                     if filter(&raw_path) {
                         continue;
