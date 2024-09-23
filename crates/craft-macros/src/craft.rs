@@ -116,12 +116,8 @@ fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()
         }
         style => {
             let (receiver, output) = match style {
-                FnReceiver::Ref => {
-                    (quote!(&self), quote!(::std::sync::Arc::new(self.clone())))
-                }
-                FnReceiver::Arc => {
-                    (quote!(self: &::std::sync::Arc<Self>), quote!(self.clone()))
-                }
+                FnReceiver::Ref => (quote!(&self), quote!(::std::sync::Arc::new(self.clone()))),
+                FnReceiver::Arc => (quote!(self: &::std::sync::Arc<Self>), quote!(self.clone())),
                 _ => unreachable!(),
             };
             method.sig.inputs[0] = FnArg::Receiver(parse_quote!(&self));
