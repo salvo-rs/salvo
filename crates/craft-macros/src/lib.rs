@@ -27,23 +27,19 @@ use syn::{parse_macro_input, Item};
 ///     /// doc line 1
 ///     /// doc line 2
 ///     #[salvo_craft_macros::craft(handler)]
-///     fn add1(&self, left: QueryParam<i64, true>, right: QueryParam<i64, true>) -> String {
+///     fn add1(&self, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
 ///         (self.state + *left + *right).to_string()
 ///     }
 ///     /// doc line 3
 ///     /// doc line 4
 ///     #[craft(handler)]
-///     pub(crate) fn add2(
-///         self: ::std::sync::Arc<Self>,
-///         left: QueryParam<i64, true>,
-///         right: QueryParam<i64, true>,
-///     ) -> String {
+///     pub(crate) fn add2( self: ::std::sync::Arc<Self>, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
 ///         (self.state + *left + *right).to_string()
 ///     }
 ///     /// doc line 5
 ///     /// doc line 6
 ///     #[craft(handler)]
-///     pub fn add3(left: QueryParam<i64, true>, right: QueryParam<i64, true>) -> String {
+///     pub fn add3(left: QueryParam<i64>, right: QueryParam<i64>) -> String {
 ///         (*left + *right).to_string()
 ///     }
 /// }

@@ -39,7 +39,7 @@ impl Service {
     /// doc line 1
     /// doc line 2
     #[craft(handler)]
-    fn add1(&self, left: QueryParam<i64, true>, right: QueryParam<i64, true>) -> String {
+    fn add1(&self, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
         (self.state + *left + *right).to_string()
     }
     /// doc line 3
@@ -47,15 +47,15 @@ impl Service {
     #[craft(handler)]
     pub(crate) fn add2(
         self: ::std::sync::Arc<Self>,
-        left: QueryParam<i64, true>,
-        right: QueryParam<i64, true>,
+        left: QueryParam<i64>,
+        right: QueryParam<i64>,
     ) -> String {
         (self.state + *left + *right).to_string()
     }
     /// doc line 5
     /// doc line 6
     #[craft(handler)]
-    pub fn add3(left: QueryParam<i64, true>, right: QueryParam<i64, true>) -> String {
+    pub fn add3(left: QueryParam<i64>, right: QueryParam<i64>) -> String {
         (*left + *right).to_string()
     }
 }

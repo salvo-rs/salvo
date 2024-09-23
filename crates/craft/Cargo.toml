@@ -20,9 +20,5 @@ authors = ["Andeya Lee <andeyalee@outlook.com>"]
 [dependencies]
 salvo-craft-macros = { workspace = true }
 
-[dev-dependencies]
-salvo = { path = "../salvo", features = ["oapi"] }
-tokio.workspace = true
-
 [lints]
 workspace = true
