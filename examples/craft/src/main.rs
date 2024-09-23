@@ -1,8 +1,5 @@
-#![allow(missing_docs)]
-
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
-use salvo_craft_macros::craft;
 use std::sync::Arc;
 
 #[tokio::main]

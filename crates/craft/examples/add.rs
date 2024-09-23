@@ -7,11 +7,11 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let service = Arc::new(Service::new(1));
+    let opts = Arc::new(Opts::new(1));
     let router = Router::new()
-        .push(Router::with_path("add1").get(service.add1()))
-        .push(Router::with_path("add2").get(service.add2()))
-        .push(Router::with_path("add3").get(Service::add3()));
+        .push(Router::with_path("add1").get(opts.add1()))
+        .push(Router::with_path("add2").get(opts.add2()))
+        .push(Router::with_path("add3").get(Opts::add3()));
     let doc = OpenApi::new("Example API", "0.0.1").merge_router(&router);
     let router = router
         .push(doc.into_router("/api-doc/openapi.json"))
@@ -21,12 +21,12 @@ async fn main() {
 }
 
 #[derive(Clone)]
-pub struct Service {
+pub struct Opts {
     state: i64,
 }
 
 #[craft]
-impl Service {
+impl Opts {
     fn new(state: i64) -> Self {
         Self { state }
     }
