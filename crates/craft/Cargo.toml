@@ -1,0 +1,28 @@
+[package]
+name = "salvo-craft"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = "https://docs.rs/salvo-craft"
+readme = "README.md"
+description = "Salvo Handler modular craft."
+keywords = ["http", "async", "web", "framework", "server"]
+categories = [
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+    "asynchronous",
+]
+authors = ["Andeya Lee <andeyalee@outlook.com>"]
+
+[dependencies]
+salvo-craft-macros = { workspace = true }
+
+[dev-dependencies]
+salvo = { path = "../salvo", features = ["oapi"] }
+tokio.workspace = true
+
+[lints]
+workspace = true
