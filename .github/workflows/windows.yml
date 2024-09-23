@@ -3,9 +3,17 @@ name: ci-windows
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - '**.rs'                 # only execute on changes to go files
+      - '**/Cargo.toml'         # or dependency updates
+      - '.github/workflows/**'  # or workflow changes
   push:
     branches:
       - main
+    paths:
+      - '**.rs'                 # only execute on changes to go files
+      - '**/Cargo.toml'         # or dependency updates
+      - '.github/workflows/**'  # or workflow changes
 
 jobs:
   test:
