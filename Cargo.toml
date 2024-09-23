@@ -37,7 +37,8 @@ salvo-rate-limiter = { version = "0.72.2", path = "crates/rate-limiter", default
 salvo-serde-util = { version = "0.72.2", path = "crates/serde-util", default-features = true }
 salvo-serve-static = { version = "0.72.2", path = "crates/serve-static", default-features = false }
 salvo-session = { version = "0.72.2", path = "crates/session", default-features = false }
-salvo-craft-macros = { version = "0.1.1", path = "crates/craft-macros", default-features = false }
+salvo-craft = { version = "0.72.2", path = "crates/craft", default-features = false }
+salvo-craft-macros = { version = "0.72.2", path = "crates/craft-macros", default-features = false }
 
 aead = "0.5"
 aes-gcm = "0.10"

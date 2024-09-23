@@ -2,7 +2,7 @@
 
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
-use salvo_craft_macros::craft;
+use salvo_craft::craft;
 use std::sync::Arc;
 
 #[tokio::main]

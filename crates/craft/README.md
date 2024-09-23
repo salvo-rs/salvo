@@ -1,8 +1,18 @@
-#![allow(missing_docs)]
+# salvo-craft
 
+[`Salvo`](https://github.com/salvo-rs/salvo) `Handler` modular craft macros.
+
+[![Crates.io](https://img.shields.io/crates/v/salvo-craft)](https://crates.io/crates/salvo-craft)
+[![Documentation](https://shields.io/docsrs/salvo-craft)](https://docs.rs/salvo-craft)
+
+## `#[craft]`
+
+`#[craft]` is an attribute macro used to batch convert methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo).
+
+```rust
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
-use salvo_craft_macros::craft;
+use salvo_craft::craft;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -12,10 +22,6 @@ async fn main() {
         .push(Router::with_path("add1").get(service.add1()))
         .push(Router::with_path("add2").get(service.add2()))
         .push(Router::with_path("add3").get(Service::add3()));
-    let doc = OpenApi::new("Example API", "0.0.1").merge_router(&router);
-    let router = router
-        .push(doc.into_router("/api-doc/openapi.json"))
-        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }
@@ -38,18 +44,23 @@ impl Service {
     }
     /// doc line 3
     /// doc line 4
-    #[craft(endpoint)]
+    #[craft(handler)]
     pub(crate) fn add2(
         self: ::std::sync::Arc<Self>,
         left: QueryParam<i64, true>,
-        right: QueryParam<i64, true>
+        right: QueryParam<i64, true>,
     ) -> String {
         (self.state + *left + *right).to_string()
     }
     /// doc line 5
     /// doc line 6
-    #[craft(endpoint(responses((status_code = 400, description = "Wrong request parameters."))))]
+    #[craft(handler)]
     pub fn add3(left: QueryParam<i64, true>, right: QueryParam<i64, true>) -> String {
         (*left + *right).to_string()
     }
 }
+```
+
+Sure, you can also replace `#[craft(handler)]` with `#[craft(endpoint(...))]`.
+
+NOTE: If the receiver of a method is `&self`, you need to implement the `Clone` trait for the type.

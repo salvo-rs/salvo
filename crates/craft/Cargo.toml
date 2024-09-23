@@ -1,13 +1,13 @@
 [package]
-name = "salvo-craft-macros"
+name = "salvo-craft"
 version = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
-documentation = "https://docs.rs/salvo-craft-macros"
+documentation = "https://docs.rs/salvo-craft"
 readme = "README.md"
-description = "Salvo Handler modular craft macros."
+description = "Salvo Handler modular craft."
 keywords = ["http", "async", "web", "framework", "server"]
 categories = [
     "web-programming::http-server",
@@ -17,14 +17,8 @@ categories = [
 ]
 authors = ["Andeya Lee <andeyalee@outlook.com>"]
 
-[lib]
-proc-macro = true
-
 [dependencies]
-proc-macro-crate.workspace = true
-proc-macro2.workspace = true
-quote.workspace = true
-syn = { workspace = true, features = ["full", "parsing"] }
+salvo-craft-macros = { workspace = true }
 
 [dev-dependencies]
 salvo = { path = "../salvo", features = ["oapi"] }

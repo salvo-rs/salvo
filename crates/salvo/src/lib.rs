@@ -264,5 +264,5 @@ pub mod prelude {
         pub use crate::oapi::redoc::ReDoc;
         pub use crate::oapi::scalar::Scalar;
     }
-    pub use salvo_craft_macros::*;
+    pub use salvo_craft::*;
 }
