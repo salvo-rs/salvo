@@ -489,6 +489,8 @@ impl Response {
     /// Useful when wanting to stream chunks from another thread.
     ///
     /// # Example
+    ///
+    /// ```
     /// use salvo_core::prelude::*;
     /// #[handler]
     /// async fn hello(res: &mut Response) {
@@ -498,6 +500,7 @@ impl Response {
     ///         tx.send_data("Hello world").await.unwrap();
     ///     });
     /// }
+    /// ```
     #[inline]
     pub fn channel(&mut self) -> BodySender {
         let (sender, body) = ResBody::channel();
