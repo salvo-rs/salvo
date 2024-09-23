@@ -1,7 +1,6 @@
 [package]
 name = "salvo-craft-macros"
-# version = { workspace = true }
-version = "0.1.1"
+version = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 homepage = { workspace = true }
