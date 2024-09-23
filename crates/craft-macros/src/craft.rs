@@ -28,7 +28,7 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
     let mut new_attr: Option<Attribute> = None;
     for (idx, attr) in &mut item_fn.attrs.iter().enumerate() {
         if !(match attr.path().segments.last() {
-            Some(segment) => segment.ident.to_string() == "craft",
+            Some(segment) => segment.ident == "craft",
             None => false,
         }) {
             continue;
@@ -63,24 +63,24 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
     Ok(None)
 }
 
-enum MethodStyle {
-    NoSelf,
-    RefSelf,
-    ArcSelf,
+enum FnReceiver {
+    None,
+    Ref,
+    Arc,
 }
 
-impl MethodStyle {
+impl FnReceiver {
     fn from_method(method: &ImplItemFn) -> syn::Result<Self> {
         let Some(recv) = method.sig.receiver() else {
-            return Ok(Self::NoSelf);
+            return Ok(Self::None);
         };
         let ty = recv.ty.to_token_stream().to_string().replace(" ", "");
         match ty.as_str() {
-            "&Self" => Ok(Self::RefSelf),
-            "Arc<Self>" | "&Arc<Self>" => Ok(Self::ArcSelf),
+            "&Self" => Ok(Self::Ref),
+            "Arc<Self>" | "&Arc<Self>" => Ok(Self::Arc),
             _ => {
                 if ty.ends_with("::Arc<Self>") {
-                    Ok(Self::ArcSelf)
+                    Ok(Self::Arc)
                 } else {
                     Err(syn::Error::new_spanned(
                         method,
@@ -102,8 +102,8 @@ fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()
     let method_name = method.sig.ident.clone();
     let vis = method.vis.clone();
     let mut attrs = method.attrs.clone();
-    let mut new_method: ImplItemFn = match MethodStyle::from_method(method)? {
-        MethodStyle::NoSelf => {
+    let mut new_method: ImplItemFn = match FnReceiver::from_method(method)? {
+        FnReceiver::None => {
             method.attrs.push(macro_attr);
             parse_quote! {
                 #vis fn #method_name() -> impl #handler {
@@ -116,10 +116,10 @@ fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()
         }
         style => {
             let (receiver, output) = match style {
-                MethodStyle::RefSelf => {
+                FnReceiver::Ref => {
                     (quote!(&self), quote!(::std::sync::Arc::new(self.clone())))
                 }
-                MethodStyle::ArcSelf => {
+                FnReceiver::Arc => {
                     (quote!(self: &::std::sync::Arc<Self>), quote!(self.clone()))
                 }
                 _ => unreachable!(),
