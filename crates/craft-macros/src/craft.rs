@@ -1,17 +1,8 @@
 use crate::utils::salvo_crate;
-use proc_macro2::{ Span, TokenStream };
-use quote::{ quote, ToTokens };
+use proc_macro2::{Span, TokenStream};
+use quote::{quote, ToTokens};
 use syn::{
-    parse::Parser,
-    parse_quote,
-    Attribute,
-    FnArg,
-    Ident,
-    ImplItem,
-    ImplItemFn,
-    Item,
-    Token,
-    Type,
+    parse::Parser, parse_quote, Attribute, FnArg, Ident, ImplItem, ImplItemFn, Item, Token, Type,
 };
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
@@ -25,7 +16,10 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             Ok(item_impl.into_token_stream())
         }
         Item::Fn(_) => Ok(input.into_token_stream()),
-        _ => Err(syn::Error::new_spanned(input, "#[craft] must added to `impl`")),
+        _ => Err(syn::Error::new_spanned(
+            input,
+            "#[craft] must added to `impl`",
+        )),
     }
 }
 
@@ -33,12 +27,10 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
     let mut index: Option<usize> = None;
     let mut new_attr: Option<Attribute> = None;
     for (idx, attr) in &mut item_fn.attrs.iter().enumerate() {
-        if
-            !(match attr.path().segments.last() {
-                Some(segment) => segment.ident.to_string() == "craft",
-                None => false,
-            })
-        {
+        if !(match attr.path().segments.last() {
+            Some(segment) => segment.ident.to_string() == "craft",
+            None => false,
+        }) {
             continue;
         }
         if let Some((_, last)) = attr.to_token_stream().to_string().split_once("craft(") {
@@ -90,12 +82,10 @@ impl MethodStyle {
                 if ty.ends_with("::Arc<Self>") {
                     Ok(Self::ArcSelf)
                 } else {
-                    Err(
-                        syn::Error::new_spanned(
-                            method,
-                            "#[craft] method receiver must be '&self', 'Arc<Self>' or '&Arc<Self>'"
-                        )
-                    )
+                    Err(syn::Error::new_spanned(
+                        method,
+                        "#[craft] method receiver must be '&self', 'Arc<Self>' or '&Arc<Self>'",
+                    ))
                 }
             }
         }

@@ -42,7 +42,7 @@ impl Service {
     pub(crate) fn add2(
         self: ::std::sync::Arc<Self>,
         left: QueryParam<i64, true>,
-        right: QueryParam<i64, true>
+        right: QueryParam<i64, true>,
     ) -> String {
         (self.state + *left + *right).to_string()
     }
