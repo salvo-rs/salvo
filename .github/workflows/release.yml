@@ -78,6 +78,10 @@ jobs:
             path: crates/oapi-macros
           - crate: salvo-oapi
             path: crates/oapi
+          - crate: salvo-craft-macros
+            path: crates/craft-macros
+          - crate: salvo-craft
+            path: crates/craft
           - crate: salvo
             path: crates/salvo
     steps:
