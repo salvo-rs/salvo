@@ -1,6 +1,5 @@
 //! Path filter implementation.
 
-use core::panic;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
