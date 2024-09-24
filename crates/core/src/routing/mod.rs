@@ -429,8 +429,7 @@ impl PathParams {
             }
         }
         if name.starts_with('*') {
-            self.inner
-                .insert(split_wild_name(name).1.to_owned(), value);
+            self.inner.insert(split_wild_name(name).1.to_owned(), value);
             self.greedy = true;
         } else {
             self.inner.insert(name.to_owned(), value);
