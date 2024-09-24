@@ -63,7 +63,10 @@ impl Handler for Metrics {
         ctrl.call_next(req, depot, res).await;
         let elapsed = s.elapsed();
 
-        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code.unwrap_or_else(|| {
+            tracing::info!("[otel::Metrics] Treat status_code=none as 200(OK).");
+            StatusCode::OK
+        });
         labels.push(KeyValue::new(
             trace::HTTP_RESPONSE_STATUS_CODE,
             status.as_u16() as i64,
