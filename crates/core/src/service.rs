@@ -175,7 +175,13 @@ where
 struct DefaultStatusOK;
 #[async_trait]
 impl Handler for DefaultStatusOK {
-    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        _req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         if res.status_code.is_none() {
             res.status_code = Some(StatusCode::OK);
         }
@@ -222,7 +228,15 @@ impl HyperHandler {
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
                 let mut ctrl = if !hoops.is_empty() {
-                    FlowCtrl::new([&hoops[..], &[Arc::new(DefaultStatusOK)], &dm.hoops[..], &[dm.goal]].concat())
+                    FlowCtrl::new(
+                        [
+                            &hoops[..],
+                            &[Arc::new(DefaultStatusOK)],
+                            &dm.hoops[..],
+                            &[dm.goal],
+                        ]
+                        .concat(),
+                    )
                 } else {
                     FlowCtrl::new([&dm.hoops[..], &[dm.goal]].concat())
                 };
