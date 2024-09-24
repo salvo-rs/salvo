@@ -441,8 +441,8 @@ impl PathParams {
 pub(crate) fn split_greedy_name(name: &str) -> (&str, &str) {
     if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
         (&name[0..2], &name[2..])
-    } else if name.starts_with('*') {
-        ("*", &name[1..])
+    } else if let Some(stripped) = name.strip_prefix('*') {
+        ("*", stripped)
     } else {
         ("", name)
     }

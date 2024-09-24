@@ -296,10 +296,10 @@ impl PathWisp for CharsWisp {
 /// Comb wisp is a group of other kind of wisps in the same url segment.
 #[derive(Debug)]
 pub struct CombWisp {
-    pub names: Vec<String>,
-    pub comb_regex: Regex,
-    pub wild_regex: Option<Regex>,
-    pub wild_start: Option<String>,
+    names: Vec<String>,
+    comb_regex: Regex,
+    wild_regex: Option<Regex>,
+    wild_start: Option<String>,
 }
 impl TryFrom<Vec<WispKind>> for CombWisp {
     type Error = String;
@@ -394,6 +394,10 @@ impl TryFrom<Vec<WispKind>> for CombWisp {
     }
 }
 impl CombWisp {
+    /// Create new `CombWisp`.
+    ///
+    /// # Panics
+    /// If contains unsupported `WispKind``.
     pub fn new(wisps: Vec<WispKind>) -> Self {
         match Self::try_from(wisps) {
             Ok(comb) => comb,
