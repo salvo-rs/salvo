@@ -430,7 +430,7 @@ impl PathParams {
         }
         if name.starts_with('*') {
             self.inner
-                .insert(split_greedy_name(name).1.to_owned(), value);
+                .insert(split_wild_name(name).1.to_owned(), value);
             self.greedy = true;
         } else {
             self.inner.insert(name.to_owned(), value);
@@ -438,7 +438,7 @@ impl PathParams {
     }
 }
 
-pub(crate) fn split_greedy_name(name: &str) -> (&str, &str) {
+pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
     if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
         (&name[0..2], &name[2..])
     } else if let Some(stripped) = name.strip_prefix('*') {

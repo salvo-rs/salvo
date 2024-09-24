@@ -338,7 +338,7 @@ impl TryFrom<Vec<WispKind>> for CombWisp {
                     is_prev_named = true;
                     if wisp.0.starts_with('*') {
                         is_greedy = true;
-                        let (star_mark, name) = crate::routing::split_greedy_name(&wisp.0);
+                        let (star_mark, name) = crate::routing::split_wild_name(&wisp.0);
                         wild_regex = Some(
                             Regex::new(&format!("(?<{}>.*)", &regex::escape(name)))
                                 .expect("regex should worked"),
@@ -360,7 +360,7 @@ impl TryFrom<Vec<WispKind>> for CombWisp {
                     is_prev_named = false;
                     if wisp.name.starts_with('*') {
                         is_greedy = true;
-                        let (star_mark, name) = crate::routing::split_greedy_name(&wisp.name);
+                        let (star_mark, name) = crate::routing::split_wild_name(&wisp.name);
                         wild_regex = Some(
                             Regex::new(&format!("(?<{}>.*)", &regex::escape(name)))
                                 .expect("regex should work"),
