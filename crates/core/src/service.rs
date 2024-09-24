@@ -15,7 +15,7 @@ use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::Depot;
+use crate::{async_trait, Depot};
 
 /// Service http request.
 #[non_exhaustive]
@@ -172,6 +172,16 @@ where
     }
 }
 
+struct DefaultStatusOK;
+#[async_trait]
+impl Handler for DefaultStatusOK {
+    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+        if res.status_code.is_none() {
+            res.status_code = Some(StatusCode::OK);
+        }
+    }
+}
+
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
@@ -209,15 +219,30 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new([&hoops[..], &dm.hoops[..], &[dm.goal]].concat());
+                // Set default status code before service hoops executed.
+                // We hope all hoops in service can get the correct status code.
+                let mut ctrl = if !hoops.is_empty() {
+                    FlowCtrl::new([&hoops[..], &[Arc::new(DefaultStatusOK)], &dm.hoops[..], &[dm.goal]].concat())
+                } else {
+                    FlowCtrl::new([&dm.hoops[..], &[dm.goal]].concat())
+                };
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() {
                     res.status_code = Some(StatusCode::OK);
                 }
             } else if !hoops.is_empty() {
                 req.params = path_state.params;
+                // Set default status code before service hoops executed.
+                // We hope all hoops in service can get the correct status code.
+                if path_state.has_any_goal {
+                    res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
+                } else {
+                    res.status_code = Some(StatusCode::NOT_FOUND);
+                }
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() && path_state.has_any_goal {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
