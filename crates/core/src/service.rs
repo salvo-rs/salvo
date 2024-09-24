@@ -177,11 +177,12 @@ struct DefaultStatusOK;
 impl Handler for DefaultStatusOK {
     async fn handle(
         &self,
-        _req: &mut Request,
-        _depot: &mut Depot,
+        req: &mut Request,
+        depot: &mut Depot,
         res: &mut Response,
-        _ctrl: &mut FlowCtrl,
+        ctrl: &mut FlowCtrl,
     ) {
+        ctrl.call_next(req, depot, res).await;
         if res.status_code.is_none() {
             res.status_code = Some(StatusCode::OK);
         }
