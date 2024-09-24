@@ -428,15 +428,23 @@ impl PathParams {
                 panic!("only one wildcard param is allowed and it must be the last one.");
             }
         }
-        if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
-            self.inner.insert(name[2..].to_owned(), value);
-            self.greedy = true;
-        } else if let Some(name) = name.strip_prefix('*') {
-            self.inner.insert(name.to_owned(), value);
+        if name.starts_with('*') {
+            self.inner
+                .insert(split_greedy_name(name).1.to_owned(), value);
             self.greedy = true;
         } else {
             self.inner.insert(name.to_owned(), value);
         }
+    }
+}
+
+pub(crate) fn split_greedy_name(name: &str) -> (&str, &str) {
+    if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
+        (&name[0..2], &name[2..])
+    } else if name.starts_with('*') {
+        ("*", &name[1..])
+    } else {
+        ("", name)
     }
 }
 
