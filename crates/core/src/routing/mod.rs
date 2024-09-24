@@ -540,14 +540,6 @@ fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
-#[doc(hidden)]
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-#[non_exhaustive]
-pub enum FlowCtrlStage {
-    Routing,
-    Catching,
-}
-
 /// Control the flow of execute handlers.
 ///
 /// When a request is coming, [`Router`] will detect it and get the matched router.
