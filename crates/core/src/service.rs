@@ -227,19 +227,15 @@ impl HyperHandler {
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
-                let mut ctrl = if !hoops.is_empty() {
-                    FlowCtrl::new(
-                        [
-                            &hoops[..],
-                            &[Arc::new(DefaultStatusOK)],
-                            &dm.hoops[..],
-                            &[dm.goal],
-                        ]
-                        .concat(),
-                    )
-                } else {
-                    FlowCtrl::new([&dm.hoops[..], &[dm.goal]].concat())
-                };
+                let mut ctrl = FlowCtrl::new(
+                    [
+                        &hoops[..],
+                        &dm.hoops[..],
+                        &[Arc::new(DefaultStatusOK)],
+                        &[dm.goal],
+                    ]
+                    .concat(),
+                );
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() {
