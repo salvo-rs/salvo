@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use parking_lot::RwLock;
 use regex::Regex;
 
@@ -409,7 +409,7 @@ impl CombWisp {
 impl PathWisp for CombWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let Some(picked) = state.pick() else {
+        let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
         let mut wild_path = if self.wild_regex.is_some() {
@@ -417,8 +417,7 @@ impl PathWisp for CombWisp {
         } else {
             "".to_owned()
         };
-        let caps = self.comb_regex.captures(picked);
-        let mut params = IndexMap::new();
+        let caps = self.comb_regex.captures(&picked);
         if let Some(caps) = caps {
             let take_count = if self.wild_regex.is_some() {
                 self.names.len() - 1
@@ -427,7 +426,7 @@ impl PathWisp for CombWisp {
             };
             for name in self.names.iter().take(take_count) {
                 if let Some(value) = caps.name(name) {
-                    params.insert(name, value.as_str().to_owned());
+                    state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
                         wild_path = wild_path.trim_start_matches(value.as_str()).to_string();
                     }
@@ -447,7 +446,7 @@ impl PathWisp for CombWisp {
         } else {
             return false;
         }
-        let matched = if let (Some(wild_name), Some(wild_regex), Some(wild_start)) = (
+        if let (Some(wild_name), Some(wild_regex), Some(wild_start)) = (
             self.names.last(),
             self.wild_regex.as_ref(),
             self.wild_start.as_ref(),
@@ -479,13 +478,7 @@ impl PathWisp for CombWisp {
             }
         } else {
             true
-        };
-        if matched {
-            for (name, value) in params {
-                state.params.insert(name, value);
-            }
         }
-        matched
     }
 }
 
