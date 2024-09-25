@@ -124,7 +124,7 @@ impl EndpointOutRegister for salvo_core::Error {
     }
 }
 
-impl EndpointOutRegister for &'static str {
+impl EndpointOutRegister for &str {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         operation.responses.insert(
@@ -142,7 +142,7 @@ impl EndpointOutRegister for String {
         );
     }
 }
-impl<'a> EndpointOutRegister for &'a String {
+impl EndpointOutRegister for &String {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         operation.responses.insert(

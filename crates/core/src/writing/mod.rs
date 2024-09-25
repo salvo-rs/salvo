@@ -104,7 +104,7 @@ impl Scribe for &'static str {
         res.write_body(self).ok();
     }
 }
-impl<'a> Scribe for &'a String {
+impl Scribe for &String {
     #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut().insert(

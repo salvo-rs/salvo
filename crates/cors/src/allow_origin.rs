@@ -133,20 +133,20 @@ impl From<Vec<HeaderValue>> for AllowOrigin {
     }
 }
 
-impl<'a> From<&'a str> for AllowOrigin {
-    fn from(val: &'a str) -> Self {
+impl From<&str> for AllowOrigin {
+    fn from(val: &str) -> Self {
         Self::exact(HeaderValue::from_str(val).expect("invalid `HeaderValue`"))
     }
 }
 
-impl<'a> From<&'a String> for AllowOrigin {
-    fn from(val: &'a String) -> Self {
+impl From<&String> for AllowOrigin {
+    fn from(val: &String) -> Self {
         Self::exact(HeaderValue::from_str(val).expect("invalid `HeaderValue`"))
     }
 }
 
-impl<'a> From<Vec<&'a str>> for AllowOrigin {
-    fn from(vals: Vec<&'a str>) -> Self {
+impl From<Vec<&str>> for AllowOrigin {
+    fn from(vals: Vec<&str>) -> Self {
         Self::list(
             vals.iter()
                 .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))
@@ -154,8 +154,8 @@ impl<'a> From<Vec<&'a str>> for AllowOrigin {
         )
     }
 }
-impl<'a, const N: usize> From<[&'a str; N]> for AllowOrigin {
-    fn from(vals: [&'a str; N]) -> Self {
+impl<const N: usize> From<[&str; N]> for AllowOrigin {
+    fn from(vals: [&str; N]) -> Self {
         Self::list(
             vals.iter()
                 .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))
@@ -163,8 +163,8 @@ impl<'a, const N: usize> From<[&'a str; N]> for AllowOrigin {
         )
     }
 }
-impl<'a> From<&'a Vec<String>> for AllowOrigin {
-    fn from(vals: &'a Vec<String>) -> Self {
+impl From<&Vec<String>> for AllowOrigin {
+    fn from(vals: &Vec<String>) -> Self {
         Self::list(
             vals.iter()
                 .map(|v| HeaderValue::from_str(v).expect("invalid `HeaderValue`"))

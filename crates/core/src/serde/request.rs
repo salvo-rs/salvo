@@ -49,7 +49,7 @@ pub(crate) enum Payload<'a> {
     JsonStr(&'a str),
     JsonMap(HashMap<&'a str, &'a RawValue>),
 }
-impl<'a> Payload<'a> {
+impl Payload<'_> {
     #[allow(dead_code)]
     pub(crate) fn is_form_data(&self) -> bool {
         matches!(*self, Self::FormData(_))
