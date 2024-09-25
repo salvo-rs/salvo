@@ -9,7 +9,7 @@ cfg_feature! {
     #![feature = "cookie"]
     pub use cookie;
 }
-pub use errors::{ParseError, StatusError};
+pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
 pub use headers;
 pub use http::method::Method;
 pub use http::{header, method, uri, HeaderMap, HeaderName, HeaderValue, StatusCode};
