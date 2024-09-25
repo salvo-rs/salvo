@@ -79,13 +79,13 @@ pub trait StaticRoots {
     fn collect(self) -> Vec<PathBuf>;
 }
 
-impl<'a> StaticRoots for &'a str {
+impl StaticRoots for &str {
     #[inline]
     fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
-impl<'a> StaticRoots for &'a String {
+impl StaticRoots for &String {
     #[inline]
     fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]

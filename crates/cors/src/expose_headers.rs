@@ -105,20 +105,20 @@ impl From<Vec<HeaderName>> for ExposeHeaders {
     }
 }
 
-impl<'a> From<&'a str> for ExposeHeaders {
-    fn from(val: &'a str) -> Self {
+impl From<&str> for ExposeHeaders {
+    fn from(val: &str) -> Self {
         Self::list([HeaderName::from_str(val).expect("Invalid header name.")])
     }
 }
 
-impl<'a> From<&'a String> for ExposeHeaders {
-    fn from(val: &'a String) -> Self {
+impl From<&String> for ExposeHeaders {
+    fn from(val: &String) -> Self {
         Self::list([HeaderName::from_str(val).expect("Invalid header name.")])
     }
 }
 
-impl<'a> From<Vec<&'a str>> for ExposeHeaders {
-    fn from(vals: Vec<&'a str>) -> Self {
+impl From<Vec<&str>> for ExposeHeaders {
+    fn from(vals: Vec<&str>) -> Self {
         Self::list(
             vals.into_iter()
                 .map(|v| HeaderName::from_str(v).expect("Invalid header name."))
@@ -126,8 +126,8 @@ impl<'a> From<Vec<&'a str>> for ExposeHeaders {
         )
     }
 }
-impl<'a> From<&'a Vec<String>> for ExposeHeaders {
-    fn from(vals: &'a Vec<String>) -> Self {
+impl From<&Vec<String>> for ExposeHeaders {
+    fn from(vals: &Vec<String>) -> Self {
         Self::list(
             vals.iter()
                 .map(|v| HeaderName::from_str(v).expect("Invalid header name."))

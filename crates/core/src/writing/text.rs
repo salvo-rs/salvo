@@ -99,7 +99,7 @@ impl Scribe for Text<String> {
         res.write_body(content).ok();
     }
 }
-impl<'a> Scribe for Text<&'a String> {
+impl Scribe for Text<&String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);

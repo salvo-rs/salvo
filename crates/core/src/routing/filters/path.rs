@@ -251,7 +251,7 @@ impl Debug for CharsWisp {
     }
 }
 impl PathWisp for CharsWisp {
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };
@@ -399,7 +399,7 @@ impl CombWisp {
 }
 impl PathWisp for CombWisp {
     #[inline]
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState) -> bool {
         let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
@@ -471,7 +471,7 @@ impl PathWisp for CombWisp {
 pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
     #[inline]
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.0.starts_with("*?")
@@ -539,7 +539,7 @@ impl PartialEq for RegexWisp {
 }
 impl PathWisp for RegexWisp {
     #[inline]
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState) -> bool {
         if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.name.starts_with("*?")
@@ -586,7 +586,7 @@ impl PathWisp for RegexWisp {
 pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };

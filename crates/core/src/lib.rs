@@ -157,7 +157,7 @@ where
     }
 }
 
-impl<'a, T> IntoVecString for &'a Vec<T>
+impl<T> IntoVecString for &Vec<T>
 where
     T: Into<String> + Clone,
 {
