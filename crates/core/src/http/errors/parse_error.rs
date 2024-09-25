@@ -23,6 +23,10 @@ pub enum ParseError {
     #[error("The request's body is empty.")]
     EmptyBody,
 
+    /// The Hyper request's body is empty.
+    #[error("Data is not exist.")]
+    NotExist,
+
     /// Parse error when parse from str.
     #[error("Parse error when parse from str.")]
     ParseFromStr,
