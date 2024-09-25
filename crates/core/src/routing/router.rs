@@ -264,7 +264,7 @@ impl Router {
     ///
     /// [`HostFilter`]: super::filters::HostFilter
     #[inline]
-    pub fn with_host(self, host: impl Into<String>) -> Self {
+    pub fn with_host(host: impl Into<String>) -> Self {
         Router::with_filter(filters::host(host))
     }
 
@@ -274,6 +274,14 @@ impl Router {
     #[inline]
     pub fn port(self, port: u16) -> Self {
         self.filter(filters::port(port))
+    }
+
+    /// Create a new [`PortFilter`] and set port filter.
+    ///
+    /// [`PortFilter`]: super::filters::PortFilter
+    #[inline]
+    pub fn with_port(port: u16) -> Self {
+        Router::with_filter(filters::port(port))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
