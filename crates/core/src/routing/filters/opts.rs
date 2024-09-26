@@ -1,8 +1,8 @@
 use std::fmt::{self, Formatter};
 
+use crate::async_trait;
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
-use crate::async_trait;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Or<T, U> {

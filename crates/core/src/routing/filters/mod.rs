@@ -10,10 +10,10 @@ mod path;
 use std::fmt::{self, Debug, Formatter};
 
 use self::opts::*;
+use crate::async_trait;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
-use crate::async_trait;
 
 pub use others::*;
 pub use path::*;
@@ -202,37 +202,85 @@ mod tests {
         let mut path_state = PathState::new("http://localhost/one");
         assert!(one_filter.filter(&mut req, &mut path_state).await);
         assert!(!two_filter.filter(&mut req, &mut path_state).await);
-        assert!(one_filter
-            .or_else(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(one_filter.or(two_filter).filter(&mut req, &mut path_state).await);
-        assert!(!one_filter
-            .and_then(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(!one_filter.and(two_filter).filter(&mut req, &mut path_state).await);
+        assert!(
+            one_filter
+                .or_else(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            one_filter
+                .or(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            !one_filter
+                .and_then(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            !one_filter
+                .and(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
 
         let mut path_state = PathState::new("http://localhost/one/two");
         assert!(one_filter.filter(&mut req, &mut path_state).await);
         assert!(two_filter.filter(&mut req, &mut path_state).await);
-        assert!(one_filter
-            .or_else(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(one_filter.or(two_filter).filter(&mut req, &mut path_state).await);
-        assert!(one_filter
-            .and_then(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(one_filter.and(two_filter).filter(&mut req, &mut path_state).await);
+        assert!(
+            one_filter
+                .or_else(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            one_filter
+                .or(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            one_filter
+                .and_then(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            one_filter
+                .and(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
 
         let mut path_state = PathState::new("http://localhost/two");
         assert!(!one_filter.filter(&mut req, &mut path_state).await);
         assert!(two_filter.filter(&mut req, &mut path_state).await);
-        assert!(one_filter
-            .or_else(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(one_filter.or(two_filter).filter(&mut req, &mut path_state).await);
-        assert!(!one_filter
-            .and_then(has_two)
-            .filter(&mut req, &mut path_state).await);
-        assert!(!one_filter.and(two_filter).filter(&mut req, &mut path_state).await);
+        assert!(
+            one_filter
+                .or_else(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            one_filter
+                .or(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            !one_filter
+                .and_then(has_two)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
+        assert!(
+            !one_filter
+                .and(two_filter)
+                .filter(&mut req, &mut path_state)
+                .await
+        );
     }
 }

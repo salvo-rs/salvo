@@ -80,7 +80,11 @@ impl Router {
     }
 
     /// Detect current router is matched for current request.
-    pub async fn detect(&self, req: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
+    pub async fn detect(
+        &self,
+        req: &mut Request,
+        path_state: &mut PathState,
+    ) -> Option<DetectMatched> {
         Box::pin(async move {
             for filter in &self.filters {
                 if !filter.filter(req, path_state).await {
@@ -110,7 +114,8 @@ impl Router {
                 }
             }
             None
-        }).await
+        })
+        .await
     }
 
     /// Insert a router at the begining of current router, shifting all routers after it to the right.
@@ -460,7 +465,7 @@ mod tests {
         );
     }
     #[tokio::test]
-    async  fn test_router_detect1() {
+    async fn test_router_detect1() {
         let router =
             Router::default().push(Router::with_path("users").push(
                 Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler)),
@@ -471,7 +476,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
-    async  fn test_router_detect2() {
+    async fn test_router_detect2() {
         let router = Router::new()
             .push(Router::with_path("users").push(Router::with_path("<id>").get(fake_handler)))
             .push(Router::with_path("users").push(
@@ -667,7 +672,7 @@ mod tests {
     }
 
     #[tokio::test]
-   async  fn test_router_detect_path_encoded() {
+    async fn test_router_detect_path_encoded() {
         let router = Router::new().path("api/<p>").get(fake_handler);
         let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
         let mut path_state = PathState::new(req.uri().path());

@@ -8,9 +8,9 @@ use indexmap::IndexSet;
 use parking_lot::RwLock;
 use regex::Regex;
 
+use crate::async_trait;
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
-use crate::async_trait;
 
 /// PathWisp
 pub trait PathWisp: Send + Sync + fmt::Debug + 'static {

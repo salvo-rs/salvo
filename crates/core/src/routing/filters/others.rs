@@ -1,9 +1,9 @@
 use std::fmt::{self, Debug, Formatter};
 
+use crate::async_trait;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
-use crate::async_trait;
 
 /// Filter by request method
 #[derive(Clone, PartialEq, Eq)]
