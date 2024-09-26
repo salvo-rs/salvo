@@ -80,35 +80,37 @@ impl Router {
     }
 
     /// Detect current router is matched for current request.
-    pub fn detect(&self, req: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
-        for filter in &self.filters {
-            if !filter.filter(req, path_state) {
-                return None;
-            }
-        }
-        if !self.routers.is_empty() {
-            let original_cursor = path_state.cursor;
-            for child in &self.routers {
-                if let Some(dm) = child.detect(req, path_state) {
-                    return Some(DetectMatched {
-                        hoops: [&self.hoops[..], &dm.hoops[..]].concat(),
-                        goal: dm.goal.clone(),
-                    });
-                } else {
-                    path_state.cursor = original_cursor;
+    pub async fn detect(&self, req: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
+        Box::pin(async move {
+            for filter in &self.filters {
+                if !filter.filter(req, path_state).await {
+                    return None;
                 }
             }
-        }
-        if let Some(goal) = &self.goal.clone() {
-            if path_state.is_ended() {
-                path_state.has_any_goal = true;
-                return Some(DetectMatched {
-                    hoops: self.hoops.clone(),
-                    goal: goal.clone(),
-                });
+            if !self.routers.is_empty() {
+                let original_cursor = path_state.cursor;
+                for child in &self.routers {
+                    if let Some(dm) = child.detect(req, path_state).await {
+                        return Some(DetectMatched {
+                            hoops: [&self.hoops[..], &dm.hoops[..]].concat(),
+                            goal: dm.goal.clone(),
+                        });
+                    } else {
+                        path_state.cursor = original_cursor;
+                    }
+                }
             }
-        }
-        None
+            if let Some(goal) = &self.goal.clone() {
+                if path_state.is_ended() {
+                    path_state.has_any_goal = true;
+                    return Some(DetectMatched {
+                        hoops: self.hoops.clone(),
+                        goal: goal.clone(),
+                    });
+                }
+            }
+            None
+        }).await
     }
 
     /// Insert a router at the begining of current router, shifting all routers after it to the right.

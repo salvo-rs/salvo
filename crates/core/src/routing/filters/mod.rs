@@ -13,6 +13,7 @@ use self::opts::*;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
+use crate::async_trait;
 
 pub use others::*;
 pub use path::*;
@@ -21,6 +22,7 @@ pub use path::*;
 ///
 /// View [module level documentation](../index.html) for more details.
 
+#[async_trait]
 pub trait Filter: Debug + Send + Sync + 'static {
     #[doc(hidden)]
     fn type_id(&self) -> std::any::TypeId {
@@ -83,7 +85,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Filter `Request` and returns false or true.
-    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
+    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
 /// `FnFilter` accepts a function as it's param, use this function to filter request.
@@ -91,12 +93,13 @@ pub trait Filter: Debug + Send + Sync + 'static {
 #[allow(missing_debug_implementations)]
 pub struct FnFilter<F>(pub F);
 
+#[async_trait]
 impl<F> Filter for FnFilter<F>
 where
     F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
         self.0(req, path)
     }
 }
