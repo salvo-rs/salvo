@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 
+use crate::async_trait;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
@@ -13,9 +14,11 @@ impl MethodFilter {
         Self(method)
     }
 }
+
+#[async_trait]
 impl Filter for MethodFilter {
     #[inline]
-    fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.method() == self.0
     }
 }
@@ -49,9 +52,11 @@ impl SchemeFilter {
         self
     }
 }
+
+#[async_trait]
 impl Filter for SchemeFilter {
     #[inline]
-    fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.uri()
             .scheme()
             .map(|s| s == &self.scheme)
@@ -87,9 +92,11 @@ impl HostFilter {
         self
     }
 }
+
+#[async_trait]
 impl Filter for HostFilter {
     #[inline]
-    fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // Http1, if `fix-http1-request-uri` feature is disabled, host is lack. so use header host instead.
         // https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
@@ -141,9 +148,11 @@ impl PortFilter {
         self
     }
 }
+
+#[async_trait]
 impl Filter for PortFilter {
     #[inline]
-    fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // Http1, if `fix-http1-request-uri` feature is disabled, port is lack. so use header host instead.
         // https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]

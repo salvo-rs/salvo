@@ -8,6 +8,7 @@ use indexmap::IndexSet;
 use parking_lot::RwLock;
 use regex::Regex;
 
+use crate::async_trait;
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
@@ -959,9 +960,10 @@ impl Debug for PathFilter {
         write!(f, "path:{}", &self.raw_value)
     }
 }
+#[async_trait]
 impl Filter for PathFilter {
     #[inline]
-    fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
         self.detect(state)
     }
 }
