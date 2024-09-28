@@ -149,15 +149,16 @@ async fn process_web_transport(
     } else {
         conn = response
             .extensions_mut()
-            .remove::<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>()
+            .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>>()
             .map(|c| {
-                c.into_inner()
+                Arc::into_inner(c).unwrap().into_inner()
                     .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))
             })
             .transpose()?;
         stream = response
             .extensions_mut()
-            .remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
+            .remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>>()
+            .and_then(|stream|Arc::into_inner(stream));
     }
 
     let Some(conn) = conn else {

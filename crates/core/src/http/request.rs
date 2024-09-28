@@ -527,20 +527,32 @@ impl Request {
         pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
                 if self.extensions.get::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().is_none() {
-                    let conn = self.extensions.remove::<std::sync::Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>();
-                    let stream = self.extensions.remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
+                    let conn = self.extensions.remove::<Arc<std::sync::Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>>();
+                    let stream = self.extensions.remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>>();
                     match (conn, stream) {
                         (Some(conn), Some(stream)) => {
-                            if let Ok(conn) = conn.into_inner() {
-                                    let session =  crate::proto::WebTransportSession::accept(stream, conn).await?;
-                                    self.extensions.insert(Arc::new(session));
-                                    if let Some(session) = self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>() {
-                                        Ok(session)
+                            if let Some(conn) = Arc::into_inner(conn) {
+                                if let Ok(conn) = conn.into_inner() {
+                                    if let Some(stream) = Arc::into_inner(stream) {
+                                        let session =  crate::proto::WebTransportSession::accept(stream, conn).await?;
+                                        self.extensions.insert(Arc::new(session));
+                                        if let Some(session) = self.extensions.get_mut::<Arc<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>>() {
+                                            if let Some(session) = Arc::get_mut(session) {
+                                                Ok(session)
+                                            } else {
+                                                Err(crate::Error::Other("web transport session should not used twice".into()))
+                                            }
+                                        } else {
+                                            Err(crate::Error::Other("web transport session not found in request extension".into()))
+                                        }
                                     } else {
-                                        Err(crate::Error::Other("invalid web transport".into()))
+                                        Err(crate::Error::Other("web transport stream should not used twice".into()))
                                     }
+                                } else {
+                                    Err(crate::Error::Other("invalid web transport".into()))
+                                }
                             } else {
-                                Err(crate::Error::Other("invalid web transport".into()))
+                                Err(crate::Error::Other("quinn connection should not used twice".into()))
                             }
                         }
                         (Some(conn), None) => {
