@@ -141,6 +141,8 @@ fn rewrite_method(
                             &self.0
                         }
                     }
+                    #[allow(unused_imports)]
+                    use ::std::ops::Deref as _;
                     #macro_attr
                     impl #impl_generics handle #impl_generics #where_clause{
                         #method
