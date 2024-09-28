@@ -1,8 +1,9 @@
 use crate::utils::salvo_crate;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use syn::parse::Parser;
 use syn::{
-    parse::Parser, parse_quote, Attribute, FnArg, Ident, ImplItem, ImplItemFn, Item, Token, Type,
+    parse_quote, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type,
 };
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
@@ -10,7 +11,11 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
         Item::Impl(mut item_impl) => {
             for item in &mut item_impl.items {
                 if let ImplItem::Fn(method) = item {
-                    rewrite_method(item_impl.self_ty.clone(), method)?;
+                    rewrite_method(
+                        item_impl.generics.clone(),
+                        item_impl.self_ty.clone(),
+                        method,
+                    )?;
                 }
             }
             Ok(item_impl.into_token_stream())
@@ -49,12 +54,10 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
                 }
             }
         }
-        return Err(
-            syn::Error::new_spanned(
-                item_fn,
-                "The attribute macro #[craft] on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'."
-            )
-        );
+        return Err(syn::Error::new_spanned(
+            item_fn,
+            "The attribute macro #[craft] on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'.",
+        ));
     }
     if let Some(index) = index {
         item_fn.attrs.remove(index);
@@ -92,7 +95,11 @@ impl FnReceiver {
     }
 }
 
-fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()> {
+fn rewrite_method(
+    mut impl_generics: Generics,
+    self_ty: Box<Type>,
+    method: &mut ImplItemFn,
+) -> syn::Result<()> {
     let Some(macro_attr) = take_method_macro(method)? else {
         return Ok(());
     };
@@ -122,10 +129,11 @@ fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()
             };
             method.sig.inputs[0] = FnArg::Receiver(parse_quote!(&self));
             method.sig.ident = Ident::new("handle", Span::call_site());
+            let where_clause = impl_generics.make_where_clause().clone();
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
-                    pub struct handle(::std::sync::Arc<#self_ty>);
-                    impl ::std::ops::Deref for handle {
+                    pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
+                    impl #impl_generics ::std::ops::Deref for handle #impl_generics #where_clause{
                         type Target = #self_ty;
 
                         fn deref(&self) -> &Self::Target {
@@ -133,7 +141,7 @@ fn rewrite_method(self_ty: Box<Type>, method: &mut ImplItemFn) -> syn::Result<()
                         }
                     }
                     #macro_attr
-                    impl handle {
+                    impl #impl_generics handle #impl_generics #where_clause{
                         #method
                     }
                     handle(#output)
