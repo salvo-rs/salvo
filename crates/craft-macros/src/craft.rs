@@ -133,7 +133,8 @@ fn rewrite_method(
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
-                    impl #impl_generics ::std::ops::Deref for handle #impl_generics #where_clause{
+                    use ::std::ops::Deref;
+                    impl #impl_generics Deref for handle #impl_generics #where_clause{
                         type Target = #self_ty;
 
                         fn deref(&self) -> &Self::Target {
