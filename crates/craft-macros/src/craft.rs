@@ -1,6 +1,7 @@
 use crate::utils::salvo_crate;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use regex::Regex;
 use syn::parse::Parser;
 use syn::{
     parse_quote, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type,
@@ -28,9 +29,12 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     }
 }
 
+const REGEX_STR: &'static str = r#"(?s)#\s*\[\s*(::)?\s*([A-Za-z_][A-Za-z0-9_]*\s*::\s*)*\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
+
 fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>> {
     let mut index: Option<usize> = None;
     let mut new_attr: Option<Attribute> = None;
+    let re = Regex::new(REGEX_STR).unwrap();
     for (idx, attr) in &mut item_fn.attrs.iter().enumerate() {
         if !(match attr.path().segments.last() {
             Some(segment) => segment.ident == "craft",
@@ -38,26 +42,30 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
         }) {
             continue;
         }
-        if let Some((_, last)) = attr.to_token_stream().to_string().split_once("craft(") {
-            if let Some(last) = last.strip_suffix(")]") {
-                let ts: Option<TokenStream> = if last == "handler" || last.starts_with("handler(") {
-                    Some(format!("#[{}::{last}]", salvo_crate()).parse()?)
-                } else if last == "endpoint" || last.starts_with("endpoint(") {
-                    Some(format!("#[{}::oapi::{last}]", salvo_crate()).parse()?)
-                } else {
-                    None
+        let attr_str = attr.to_token_stream().to_string().trim().to_owned();
+        if let Some(caps) = re.captures(&attr_str) {
+            if let Some(name) = caps.name("name") {
+                let name = name.as_str();
+                let content = caps
+                    .name("content")
+                    .map(|c| c.as_str().to_string())
+                    .unwrap_or_default();
+                let ts: TokenStream = match name {
+                    "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,
+                    "endpoint" => format!("#[{}::oapi::{name}{content}]", salvo_crate()).parse()?,
+                    _ => {
+                        unreachable!()
+                    }
                 };
-                if let Some(ts) = ts {
-                    new_attr = Attribute::parse_outer.parse2(ts)?.into_iter().next();
-                    index = Some(idx);
-                    continue;
-                }
+                new_attr = Attribute::parse_outer.parse2(ts)?.into_iter().next();
+                index = Some(idx);
+                continue;
             }
         }
         return Err(syn::Error::new_spanned(
-            item_fn,
-            "The attribute macro #[craft] on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'.",
-        ));
+                item_fn,
+                format!("The attribute macro `{attr_str}` on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'."),
+            ));
     }
     if let Some(index) = index {
         item_fn.attrs.remove(index);
@@ -133,7 +141,8 @@ fn rewrite_method(
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
-                    impl #impl_generics ::std::ops::Deref for handle #impl_generics #where_clause{
+                    use ::std::ops::Deref;
+                    impl #impl_generics Deref for handle #impl_generics #where_clause{
                         type Target = #self_ty;
 
                         fn deref(&self) -> &Self::Target {
@@ -154,4 +163,31 @@ fn rewrite_method(
     new_method.attrs.append(&mut attrs);
     *method = new_method;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::REGEX_STR;
+    use regex::Regex;
+
+    #[test]
+    fn extract_attribute() {
+        let re = Regex::new(REGEX_STR).unwrap();
+
+        let texts = vec![
+            r###"#[:: craft(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
+            r###"#[ xx ::craft(handler())]"###,
+            r###"#[::xx::craft(endpoint(simple_text))] "###,
+            r###"#[craft(handler)]"###,
+        ];
+        for text in texts {
+            for caps in re.captures_iter(text) {
+                println!(
+                    "name={}, content={:?}",
+                    caps.name("name").unwrap().as_str(),
+                    caps.name("content").map(|c| c.as_str().to_owned())
+                )
+            }
+        }
+    }
 }

@@ -33,7 +33,7 @@ impl Opts {
     }
     /// doc line 5
     /// doc line 6
-    #[craft(endpoint(responses((status_code = 400, description = "Wrong request parameters."))))]
+    #[craft(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]
     pub fn add3(left: QueryParam<i64>, right: QueryParam<i64>) -> String {
         (*left + *right).to_string()
     }

@@ -25,6 +25,7 @@ proc-macro-crate.workspace = true
 proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full", "parsing"] }
+regex.workspace = true
 
 [dev-dependencies]
 salvo = { path = "../salvo", features = ["oapi"] }
