@@ -140,6 +140,7 @@ fn rewrite_method(
             let where_clause = impl_generics.make_where_clause().clone();
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
+                    #[allow(non_camel_case_types)]
                     pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
                     use ::std::ops::Deref;
                     impl #impl_generics Deref for handle #impl_generics #where_clause{
