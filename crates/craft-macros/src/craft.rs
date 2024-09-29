@@ -29,7 +29,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     }
 }
 
-const REGEX_STR: &'static str = r#"(?s)#\s*\[\s*(::)?\s*([a-zA-z][a-zA-z0-9]*\s*::\s*)*\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
+const REGEX_STR: &'static str = r#"(?s)#\s*\[\s*(::)?\s*([A-Za-z_][A-Za-z0-9_]*\s*::\s*)*\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
 
 fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>> {
     let mut index: Option<usize> = None;
