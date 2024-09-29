@@ -176,14 +176,18 @@ mod tests {
         let re = Regex::new(REGEX_STR).unwrap();
 
         let texts = vec![
-            r###"#[dipper(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
-            r###"#[dipper(handler())]"###,
-            r###"#[dipper(endpoint(simple_text))] "###,
-            r###"#[dipper(handler)]"###,
+            r###"#[craft(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
+            r###"#[craft(handler())]"###,
+            r###"#[craft(endpoint(simple_text))] "###,
+            r###"#[craft(handler)]"###,
         ];
         for text in texts {
             for caps in re.captures_iter(text) {
-                println!("name={}, content={:?}", caps.name("name").unwrap().as_str(), caps.name("content").map(|c| c.as_str().to_owned()))
+                println!(
+                    "name={}, content={:?}",
+                    caps.name("name").unwrap().as_str(),
+                    caps.name("content").map(|c| c.as_str().to_owned())
+                )
             }
         }
     }
