@@ -29,12 +29,12 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     }
 }
 
-const REGEX_STR: &'static str =
-    r#"(?s)#\s*\[\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
+const REGEX_STR: &'static str = r#"(?s)#\s*\[\s*(::)?\s*([a-zA-z][a-zA-z0-9]*\s*::\s*)*\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
 
 fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>> {
     let mut index: Option<usize> = None;
     let mut new_attr: Option<Attribute> = None;
+    let re = Regex::new(REGEX_STR).unwrap();
     for (idx, attr) in &mut item_fn.attrs.iter().enumerate() {
         if !(match attr.path().segments.last() {
             Some(segment) => segment.ident == "craft",
@@ -42,7 +42,6 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
         }) {
             continue;
         }
-        let re = Regex::new(REGEX_STR).unwrap();
         let attr_str = attr.to_token_stream().to_string().trim().to_owned();
         if let Some(caps) = re.captures(&attr_str) {
             if let Some(name) = caps.name("name") {
@@ -176,9 +175,9 @@ mod tests {
         let re = Regex::new(REGEX_STR).unwrap();
 
         let texts = vec![
-            r###"#[craft(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
-            r###"#[craft(handler())]"###,
-            r###"#[craft(endpoint(simple_text))] "###,
+            r###"#[:: craft(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
+            r###"#[ xx ::craft(handler())]"###,
+            r###"#[::xx::craft(endpoint(simple_text))] "###,
             r###"#[craft(handler)]"###,
         ];
         for text in texts {
