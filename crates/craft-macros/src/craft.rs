@@ -165,3 +165,26 @@ fn rewrite_method(
     *method = new_method;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::REGEX_STR;
+    use regex::Regex;
+
+    #[test]
+    fn extract_attribute() {
+        let re = Regex::new(REGEX_STR).unwrap();
+
+        let texts = vec![
+            r###"#[dipper(endpoint(responses((status_code = 400, description = "[(Wrong)] request parameters."))))]"###,
+            r###"#[dipper(handler())]"###,
+            r###"#[dipper(endpoint(simple_text))] "###,
+            r###"#[dipper(handler)]"###,
+        ];
+        for text in texts {
+            for caps in re.captures_iter(text) {
+                println!("name={}, content={:?}", caps.name("name").unwrap().as_str(), caps.name("content").map(|c| c.as_str().to_owned()))
+            }
+        }
+    }
+}
