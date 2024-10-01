@@ -468,10 +468,8 @@ impl NamedFile {
                 }
             }
         }
-        if !res.headers().contains_key(CONTENT_TYPE) {
-            res.headers_mut()
-                .insert(CONTENT_TYPE, self.content_type.clone());
-        }
+        res.headers_mut()
+            .insert(CONTENT_TYPE, self.content_type.clone());
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
