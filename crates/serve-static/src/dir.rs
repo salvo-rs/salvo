@@ -22,6 +22,7 @@ use super::{
     decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,
 };
 
+const APPLICATION_OCTET_STREAM: HeaderValue = HeaderValue::from_static("application/octet-stream");
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 #[non_exhaustive]
@@ -434,7 +435,7 @@ impl Handler for StaticDir {
             let builder = {
                 let mut builder = NamedFile::builder(named_path).content_type(
                     mime_infer::from_ext(ext.as_deref().unwrap_or_default())
-                        .first_or_octet_stream(),
+                        .first_or_octet_stream().as_ref().parse::<HeaderValue>().unwrap_or(APPLICATION_OCTET_STREAM),
                 );
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);

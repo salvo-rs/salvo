@@ -51,7 +51,7 @@ pub struct NamedFile {
     buffer_size: u64,
     metadata: Metadata,
     flags: BitFlags<Flag>,
-    content_type: mime::Mime,
+    content_type: HeaderValue,
     content_disposition: Option<HeaderValue>,
     content_encoding: Option<HeaderValue>,
 }
@@ -62,7 +62,7 @@ pub struct NamedFileBuilder {
     path: PathBuf,
     attached_name: Option<String>,
     disposition_type: Option<String>,
-    content_type: Option<mime::Mime>,
+    content_type: Option<HeaderValue>,
     content_encoding: Option<String>,
     buffer_size: Option<u64>,
     flags: BitFlags<Flag>,
@@ -94,7 +94,7 @@ impl NamedFileBuilder {
 
     /// Sets content type and returns `Self`.
     #[inline]
-    pub fn content_type(mut self, content_type: mime::Mime) -> Self {
+    pub fn content_type(mut self, content_type: HeaderValue) -> Self {
         self.content_type = Some(content_type);
         self
     }
@@ -175,9 +175,12 @@ impl NamedFileBuilder {
                 format!("{ct}; charset=utf-8")
                     .parse::<mime::Mime>()
                     .unwrap_or(ct)
+                    .to_string()
+                    .parse::<HeaderValue>()
             } else {
-                ct
+                ct.to_string().parse::<HeaderValue>()
             }
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"))
         });
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
@@ -214,7 +217,7 @@ impl NamedFileBuilder {
 }
 fn build_content_disposition(
     file_path: impl AsRef<Path>,
-    content_type: &Mime,
+    content_type: &HeaderValue,
     disposition_type: Option<&str>,
     attached_name: Option<&str>,
 ) -> Result<HeaderValue> {
@@ -222,11 +225,15 @@ fn build_content_disposition(
         if attached_name.is_some() {
             "attachment"
         } else {
-            match (content_type.type_(), content_type.subtype()) {
-                (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
-                | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
-                _ => "attachment",
-            }
+            let content_type = content_type
+                .to_str()
+                .map(|c| c.parse::<Mime>().unwrap_or(mime::APPLICATION_OCTET_STREAM))
+                .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+                match (content_type.type_(), content_type.subtype()) {
+                    (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
+                    | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
+                    _ => "attachment",
+                }
         }
     });
     let content_disposition = if disposition_type == "attachment" {
@@ -296,13 +303,13 @@ impl NamedFile {
 
     /// Get content type value.
     #[inline]
-    pub fn content_type(&self) -> &mime::Mime {
+    pub fn content_type(&self) -> &HeaderValue {
         &self.content_type
     }
     /// Sets the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
-    pub fn set_content_type(&mut self, content_type: mime::Mime) {
+    pub fn set_content_type(&mut self, content_type: HeaderValue) {
         self.content_type = content_type;
     }
 
@@ -463,7 +470,7 @@ impl NamedFile {
         }
         if !res.headers().contains_key(CONTENT_TYPE) {
             res.headers_mut()
-                .typed_insert(ContentType::from(self.content_type.clone()));
+                .insert(CONTENT_TYPE, self.content_type.clone());
         }
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
