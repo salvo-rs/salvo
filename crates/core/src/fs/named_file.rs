@@ -13,7 +13,9 @@ use headers::*;
 use tokio::fs::File;
 
 use super::{ChunkedFile, ChunkedState};
-use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH, RANGE};
+use crate::http::header::{
+    CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
+};
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{async_trait, Depot, Error, Result, Writer};
 
@@ -459,9 +461,10 @@ impl NamedFile {
                 }
             }
         }
-
-        res.headers_mut()
-            .typed_insert(ContentType::from(self.content_type.clone()));
+        if !res.headers().contains_key(CONTENT_TYPE) {
+            res.headers_mut()
+                .typed_insert(ContentType::from(self.content_type.clone()));
+        }
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
