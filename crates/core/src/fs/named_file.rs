@@ -13,7 +13,9 @@ use headers::*;
 use tokio::fs::File;
 
 use super::{ChunkedFile, ChunkedState};
-use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH, RANGE};
+use crate::http::header::{
+    CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
+};
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{async_trait, Depot, Error, Result, Writer};
 
