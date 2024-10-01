@@ -229,11 +229,11 @@ fn build_content_disposition(
                 .to_str()
                 .map(|c| c.parse::<Mime>().unwrap_or(mime::APPLICATION_OCTET_STREAM))
                 .unwrap_or(mime::APPLICATION_OCTET_STREAM);
-                match (content_type.type_(), content_type.subtype()) {
-                    (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
-                    | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
-                    _ => "attachment",
-                }
+            match (content_type.type_(), content_type.subtype()) {
+                (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
+                | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
+                _ => "attachment",
+            }
         }
     });
     let content_disposition = if disposition_type == "attachment" {

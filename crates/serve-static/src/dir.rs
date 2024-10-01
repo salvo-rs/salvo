@@ -435,7 +435,10 @@ impl Handler for StaticDir {
             let builder = {
                 let mut builder = NamedFile::builder(named_path).content_type(
                     mime_infer::from_ext(ext.as_deref().unwrap_or_default())
-                        .first_or_octet_stream().as_ref().parse::<HeaderValue>().unwrap_or(APPLICATION_OCTET_STREAM),
+                        .first_or_octet_stream()
+                        .as_ref()
+                        .parse::<HeaderValue>()
+                        .unwrap_or(APPLICATION_OCTET_STREAM),
                 );
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);
