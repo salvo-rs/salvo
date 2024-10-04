@@ -49,6 +49,8 @@ pub enum SourceParser {
     MultiMap,
     /// Json parser.
     Json,
+    /// Url parser.
+    UrlQuery,
     /// Smart parser.
     Smart,
 }

@@ -15,7 +15,7 @@ use crate::http::header::HeaderMap;
 use crate::http::ParseError;
 use crate::Request;
 
-use super::{CowValue, VecValue};
+use super::{CowValue, UrlQueryValue, VecValue};
 
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
@@ -141,6 +141,8 @@ impl<'de> RequestDeserializer<'de> {
                 } else {
                     parser = SourceParser::MultiMap;
                 }
+            } else if source.from == SourceFrom::Query {
+                parser = SourceParser::UrlQuery;
             } else {
                 parser = SourceParser::MultiMap;
             }
@@ -192,7 +194,11 @@ impl<'de> RequestDeserializer<'de> {
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value.into()))
             } else if let Some(value) = self.field_vec_value.take() {
-                seed.deserialize(VecValue(value.into_iter()))
+                if source.from == SourceFrom::Query {
+                    seed.deserialize(UrlQueryValue(value))
+                } else {
+                    seed.deserialize(VecValue(value.into_iter()))
+                }
             } else {
                 Err(ValError::custom("parse value error"))
             }
