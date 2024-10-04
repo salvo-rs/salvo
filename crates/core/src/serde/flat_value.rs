@@ -25,8 +25,8 @@ macro_rules! forward_url_query_parsed_value {
     }
 }
 
-pub(super) struct UrlQueryValue<'de>(pub(super) Vec<CowValue<'de>>);
-impl<'de> IntoDeserializer<'de> for UrlQueryValue<'de> {
+pub(super) struct FlatValue<'de>(pub(super) Vec<CowValue<'de>>);
+impl<'de> IntoDeserializer<'de> for FlatValue<'de> {
     type Deserializer = Self;
 
     #[inline]
@@ -35,7 +35,7 @@ impl<'de> IntoDeserializer<'de> for UrlQueryValue<'de> {
     }
 }
 
-impl<'de> Deserializer<'de> for UrlQueryValue<'de> {
+impl<'de> Deserializer<'de> for FlatValue<'de> {
     type Error = ValError;
 
     #[inline]
@@ -121,12 +121,11 @@ impl<'de> Deserializer<'de> for UrlQueryValue<'de> {
         } else {
             false
         };
-        if !single_mode {
-            visitor.visit_seq(SeqDeserializer::new(items.into_iter()))
+        if single_mode {
+            let parser = FlatParser::new(items.remove(0).0);
+            visitor.visit_seq(SeqDeserializer::new(parser.into_iter()))
         } else {
-            let vec_value: Vec<Cow<'de, str>> = serde_json::from_str(&items.remove(0).0)
-                .map_err(|e| ValError::custom(e.to_string()))?;
-            visitor.visit_seq(SeqDeserializer::new(vec_value.into_iter().map(CowValue)))
+            visitor.visit_seq(SeqDeserializer::new(items.into_iter()))
         }
     }
 
@@ -156,5 +155,49 @@ impl<'de> Deserializer<'de> for UrlQueryValue<'de> {
         i64 => deserialize_i64,
         f32 => deserialize_f32,
         f64 => deserialize_f64,
+    }
+}
+
+struct FlatParser<'de> {
+    input: Cow<'de, str>,
+    start: usize,
+}
+impl<'de> FlatParser<'de> {
+    fn new(input: Cow<'de, str>) -> Self {
+        Self { input, start: 1 }
+    }
+}
+impl<'de> Iterator for FlatParser<'de> {
+    type Item = CowValue<'de>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut in_quote = false;
+        let mut in_escape = false;
+        let mut end = self.start;
+        for c in self.input[self.start..].chars() {
+            if in_escape {
+                in_escape = false;
+                continue;
+            }
+            match c {
+                '\\' => {
+                    in_escape = true;
+                }
+                '"' => {
+                    in_quote = !in_quote;
+                }
+                ',' | ']' => {
+                    if !in_quote {
+                        let item: Cow<'de, str> =
+                            Cow::Owned(self.input[self.start..end].to_string());
+                        self.start = end + 1;
+                        return Some(CowValue(item));
+                    }
+                }
+                _ => {}
+            }
+            end += 1;
+        }
+        None
     }
 }

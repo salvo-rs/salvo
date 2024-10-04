@@ -13,8 +13,8 @@ mod cow_value;
 use cow_value::CowValue;
 mod vec_value;
 use vec_value::VecValue;
-mod url_query_value;
-use url_query_value::UrlQueryValue;
+mod flat_value;
+use flat_value::FlatValue;
 
 #[inline]
 pub fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>

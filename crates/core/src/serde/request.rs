@@ -15,7 +15,7 @@ use crate::http::header::HeaderMap;
 use crate::http::ParseError;
 use crate::Request;
 
-use super::{CowValue, UrlQueryValue, VecValue};
+use super::{CowValue, FlatValue, VecValue};
 
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
@@ -141,8 +141,8 @@ impl<'de> RequestDeserializer<'de> {
                 } else {
                     parser = SourceParser::MultiMap;
                 }
-            } else if source.from == SourceFrom::Query {
-                parser = SourceParser::UrlQuery;
+            } else if source.from == SourceFrom::Query || source.from == SourceFrom::Header {
+                parser = SourceParser::Flat;
             } else {
                 parser = SourceParser::MultiMap;
             }
@@ -160,7 +160,7 @@ impl<'de> RequestDeserializer<'de> {
                 .fields
                 .get(self.field_index as usize)
                 .expect("field must exist.");
-            let metadata = field.metadata.expect("Field's metadata must exist");
+            let metadata = field.metadata.expect("field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
@@ -194,8 +194,8 @@ impl<'de> RequestDeserializer<'de> {
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value.into()))
             } else if let Some(value) = self.field_vec_value.take() {
-                if source.from == SourceFrom::Query {
-                    seed.deserialize(UrlQueryValue(value))
+                if source.from == SourceFrom::Query || source.from == SourceFrom::Header {
+                    seed.deserialize(FlatValue(value))
                 } else {
                     seed.deserialize(VecValue(value.into_iter()))
                 }
@@ -674,6 +674,7 @@ mod tests {
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(data, RequestData { p2: "921", b: true });
     }
+
     #[tokio::test]
     async fn test_de_request_with_json_str() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
@@ -697,6 +698,7 @@ mod tests {
             }
         );
     }
+
     #[tokio::test]
     async fn test_de_request_with_form_json_str() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
@@ -727,6 +729,7 @@ mod tests {
             }
         );
     }
+
     #[tokio::test]
     async fn test_de_request_with_extract_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
@@ -749,6 +752,7 @@ mod tests {
             }
         );
     }
+
     #[tokio::test]
     async fn test_de_request_with_serde_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
@@ -772,6 +776,7 @@ mod tests {
             }
         );
     }
+
     #[tokio::test]
     async fn test_de_request_with_both_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
@@ -792,6 +797,24 @@ mod tests {
             RequestData {
                 full_name: "chris young".into(),
                 curr_age: 20
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_url_array() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct RequestData {
+            ids: Vec<String>,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?ids=[3,2,11]").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                ids: vec!["3".to_string(), "2".to_string(), "11".to_string()]
             }
         );
     }
