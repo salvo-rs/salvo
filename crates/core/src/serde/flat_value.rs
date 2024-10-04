@@ -171,10 +171,11 @@ impl<'de> Iterator for FlatParser<'de> {
     type Item = CowValue<'de>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut in_quote = false;
+        let mut quote = None;
         let mut in_escape = false;
         let mut end = self.start;
-        for c in self.input[self.start..].chars() {
+        let mut in_next = false;
+        for  c in self.input[self.start..].chars() {
             if in_escape {
                 in_escape = false;
                 continue;
@@ -182,22 +183,62 @@ impl<'de> Iterator for FlatParser<'de> {
             match c {
                 '\\' => {
                     in_escape = true;
+                    in_next = true;
                 }
-                '"' => {
-                    in_quote = !in_quote;
+                ' ' => {
+                    if quote.is_none() {
+                        self.start += 1;
+                    }
+                }
+                '"' | '\'' => {
+                    in_next = true;
+                    if quote == Some(c) {
+                        let item = Cow::Owned(self.input[self.start..end].to_string());
+                        self.start = end + 2;
+                        return Some(CowValue(item));
+                    } else {
+                        quote = Some(c);
+                        self.start += 1;
+
+                    }
                 }
                 ',' | ']' => {
-                    if !in_quote {
-                        let item: Cow<'de, str> =
-                            Cow::Owned(self.input[self.start..end].to_string());
+                    if quote.is_none() && in_next {
+                        let item = Cow::Owned(self.input[self.start..end].to_string());
                         self.start = end + 1;
                         return Some(CowValue(item));
                     }
                 }
-                _ => {}
+                _ => {
+                    in_next = true;
+                }
             }
             end += 1;
         }
         None
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_flat_parser_1() {
+        let parser = super::FlatParser::new("[1,2, 3]".into());
+        let mut iter = parser.into_iter();
+        assert_eq!(iter.next().unwrap().0, "1");
+        assert_eq!(iter.next().unwrap().0, "2");
+        assert_eq!(iter.next().unwrap().0, "3");
+        assert!(iter.next().is_none());
+    }
+    #[test]
+    fn test_flat_parser_2() {
+        let parser = super::FlatParser::new(r#"['3',  '2',"11","1,2"]"#.into());
+        let mut iter = parser.into_iter();
+        assert_eq!(iter.next().unwrap().0, "3");
+        assert_eq!(iter.next().unwrap().0, "2");
+        assert_eq!(iter.next().unwrap().0, "11");
+        assert_eq!(iter.next().unwrap().0, "1,2");
+        assert!(iter.next().is_none());
     }
 }

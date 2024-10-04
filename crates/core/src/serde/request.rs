@@ -817,5 +817,39 @@ mod tests {
                 ids: vec!["3".to_string(), "2".to_string(), "11".to_string()]
             }
         );
+        let mut req = TestClient::get(
+            r#"http://127.0.0.1:5800/test/1234/param2v?ids=['3',  '2',"11","1,2"]"#,
+        )
+        .build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                ids: vec![
+                    "3".to_string(),
+                    "2".to_string(),
+                    "11".to_string(),
+                    "1,2".to_string()
+                ]
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_url_array2() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct RequestData {
+            ids: Vec<i64>,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?ids=[3,2,11]").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                ids: vec![3, 2, 11]
+            }
+        );
     }
 }
