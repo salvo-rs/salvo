@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
 use serde::de::value::{Error as ValError, SeqDeserializer};
-use serde::de::{
-     Deserializer,  Error as DeError, IntoDeserializer,
-    Visitor,
-};
+use serde::de::{Deserializer, Error as DeError, IntoDeserializer, Visitor};
 use serde::forward_to_deserialize_any;
 
 use super::{CowValue, ValueEnumAccess};
