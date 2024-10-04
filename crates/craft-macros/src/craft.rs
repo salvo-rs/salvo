@@ -4,7 +4,8 @@ use quote::{quote, ToTokens};
 use regex::Regex;
 use syn::parse::Parser;
 use syn::{
-    parse_quote, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type,
+    parse_quote, AngleBracketedGenericArguments, Attribute, FnArg, Generics, Ident, ImplItem,
+    ImplItemFn, Item, PathArguments, Token, Type, TypePath,
 };
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
@@ -138,12 +139,22 @@ fn rewrite_method(
             method.sig.inputs[0] = FnArg::Receiver(parse_quote!(&self));
             method.sig.ident = Ident::new("handle", Span::call_site());
             let where_clause = impl_generics.make_where_clause().clone();
+            let mut angle_bracketed: Option<AngleBracketedGenericArguments> = None;
+            if let Type::Path(TypePath { path, .. }) = &*self_ty {
+                if let Some(last_segment) = path.segments.last() {
+                    if let PathArguments::AngleBracketed(_angle_bracketed) = &last_segment.arguments
+                    {
+                        // println!("{}", _angle_bracketed.to_token_stream());
+                        angle_bracketed = Some(_angle_bracketed.clone());
+                    }
+                }
+            }
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
                     pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
                     use ::std::ops::Deref;
-                    impl #impl_generics Deref for handle #impl_generics #where_clause{
+                    impl #impl_generics Deref for handle #angle_bracketed #where_clause{
                         type Target = #self_ty;
 
                         fn deref(&self) -> &Self::Target {
@@ -153,7 +164,7 @@ fn rewrite_method(
                     #[allow(unused_imports)]
                     use ::std::ops::Deref as _;
                     #macro_attr
-                    impl #impl_generics handle #impl_generics #where_clause{
+                    impl #impl_generics handle #angle_bracketed #where_clause{
                         #method
                     }
                     handle(#output)
@@ -163,6 +174,7 @@ fn rewrite_method(
     };
     new_method.attrs.append(&mut attrs);
     *method = new_method;
+    // println!("{}", method.to_token_stream());
     Ok(())
 }
 
