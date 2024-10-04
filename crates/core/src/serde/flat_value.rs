@@ -175,7 +175,7 @@ impl<'de> Iterator for FlatParser<'de> {
         let mut in_escape = false;
         let mut end = self.start;
         let mut in_next = false;
-        for  c in self.input[self.start..].chars() {
+        for c in self.input[self.start..].chars() {
             if in_escape {
                 in_escape = false;
                 continue;
@@ -199,7 +199,6 @@ impl<'de> Iterator for FlatParser<'de> {
                     } else {
                         quote = Some(c);
                         self.start += 1;
-
                     }
                 }
                 ',' | ']' => {
@@ -218,7 +217,6 @@ impl<'de> Iterator for FlatParser<'de> {
         None
     }
 }
-
 
 #[cfg(test)]
 mod tests {
