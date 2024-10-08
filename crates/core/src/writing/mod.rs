@@ -97,31 +97,31 @@ impl Scribe for StatusCode {
 impl Scribe for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        let _ = res.headers.append(
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self).ok();
+        let _ = res.write_body(self);
     }
 }
 impl Scribe for &String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        let _ = res.headers.append(
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self.as_bytes().to_vec()).ok();
+        let _ = res.write_body(self.as_bytes().to_vec());
     }
 }
 impl Scribe for String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        let _ = res.headers.append(
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self).ok();
+        let _ = res.write_body(self);
     }
 }
 impl Scribe for std::convert::Infallible {

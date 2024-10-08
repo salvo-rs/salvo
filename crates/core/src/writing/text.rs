@@ -81,7 +81,7 @@ where
                 content,
             ),
         };
-        res.headers_mut().insert(CONTENT_TYPE, ctype);
+        res.headers.append(CONTENT_TYPE, ctype);
         content
     }
 }
@@ -89,21 +89,21 @@ impl Scribe for Text<&'static str> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
-        res.write_body(content).ok();
+        let _ = res.write_body(content);
     }
 }
 impl Scribe for Text<String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
-        res.write_body(content).ok();
+        let _ = res.write_body(content);
     }
 }
 impl Scribe for Text<&String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
-        res.write_body(content.as_bytes().to_vec()).ok();
+        let _ = res.write_body(content.as_bytes().to_vec());
     }
 }
 impl<C: Debug> Debug for Text<C> {

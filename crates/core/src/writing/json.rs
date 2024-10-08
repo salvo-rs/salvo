@@ -36,11 +36,11 @@ where
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {
-                res.headers_mut().insert(
+                let _ = res.headers.append(
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/json; charset=utf-8"),
                 );
-                res.write_body(bytes).ok();
+                let _ = res.write_body(bytes);
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");
