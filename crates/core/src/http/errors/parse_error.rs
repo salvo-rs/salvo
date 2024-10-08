@@ -16,15 +16,15 @@ pub type ParseResult<T> = Result<T, ParseError>;
 #[non_exhaustive]
 pub enum ParseError {
     /// The Hyper request did not have a valid Content-Type header.
-    #[error("The request did not have a valid Content-Type header.")]
+    #[error("the request did not have a valid Content-Type header")]
     InvalidContentType,
 
     /// The Hyper request's body is empty.
-    #[error("The request's body is empty.")]
+    #[error("the request's body is empty")]
     EmptyBody,
 
     /// The Hyper request's body is empty.
-    #[error("Data is not exist.")]
+    #[error("data is not exist")]
     NotExist,
 
     /// Parse error when parse from str.
@@ -34,55 +34,55 @@ pub enum ParseError {
     //// A possible error value when converting a `StatusCode` from a `u16` or `&str`
     /// This error indicates that the supplied input was not a valid number, was less
     /// than 100, or was greater than 999.
-    #[error("Invalid StatusCode.")]
+    #[error("invalid StatusCode: {0}")]
     InvalidStatusCode(#[from] http::status::InvalidStatusCode),
 
     /// A possible error value when converting `Method` from bytes.
-    #[error("Invalid http method.")]
+    #[error("invalid http method: {0}")]
     InvalidMethod(#[from] http::method::InvalidMethod),
     /// An error resulting from a failed attempt to construct a URI.
-    #[error("Invalid uri.")]
+    #[error("invalid uri: {0}")]
     InvalidUri(#[from] http::uri::InvalidUri),
     /// An error resulting from a failed attempt to construct a URI.
-    #[error("Invalid uri parts.")]
+    #[error("invalid uri parts: {0}")]
     InvalidUriParts(#[from] http::uri::InvalidUriParts),
     /// A possible error when converting a `HeaderName` from another type.
-    #[error("Invalid header name.")]
+    #[error("invalid header name: {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
     /// A possible error when converting a `HeaderValue` from a string or byte slice.
-    #[error("Invalid header value.")]
+    #[error("invalid header value: {0}")]
     InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
     /// Deserialize error when parse from request.
-    #[error("Deserialize error.")]
+    #[error("deserialize error: {0}")]
     Deserialize(#[from] DeError),
 
     /// DuplicateKey.
-    #[error("DuplicateKey.")]
+    #[error("duplicate key")]
     DuplicateKey,
 
     /// The Hyper request Content-Type top-level Mime was not `Multipart`.
-    #[error("The Hyper request Content-Type top-level Mime was not `Multipart`.")]
+    #[error("the Hyper request Content-Type top-level Mime was not `Multipart`.")]
     NotMultipart,
 
     /// The Hyper request Content-Type sub-level Mime was not `FormData`.
-    #[error("The Hyper request Content-Type sub-level Mime was not `FormData`.")]
+    #[error("the Hyper request Content-Type sub-level Mime was not `FormData`.")]
     NotFormData,
 
     /// InvalidRange.
-    #[error("InvalidRange")]
+    #[error("invalid range")]
     InvalidRange,
 
     /// An multer error.
-    #[error("Multer error: {0}")]
+    #[error("multer error: {0}")]
     Multer(#[from] multer::Error),
 
     /// An I/O error.
-    #[error("I/O error: {}", _0)]
+    #[error("I/O error: {0}")]
     Io(#[from] IoError),
 
     /// An error was returned from hyper.
-    #[error("Hyper error: {0}")]
+    #[error("hyper error: {0}")]
     Hyper(#[from] hyper::Error),
 
     /// An error occurred during UTF-8 processing.
@@ -90,11 +90,11 @@ pub enum ParseError {
     Utf8(#[from] Utf8Error),
 
     /// Serde json error.
-    #[error("Serde json error: {0}")]
+    #[error("serde json error: {0}")]
     SerdeJson(#[from] serde_json::error::Error),
 
     /// Custom error that does not fall under any other error kind.
-    #[error("Other error: {0}")]
+    #[error("other error: {0}")]
     Other(BoxedError),
 }
 
