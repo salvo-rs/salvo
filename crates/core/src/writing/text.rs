@@ -44,7 +44,7 @@ impl<C> Text<C>
 where
     C: AsRef<str>,
 {
-    fn set_header(self, res: &mut Response) -> C {
+    fn append_header(self, res: &mut Response) -> C {
         let (ctype, content) = match self {
             Self::Plain(content) => (
                 HeaderValue::from_static("text/plain; charset=utf-8"),
@@ -88,21 +88,21 @@ where
 impl Scribe for Text<&'static str> {
     #[inline]
     fn render(self, res: &mut Response) {
-        let content = self.set_header(res);
+        let content = self.append_header(res);
         let _ = res.write_body(content);
     }
 }
 impl Scribe for Text<String> {
     #[inline]
     fn render(self, res: &mut Response) {
-        let content = self.set_header(res);
+        let content = self.append_header(res);
         let _ = res.write_body(content);
     }
 }
 impl Scribe for Text<&String> {
     #[inline]
     fn render(self, res: &mut Response) {
-        let content = self.set_header(res);
+        let content = self.append_header(res);
         let _ = res.write_body(content.as_bytes().to_vec());
     }
 }
