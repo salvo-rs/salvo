@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use async_trait::async_trait;
 use serde::Serialize;
 
-use super::Scribe;
+use super::{try_set_header, Scribe};
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::{Response, StatusError};
 
@@ -36,7 +36,8 @@ where
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {
-                let _ = res.headers.append(
+                try_set_header(
+                    &mut res.headers,
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/json; charset=utf-8"),
                 );
