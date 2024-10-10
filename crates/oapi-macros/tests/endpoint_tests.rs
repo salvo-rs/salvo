@@ -48,15 +48,15 @@ fn test_endpoint_hello() {
 
 #[test]
 fn test_endpoint_generic() {
-    pub struct Generic<T: Sized>(T);
+    struct Generic<T: Sized>(T);
 
     #[endpoint]
     impl<T: Sized> Generic<T>
     where
         T: Send + Sync + 'static,
     {
-        async fn handle(&self, _req: &mut Request) -> String {
-            String::new()
+        async fn handle(name: QueryParam<String, false>) -> String {
+            format!("[Generic] Hello, {}!", name.as_deref().unwrap_or("World"))
         }
     }
 
@@ -74,7 +74,7 @@ fn test_endpoint_generic() {
             "paths":{
                 "/generic":{
                     "get":{
-                        "operationId":"endpoint_tests.test_endpoint_generic.generic",
+                        "operationId":"endpoint_tests.test_endpoint_generic.Generic",
                         "parameters":[{
                                 "name":"name",
                                 "in":"query",
