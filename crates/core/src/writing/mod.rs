@@ -153,6 +153,7 @@ macro_rules! writer_tuple_impls {
 
 crate::for_each_tuple!(writer_tuple_impls);
 
+#[inline(always)]
 fn try_set_header<K, V>(headers: &mut HeaderMap<V>, key: K, val: V)
 where
     K: IntoHeaderName,
