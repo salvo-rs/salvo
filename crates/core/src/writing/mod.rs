@@ -5,7 +5,8 @@ mod redirect;
 mod seek;
 mod text;
 
-use http::StatusCode;
+use http::header::{AsHeaderName, IntoHeaderName};
+use http::{HeaderMap, StatusCode};
 pub use json::Json;
 pub use redirect::Redirect;
 pub use seek::ReadSeeker;
@@ -97,31 +98,34 @@ impl Scribe for StatusCode {
 impl Scribe for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        try_set_header(
+            &mut res.headers,
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self).ok();
+        let _ = res.write_body(self);
     }
 }
 impl Scribe for &String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        try_set_header(
+            &mut res.headers,
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self.as_bytes().to_vec()).ok();
+        let _ = res.write_body(self.as_bytes().to_vec());
     }
 }
 impl Scribe for String {
     #[inline]
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(
+        try_set_header(
+            &mut res.headers,
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        res.write_body(self).ok();
+        let _ = res.write_body(self);
     }
 }
 impl Scribe for std::convert::Infallible {
@@ -148,6 +152,16 @@ macro_rules! writer_tuple_impls {
 }
 
 crate::for_each_tuple!(writer_tuple_impls);
+
+fn try_set_header<K, V>(headers: &mut HeaderMap<V>, key: K, val: V)
+where
+    K: IntoHeaderName,
+    for<'a> &'a K: AsHeaderName,
+{
+    if !headers.contains_key(&key) {
+        let _ = headers.insert(key, val);
+    }
+}
 
 #[cfg(test)]
 mod tests {
