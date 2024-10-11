@@ -129,7 +129,7 @@ impl HttpBuilder {
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
-                                    conn.await.ok();
+                                    let _ = conn.await;
                                 }
                             }
                         }
@@ -144,7 +144,7 @@ impl HttpBuilder {
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
-                                    conn.await.ok();
+                                    let _ = conn.await;
                                 }
                             }
                         }
@@ -160,7 +160,7 @@ impl HttpBuilder {
                             }
                         }
                         (None, None) => {
-                            conn.await.ok();
+                            let _ = conn.await;
                         }
                     }
                 }
@@ -191,7 +191,7 @@ impl HttpBuilder {
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
-                                    conn.await.ok();
+                                    let _ = conn.await;
                                 }
                             }
                         }
@@ -206,7 +206,7 @@ impl HttpBuilder {
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
-                                    conn.await.ok();
+                                    let _ = conn.await;
                                 }
                             }
                         }
@@ -222,7 +222,7 @@ impl HttpBuilder {
                             }
                         }
                         (None, None) => {
-                            conn.await.ok();
+                            let _ = conn.await;
                         }
                     }
                 }

@@ -45,7 +45,7 @@ impl ServerHandle {
     ///
     /// Call this function will stop server immediately.
     pub fn stop_forcible(&self) {
-        self.tx_cmd.send(ServerCommand::StopForcible).ok();
+        let _ = self.tx_cmd.send(ServerCommand::StopForcible);
     }
 
     /// Graceful stop server.
@@ -81,7 +81,7 @@ impl ServerHandle {
     /// }
     /// ```
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
-        self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
+        let _ = self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into()));
     }
 }
 
@@ -159,7 +159,7 @@ impl<A: Acceptor + Send> Server<A> {
         ///
         /// Call this function will stop server immediately.
         pub fn stop_forcible(&self) {
-            self.tx_cmd.send(ServerCommand::StopForcible).ok();
+            let _ = self.tx_cmd.send(ServerCommand::StopForcible);
         }
 
         /// Graceful stop server.
@@ -168,7 +168,7 @@ impl<A: Acceptor + Send> Server<A> {
         /// You can specify a timeout to force stop server.
         /// If `timeout` is `None`, it will wait util all connections are closed.
         pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
-            self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
+            let _ = self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into()));
         }
     }
     
@@ -382,7 +382,7 @@ impl<A: Acceptor + Send> Server<A> {
                     let builder = builder.clone();
 
                     tokio::spawn(async move {
-                        conn.serve(handler, builder, None).await.ok();
+                        let _ = conn.serve(handler, builder, None).await;
                     });
                 },
                 Err(e) => {

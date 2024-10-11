@@ -213,7 +213,7 @@ impl OidcDecoder {
             tracing::info!("Spawning Task to re-validate JWKS");
             let a = self.clone();
             tokio::task::spawn(async move {
-                a.update_cache().await.ok();
+                let _ = a.update_cache().await;
                 a.cache_state.set_is_revalidating(false);
                 a.notifier.notify_waiters();
             });

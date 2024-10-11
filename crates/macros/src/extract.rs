@@ -123,7 +123,7 @@ impl Parse for ExtractFieldInfo {
                     return Err(input.error("unexpected attribute"));
                 }
             }
-            input.parse::<Token![,]>().ok();
+            let _ = input.parse::<Token![,]>();
         }
         Ok(extract)
     }
