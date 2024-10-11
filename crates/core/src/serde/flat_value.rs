@@ -113,7 +113,7 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let mut items = std::mem::take(&mut self.0);
         let single_mode = if items.len() == 1 {
-            if let Some(item) = items.get(0) {
+            if let Some(item) = items.first() {
                 item.0.starts_with('[') && item.0.ends_with(']')
             } else {
                 false
