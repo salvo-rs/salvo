@@ -191,8 +191,8 @@ impl Drop for FilePart {
             let path = self.path.clone();
             let temp_dir = temp_dir.to_owned();
             tokio::task::spawn_blocking(move || {
-                std::fs::remove_file(&path).ok();
-                std::fs::remove_dir(temp_dir).ok();
+                let _ = std::fs::remove_file(&path);
+                let _ = std::fs::remove_dir(temp_dir);
             });
         }
     }

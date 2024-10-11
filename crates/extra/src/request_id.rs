@@ -122,7 +122,7 @@ impl Handler for RequestId {
             return;
         }
         let id = self.generator.generate(req, depot);
-        req.add_header(self.header_name.clone(), &id, true).ok();
+        let _ = req.add_header(self.header_name.clone(), &id, true);
         depot.insert(REQUST_ID_KEY, id);
     }
 }

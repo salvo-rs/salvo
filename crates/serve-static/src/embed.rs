@@ -73,10 +73,10 @@ fn render_embedded_data(
 
     match data {
         Cow::Borrowed(data) => {
-            res.write_body(data).ok();
+            let _ = res.write_body(data);
         }
         Cow::Owned(data) => {
-            res.write_body(data).ok();
+            let _ = res.write_body(data);
         }
     }
 }

@@ -29,12 +29,12 @@ where
         match ctype.subtype() {
             mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
                 if metadata.has_body_required() {
-                    req.form_data().await.ok();
+                    let _ = req.form_data().await;
                 }
             }
             mime::JSON => {
                 if metadata.has_body_required() {
-                    req.payload().await.ok();
+                    let _ = req.payload().await;
                 }
             }
             _ => {}

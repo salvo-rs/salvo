@@ -507,25 +507,23 @@ fn list_xml(current: &CurrentInfo) -> String {
     } else {
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
-            write!(
+            let _ = write!(
                 ftxt,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
                 dir.modified.format(&format).expect("format time failed"),
                 encode_url_path(&dir.name),
-            )
-            .ok();
+            );
         }
         for file in &current.files {
-            write!(
+            let _ = write!(
                 ftxt,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
                 file.modified.format(&format).expect("format time failed"),
                 file.size,
                 encode_url_path(&file.name),
-            )
-            .ok();
+            );
         }
     }
     ftxt.push_str("</list>");
@@ -578,31 +576,29 @@ fn list_html(current: &CurrentInfo) -> String {
         header_links(&current.path)
     );
     if current.dirs.is_empty() && current.files.is_empty() {
-        write!(ftxt, "<p>No files</p>").ok();
+        let _ = write!(ftxt, "<p>No files</p>");
     } else {
-        write!(ftxt, "<table><tr><th>").ok();
+        let _ = write!(ftxt, "<table><tr><th>");
         if !(current.path.is_empty() || current.path == "/") {
-            write!(ftxt, "<a href=\"../\">[..]</a>").ok();
+            let _ = write!(ftxt, "<a href=\"../\">[..]</a>");
         }
-        write!(
+        let _ = write!(
             ftxt,
             "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>"
-        )
-        .ok();
+        );
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
-            write!(
+            let _ = write!(
                 ftxt,
                 r#"<tr><td>{}</td><td><a href="./{}/">{}</a></td><td>{}</td><td></td></tr>"#,
                 DIR_ICON,
                 encode_url_path(&dir.name),
                 dir.name,
                 dir.modified.format(&format).expect("format time failed"),
-            )
-            .ok();
+            );
         }
         for file in &current.files {
-            write!(
+            let _ = write!(
                 ftxt,
                 r#"<tr><td>{}</td><td><a href="./{}">{}</a></td><td>{}</td><td>{}</td></tr>"#,
                 FILE_ICON,
@@ -610,16 +606,14 @@ fn list_html(current: &CurrentInfo) -> String {
                 file.name,
                 file.modified.format(&format).expect("format time failed"),
                 human_size(file.size)
-            )
-            .ok();
+            );
         }
-        write!(ftxt, "</table>").ok();
+        let _ = write!(ftxt, "</table>");
     }
-    write!(
+    let _ = write!(
         ftxt,
         r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#
-    )
-    .ok();
+    );
     ftxt
 }
 #[inline]
