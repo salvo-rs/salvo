@@ -68,7 +68,7 @@ async fn main() {
     let listener = TcpListener::new("0.0.0.0:443")
         .acme()
         .add_domain("test.salvo.rs") // Replace this domain name with your own.
-        .http01_challege(&mut router).quinn("0.0.0.0:443");
+        .http01_challenge(&mut router).quinn("0.0.0.0:443");
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
     Server::new(acceptor).serve(router).await;
 }

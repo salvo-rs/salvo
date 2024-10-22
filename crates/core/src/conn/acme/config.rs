@@ -111,7 +111,7 @@ impl AcmeConfigBuilder {
 
     /// Sets the challenge type Http01
     #[inline]
-    pub fn http01_challege(self) -> Self {
+    pub fn http01_challenge(self) -> Self {
         Self {
             challenge_type: ChallengeType::Http01,
             keys_for_http01: Some(Default::default()),
@@ -120,7 +120,7 @@ impl AcmeConfigBuilder {
     }
     /// Sets the challenge type TlsAlpn01
     #[inline]
-    pub fn tls_alpn01_challege(self) -> Self {
+    pub fn tls_alpn01_challenge(self) -> Self {
         Self {
             challenge_type: ChallengeType::TlsAlpn01,
             keys_for_http01: None,
@@ -193,7 +193,7 @@ mod tests {
             .directory("test_directory", "https://test-directory-url.com")
             .domains(domains.clone())
             .contacts(contacts.clone())
-            .http01_challege()
+            .http01_challenge()
             .cache_path("test_cache_path")
             .before_expired(Duration::from_secs(24 * 60 * 60))
             .build()

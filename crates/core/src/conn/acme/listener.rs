@@ -94,8 +94,8 @@ impl<T> AcmeListener<T> {
     }
 
     /// Create an handler for HTTP-01 challenge
-    pub fn http01_challege(self, router: &mut Router) -> Self {
-        let config_builder = self.config_builder.http01_challege();
+    pub fn http01_challenge(self, router: &mut Router) -> Self {
+        let config_builder = self.config_builder.http01_challenge();
         if let Some(keys_for_http01) = &config_builder.keys_for_http01 {
             let handler = Http01Handler {
                 keys: keys_for_http01.clone(),
@@ -111,9 +111,9 @@ impl<T> AcmeListener<T> {
     }
     /// Create an handler for HTTP-01 challenge
     #[inline]
-    pub fn tls_alpn01_challege(self) -> Self {
+    pub fn tls_alpn01_challenge(self) -> Self {
         Self {
-            config_builder: self.config_builder.tls_alpn01_challege(),
+            config_builder: self.config_builder.tls_alpn01_challenge(),
             ..self
         }
     }
