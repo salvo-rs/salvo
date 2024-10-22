@@ -335,8 +335,8 @@ impl<A: Acceptor + Send> Server<A> {
                 }
             }
 
-            if alive_connections.load(Ordering::Acquire) > 0 {
-                tracing::info!("wait for all connections to close.");
+            if !force_stop_token.is_cancelled() && alive_connections.load(Ordering::Acquire) > 0 {
+                tracing::info!("wait for {} connections to close.",alive_connections.load(Ordering::Acquire));
                 notify.notified().await;
             }
 
