@@ -202,11 +202,11 @@ pub enum JwtAuthError {
 /// JwtAuthState
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum JwtAuthState {
-    /// Authorized.
+    /// Authorized. Used if decoding jwt token successfully.
     Authorized,
-    /// Unauthorized.
+    /// Unauthorized. Used if no jwt token is provided.
     Unauthorized,
-    /// Forbidden.
+    /// Forbidden. Used if decoding jwt token failed.
     Forbidden,
 }
 /// JwtAuthDepotExt
