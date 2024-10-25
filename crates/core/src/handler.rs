@@ -145,6 +145,15 @@ pub trait Handler: Send + Sync + 'static {
         ctrl: &mut FlowCtrl,
     );
 
+    /// Wrap to `ArcHandler`.
+    #[inline]
+    fn arc(self) -> ArcHandler
+    where
+        Self: Sized,
+    {
+        ArcHandler(Arc::new(self))
+    }
+
     /// Wrap to `HoopedHandler`.
     #[inline]
     fn hooped<H: Handler>(self) -> HoopedHandler
@@ -174,6 +183,23 @@ pub trait Handler: Send + Sync + 'static {
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
         HoopedHandler::new(self).hoop_when(hoop, filter)
+    }
+}
+
+/// A handler that wraps another [Handler] to enable it to be cloneable.
+#[derive(Clone)]
+pub struct ArcHandler(Arc<dyn Handler>);
+
+#[async_trait]
+impl Handler for ArcHandler {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        self.0.handle(req, depot, res, ctrl).await
     }
 }
 
