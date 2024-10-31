@@ -43,8 +43,8 @@ impl ToTokens for SchemaTypeInner {
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
 pub(crate) struct SchemaType<'a> {
-    pub path: &'a syn::Path,
-    pub nullable: bool,
+    pub(crate) path: &'a syn::Path,
+    pub(crate) nullable: bool,
 }
 
 impl SchemaType<'_> {

@@ -9,7 +9,7 @@ use crate::{parse_utils, AnyValue, Server};
 
 /// ("name" = (link))
 #[derive(Debug)]
-pub(crate) struct LinkTuple(pub parse_utils::LitStrOrExpr, pub Link);
+pub(crate) struct LinkTuple(pub(crate) parse_utils::LitStrOrExpr, pub(crate) Link);
 
 impl Parse for LinkTuple {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
