@@ -98,8 +98,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello)
 ```
 
-This is a very simple middleware, it adds `Header` to
-`Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+This is a very simple middleware, it adds `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### Chainable tree routing system
 
@@ -108,25 +107,25 @@ Normally we write routing like this:
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
 Router::with_path("articles/<id>")
-.get(show_article)
-.patch(edit_article)
-.delete(delete_article);
+    .get(show_article)
+    .patch(edit_article)
+    .delete(delete_article);
 ```
 
 Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together:
 
 ```rust
 Router::with_path("articles")
-.get(list_articles)
-.push(Router::with_path("<id>").get(show_article));
+    .get(list_articles)
+    .push(Router::with_path("<id>").get(show_article));
 ```
 
 Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in:
 
 ```rust
 Router::with_path("articles")
-.hoop(auth_check)
-.push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+    .hoop(auth_check)
+    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
 Although these two routes have the same
@@ -134,31 +133,29 @@ Although these two routes have the same
 
 ```rust
 Router::new()
-.push(
-Router::with_path("articles")
-.get(list_articles)
-.push(Router::with_path("<id>").get(show_article)),
-)
-.push(
-Router::with_path("articles")
-.hoop(auth_check)
-.push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
-);
+    .push(
+        Router::with_path("articles")
+            .get(list_articles)
+            .push(Router::with_path("<id>").get(show_article)),
+    )
+    .push(
+        Router::with_path("articles")
+            .hoop(auth_check)
+            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+    );
 ```
 
-`<id>` matches a fragment in the path, under normal circumstances, the article
-`id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
+`<id>` matches a fragment in the path, under normal circumstances, the article`id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
 
-You can also use `<**>`,  `<*+>` or
-`<*?>` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example:
-`<**file_path>`.
+You can also use `<**>`,  `<*+>` or`<*?>` to match all remaining path fragments.
+In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: `<**file_path>`.
 
 Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
 
 ```rust
 PathFilter::register_wisp_regex(
-"guid",
-Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
 ```
 
