@@ -47,7 +47,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架。�
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/)獲取 TLS 證書。
-- 支持 Tower Serivce 和 Layer.
+- 支持 Tower Service 和 Layer.
 
 ## ⚡️ 快速開始
 

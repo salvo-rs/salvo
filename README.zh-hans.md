@@ -47,7 +47,7 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架。�
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/)获取 TLS 证书。.
-- 支持 Tower Serivce 和 Layer.
+- 支持 Tower Service 和 Layer.
 
 ## ⚡️ 快速开始
 
@@ -108,41 +108,41 @@ Router::new().hoop(add_header).get(hello)
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
 Router::with_path("articles/<id>")
-.get(show_article)
-.patch(edit_article)
-.delete(delete_article);
+    .get(show_article)
+    .patch(edit_article)
+    .delete(delete_article);
 ```
 
 往往查看文章和文章列表是不需要用户登录的，但是创建，编辑，删除文章等需要用户登录认证权限才可以。Salvo 中支持嵌套的路由系统可以很好地满足这种需求。我们可以把不需要用户登录的路由写到一起：
 
 ```rust
 Router::with_path("articles")
-.get(list_articles)
-.push(Router::with_path("<id>").get(show_article));
+    .get(list_articles)
+    .push(Router::with_path("<id>").get(show_article));
 ```
 
 然后把需要用户登录的路由写到一起，并且使用相应的中间件验证用户是否登录：
 
 ```rust
 Router::with_path("articles")
-.hoop(auth_check)
-.push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+    .hoop(auth_check)
+    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
 虽然这两个路由都有这同样的 `path("articles")`, 然而它们依然可以被同时添加到同一个父路由，所以最后的路由长成了这个样子：
 
 ```rust
 Router::new()
-.push(
-Router::with_path("articles")
-.get(list_articles)
-.push(Router::with_path("<id>").get(show_article)),
-)
-.push(
-Router::with_path("articles")
-.hoop(auth_check)
-.push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
-);
+    .push(
+        Router::with_path("articles")
+            .get(list_articles)
+            .push(Router::with_path("<id>").get(show_article)),
+    )
+    .push(
+        Router::with_path("articles")
+            .hoop(auth_check)
+            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+    );
 ```
 
 `<id>`匹配了路径中的一个片段，正常情况下文章的的 `id`只是一个数字，这是我们可以使用正则表达式限制制 `id`的匹配规则，`r"<id:/\d+/>"`.
@@ -153,8 +153,8 @@ Router::with_path("articles")
 
 ```rust
 PathFilter::register_wisp_regex(
-"guid",
-Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
 ```
 
