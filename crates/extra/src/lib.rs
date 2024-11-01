@@ -1,4 +1,4 @@
-//! Extra features for Savlo web framework.
+//! Extra features for Salvo web framework.
 //!
 //! This library provides some common web features.
 //!

@@ -1,4 +1,4 @@
-//! Provide JWT authentication support for Savlo web framework.
+//! Provide JWT authentication support for Salvo web framework.
 //!
 //! Example:
 //!

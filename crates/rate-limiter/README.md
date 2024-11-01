@@ -2,13 +2,13 @@
 
 ## Rate limit for Salvo.
 
-This is offical crate, so you can enable it in `Cargo.toml` like this:
+This is an official crate, so you can enable it in `Cargo.toml` like this:
 
 ```toml
-salvo = { version = "*", features=["rate-limiter"] }
+salvo = { version = "*", features = ["rate-limiter"] }
 ```
 
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-rate-limiter)
-- [Example Projects](https://github.com/salvo-rs/salvo/examples/)
+- [Example Projects](hhttps://github.com/salvo-rs/salvo/tree/main/examples)

@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Compression middleware for for Savlo web framework.
+//! Compression middleware for for Salvo web framework.
 //!
 //! Read more: <https://salvo.rs>
 

@@ -1,4 +1,4 @@
-//! Provide proxy support for Savlo web framework.
+//! Provide proxy support for Salvo web framework.
 //!
 //! # Example
 //!

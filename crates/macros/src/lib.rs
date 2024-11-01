@@ -1,4 +1,4 @@
-//! The macros lib of Savlo web framework.
+//! The macros lib of Salvo web framework.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

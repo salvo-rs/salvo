@@ -1,11 +1,11 @@
 # salvo-cache
 
-## Cache middleware for Savlo.
+## Cache middleware for Salvo.
 
-This is offical crate, so you can enable it in `Cargo.toml` like this:
+This is an official crate, so you can enable it in `Cargo.toml` like this:
 
 ```toml
-salvo = { version = "*", features=["cache"] }
+salvo = { version = "*", features = ["cache"] }
 ```
 
 [![Docs](https://docs.rs/salvo-cors/badge.svg)](https://docs.rs/salvo-cache)
