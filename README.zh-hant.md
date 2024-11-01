@@ -51,7 +51,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架。�
 
 ## ⚡️ 快速開始
 
-你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples), 或者訪問[官網](https://salvo.rs).
+你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples), 或者訪問[官網](https://salvo.rs)。
 
 ### 支持 ACME 自動獲取證書和 HTTP3 的 Hello World
 
@@ -79,8 +79,7 @@ async fn main() {
 
 ### 中間件
 
-Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處。**所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識。
-隻要你會寫函數就會寫中間件，就是這麼簡單!!!**
+Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處。**所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識。隻要你會寫函數就會寫中間件，就是這麼簡單!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -99,7 +98,7 @@ async fn add_header(res: &mut Response) {
 Router::new().hoop(add_header).get(hello)
 ```
 
-這就是一個簡單的中間件，它嚮 `Response` 的頭部添加了 `Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+這就是一個簡單的中間件，它嚮 `Response` 的頭部添加了 `Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs)。
 
 ### 可鏈式書寫的樹狀路由係統
 
@@ -145,9 +144,9 @@ Router::new()
     );
 ```
 
-`<id>`匹配了路徑中的一個片段，正常情況下文章的的 `id`隻是一個數字，這是我們可以使用正則錶達式限製製 `id`的匹配規則，`r"<id:/\d+/>"`.
+`<id>`匹配了路徑中的一個片段，正常情況下文章的的 `id`隻是一個數字，這是我們可以使用正則錶達式限製製 `id`的匹配規則，`r"<id:/\d+/>"`。
 
-還可以通過 `<**>`, `<*+>` 或者 `<*?>`匹配所有剩餘的路徑片段。為了代碼易讀性性強些，也可以添加適合的名字，讓路徑語義更清晰，比如：: `<**file_path>`.
+還可以通過 `<**>`, `<*+>` 或者 `<*?>`匹配所有剩餘的路徑片段。為了代碼易讀性性強些，也可以添加適合的名字，讓路徑語義更清晰，比如：: `<**file_path>`。
 
 有些用於匹配路徑的正則錶達式需要經常被使用，可以將它事先註冊，比如 GUID:
 
@@ -280,7 +279,7 @@ Salvo CLI 是一個命令行工具，可以簡化創建新的 Salvo 項目的過
 cargo install salvo-cli
 ```
 
-#### 創建一個新的 salvo 項目
+#### 創建一個新的 Salvo 項目
 
 ```bash
 salvo new project_name
@@ -290,14 +289,15 @@ ___
 
 ### 更多示例
 
-您可以從 [examples](./examples/)文件夾下查看更多示例代碼，您可以通過以下命令運行這些示例：：
+您可以從 [examples](./examples/)文件夾下查看更多示例代碼，您可以通過以下命令運行這些示例：
+
 
 ```bash
 cd examples
 cargo run --bin example-basic-auth
 ```
 
-您可以使用任何你想運行的示例名稱替代這裏的 `basic-auth`.
+您可以使用任何你想運行的示例名稱替代這裏的 `basic-auth`。
 
 ## 🚀 性能
 
@@ -315,7 +315,7 @@ Benchmark 測試結果可以從這裏查看：
 
 ## ☕ 捐助
 
-`Salvo`是一個開源項目，如果想支持本項目，可以 ☕ [**請我喝杯咖啡**](https://ko-fi.com/chrislearn).
+`Salvo`是一個開源項目，如果想支持本項目，可以 ☕ [**請我喝杯咖啡**](https://ko-fi.com/chrislearn)。
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>

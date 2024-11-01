@@ -281,7 +281,7 @@ You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new S
 cargo install salvo-cli
 ```
 
-#### create a new salvo project
+#### create a new Salvo project
 
 ```bash
 salvo new project_name
@@ -316,8 +316,7 @@ Benchmark testing result can be found from here:
 
 ## ☕ Donate
 
-Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here
-**](https://ko-fi.com/chrislearn).
+Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
 
 ## ⚠️ License
 
