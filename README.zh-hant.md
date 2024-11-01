@@ -1,5 +1,5 @@
 <div align="center">
-<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
+<p><img alt="Salvo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
@@ -51,7 +51,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 
 ## ⚡️ 快速開始
 
-你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
+你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples), 或者訪問[官網](https://salvo.rs).
 
 ### 支持 ACME 自動獲取證書和 HTTP3 的 Hello World
 
@@ -79,7 +79,8 @@ async fn main() {
 
 ### 中間件
 
-Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處. **所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識. 隻要你會寫函數就會寫中間件, 就是這麼簡單!!!**
+Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處. **所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識.
+隻要你會寫函數就會寫中間件, 就是這麼簡單!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -98,8 +99,8 @@ async fn add_header(res: &mut Response) {
 Router::new().hoop(add_header).get(hello)
 ```
 
-這就是一個簡單的中間件, 它嚮 `Response` 的頭部添加了 `Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
-
+這就是一個簡單的中間件, 它嚮 `Response` 的頭部添加了
+`Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### 可鏈式書寫的樹狀路由係統
 
@@ -108,53 +109,55 @@ Router::new().hoop(add_header).get(hello)
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
 Router::with_path("articles/<id>")
-    .get(show_article)
-    .patch(edit_article)
-    .delete(delete_article);
+.get(show_article)
+.patch(edit_article)
+.delete(delete_article);
 ```
 
 往往查看文章和文章列錶是不需要用戶登錄的, 但是創建, 編輯, 刪除文章等需要用戶登錄認證權限才可以. Salvo 中支持嵌套的路由係統可以很好地滿足這種需求. 我們可以把不需要用戶登錄的路由寫到一起：
 
 ```rust
 Router::with_path("articles")
-    .get(list_articles)
-    .push(Router::with_path("<id>").get(show_article));
+.get(list_articles)
+.push(Router::with_path("<id>").get(show_article));
 ```
 
 然後把需要用戶登錄的路由寫到一起， 並且使用相應的中間件驗證用戶是否登錄：
 
 ```rust
 Router::with_path("articles")
-    .hoop(auth_check)
-    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+.hoop(auth_check)
+.push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
 雖然這兩個路由都有這同樣的 `path("articles")`, 然而它們依然可以被同時添加到同一個父路由, 所以最後的路由長成了這個樣子:
 
 ```rust
 Router::new()
-    .push(
-        Router::with_path("articles")
-            .get(list_articles)
-            .push(Router::with_path("<id>").get(show_article)),
-    )
-    .push(
-        Router::with_path("articles")
-            .hoop(auth_check)
-            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
-    );
+.push(
+Router::with_path("articles")
+.get(list_articles)
+.push(Router::with_path("<id>").get(show_article)),
+)
+.push(
+Router::with_path("articles")
+.hoop(auth_check)
+.push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+);
 ```
 
-`<id>` 匹配了路徑中的一個片段, 正常情況下文章的 `id` 隻是一個數字, 這是我們可以使用正則錶達式限製 `id` 的匹配規則, `r"<id:/\d+/>"`.
+`<id>` 匹配了路徑中的一個片段, 正常情況下文章的 `id` 隻是一個數字, 這是我們可以使用正則錶達式限製 `id` 的匹配規則,
+`r"<id:/\d+/>"`.
 
-還可以通過 `<**>`, `<*+>` 或者 `<*?>` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: `<**file_path>`.
+還可以通過 `<**>`, `<*+>` 或者
+`<*?>` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: `<**file_path>`.
 
 有些用於匹配路徑的正則錶達式需要經常被使用, 可以將它事先註冊, 比如 GUID:
 
 ```rust
 PathFilter::register_wisp_regex(
-    "guid",
-    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+"guid",
+Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
 ```
 
@@ -217,7 +220,6 @@ async fn edit(req: &mut Request) {
 
 甚至於可以直接把類型作為參數傳入函數, 像這樣:
 
-
 ```rust
 #[handler]
 async fn edit<'a>(good_man: GoodMan<'a>) {
@@ -271,17 +273,22 @@ async fn main() {
 ```
 
 ### 🛠️ Salvo CLI
+
 Salvo CLI是一個命令行工具，可以簡化創建新的Salvo項目的過程，支援Web API、網站、資料庫（包括透過SQLx、SeaORM、Diesel、Rbatis支援的SQLite、PostgreSQL、MySQL）和基本的中介軟體的模板。
 你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来來創建一個新的 Salvo 項目:
+
 #### 安裝
+
 ```bash
 cargo install salvo-cli
 ```
 
 #### 創建一個新的salvo項目
+
 ```bash
 salvo new project_name
 ```
+
 ___
 
 ### 更多示例

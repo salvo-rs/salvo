@@ -1,4 +1,4 @@
-//! serve static dir and file middleware for Savlo web framework.
+//! serve static dir and file middleware for Salvo web framework.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

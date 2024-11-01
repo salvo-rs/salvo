@@ -2,10 +2,10 @@
 
 ## OpenTelemetry support for Salvo.
 
-This is offical crate, so you can enable it in `Cargo.toml` like this:
+This is an official crate, so you can enable it in `Cargo.toml` like this:
 
 ```toml
-salvo = { version = "*", features=["otel"] }
+salvo = { version = "*", features = ["otel"] }
 ```
 
 ## Documentation & Resources

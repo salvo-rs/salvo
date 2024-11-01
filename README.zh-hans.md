@@ -1,5 +1,5 @@
 <div align="center">
-<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
+<p><img alt="Salvo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
@@ -51,7 +51,7 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架. 仅
 
 ## ⚡️ 快速开始
 
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples), 或者访问[官网](https://salvo.rs).
 
 ### 支持 ACME 自动获取证书和 HTTP3 的 Hello World
 
@@ -79,7 +79,8 @@ async fn main() {
 
 ### 中间件
 
-Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
+Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识.
+只要你会写函数就会写中间件, 就是这么简单!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -98,8 +99,8 @@ async fn add_header(res: &mut Response) {
 Router::new().hoop(add_header).get(hello)
 ```
 
-这就是一个简单的中间件, 它向 `Response` 的头部添加了 `Header`, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
-
+这就是一个简单的中间件, 它向 `Response` 的头部添加了
+`Header`, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### 可链式书写的树状路由系统
 
@@ -108,53 +109,55 @@ Router::new().hoop(add_header).get(hello)
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
 Router::with_path("articles/<id>")
-    .get(show_article)
-    .patch(edit_article)
-    .delete(delete_article);
+.get(show_article)
+.patch(edit_article)
+.delete(delete_article);
 ```
 
 往往查看文章和文章列表是不需要用户登录的, 但是创建, 编辑, 删除文章等需要用户登录认证权限才可以. Salvo 中支持嵌套的路由系统可以很好地满足这种需求. 我们可以把不需要用户登录的路由写到一起：
 
 ```rust
 Router::with_path("articles")
-    .get(list_articles)
-    .push(Router::with_path("<id>").get(show_article));
+.get(list_articles)
+.push(Router::with_path("<id>").get(show_article));
 ```
 
 然后把需要用户登录的路由写到一起， 并且使用相应的中间件验证用户是否登录：
 
 ```rust
 Router::with_path("articles")
-    .hoop(auth_check)
-    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+.hoop(auth_check)
+.push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
 虽然这两个路由都有这同样的 `path("articles")`, 然而它们依然可以被同时添加到同一个父路由, 所以最后的路由长成了这个样子:
 
 ```rust
 Router::new()
-    .push(
-        Router::with_path("articles")
-            .get(list_articles)
-            .push(Router::with_path("<id>").get(show_article)),
-    )
-    .push(
-        Router::with_path("articles")
-            .hoop(auth_check)
-            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
-    );
+.push(
+Router::with_path("articles")
+.get(list_articles)
+.push(Router::with_path("<id>").get(show_article)),
+)
+.push(
+Router::with_path("articles")
+.hoop(auth_check)
+.push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+);
 ```
 
-`<id>` 匹配了路径中的一个片段, 正常情况下文章的 `id` 只是一个数字, 这是我们可以使用正则表达式限制 `id` 的匹配规则, `r"<id:/\d+/>"`.
+`<id>` 匹配了路径中的一个片段, 正常情况下文章的 `id` 只是一个数字, 这是我们可以使用正则表达式限制 `id` 的匹配规则,
+`r"<id:/\d+/>"`.
 
-还可以通过 `<**>`, `<*+>` 或者 `<*?>` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: `<**file_path>`.
+还可以通过 `<**>`, `<*+>` 或者
+`<*?>` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: `<**file_path>`.
 
 有些用于匹配路径的正则表达式需要经常被使用, 可以将它事先注册, 比如 GUID:
 
 ```rust
 PathFilter::register_wisp_regex(
-    "guid",
-    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+"guid",
+Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
 ```
 
@@ -217,7 +220,6 @@ async fn edit(req: &mut Request) {
 
 甚至于可以直接把类型作为参数传入函数, 像这样:
 
-
 ```rust
 #[handler]
 async fn edit<'a>(good_man: GoodMan<'a>) {
@@ -226,7 +228,6 @@ async fn edit<'a>(good_man: GoodMan<'a>) {
 ```
 
 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
-
 
 ### OpenAPI 支持
 
@@ -272,18 +273,23 @@ async fn main() {
 ```
 
 ### 🛠️ Salvo CLI
+
 Salvo CLI是一个命令行工具，可以简化创建新的Salvo项目的过程，支持Web API、网站、数据库（包括通过SQLx、SeaORM、Diesel、Rbatis支持的SQLite、PostgreSQL、MySQL）和基本的中间件的模板。
 你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来创建一个新的 Salvo 项目:
+
 #### 安装
+
 ```bash
 cargo install salvo-cli
 ```
+
 #### 创建一个salvo项目
+
 ```bash
 salvo new project_name
 ```
-___
 
+___
 
 ### 更多示例
 
