@@ -316,8 +316,7 @@ Benchmark testing result can be found from here:
 
 ## ☕ Donate
 
-Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here
-**](https://ko-fi.com/chrislearn).
+Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
 
 ## ⚠️ License
 

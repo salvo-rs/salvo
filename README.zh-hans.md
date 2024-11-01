@@ -46,12 +46,12 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架。�
 - 集成 Multipart 表单处理;
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
-- 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/)获取 TLS 证书。.
+- 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/)获取 TLS 证书。
 - 支持 Tower Service 和 Layer.
 
 ## ⚡️ 快速开始
 
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples), 或者访问[官网](https://salvo.rs).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples), 或者访问[官网](https://salvo.rs)。
 
 ### 支持 ACME 自动获取证书和 HTTP3 的 Hello World
 
@@ -79,8 +79,7 @@ async fn main() {
 
 ### 中间件
 
-Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处。**所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识。
-只要你会写函数就会写中间件，就是这么简单!!!**
+Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处。**所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识。只要你会写函数就会写中间件，就是这么简单!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -99,7 +98,7 @@ async fn add_header(res: &mut Response) {
 Router::new().hoop(add_header).get(hello)
 ```
 
-这就是一个简单的中间件，它向 `Response` 的头部添加了 `Header`, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+这就是一个简单的中间件，它向 `Response` 的头部添加了 `Header`, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs)。
 
 ### 可链式书写的树状路由系统
 
@@ -145,9 +144,9 @@ Router::new()
     );
 ```
 
-`<id>`匹配了路径中的一个片段，正常情况下文章的的 `id`只是一个数字，这是我们可以使用正则表达式限制制 `id`的匹配规则，`r"<id:/\d+/>"`.
+`<id>`匹配了路径中的一个片段，正常情况下文章的的 `id`只是一个数字，这是我们可以使用正则表达式限制制 `id`的匹配规则，`r"<id:/\d+/>"`。
 
-还可以通过 `<**>`, `<*+>` 或者 `<*?>`匹配所有剩余的路径片段。为了代码易读性性强些，也可以添加适合的名字，让路径语义更清晰，比如：: `<**file_path>`.
+还可以通过 `<**>`, `<*+>` 或者 `<*?>`匹配所有剩余的路径片段。为了代码易读性性强些，也可以添加适合的名字，让路径语义更清晰，比如：: `<**file_path>`。
 
 有些用于匹配路径的正则表达式需要经常被使用，可以将它事先注册，比如 GUID:
 
@@ -168,7 +167,7 @@ Router::with_path("<id:guid>").get(index)
 
 ### 文件上传
 
-可以通过 `Request` 中的 `file`异步获取上传的文件：:
+可以通过 `Request` 中的 `file`异步获取上传的文件：
 
 ```rust
 #[handler]
@@ -297,7 +296,7 @@ cd examples
 cargo run --bin example-basic-auth
 ```
 
-您可以使用任何你想运行的示例名称替代这里的 `basic-auth`.
+您可以使用任何你想运行的示例名称替代这里的 `basic-auth`。
 
 ## 🚀 性能
 
@@ -315,7 +314,7 @@ Benchmark 测试结果可以从这里查看：
 
 ## ☕ 捐助
 
-`Salvo`是一个开源项目，如果想支持本项目，可以 ☕ [**请我喝杯咖啡**](https://ko-fi.com/chrislearn).
+`Salvo`是一个开源项目，如果想支持本项目，可以 ☕ [**请我喝杯咖啡**](https://ko-fi.com/chrislearn)。
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>
