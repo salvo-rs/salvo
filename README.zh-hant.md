@@ -279,7 +279,7 @@ Salvo CLI 是一個命令行工具，可以簡化創建新的 Salvo 項目的過
 cargo install salvo-cli
 ```
 
-#### 創建一個新的 salvo 項目
+#### 創建一個新的 Salvo 項目
 
 ```bash
 salvo new project_name
@@ -290,6 +290,7 @@ ___
 ### 更多示例
 
 您可以從 [examples](./examples/)文件夾下查看更多示例代碼，您可以通過以下命令運行這些示例：
+
 
 ```bash
 cd examples

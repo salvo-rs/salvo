@@ -281,7 +281,7 @@ You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new S
 cargo install salvo-cli
 ```
 
-#### create a new salvo project
+#### create a new Salvo project
 
 ```bash
 salvo new project_name
