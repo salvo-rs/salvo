@@ -829,7 +829,7 @@ impl Request {
     pub async fn try_all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
         self.form_data()
             .await
-            .map(|ps| ps.files.iter().map(|(_, f)| f).collect())
+            .map(|ps| ps.files.flat_iter().map(|(_, f)| f).collect())
     }
 
     /// Get request payload with default max size limit(64KB).
