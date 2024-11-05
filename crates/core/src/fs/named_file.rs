@@ -446,12 +446,14 @@ impl NamedFile {
 
         if self.flags.contains(Flag::ContentDisposition) {
             if let Some(content_disposition) = self.content_disposition.take() {
+                println!("=============content_disposition 0   {}",  content_disposition.to_str().unwrap());
                 res.headers_mut()
                     .insert(CONTENT_DISPOSITION, content_disposition);
             } else if !res.headers().contains_key(CONTENT_DISPOSITION) {
                 // skip to set CONTENT_DISPOSITION header if it is already set.
                 match build_content_disposition(&self.path, &self.content_type, None, None) {
                     Ok(content_disposition) => {
+                        println!("=============content_disposition 1   {}",  content_disposition.to_str().unwrap());
                         res.headers_mut()
                             .insert(CONTENT_DISPOSITION, content_disposition);
                     }
