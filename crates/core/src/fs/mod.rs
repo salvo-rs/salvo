@@ -127,7 +127,7 @@ mod test {
         assert_eq!(
             file.content_disposition(),
             Some(&HeaderValue::from_static(
-                "attachment; filename=attach.file"
+                r#"attachment; filename="attach.file""#
             ))
         );
     }
