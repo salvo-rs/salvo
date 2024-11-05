@@ -239,7 +239,7 @@ fn build_content_disposition(
                 .unwrap_or_else(|| "file".into())
                 .into(),
         };
-        format!("attachment; filename={attached_name}")
+        format!(r#"attachment; filename="{attached_name}""#)
             .parse::<HeaderValue>()
             .map_err(Error::other)?
     } else {
