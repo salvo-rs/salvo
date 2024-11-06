@@ -3,6 +3,7 @@ name = "salvo-flash"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Flash message support for salvo web server framework.
 """

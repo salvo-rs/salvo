@@ -3,6 +3,7 @@ name = "salvo_macros"
 version = { workspace = true }
 authors = ["Chrislearn Young <chris@acroidea.com>", "driftluo <driftluo@foxmail.com>"]
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = "salvo proc macros"
 homepage = { workspace = true }
 repository = { workspace = true }

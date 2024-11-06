@@ -2,6 +2,7 @@
 name = "salvo-oapi-macros"
 version = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = "Macros for salvo-oapi"
 license = { workspace = true }
 documentation = "https://docs.rs/salvo-oapi-macros/"

@@ -2,6 +2,7 @@
 name = "salvo-serde-util"
 version = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = "serde util for salvo."
 license = { workspace = true }
 documentation = "https://docs.rs/salvo-serde-util/"

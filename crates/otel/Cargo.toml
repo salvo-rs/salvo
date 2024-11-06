@@ -3,6 +3,7 @@ name = "salvo-otel"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 OpenTelemetry support for salvo web server framework.
 """

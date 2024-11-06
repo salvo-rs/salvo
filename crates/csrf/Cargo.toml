@@ -3,6 +3,7 @@ name = "salvo-csrf"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 CSRF support for salvo web server framework.
 """
