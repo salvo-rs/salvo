@@ -3,6 +3,7 @@ name = "salvo-jwt-auth"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Jwt auth support for salvo web server framework.
 """

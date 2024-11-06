@@ -2,6 +2,7 @@
 name = "salvo-oapi"
 version = { workspace = true }
 edition = "2021"
+rust-version = { workspace = true }
 description = "OpenApi support for Salvo web framework"
 readme = "./README.md"
 license = { workspace = true }

@@ -3,6 +3,7 @@ name = "salvo-session"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Session support for salvo web server framework.
 """

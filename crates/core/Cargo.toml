@@ -3,6 +3,7 @@ name = "salvo_core"
 version = { workspace = true }
 authors = ["Chrislearn Young <chris@acroidea.com>", "driftluo <driftluo@foxmail.com>"]
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }

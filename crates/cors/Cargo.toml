@@ -3,6 +3,7 @@ name = "salvo-cors"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 CORS support for salvo web server framework.
 """

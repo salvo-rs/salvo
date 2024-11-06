@@ -3,6 +3,7 @@ name = "salvo-serve-static"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Serve static assets for salvo web server framework.
 """

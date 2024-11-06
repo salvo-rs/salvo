@@ -3,6 +3,7 @@ name = "salvo-rate-limiter"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Rate limiter middleware for salvo web server framework.
 """
