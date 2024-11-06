@@ -7,7 +7,7 @@ use salvo_core::rt::tokio::TokioIo;
 use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use crate::{Client, HyperRequest,Proxy, BoxedError, Upstreams,HyperResponse};
+use crate::{Client, HyperRequest, Proxy, BoxedError, Upstreams, HyperResponse};
 
 /// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
 #[derive(Clone, Debug)]
@@ -61,7 +61,7 @@ impl Client for HyperClient {
 
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
-            if request_upgrade_type.as_deref() == response_upgrade_type {
+            if request_upgrade_type == response_upgrade_type.map(|s| s.to_lowercase()) {
                 let response_upgraded = hyper::upgrade::on(&mut response).await?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {

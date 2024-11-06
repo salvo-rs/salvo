@@ -58,7 +58,7 @@ impl Client for ReqwestClient {
         let mut hyper_response = if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
 
-            if request_upgrade_type.as_deref() == response_upgrade_type {
+            if request_upgrade_type == response_upgrade_type.map(|s| s.to_lowercase()) {
                 let mut response_upgraded = response
                     .upgrade()
                     .await
