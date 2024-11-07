@@ -324,10 +324,19 @@ impl Handler for HoopedHandler {
         req: &mut Request,
         depot: &mut Depot,
         res: &mut Response,
-        _ctrl: &mut FlowCtrl,
+        ctrl: &mut FlowCtrl,
     ) {
         let inner: Arc<dyn Handler> = self.inner.clone();
-        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&inner]).cloned().collect());
+        let right = ctrl.handlers.split_off(ctrl.cursor);
+        ctrl.handlers.append(
+            &mut self
+                .hoops
+                .iter()
+                .cloned()
+                .chain([inner])
+                .chain(right)
+                .collect(),
+        );
         ctrl.call_next(req, depot, res).await;
     }
 }
