@@ -563,7 +563,7 @@ fn decode_url_path_safely(path: &str) -> String {
 pub struct FlowCtrl {
     catching: Option<bool>,
     is_ceased: bool,
-    cursor: usize,
+    pub(crate) cursor: usize,
     pub(crate) handlers: Vec<Arc<dyn Handler>>,
 }
 
