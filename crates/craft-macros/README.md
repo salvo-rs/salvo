@@ -60,3 +60,15 @@ impl Service {
 Sure, you can also replace `#[craft(handler)]` with `#[craft(endpoint(...))]`.
 
 NOTE: If the receiver of a method is `&self`, you need to implement the `Clone` trait for the type.
+
+## ☕ Donate
+
+Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
+
+## ⚠️ License
+
+Salvo is licensed under either of
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)).
+
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT)).
