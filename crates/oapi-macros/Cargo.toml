@@ -8,6 +8,7 @@ license = { workspace = true }
 documentation = "https://docs.rs/salvo-oapi-macros/"
 homepage = { workspace = true }
 repository = { workspace = true }
+readme = "./README.md"
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chris@acroidea.com>"]
