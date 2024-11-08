@@ -8,6 +8,7 @@ license = { workspace = true }
 documentation = "https://docs.rs/salvo-serde-util/"
 homepage = { workspace = true }
 repository = { workspace = true }
+readme = { workspace = true }
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
 authors = ["Chrislearn Young <chris@acroidea.com>"]
