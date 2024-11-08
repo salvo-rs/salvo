@@ -36,7 +36,7 @@ preserve-path-order = []
 preserve-prop-order = []
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false, features = ["cookie", "test"] }
+salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 base64 = { workspace = true }
 thiserror = { workspace = true }
@@ -73,7 +73,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 assert-json-diff = { workspace = true }
-salvo_core = { workspace = true }
+salvo_core = { workspace = true, default-features = false, features = ["cookie", "test"] }
 serde_json = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
