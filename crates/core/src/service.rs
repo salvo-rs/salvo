@@ -246,7 +246,7 @@ impl HyperHandler {
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
-                if path_state.has_any_goal {
+                if path_state.once_ended {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 } else {
                     res.status_code = Some(StatusCode::NOT_FOUND);
@@ -254,10 +254,10 @@ impl HyperHandler {
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
-                if res.status_code.is_none() && path_state.has_any_goal {
+                if res.status_code.is_none() && path_state.once_ended {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
-            } else if path_state.has_any_goal {
+            } else if path_state.once_ended {
                 res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
@@ -467,5 +467,64 @@ mod tests {
         assert_eq!(content, "before1before2");
         let content = access(&service, "3").await;
         assert_eq!(content, "before1before2before3");
+    }
+
+    #[tokio::test]
+    async fn test_service_405_or_404_error() {
+        #[handler]
+        async fn login() -> &'static str {
+            "login"
+        }
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .push(Router::with_path("hello").goal(hello))
+            .push(
+                Router::with_path("login")
+                    .post(login)
+                    .push(Router::with_path("user").get(login)),
+            );
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let res = TestClient::put("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+
+        let res = TestClient::post("http://127.0.0.1:5801/login")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+
+        let res = TestClient::get("http://127.0.0.1:5801/login")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let res = TestClient::get("http://127.0.0.1:5801/login2")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
+
+        let res = TestClient::get("http://127.0.0.1:5801/login/user")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+
+        let res = TestClient::post("http://127.0.0.1:5801/login/user")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let res = TestClient::post("http://127.0.0.1:5801/login/user1")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 }

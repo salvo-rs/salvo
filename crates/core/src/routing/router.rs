@@ -104,9 +104,9 @@ impl Router {
                     }
                 }
             }
-            if let Some(goal) = &self.goal.clone() {
-                if path_state.is_ended() {
-                    path_state.has_any_goal = true;
+            if path_state.is_ended() {
+                path_state.once_ended = true;
+                if let Some(goal) = &self.goal {
                     return Some(DetectMatched {
                         hoops: self.hoops.clone(),
                         goal: goal.clone(),

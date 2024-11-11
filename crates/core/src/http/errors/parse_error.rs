@@ -31,7 +31,7 @@ pub enum ParseError {
     #[error("Parse error when parse from str.")]
     ParseFromStr,
 
-    //// A possible error value when converting a `StatusCode` from a `u16` or `&str`
+    /// A possible error value when converting a `StatusCode` from a `u16` or `&str`
     /// This error indicates that the supplied input was not a valid number, was less
     /// than 100, or was greater than 999.
     #[error("invalid StatusCode: {0}")]
