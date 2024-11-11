@@ -468,4 +468,59 @@ mod tests {
         let content = access(&service, "3").await;
         assert_eq!(content, "before1before2before3");
     }
+
+    #[tokio::test]
+    async fn test_service_405_or_404_error() {
+        #[handler]
+        async fn login() -> &'static str {
+            "login"
+        }
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .push(Router::with_path("hello").goal(hello))
+            .push(
+                Router::with_path("login")
+                    .post(login)
+                    .push(Router::with_path("user").get(login)),
+            );
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let res = TestClient::put("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+
+        let res = TestClient::post("http://127.0.0.1:5801/login")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+
+        let res = TestClient::get("http://127.0.0.1:5801/login")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let res = TestClient::get("http://127.0.0.1:5801/login2")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
+
+        
+        let res = TestClient::get("http://127.0.0.1:5801/login/user")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        
+        let res = TestClient::post("http://127.0.0.1:5801/login/user")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::METHOD_NOT_ALLOWED);
+    }
 }
