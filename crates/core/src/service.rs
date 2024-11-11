@@ -246,7 +246,7 @@ impl HyperHandler {
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
-                if path_state.has_any_goal {
+                if path_state.once_ended {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 } else {
                     res.status_code = Some(StatusCode::NOT_FOUND);
@@ -254,10 +254,10 @@ impl HyperHandler {
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
-                if res.status_code.is_none() && path_state.has_any_goal {
+                if res.status_code.is_none() && path_state.once_ended {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
-            } else if path_state.has_any_goal {
+            } else if path_state.once_ended {
                 res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
@@ -521,5 +521,10 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let res = TestClient::post("http://127.0.0.1:5801/login/user1")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 }
