@@ -313,6 +313,7 @@ impl CombWisp {
         let mut is_greedy = false;
         let mut wild_start = None;
         let mut wild_regex = None;
+        let any_chars_regex = Regex::new(".*").expect("regex should worked");
         for wisp in wisps {
             match wisp {
                 WispKind::Const(wisp) => {
@@ -342,7 +343,7 @@ impl CombWisp {
                     if wisp.0.starts_with('*') {
                         is_greedy = true;
                         let (star_mark, name) = crate::routing::split_wild_name(&wisp.0);
-                        wild_regex = Some(Regex::new(".*").expect("regex should worked"));
+                        wild_regex = Some(any_chars_regex.clone());
                         wild_start = Some(star_mark.to_owned());
                         names.push(name.to_owned());
                     } else {

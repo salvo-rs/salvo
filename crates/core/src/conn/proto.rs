@@ -238,7 +238,7 @@ impl HttpBuilder {
 
 #[allow(dead_code)]
 #[allow(clippy::future_not_send)]
-pub(crate) async fn read_version<'a, A>(mut reader: A) -> IoResult<(Version, Rewind<A>)>
+pub(crate) async fn read_version<A>(mut reader: A) -> IoResult<(Version, Rewind<A>)>
 where
     A: AsyncRead + Unpin,
 {
@@ -288,7 +288,7 @@ where
         if this.buf.filled() == H2_PREFACE {
             *this.version = Version::HTTP_2;
         }
-        return Poll::Ready(Ok((*this.version, this.buf.filled().to_vec())));
+        Poll::Ready(Ok((*this.version, this.buf.filled().to_vec())))
     }
 }
 

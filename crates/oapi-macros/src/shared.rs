@@ -180,7 +180,7 @@ where
     }
 }
 
-impl<'a, T> Deref for Array<'a, T>
+impl<T> Deref for Array<'_, T>
 where
     T: Sized + ToTokens,
 {

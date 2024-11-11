@@ -162,7 +162,6 @@ impl Display for Holding {
 }
 
 /// `Listener` represents a listener that can bind to a specific address and port and return an acceptor.
-
 pub trait Listener {
     /// Acceptor type.
     type Acceptor: Acceptor;

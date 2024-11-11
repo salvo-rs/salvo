@@ -51,7 +51,7 @@ pub(crate) struct ComponentSchema {
     tokens: TokenStream,
 }
 
-impl<'c> ComponentSchema {
+impl ComponentSchema {
     pub(crate) fn new(
         ComponentSchemaProps {
             type_tree,
@@ -519,7 +519,7 @@ impl<'c> ComponentSchema {
         Ok(())
     }
 
-    pub(crate) fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
+    pub(crate) fn get_deprecated(deprecated: Option<&Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
     }
 }

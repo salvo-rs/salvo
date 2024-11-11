@@ -375,7 +375,7 @@ impl<'c, T: ToTokens> CustomEnum<'c, T> {
     }
 }
 
-impl<'c, T> ToTokens for CustomEnum<'c, T>
+impl< T> ToTokens for CustomEnum<'_, T>
 where
     T: ToTokens,
 {

@@ -208,7 +208,6 @@ impl<A: Acceptor + Send> Server<A> {
     ///
     /// ```no_run
     /// use salvo_core::prelude::*;
-
     /// #[handler]
     /// async fn hello() -> &'static str {
     ///     "Hello World"

@@ -210,13 +210,13 @@ pub(crate) struct DeriveResponsesAttributes<T> {
     description: parse_utils::LitStrOrExpr,
 }
 
-impl<'r> From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'r> {
+impl From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'_> {
     fn from(value: DeriveResponsesAttributes<DeriveToResponsesValue>) -> Self {
         Self::from_derive_to_responses_value(value.derive_value, value.description)
     }
 }
 
-impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'r> {
+impl From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'_> {
     fn from(
         DeriveResponsesAttributes::<Option<DeriveToResponseValue>> {
             derive_value,

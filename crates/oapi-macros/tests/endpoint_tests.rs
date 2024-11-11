@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use assert_json_diff::assert_json_eq;
 use salvo::oapi::extract::*;
 use salvo::prelude::*;

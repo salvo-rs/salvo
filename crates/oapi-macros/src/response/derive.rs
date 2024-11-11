@@ -370,7 +370,7 @@ struct ToResponseNamedStructResponse<'p>(ResponseTuple<'p>);
 
 impl Response for ToResponseNamedStructResponse<'_> {}
 
-impl<'p> ToResponseNamedStructResponse<'p> {
+impl ToResponseNamedStructResponse<'_> {
     fn new(
         attributes: &[Attribute],
         ident: &Ident,

@@ -217,7 +217,7 @@ enum Description<'a> {
     LitStrOrExpr(&'a LitStrOrExpr),
     Vec(&'a [String]),
 }
-impl<'a> Description<'a> {
+impl Description<'_> {
     fn is_empty(&self) -> bool {
         match self {
             Self::LitStrOrExpr(value) => value.is_empty(),
@@ -250,7 +250,7 @@ enum Summary<'a> {
     LitStrOrExpr(&'a LitStrOrExpr),
     Str(&'a str),
 }
-impl<'a> Summary<'a> {
+impl Summary<'_> {
     pub(crate) fn is_empty(&self) -> bool {
         match self {
             Self::LitStrOrExpr(value) => value.is_empty(),
