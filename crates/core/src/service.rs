@@ -512,12 +512,11 @@ mod tests {
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
 
-        
         let res = TestClient::get("http://127.0.0.1:5801/login/user")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
-        
+
         let res = TestClient::post("http://127.0.0.1:5801/login/user")
             .send(&service)
             .await;

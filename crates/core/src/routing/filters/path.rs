@@ -84,7 +84,7 @@ impl PathWisp for WispKind {
     }
     #[inline]
     fn detect(&self, state: &mut PathState) -> bool {
-         match self {
+        match self {
             Self::Const(wisp) => wisp.detect(state),
             Self::Named(wisp) => wisp.detect(state),
             Self::Chars(wisp) => wisp.detect(state),
