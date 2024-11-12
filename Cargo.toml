@@ -57,7 +57,7 @@ encoding_rs = "0.8"
 email_address = "0.2"
 enumflags2 = "0.7"
 etag = "4"
-eyre = "0.6.12"
+eyre = "0.6"
 fastrand = "2"
 form_urlencoded = "1"
 futures-channel = "0.3"
@@ -70,7 +70,7 @@ hex = "0.4"
 hostname-validator = "1"
 hyper = { version = "1", features = ["full"] }
 hyper-rustls = { version = "0.27", default-features = false }
-hyper-util = { version = "0.1.2", default-features = true }
+hyper-util = { version = "0.1", default-features = true }
 indexmap = "2"
 inventory = "0.3"
 jsonwebtoken = "9.1"
@@ -82,10 +82,10 @@ multimap = "0.10"
 native-tls = "0.2"
 nix = { version = "0.29", default-features = false }
 openssl = "0.10"
-opentelemetry = { version = "0.26", default-features = false }
-opentelemetry-http = { version = "0.26", default-features = false }
+opentelemetry = { version = "0.27", default-features = false }
+opentelemetry-http = { version = "0.27", default-features = false }
 opentelemetry-prometheus = { version = "0.17", default-features = false }
-opentelemetry-semantic-conventions = { version = "0.26", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.27", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
@@ -99,7 +99,7 @@ quote = "1"
 rand = "0.8"
 rcgen = "0.13"
 regex = "1"
-reqwest = "0.12.1"
+reqwest = "0.12"
 ring = "0.17"
 rust_decimal = "1"
 rustls = "0.23"
@@ -110,12 +110,12 @@ serde_json = "1"
 serde-xml-rs = "0.6"
 serde_urlencoded = "0.7"
 serde_yaml = "0.9"
-serde_with = "3.0"
+serde_with = "3"
 sha2 = "0.10"
 smallvec = "1"
 socket2 = "0.5"
 syn = "2"
-sync_wrapper = "1.0"
+sync_wrapper = "1"
 tempfile = "3"
 thiserror = "2"
 time = "0.3"
@@ -136,8 +136,8 @@ uuid = "1"
 x509-parser = "0.16"
 
 # Compress
-brotli = { version = "7.0", default-features = false }
-flate2 = { version = "1.0", default-features = false }
+brotli = { version = "7", default-features = false }
+flate2 = { version = "1", default-features = false }
 zstd = { version = "0.13", default-features = false }
 
 [workspace.lints.rust]

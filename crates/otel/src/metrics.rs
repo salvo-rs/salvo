@@ -27,18 +27,18 @@ impl Metrics {
             request_count: meter
                 .u64_counter("salvo_request_count")
                 .with_description("total request count (since start of service)")
-                .init(),
+                .build(),
             error_count: meter
                 .u64_counter("salvo_error_count")
                 .with_description("failed request count (since start of service)")
-                .init(),
+                .build(),
             duration: meter
                 .f64_histogram("salvo_request_duration_ms")
                 .with_unit("milliseconds")
                 .with_description(
                     "request duration histogram (in milliseconds, since start of service)",
                 )
-                .init(),
+                .build(),
         }
     }
 }
