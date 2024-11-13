@@ -3,7 +3,6 @@ use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, WithExportConfig};
 use opentelemetry_sdk::logs::LoggerProvider;
-use opentelemetry_sdk::trace::{self, RandomIdGenerator};
 use opentelemetry_sdk::{runtime, Resource};
 use salvo::logging::Logger;
 use salvo::prelude::*;
