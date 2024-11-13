@@ -49,7 +49,7 @@ cfg_feature! {
         pub(crate) type_path: &'r syn::TypePath,
     }
 
-    impl<'r, T> Variant for ReprVariant<'r, T>
+    impl<T> Variant for ReprVariant<'_, T>
     where
         T: ToTokens,
     {

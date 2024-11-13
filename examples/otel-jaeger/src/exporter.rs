@@ -23,7 +23,8 @@ impl Exporter {
         let mut body = Vec::new();
         match encoder.encode(&metric_families, &mut body) {
             Ok(()) => {
-                let _ = res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true);
+                let _ =
+                    res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true);
                 res.body(body);
             }
             Err(_) => {

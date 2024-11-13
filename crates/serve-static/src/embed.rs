@@ -120,7 +120,7 @@ where
         } else {
             &*decode_url_path_safely(req.uri().path())
         };
-        let req_path = format_url_path_safely(&req_path);
+        let req_path = format_url_path_safely(req_path);
         let mut key_path = Cow::Borrowed(&*req_path);
         let mut embedded_file = T::get(req_path.as_str());
         if embedded_file.is_none() {
