@@ -30,6 +30,7 @@
 <a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <img alt="License" src="https://img.shields.io/crates/l/salvo.svg" />
+<a href="https://gurubase.io/g/salvo"><img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20Salvo%20Guru-006BFF" /></a>
 </p>
 </div>
 
