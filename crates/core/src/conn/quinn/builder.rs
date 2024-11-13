@@ -151,14 +151,14 @@ async fn process_web_transport(
             .extensions_mut()
             .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>>()
             .map(|c| {
-                Arc::into_inner(c).unwrap().into_inner()
+                Arc::into_inner(c).expect("http3 connection must exist").into_inner()
                     .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))
             })
             .transpose()?;
         stream = response
             .extensions_mut()
             .remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>>()
-            .and_then(|stream|Arc::into_inner(stream));
+            .and_then(Arc::into_inner);
     }
 
     let Some(conn) = conn else {
