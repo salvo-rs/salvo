@@ -9,11 +9,14 @@ fn main() {
     let _sentry;
 
     if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
-        _sentry = sentry::init((sentry_dsn, sentry::ClientOptions {
-            release: sentry::release_name!(),
-            traces_sample_rate: 1.0,
-            ..Default::default()
-        }));
+        _sentry = sentry::init((
+            sentry_dsn,
+            sentry::ClientOptions {
+                release: sentry::release_name!(),
+                traces_sample_rate: 1.0,
+                ..Default::default()
+            },
+        ));
     }
 
     tokio::runtime::Builder::new_multi_thread()

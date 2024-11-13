@@ -24,7 +24,7 @@ impl Opts {
     pub(crate) fn add2(
         self: ::std::sync::Arc<Self>,
         left: QueryParam<i64>,
-        right: QueryParam<i64>
+        right: QueryParam<i64>,
     ) -> String {
         (self.state + *left + *right).to_string()
     }

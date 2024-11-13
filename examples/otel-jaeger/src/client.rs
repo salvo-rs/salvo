@@ -8,19 +8,20 @@ use opentelemetry::{
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::runtime;
+use opentelemetry_sdk::trace::TracerProvider;
 use reqwest::{Client, Method, Url};
 
 fn init_tracer() {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let provider = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint("http://localhost:14268/api/traces"),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .unwrap();
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:14268/api/traces")
+        .build()
+        .expect("failed to create exporter");
+    let provider = TracerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build();
     let _ = global::set_tracer_provider(provider);
 }
 
