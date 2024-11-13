@@ -9,6 +9,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [SalvoRsTool](https://github.com/mdddj/SalvoRsTool): salvo Idea RustRover插件 快速生成dto router service模板代码
 - [protect-endpoints](https://github.com/DDtKey/protect-endpoints): Collection of crates to protect your endpoints
 - [salvo-captcha](https://git.4rs.nl/awiteb/salvo-captcha): A captcha middleware for Salvo framework.
+- [salvo-casbin](https://github.com/casbin-rs/salvo-casbin): Casbin access control hoop for salvo framework.
 
 ## Project showcase
 
@@ -24,7 +25,8 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [myblog](https://github.com/driftluo/myblog): This is my personal blog.
 - [opensound](https://github.com/opensound-org/opensound): Pro-Audio system engine, using `salvo` as the default HTTP server backend（专业音频系统引擎，使用`salvo`作为默认HTTP服务器后端）.
 - [static-api](https://github.com/josejachuf/static-api-rs): This is a simple application emulating a basic REST API.
-- [palpo](https://github.com/palpo-matrix-server/palpo):A Rust Matrix Server Implementation.
+- [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
+- [yiirs](https://github.com/shenghui0779/yiirs): Rust API 快速开发脚手架 (Salvo & Axum).
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
