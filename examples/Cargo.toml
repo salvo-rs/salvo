@@ -40,7 +40,7 @@ opentelemetry-otlp = "0.27.0"
 opentelemetry-prometheus = "0.17.0"
 opentelemetry_sdk = "0.27.0"
 opentelemetry-semantic-conventions = "0.27.0"
-tracing-opentelemetry = "0.27.0"
+tracing-opentelemetry = "0.28.0"
 
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
