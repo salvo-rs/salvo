@@ -27,6 +27,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [static-api](https://github.com/josejachuf/static-api-rs): This is a simple application emulating a basic REST API.
 - [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
 - [yiirs](https://github.com/shenghui0779/yiirs): Rust API 快速开发脚手架 (Salvo & Axum).
+- [luxy](https://github.com/alley-rs/fluxy): Software for fast file transfer between terminals in the same network segment.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
