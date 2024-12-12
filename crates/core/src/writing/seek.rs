@@ -126,7 +126,7 @@ where
 
         if offset != 0 || length != self.length || range.is_some() {
             res.status_code(StatusCode::PARTIAL_CONTENT);
-            match ContentRange::bytes(offset..offset + length - 1, self.length) {
+            match ContentRange::bytes(offset..offset + length, self.length) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
                 }
