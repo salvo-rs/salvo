@@ -24,11 +24,10 @@ fn init_tracer_provider() -> TracerProvider {
         .expect("failed to create exporter");
     TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
-        .with_config(
-            opentelemetry_sdk::trace::Config::default().with_resource(Resource::new(vec![
-                KeyValue::new("service.name", "server1"),
-            ])),
-        )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "server1",
+        )]))
         .build()
 }
 
