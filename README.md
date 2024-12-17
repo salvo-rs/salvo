@@ -54,7 +54,7 @@ You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples
 
 ### Hello World with ACME and HTTP3
 
-**It only takes a few lines of code to implement a server that supports ACME to automatically obtain certificates and
+**It only takes a few lines of code to implement a server that supports ACME to automatically obtain certificates, and it
 supports HTTP1, HTTP2, and HTTP3 protocols.**
 
 ```rust
@@ -79,8 +79,8 @@ async fn main() {
 
 ### Middleware
 
-There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares
-without to know concepts like associated type, generic type. You can write middleware if you can write function!!!**
+There is no difference between a Handler and a Middleware, A Middleware is just a Handler. **You can write middleware
+without knowing concepts like associated types and generic types. If you can write a function, then you can write middleware!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -99,7 +99,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello)
 ```
 
-This is a very simple middleware, it adds `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+This is a very simple middleware, it adds an `Header` to the `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### Chainable tree routing system
 
@@ -113,7 +113,7 @@ Router::with_path("articles/<id>")
     .delete(delete_article);
 ```
 
-Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together:
+Often, something like viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together:
 
 ```rust
 Router::with_path("articles")
