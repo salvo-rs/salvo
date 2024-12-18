@@ -77,7 +77,6 @@
 //! "#;
 //!```
 
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
@@ -94,8 +93,10 @@ use salvo_core::http::headers::{
 use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{Error, Request, Response};
-use tokio_tungstenite::tungstenite::protocol::frame::{Payload, Utf8Payload};
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::frame::{CloseFrame, Utf8Bytes};
 use tokio_tungstenite::tungstenite::protocol::{self, WebSocketConfig};
+use tokio_tungstenite::tungstenite::Bytes;
 use tokio_tungstenite::WebSocketStream;
 
 /// Creates a WebSocket Handler.
@@ -391,7 +392,7 @@ pub struct Message {
 impl Message {
     /// Construct a new Text `Message`.
     #[inline]
-    pub fn text<S: Into<Utf8Payload>>(s: S) -> Message {
+    pub fn text<S: Into<Utf8Bytes>>(s: S) -> Message {
         Message {
             inner: protocol::Message::text(s),
         }
@@ -399,7 +400,7 @@ impl Message {
 
     /// Construct a new Binary `Message`.
     #[inline]
-    pub fn binary<V: Into<Payload>>(v: V) -> Message {
+    pub fn binary<V: Into<Bytes>>(v: V) -> Message {
         Message {
             inner: protocol::Message::binary(v),
         }
@@ -407,7 +408,7 @@ impl Message {
 
     /// Construct a new Ping `Message`.
     #[inline]
-    pub fn ping<V: Into<Payload>>(v: V) -> Message {
+    pub fn ping<V: Into<Bytes>>(v: V) -> Message {
         Message {
             inner: protocol::Message::Ping(v.into()),
         }
@@ -415,7 +416,7 @@ impl Message {
 
     /// Construct a new Pong `Message`.
     #[inline]
-    pub fn pong<V: Into<Payload>>(v: V) -> Message {
+    pub fn pong<V: Into<Bytes>>(v: V) -> Message {
         Message {
             inner: protocol::Message::Pong(v.into()),
         }
@@ -431,10 +432,10 @@ impl Message {
 
     /// Construct a Close `Message` with a code and reason.
     #[inline]
-    pub fn close_with(code: impl Into<u16>, reason: impl Into<Cow<'static, str>>) -> Message {
+    pub fn close_with(code: impl Into<u16>, reason: impl Into<Utf8Bytes>) -> Message {
         Message {
-            inner: protocol::Message::Close(Some(protocol::frame::CloseFrame {
-                code: protocol::frame::coding::CloseCode::from(code.into()),
+            inner: protocol::Message::Close(Some(CloseFrame {
+                code: CloseCode::from(code.into()),
                 reason: reason.into(),
             })),
         }
@@ -493,10 +494,10 @@ impl Message {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         match &self.inner {
-            protocol::Message::Text(s) => s.as_slice(),
-            protocol::Message::Binary(v) => v.as_slice(),
-            protocol::Message::Ping(v) => v.as_slice(),
-            protocol::Message::Pong(v) => v.as_slice(),
+            protocol::Message::Text(s) => s.as_bytes(),
+            protocol::Message::Binary(v) => v.as_ref(),
+            protocol::Message::Ping(v) => v.as_ref(),
+            protocol::Message::Pong(v) => v.as_ref(),
             protocol::Message::Close(_) => &[],
             protocol::Message::Frame(v) => v.payload(),
         }
