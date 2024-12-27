@@ -25,6 +25,8 @@ use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, ParseResult, Response, Version};
 use crate::routing::PathParams;
+#[cfg(feature = "route-entry")]
+use crate::routing::RouteEntry;
 use crate::serde::{
     from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val,
 };
@@ -101,7 +103,6 @@ pub struct Request {
 
     pub(crate) params: PathParams,
 
-    // accept: Option<Vec<Mime>>,
     pub(crate) queries: OnceLock<MultiMap<String, String>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
     pub(crate) payload: tokio::sync::OnceCell<Bytes>,
@@ -113,6 +114,9 @@ pub struct Request {
     pub(crate) remote_addr: SocketAddr,
 
     pub(crate) secure_max_size: Option<usize>,
+    
+    #[cfg(feature = "route-entry")]
+    pub(crate) route_entry: RouteEntry,
 }
 
 impl Debug for Request {
@@ -159,6 +163,8 @@ impl Request {
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
             secure_max_size: None,
+            #[cfg(feature = "cookie")]
+            route_entry: Default::default(),
         }
     }
     #[doc(hidden)]
@@ -223,6 +229,8 @@ impl Request {
             version,
             scheme,
             secure_max_size: None,
+            #[cfg(feature = "route-entry")]
+            route_entry: Default::default(),
         }
     }
 
