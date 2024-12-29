@@ -193,6 +193,8 @@ fn is_primitive(name: &str) -> bool {
             | "i128"
             | "f32"
             | "f64"
+            | "Ipv4Addr"
+            | "Ipv6Addr"
     )
 }
 
@@ -258,6 +260,9 @@ impl TryToTokens for SchemaType<'_> {
             "Uuid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
+            "Ipv4Addr" | "Ipv6Addr" | "IpAddr" => {
                 schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
             }
             _ => schema_type_tokens(tokens, oapi, SchemaTypeInner::Object, self.nullable),
@@ -385,7 +390,7 @@ impl Type<'_> {
 fn is_known_format(name: &str) -> bool {
     matches!(
         name,
-        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "i64" | "u64" | "f32" | "f64"
+        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "i64" | "u64" | "f32" | "f64" | "Ipv4Addr" | "Ipv6Addr"
     )
 }
 
@@ -456,6 +461,12 @@ impl TryToTokens for Type<'_> {
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+            },
+            "Ipv4Addr" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ipv4) })
+            },
+            "Ipv6Addr" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ipv6) })
             }
             _ => (),
         };
