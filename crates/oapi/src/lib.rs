@@ -191,6 +191,19 @@ impl_to_schema_primitive!(
 );
 impl_to_schema!(&str);
 
+impl_to_schema!(std::net::Ipv4Addr);
+impl_to_schema!(std::net::Ipv6Addr);
+
+impl ToSchema for std::net::IpAddr {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        crate::RefOr::Type(Schema::OneOf(
+            OneOf::default()
+                .item(std::net::Ipv4Addr::to_schema(components))
+                .item(std::net::Ipv6Addr::to_schema(components)),
+        ))
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl_to_schema_primitive!(chrono::NaiveDate, chrono::Duration, chrono::NaiveDateTime);
 #[cfg(feature = "chrono")]
