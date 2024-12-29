@@ -390,7 +390,17 @@ impl Type<'_> {
 fn is_known_format(name: &str) -> bool {
     matches!(
         name,
-        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "i64" | "u64" | "f32" | "f64" | "Ipv4Addr" | "Ipv6Addr"
+        "i8" | "i16"
+            | "i32"
+            | "u8"
+            | "u16"
+            | "u32"
+            | "i64"
+            | "u64"
+            | "f32"
+            | "f64"
+            | "Ipv4Addr"
+            | "Ipv6Addr"
     )
 }
 
