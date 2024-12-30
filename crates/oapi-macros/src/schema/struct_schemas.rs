@@ -309,7 +309,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                 .unwrap_or(false)
         {
             tokens.extend(quote! {
-                .additional_properties(Some(#oapi::schema::AdditionalProperties::FreeForm(false)))
+                .additional_properties(#oapi::oapi::schema::AdditionalProperties::FreeForm(false))
             });
         }
 
