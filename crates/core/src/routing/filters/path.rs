@@ -657,7 +657,7 @@ impl PathParser {
         let mut ch = self
             .curr()
             .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
-        while !['/', ':', '<', '>', '[', ']', '(', ')'].contains(&ch) {
+        while !['/', ':', '{', '}', '<', '>', '[', ']', '(', ')'].contains(&ch) {
             ident.push(ch);
             if let Some(c) = self.next(false) {
                 ch = c;
@@ -706,7 +706,7 @@ impl PathParser {
         let mut ch = self
             .curr()
             .ok_or_else(|| "current postion is out of index when scan const".to_owned())?;
-        while !['/', ':', '<', '>', '[', ']', '(', ')'].contains(&ch) {
+        while !['/', ':', '{', '}', '<', '>', '[', ']', '(', ')'].contains(&ch) {
             cnst.push(ch);
             if let Some(c) = self.next(false) {
                 ch = c;
@@ -751,7 +751,7 @@ impl PathParser {
             .ok_or_else(|| "current postion is out of index when scan part".to_owned())?;
         let mut wisps: Vec<WispKind> = vec![];
         while ch != '/' {
-            if ch == '<' {
+            if ch == '{' {
                 self.next(true)
                     .ok_or_else(|| "char is needed after <".to_owned())?;
                 let name = self.scan_ident()?;
@@ -796,7 +796,7 @@ impl PathParser {
                             } else {
                                 args.split(',').map(|s| s.trim().to_owned()).collect()
                             }
-                        } else if lb == '>' {
+                        } else if lb == '}' {
                             vec![]
                         } else {
                             return Err(format!(
@@ -819,13 +819,13 @@ impl PathParser {
                         let regex = &self.scan_regex()?;
                         wisps.push(RegexWisp::new(name, regex)?.into());
                     }
-                } else if ch == '>' {
+                } else if ch == '}' {
                     wisps.push(NamedWisp(name).into());
                 }
                 if let Some(c) = self.curr() {
-                    if c != '>' {
+                    if c != '}' {
                         return Err(format!(
-                            "except '>' to end regex part or fn part, but found {:?} at offset: {}",
+                            "except '}}' to end regex part or fn part, but found {:?} at offset: {}",
                             c, self.offset
                         ));
                     } else {
@@ -1058,7 +1058,7 @@ mod tests {
     }
     #[test]
     fn test_parse_single_regex() {
-        let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
+        let segments = PathParser::new(r"/{abc:/\d+/}").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[RegexWisp { name: "abc", regex: Regex("^\\d+$") }]"#
@@ -1066,41 +1066,41 @@ mod tests {
     }
     #[test]
     fn test_parse_wildcard_regex() {
-        let segments = PathParser::new(r"/<abc:/\d+/.+/>").parse().unwrap();
+        let segments = PathParser::new(r"/<abc:/\d+\.+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[RegexWisp { name: "abc", regex: Regex("^\\d+/.+$") }]"#
+            r#"[RegexWisp { name: "abc", regex: Regex("^\\d+\\.+$") }]"#
         );
     }
     #[test]
     fn test_parse_single_regex_with_prefix() {
-        let segments = PathParser::new(r"/prefix_<abc:/\d+/>").parse().unwrap();
+        let segments = PathParser::new(r"/prefix_{abc:/\d+/}").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix_(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix_(?{abc}\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_single_regex_with_suffix() {
-        let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
+        let segments = PathParser::new(r"/{abc:/\d+/}_suffix.png").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^(?<abc>\\d+)_suffix\\.png$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^(?{abc}\\d+)_suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_single_regex_with_prefix_and_suffix() {
-        let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png")
+        let segments = PathParser::new(r"/prefix{abc:/\d+/}suffix.png")
             .parse()
             .unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)suffix\\.png$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?{abc}\\d+)suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_dot_after_param() {
-        let segments = PathParser::new(r"/<pid>/show/<table_name>.bu")
+        let segments = PathParser::new(r"/{pid}/show/{table_name}.bu")
             .parse()
             .unwrap();
         assert_eq!(
@@ -1110,50 +1110,50 @@ mod tests {
     }
     #[test]
     fn test_parse_multi_regex() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
+        let segments = PathParser::new(r"/first{id}/prefix{abc:/\d+/}")
             .parse()
             .unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?{id}.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_multi_regex_with_prefix() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
+        let segments = PathParser::new(r"/first{id}/prefix{abc:/\d+/}")
             .parse()
             .unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?{id}.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_multi_regex_with_suffix() {
-        let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>")
+        let segments = PathParser::new(r"/first{id:/\d+/}/prefix{abc:/\d+/}")
             .parse()
             .unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>\\d+)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?{id}\\d+)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_multi_regex_with_prefix_and_suffix() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext")
+        let segments = PathParser::new(r"/first{id}/prefix{abc:/\d+/}ext")
             .parse()
             .unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)ext$"), wild_regex: None, wild_start: None }]"#
+            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?{id}.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)ext$"), wild_regex: None, wild_start: None }]"#
         );
     }
     #[test]
     fn test_parse_rest() {
-        let segments = PathParser::new(r"/first<id>/<**rest>").parse().unwrap();
+        let segments = PathParser::new(r"/first{id}/{**rest}").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("**rest")]"#
+            r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?{id}.*)$"), wild_regex: None, wild_start: None }, NamedWisp("**rest")]"#
         );
 
         let segments = PathParser::new(r"/first<id>/<*+rest>").parse().unwrap();
