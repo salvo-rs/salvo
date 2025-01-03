@@ -573,7 +573,7 @@ impl Parse for DeriveToResponsesValue {
         if response.status_code.to_token_stream().is_empty() {
             return Err(Error::new(first_span, MISSING_STATUS_ERROR));
         }
-        
+
         if !input.is_empty() {
             input.parse::<Token![,]>()?;
         }
