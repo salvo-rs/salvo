@@ -628,9 +628,8 @@ mod tests {
     }
     #[tokio::test]
     async fn test_router_detect11() {
-        let router = Router::new().push(
-            Router::with_path(r"avatars/{width|\d+}x{height|\d+}.{ext}").goal(fake_handler),
-        );
+        let router = Router::new()
+            .push(Router::with_path(r"avatars/{width|\d+}x{height|\d+}.{ext}").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/avatars/321x641f.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state).await;
