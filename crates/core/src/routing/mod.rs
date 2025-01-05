@@ -381,12 +381,6 @@ pub use path_state::PathState;
 mod flow_ctrl;
 pub use flow_ctrl::FlowCtrl;
 
-cfg_feature! {
-    #![feature = "route-entry"]
-    mod route_entry;
-    pub use route_entry::RouteEntry;
-}
-
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -400,54 +394,6 @@ use crate::{Depot, Handler};
 pub struct DetectMatched {
     pub hoops: Vec<Arc<dyn Handler>>,
     pub goal: Arc<dyn Handler>,
-}
-
-/// The path parameters.
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct PathParams {
-    inner: IndexMap<String, String>,
-    greedy: bool,
-}
-impl Deref for PathParams {
-    type Target = IndexMap<String, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-impl PathParams {
-    /// Create new `PathParams`.
-    pub fn new() -> Self {
-        PathParams::default()
-    }
-    /// If there is a wildcard param, it's value is `true`.
-    pub fn greedy(&self) -> bool {
-        self.greedy
-    }
-    /// Get the last param starts with '*', for example: {**rest}, {*?rest}.
-    pub fn tail(&self) -> Option<&str> {
-        if self.greedy {
-            self.inner.last().map(|(_, v)| &**v)
-        } else {
-            None
-        }
-    }
-
-    /// Insert new param.
-    pub fn insert(&mut self, name: &str, value: String) {
-        #[cfg(debug_assertions)]
-        {
-            if self.greedy {
-                panic!("only one wildcard param is allowed and it must be the last one.");
-            }
-        }
-        if name.starts_with('*') {
-            self.inner.insert(split_wild_name(name).1.to_owned(), value);
-            self.greedy = true;
-        } else {
-            self.inner.insert(name.to_owned(), value);
-        }
-    }
 }
 
 pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
