@@ -111,7 +111,7 @@ mod tests {
     #[tokio::test]
     async fn test_hyper_client() {
         let router = Router::new().push(
-            Router::with_path("rust/<**rest>").goal(Proxy::new(vec!["https://www.rust-lang.org"], HyperClient::default())),
+            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://www.rust-lang.org"], HyperClient::default())),
         );
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")

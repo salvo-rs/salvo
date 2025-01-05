@@ -102,7 +102,7 @@ impl<T> AcmeListener<T> {
             };
             router.routers.insert(
                 0,
-                Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).goal(handler),
+                Router::with_path(format!("{}/{{token}}", WELL_KNOWN_PATH)).goal(handler),
             );
         } else {
             panic!("`HTTP-01` challenge's key should not be none");

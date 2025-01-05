@@ -13,7 +13,7 @@ async fn main() {
         Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
     );
 
-    let router = Router::with_path("<id:guid>").get(index);
+    let router = Router::with_path("{id:guid}").get(index);
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;

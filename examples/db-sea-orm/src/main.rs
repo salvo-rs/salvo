@@ -174,9 +174,9 @@ async fn main() {
         .post(create)
         .get(list)
         .push(Router::with_path("new").get(new))
-        .push(Router::with_path("<id>").get(edit).post(update))
-        .push(Router::with_path("delete/<id>").post(delete))
-        .push(Router::with_path("static/<**>").get(StaticDir::new(concat!(
+        .push(Router::with_path("{id}").get(edit).post(update))
+        .push(Router::with_path("delete/{id}").post(delete))
+        .push(Router::with_path("static/{**}").get(StaticDir::new(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/static"
         ))));
