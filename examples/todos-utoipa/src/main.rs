@@ -68,7 +68,7 @@ pub(crate) fn route() -> Router {
                     .get(list_todos)
                     .post(create_todo)
                     .push(
-                        Router::with_path("<id>")
+                        Router::with_path("{id}")
                             .put(update_todo)
                             .delete(delete_todo),
                     ),
@@ -76,7 +76,7 @@ pub(crate) fn route() -> Router {
         )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
         .push(
-            Router::with_path("/swagger-ui/<**>")
+            Router::with_path("/swagger-ui/{**}")
                 .hoop(affix_state::inject(config))
                 .get(serve_swagger),
         )

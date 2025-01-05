@@ -106,7 +106,7 @@ Router::new().hoop(add_header).get(hello)
 
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
-Router::with_path("articles/<id>")
+Router::with_path("articles/{id}")
     .get(show_article)
     .patch(edit_article)
     .delete(delete_article);
@@ -117,7 +117,7 @@ Router::with_path("articles/<id>")
 ```rust
 Router::with_path("articles")
     .get(list_articles)
-    .push(Router::with_path("<id>").get(show_article));
+    .push(Router::with_path("{id}").get(show_article));
 ```
 
 然後把需要用戶登錄的路由寫到一起，並且使用相應的中間件驗證用戶是否登錄：
@@ -125,7 +125,7 @@ Router::with_path("articles")
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
-    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+    .push(Router::with_path("{id}").patch(edit_article).delete(delete_article));
 ```
 
 雖然這兩個路由都有這同樣的 `path("articles")`, 然而它們依然可以被同時添加到同一個父路由，所以最後的路由長成了這個樣子：
@@ -135,18 +135,18 @@ Router::new()
     .push(
         Router::with_path("articles")
             .get(list_articles)
-            .push(Router::with_path("<id>").get(show_article)),
+            .push(Router::with_path("{id}").get(show_article)),
     )
     .push(
         Router::with_path("articles")
             .hoop(auth_check)
-            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+            .push(Router::with_path("{id}").patch(edit_article).delete(delete_article)),
     );
 ```
 
-`<id>`匹配了路徑中的一個片段，正常情況下文章的的 `id`隻是一個數字，這是我們可以使用正則錶達式限製製 `id`的匹配規則，`r"<id:/\d+/>"`。
+`{id}`匹配了路徑中的一個片段，正常情況下文章的的 `id`隻是一個數字，這是我們可以使用正則錶達式限製製 `id`的匹配規則，`r"{id|\d+}"`。
 
-還可以通過 `<**>`, `<*+>` 或者 `<*?>`匹配所有剩餘的路徑片段。為了代碼易讀性性強些，也可以添加適合的名字，讓路徑語義更清晰，比如：: `<**file_path>`。
+還可以通過 `{**}`, `{*+}` 或者 `{*?}`匹配所有剩餘的路徑片段。為了代碼易讀性性強些，也可以添加適合的名字，讓路徑語義更清晰，比如：: `{**file_path}`。
 
 有些用於匹配路徑的正則錶達式需要經常被使用，可以將它事先註冊，比如 GUID:
 
@@ -160,7 +160,7 @@ PathFilter::register_wisp_regex(
 這樣在需要路徑匹配時就變得更簡潔：
 
 ```rust
-Router::with_path("<id:guid>").get(index)
+Router::with_path("{id:guid}").get(index)
 ```
 
 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)

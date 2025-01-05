@@ -27,7 +27,7 @@ async fn main() {
     let router = Router::new().goal(index).push(
         Router::with_path("chat")
             .get(user_connected)
-            .push(Router::with_path("<id>").post(chat_send)),
+            .push(Router::with_path("{id}").post(chat_send)),
     );
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;

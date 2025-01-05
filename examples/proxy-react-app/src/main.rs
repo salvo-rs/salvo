@@ -5,7 +5,7 @@ use salvo::proxy::HyperClient;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<**rest>").goal(Proxy::new(
+    let router = Router::with_path("{**rest}").goal(Proxy::new(
         vec!["http://localhost:3000"],
         HyperClient::default(),
     ));

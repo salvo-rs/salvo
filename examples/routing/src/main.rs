@@ -12,7 +12,7 @@ async fn main() {
                 .hoop(auth)
                 .post(create_user)
                 .push(
-                    Router::with_path(r"<id:num>")
+                    Router::with_path("{id:num}")
                         .post(update_user)
                         .delete(delete_user),
                 ),
@@ -20,7 +20,7 @@ async fn main() {
         .push(
             Router::with_path("users")
                 .get(list_users)
-                .push(Router::with_path(r"<id:num>").get(show_user)),
+                .push(Router::with_path("{id:num}").get(show_user)),
         )
         .then(|router| {
             if debug_mode {

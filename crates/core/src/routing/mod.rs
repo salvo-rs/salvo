@@ -37,8 +37,8 @@
 //! # async fn list_writer_articles(res: &mut Response) {
 //! # }
 //! Router::with_path("writers").get(list_writers).post(create_writer);
-//! Router::with_path("writers/<id>").get(show_writer).patch(edit_writer).delete(delete_writer);
-//! Router::with_path("writers/<id>/articles").get(list_writer_articles);
+//! Router::with_path("writers/{id}").get(show_writer).patch(edit_writer).delete(delete_writer);
+//! Router::with_path("writers/{id}/articles").get(list_writer_articles);
 //! ```
 //!
 //! # Write in tree way
@@ -70,7 +70,7 @@
 //!     .get(list_writers)
 //!     .post(create_writer)
 //!     .push(
-//!         Router::with_path("<id>")
+//!         Router::with_path("{id}")
 //!             .get(show_writer)
 //!             .patch(edit_writer)
 //!             .delete(delete_writer)
@@ -107,11 +107,11 @@
 //!     .push(
 //!         Router::with_path("articles")
 //!             .get(list_articles)
-//!             .push(Router::with_path("<id>").get(show_article))
+//!             .push(Router::with_path("{id}").get(show_article))
 //!             .then(|router|{
 //!                 if admin_mode() {
 //!                     router.post(create_article).push(
-//!                         Router::with_path("<id>").patch(update_article).delete(delete_writer)
+//!                         Router::with_path("{id}").patch(update_article).delete(delete_writer)
 //!                     )
 //!                 } else {
 //!                     router
@@ -125,7 +125,7 @@
 //!
 //! # Get param in routers
 //!
-//! In the previous source code, `<id>` is a param definition. We can access its value via Request instance:
+//! In the previous source code, `{id}` is a param definition. We can access its value via Request instance:
 //!
 //! ```rust
 //! use salvo_core::prelude::*;
@@ -136,8 +136,8 @@
 //! }
 //! ```
 //!
-//! `<id>` matches a fragment in the path, under normal circumstances, the article `id` is just a number, which we can
-//! use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
+//! `{id}` matches a fragment in the path, under normal circumstances, the article `id` is just a number, which we can
+//! use regular expressions to restrict `id` matching rules, `r"{id|\d+}"`.
 //!
 //! For numeric characters there is an easier way to use `<id:num>`, the specific writing is:
 //!
@@ -150,12 +150,12 @@
 //! - `<id:num(3..=10)>` means match 3 to 10 numeric characters;
 //! - `<id:num(10..)>` means to match at least 10 numeric characters.
 //!
-//! You can also use `<**>`, `<*+*>` or `<*?>` to match all remaining path fragments.
+//! You can also use `{**}`, `{*+*}` or `{*?}` to match all remaining path fragments.
 //! In order to make the code more readable, you can also add appropriate name to make the path semantics more clear,
-//! for example: `<**file_path>`.
+//! for example: `{**file_path}`.
 //!
 //! It is allowed to combine multiple expressions to match the same path segment,
-//! such as `/articles/article_<id:num>/`, `/images/<name>.<ext>`.
+//! such as `/articles/article_{id:num}/`, `/images/{name}.{ext}`.
 //!
 //! # Add middlewares
 //!
@@ -177,7 +177,7 @@
 //!     .get(list_writers)
 //!     .post(create_writer)
 //!     .push(
-//!         Router::with_path("<id>")
+//!         Router::with_path("{id}")
 //!             .get(show_writer)
 //!             .patch(edit_writer)
 //!             .delete(delete_writer)
@@ -207,11 +207,11 @@
 //!             .hoop(check_authed)
 //!             .path("writers")
 //!             .post(create_writer)
-//!             .push(Router::with_path("<id>").patch(edit_writer).delete(delete_writer)),
+//!             .push(Router::with_path("{id}").patch(edit_writer).delete(delete_writer)),
 //!     )
 //!     .push(
 //!         Router::new().path("writers").get(list_writers).push(
-//!             Router::with_path("<id>")
+//!             Router::with_path("{id}")
 //!                 .get(show_writer)
 //!                 .push(Router::with_path("articles").get(list_writer_articles)),
 //!         ),
@@ -250,14 +250,14 @@
 //!         Router::new()
 //!             .path("articles")
 //!             .get(list_articles)
-//!             .push(Router::new().path("<id>").get(show_article)),
+//!             .push(Router::new().path("{id}").get(show_article)),
 //!     )
 //!     .push(
 //!         Router::new()
 //!             .path("articles")
 //!             .hoop(auth_check)
 //!             .post(list_articles)
-//!             .push(Router::new().path("<id>").patch(edit_article).delete(delete_article)),
+//!             .push(Router::new().path("{id}").patch(edit_article).delete(delete_article)),
 //!     );
 //! ```
 //!
@@ -285,8 +285,8 @@
 //!
 //! # #[handler] fn show_article() {}
 //! # #[handler] fn serve_file() {}
-//! Router::with_path("articles/<id>").get(show_article);
-//! Router::with_path("files/<**rest_path>").get(serve_file);
+//! Router::with_path("articles/{id}").get(show_article);
+//! Router::with_path("files/{**rest_path}").get(serve_file);
 //! ```
 //!
 //! In `Handler`, it can be obtained through the `get_param` function of the `Request` object:
@@ -342,8 +342,8 @@
 //! ```rust
 //! use salvo_core::prelude::*;
 //!
-//! Router::with_path("/articles/<id:/[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}/>");
-//! Router::with_path("/users/<id:/[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}/>");
+//! Router::with_path("/articles/{id|[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}}");
+//! Router::with_path("/users/{id|[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}}");
 //! ```
 //!
 //! However, writing this complex regular expression every time is prone to errors and hard-coding the regex is not
@@ -361,8 +361,8 @@
 //!     let guid = regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap();
 //!     PathFilter::register_wisp_regex("guid", guid);
 //!     Router::new()
-//!         .push(Router::with_path("/articles/<id:guid>").get(show_article))
-//!         .push(Router::with_path("/users/<id:guid>").get(show_user));
+//!         .push(Router::with_path("/articles/{id:guid}").get(show_article))
+//!         .push(Router::with_path("/users/{id:guid}").get(show_user));
 //! }
 //! ```
 //!
@@ -411,7 +411,7 @@ impl PathParams {
     pub fn greedy(&self) -> bool {
         self.greedy
     }
-    /// Get the last param starts with '*', for example: <**rest>, <*?rest>.
+    /// Get the last param starts with '*', for example: {**rest}, {*?rest}.
     pub fn tail(&self) -> Option<&str> {
         if self.greedy {
             self.inner.last().map(|(_, v)| &**v)
