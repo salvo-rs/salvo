@@ -1364,19 +1364,28 @@ mod tests {
 
         let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
         assert!(filter.detect(&mut state));
-        assert_eq!(state.matched_parts, vec!["users".to_owned(), "{id}".to_owned()]);
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned()]
+        );
     }
     #[test]
     fn test_detect_wildcard() {
         let filter = PathFilter::new("/users/{id}/{**rest}");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
-        assert_eq!(state.matched_parts, vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]);
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
+        );
         let mut state = PathState::new("/users/12/");
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(filter.detect(&mut state));
-        assert_eq!(state.matched_parts, vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]);
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
+        );
 
         let filter = PathFilter::new("/users/{id}/{*+rest}");
         let mut state = PathState::new("/users/12/facebook/insights/23");
@@ -1395,6 +1404,9 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12/abc");
         assert!(filter.detect(&mut state));
-        assert_eq!(state.matched_parts, vec!["users".to_owned(), "{id}".to_owned(), "{*?rest}".to_owned()]);
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{*?rest}".to_owned()]
+        );
     }
 }
