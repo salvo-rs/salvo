@@ -226,7 +226,10 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state).await {
                 req.params = path_state.params;
-                req.matched_path = path_state.matched_parts.join("/");
+                #[cfg(feature = "matched-path")]
+                {
+                    req.matched_path = path_state.matched_parts.join("/");
+                }
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
                 let mut ctrl = FlowCtrl::new(
