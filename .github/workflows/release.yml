@@ -1,12 +1,10 @@
 name: release
 on:
   push:
-    branches:
-      - release
-    paths:
-      - "**/Cargo.toml"
-      - ".github/workflows/release.yml"
-
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+.*"
+    branches-ignore:
+      - "**"
 jobs:
   git-tag:
     runs-on: ubuntu-latest
