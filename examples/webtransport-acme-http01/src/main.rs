@@ -119,7 +119,7 @@ async fn main() {
     let mut router = Router::new()
         .push(Router::with_path("counter").goal(connect))
         .push(
-            Router::with_path("<*path>")
+            Router::with_path("{*path}")
                 .get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
         );
 

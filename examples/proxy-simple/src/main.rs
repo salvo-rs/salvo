@@ -11,13 +11,13 @@ async fn main() {
         .push(
             Router::new()
                 .host("127.0.0.1")
-                .path("<**rest>")
+                .path("{**rest}")
                 .goal(Proxy::use_hyper_client("https://www.rust-lang.org")),
         )
         .push(
             Router::new()
                 .host("localhost")
-                .path("<**rest>")
+                .path("{**rest}")
                 .goal(Proxy::use_hyper_client("https://crates.io")),
         );
 

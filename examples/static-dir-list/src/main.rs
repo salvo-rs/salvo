@@ -5,7 +5,7 @@ use salvo::serve_static::StaticDir;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<*path>").get(
+    let router = Router::with_path("{*path}").get(
         StaticDir::new([
             "static-dir-list/static/boy",
             "static-dir-list/static/girl",

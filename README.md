@@ -107,7 +107,7 @@ Normally we write routing like this:
 
 ```rust
 Router::with_path("articles").get(list_articles).post(create_article);
-Router::with_path("articles/<id>")
+Router::with_path("articles/{id}")
     .get(show_article)
     .patch(edit_article)
     .delete(delete_article);
@@ -118,7 +118,7 @@ Often, something like viewing articles and article lists does not require user l
 ```rust
 Router::with_path("articles")
     .get(list_articles)
-    .push(Router::with_path("<id>").get(show_article));
+    .push(Router::with_path("{id}").get(show_article));
 ```
 
 Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in:
@@ -126,7 +126,7 @@ Then write the routers that require the user to login together, and use the corr
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
-    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
+    .push(Router::with_path("{id}").patch(edit_article).delete(delete_article));
 ```
 
 Although these two routes have the same
@@ -137,19 +137,19 @@ Router::new()
     .push(
         Router::with_path("articles")
             .get(list_articles)
-            .push(Router::with_path("<id>").get(show_article)),
+            .push(Router::with_path("{id}").get(show_article)),
     )
     .push(
         Router::with_path("articles")
             .hoop(auth_check)
-            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
+            .push(Router::with_path("{id}").patch(edit_article).delete(delete_article)),
     );
 ```
 
-`<id>` matches a fragment in the path, under normal circumstances, the article`id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
+`{id}` matches a fragment in the path, under normal circumstances, the article`id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"{id|\d+}"`.
 
-You can also use `<**>`,  `<*+>` or`<*?>` to match all remaining path fragments.
-In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: `<**file_path>`.
+You can also use `{**}`,  `{*+}` or`{*?}` to match all remaining path fragments.
+In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: `{**file_path}`.
 
 Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
 
@@ -163,7 +163,7 @@ PathFilter::register_wisp_regex(
 This makes it more concise when path matching is required:
 
 ```rust
-Router::with_path("<id:guid>").get(index)
+Router::with_path("{id:guid}").get(index)
 ```
 
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)

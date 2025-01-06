@@ -16,13 +16,13 @@
 //!         .push(
 //!             Router::new()
 //!                 .host("127.0.0.1")
-//!                 .path("<**rest>")
+//!                 .path("{**rest}")
 //!                 .goal(Proxy::use_hyper_client("https://www.rust-lang.org")),
 //!         )
 //!         .push(
 //!             Router::new()
 //!                 .host("localhost")
-//!                 .path("<**rest>")
+//!                 .path("{**rest}")
 //!                 .goal(Proxy::use_hyper_client("https://crates.io")),
 //!         );
 //!
@@ -135,7 +135,7 @@ pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send +
 /// Default url path getter.
 ///
 /// This getter will get the last param as the rest url path from request.
-/// In most case you should use wildcard param, like `<**rest>`, `<*+rest>`.
+/// In most case you should use wildcard param, like `{**rest}`, `{*+rest}`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.params().tail().map(encode_url_path)
 }

@@ -30,7 +30,7 @@ async fn main() {
         )
         .push(
             Router::with_hoop(Compression::new().enable_gzip(CompressionLevel::Fastest))
-                .path("<*path>")
+                .path("{*path}")
                 .get(StaticDir::new(base_dir)),
         );
 

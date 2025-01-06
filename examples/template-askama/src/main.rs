@@ -19,7 +19,7 @@ async fn hello(req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<name>").get(hello);
+    let router = Router::with_path("{name}").get(hello);
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }
