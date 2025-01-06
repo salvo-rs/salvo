@@ -381,14 +381,9 @@ pub use path_state::PathState;
 mod flow_ctrl;
 pub use flow_ctrl::FlowCtrl;
 
-use std::borrow::Cow;
-use std::ops::Deref;
 use std::sync::Arc;
 
-use indexmap::IndexMap;
-
-use crate::http::{Request, Response};
-use crate::{Depot, Handler};
+use crate::Handler;
 
 #[doc(hidden)]
 pub struct DetectMatched {

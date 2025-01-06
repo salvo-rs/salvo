@@ -1,12 +1,7 @@
-use std::borrow::Cow;
-use std::ops::Deref;
 use std::sync::Arc;
-
-use indexmap::IndexMap;
 
 use crate::http::{Request, Response};
 use crate::{Depot, Handler};
-
 
 /// Control the flow of execute handlers.
 ///

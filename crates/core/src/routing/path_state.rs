@@ -1,11 +1,5 @@
 use std::borrow::Cow;
-use std::ops::Deref;
-use std::sync::Arc;
 
-use indexmap::IndexMap;
-
-use crate::http::{Request, Response};
-use crate::{Depot, Handler};
 use super::{decode_url_path_safely, PathParams};
 
 #[doc(hidden)]
@@ -15,6 +9,8 @@ pub struct PathState {
     /// (row, col), row is the index of parts, col is the index of char in the part.
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
+    #[cfg(feature = "matched-path")]
+    pub(crate) matched_parts: Vec<String>,
     pub(crate) end_slash: bool, // For rest match, we want include the last slash.
     pub(crate) once_ended: bool, // Once it has ended, used to determine whether the error code returned is 404 or 405.
 }
@@ -41,6 +37,8 @@ impl PathState {
             params: PathParams::new(),
             end_slash,
             once_ended: false,
+            #[cfg(feature = "matched-path")]
+            matched_parts: vec![],
         }
     }
 
