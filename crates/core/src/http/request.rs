@@ -101,7 +101,6 @@ pub struct Request {
 
     pub(crate) params: PathParams,
 
-    // accept: Option<Vec<Mime>>,
     pub(crate) queries: OnceLock<MultiMap<String, String>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
     pub(crate) payload: tokio::sync::OnceCell<Bytes>,
@@ -113,6 +112,8 @@ pub struct Request {
     pub(crate) remote_addr: SocketAddr,
 
     pub(crate) secure_max_size: Option<usize>,
+    #[cfg(feature = "matched-path")]
+    pub(crate) matched_path: String,
 }
 
 impl Debug for Request {
@@ -159,6 +160,8 @@ impl Request {
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
             secure_max_size: None,
+            #[cfg(feature = "matched-path")]
+            matched_path: Default::default(),
         }
     }
     #[doc(hidden)]
@@ -223,6 +226,8 @@ impl Request {
             version,
             scheme,
             secure_max_size: None,
+            #[cfg(feature = "matched-path")]
+            matched_path: Default::default(),
         }
     }
 
@@ -384,6 +389,21 @@ impl Request {
     #[inline]
     pub fn local_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.local_addr
+    }
+
+    cfg_feature! {
+        #![feature = "matched-path"]
+
+        /// Get matched path.
+        #[inline]
+        pub fn matched_path(&self) -> &str {
+            &self.matched_path
+        }
+        /// Get mutable matched path.
+        #[inline]
+        pub fn matched_path_mut(&mut self) -> &mut String {
+            &mut self.matched_path
+        }
     }
 
     /// Returns a reference to the associated header field map.

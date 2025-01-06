@@ -374,67 +374,21 @@ pub use filters::*;
 mod router;
 pub use router::Router;
 
-use std::borrow::Cow;
-use std::ops::Deref;
+mod path_params;
+pub use path_params::PathParams;
+mod path_state;
+pub use path_state::PathState;
+mod flow_ctrl;
+pub use flow_ctrl::FlowCtrl;
+
 use std::sync::Arc;
 
-use indexmap::IndexMap;
-
-use crate::http::{Request, Response};
-use crate::{Depot, Handler};
+use crate::Handler;
 
 #[doc(hidden)]
 pub struct DetectMatched {
     pub hoops: Vec<Arc<dyn Handler>>,
     pub goal: Arc<dyn Handler>,
-}
-
-/// The path parameters.
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct PathParams {
-    inner: IndexMap<String, String>,
-    greedy: bool,
-}
-impl Deref for PathParams {
-    type Target = IndexMap<String, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-impl PathParams {
-    /// Create new `PathParams`.
-    pub fn new() -> Self {
-        PathParams::default()
-    }
-    /// If there is a wildcard param, it's value is `true`.
-    pub fn greedy(&self) -> bool {
-        self.greedy
-    }
-    /// Get the last param starts with '*', for example: {**rest}, {*?rest}.
-    pub fn tail(&self) -> Option<&str> {
-        if self.greedy {
-            self.inner.last().map(|(_, v)| &**v)
-        } else {
-            None
-        }
-    }
-
-    /// Insert new param.
-    pub fn insert(&mut self, name: &str, value: String) {
-        #[cfg(debug_assertions)]
-        {
-            if self.greedy {
-                panic!("only one wildcard param is allowed and it must be the last one.");
-            }
-        }
-        if name.starts_with('*') {
-            self.inner.insert(split_wild_name(name).1.to_owned(), value);
-            self.greedy = true;
-        } else {
-            self.inner.insert(name.to_owned(), value);
-        }
-    }
 }
 
 pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
@@ -447,201 +401,11 @@ pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
     }
 }
 
-#[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PathState {
-    pub(crate) parts: Vec<String>,
-    /// (row, col), row is the index of parts, col is the index of char in the part.
-    pub(crate) cursor: (usize, usize),
-    pub(crate) params: PathParams,
-    pub(crate) end_slash: bool, // For rest match, we want include the last slash.
-    pub(crate) once_ended: bool, // Once it has ended, used to determine whether the error code returned is 404 or 405.
-}
-impl PathState {
-    /// Create new `PathState`.
-    #[inline]
-    pub fn new(url_path: &str) -> Self {
-        let end_slash = url_path.ends_with('/');
-        let parts = url_path
-            .trim_start_matches('/')
-            .trim_end_matches('/')
-            .split('/')
-            .filter_map(|p| {
-                if !p.is_empty() {
-                    Some(decode_url_path_safely(p))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        PathState {
-            parts,
-            cursor: (0, 0),
-            params: PathParams::new(),
-            end_slash,
-            once_ended: false,
-        }
-    }
-
-    #[inline]
-    pub fn pick(&self) -> Option<&str> {
-        match self.parts.get(self.cursor.0) {
-            None => None,
-            Some(part) => {
-                if self.cursor.1 >= part.len() {
-                    let row = self.cursor.0 + 1;
-                    self.parts.get(row).map(|s| &**s)
-                } else {
-                    Some(&part[self.cursor.1..])
-                }
-            }
-        }
-    }
-
-    #[inline]
-    pub fn all_rest(&self) -> Option<Cow<'_, str>> {
-        if let Some(picked) = self.pick() {
-            if self.cursor.0 >= self.parts.len() - 1 {
-                if self.end_slash {
-                    Some(Cow::Owned(format!("{picked}/")))
-                } else {
-                    Some(Cow::Borrowed(picked))
-                }
-            } else {
-                let last = self.parts[self.cursor.0 + 1..].join("/");
-                if self.end_slash {
-                    Some(Cow::Owned(format!("{picked}/{last}/")))
-                } else {
-                    Some(Cow::Owned(format!("{picked}/{last}")))
-                }
-            }
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    pub fn forward(&mut self, steps: usize) {
-        let mut steps = steps + self.cursor.1;
-        while let Some(part) = self.parts.get(self.cursor.0) {
-            if part.len() > steps {
-                self.cursor.1 = steps;
-                return;
-            } else {
-                steps -= part.len();
-                self.cursor = (self.cursor.0 + 1, 0);
-            }
-        }
-    }
-
-    #[inline]
-    pub fn is_ended(&self) -> bool {
-        self.cursor.0 >= self.parts.len()
-    }
-}
-
 #[inline]
 fn decode_url_path_safely(path: &str) -> String {
     percent_encoding::percent_decode_str(path)
         .decode_utf8_lossy()
         .to_string()
-}
-
-/// Control the flow of execute handlers.
-///
-/// When a request is coming, [`Router`] will detect it and get the matched router.
-/// And then salvo will collect all handlers (including added as middlewares) from the matched router tree.
-/// All handlers in this list will executed one by one.
-///
-/// Each handler can use `FlowCtrl` to control execute flow, let the flow call next handler or skip all rest handlers.
-///
-/// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`] is returns false,
-/// all rest handlers will skipped.
-///
-/// [`Router`]: crate::routing::Router
-#[derive(Default)]
-pub struct FlowCtrl {
-    catching: Option<bool>,
-    is_ceased: bool,
-    pub(crate) cursor: usize,
-    pub(crate) handlers: Vec<Arc<dyn Handler>>,
-}
-
-impl FlowCtrl {
-    /// Create new `FlowCtrl`.
-    #[inline]
-    pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
-        FlowCtrl {
-            catching: None,
-            is_ceased: false,
-            cursor: 0,
-            handlers,
-        }
-    }
-    /// Has next handler.
-    #[inline]
-    pub fn has_next(&self) -> bool {
-        self.cursor < self.handlers.len() // && !self.handlers.is_empty()
-    }
-
-    /// Call next handler. If get next handler and executed, returns `true``, otherwise returns `false`.
-    ///
-    /// **NOTE**: If response status code is error or is redirection, all reset handlers will be skipped.
-    #[inline]
-    pub async fn call_next(
-        &mut self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-    ) -> bool {
-        if self.catching.is_none() {
-            self.catching = Some(res.is_stamped());
-        }
-        if !self.catching.unwrap_or_default() && res.is_stamped() {
-            self.skip_rest();
-            return false;
-        }
-        let mut handler = self.handlers.get(self.cursor).cloned();
-        if handler.is_none() {
-            false
-        } else {
-            while let Some(h) = handler.take() {
-                self.cursor += 1;
-                h.handle(req, depot, res, self).await;
-                if !self.catching.unwrap_or_default() && res.is_stamped() {
-                    self.skip_rest();
-                    return true;
-                } else if self.has_next() {
-                    handler = self.handlers.get(self.cursor).cloned();
-                }
-            }
-            true
-        }
-    }
-
-    /// Skip all reset handlers.
-    #[inline]
-    pub fn skip_rest(&mut self) {
-        self.cursor = self.handlers.len()
-    }
-
-    /// Check is `FlowCtrl` ceased.
-    ///
-    /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow ceased.
-    /// If `is_ceased` returns `true`, the handler should skip the following logic.
-    #[inline]
-    pub fn is_ceased(&self) -> bool {
-        self.is_ceased
-    }
-    /// Cease all following logic.
-    ///
-    /// **NOTE**: This function will mark is_ceased as `true`, but whether the subsequent logic can be skipped
-    /// depends on whether the middleware correctly checks is_ceased and skips the subsequent logic.
-    #[inline]
-    pub fn cease(&mut self) {
-        self.skip_rest();
-        self.is_ceased = true;
-    }
 }
 
 #[cfg(test)]

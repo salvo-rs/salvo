@@ -265,12 +265,16 @@ impl PathWisp for CharsWisp {
                 if chars.len() == max_width {
                     state.forward(max_width);
                     state.params.insert(&self.name, chars.into_iter().collect());
+                    #[cfg(feature = "matched-path")]
+                    state.matched_parts.push(format!("{{{}}}", self.name));
                     return true;
                 }
             }
             if chars.len() >= self.min_width {
                 state.forward(chars.len());
                 state.params.insert(&self.name, chars.into_iter().collect());
+                #[cfg(feature = "matched-path")]
+                state.matched_parts.push(format!("{{{}}}", self.name));
                 true
             } else {
                 false
@@ -285,6 +289,8 @@ impl PathWisp for CharsWisp {
             if chars.len() >= self.min_width {
                 state.forward(chars.len());
                 state.params.insert(&self.name, chars.into_iter().collect());
+                #[cfg(feature = "matched-path")]
+                state.matched_parts.push(format!("{{{}}}", self.name));
                 true
             } else {
                 false
@@ -417,14 +423,35 @@ impl PathWisp for CombWisp {
             } else {
                 self.names.len()
             };
+            #[cfg(feature = "matched-path")]
+            let mut start = 0;
+            #[cfg(feature = "matched-path")]
+            let mut matched_part = "".to_owned();
             for name in self.names.iter().take(take_count) {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
                         wild_path = wild_path.trim_start_matches(value.as_str()).to_string();
                     }
+                    #[cfg(feature = "matched-path")]
+                    {
+                        if value.start() > start {
+                            matched_part.push_str(&picked[start..value.start()]);
+                        }
+                        matched_part.push_str(&format!("{{{}}}", name));
+                        start = value.end();
+                    }
                 } else {
                     return false;
+                }
+            }
+            #[cfg(feature = "matched-path")]
+            {
+                if start < picked.len() {
+                    matched_part.push_str(&picked[start..]);
+                }
+                if !matched_part.is_empty() {
+                    state.matched_parts.push(matched_part);
                 }
             }
             let len = if let Some(cap) = caps.get(0) {
@@ -455,6 +482,8 @@ impl PathWisp for CombWisp {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
                     state.params.insert(wild_name, cap);
+                    #[cfg(feature = "matched-path")]
+                    state.matched_parts.push(format!("{{{}}}", wild_name));
                     true
                 } else {
                     false
@@ -488,6 +517,8 @@ impl PathWisp for NamedWisp {
                 let rest = rest.to_string();
                 state.params.insert(&self.0, rest);
                 state.cursor.0 = state.parts.len();
+                #[cfg(feature = "matched-path")]
+                state.matched_parts.push(format!("{{{}}}", self.0));
                 true
             } else {
                 false
@@ -500,6 +531,8 @@ impl PathWisp for NamedWisp {
             let picked = picked.expect("picked should not be `None`").to_owned();
             state.forward(picked.len());
             state.params.insert(&self.0, picked);
+            #[cfg(feature = "matched-path")]
+            state.matched_parts.push(format!("{{{}}}", self.0));
             true
         }
     }
@@ -559,6 +592,8 @@ impl PathWisp for RegexWisp {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
                     state.params.insert(&self.name, cap);
+                    #[cfg(feature = "matched-path")]
+                    state.matched_parts.push(format!("{{{}}}", self.name));
                     true
                 } else {
                     false
@@ -575,6 +610,8 @@ impl PathWisp for RegexWisp {
                 let cap = cap.as_str().to_owned();
                 state.forward(cap.len());
                 state.params.insert(&self.name, cap);
+                #[cfg(feature = "matched-path")]
+                state.matched_parts.push(format!("{{{}}}", self.name));
                 true
             } else {
                 false
@@ -594,6 +631,8 @@ impl PathWisp for ConstWisp {
         };
         if picked.starts_with(&self.0) {
             state.forward(self.0.len());
+            #[cfg(feature = "matched-path")]
+            state.matched_parts.push(self.0.clone());
             true
         } else {
             false
@@ -1025,15 +1064,21 @@ impl PathFilter {
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
         let original_cursor = state.cursor;
+        #[cfg(feature = "matched-path")]
+        let original_matched_parts_len = state.matched_parts.len();
         for ps in &self.path_wisps {
             let row = state.cursor.0;
             if ps.detect(state) {
                 if row == state.cursor.0 && row != state.parts.len() {
                     state.cursor = original_cursor;
+                    #[cfg(feature = "matched-path")]
+                    state.matched_parts.truncate(original_matched_parts_len);
                     return false;
                 }
             } else {
                 state.cursor = original_cursor;
+                #[cfg(feature = "matched-path")]
+                state.matched_parts.truncate(original_matched_parts_len);
                 return false;
             }
         }
@@ -1319,16 +1364,28 @@ mod tests {
 
         let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
         assert!(filter.detect(&mut state));
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned()]
+        );
     }
     #[test]
     fn test_detect_wildcard() {
         let filter = PathFilter::new("/users/{id}/{**rest}");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
+        );
         let mut state = PathState::new("/users/12/");
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(filter.detect(&mut state));
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
+        );
 
         let filter = PathFilter::new("/users/{id}/{*+rest}");
         let mut state = PathState::new("/users/12/facebook/insights/23");
@@ -1347,5 +1404,9 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12/abc");
         assert!(filter.detect(&mut state));
+        assert_eq!(
+            state.matched_parts,
+            vec!["users".to_owned(), "{id}".to_owned(), "{*?rest}".to_owned()]
+        );
     }
 }
