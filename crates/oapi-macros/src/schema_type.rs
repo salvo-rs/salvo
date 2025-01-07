@@ -78,6 +78,7 @@ impl SchemaType<'_> {
             feature = "ulid",
             feature = "uuid",
             feature = "time",
+            feature = "compact_str"
         )))]
         {
             is_primitive(name)
@@ -91,6 +92,7 @@ impl SchemaType<'_> {
             feature = "ulid",
             feature = "uuid",
             feature = "time",
+            feature = "compact_str"
         ))]
         {
             let mut primitive = is_primitive(name);
@@ -124,6 +126,10 @@ impl SchemaType<'_> {
                     name,
                     "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
                 );
+            }
+            #[cfg(feature = "compact_str")]
+            if !primitive {
+                primitive = matches!(name, "CompactString");
             }
 
             primitive
@@ -246,6 +252,10 @@ impl TryToTokens for SchemaType<'_> {
             "Date" | "Duration" => {
                 schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
             }
+            #[cfg(feature = "compact_str")]
+            "CompactString" => {
+                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+            }
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
             "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
@@ -333,7 +343,8 @@ impl Type<'_> {
             feature = "url",
             feature = "ulid",
             feature = "uuid",
-            feature = "time"
+            feature = "time",
+            feature = "compact_str"
         )))]
         {
             is_known_format(name)
@@ -346,7 +357,8 @@ impl Type<'_> {
             feature = "url",
             feature = "ulid",
             feature = "uuid",
-            feature = "time"
+            feature = "time",
+            feature = "compact_str"
         ))]
         {
             let mut known_format = is_known_format(name);
@@ -379,6 +391,11 @@ impl Type<'_> {
             #[cfg(feature = "time")]
             if !known_format {
                 known_format = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime");
+            }
+
+            #[cfg(feature = "compact_str")]
+            if !known_format {
+                known_format = matches!(name, "CompactString");
             }
 
             known_format
@@ -459,6 +476,10 @@ impl TryToTokens for Type<'_> {
             #[cfg(feature = "chrono")]
             "NaiveDateTime" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+            }
+            #[cfg(feature = "compact_str")]
+            "CompactString" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::String) })
             }
             #[cfg(feature = "time")]
             "Date" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),

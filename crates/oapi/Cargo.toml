@@ -15,7 +15,7 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chris@a
 
 [features]
 default = []
-full = ["swagger-ui", "scalar", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml", "non-strict-integers"]
+full = ["swagger-ui", "scalar", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml", "non-strict-integers", "compact_str"]
 swagger-ui = ["dep:rust-embed"]
 scalar = []
 rapidoc = []
@@ -34,6 +34,7 @@ yaml = ["dep:serde_yaml"]
 preserve-order = ["preserve-path-order", "preserve-prop-order"]
 preserve-path-order = []
 preserve-prop-order = []
+compact_str = ["salvo-oapi-macros/compact_str", "dep:compact_str"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
@@ -63,6 +64,7 @@ time = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
+compact_str = { workspace = true, optional = true }
 
 [build-dependencies]
 regex = { workspace = true }
@@ -80,6 +82,7 @@ smallvec = { workspace = true, features = ["serde"] }
 rust_decimal = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 time = { workspace = true, features = ["serde-human-readable"] }
+compact_str = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true
