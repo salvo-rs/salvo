@@ -512,6 +512,8 @@ pub enum KnownFormat {
     Duration,
     /// Hint to UI to obscure input.
     Password,
+    /// Use for compact string
+    String,
     /// Used with [`String`] values to indicate value is in decimal format.
     ///
     /// **decimal** feature need to be enabled.

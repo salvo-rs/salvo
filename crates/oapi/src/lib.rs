@@ -194,6 +194,7 @@ impl_to_schema!(&str);
 impl_to_schema!(std::net::Ipv4Addr);
 impl_to_schema!(std::net::Ipv6Addr);
 
+
 impl ToSchema for std::net::IpAddr {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         crate::RefOr::Type(Schema::OneOf(
@@ -212,6 +213,8 @@ impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
         schema!(#[inline] DateTime<T>).into()
     }
 }
+#[cfg(feature = "compact_str")]
+impl_to_schema_primitive!(compact_str::CompactString);
 #[cfg(any(feature = "decimal", feature = "decimal-float"))]
 impl_to_schema!(rust_decimal::Decimal);
 #[cfg(feature = "url")]

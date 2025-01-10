@@ -29,6 +29,7 @@ smallvec = []
 repr = []
 indexmap = []
 non-strict-integers = []
+compact_str = []
 
 [dependencies]
 proc-macro2 = { workspace = true }
@@ -49,6 +50,7 @@ assert-json-diff = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable"] }
 serde_with = { workspace = true }
 paste = { workspace = true }
+compact_str = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true
