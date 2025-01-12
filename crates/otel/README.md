@@ -7,13 +7,13 @@
 </p>
 <p>
 <a href="https://github.com/salvo-rs/salvo/actions">
-    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push" />
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg" />
 </a>
 <a href="https://github.com/salvo-rs/salvo/actions">
-    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push" />
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg" />
 </a>
 <a href="https://github.com/salvo-rs/salvo/actions">
-    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg" />
 </a>
 <br>
 <a href="https://discord.gg/G8KfmS6ByH">
