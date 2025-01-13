@@ -2,9 +2,8 @@ on:
   push:
     branches:
       - '*'
-      - '!release'
 
-name: format
+name: "Format Code"
 
 jobs:
   format:
