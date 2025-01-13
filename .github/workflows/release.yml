@@ -23,18 +23,6 @@ jobs:
       - name: Check published version
         run: echo PREV_VERSION=$(cargo search salvo --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
 
-      - name: Auto tag latest version
-        uses: bullrich/commit-autotag@main
-        if: env.NEXT_VERSION != env.PREV_VERSION
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        with:
-          strategy: regex
-          root: Cargo.toml
-          regex_pattern: "version\\s*=\\s*\"([0-9\\.]+)\""
-          tag_prefix: "v"
-          # version: "${{ env.NEXT_VERSION }}"
-
   publish:
     runs-on: ubuntu-latest
     strategy:
