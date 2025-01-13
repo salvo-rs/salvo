@@ -1,0 +1,39 @@
+name: Code Coverage
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.rs'                 # only execute on changes to go files
+      - '**/Cargo.toml'         # or dependency updates
+      - '.github/workflows/**'  # or workflow changes
+
+jobs:
+  cover:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - stable
+
+    name: Coverage ${{ matrix.version }} - x86_64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
+
+      - name: Generate coverage file
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --all-features --out xml
+
+      - name: Upload to codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          file: cobertura.xml
