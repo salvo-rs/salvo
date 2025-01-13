@@ -2,11 +2,11 @@ name: release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+.*"
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+.*"
     branches-ignore:
       - "**"
 jobs:
-  git-tag:
+  version-info:
     runs-on: ubuntu-latest
     steps:
       - uses: dtolnay/rust-toolchain@stable
