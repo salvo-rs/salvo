@@ -266,7 +266,6 @@ impl PathWisp for CharsWisp {
                     state.forward(max_width);
                     state.params.insert(&self.name, chars.into_iter().collect());
                     #[cfg(feature = "matched-path")]
-                    println!("push ========- {}", self.name);
                     state.matched_parts.push(format!("{{{}}}", self.name));
                     return true;
                 }
