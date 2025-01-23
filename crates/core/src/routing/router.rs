@@ -103,7 +103,9 @@ impl Router {
                         });
                     } else {
                         #[cfg(feature = "matched-path")]
-                        path_state.matched_parts.truncate(original_matched_parts_len);
+                        path_state
+                            .matched_parts
+                            .truncate(original_matched_parts_len);
                         path_state.cursor = original_cursor;
                     }
                 }
