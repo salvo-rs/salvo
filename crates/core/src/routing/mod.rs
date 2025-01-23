@@ -442,4 +442,68 @@ mod tests {
             .contains("404: Not Found"));
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
+
+    #[tokio::test]
+    async fn test_matched_path() {
+        #[handler]
+        async fn alice1(req: &mut Request) {
+            assert_eq!(req.matched_path(), "open/alice1");
+        }
+        #[handler]
+        async fn bob1(req: &mut Request) {
+            assert_eq!(req.matched_path(), "open/alice1/bob1");
+        }
+
+        #[handler]
+        async fn alice2(req: &mut Request) {
+            assert_eq!(req.matched_path(), "open/alice2");
+        }
+        #[handler]
+        async fn bob2(req: &mut Request) {
+            assert_eq!(req.matched_path(), "open/alice2/bob2");
+        }
+
+        #[handler]
+        async fn alice3(req: &mut Request) {
+            assert_eq!(req.matched_path(), "alice3");
+        }
+        #[handler]
+        async fn bob3(req: &mut Request) {
+            assert_eq!(req.matched_path(), "alice3/bob3");
+        }
+
+        let router = Router::new()
+            .push(
+                Router::with_path("open").push(
+                    Router::with_path("alice1")
+                        .get(alice1)
+                        .push(Router::with_path("bob1").get(bob1)),
+                ),
+            )
+            .push(
+                Router::with_path("open").push(
+                    Router::with_path("alice2")
+                        .get(alice2)
+                        .push(Router::with_path("bob2").get(bob2)),
+                ),
+            )
+            .push(
+                Router::with_path("alice3")
+                    .get(alice3)
+                    .push(Router::with_path("bob3").get(bob3)),
+            );
+        let service = Service::new(router);
+
+        async fn access(service: &Service, path: &str) {
+            TestClient::get(format!("http://127.0.0.1/{}", path))
+                .send(service)
+                .await;
+        }
+        access(&service, "/open/alice1").await;
+        access(&service, "/open/alice1/bob1").await;
+        access(&service, "/open/alice2").await;
+        access(&service, "/open/alice2/bob2").await;
+        access(&service, "/alice3").await;
+        access(&service, "/alice1/bob3").await;
+    }
 }

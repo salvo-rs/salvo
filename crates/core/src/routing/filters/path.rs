@@ -1064,21 +1064,15 @@ impl PathFilter {
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
         let original_cursor = state.cursor;
-        #[cfg(feature = "matched-path")]
-        let original_matched_parts_len = state.matched_parts.len();
         for ps in &self.path_wisps {
             let row = state.cursor.0;
             if ps.detect(state) {
                 if row == state.cursor.0 && row != state.parts.len() {
                     state.cursor = original_cursor;
-                    #[cfg(feature = "matched-path")]
-                    state.matched_parts.truncate(original_matched_parts_len);
                     return false;
                 }
             } else {
                 state.cursor = original_cursor;
-                #[cfg(feature = "matched-path")]
-                state.matched_parts.truncate(original_matched_parts_len);
                 return false;
             }
         }
