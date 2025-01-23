@@ -93,6 +93,8 @@ impl Router {
             }
             if !self.routers.is_empty() {
                 let original_cursor = path_state.cursor;
+                #[cfg(feature = "matched-path")]
+                let original_matched_parts_len = path_state.matched_parts.len();
                 for child in &self.routers {
                     if let Some(dm) = child.detect(req, path_state).await {
                         return Some(DetectMatched {
@@ -100,6 +102,8 @@ impl Router {
                             goal: dm.goal.clone(),
                         });
                     } else {
+                        #[cfg(feature = "matched-path")]
+                        path_state.matched_parts.truncate(original_matched_parts_len);
                         path_state.cursor = original_cursor;
                     }
                 }
