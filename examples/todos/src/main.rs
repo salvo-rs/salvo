@@ -18,8 +18,32 @@ pub(crate) async fn start_server() {
     Server::new(acceptor).serve(route()).await;
 }
 
+#[handler]
+fn index(res: &mut Response) {
+    res.render(Text::Html(
+        "<html>
+            <body>
+                <a href=\"/todos\">going to the todo page</a>
+            </body>
+        </html>"
+    ));
+}
+
 fn route() -> Router {
-    Router::with_path("todos")
+    Router::new()
+        .push(
+            Router::new()
+                .get(index)
+            )
+        .push(
+            Router::new()
+                .path("todos")
+                .push(todo_route())
+        )
+}
+
+fn todo_route() -> Router {
+    Router::new()
         .hoop(size_limiter::max_size(1024 * 16))
         .get(list_todos)
         .post(create_todo)
