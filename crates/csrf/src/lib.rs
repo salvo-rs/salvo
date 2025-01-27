@@ -17,7 +17,7 @@ mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
 
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::Rng;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};
@@ -190,7 +190,7 @@ pub trait CsrfCipher: Send + Sync + 'static {
 
     /// Generate a random bytes.
     fn random_bytes(&self, len: usize) -> Vec<u8> {
-        rand::thread_rng().sample_iter(Standard).take(len).collect()
+        rand::rng().sample_iter(StandardUniform).take(len).collect()
     }
 }
 
