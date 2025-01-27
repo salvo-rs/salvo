@@ -213,9 +213,13 @@ fn text_nonce() -> String {
         Write::write_all(&mut cursor, &secs.to_le_bytes()).expect("write_all failed");
 
         // Get the last bytes from random data
-        OsRng.try_fill_bytes(&mut raw[12..BYTE_LEN]).expect("OsRng.try_fill_bytes failed");
+        OsRng
+            .try_fill_bytes(&mut raw[12..BYTE_LEN])
+            .expect("OsRng.try_fill_bytes failed");
     } else {
-        OsRng.try_fill_bytes(&mut raw[..]).expect("OsRng.try_fill_bytes failed");
+        OsRng
+            .try_fill_bytes(&mut raw[..])
+            .expect("OsRng.try_fill_bytes failed");
     }
 
     // base64 encode
