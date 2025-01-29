@@ -133,7 +133,7 @@ tracing-test = "0.2.1"
 ulid = { version = "1", default-features = false }
 url = "2"
 uuid = "1"
-x509-parser = "0.16"
+x509-parser = "0.17"
 compact_str = { version = "0.8", features = ["serde"] }
 
 # Compress
