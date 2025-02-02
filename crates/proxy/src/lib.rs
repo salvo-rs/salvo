@@ -320,13 +320,11 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        tracing::warn!("{:?}", headers);
                         for (name, value) in headers {
                             if let Some(name) = name {
-                                res.headers.insert(name, value);
+                                res.headers.append(name, value);
                             }
                         }
-                        tracing::warn!("{:?}", res.headers());
                         res.body(body);
                     }
                     Err(e) => {
