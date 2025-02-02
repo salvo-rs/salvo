@@ -319,14 +319,12 @@ where
                             },
                             body,
                         ) = response.into_parts();
-                        tracing::warn!("{:?}", headers);
                         res.status_code(status);
                         for name in headers.keys() {
                             for value in headers.get_all(name) {
                                 res.headers.append(name, value.to_owned());
                             }
                         }
-                        tracing::warn!("{:?}", res.headers);
                         res.body(body);
                     }
                     Err(e) => {
