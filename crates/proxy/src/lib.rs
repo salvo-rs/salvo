@@ -319,12 +319,14 @@ where
                             },
                             body,
                         ) = response.into_parts();
+                        tracing::warn!("{:?}", headers);
                         res.status_code(status);
                         for (name, value) in headers {
                             if let Some(name) = name {
                                 res.headers.append(name, value);
                             }
                         }
+                        tracing::warn!("{:?}", res.headers);
                         res.body(body);
                     }
                     Err(e) => {
