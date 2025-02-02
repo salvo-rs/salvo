@@ -124,7 +124,7 @@ impl Router {
         .await
     }
 
-    /// Insert a router at the begining of current router, shifting all routers after it to the right.
+    /// Insert a router at the beginning of current router, shifting all routers after it to the right.
     #[inline]
     pub fn unshift(mut self, router: Router) -> Self {
         self.routers.insert(0, router);
