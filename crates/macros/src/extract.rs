@@ -65,7 +65,7 @@ impl TryFrom<&Field> for FieldInfo {
             if !sources.is_empty() {
                 return Err(Error::new_spanned(
                     ident,
-                    "flatten field should not define souces.",
+                    "flatten field should not define sources.",
                 ));
             }
             if !aliases.is_empty() {
