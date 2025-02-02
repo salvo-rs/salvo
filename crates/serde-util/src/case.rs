@@ -62,11 +62,6 @@ impl Display for RenameRule {
 impl FromStr for RenameRule {
     type Err = Error;
     fn from_str(rename_all_str: &str) -> Result<Self, Self::Err> {
-        let expected_one_of = RENAME_RULES
-            .into_iter()
-            .map(|(name, _)| format!(r#""{name}""#))
-            .collect::<Vec<_>>()
-            .join(", ");
         RENAME_RULES
             .into_iter()
             .find_map(|(case, rule)| {
@@ -77,6 +72,12 @@ impl FromStr for RenameRule {
                 }
             })
             .ok_or_else(|| {
+                let expected_one_of = RENAME_RULES
+                    .into_iter()
+                    .map(|(name, _)| format!(r#""{name}""#))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
                 Error::new(
                     Span::call_site(),
                     format!(r#"unexpected rename rule, expected one of: {expected_one_of}"#),
