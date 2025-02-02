@@ -321,9 +321,9 @@ where
                         ) = response.into_parts();
                         tracing::warn!("{:?}", headers);
                         res.status_code(status);
-                        for (name, value) in headers {
-                            if let Some(name) = name {
-                                res.headers.append(name, value);
+                        for name in headers.keys() {
+                            for value in headers.get_all(name) {
+                                res.headers.append(name, value.to_owned());
                             }
                         }
                         tracing::warn!("{:?}", res.headers);
