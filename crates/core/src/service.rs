@@ -24,7 +24,7 @@ pub struct Service {
     pub router: Arc<Router>,
     /// The catcher of this service.
     pub catcher: Option<Arc<Catcher>>,
-    /// These hoops will alwways be called when request received.
+    /// These hoops will always be called when request received.
     pub hoops: Vec<Arc<dyn Handler>>,
     /// The allowed media types of this service.
     pub allowed_media_types: Arc<Vec<Mime>>,
