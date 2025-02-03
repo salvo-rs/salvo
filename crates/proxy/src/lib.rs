@@ -320,9 +320,9 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        for (name, value) in headers {
-                            if let Some(name) = name {
-                                res.headers.insert(name, value);
+                        for name in headers.keys() {
+                            for value in headers.get_all(name) {
+                                res.headers.append(name, value.to_owned());
                             }
                         }
                         res.body(body);
