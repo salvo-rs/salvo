@@ -25,21 +25,14 @@ fn index(res: &mut Response) {
             <body>
                 <a href=\"/todos\">going to the todo page</a>
             </body>
-        </html>"
+        </html>",
     ));
 }
 
 fn route() -> Router {
     Router::new()
-        .push(
-            Router::new()
-                .get(index)
-            )
-        .push(
-            Router::new()
-                .path("todos")
-                .push(todo_route())
-        )
+        .push(Router::new().get(index))
+        .push(Router::new().path("todos").push(todo_route()))
 }
 
 fn todo_route() -> Router {
