@@ -7,7 +7,7 @@ use std::path::Path;
 
 use futures_util::stream::{once, Once, Stream};
 use openssl::pkey::PKey;
-use openssl::ssl::{SslAcceptor, SslMethod, SslRef};
+use openssl::ssl::{SslAcceptor, SslMethod};
 use openssl::x509::X509;
 use tokio::io::ErrorKind;
 
@@ -163,9 +163,9 @@ impl OpensslConfig {
 
         // set ALPN protocols
         let alpn_protocols = self.alpn_protocols.clone();
-        builder.set_alpn_protos(&alpn_protocols)?;
+        builder.set_alpn_protos(&self.alpn_protocols)?;
         // set uo ALPN selection routine - as select_next_proto
-        builder.set_alpn_select_callback(move |_: &mut SslRef, list: &[u8]| {
+        builder.set_alpn_select_callback(move |_, list| {
             openssl::ssl::select_next_proto(&alpn_protocols, list).ok_or(openssl::ssl::AlpnError::NOACK)
         });
         if let Some(modifier) = &mut self.builder_modifier {
