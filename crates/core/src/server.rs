@@ -414,11 +414,11 @@ mod tests {
             res.render(Json(User { name: "jobs".into() }));
         }
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
-        let serivce = Service::new(router);
+        let service = Service::new(router);
 
         let base_url = "http://127.0.0.1:5800";
         let result = TestClient::get(base_url)
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(result, "Hello World");
 
         let result = TestClient::get(format!("{}/json", base_url))
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(result, r#"{"name":"jobs"}"#);
 
         let result = TestClient::get(format!("{}/not_exist", base_url))
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
@@ -442,7 +442,7 @@ mod tests {
         assert!(result.contains("Not Found"));
         let result = TestClient::get(format!("{}/not_exist", base_url))
             .add_header("accept", "application/json", true)
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
@@ -450,7 +450,7 @@ mod tests {
         assert!(result.contains(r#""code":404"#));
         let result = TestClient::get(format!("{}/not_exist", base_url))
             .add_header("accept", "text/plain", true)
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
@@ -458,7 +458,7 @@ mod tests {
         assert!(result.contains("code: 404"));
         let result = TestClient::get(format!("{}/not_exist", base_url))
             .add_header("accept", "application/xml", true)
-            .send(&serivce)
+            .send(&service)
             .await
             .take_string()
             .await
