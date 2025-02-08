@@ -55,7 +55,7 @@ impl ServerHandle {
     /// It ensures that all connections are closed properly and any resources are released.
     ///
     /// You can specify a timeout to force stop server.
-    /// If `timeout` is `None`, it will wait util all connections are closed.
+    /// If `timeout` is `None`, it will wait until all connections are closed.
     ///
     /// This function gracefully stop the server, allowing it to finish processing any
     /// ongoing requests before terminating. It ensures that all connections are closed
