@@ -1,14 +1,12 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use opentelemetry::trace::{
-    FutureExt, SpanKind, TraceContextExt, Tracer as _, TracerProvider as _,
-};
+use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _, TracerProvider};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::trace::{Tracer, TracerProvider};
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
+use opentelemetry_sdk::Resource;
 use reqwest::{Client, Method, Url};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
@@ -16,18 +14,15 @@ use salvo::prelude::*;
 mod exporter;
 use exporter::Exporter;
 
-fn init_tracer_provider() -> TracerProvider {
+fn init_tracer_provider() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .build()
         .expect("failed to create exporter");
-    TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "server1",
-        )]))
+    SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(Resource::builder().with_service_name("server1").build())
         .build()
 }
 

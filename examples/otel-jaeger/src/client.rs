@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::str::FromStr;
 
 use opentelemetry::{
@@ -8,26 +9,25 @@ use opentelemetry::{
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::runtime;
-use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use reqwest::{Client, Method, Url};
 
-fn init_tracer() {
+fn init_tracer_provider() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:14268/api/traces")
         .build()
         .expect("failed to create exporter");
-    let provider = TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
-        .build();
-    let _ = global::set_tracer_provider(provider);
+    SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .build()
 }
 
 #[tokio::main]
-async fn main() {
-    init_tracer();
+async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    let provider = init_tracer_provider();
+    global::set_tracer_provider(provider.clone());
     let client = Client::new();
     let span = global::tracer("example-opentelemetry/client").start("request/server1");
     let cx = Context::current_with_span(span);
@@ -60,5 +60,6 @@ async fn main() {
     .with_context(cx)
     .await;
 
-    global::shutdown_tracer_provider();
+    provider.shutdown()?;
+    Ok(())
 }
