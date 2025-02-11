@@ -1,9 +1,8 @@
 use anyhow::Result;
-use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, WithExportConfig};
-use opentelemetry_sdk::logs::LoggerProvider;
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::Resource;
 use salvo::logging::Logger;
 use salvo::prelude::*;
 use tracing::{instrument, level_filters::LevelFilter};
@@ -51,17 +50,18 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn init_tracer_provider() -> anyhow::Result<LoggerProvider> {
+fn init_tracer_provider() -> anyhow::Result<SdkLoggerProvider> {
     let exporter = LogExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
         .build()?;
-    let provider = LoggerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
-        .with_resource(Resource::new(vec![KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            "salvo-tracing",
-        )]))
+    let provider = SdkLoggerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(
+            Resource::builder()
+                .with_service_name("salvo-tracing")
+                .build(),
+        )
         .build();
     Ok(provider)
 }

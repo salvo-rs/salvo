@@ -13,8 +13,8 @@ tracing.workspace = true
 tracing-subscriber ={ workspace = true, features = ["env-filter"] }
 tracing-opentelemetry = { workspace = true }
 opentelemetry = { workspace = true }
-opentelemetry-appender-tracing = { version = "0.27.0", default-features = false }
-opentelemetry-otlp = { workspace = true, features = ["tonic"] }
+opentelemetry-appender-tracing = { workspace = true }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = { workspace = true }
 tracing-appender = { workspace = true }
