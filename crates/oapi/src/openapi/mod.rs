@@ -187,9 +187,9 @@ impl OpenApi {
 
     cfg_feature! {
         #![feature ="yaml"]
-        /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method.
-        pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
-            serde_yaml::to_string(self)
+        /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_norway::to_string`] method.
+        pub fn to_yaml(&self) -> Result<String, serde_norway::Error> {
+            serde_norway::to_string(self)
         }
     }
 
