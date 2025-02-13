@@ -11,11 +11,30 @@ homepage = { workspace = true }
 repository = { workspace = true }
 keywords = ["http", "async", "salvo", "openapi", "swagger-ui"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chris@acroidea.com>"]
+authors = [
+    "Juha Kukkonen <juha7kukkonen@gmail.com>",
+    "Chrislearn Young <chris@acroidea.com>",
+]
 
 [features]
 default = []
-full = ["swagger-ui", "scalar", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml", "non-strict-integers", "compact_str"]
+full = [
+    "swagger-ui",
+    "scalar",
+    "rapidoc",
+    "redoc",
+    "chrono",
+    "decimal",
+    "url",
+    "ulid",
+    "uuid",
+    "time",
+    "smallvec",
+    "indexmap",
+    "yaml",
+    "non-strict-integers",
+    "compact_str",
+]
 swagger-ui = ["dep:rust-embed"]
 scalar = []
 rapidoc = []
@@ -30,14 +49,16 @@ uuid = ["salvo-oapi-macros/uuid", "dep:uuid"]
 time = ["salvo-oapi-macros/time", "dep:time"]
 smallvec = ["salvo-oapi-macros/smallvec", "dep:smallvec"]
 indexmap = ["salvo-oapi-macros/indexmap"]
-yaml = ["dep:serde_yaml"]
+yaml = ["dep:serde_norway"]
 preserve-order = ["preserve-path-order", "preserve-prop-order"]
 preserve-path-order = []
 preserve-prop-order = []
 compact_str = ["salvo-oapi-macros/compact_str", "dep:compact_str"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
+salvo_core = { workspace = true, default-features = false, features = [
+    "cookie",
+] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 base64 = { workspace = true }
 thiserror = { workspace = true }
@@ -58,7 +79,7 @@ http = { workspace = true }
 chrono = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 rust-embed = { workspace = true, optional = true }
-serde_yaml = { workspace = true, optional = true }
+serde_norway = { workspace = true, optional = true }
 smallvec = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true }
@@ -75,7 +96,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 assert-json-diff = { workspace = true }
-salvo_core = { workspace = true, default-features = false, features = ["cookie", "test"] }
+salvo_core = { workspace = true, default-features = false, features = [
+    "cookie",
+    "test",
+] }
 serde_json = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
