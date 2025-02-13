@@ -3,7 +3,7 @@ you can use to annotate your code to have items documented.
 
 # Crate Features
 
-- **`yaml`** Enables **serde_yaml** serialization of OpenAPI objects.
+- **`yaml`** Enables **serde_norway** serialization of OpenAPI objects.
 
 - **`chrono`** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
@@ -30,12 +30,11 @@ you can use to annotate your code to have items documented.
 
 # Go beyond the surface
 
-* Browse to [examples](https://github.com/salvo-rs/salvo/tree/master/examples) for more comprehensive examples.
-* Check [`derive@ToResponses`] and [`derive@ToResponse`] for examples on deriving responses.
-* More about OpenAPI security in [security documentation][security].
+- Browse to [examples](https://github.com/salvo-rs/salvo/tree/master/examples) for more comprehensive examples.
+- Check [`derive@ToResponses`] and [`derive@ToResponse`] for examples on deriving responses.
+- More about OpenAPI security in [security documentation][security].
 
 [path]: attr.path.html
 [serde]: derive.ToSchema.html#partial-serde-attributes-support
-
 [security]: openapi/security/index.html
 [to_schema_derive]: derive.ToSchema.html
