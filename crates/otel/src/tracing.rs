@@ -79,7 +79,7 @@ where
             let span = cx.span();
 
             let status = res.status_code.unwrap_or_else(|| {
-                tracing::info!("[otel::Tracing] Treat status_code=none as 200(OK).");
+                println!(); tracing::info!("\n⮡ [otel::Tracing] Treat status_code=none as 200(OK).");
                 StatusCode::OK
             });
             let event = if status.is_client_error() || status.is_server_error() {

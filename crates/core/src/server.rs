@@ -250,7 +250,7 @@ impl<A: Acceptor + Send> Server<A> {
 
             let mut alt_svc_h3 = None;
             for holding in acceptor.holdings() {
-                tracing::info!("listening {}", holding);
+                println!(); tracing::info!("\n⮡ listening {}", holding);
                 if holding.http_versions.contains(&Version::HTTP_3) {
                     if let Some(addr) = holding.local_addr.clone().into_std() {
                         let port = addr.port();
@@ -321,11 +321,11 @@ impl<A: Acceptor + Send> Server<A> {
                                         force_stop_token.cancel();
                                     });
                                 } else {
-                                    tracing::info!("initiate graceful stop server");
+                                    println!(); tracing::info!("\n⮡ initiate graceful stop server");
                                 }
                             },
                             ServerCommand::StopForcible => {
-                                tracing::info!("force stop server");
+                                println!(); tracing::info!("\n⮡ force stop server");
                                 force_stop_token.cancel();
                             },
                         }
@@ -335,11 +335,11 @@ impl<A: Acceptor + Send> Server<A> {
             }
 
             if !force_stop_token.is_cancelled() && alive_connections.load(Ordering::Acquire) > 0 {
-                tracing::info!("wait for {} connections to close.",alive_connections.load(Ordering::Acquire));
+                println!(); tracing::info!("\n⮡ wait for {} connections to close.",alive_connections.load(Ordering::Acquire));
                 notify.notified().await;
             }
 
-            tracing::info!("server stopped");
+            println!(); tracing::info!("\n⮡ server stopped");
             Ok(())
         }
     }
@@ -357,7 +357,7 @@ impl<A: Acceptor + Send> Server<A> {
         } = self;
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
-            tracing::info!("listening {}", holding);
+            println!(); tracing::info!("\n⮡ listening {}", holding);
             if holding.http_versions.contains(&Version::HTTP_3) {
                 if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
