@@ -186,7 +186,7 @@ impl OidcDecoder {
         match fetch {
             Ok(fetch) => {
                 self.cache_state.set_last_update(fetch.fetched_at);
-                tracing::info!("Set Last update to {:#?}", fetch.fetched_at);
+                println!(); tracing::info!("\n⮡ Set Last update to {:#?}", fetch.fetched_at);
                 self.cache_state.set_is_error(false);
                 let read = self.cache.read().await;
 
@@ -210,7 +210,7 @@ impl OidcDecoder {
     fn revalidate_cache(&self) {
         if !self.cache_state.is_revalidating() {
             self.cache_state.set_is_revalidating(true);
-            tracing::info!("Spawning Task to re-validate JWKS");
+            println!(); tracing::info!("\n⮡ Spawning Task to re-validate JWKS");
             let a = self.clone();
             tokio::task::spawn(async move {
                 let _ = a.update_cache().await;
@@ -280,7 +280,7 @@ impl OidcDecoder {
             }
         }
         drop(read_cache);
-        tracing::info!("Returning None: {now} - {max_age}");
+        println!(); tracing::info!("\n⮡ Returning None: {now} - {max_age}");
         Err(JwtAuthError::CacheError)
     }
 }

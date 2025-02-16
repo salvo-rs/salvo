@@ -53,7 +53,7 @@ async fn user_connected(res: &mut Response) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
-    tracing::info!("new chat user: {}", my_id);
+    println!(); tracing::info!("\n⮡ new chat user: {}", my_id);
 
     // Use an unbounded channel to handle buffering and flushing of messages
     // to the event source...

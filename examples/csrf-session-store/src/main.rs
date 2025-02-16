@@ -40,7 +40,7 @@ pub async fn post_page(req: &mut Request, depot: &mut Depot, res: &mut Response)
     // Parse the submitted form data into the Data struct
     let data = req.parse_form::<Data>().await.unwrap();
     // Log the received form data for debugging
-    tracing::info!("posted data: {:?}", data);
+    println!(); tracing::info!("\n⮡ posted data: {:?}", data);
     // Generate a new CSRF token for the next request
     let new_token = depot.csrf_token().unwrap_or_default();
     // Generate HTML response with the new token and display the submitted data

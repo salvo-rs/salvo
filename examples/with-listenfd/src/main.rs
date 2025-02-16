@@ -32,7 +32,7 @@ async fn main() -> Result<(), salvo::Error> {
         (addr, tokio::net::TcpListener::bind(addr).await.unwrap())
     };
 
-    tracing::info!("Listening on {}", addr);
+    println!(); tracing::info!("\n⮡ Listening on {}", addr);
     let acceptor = TcpAcceptor::try_from(listener).unwrap();
     Server::new(acceptor).serve(router).await;
     Ok(())

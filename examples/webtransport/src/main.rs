@@ -23,7 +23,7 @@ where
     pin!(send);
     pin!(recv);
 
-    tracing::info!("Got stream");
+    println!(); tracing::info!("\n⮡ Got stream");
     let mut buf = Vec::new();
     recv.read_to_end(&mut buf).await?;
 
@@ -37,7 +37,7 @@ where
 async fn send_chunked(mut send: impl AsyncWrite + Unpin, data: Bytes) -> anyhow::Result<()> {
     for chunk in data.chunks(4) {
         tokio::time::sleep(Duration::from_millis(100)).await;
-        tracing::info!("Sending {chunk:?}");
+        println!(); tracing::info!("\n⮡ Sending {chunk:?}");
         send.write_all(chunk).await?;
     }
 
@@ -60,14 +60,14 @@ async fn connect(req: &mut Request) -> Result<(), salvo::Error> {
             datagram = session.accept_datagram() => {
                 let datagram = datagram?;
                 if let Some((_, datagram)) = datagram {
-                    tracing::info!("Responding with {datagram:?}");
+                    println!(); tracing::info!("\n⮡ Responding with {datagram:?}");
                     // Put something before to make sure encoding and decoding works and don't just
                     // pass through
                     let mut resp = BytesMut::from(&b"Response: "[..]);
                     resp.put(datagram);
 
                     session.send_datagram(resp.freeze())?;
-                    tracing::info!("Finished sending datagram");
+                    println!(); tracing::info!("\n⮡ Finished sending datagram");
                 }
             }
             uni_stream = session.accept_uni() => {
@@ -88,7 +88,7 @@ async fn connect(req: &mut Request) -> Result<(), salvo::Error> {
         }
     }
 
-    tracing::info!("Finished handling session");
+    println!(); tracing::info!("\n⮡ Finished handling session");
 
     Ok(())
 }
@@ -97,7 +97,7 @@ async fn open_bidi_test<S>(mut stream: S) -> anyhow::Result<()>
 where
     S: Unpin + AsyncRead + AsyncWrite,
 {
-    tracing::info!("Opening bidirectional stream");
+    println!(); tracing::info!("\n⮡ Opening bidirectional stream");
 
     stream
         .write_all(b"Hello from a server initiated bidi stream")
@@ -108,7 +108,7 @@ where
     stream.shutdown().await?;
     stream.read_to_end(&mut resp).await?;
 
-    tracing::info!("Got response from client: {resp:?}");
+    println!(); tracing::info!("\n⮡ Got response from client: {resp:?}");
 
     Ok(())
 }

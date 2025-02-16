@@ -144,9 +144,9 @@ where
             match tls_acceptor {
                 Ok(tls_acceptor) => {
                     if self.tls_acceptor.is_some() {
-                        tracing::info!("tls config changed.");
+                        println!(); tracing::info!("\n⮡ tls config changed.");
                     } else {
-                        tracing::info!("tls config loaded.");
+                        println!(); tracing::info!("\n⮡ tls config loaded.");
                     }
                     self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(tls_acceptor));
                 }

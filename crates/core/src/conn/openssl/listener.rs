@@ -143,9 +143,9 @@ where
             match config.try_into() {
                 Ok(builder) => {
                     if self.tls_acceptor.is_some() {
-                        tracing::info!("tls config changed.");
+                        println!(); tracing::info!("\n⮡ tls config changed.");
                     } else {
-                        tracing::info!("tls config loaded.");
+                        println!(); tracing::info!("\n⮡ tls config loaded.");
                     }
                     self.tls_acceptor = Some(Arc::new(builder.build()));
                 }

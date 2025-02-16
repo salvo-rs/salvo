@@ -85,7 +85,7 @@ impl HttpBuilder {
                     result?
                 },
                 _ = fusewire.fused() => {
-                    tracing::info!("closing connection due to fused");
+                    println!(); tracing::info!("\n⮡ closing connection due to fused");
                     return Ok(());
                 },
             }
@@ -122,10 +122,10 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
+                                    println!(); tracing::info!("\n⮡ closing connection due to fused");
                                 },
                                 _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
+                                    println!(); tracing::info!("\n⮡ closing connection due to inactivity");
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
@@ -140,7 +140,7 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
+                                    println!(); tracing::info!("\n⮡ closing connection due to inactivity");
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
@@ -155,7 +155,7 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
+                                    println!(); tracing::info!("\n⮡ closing connection due to fused");
                                 }
                             }
                         }
@@ -184,10 +184,10 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
+                                    println!(); tracing::info!("\n⮡ closing connection due to fused");
                                 },
                                 _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
+                                    println!(); tracing::info!("\n⮡ closing connection due to inactivity");
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
@@ -202,7 +202,7 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
+                                    println!(); tracing::info!("\n⮡ closing connection due to inactivity");
 
                                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
                                     Pin::new(&mut conn).graceful_shutdown();
@@ -217,7 +217,7 @@ impl HttpBuilder {
                                     return Ok(());
                                 },
                                 _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
+                                    println!(); tracing::info!("\n⮡ closing connection due to fused");
                                 }
                             }
                         }
@@ -228,7 +228,7 @@ impl HttpBuilder {
                 }
             }
             _ => {
-                tracing::info!("unsupported protocol version: {:?}", version);
+                println!(); tracing::info!("\n⮡ unsupported protocol version: {:?}", version);
             }
         }
 

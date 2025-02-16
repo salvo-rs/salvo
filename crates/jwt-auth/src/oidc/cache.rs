@@ -206,7 +206,7 @@ impl JwkSetStore {
             }
             // The JWKS changed but the cache policy hasn't
             (false, true) => {
-                tracing::info!("JWKS Content has changed since last update");
+                println!(); tracing::info!("\n⮡ JWKS Content has changed since last update");
                 self.update_jwks(new_jwks);
                 UpdateAction::JwksUpdate
             }
@@ -217,7 +217,7 @@ impl JwkSetStore {
             }
             // Both the cache and the JWKS have changed
             (false, false) => {
-                tracing::info!("cache-control header and JWKS content has changed since last update");
+                println!(); tracing::info!("\n⮡ cache-control header and JWKS content has changed since last update");
                 self.update_jwks(new_jwks);
                 self.cache_policy = cache_policy;
                 UpdateAction::JwksAndCacheUpdate(cache_policy)

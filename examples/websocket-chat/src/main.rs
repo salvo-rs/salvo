@@ -39,7 +39,7 @@ async fn handle_socket(ws: WebSocket) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
-    tracing::info!("new chat user: {}", my_id);
+    println!(); tracing::info!("\n⮡ new chat user: {}", my_id);
 
     // Split the socket into a sender and receive of messages.
     let (user_ws_tx, mut user_ws_rx) = ws.split();
