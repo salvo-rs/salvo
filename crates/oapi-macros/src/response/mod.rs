@@ -318,7 +318,7 @@ impl TryToTokens for ResponseTuple<'_> {
                             <#ref_type as #oapi::oapi::ToSchema>::to_schema(components)
                         }
                         .to_token_stream(),
-                        PathType::MediaType(ref path_type) => {
+                        PathType::MediaType(path_type) => {
                             let type_tree = path_type.as_type_tree()?;
 
                             ComponentSchema::new(crate::component::ComponentSchemaProps {
