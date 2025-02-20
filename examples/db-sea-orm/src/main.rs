@@ -183,7 +183,6 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
 #[tokio::main]
 async fn main() {
     // Initialize logging
-    std::env::set_var("RUST_LOG", "debug");
     tracing_subscriber::fmt::init();
 
     // Database and server configuration

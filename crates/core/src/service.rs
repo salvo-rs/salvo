@@ -204,7 +204,7 @@ pub struct HyperHandler {
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
-    pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
+    pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> + 'static {
         let catcher = self.catcher.clone();
         let allowed_media_types = self.allowed_media_types.clone();
         req.local_addr = self.local_addr.clone();
