@@ -332,7 +332,7 @@ impl<'de> RequestDeserializer<'de> {
                                         }
                                         return false;
                                     }
-                                    Payload::JsonMap(ref map) => {
+                                    Payload::JsonMap( map) => {
                                         let mut value = map.get(field_name);
                                         if value.is_none() {
                                             for alias in &field.aliases {

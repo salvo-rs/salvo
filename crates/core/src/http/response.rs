@@ -425,7 +425,7 @@ impl Response {
             ResBody::None => {
                 self.body = ResBody::Once(data.into());
             }
-            ResBody::Once(ref bytes) => {
+            ResBody::Once( bytes) => {
                 let mut chunks = VecDeque::new();
                 chunks.push_back(bytes.clone());
                 chunks.push_back(data.into());

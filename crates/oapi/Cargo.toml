@@ -1,7 +1,7 @@
 [package]
 name = "salvo-oapi"
 version = { workspace = true }
-edition = "2021"
+edition = "2024"
 rust-version = { workspace = true }
 description = "OpenApi support for Salvo web framework"
 readme = "./README.md"
