@@ -3,8 +3,8 @@ use std::fmt::{self, Debug, Display, Formatter};
 use async_trait::async_trait;
 use serde::Serialize;
 
-use super::{try_set_header, Scribe};
-use crate::http::header::{HeaderValue, CONTENT_TYPE};
+use super::{Scribe, try_set_header};
+use crate::http::header::{CONTENT_TYPE, HeaderValue};
 use crate::http::{Response, StatusError};
 
 /// Write serializable content to response as json content.

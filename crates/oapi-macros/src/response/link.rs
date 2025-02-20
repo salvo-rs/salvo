@@ -1,11 +1,11 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Ident, Token};
 
-use crate::{parse_utils, AnyValue, Server};
+use crate::{AnyValue, Server, parse_utils};
 
 /// ("name" = (link))
 #[derive(Debug)]
@@ -54,15 +54,32 @@ impl Parse for Link {
             let attribute = &*ident.to_string();
 
             match attribute {
-                "operation_ref" => link.operation_ref = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?),
-                "operation_id" => link.operation_id = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?),
+                "operation_ref" => {
+                    link.operation_ref = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?)
+                }
+                "operation_id" => {
+                    link.operation_id = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?)
+                }
                 "parameters" => {
                     link.parameters = parse_utils::parse_punctuated_within_parenthesis(&inner)?;
-                },
-                "request_body" => link.request_body = Some(parse_utils::parse_next(&inner, || { AnyValue::parse_any(&inner)})?),
-                "description" => link.description = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?),
+                }
+                "request_body" => {
+                    link.request_body = Some(parse_utils::parse_next(&inner, || {
+                        AnyValue::parse_any(&inner)
+                    })?)
+                }
+                "description" => {
+                    link.description = Some(parse_utils::parse_next_lit_str_or_expr(&inner)?)
+                }
                 "server" => link.server = Some(inner.call(Server::parse)?),
-                _ => return Err(syn::Error::new(ident.span(), format!("unexpected attribute: {attribute}, expected any of: operation_ref, operation_id, parameters, request_body, description, server")))
+                _ => {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        format!(
+                            "unexpected attribute: {attribute}, expected any of: operation_ref, operation_id, parameters, request_body, description, server"
+                        ),
+                    ));
+                }
             }
 
             if !inner.is_empty() {

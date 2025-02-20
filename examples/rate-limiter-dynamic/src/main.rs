@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::LazyLock;
 
+use salvo::Error;
 use salvo::prelude::*;
 use salvo::rate_limiter::{
     CelledQuota, MokaStore, QuotaGetter, RateIssuer, RateLimiter, SlidingGuard,
 };
-use salvo::Error;
 
 static USER_QUOTAS: LazyLock<HashMap<String, CelledQuota>> = LazyLock::new(|| {
     let mut map = HashMap::new();

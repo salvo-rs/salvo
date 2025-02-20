@@ -8,14 +8,14 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
-use crate::catcher::{write_error_default, Catcher};
+use crate::catcher::{Catcher, write_error_default};
 use crate::conn::SocketAddr;
 use crate::fuse::ArcFusewire;
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::{async_trait, Depot};
+use crate::{Depot, async_trait};
 
 /// Service http request.
 #[non_exhaustive]
@@ -317,7 +317,9 @@ impl HyperHandler {
             }
             #[cfg(debug_assertions)]
             if Method::HEAD == *req.method() && !res.body.is_none() {
-                tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
+                tracing::warn!(
+                    "request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD"
+                );
             }
             #[cfg(feature = "quinn")]
             {

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::{decode_url_path_safely, PathParams};
+use super::{PathParams, decode_url_path_safely};
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]

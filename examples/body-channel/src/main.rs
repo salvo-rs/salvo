@@ -5,10 +5,10 @@ use salvo::prelude::*;
 async fn hello(res: &mut Response) {
     // Set response content type to plain text
     res.add_header("content-type", "text/plain", true).unwrap();
-    
+
     // Create a channel for streaming response data
     let mut tx = res.channel();
-    
+
     // Spawn async task to send data through the channel
     tokio::spawn(async move {
         tx.send_data("Hello world").await.unwrap();
@@ -22,10 +22,10 @@ async fn main() {
 
     // Bind server to port 5800
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    
+
     // Create router with single endpoint
     let router = Router::new().get(hello);
-    
+
     // Start serving requests
     Server::new(acceptor).serve(router).await;
 }

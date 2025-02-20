@@ -4,7 +4,7 @@ mod craft;
 mod utils;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, Item};
+use syn::{Item, parse_macro_input};
 
 /// `#[craft]` is an attribute macro used to batch convert methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo).
 ///

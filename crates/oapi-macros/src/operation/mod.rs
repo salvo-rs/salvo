@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::ops::Deref;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
+use quote::{ToTokens, quote};
+use syn::{Expr, ExprPath, Path, Token, Type, parenthesized, parse::Parse, token::Paren};
 
 use crate::endpoint::EndpointAttr;
 use crate::parse_utils::LitStrOrExpr;

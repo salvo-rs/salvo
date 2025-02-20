@@ -8,7 +8,7 @@ use tokio_util::io::ReaderStream;
 
 use crate::http::header::{IF_NONE_MATCH, RANGE};
 use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
-use crate::{async_trait, Depot, Writer};
+use crate::{Depot, Writer, async_trait};
 
 /// `ReadSeeker` is used to write data to [`Response`] from a reader which implements [`AsyncRead`] and [`AsyncSeek`].
 ///

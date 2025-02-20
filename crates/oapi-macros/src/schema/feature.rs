@@ -1,5 +1,5 @@
-use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
+use syn::parse::{Parse, ParseBuffer, ParseStream};
 
 use crate::feature::attributes::{
     AdditionalProperties, Aliases, Bound, ContentEncoding, ContentMediaType, Default, Deprecated,
@@ -10,8 +10,8 @@ use crate::feature::validation::{
     ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, MaxProperties, Maximum, MinItems,
     MinLength, MinProperties, Minimum, MultipleOf, Pattern,
 };
-use crate::feature::{impl_into_inner, impl_merge, parse_features, Feature, Merge};
-use crate::{attribute, DiagResult, Diagnostic, IntoInner};
+use crate::feature::{Feature, Merge, impl_into_inner, impl_merge, parse_features};
+use crate::{DiagResult, Diagnostic, IntoInner, attribute};
 
 #[derive(Debug)]
 pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);

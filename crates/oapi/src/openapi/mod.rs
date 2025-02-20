@@ -24,7 +24,7 @@ use std::fmt::Formatter;
 use std::sync::LazyLock;
 
 use regex::Regex;
-use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
+use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};
 use serde::de::{Error, Expected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -49,7 +49,7 @@ pub use self::{
     tag::Tag,
     xml::Xml,
 };
-use crate::{routing::NormNode, Endpoint};
+use crate::{Endpoint, routing::NormNode};
 
 static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
@@ -613,11 +613,7 @@ pub enum Deprecated {
 }
 impl From<bool> for Deprecated {
     fn from(b: bool) -> Self {
-        if b {
-            Self::True
-        } else {
-            Self::False
-        }
+        if b { Self::True } else { Self::False }
     }
 }
 
@@ -673,11 +669,7 @@ pub enum Required {
 
 impl From<bool> for Required {
     fn from(value: bool) -> Self {
-        if value {
-            Self::True
-        } else {
-            Self::False
-        }
+        if value { Self::True } else { Self::False }
     }
 }
 
@@ -736,14 +728,14 @@ mod tests {
     use std::str::FromStr;
 
     use bytes::Bytes;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::{response::Response, *};
     use crate::{
+        ToSchema,
         extract::*,
         security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme},
         server::Server,
-        ToSchema,
     };
 
     use salvo_core::{http::ResBody, prelude::*};

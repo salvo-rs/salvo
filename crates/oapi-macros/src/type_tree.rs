@@ -49,36 +49,52 @@ impl<'t> TypeTree<'t> {
         let type_tree_values = match ty {
             Type::Path(path) => {
                 vec![TypeTreeValue::TypePath(path)]
-            },
+            }
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref())?,
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref())?,
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem)?, slice.bracket_token.span.join())],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem)?, array.bracket_token.span.join())],
+            Type::Slice(slice) => vec![TypeTreeValue::Array(
+                Self::get_type_paths(&slice.elem)?,
+                slice.bracket_token.span.join(),
+            )],
+            Type::Array(array) => vec![TypeTreeValue::Array(
+                Self::get_type_paths(&array.elem)?,
+                array.bracket_token.span.join(),
+            )],
             Type::Tuple(tuple) => {
                 // Detect unit type ()
-                if tuple.elems.is_empty() { return Ok(vec![TypeTreeValue::UnitType]) }
+                if tuple.elems.is_empty() {
+                    return Ok(vec![TypeTreeValue::UnitType]);
+                }
                 vec![TypeTreeValue::Tuple(
-                    tuple.elems.iter().map(Self::get_type_paths).collect::<DiagResult<Vec<_>>>()?.into_iter().flatten().collect(),
-                    tuple.span()
+                    tuple
+                        .elems
+                        .iter()
+                        .map(Self::get_type_paths)
+                        .collect::<DiagResult<Vec<_>>>()?
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                    tuple.span(),
                 )]
-            },
-            Type::TraitObject(trait_object) => {
-                trait_object
-                    .bounds
-                    .iter()
-                    .find_map(|bound| {
-                        match &bound {
-                            syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                            syn::TypeParamBound::Lifetime(_) => None,
-                            syn::TypeParamBound::Verbatim(_) => None,
-                            _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
-                        }
-                    })
-                    .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
-            unexpected => return Err(Diagnostic::spanned(unexpected.span(), DiagLevel::Error,
-                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject"
-            )),
+            Type::TraitObject(trait_object) => trait_object
+                .bounds
+                .iter()
+                .find_map(|bound| match &bound {
+                    syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
+                    syn::TypeParamBound::Lifetime(_) => None,
+                    syn::TypeParamBound::Verbatim(_) => None,
+                    _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
+                })
+                .map(|path| vec![TypeTreeValue::Path(path)])
+                .unwrap_or_else(Vec::new),
+            unexpected => {
+                return Err(Diagnostic::spanned(
+                    unexpected.span(),
+                    DiagLevel::Error,
+                    "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject",
+                ));
+            }
         };
         Ok(type_tree_values)
     }
@@ -128,7 +144,7 @@ impl<'t> TypeTree<'t> {
                                 Ok(converted_values) => converted_values.collect(),
                                 Err(diag) => return Err(diag),
                             }),
-                        })
+                        });
                     }
                     TypeTreeValue::UnitType => {
                         return Ok(TypeTree {
@@ -136,7 +152,7 @@ impl<'t> TypeTree<'t> {
                             value_type: ValueType::Tuple,
                             generic_type: None,
                             children: None,
-                        })
+                        });
                     }
                 };
 
@@ -210,7 +226,7 @@ impl<'t> TypeTree<'t> {
                     last_segment.ident.span(),
                     DiagLevel::Error,
                     "unexpected path argument, expected angle bracketed path argument",
-                ))
+                ));
             }
         };
 

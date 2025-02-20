@@ -31,7 +31,7 @@ fn create_service() -> Service {
     let router = Router::new()
         .get(hello)
         .push(Router::with_path("500").get(error500));
-    
+
     // Add custom error catcher for 404 Not Found errors
     Service::new(router).catcher(Catcher::default().hoop(handle404))
 }

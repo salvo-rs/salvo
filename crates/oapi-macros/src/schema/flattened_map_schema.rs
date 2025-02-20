@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
-use crate::feature::{pop_feature, Feature, FeaturesExt};
+use crate::feature::{Feature, FeaturesExt, pop_feature};
 use crate::{ComponentSchema, ComponentSchemaProps, DiagResult, TryToTokens};
 
 #[derive(Debug)]

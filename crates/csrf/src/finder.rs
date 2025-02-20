@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use salvo_core::{async_trait, Request};
+use salvo_core::{Request, async_trait};
 use serde_json::Value;
 
 /// Used to find csrf token from request.

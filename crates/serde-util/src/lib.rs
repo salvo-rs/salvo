@@ -6,7 +6,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use proc_macro2::{Ident, Span, TokenTree};
-use syn::{buffer::Cursor, Attribute, Error};
+use syn::{Attribute, Error, buffer::Cursor};
 
 pub(crate) mod case;
 pub use case::RenameRule;
@@ -288,8 +288,8 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 
 #[cfg(test)]
 mod tests {
-    use super::{case::RENAME_RULES, parse_container, RenameRule, SerdeContainer};
-    use syn::{parse_quote, Attribute};
+    use super::{RenameRule, SerdeContainer, case::RENAME_RULES, parse_container};
+    use syn::{Attribute, parse_quote};
 
     #[test]
     fn test_serde_parse_container() {

@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::token::Comma;
-use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, Token};
+use syn::{Attribute, Field, Generics, Token, punctuated::Punctuated, spanned::Spanned};
 
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
@@ -11,19 +11,20 @@ use crate::feature::attributes::{
     self, Alias, Bound, Default, Name, RenameAll, Required, SkipBound,
 };
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IsSkipped,
-    TryToTokensExt,
+    Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
+    pop_feature_as_inner,
 };
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
 use crate::{
-    serde_util, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer,
-    SerdeValue, TryToTokens,
+    Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
+    TryToTokens, serde_util,
 };
 
 use super::{
-    feature::{parse_schema_features_with, FromAttributes, NamedFieldFeatures},
-    is_flatten, is_not_skipped, ComponentSchema, FieldRename, FlattenedMapSchema, Property,
+    ComponentSchema, FieldRename, FlattenedMapSchema, Property,
+    feature::{FromAttributes, NamedFieldFeatures, parse_schema_features_with},
+    is_flatten, is_not_skipped,
 };
 
 #[derive(Debug)]

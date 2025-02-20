@@ -1,6 +1,6 @@
 use prometheus::{Encoder, Registry, TextEncoder};
 
-use salvo::http::{header, Method, StatusCode};
+use salvo::http::{Method, StatusCode, header};
 use salvo::prelude::*;
 
 pub struct Exporter {
