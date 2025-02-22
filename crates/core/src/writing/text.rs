@@ -1,8 +1,8 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
-use super::{try_set_header, Scribe};
-use crate::http::header::{HeaderValue, CONTENT_TYPE};
+use super::{Scribe, try_set_header};
 use crate::http::Response;
+use crate::http::header::{CONTENT_TYPE, HeaderValue};
 
 /// Write text content to response as text content.
 ///

@@ -1,11 +1,11 @@
 use crate::utils::salvo_crate;
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use regex::Regex;
 use syn::parse::Parser;
 use syn::{
-    parse_quote, AngleBracketedGenericArguments, Attribute, FnArg, Generics, Ident, ImplItem,
-    ImplItemFn, Item, PathArguments, Token, Type, TypePath,
+    AngleBracketedGenericArguments, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item,
+    PathArguments, Token, Type, TypePath, parse_quote,
 };
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
@@ -64,9 +64,11 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
             }
         }
         return Err(syn::Error::new_spanned(
-                item_fn,
-                format!("The attribute macro `{attr_str}` on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'."),
-            ));
+            item_fn,
+            format!(
+                "The attribute macro `{attr_str}` on a method must be filled with sub-attributes, such as '#[craft(handler)]', '#[craft(endpoint)]', or '#[craft(endpoint(...))]'."
+            ),
+        ));
     }
     if let Some(index) = index {
         item_fn.attrs.remove(index);

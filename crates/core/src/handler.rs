@@ -120,7 +120,7 @@
 use std::sync::Arc;
 
 use crate::http::StatusCode;
-use crate::{async_trait, Depot, FlowCtrl, Request, Response};
+use crate::{Depot, FlowCtrl, Request, Response, async_trait};
 
 /// `Handler` is used for handle [`Request`].
 ///

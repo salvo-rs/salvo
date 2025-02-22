@@ -79,7 +79,7 @@ use async_session::hmac::{Hmac, Mac, NewMac};
 use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
-use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";
@@ -442,8 +442,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::header::*;
     use salvo_core::http::Method;
+    use salvo_core::http::header::*;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 

@@ -1,8 +1,8 @@
 use super::Scribe;
+use crate::Error;
 use crate::http::header::{HeaderValue, LOCATION};
 use crate::http::uri::Uri;
 use crate::http::{Response, StatusCode};
-use crate::Error;
 
 /// Response that redirects the request to another location.
 ///

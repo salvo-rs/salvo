@@ -4,8 +4,8 @@
 // port from https://github.com/seanmonstar/warp/blob/master/examples/sse_chat.rs
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures_util::StreamExt;
 use parking_lot::Mutex;

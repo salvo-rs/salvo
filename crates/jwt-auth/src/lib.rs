@@ -108,13 +108,13 @@ use std::marker::PhantomData;
 
 #[doc(no_inline)]
 pub use jsonwebtoken::{
-    decode, errors::Error as JwtError, Algorithm, DecodingKey, TokenData, Validation,
+    Algorithm, DecodingKey, TokenData, Validation, decode, errors::Error as JwtError,
 };
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 use salvo_core::http::{Method, Request, Response, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 mod finder;
 pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFinder};

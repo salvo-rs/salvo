@@ -35,9 +35,6 @@ cfg_feature! {
     pub mod redoc;
 }
 
-#[doc = include_str!("../docs/endpoint.md")]
-pub use salvo_oapi_macros::endpoint;
-pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
 pub use salvo_oapi_macros::ToParameters;
 #[doc = include_str!("../docs/derive_to_response.md")]
@@ -46,6 +43,9 @@ pub use salvo_oapi_macros::ToResponse;
 pub use salvo_oapi_macros::ToResponses;
 #[doc = include_str!("../docs/derive_to_schema.md")]
 pub use salvo_oapi_macros::ToSchema;
+#[doc = include_str!("../docs/endpoint.md")]
+pub use salvo_oapi_macros::endpoint;
+pub(crate) use salvo_oapi_macros::schema;
 
 use std::collections::{BTreeMap, HashMap, LinkedList};
 use std::marker::PhantomData;

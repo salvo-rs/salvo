@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::{async_trait, Request, Writer};
+use salvo_core::{Request, Writer, async_trait};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;

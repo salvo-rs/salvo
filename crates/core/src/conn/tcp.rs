@@ -7,8 +7,8 @@ use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
-use crate::http::uri::Scheme;
 use crate::http::Version;
+use crate::http::uri::Scheme;
 
 use super::{Accepted, Acceptor, Listener};
 

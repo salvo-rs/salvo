@@ -1,20 +1,20 @@
 use std::{fmt::Display, mem};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parenthesized, token, LitStr, Token, Type, TypePath, WherePredicate};
+use syn::{LitStr, Token, Type, TypePath, WherePredicate, parenthesized, token};
 
-use super::{impl_get_name, Feature, Parse};
+use super::{Feature, Parse, impl_get_name};
 use crate::{
+    AnyValue, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens,
     parameter::{self, ParameterStyle},
     parse_utils, schema,
     schema_type::SchemaFormat,
     serde_util::RenameRule,
     type_tree::{GenericType, TypeTree},
-    AnyValue, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens,
 };
 
 #[derive(Clone, Debug)]

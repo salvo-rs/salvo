@@ -8,8 +8,8 @@ use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::Bytes;
 
-use crate::fuse::{ArcFusewire, FuseEvent};
 use crate::BoxedError;
+use crate::fuse::{ArcFusewire, FuseEvent};
 
 pub(crate) type BoxedBody =
     Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;

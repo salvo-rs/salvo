@@ -2,8 +2,8 @@ use std::sync::OnceLock;
 
 use futures::stream::TryStreamExt;
 use mongodb::{
-    bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection,
-    IndexModel,
+    Client, Collection, IndexModel, bson::Document, bson::doc, bson::oid::ObjectId,
+    options::IndexOptions,
 };
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,7 @@ async fn main() {
     // Get MongoDB connection URI from environment or use default
     let mongodb_uri =
         std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://10.1.1.80:27017".into());
-    
+
     // Connect to MongoDB and create unique index
     let client = Client::with_uri_str(mongodb_uri)
         .await

@@ -1,7 +1,7 @@
+use crate::IntoInner;
 use crate::feature::attributes::*;
 use crate::feature::validation::*;
 use crate::feature::{Feature, Validatable};
-use crate::IntoInner;
 
 macro_rules! impl_get_name {
     ( $ident:ident = $name:literal ) => {
@@ -127,9 +127,7 @@ macro_rules! parse_features {
 pub(crate) use parse_features;
 
 macro_rules! pop_feature {
-    ($features:expr => $value:pat_param) => {{
-        $features.pop_by(|feature| matches!(feature, $value))
-    }};
+    ($features:expr => $value:pat_param) => {{ $features.pop_by(|feature| matches!(feature, $value)) }};
 }
 
 pub(crate) use pop_feature;

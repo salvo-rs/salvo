@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use opentelemetry::metrics::{Counter, Histogram};
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_semantic_conventions::trace;
 use salvo_core::http::ResBody;
 use salvo_core::prelude::*;

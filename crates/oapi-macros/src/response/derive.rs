@@ -13,7 +13,7 @@ use syn::{
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
 use crate::schema::{EnumSchema, NamedStructSchema};
-use crate::{attribute, parse_utils, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens};
+use crate::{Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
 
 use super::{
     Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue,
@@ -54,7 +54,7 @@ impl<'a> ToResponse<'a> {
                     ident.span(),
                     DiagLevel::Error,
                     "`ToResponse` does not support `Union` type",
-                ))
+                ));
             }
         };
 
@@ -167,7 +167,7 @@ impl TryToTokens for ToResponses<'_> {
                     self.ident.span(),
                     DiagLevel::Error,
                     "`ToResponses` does not support `Union` type",
-                ))
+                ));
             }
         };
 

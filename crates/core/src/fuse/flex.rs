@@ -6,7 +6,7 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::{async_trait, ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire};
+use super::{ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire, async_trait};
 
 /// A guard action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

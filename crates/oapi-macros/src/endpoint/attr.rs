@@ -1,11 +1,11 @@
 use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, parse::Parse};
 use syn::{Expr, LitStr};
+use syn::{parenthesized, parse::Parse};
 
 use crate::operation::request_body::RequestBodyAttr;
 use crate::{
-    parse_utils, security_requirement::SecurityRequirementsAttr, Array, Parameter, Response, Token,
+    Array, Parameter, Response, Token, parse_utils, security_requirement::SecurityRequirementsAttr,
 };
 
 #[derive(Default, Debug)]

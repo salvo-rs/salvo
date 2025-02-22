@@ -1,11 +1,11 @@
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{AdditionalProperties, Description, Nullable};
 use crate::feature::validation::Minimum;
-use crate::feature::{pop_feature, Feature, FeaturesExt, IsInline, TryToTokensExt, Validatable};
+use crate::feature::{Feature, FeaturesExt, IsInline, TryToTokensExt, Validatable, pop_feature};
 use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::{Deprecated, DiagResult, Diagnostic, IntoInner, TryToTokens};

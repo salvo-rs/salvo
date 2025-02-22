@@ -1,8 +1,8 @@
 use std::{fmt::Display, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{parse::ParseStream, LitFloat, LitInt};
+use quote::{ToTokens, quote};
+use syn::{LitFloat, LitInt, parse::ParseStream};
 
 mod ext;
 pub(crate) use ext::*;
@@ -18,7 +18,7 @@ use crate::feature::validation::*;
 use crate::feature::validators::*;
 use crate::schema_type::SchemaType;
 use crate::type_tree::TypeTree;
-use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
+use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens, parse_utils};
 
 /// Parse `LitInt` from parse stream
 fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
@@ -198,14 +198,14 @@ impl TryToTokens for Feature {
                     Span::call_site(),
                     DiagLevel::Error,
                     "Aliases feature does not support `TryToTokens`",
-                ))
+                ));
             }
             Feature::Nullable(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
                     DiagLevel::Error,
                     "Nullable does not support `TryToTokens`",
-                ))
+                ));
             }
             Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),

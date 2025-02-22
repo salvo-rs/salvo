@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parenthesized;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::{DeriveInput, Error, ExprPath, LitStr, Token};
@@ -18,9 +18,9 @@ use crate::feature::validation::{
     ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
     MultipleOf, Pattern,
 };
-use crate::feature::{parse_features, Feature, TryToTokensExt};
-use crate::{operation::InlineType, parse_utils, Required};
+use crate::feature::{Feature, TryToTokensExt, parse_features};
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
+use crate::{Required, operation::InlineType, parse_utils};
 
 pub(crate) fn to_parameters(input: DeriveInput) -> DiagResult<TokenStream> {
     let DeriveInput {
@@ -378,8 +378,7 @@ pub(crate) enum ParameterStyle {
 
 impl Parse for ParameterStyle {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_STYLE: &str =
-            "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject";
+        const EXPECTED_STYLE: &str = "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject";
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {

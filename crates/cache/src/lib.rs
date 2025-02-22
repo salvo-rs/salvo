@@ -24,7 +24,7 @@ use std::hash::Hash;
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{HeaderMap, ResBody, StatusCode};
-use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 
 mod skipper;
 pub use skipper::MethodSkipper;

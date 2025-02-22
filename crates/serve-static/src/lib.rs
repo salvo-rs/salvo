@@ -8,10 +8,10 @@
 pub mod dir;
 mod file;
 
-use percent_encoding::{utf8_percent_encode, CONTROLS};
+use percent_encoding::{CONTROLS, utf8_percent_encode};
+use salvo_core::Response;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::writing::Redirect;
-use salvo_core::Response;
 
 pub use dir::StaticDir;
 pub use file::StaticFile;
@@ -272,11 +272,13 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
-        assert!(response
-            .take_string()
-            .await
-            .unwrap()
-            .contains("Fallback page"));
+        assert!(
+            response
+                .take_string()
+                .await
+                .unwrap()
+                .contains("Fallback page")
+        );
 
         let response = TestClient::get("http://127.0.0.1:5801/dir")
             .send(&service)

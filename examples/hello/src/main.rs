@@ -19,17 +19,17 @@ async fn main() {
 
     // Bind server to port 5800
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    
+
     // Create router with two endpoints:
     // - / (root path) returns English greeting
     // - /你好 returns Chinese greeting
     let router = Router::new()
         .get(hello)
         .push(Router::with_path("你好").get(hello_zh));
-    
+
     // Print router structure for debugging
     println!("{:?}", router);
-    
+
     // Start serving requests
     Server::new(acceptor).serve(router).await;
 }

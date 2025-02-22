@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::spanned::Spanned;
 use syn::{
-    parse::Parse, punctuated::Punctuated, Attribute, Data, Field, GenericParam, Generics, Ident,
-    Lifetime, LifetimeParam, Token,
+    Attribute, Data, Field, GenericParam, Generics, Ident, Lifetime, LifetimeParam, Token,
+    parse::Parse, punctuated::Punctuated,
 };
 
 use crate::component::{self, ComponentSchema};
@@ -20,15 +20,15 @@ use crate::feature::validation::{
     MultipleOf, Pattern,
 };
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, pop_feature, Feature, FeaturesExt, Merge,
-    TryToTokensExt,
+    Feature, FeaturesExt, Merge, TryToTokensExt, impl_into_inner, impl_merge, parse_features,
+    pop_feature,
 };
 use crate::parameter::ParameterIn;
 use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
 use crate::{
-    attribute, Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required,
-    TryToTokens,
+    Array, DiagLevel, DiagResult, Diagnostic, FieldRename, IntoInner, Required, TryToTokens,
+    attribute,
 };
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
@@ -273,9 +273,10 @@ impl ToParameters {
     ) -> DiagResult<impl Iterator<Item = &Field>> {
         let ident = &self.ident;
         let abort = |note: &str| {
-            let msg = format!("unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
-            ident,
-            ident);
+            let msg = format!(
+                "unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
+                ident, ident
+            );
             Err(Diagnostic::spanned(ident.span(), DiagLevel::Error, msg).note(note))
         };
 
@@ -284,7 +285,9 @@ impl ToParameters {
                 syn::Fields::Named(named_fields) => {
                     if field_names.is_some() {
                         return Err(Diagnostic::spanned(
-                            ident.span(), DiagLevel::Error, "`#[salvo(parameters(names(...)))]` is not supported attribute on a struct with named fields"
+                            ident.span(),
+                            DiagLevel::Error,
+                            "`#[salvo(parameters(names(...)))]` is not supported attribute on a struct with named fields",
                         ));
                     }
                     Ok(named_fields.named.iter())

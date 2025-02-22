@@ -16,12 +16,12 @@ async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     // Simulate a long-running operation (10 seconds)
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    
+
     if let Some(file) = file {
         // Generate destination path for the uploaded file
         let dest = format!("temp/{}", file.name().unwrap_or("file"));
         tracing::debug!(dest = %dest, "upload file");
-        
+
         // Copy file to destination
         if let Err(e) = std::fs::copy(file.path(), Path::new(&dest)) {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -42,7 +42,7 @@ async fn main() {
 
     // Create temporary directory for file uploads
     create_dir_all("temp").unwrap();
-    
+
     // Configure router with two upload endpoints:
     // - /limited: Only allows one concurrent upload (with concurrency limiter)
     // - /unlimit: Allows unlimited concurrent uploads

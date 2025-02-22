@@ -8,7 +8,7 @@ use cookie::{Cookie, CookieJar};
 use futures_util::stream::Stream;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
-use http::{version::Version, Extensions};
+use http::{Extensions, version::Version};
 use mime::Mime;
 
 use crate::fs::NamedFile;
@@ -425,7 +425,7 @@ impl Response {
             ResBody::None => {
                 self.body = ResBody::Once(data.into());
             }
-            ResBody::Once(ref bytes) => {
+            ResBody::Once(bytes) => {
                 let mut chunks = VecDeque::new();
                 chunks.push_back(bytes.clone());
                 chunks.push_back(data.into());
@@ -531,7 +531,7 @@ impl Display for Response {
 #[cfg(test)]
 mod test {
     use bytes::BytesMut;
-    use futures_util::stream::{iter, StreamExt};
+    use futures_util::stream::{StreamExt, iter};
     use std::error::Error;
 
     use super::*;

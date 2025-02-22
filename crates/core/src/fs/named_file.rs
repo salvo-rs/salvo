@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 
-use enumflags2::{bitflags, BitFlags};
+use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use tokio::fs::File;
 
@@ -17,7 +17,7 @@ use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
-use crate::{async_trait, Depot, Error, Result, Writer};
+use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
 

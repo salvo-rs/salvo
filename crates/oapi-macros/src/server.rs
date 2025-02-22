@@ -1,16 +1,15 @@
 use proc_macro2::Ident;
 use syn::{
-    parenthesized,
+    Error, LitStr, Token, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Comma,
-    Error, LitStr, Token,
 };
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
-use crate::{parse_utils, Array};
+use crate::{Array, parse_utils};
 
 // (url = "http:://url", description = "description", variables(...))
 #[derive(Default, Debug)]
@@ -31,17 +30,29 @@ impl Parse for Server {
 
             match attribute_name {
                 "url" => {
-                    server.url = parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value()
+                    server.url =
+                        parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?
+                            .value()
                 }
                 "description" => {
-                    server.description =
-                        Some(parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value())
+                    server.description = Some(
+                        parse_utils::parse_next(&server_stream, || {
+                            server_stream.parse::<LitStr>()
+                        })?
+                        .value(),
+                    )
                 }
                 "variables" => {
-                    server.variables = parse_utils::parse_punctuated_within_parenthesis(&server_stream)?
+                    server.variables =
+                        parse_utils::parse_punctuated_within_parenthesis(&server_stream)?
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables")))
+                    return Err(Error::new(
+                        ident.span(),
+                        format!(
+                            "unexpected attribute: {attribute_name}, expected one of: url, description, variables"
+                        ),
+                    ));
                 }
             }
 
@@ -131,15 +142,21 @@ impl Parse for ServerVariable {
                         parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
                 }
                 "description" => {
-                    server_variable.description =
-                        Some(parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value())
+                    server_variable.description = Some(
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value(),
+                    )
                 }
                 "enum_values" => {
                     server_variable.enum_values =
                         Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), format!( "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values")))
+                    return Err(Error::new(
+                        ident.span(),
+                        format!(
+                            "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values"
+                        ),
+                    ));
                 }
             }
 

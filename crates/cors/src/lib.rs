@@ -34,7 +34,7 @@
 use bytes::{BufMut, BytesMut};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::{Method, Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 mod allow_credentials;
 mod allow_headers;

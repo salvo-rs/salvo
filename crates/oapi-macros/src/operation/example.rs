@@ -1,9 +1,9 @@
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{parenthesized, Error, LitStr, Token};
+use syn::{Error, LitStr, Token, parenthesized};
 
-use crate::{parse_utils, AnyValue};
+use crate::{AnyValue, parse_utils};
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default, Debug)]
@@ -34,14 +34,12 @@ impl Parse for Example {
             match attr_name {
                 "summary" => {
                     example.summary = Some(
-                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
-                            .value(),
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value(),
                     )
                 }
                 "description" => {
                     example.description = Some(
-                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
-                            .value(),
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value(),
                     )
                 }
                 "value" => {
@@ -51,17 +49,16 @@ impl Parse for Example {
                 }
                 "external_value" => {
                     example.external_value = Some(
-                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
-                            .value(),
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value(),
                     )
                 }
                 _ => {
-                    return Err(
-                        Error::new(
-                            ident.span(),
-                            format!("unexpected attribute: {attr_name}, expected one of: summary, description, value, external_value")
-                        )
-                    )
+                    return Err(Error::new(
+                        ident.span(),
+                        format!(
+                            "unexpected attribute: {attr_name}, expected one of: summary, description, value, external_value"
+                        ),
+                    ));
                 }
             }
 

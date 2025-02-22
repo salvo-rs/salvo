@@ -13,10 +13,10 @@ use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::writing::Text;
-use salvo_core::{async_trait, Depot, FlowCtrl, IntoVecString};
+use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::{macros::format_description, OffsetDateTime};
+use time::{OffsetDateTime, macros::format_description};
 
 use super::{
     decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,

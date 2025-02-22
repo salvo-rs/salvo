@@ -150,15 +150,15 @@ impl Display for SseEvent {
             f.write_char('\n')?;
         }
 
-        match self.data {
-            Some(DataType::Text(ref data)) => {
+        match &self.data {
+            Some(DataType::Text(data)) => {
                 for line in data.split('\n') {
                     "data:".fmt(f)?;
                     line.fmt(f)?;
                     f.write_char('\n')?;
                 }
             }
-            Some(DataType::Json(ref data)) => {
+            Some(DataType::Json(data)) => {
                 "data:".fmt(f)?;
                 data.fmt(f)?;
                 f.write_char('\n')?;
@@ -166,13 +166,13 @@ impl Display for SseEvent {
             None => {}
         }
 
-        if let Some(ref id) = &self.id {
+        if let Some(id) = &self.id {
             "id:".fmt(f)?;
             id.fmt(f)?;
             f.write_char('\n')?;
         }
 
-        if let Some(ref duration) = &self.retry {
+        if let Some( duration) = &self.retry {
             "retry:".fmt(f)?;
 
             let secs = duration.as_secs();

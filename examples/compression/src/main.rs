@@ -7,7 +7,7 @@ async fn main() {
 
     // Print current working directory for debugging
     println!("current_dir: {:?}", std::env::current_dir().unwrap());
-    
+
     // Set up base directory for static files
     let base_dir = std::env::current_dir()
         .unwrap()

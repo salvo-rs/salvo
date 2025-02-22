@@ -6,9 +6,9 @@ use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 
 use super::{
+    Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
     request_body::RequestBody,
     response::{Response, Responses},
-    Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
 use crate::{Parameter, Parameters, PathItemType, PropMap, Servers};
 
@@ -294,8 +294,8 @@ mod tests {
 
     use super::{Operation, Operations};
     use crate::{
-        security::SecurityRequirement, server::Server, Deprecated, Parameter, PathItemType,
-        RequestBody, Responses,
+        Deprecated, Parameter, PathItemType, RequestBody, Responses, security::SecurityRequirement,
+        server::Server,
     };
 
     #[test]

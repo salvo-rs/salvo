@@ -6,9 +6,9 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 authors = ["Chrislearn Young <chris@acroidea.com>"]
-edition = "2021"
+edition = "2024"
 publish = false
-rust-version = "1.80"
+rust-version = "1.85"
 description = """
 Salvo is a powerful web framework that can make your work easier.
 """

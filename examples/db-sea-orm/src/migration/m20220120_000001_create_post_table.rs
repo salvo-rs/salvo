@@ -42,8 +42,8 @@ impl MigrationTrait for Migration {
 // Used for type-safe table/column name references
 #[derive(Iden)]
 enum Posts {
-    Table,  // Represents the table name
-    Id,     // Represents the id column
-    Title,  // Represents the title column
-    Text,   // Represents the text column
+    Table, // Represents the table name
+    Id,    // Represents the id column
+    Title, // Represents the title column
+    Text,  // Represents the text column
 }

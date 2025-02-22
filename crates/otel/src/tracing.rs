@@ -1,5 +1,5 @@
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
-use opentelemetry::{global, Context, KeyValue};
+use opentelemetry::{Context, KeyValue, global};
 use opentelemetry_http::HeaderExtractor;
 use opentelemetry_semantic_conventions::{resource, trace};
 use salvo_core::http::headers::{self, HeaderMap, HeaderMapExt, HeaderName, HeaderValue};
