@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use syn::punctuated::{Pair, Punctuated};
 use syn::Token;
+use syn::punctuated::{Pair, Punctuated};
 
 // Remove the default from every type parameter because in the generated impls
 // they look like associated types: "error: associated type bindings are not

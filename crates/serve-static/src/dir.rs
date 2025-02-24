@@ -13,10 +13,10 @@ use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::writing::Text;
-use salvo_core::{async_trait, Depot, FlowCtrl, IntoVecString};
+use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::{macros::format_description, OffsetDateTime};
+use time::{OffsetDateTime, macros::format_description};
 
 use super::{
     decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,
@@ -402,13 +402,7 @@ impl Handler for StaticDir {
                         .unwrap_or_default();
                     let accept_algos = http::parse_accept_encoding(header)
                         .into_iter()
-                        .filter_map(|(algo, _level)| {
-                            if let Ok(algo) = algo.parse::<CompressionAlgo>() {
-                                Some(algo)
-                            } else {
-                                None
-                            }
-                        })
+                        .filter_map(|(algo, _level)| algo.parse::<CompressionAlgo>().ok())
                         .collect::<HashSet<_>>();
                     for (algo, exts) in &self.compressed_variations {
                         if accept_algos.contains(algo) {

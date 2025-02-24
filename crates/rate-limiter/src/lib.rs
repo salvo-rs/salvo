@@ -17,13 +17,12 @@
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;
-use salvo_core::handler::{none_skipper, Skipper};
+use salvo_core::handler::{Skipper, none_skipper};
 use salvo_core::http::{HeaderValue, Request, Response, StatusCode, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 mod quota;
 pub use quota::{BasicQuota, CelledQuota, QuotaGetter};
@@ -246,9 +245,9 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::LazyLock;
 
+    use salvo_core::Error;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::Error;
 
     use super::*;
 

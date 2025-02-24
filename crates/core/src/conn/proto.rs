@@ -1,10 +1,9 @@
 use std::cmp;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
-use std::task::{self, ready, Context, Poll};
+use std::task::{self, Context, Poll, ready};
 
 use bytes::{Buf, Bytes};
 

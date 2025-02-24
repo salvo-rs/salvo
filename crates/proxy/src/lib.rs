@@ -36,14 +36,13 @@
 
 use std::convert::Infallible;
 use std::error::Error as StdError;
-use std::future::Future;
 
 use hyper::upgrade::OnUpgrade;
-use percent_encoding::{utf8_percent_encode, CONTROLS};
-use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
+use percent_encoding::{CONTROLS, utf8_percent_encode};
+use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
-use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 
 #[macro_use]
 mod cfg;

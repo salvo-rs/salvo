@@ -5,7 +5,7 @@ use std::sync::{LazyLock, RwLock};
 use regex::Regex;
 use salvo_core::Router;
 
-use crate::{path::PathItemType, SecurityRequirement};
+use crate::{SecurityRequirement, path::PathItemType};
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {

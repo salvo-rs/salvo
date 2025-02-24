@@ -1279,22 +1279,28 @@ mod tests {
 
     #[test]
     fn test_parse_rest2_failed() {
-        assert!(PathParser::new(r"/first{id}{*ext}/{**rest}")
-            .parse()
-            .is_err());
+        assert!(
+            PathParser::new(r"/first{id}{*ext}/{**rest}")
+                .parse()
+                .is_err()
+        );
     }
 
     #[test]
     fn test_parse_rest_failed1() {
-        assert!(PathParser::new(r"/first{id}ext2/{**rest}{id}")
-            .parse()
-            .is_err());
+        assert!(
+            PathParser::new(r"/first{id}ext2/{**rest}{id}")
+                .parse()
+                .is_err()
+        );
     }
     #[test]
     fn test_parse_rest_failed2() {
-        assert!(PathParser::new(r"/first{id}ext2/{**rest}wefwe")
-            .parse()
-            .is_err());
+        assert!(
+            PathParser::new(r"/first{id}ext2/{**rest}wefwe")
+                .parse()
+                .is_err()
+        );
     }
     #[test]
     fn test_parse_many_slashes() {

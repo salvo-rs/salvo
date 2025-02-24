@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
@@ -98,7 +98,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 return Err(syn::Error::new_spanned(
                     &sig.inputs,
                     "the inputs parameters must be Request, Depot, Response or FlowCtrl",
-                ))
+                ));
             }
             InputType::NoReference(pat) => {
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {

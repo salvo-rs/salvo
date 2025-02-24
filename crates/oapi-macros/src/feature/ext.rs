@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 
-use crate::feature::attributes::{Rename, RenameAll, Style, ValueType};
 use crate::feature::Feature;
+use crate::feature::attributes::{Rename, RenameAll, Style, ValueType};
 use crate::type_tree::TypeTree;
 use crate::{DiagResult, TryToTokens};
 

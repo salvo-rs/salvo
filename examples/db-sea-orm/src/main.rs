@@ -5,7 +5,7 @@ use migration::{Migrator, MigratorTrait};
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
 use salvo::writing::Text;
-use sea_orm::{entity::*, query::*, DatabaseConnection};
+use sea_orm::{DatabaseConnection, entity::*, query::*};
 use tera::Tera;
 
 mod entity;
@@ -58,18 +58,18 @@ async fn list(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
     let posts_per_page = req
         .query("posts_per_page")
         .unwrap_or(DEFAULT_POSTS_PER_PAGE);
-    
+
     // Create paginator for posts
     let paginator = post::Entity::find()
         .order_by_asc(post::Column::Id)
         .paginate(&state.conn, posts_per_page);
-    
+
     // Get total number of pages
     let num_pages = paginator
         .num_pages()
         .await
         .map_err(|_| StatusError::bad_request())?;
-    
+
     // Get posts for current page
     let posts = paginator
         .fetch_page(page - 1)
@@ -142,7 +142,7 @@ async fn update(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
         .parse_form::<post::Model>()
         .await
         .map_err(|_| StatusError::bad_request())?;
-    
+
     // Update post in database
     post::ActiveModel {
         id: Set(id),
@@ -170,7 +170,7 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
         .map_err(|_| StatusError::internal_server_error())?
         .ok_or_else(StatusError::not_found)?
         .into();
-    
+
     // Delete post from database
     post.delete(&state.conn)
         .await
@@ -183,7 +183,6 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
 #[tokio::main]
 async fn main() {
     // Initialize logging
-    std::env::set_var("RUST_LOG", "debug");
     tracing_subscriber::fmt::init();
 
     // Database and server configuration
@@ -193,7 +192,7 @@ async fn main() {
     // create post table if not exists
     let conn = sea_orm::Database::connect(db_url).await.unwrap();
     Migrator::up(&conn, None).await.unwrap();
-    
+
     // Initialize template engine
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let state = AppState { templates, conn };

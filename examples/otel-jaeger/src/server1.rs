@@ -2,11 +2,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _, TracerProvider};
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_http::HeaderInjector;
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
-use opentelemetry_sdk::Resource;
 use reqwest::{Client, Method, Url};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;

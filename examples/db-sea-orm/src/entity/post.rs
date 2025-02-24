@@ -10,10 +10,10 @@ pub struct Model {
     #[sea_orm(primary_key)]
     #[serde(skip_deserializing)]
     pub id: i32,
-    
+
     // Post title field
     pub title: String,
-    
+
     // Post content field using Text type for longer content
     #[sea_orm(column_type = "Text")]
     pub text: String,

@@ -11,10 +11,10 @@ use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
 };
-use salvo_core::http::{self, mime, Mime, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::http::{self, Mime, StatusCode, mime};
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 mod encoder;
 mod stream;

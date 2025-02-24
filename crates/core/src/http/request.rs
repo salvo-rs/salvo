@@ -8,11 +8,13 @@ use std::sync::OnceLock;
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT_TYPE};
-use http::method::Method;
-pub use http::request::Parts;
-use http::uri::{Scheme, Uri};
 use http::Extensions;
+use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
+use http::method::Method;
+use http::uri::{Scheme, Uri};
+
+pub use http::request::Parts;
+
 use http_body_util::{BodyExt, Limited};
 use multimap::MultiMap;
 use parking_lot::RwLock;
@@ -28,7 +30,7 @@ use crate::routing::PathParams;
 use crate::serde::{
     from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val,
 };
-use crate::{async_trait, Depot, Error, FlowCtrl, Handler};
+use crate::{Depot, Error, FlowCtrl, Handler, async_trait};
 
 static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 

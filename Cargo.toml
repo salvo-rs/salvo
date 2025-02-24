@@ -5,8 +5,8 @@ resolver = "2"
 [workspace.package]
 version = "0.76.2"
 authors = ["Chrislearn Young <chris@acroidea.com>"]
-edition = "2021"
-rust-version = "1.80"
+edition = "2024"
+rust-version = "1.85"
 description = """
 Salvo is a powerful web framework that can make your work easier.
 """
@@ -81,10 +81,10 @@ multer = "3"
 multimap = "0.10"
 native-tls = "0.2"
 nix = { version = "0.29", default-features = false }
-openssl = { version = ">=0.10.0, <=0.10.69" }
+openssl = { version = "0.10" }
 opentelemetry = { version = "0.28", default-features = false }
 opentelemetry-http = { version = "0.28", default-features = false }
-opentelemetry-prometheus = { version = "0.27", default-features = false }
+opentelemetry-prometheus = { version = "0.28", default-features = false }
 opentelemetry-semantic-conventions = { version = "0.28", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"

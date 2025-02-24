@@ -6,7 +6,6 @@
 
 
 use std::error::Error as StdError;
-use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 

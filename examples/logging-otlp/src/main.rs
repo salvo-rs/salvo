@@ -1,15 +1,15 @@
 use anyhow::Result;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, WithExportConfig};
-use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use salvo::logging::Logger;
 use salvo::prelude::*;
 use tracing::{instrument, level_filters::LevelFilter};
+use tracing_subscriber::Layer;
 use tracing_subscriber::fmt::{self, format::FmtSpan};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 #[instrument(fields(http.uri = req.uri().path(), http.method = req.method().as_str()))]
 #[handler]

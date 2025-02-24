@@ -16,13 +16,11 @@ impl Opts {
         Self { state }
     }
 
-
     // Handler method that adds state value to two query parameters
     #[craft(handler)]
     fn add1(&self, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
         (self.state + *left + *right).to_string()
     }
-
 
     // Endpoint method using Arc for shared state
     #[craft(endpoint)]
@@ -34,7 +32,6 @@ impl Opts {
         (self.state + *left + *right).to_string()
     }
 
- 
     // Static endpoint method with custom error response
     #[craft(endpoint(responses((status_code = 400, description = "Wrong request parameters."))))]
     pub fn add3(left: QueryParam<i64>, right: QueryParam<i64>) -> String {

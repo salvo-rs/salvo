@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Delimiter, Group, Punct, Span, TokenStream};
 use proc_macro2_diagnostics::Diagnostic;
-use proc_macro_crate::{crate_name, FoundCrate};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use regex::Regex;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -14,7 +14,7 @@ use syn::{
 };
 
 use crate::feature::attributes;
-use crate::{parse_utils, RenameRule, SerdeContainer, SerdeValue};
+use crate::{RenameRule, SerdeContainer, SerdeValue, parse_utils};
 
 #[allow(dead_code)]
 pub(crate) enum InputType<'a> {
@@ -226,11 +226,7 @@ pub(crate) enum Deprecated {
 
 impl From<bool> for Deprecated {
     fn from(bool: bool) -> Self {
-        if bool {
-            Self::True
-        } else {
-            Self::False
-        }
+        if bool { Self::True } else { Self::False }
     }
 }
 
@@ -252,11 +248,7 @@ pub(crate) enum Required {
 
 impl From<bool> for Required {
     fn from(bool: bool) -> Self {
-        if bool {
-            Self::True
-        } else {
-            Self::False
-        }
+        if bool { Self::True } else { Self::False }
     }
 }
 

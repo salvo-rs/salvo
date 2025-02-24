@@ -3,22 +3,22 @@ use std::ffi::OsStr;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::engine::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use futures_util::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
-use rand::rngs::OsRng;
 use rand::TryRngCore;
+use rand::rngs::OsRng;
 use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::http::body::ReqBody;
-use crate::http::header::{HeaderMap, CONTENT_TYPE};
 use crate::http::ParseError;
+use crate::http::body::ReqBody;
+use crate::http::header::{CONTENT_TYPE, HeaderMap};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 #[derive(Debug)]

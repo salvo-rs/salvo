@@ -1,10 +1,10 @@
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::{Bracket, Comma};
-use syn::{bracketed, parenthesized, Result, Token};
+use syn::{Result, Token, bracketed, parenthesized};
 
 use crate::operation::example::Example;
-use crate::{parse_utils, AnyValue};
+use crate::{AnyValue, parse_utils};
 
 use super::Header;
 

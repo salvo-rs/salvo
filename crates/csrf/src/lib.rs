@@ -11,17 +11,16 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::error::Error as StdError;
-use std::future::Future;
 
 mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
 
-use rand::distr::StandardUniform;
 use rand::Rng;
+use rand::distr::StandardUniform;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 #[macro_use]
 mod cfg;

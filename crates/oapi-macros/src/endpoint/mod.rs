@@ -1,9 +1,9 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Expr, Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, Array, DiagResult, InputType, Operation};
+use crate::{Array, DiagResult, InputType, Operation, omit_type_path_lifetimes, parse_input_type};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;
@@ -200,7 +200,7 @@ fn handle_fn(
                 return Err(syn::Error::new_spanned(
                     &sig.inputs,
                     "the inputs parameters must be Request, Depot, Response or FlowCtrl",
-                ))
+                ));
             }
             InputType::NoReference(pat) => {
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {

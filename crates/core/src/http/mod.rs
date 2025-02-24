@@ -12,7 +12,7 @@ cfg_feature! {
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
 pub use headers;
 pub use http::method::Method;
-pub use http::{header, method, uri, HeaderMap, HeaderName, HeaderValue, StatusCode};
+pub use http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header, method, uri};
 pub use mime::{self, Mime};
 pub use range::HttpRange;
 pub use request::Request;
@@ -22,7 +22,6 @@ pub use response::Response;
 
 pub use http::version::Version;
 
-use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 

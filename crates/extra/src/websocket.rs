@@ -78,7 +78,6 @@
 //!```
 
 use std::fmt::{self, Debug, Formatter};
-use std::future::Future;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 

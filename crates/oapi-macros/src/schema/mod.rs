@@ -8,12 +8,12 @@ mod xml;
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Attribute, Data, DeriveInput, Fields, FieldsNamed, FieldsUnnamed, Generics,
-    Visibility,
+    Attribute, Data, DeriveInput, Fields, FieldsNamed, FieldsUnnamed, Generics, Visibility,
+    parse_quote,
 };
 
 pub(crate) use self::{
@@ -26,10 +26,10 @@ pub(crate) use self::{
 
 use super::{ComponentSchema, FieldRename, VariantRename};
 use crate::feature::attributes::{Alias, Bound, Description, Inline, Name, SkipBound};
-use crate::feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt};
+use crate::feature::{Feature, FeaturesExt, pop_feature, pop_feature_as_inner};
 use crate::schema::feature::EnumFeatures;
 use crate::serde_util::SerdeValue;
-use crate::{bound, DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
+use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens, bound};
 
 pub(crate) fn to_schema(input: DeriveInput) -> DiagResult<TokenStream> {
     let DeriveInput {

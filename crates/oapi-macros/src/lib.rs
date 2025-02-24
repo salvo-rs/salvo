@@ -12,7 +12,7 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::token::Bracket;
-use syn::{bracketed, parse_macro_input, Ident, Item, Token};
+use syn::{Ident, Item, Token, bracketed, parse_macro_input};
 
 #[macro_use]
 mod cfg;

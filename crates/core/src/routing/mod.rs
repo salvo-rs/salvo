@@ -437,9 +437,11 @@ mod tests {
                 .unwrap()
         }
 
-        assert!(access(&service, "127.0.0.1")
-            .await
-            .contains("404: Not Found"));
+        assert!(
+            access(&service, "127.0.0.1")
+                .await
+                .contains("404: Not Found")
+        );
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 

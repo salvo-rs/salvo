@@ -8,12 +8,12 @@ use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 
-use crate::extract::metadata::{Field, Source, SourceFrom, SourceParser};
+use crate::Request;
 use crate::extract::Metadata;
+use crate::extract::metadata::{Field, Source, SourceFrom, SourceParser};
+use crate::http::ParseError;
 use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
-use crate::http::ParseError;
-use crate::Request;
 
 use super::{CowValue, FlatValue, VecValue};
 
@@ -332,7 +332,7 @@ impl<'de> RequestDeserializer<'de> {
                                         }
                                         return false;
                                     }
-                                    Payload::JsonMap(ref map) => {
+                                    Payload::JsonMap(map) => {
                                         let mut value = map.get(field_name);
                                         if value.is_none() {
                                             for alias in &field.aliases {

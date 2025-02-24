@@ -3,10 +3,9 @@ mod named_file;
 pub use named_file::*;
 
 use std::cmp;
-use std::future::Future;
 use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::Stream;

@@ -6,10 +6,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::fmt::{self, Debug, Display, Formatter};
-use std::future::Future;
 use std::ops::Deref;
 
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 use serde::{Deserialize, Serialize};
 
 #[macro_use]
@@ -197,7 +196,7 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
     ) -> impl Future<Output = ()> + Send;
     /// Clear the flash store.
     fn clear_flash(&self, depot: &mut Depot, res: &mut Response)
-        -> impl Future<Output = ()> + Send;
+    -> impl Future<Output = ()> + Send;
 }
 
 /// A trait for `Depot` to get flash messages.

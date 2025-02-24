@@ -5,20 +5,20 @@ mod parse;
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{parenthesized, Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token};
+use syn::{Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token, parenthesized};
 
 use crate::component::ComponentSchema;
 use crate::feature::attributes::Inline;
 use crate::operation::{
-    example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree,
+    InlineType, PathType, PathTypeTree, example::Example, status::STATUS_CODES,
 };
 use crate::type_tree::TypeTree;
-use crate::{attribute, parse_utils, AnyValue, Array, DiagResult, Diagnostic, TryToTokens};
+use crate::{AnyValue, Array, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
 
 use self::derive::{ToResponse, ToResponses};
 use self::link::LinkTuple;
@@ -104,7 +104,7 @@ impl<'r> ResponseTuple<'r> {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
             Some(ResponseTupleInner::Value(_)) => {
-                return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
+                return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG));
             }
         }
         Ok(())
@@ -318,7 +318,7 @@ impl TryToTokens for ResponseTuple<'_> {
                             <#ref_type as #oapi::oapi::ToSchema>::to_schema(components)
                         }
                         .to_token_stream(),
-                        PathType::MediaType(ref path_type) => {
+                        PathType::MediaType(path_type) => {
                             let type_tree = path_type.as_type_tree()?;
 
                             ComponentSchema::new(crate::component::ComponentSchemaProps {
@@ -505,7 +505,9 @@ impl Parse for DeriveToResponseValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {attr_name}, expected any of: inline, description, content_type, headers, example"),
+                        format!(
+                            "unexpected attribute: {attr_name}, expected any of: inline, description, content_type, headers, example"
+                        ),
                     ));
                 }
             }
@@ -601,7 +603,9 @@ impl Parse for DeriveToResponsesValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {attr_name}, expected any of: description, content_type, headers, example, examples"),
+                        format!(
+                            "unexpected attribute: {attr_name}, expected any of: description, content_type, headers, example, examples"
+                        ),
                     ));
                 }
             }

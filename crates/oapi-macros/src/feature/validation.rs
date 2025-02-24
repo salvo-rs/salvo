@@ -2,11 +2,11 @@ use std::fmt::Display;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use syn::parse::ParseStream;
 use syn::LitStr;
+use syn::parse::ParseStream;
 
-use super::{impl_get_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
-use crate::{parse_utils, DiagLevel, DiagResult, Diagnostic};
+use super::{Feature, Parse, Validate, Validator, impl_get_name, parse_integer, parse_number};
+use crate::{DiagLevel, DiagResult, Diagnostic, parse_utils};
 
 #[derive(Clone, Debug)]
 pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);

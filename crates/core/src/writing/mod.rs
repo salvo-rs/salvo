@@ -12,8 +12,8 @@ pub use redirect::Redirect;
 pub use seek::ReadSeeker;
 pub use text::Text;
 
-use crate::http::header::{HeaderValue, CONTENT_TYPE};
-use crate::{async_trait, Depot, Request, Response};
+use crate::http::header::{CONTENT_TYPE, HeaderValue};
+use crate::{Depot, Request, Response, async_trait};
 
 /// `Writer` is used to write data to [`Response`].
 ///

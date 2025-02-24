@@ -1,4 +1,4 @@
-use juniper::{graphql_object, FieldError, FieldResult};
+use juniper::{FieldError, FieldResult, graphql_object};
 
 use crate::schema::{DatabaseContext, User};
 

@@ -5,7 +5,7 @@ use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::form::FilePart;
 use salvo_core::http::header::CONTENT_TYPE;
 use salvo_core::http::{HeaderMap, Mime, ParseError};
-use salvo_core::{async_trait, Request};
+use salvo_core::{Request, async_trait};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{

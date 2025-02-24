@@ -69,10 +69,9 @@ mod case;
 pub use case::RenameRule;
 
 use std::fmt::Debug;
-use std::future::Future;
 
-use crate::http::Request;
 use crate::Writer;
+use crate::http::Request;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
 pub trait Extractible<'ex> {

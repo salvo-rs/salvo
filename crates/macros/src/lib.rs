@@ -6,7 +6,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, Item};
+use syn::{DeriveInput, Item, parse_macro_input};
 
 mod attribute;
 mod extract;

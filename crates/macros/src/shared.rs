@@ -1,5 +1,5 @@
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
-use proc_macro_crate::{crate_name, FoundCrate};
 use quote::ToTokens;
 use regex::Regex;
 use syn::{FnArg, Ident, PatType, Receiver, Type, TypePath};

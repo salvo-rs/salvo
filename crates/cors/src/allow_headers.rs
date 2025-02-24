@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use super::{separated_by_commas, Any, WILDCARD};
+use super::{Any, WILDCARD, separated_by_commas};
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
 

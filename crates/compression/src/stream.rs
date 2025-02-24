@@ -1,16 +1,15 @@
 //! Compress the body of a response.
 use std::collections::VecDeque;
-use std::future::Future;
 use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
-use tokio::task::{spawn_blocking, JoinHandle};
+use tokio::task::{JoinHandle, spawn_blocking};
 
-use salvo_core::http::body::{Body, BytesFrame, HyperBody};
 use salvo_core::BoxedError;
+use salvo_core::http::body::{Body, BytesFrame, HyperBody};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
 

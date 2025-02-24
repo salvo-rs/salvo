@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::filters::{self, FnFilter, PathFilter};
 use super::{DetectMatched, Filter, PathState};
@@ -416,9 +416,9 @@ impl Debug for Router {
 #[cfg(test)]
 mod tests {
     use super::{PathState, Router};
+    use crate::Response;
     use crate::handler;
     use crate::test::TestClient;
-    use crate::Response;
 
     #[handler]
     async fn fake_handler(_res: &mut Response) {}

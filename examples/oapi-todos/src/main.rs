@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use salvo::oapi::{extract::*, ToSchema};
+use salvo::oapi::{ToSchema, extract::*};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;

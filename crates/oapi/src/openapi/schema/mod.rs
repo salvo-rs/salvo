@@ -584,7 +584,7 @@ pub enum KnownFormat {
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::*;

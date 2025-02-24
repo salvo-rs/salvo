@@ -1,11 +1,11 @@
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
+use syn::{Error, Token, parenthesized, parse::Parse, token::Paren};
 
 use crate::component::ComponentSchema;
 use crate::feature::attributes::Inline;
-use crate::{parse_utils, AnyValue, Array, DiagResult, Required, TryToTokens};
+use crate::{AnyValue, Array, DiagResult, Required, TryToTokens, parse_utils};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{PropMap, Ref, RefOr};
 
 use super::link::Link;
-use super::{header::Header, Content};
+use super::{Content, header::Header};
 
 /// Implements [OpenAPI Responses Object][responses].
 ///

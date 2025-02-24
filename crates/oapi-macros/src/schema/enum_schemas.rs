@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
@@ -13,8 +13,8 @@ use crate::feature::attributes::{
     Alias, Bound, Example, Name, Rename, RenameAll, SkipBound, Title,
 };
 use crate::feature::{
-    parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IsSkipped,
-    TryToTokensExt,
+    Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
+    pop_feature_as_inner,
 };
 use crate::schema::{Description, Inline, VariantRename};
 use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
@@ -29,7 +29,7 @@ use super::feature::{
     self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures, FromAttributes,
 };
-use super::{is_not_skipped, NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema};
+use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
 
 #[derive(Debug)]
 pub(crate) struct EnumSchema<'a> {

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use salvo_core::async_trait;
-use salvo_core::http::header::{HeaderName, AUTHORIZATION, PROXY_AUTHORIZATION};
+use salvo_core::http::header::{AUTHORIZATION, HeaderName, PROXY_AUTHORIZATION};
 use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;

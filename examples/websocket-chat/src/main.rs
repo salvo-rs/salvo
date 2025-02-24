@@ -4,11 +4,11 @@
 // port from https://github.com/seanmonstar/warp/blob/master/examples/websocket_chat.rs
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures_util::{FutureExt, StreamExt};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use salvo::prelude::*;

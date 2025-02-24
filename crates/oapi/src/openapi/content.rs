@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
-use super::example::Example;
 use super::PropMap;
-use super::{encoding::Encoding, RefOr, Schema};
+use super::example::Example;
+use super::{RefOr, Schema, encoding::Encoding};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
@@ -112,7 +112,7 @@ impl From<RefOr<Schema>> for Content {
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde_json::{json, Map};
+    use serde_json::{Map, json};
 
     use super::*;
 
