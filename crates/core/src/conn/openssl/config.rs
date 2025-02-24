@@ -172,8 +172,7 @@ impl OpensslConfig {
                 .windows(proto.len())
                 .position(|window| window == proto)
                 .expect("selected alpn proto should be present in client protos");
-            println!("ALPN selected: {:?}", pos);
-            Ok(&list[pos..proto.len()])
+            Ok(&list[pos..pos + proto.len()])
         });
         if let Some(modifier) = &mut self.builder_modifier {
             modifier(&mut builder);
