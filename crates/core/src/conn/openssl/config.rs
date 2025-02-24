@@ -1,11 +1,11 @@
 //! openssl module
-use std::fmt::{self, Debug,  Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::fs::File;
 use std::future::{Ready, ready};
 use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
 
-use futures_util::stream::{once, Once, Stream};
+use futures_util::stream::{Once, Stream, once};
 use openssl::pkey::PKey;
 use openssl::ssl::{SslAcceptor, SslMethod};
 use openssl::x509::X509;
@@ -166,7 +166,13 @@ impl OpensslConfig {
         builder.set_alpn_protos(&self.alpn_protocols)?;
         // set uo ALPN selection routine - as select_next_proto
         builder.set_alpn_select_callback(move |_, list| {
-            openssl::ssl::select_next_proto(&alpn_protocols, list).ok_or(openssl::ssl::AlpnError::NOACK)
+            let proto = openssl::ssl::select_next_proto(&alpn_protocols, list)
+                .ok_or(openssl::ssl::AlpnError::NOACK)?;
+            let pos = list
+                .windows(proto.len())
+                .position(|window| window == proto)
+                .expect("selected alpn proto should be present in client protos");
+            Ok(&list[pos..pos + proto.len()])
         });
         if let Some(modifier) = &mut self.builder_modifier {
             modifier(&mut builder);
