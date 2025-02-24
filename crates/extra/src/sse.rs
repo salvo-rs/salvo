@@ -51,7 +51,6 @@ use serde::Serialize;
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter, Write};
-use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;

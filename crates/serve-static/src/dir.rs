@@ -402,13 +402,7 @@ impl Handler for StaticDir {
                         .unwrap_or_default();
                     let accept_algos = http::parse_accept_encoding(header)
                         .into_iter()
-                        .filter_map(|(algo, _level)| {
-                            if let Ok(algo) = algo.parse::<CompressionAlgo>() {
-                                Some(algo)
-                            } else {
-                                None
-                            }
-                        })
+                        .filter_map(|(algo, _level)| algo.parse::<CompressionAlgo>().ok())
                         .collect::<HashSet<_>>();
                     for (algo, exts) in &self.compressed_variations {
                         if accept_algos.contains(algo) {

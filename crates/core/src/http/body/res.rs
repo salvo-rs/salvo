@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::fmt::{self, Debug};
-use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll, ready};

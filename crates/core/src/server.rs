@@ -1,5 +1,4 @@
 //! Server module
-use std::future::Future;
 use std::io::Result as IoResult;
 #[cfg(feature = "server-handle")]
 use std::sync::atomic::{AtomicUsize, Ordering};

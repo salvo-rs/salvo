@@ -69,7 +69,6 @@ mod case;
 pub use case::RenameRule;
 
 use std::fmt::Debug;
-use std::future::Future;
 
 use crate::Writer;
 use crate::http::Request;

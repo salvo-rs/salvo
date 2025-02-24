@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};

@@ -22,7 +22,6 @@ pub use response::Response;
 
 pub use http::version::Version;
 
-use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 

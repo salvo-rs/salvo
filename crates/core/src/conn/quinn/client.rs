@@ -1,7 +1,6 @@
 //! Client implementation of the HTTP/3 protocol
 
 use std::{
-    convert::TryFrom,
     marker::PhantomData,
     sync::{atomic::AtomicUsize, Arc},
     task::{Context, Poll, Waker},
