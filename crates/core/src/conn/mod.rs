@@ -4,7 +4,6 @@
 //! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol.
 //! Additionally, it includes implementations for Unix domain sockets.
 use std::fmt::{self, Display, Formatter};
-use std::future::Future;
 use std::io::Result as IoResult;
 
 use http::uri::Scheme;

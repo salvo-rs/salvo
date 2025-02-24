@@ -1,6 +1,5 @@
 //! Oidc(OpenID Connect) supports.
 
-use std::future::Future;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;

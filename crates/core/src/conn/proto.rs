@@ -1,6 +1,5 @@
 use std::cmp;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;

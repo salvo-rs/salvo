@@ -11,7 +11,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::error::Error as StdError;
-use std::future::Future;
 
 mod finder;
 

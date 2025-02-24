@@ -137,7 +137,7 @@ _**Example request body definitions.**_
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
 * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
-   define response attributes. _`response`_ attribute cannot co-exist with other than _`status_code`_ attribute.
+  define response attributes. _`response`_ attribute cannot co-exist with other than _`status_code`_ attribute.
 
 * `content((...), (...))` Can be used to define multiple return types for single response status code. Supported format for single
   _content_ is `(content_type = response_body, example = "...", examples(...))`. _`example`_
@@ -324,7 +324,7 @@ tuples separated by commas:
   E.g. _`Path, Query, Header, Cookie`_
 
 * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
-   with explicit `bool` value as _`deprecated = bool`_.
+  with explicit `bool` value as _`deprecated = bool`_.
 
 * `description = "..."` Define possible description for the parameter as str.
 

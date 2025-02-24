@@ -6,7 +6,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::fmt::{self, Debug, Display, Formatter};
-use std::future::Future;
 use std::ops::Deref;
 
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};

@@ -18,7 +18,6 @@
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::hash::Hash;
 
 use bytes::Bytes;

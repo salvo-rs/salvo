@@ -1,7 +1,6 @@
 use jsonwebtoken::errors::Error as JwtError;
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
 use serde::Deserialize;
-use std::future::Future;
 
 use salvo_core::Depot;
 

@@ -36,7 +36,6 @@
 
 use std::convert::Infallible;
 use std::error::Error as StdError;
-use std::future::Future;
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{CONTROLS, utf8_percent_encode};

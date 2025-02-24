@@ -17,7 +17,6 @@
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;

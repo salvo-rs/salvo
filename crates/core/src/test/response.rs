@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::future::Future;
 use std::io::{self, Result as IoResult, Write};
 
 use bytes::{Bytes, BytesMut};

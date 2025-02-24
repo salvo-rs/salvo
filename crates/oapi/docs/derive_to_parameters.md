@@ -30,11 +30,11 @@ The following attributes are available for use in on the container attribute `#[
 deriving `ToParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
-   __Only__ supported on __unnamed structs__.
+  __Only__ supported on __unnamed structs__.
 * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
-   values are based on _`parameter_in`_ attribute.
+  values are based on _`parameter_in`_ attribute.
 * `default_parameter_in = ...` =  Defines default where the parameters of this field are used with a value from
-   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
+  [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
@@ -62,7 +62,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 
 * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
+  [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 
 * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter within _`object`_ or _`array`_.
 
@@ -74,8 +74,8 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-   Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
-   _`Object`_ will be rendered as generic OpenAPI object.
+  Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+  _`Object`_ will be rendered as generic OpenAPI object.
 
 * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
   the schema definition will be inlined.
@@ -93,7 +93,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 * `nullable` Defines property is nullable (note this is different to non-required).
 
 * `required = ...` Can be used to enforce required status for the parameter. [See
-   rules][derive@ToParameters#field-nullability-and-required-rules]
+  rules][derive@ToParameters#field-nullability-and-required-rules]
 
 * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 

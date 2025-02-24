@@ -24,7 +24,6 @@
 //! ```
 use std::error::Error as StdError;
 use std::fmt;
-use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
 use std::marker::PhantomData;
 use std::sync::Arc;

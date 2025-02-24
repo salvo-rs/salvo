@@ -27,8 +27,6 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-use std::future::Future;
-
 use base64::engine::{general_purpose, Engine};
 use salvo_core::http::header::{HeaderName, AUTHORIZATION, PROXY_AUTHORIZATION};
 use salvo_core::http::{Request, Response, StatusCode};
