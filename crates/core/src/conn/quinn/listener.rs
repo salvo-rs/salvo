@@ -125,9 +125,9 @@ where
                 .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
             let endpoint = Endpoint::server(config, self.socket)?;
             if self.endpoint.is_some() {
-                tracing::info!("quinn config changed.");
+                println!(); tracing::info!("\n⮡ quinn config changed.");
             } else {
-                tracing::info!("quinn config loaded.");
+                println!(); tracing::info!("\n⮡ quinn config loaded.");
             }
             self.endpoint = Some(endpoint);
         }

@@ -10,7 +10,7 @@ async fn main() {
         HyperClient::default(),
     ));
     println!("{:?}", router);
-    tracing::info!("Run `cargo run --bin example-websocket-chat` to start websocket chat server");
+    println!(); tracing::info!("\n⮡ Run `cargo run --bin example-websocket-chat` to start websocket chat server");
     let acceptor = TcpListener::new("0.0.0.0:8888").bind().await;
     Server::new(acceptor).serve(router).await;
 }

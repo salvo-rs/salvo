@@ -64,7 +64,7 @@ impl Handler for Metrics {
         let elapsed = s.elapsed();
 
         let status = res.status_code.unwrap_or_else(|| {
-            tracing::info!("[otel::Metrics] Treat status_code=none as 200(OK).");
+            println!(); tracing::info!("\n⮡ [otel::Metrics] Treat status_code=none as 200(OK).");
             StatusCode::OK
         });
         labels.push(KeyValue::new(
