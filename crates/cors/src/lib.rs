@@ -19,7 +19,7 @@
 //! }
 //!
 //! ```
-//! If you want to allow any router:
+//! If you want to allow any origin:
 //! ```
 //! use salvo_core::prelude::*;
 //! use salvo_cors::{self as cors, Cors};

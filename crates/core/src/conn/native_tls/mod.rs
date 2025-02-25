@@ -1,4 +1,4 @@
-//! `NativeTlsListener` and utils.
+//! `NativeTlsListener` and utilities.
 pub mod listener;
 pub use listener::NativeTlsListener;
 

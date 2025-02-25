@@ -43,7 +43,7 @@ impl AllowOrigin {
     ///
     /// # Panics
     ///
-    /// If the iterator contains a wildcard (`*`).
+    /// Panics if the iterator contains a wildcard (`*`).
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
     pub fn list<I>(origins: I) -> Self

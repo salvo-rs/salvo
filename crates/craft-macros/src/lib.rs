@@ -6,7 +6,7 @@ mod utils;
 use proc_macro::TokenStream;
 use syn::{Item, parse_macro_input};
 
-/// `#[craft]` is an attribute macro used to batch convert methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo).
+/// `#[craft]` is an attribute macro that converts methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo) implementations.
 ///
 /// ## Example
 /// ```
@@ -44,9 +44,9 @@ use syn::{Item, parse_macro_input};
 ///     }
 /// }
 /// ```
-/// Sure, you can also replace `#[craft(handler)]` with `#[craft(endpoint(...))]`.
+/// Note: `#[craft(handler)]` can be replaced with `#[craft(endpoint(...))]` for more configuration options.
 ///
-/// NOTE: If the receiver of a method is `&self`, you need to implement the `Clone` trait for the type.
+/// When using `&self` as the method receiver, the containing type must implement the `Clone` trait.
 #[proc_macro_attribute]
 pub fn craft(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);

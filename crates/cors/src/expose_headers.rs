@@ -45,7 +45,7 @@ impl ExposeHeaders {
         }
     }
 
-    /// Allow custom allow headers based on a given predicate
+    /// Allow custom headers based on a given predicate
     ///
     /// See [`Cors::allow_headers`] for more details.
     ///

@@ -1,4 +1,4 @@
-//! memory store module.
+//! Memory store module.
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::hash::Hash;
@@ -33,7 +33,7 @@ where
 
     /// Sets the time to idle of the cache.
     ///
-    /// A cached entry will be expired after the specified duration past from `get`
+    /// A cached entry will expire after the specified duration has passed since `get`
     /// or `insert`.
     ///
     /// # Panics
@@ -48,7 +48,7 @@ where
 
     /// Sets the time to live of the cache.
     ///
-    /// A cached entry will be expired after the specified duration past from
+    /// A cached entry will expire after the specified duration has passed since
     /// `insert`.
     ///
     /// # Panics
@@ -65,10 +65,10 @@ where
     ///
     /// # Panics
     ///
-    /// It is very important to make the listener closure not to panic. Otherwise,
-    /// the cache will stop calling the listener after a panic. This is an intended
-    /// behavior because the cache cannot know whether is memory safe or not to
-    /// call the panicked lister again.
+    /// It is very important to ensure the listener closure does not panic. Otherwise,
+    /// the cache will stop calling the listener after a panic. This is intended
+    /// behavior because the cache cannot know whether it is memory safe to
+    /// call the panicked listener again.
     pub fn eviction_listener(
         mut self,
         listener: impl Fn(Arc<K>, CachedEntry, RemovalCause) + Send + Sync + 'static,
@@ -105,7 +105,7 @@ where
         }
     }
 
-    /// Returns a [`Builder`], which can builds a `MokaStore`
+    /// Returns a [`Builder`], which can build a `MokaStore`.
     pub fn builder() -> Builder<K> {
         Builder {
             inner: MokaCache::builder(),

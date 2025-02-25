@@ -12,7 +12,7 @@ use crate::{Depot, Handler};
 /// Each handler can use `FlowCtrl` to control execute flow, let the flow call next handler or skip all rest handlers.
 ///
 /// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`] is returns false,
-/// all rest handlers will skipped.
+/// all remaining handlers will be skipped.
 ///
 /// [`Router`]: crate::routing::Router
 #[derive(Default)]

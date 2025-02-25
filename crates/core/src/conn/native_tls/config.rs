@@ -45,7 +45,7 @@ impl NativeTlsConfig {
         }
     }
 
-    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
+    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be opened
     #[inline]
     pub fn pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12_path = Some(path.as_ref().into());

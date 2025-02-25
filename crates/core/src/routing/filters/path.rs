@@ -234,7 +234,7 @@ impl WispBuilder for CharsWispBuilder {
     }
 }
 
-/// Chars wisp match chars in url segement.
+/// Chars wisp matches characters in URL segment.
 pub struct CharsWisp {
     name: String,
     checker: Arc<dyn Fn(char) -> bool + Send + Sync + 'static>,

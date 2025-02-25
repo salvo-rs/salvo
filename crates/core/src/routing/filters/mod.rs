@@ -88,7 +88,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
-/// `FnFilter` accepts a function as it's param, use this function to filter request.
+/// `FnFilter` accepts a function as its parameter, using this function to filter requests.
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
 pub struct FnFilter<F>(pub F);
