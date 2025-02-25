@@ -161,7 +161,7 @@ pub enum JwtAuthError {
     #[error("ClientError")]
     ClientError(#[from] hyper_util::client::legacy::Error),
 
-    /// Error happened in hyper.
+    /// Error occurred in hyper.
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("HyperError")]
@@ -179,8 +179,8 @@ pub enum JwtAuthError {
     /// Decoding of JWKS error
     #[error("Decoding of JWKS error")]
     DecodeError(#[from] base64::DecodeError),
-    /// JWT was missing kid, alg, or decoding components
-    #[error("JWT was missing kid, alg, or decoding components")]
+    /// JWT is missing kid, alg, or decoding components
+    #[error("JWT is missing kid, alg, or decoding components")]
     InvalidJwk,
     /// Issuer URL invalid
     #[error("Issuer URL invalid")]
@@ -293,7 +293,7 @@ where
         &mut self.decoder
     }
 
-    /// Get extractor list mutable reference.
+    /// Gets a mutable reference to the extractor list.
     #[inline]
     pub fn finders_mut(&mut self) -> &mut Vec<Box<dyn JwtTokenFinder>> {
         &mut self.finders

@@ -41,7 +41,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 ## `#[craft]`
 
-`#[craft]` is an attribute macro used to batch convert methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo).
+`#[craft]` is an attribute macro that converts methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo) implementations.
 
 ```rust
 use salvo::oapi::extract::*;
@@ -91,9 +91,9 @@ impl Service {
 }
 ```
 
-Sure, you can also replace `#[craft(handler)]` with `#[craft(endpoint(...))]`.
+Note: `#[craft(handler)]` can be replaced with `#[craft(endpoint(...))]` for more configuration options.
 
-NOTE: If the receiver of a method is `&self`, you need to implement the `Clone` trait for the type.
+NOTE: When using `&self` as the method receiver, the containing type must implement the `Clone` trait.
 
 ## Documentation & Resources
 

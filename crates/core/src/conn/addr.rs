@@ -55,12 +55,12 @@ impl From<Arc<tokio::net::unix::SocketAddr>> for SocketAddr {
     }
 }
 impl SocketAddr {
-    /// Returns is a ipv4 socket address.
+    /// Returns if it is an IPv4 socket address.
     #[inline]
     pub fn is_ipv4(&self) -> bool {
         matches!(*self, SocketAddr::IPv4(_))
     }
-    /// Returns is a ipv6 socket address.
+    /// Returns if it is an IPv6 socket address.
     #[inline]
     pub fn is_ipv6(&self) -> bool {
         matches!(*self, SocketAddr::IPv6(_))
@@ -78,14 +78,14 @@ impl SocketAddr {
 
     cfg_feature! {
         #![unix]
-        /// Returns is a unix socket address.
+        /// Returns if it is a Unix socket address.
         #[inline]
         pub fn is_unix(&self) -> bool {
             matches!(*self, SocketAddr::Unix(_))
         }
     }
 
-    /// Returns ipv6 socket address.
+    /// Returns IPv6 socket address.
     #[inline]
     pub fn as_ipv6(&self) -> Option<&std::net::SocketAddrV6> {
         match self {
@@ -93,7 +93,7 @@ impl SocketAddr {
             _ => None,
         }
     }
-    /// Returns ipv4 socket address.
+    /// Returns IPv4 socket address.
     #[inline]
     pub fn as_ipv4(&self) -> Option<&std::net::SocketAddrV4> {
         match self {
@@ -104,7 +104,7 @@ impl SocketAddr {
 
     cfg_feature! {
         #![unix]
-        /// Returns unix socket address.
+        /// Returns Unix socket address.
         #[inline]
         pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
             match self {

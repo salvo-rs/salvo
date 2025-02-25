@@ -174,7 +174,7 @@ pub trait Handler: Send + Sync + 'static {
 
     /// Hoop this handler with middleware.
     ///
-    /// This middleware only effective when the filter return true.
+    /// This middleware is only effective when the filter returns true..
     #[inline]
     fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
     where
@@ -306,7 +306,7 @@ impl HoopedHandler {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     ///
-    /// This middleware only effective when the filter return true.
+    /// This middleware is only effective when the filter returns true..
     #[inline]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where

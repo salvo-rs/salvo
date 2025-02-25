@@ -18,7 +18,7 @@
 //! | `rustls` | TLS built on [`rustls`](https://crates.io/crates/rustls) | ❌ |
 //! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
 //! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
-//! | `unix` | Listener based on unix socket | ❌ |
+//! | `unix` | Listener based on Unix socket | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -76,7 +76,7 @@ pub use self::http::{Request, Response};
 pub use self::routing::{FlowCtrl, Router};
 pub use self::service::Service;
 pub use self::writing::{Scribe, Writer};
-/// Result type which has `salvo::Error` as it's error type.
+/// Result type which has `salvo::Error` as its error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A list of things that automatically imports into application use salvo_core.

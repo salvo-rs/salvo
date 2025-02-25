@@ -1,4 +1,4 @@
-//! JoinListener and it's implements.
+//! JoinListener and its implementations.
 use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
-/// A I/O stream for JoinedListener.
+/// An I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
     #[allow(missing_docs)]
     A(A),

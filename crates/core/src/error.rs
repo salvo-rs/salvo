@@ -13,7 +13,7 @@ pub type BoxedError = Box<dyn StdError + Send + Sync>;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    /// Error happened in hyper.
+    /// Error occurred in hyper.
     Hyper(hyper::Error),
     /// Error happened when parse http.
     HttpParse(ParseError),

@@ -83,7 +83,7 @@ impl Depot {
     /// Obtain a reference to a value previous inject to the depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         self.get(&type_key::<T>())
@@ -92,7 +92,7 @@ impl Depot {
     /// Obtain a mutable reference to a value previous inject to the depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
     #[inline]
     pub fn obtain_mut<T: Any + Send + Sync>(
         &mut self,
@@ -127,7 +127,7 @@ impl Depot {
     /// Immutably borrows value from depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
     #[inline]
     pub fn get<V: Any + Send + Sync>(
         &self,
@@ -143,7 +143,7 @@ impl Depot {
     /// Mutably borrows value from depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
     pub fn get_mut<V: Any + Send + Sync>(
         &mut self,
         key: &str,

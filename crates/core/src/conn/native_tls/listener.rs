@@ -144,19 +144,19 @@ where
             match tls_acceptor {
                 Ok(tls_acceptor) => {
                     if self.tls_acceptor.is_some() {
-                        tracing::info!("tls config changed.");
+                        tracing::info!("TLS config changed.");
                     } else {
-                        tracing::info!("tls config loaded.");
+                        tracing::info!("TLS config loaded.");
                     }
                     self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(tls_acceptor));
                 }
-                Err(e) => tracing::error!(error = ?e, "native_tls: invalid tls config"),
+                Err(e) => tracing::error!(error = ?e, "native_tls: invalid TLS config"),
             }
         }
 
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "native_tls: invalid tls config")),
+            None => return Err(IoError::new(ErrorKind::Other, "native_tls: invalid TLS config")),
         };
         let Accepted {
             conn,

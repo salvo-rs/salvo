@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use salvo_core::Depot;
 
-/// JwtAuthDecoder is used to decode token to claims.
+/// JwtAuthDecoder is used to decode a token into claims.
 pub trait JwtAuthDecoder {
     /// Error type.
     type Error: std::error::Error + Send + Sync + 'static;

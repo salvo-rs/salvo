@@ -43,7 +43,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架。�
 - 統一的中間件和句柄接口;
 - 支持 HTTP1, HTTP2 和 **HTTP3**;
 - 路由可以無限嵌套，並且可以在任何路由中附加多個中間件;
-- 集成 Multipart 錶單處理;
+- 集成 Multipart 表單處理;
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/)獲取 TLS 證書。
@@ -55,7 +55,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架。�
 
 ### 支持 ACME 自動獲取證書和 HTTP3 的 Hello World
 
-**隻需要幾行代碼就可以實現一個同時支持 ACME 自動獲取證書以及支持 HTTP1，HTTP2，HTTP3 協議的伺服器。**
+**只需要幾行代碼就可以實現一個同時支持 ACME 自動獲取證書以及支持 HTTP1，HTTP2，HTTP3 協議的伺服器。**
 
 ```rust
 use salvo::prelude::*;
@@ -79,7 +79,7 @@ async fn main() {
 
 ### 中間件
 
-Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處。**所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識。隻要你會寫函數就會寫中間件，就是這麼簡單!!!**
+Salvo 中的中間件其實就是 Handler, 沒有其他任何特別之處。**所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識。只要你會寫函數就會寫中間件，就是這麼簡單!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -98,7 +98,7 @@ async fn add_header(res: &mut Response) {
 Router::new().hoop(add_header).get(hello)
 ```
 
-這就是一個簡單的中間件，它嚮 `Response` 的頭部添加了 `Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs)。
+這就是一個簡單的中間件，它向 `Response` 的頭部添加了 `Header`, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs)。
 
 ### 可鏈式書寫的樹狀路由係統
 
@@ -144,11 +144,11 @@ Router::new()
     );
 ```
 
-`{id}`匹配了路徑中的一個片段，正常情況下文章的的 `id`隻是一個數字，這是我們可以使用正則錶達式限製製 `id`的匹配規則，`r"{id|\d+}"`。
+`{id}`匹配了路徑中的一個片段，正常情況下文章的 `id`隻是一個數字，這是我們可以使用正則表達式限制 `id`的匹配規則，`r"{id|\d+}"`。
 
 還可以通過 `{**}`, `{*+}` 或者 `{*?}`匹配所有剩餘的路徑片段。為了代碼易讀性性強些，也可以添加適合的名字，讓路徑語義更清晰，比如：: `{**file_path}`。
 
-有些用於匹配路徑的正則錶達式需要經常被使用，可以將它事先註冊，比如 GUID:
+有些用於匹配路徑的正則表達式需要經常被使用，可以將它事先註冊，比如 GUID:
 
 ```rust
 PathFilter::register_wisp_regex(

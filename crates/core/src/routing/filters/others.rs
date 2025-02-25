@@ -29,7 +29,7 @@ impl Debug for MethodFilter {
     }
 }
 
-/// Filter by request uri scheme.
+///  Filter by request URI scheme.
 #[derive(Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct SchemeFilter {

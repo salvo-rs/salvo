@@ -59,7 +59,7 @@ pub struct Catcher {
     hoops: Vec<Arc<dyn Handler>>,
 }
 impl Default for Catcher {
-    /// Create new `Catcher` with it's goal handler is [`DefaultGoal`].
+    /// Create new `Catcher` with its goal handler is [`DefaultGoal`].
     fn default() -> Self {
         Catcher {
             goal: Arc::new(DefaultGoal::new()),
@@ -96,7 +96,7 @@ impl Catcher {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     ///
-    /// This middleware only effective when the filter return true.
+    /// This middleware is only effective when the filter returns true..
     #[inline]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where

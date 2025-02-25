@@ -6,7 +6,7 @@ use salvo_core::{Depot, Request};
 
 /// Skipper for `Method`. You can use it to skip some methods.
 ///
-/// If request method is in the skip list, the request will be skipped.
+/// If the request method is in the skip list, the request will be skipped.
 #[derive(Default, Clone, Debug)]
 pub struct MethodSkipper {
     skipped_methods: HashSet<Method>,
@@ -18,43 +18,43 @@ impl MethodSkipper {
             skipped_methods: HashSet::new(),
         }
     }
-    /// Add [`Method::GET`] method to skipped methods.
+    /// Add the [`Method::GET`] method to skipped methods.
     pub fn skip_get(self, value: bool) -> Self {
         self.skip_method(Method::GET, value)
     }
-    /// Add [`Method::POST`] method to skipped methods.
+    /// Add the [`Method::POST`] method to skipped methods.
     pub fn skip_post(self, value: bool) -> Self {
         self.skip_method(Method::POST, value)
     }
-    /// Add [`Method::PUT`] method to skipped methods.
+    /// Add the [`Method::PUT`] method to skipped methods.
     pub fn skip_put(self, value: bool) -> Self {
         self.skip_method(Method::PUT, value)
     }
-    /// Add [`Method::DELETE`] method to skipped methods.
+    /// Add the [`Method::DELETE`] method to skipped methods.
     pub fn skip_delete(self, value: bool) -> Self {
         self.skip_method(Method::DELETE, value)
     }
-    /// Add [`Method::HEAD`] method to skipped methods.
+    /// Add the [`Method::HEAD`] method to skipped methods.
     pub fn skip_head(self, value: bool) -> Self {
         self.skip_method(Method::HEAD, value)
     }
-    /// Add [`Method::PATCH`] method to skipped methods.
+    /// Add the [`Method::PATCH`] method to skipped methods.
     pub fn skip_patch(self, value: bool) -> Self {
         self.skip_method(Method::PATCH, value)
     }
-    /// Add [`Method::OPTIONS`] method to skipped methods.
+    /// Add the [`Method::OPTIONS`] method to skipped methods.
     pub fn skip_options(self, value: bool) -> Self {
         self.skip_method(Method::OPTIONS, value)
     }
-    /// Add [`Method::CONNECT`] method to skipped methods.
+    /// Add the [`Method::CONNECT`] method to skipped methods.
     pub fn skip_connect(self, value: bool) -> Self {
         self.skip_method(Method::CONNECT, value)
     }
-    /// Add [`Method::TRACE`] method to skipped methods.
+    /// Add the [`Method::TRACE`] method to skipped methods.
     pub fn skip_trace(self, value: bool) -> Self {
         self.skip_method(Method::TRACE, value)
     }
-    /// Add [`Method`] method to skipped methods.
+    /// Add a [`Method`] to skipped methods.
     pub fn skip_method(mut self, method: Method, value: bool) -> Self {
         if value {
             self.skipped_methods.insert(method);

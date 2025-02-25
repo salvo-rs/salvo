@@ -22,7 +22,7 @@ impl PathParams {
     pub fn new() -> Self {
         PathParams::default()
     }
-    /// If there is a wildcard param, it's value is `true`.
+    /// If there is a wildcard param, its value is `true`.
     pub fn greedy(&self) -> bool {
         self.greedy
     }

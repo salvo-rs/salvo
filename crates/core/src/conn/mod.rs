@@ -1,6 +1,6 @@
 //! Various listener implementations for handling HTTP connections.
 //!
-//! These listeners include implementations for different TLS libraries such as  `rustls` ,  `native-tls` , and  `openssl`.
+//! These listeners include implementations for different TLS libraries such as `rustls`, `native-tls`, and `openssl`.
 //! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol.
 //! Additionally, it includes implementations for Unix domain sockets.
 use std::fmt::{self, Display, Formatter};
@@ -69,18 +69,18 @@ cfg_feature! {
 }
 
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
-/// A type that can convert into tls config stream.
+/// A type that can convert into TLS config stream.
 pub trait IntoConfigStream<C> {
     /// TLS config stream.
     type Stream: futures_util::Stream<Item = C> + Send + 'static;
 
-    /// Consume itself and return tls config stream.
+    /// Consume itself and return TLS config stream.
     fn into_stream(self) -> Self::Stream;
 }
 
 /// [`Acceptor`]'s return type.
 ///
-/// The  `Accepted`  struct represents an accepted connection and contains information such as the connection itself,
+/// The `Accepted` struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
 #[non_exhaustive]
 pub struct Accepted<C>
@@ -93,7 +93,7 @@ where
     pub local_addr: SocketAddr,
     /// Remote addr.
     pub remote_addr: SocketAddr,
-    /// Http scheme.
+    /// HTTP scheme.
     pub http_scheme: Scheme,
 }
 
@@ -143,9 +143,9 @@ pub trait Acceptor {
 pub struct Holding {
     /// Local address.
     pub local_addr: SocketAddr,
-    /// Http versions.
+    /// HTTP versions.
     pub http_versions: Vec<Version>,
-    /// Http scheme.
+    /// HTTP scheme.
     pub http_scheme: Scheme,
 }
 impl Display for Holding {
