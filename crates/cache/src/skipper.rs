@@ -5,7 +5,7 @@ use salvo_core::http::Method;
 use salvo_core::{Depot, Request};
 
 /// Skipper for `Method`. You can use it to skip some methods.
-/// 
+///
 /// If the request method is in the skip list, the request will be skipped.
 #[derive(Default, Clone, Debug)]
 pub struct MethodSkipper {
