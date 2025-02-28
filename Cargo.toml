@@ -134,7 +134,7 @@ ulid = { version = "1", default-features = false }
 url = "2"
 uuid = "1"
 x509-parser = "0.17"
-compact_str = { version = "0.8", features = ["serde"] }
+compact_str = { version = "0.9", features = ["serde"] }
 
 # Compress
 brotli = { version = "7", default-features = false }
