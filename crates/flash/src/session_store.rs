@@ -7,7 +7,7 @@ use super::{Flash, FlashHandler, FlashStore};
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SessionStore {
-    /// The cookie name for the flash messages.
+    /// The session key for the flash messages.
     pub name: String,
 }
 impl Default for SessionStore {
@@ -24,13 +24,13 @@ impl SessionStore {
         }
     }
 
-    /// Sets cookie name.
+    /// Sets session key name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
-    /// Into `FlashHandler`.
+    /// Converts into `FlashHandler`.
     pub fn into_handler(self) -> FlashHandler<SessionStore> {
         FlashHandler::new(self)
     }
@@ -43,13 +43,13 @@ impl FlashStore for SessionStore {
     async fn save_flash(&self, _req: &mut Request, depot: &mut Depot, _res: &mut Response, flash: Flash) {
         if let Err(e) = depot
             .session_mut()
-            .expect("session must be exist")
+            .expect("session must exist")
             .insert(&self.name, flash)
         {
             tracing::error!(error = ?e, "save flash to session failed");
         }
     }
     async fn clear_flash(&self, depot: &mut Depot, _res: &mut Response) {
-        depot.session_mut().expect("session must be exist").remove(&self.name);
+        depot.session_mut().expect("session must exist").remove(&self.name);
     }
 }

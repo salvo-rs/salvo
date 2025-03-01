@@ -4,12 +4,33 @@ use serde::Deserialize;
 
 use salvo_core::Depot;
 
-/// JwtAuthDecoder is used to decode a token into claims.
+/// Trait for JWT token decoding and validation.
+///
+/// Implementors of this trait are responsible for decoding JWT tokens into claims objects
+/// and performing any necessary validation. The `JwtAuth` middleware uses the configured
+/// decoder to validate tokens extracted from requests.
+///
+/// The crate provides built-in implementations:
+/// - `ConstDecoder`: Uses a static key for token validation
+/// - `OidcDecoder`: Uses OpenID Connect for validation (requires the `oidc` feature)
 pub trait JwtAuthDecoder {
-    /// Error type.
+    /// The error type returned if decoding or validation fails.
     type Error: std::error::Error + Send + Sync + 'static;
 
-    ///Decode token.
+    /// Decodes and validates a JWT token.
+    ///
+    /// # Parameters
+    /// 
+    /// * `token` - The JWT token string to decode
+    /// * `depot` - The current request's depot, which can be used to store/retrieve additional data
+    ///
+    /// # Type Parameters
+    /// 
+    /// * `C` - The claims type to deserialize from the token payload
+    ///
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing either the decoded token data or an error.
     fn decode<C>(
         &self,
         token: &str,
@@ -19,21 +40,42 @@ pub trait JwtAuthDecoder {
         C: for<'de> Deserialize<'de>;
 }
 
-/// ConstDecoder will decode token with a static secret.
+/// A decoder that uses a constant key for JWT token validation.
+///
+/// This is the simplest decoder implementation, suitable for applications using
+/// symmetric key signing (HMAC) or a single asymmetric key pair (RSA, ECDSA).
+///
+/// # Example
+///
+/// ```
+/// use salvo::jwt_auth::ConstDecoder;
+/// use jsonwebtoken::Algorithm;
+/// 
+/// // Using HMAC (symmetric)
+/// let decoder = ConstDecoder::from_secret(b"my-secret-key");
+/// 
+/// // Using RSA (asymmetric)
+/// let decoder = ConstDecoder::from_rsa_pem(include_bytes!("public_key.pem"))
+///     .expect("Invalid RSA key");
+/// ```
 pub struct ConstDecoder {
+    /// Key used for validating JWT signatures
     decoding_key: DecodingKey,
+    
+    /// JWT validation parameters
     validation: Validation,
 }
 
 impl ConstDecoder {
-    /// Create a new `ConstDecoder`.
+    /// Creates a new decoder with the given decoding key and default validation.
     pub fn new(decoding_key: DecodingKey) -> Self {
         Self {
             decoding_key,
             validation: Validation::default(),
         }
     }
-    /// Create a new `ConstDecoder` with validation.
+    
+    /// Creates a new decoder with the given decoding key and custom validation parameters.
     pub fn with_validation(decoding_key: DecodingKey, validation: Validation) -> Self {
         Self {
             decoding_key,
@@ -41,19 +83,22 @@ impl ConstDecoder {
         }
     }
 
-    /// If you're using HMAC, use this.
+    /// Creates a decoder from a raw secret byte array for HMAC verification.
+    ///
+    /// This is the most common method for symmetric key validation.
     pub fn from_secret(secret: &[u8]) -> Self {
         Self::with_validation(DecodingKey::from_secret(secret), Validation::default())
     }
 
-    /// If you're using HMAC with a base64 encoded secret, use this.
+    /// Creates a decoder from a base64-encoded secret string for HMAC verification.
     pub fn from_base64_secret(secret: &str) -> Result<Self, JwtError> {
         DecodingKey::from_base64_secret(secret)
             .map(|key| Self::with_validation(key, Validation::default()))
     }
 
-    /// If you are loading a public RSA key in a PEM format, use this.
-    /// Only exists if the feature `use_pem` is enabled.
+    /// Creates a decoder from an RSA public key in PEM format.
+    ///
+    /// Only available when the `use_pem` feature is enabled.
     pub fn from_rsa_pem(key: &[u8]) -> Result<Self, JwtError> {
         DecodingKey::from_rsa_pem(key)
             .map(|key| Self::with_validation(key, Validation::new(Algorithm::RS256)))

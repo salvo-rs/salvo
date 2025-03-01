@@ -6,22 +6,47 @@ use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
 
-/// `JwtTokenFinder` is to provide a way to find a JWT (JSON Web Token) from a request.
+/// Trait for extracting JWT tokens from HTTP requests.
+///
+/// Implementors of this trait provide different strategies for locating JWT tokens
+/// in various parts of an HTTP request (headers, query string, cookies, etc.).
+/// The `JwtAuth` middleware tries each configured finder in sequence until one
+/// returns a token.
 #[async_trait]
 pub trait JwtTokenFinder: Send + Sync {
-    /// Get token from request.
+    /// Attempts to extract a JWT token from the request.
     ///
-    /// The token is returned as an `Option<String>`, where Some contains the token if found, and `None` if not found.
+    /// Returns `Some(String)` containing the token if found, or `None` if no token
+    /// could be extracted using this finder's strategy.
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
 
-/// `HeaderFinder` is to find a JWT from a request header.
+/// Extracts JWT tokens from HTTP request headers.
+///
+/// By default, this finder looks for Bearer tokens in the `Authorization` 
+/// and `Proxy-Authorization` headers for all HTTP methods.
+///
+/// # Example
+///
+/// ```
+/// use salvo::jwt_auth::HeaderFinder;
+/// use salvo::http::Method;
+/// 
+/// // Default configuration
+/// let finder = HeaderFinder::new();
+/// 
+/// // Custom configuration for specific methods
+/// let get_only = HeaderFinder::new()
+///     .cared_methods(vec![Method::GET]);
+/// ```
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct HeaderFinder {
-    /// Cared methods list.
+    /// List of HTTP methods for which this finder should extract tokens.
+    /// If the request's method is not in this list, the finder will not attempt extraction.
     pub cared_methods: Vec<Method>,
-    /// Header names.
+    
+    /// List of headers names to check for Bearer tokens.
     pub header_names: Vec<HeaderName>,
 }
 impl HeaderFinder {
@@ -76,13 +101,30 @@ impl JwtTokenFinder for HeaderFinder {
     }
 }
 
-/// `FormFinder` is to find a JWT from a request form.
+/// Extracts JWT tokens from request form data.
+///
+/// This finder looks for a token in the request's form data using a specified field name.
+///
+/// # Example
+///
+/// ```
+/// use salvo::jwt_auth::FormFinder;
+/// use salvo::http::Method;
+///
+/// // Create finder that looks for a form field named "access_token"
+/// let finder = FormFinder::new("access_token");
+///
+/// // Limit to POST requests only
+/// let post_only = FormFinder::new("access_token")
+///     .cared_methods(vec![Method::POST]);
+/// ```
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct FormFinder {
-    /// Cared methods list.
+    /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    /// Form field name.
+    
+    /// Name of the form field containing the token.
     pub field_name: Cow<'static, str>,
 }
 impl FormFinder {
@@ -118,13 +160,30 @@ impl JwtTokenFinder for FormFinder {
     }
 }
 
-/// `QueryFinder` is to find a JWT from a request query string.
+/// Extracts JWT tokens from URL query parameters.
+///
+/// This finder looks for a token in the request's query string using a specified parameter name.
+///
+/// # Example
+///
+/// ```
+/// use salvo::jwt_auth::QueryFinder;
+/// use salvo::http::Method;
+///
+/// // Create finder that looks for query parameter "token"
+/// let finder = QueryFinder::new("token");
+///
+/// // Limit to GET requests only
+/// let get_only = QueryFinder::new("token")
+///     .cared_methods(vec![Method::GET]);
+/// ```
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct QueryFinder {
-    /// Cared methods list.
+    /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    /// Query name.
+    
+    /// Name of the query parameter containing the token.
     pub query_name: Cow<'static, str>,
 }
 impl QueryFinder {
@@ -161,13 +220,30 @@ impl JwtTokenFinder for QueryFinder {
     }
 }
 
-/// CookieFinder
+/// Extracts JWT tokens from cookies.
+///
+/// This finder looks for a token in the request's cookies using a specified cookie name.
+///
+/// # Example
+///
+/// ```
+/// use salvo::jwt_auth::CookieFinder;
+/// use salvo::http::Method;
+///
+/// // Create finder that looks for cookie named "jwt"
+/// let finder = CookieFinder::new("jwt");
+///
+/// // Limit to specific methods
+/// let restricted = CookieFinder::new("jwt")
+///     .cared_methods(vec![Method::GET, Method::POST]);
+/// ```
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct CookieFinder {
-    /// Cared methods list.
+    /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    /// Cookie name.
+    
+    /// Name of the cookie containing the token.
     pub cookie_name: Cow<'static, str>,
 }
 impl CookieFinder {
