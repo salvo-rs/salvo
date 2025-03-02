@@ -288,27 +288,6 @@ impl JwtAuthDepotExt for Depot {
 ///
 /// * `C` - The claims type that will be deserialized from the JWT payload.
 /// * `D` - The decoder implementation used to validate and decode the JWT token.
-///
-/// # Example
-///
-/// ```
-/// use salvo::prelude::*;
-/// use salvo::jwt_auth::{JwtAuth, ConstDecoder, HeaderFinder};
-/// use serde::{Deserialize, Serialize};
-///
-/// #[derive(Debug, Serialize, Deserialize)]
-/// struct Claims {
-///     sub: String,
-///     exp: u64,
-/// }
-///
-/// let auth_middleware = JwtAuth::new(ConstDecoder::from_secret(b"secret"))
-///     .finders(vec![Box::new(HeaderFinder::new())]);
-///
-/// let router = Router::new()
-///     .hoop(auth_middleware)
-///     .get(protected_handler);
-/// ```
 #[non_exhaustive]
 pub struct JwtAuth<C, D> {
     /// When set to `true`, the middleware will allow the request to proceed even if
