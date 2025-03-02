@@ -75,13 +75,13 @@ pub(crate) fn encode_url_path(path: &str) -> String {
 }
 
 /// Client trait for implementing different HTTP clients for proxying.
-/// 
+///
 /// Implement this trait to create custom proxy clients with different
 /// backends or configurations.
 pub trait Client: Send + Sync + 'static {
     /// Error type returned by the client.
     type Error: StdError + Send + Sync + 'static;
-    
+
     /// Execute a request through the proxy client.
     fn execute(
         &self,
@@ -91,14 +91,14 @@ pub trait Client: Send + Sync + 'static {
 }
 
 /// Upstreams trait for selecting target servers.
-/// 
+///
 /// Implement this trait to customize how target servers are selected
 /// for proxying requests. This can be used to implement load balancing,
 /// failover, or other server selection strategies.
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type returned when selecting a server fails.
     type Error: StdError + Send + Sync + 'static;
-    
+
     /// Elect a server to handle the current request.
     fn elect(&self) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }

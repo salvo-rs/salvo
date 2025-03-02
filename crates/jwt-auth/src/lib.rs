@@ -1,7 +1,7 @@
 //! Provides JWT (JSON Web Token) authentication support for the Salvo web framework.
 //!
-//! This crate helps you implement JWT-based authentication in your Salvo web applications. 
-//! It offers flexible token extraction from various sources (headers, query parameters, cookies, etc.) 
+//! This crate helps you implement JWT-based authentication in your Salvo web applications.
+//! It offers flexible token extraction from various sources (headers, query parameters, cookies, etc.)
 //! and multiple decoding strategies.
 //!
 //! # Features
@@ -219,10 +219,10 @@ pub enum JwtAuthError {
 pub enum JwtAuthState {
     /// Authentication was successful and the token was valid.
     Authorized,
-    /// No token was provided in the request. 
+    /// No token was provided in the request.
     /// Usually results in a 401 Unauthorized response unless `force_passed` is true.
     Unauthorized,
-    /// A token was provided but it failed validation. 
+    /// A token was provided but it failed validation.
     /// Usually results in a 403 Forbidden response unless `force_passed` is true.
     Forbidden,
 }
@@ -234,19 +234,19 @@ pub enum JwtAuthState {
 pub trait JwtAuthDepotExt {
     /// Gets the JWT token string from the depot.
     fn jwt_auth_token(&self) -> Option<&str>;
-    
+
     /// Gets the decoded JWT claims data from the depot.
     ///
     /// The generic parameter `C` should be the same type used when configuring the `JwtAuth` middleware.
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Send + Sync + 'static;
-    
+
     /// Gets the current JWT authentication state from the depot.
     ///
     /// Returns `JwtAuthState::Unauthorized` if no state is present in the depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
-    
+
     /// Gets the JWT error if authentication failed.
     fn jwt_auth_error(&self) -> Option<&JwtError>;
 }
@@ -285,7 +285,7 @@ impl JwtAuthDepotExt for Depot {
 /// token finders and decoder. If valid, it stores the decoded data in the depot for later use.
 ///
 /// # Type Parameters
-/// 
+///
 /// * `C` - The claims type that will be deserialized from the JWT payload.
 /// * `D` - The decoder implementation used to validate and decode the JWT token.
 ///

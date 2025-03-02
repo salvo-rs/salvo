@@ -23,7 +23,7 @@ pub trait JwtTokenFinder: Send + Sync {
 
 /// Extracts JWT tokens from HTTP request headers.
 ///
-/// By default, this finder looks for Bearer tokens in the `Authorization` 
+/// By default, this finder looks for Bearer tokens in the `Authorization`
 /// and `Proxy-Authorization` headers for all HTTP methods.
 ///
 /// # Example
@@ -31,10 +31,10 @@ pub trait JwtTokenFinder: Send + Sync {
 /// ```
 /// use salvo::jwt_auth::HeaderFinder;
 /// use salvo::http::Method;
-/// 
+///
 /// // Default configuration
 /// let finder = HeaderFinder::new();
-/// 
+///
 /// // Custom configuration for specific methods
 /// let get_only = HeaderFinder::new()
 ///     .cared_methods(vec![Method::GET]);
@@ -45,7 +45,7 @@ pub struct HeaderFinder {
     /// List of HTTP methods for which this finder should extract tokens.
     /// If the request's method is not in this list, the finder will not attempt extraction.
     pub cared_methods: Vec<Method>,
-    
+
     /// List of headers names to check for Bearer tokens.
     pub header_names: Vec<HeaderName>,
 }
@@ -123,7 +123,7 @@ impl JwtTokenFinder for HeaderFinder {
 pub struct FormFinder {
     /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    
+
     /// Name of the form field containing the token.
     pub field_name: Cow<'static, str>,
 }
@@ -182,7 +182,7 @@ impl JwtTokenFinder for FormFinder {
 pub struct QueryFinder {
     /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    
+
     /// Name of the query parameter containing the token.
     pub query_name: Cow<'static, str>,
 }
@@ -242,7 +242,7 @@ impl JwtTokenFinder for QueryFinder {
 pub struct CookieFinder {
     /// List of HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
-    
+
     /// Name of the cookie containing the token.
     pub cookie_name: Cow<'static, str>,
 }

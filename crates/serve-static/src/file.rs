@@ -5,18 +5,18 @@ use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, Writer, async_trait};
 
 /// `StaticFile` is a handler that serves a single static file.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_serve_static::StaticFile;
-/// 
+///
 /// #[handler]
 /// async fn hello() -> &'static str {
 ///    "Hello World"
 /// }
-/// 
+///
 /// let router = Router::new()
 ///    .get(hello)
 ///    .push(Router::with_path("favicon.ico").get(StaticFile::new("assets/favicon.ico")));

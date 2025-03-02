@@ -20,16 +20,16 @@ pub trait JwtAuthDecoder {
     /// Decodes and validates a JWT token.
     ///
     /// # Parameters
-    /// 
+    ///
     /// * `token` - The JWT token string to decode
     /// * `depot` - The current request's depot, which can be used to store/retrieve additional data
     ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `C` - The claims type to deserialize from the token payload
     ///
     /// # Returns
-    /// 
+    ///
     /// Returns a `Result` containing either the decoded token data or an error.
     fn decode<C>(
         &self,
@@ -50,10 +50,10 @@ pub trait JwtAuthDecoder {
 /// ```
 /// use salvo::jwt_auth::ConstDecoder;
 /// use jsonwebtoken::Algorithm;
-/// 
+///
 /// // Using HMAC (symmetric)
 /// let decoder = ConstDecoder::from_secret(b"my-secret-key");
-/// 
+///
 /// // Using RSA (asymmetric)
 /// let decoder = ConstDecoder::from_rsa_pem(include_bytes!("public_key.pem"))
 ///     .expect("Invalid RSA key");
@@ -61,7 +61,7 @@ pub trait JwtAuthDecoder {
 pub struct ConstDecoder {
     /// Key used for validating JWT signatures
     decoding_key: DecodingKey,
-    
+
     /// JWT validation parameters
     validation: Validation,
 }
@@ -74,7 +74,7 @@ impl ConstDecoder {
             validation: Validation::default(),
         }
     }
-    
+
     /// Creates a new decoder with the given decoding key and custom validation parameters.
     pub fn with_validation(decoding_key: DecodingKey, validation: Validation) -> Self {
         Self {
