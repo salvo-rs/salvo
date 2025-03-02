@@ -13,21 +13,6 @@ use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_
 ///
 /// This handler allows serving files embedded in the application binary,
 /// which is useful for distributing a self-contained executable.
-///
-/// # Examples
-///
-/// ```
-/// use salvo_core::prelude::*;
-/// use salvo_serve_static::static_embed;
-/// use rust_embed::RustEmbed;
-///
-/// #[derive(RustEmbed)]
-/// #[folder = "assets/"]
-/// struct Assets;
-///
-/// let router = Router::new()
-///     .push(Router::with_path("assets/<**>").get(static_embed::<Assets>()));
-/// ```
 #[non_exhaustive]
 #[derive(Default)]
 pub struct StaticEmbed<T> {

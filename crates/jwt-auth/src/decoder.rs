@@ -44,20 +44,6 @@ pub trait JwtAuthDecoder {
 ///
 /// This is the simplest decoder implementation, suitable for applications using
 /// symmetric key signing (HMAC) or a single asymmetric key pair (RSA, ECDSA).
-///
-/// # Example
-///
-/// ```
-/// use salvo::jwt_auth::ConstDecoder;
-/// use jsonwebtoken::Algorithm;
-///
-/// // Using HMAC (symmetric)
-/// let decoder = ConstDecoder::from_secret(b"my-secret-key");
-///
-/// // Using RSA (asymmetric)
-/// let decoder = ConstDecoder::from_rsa_pem(include_bytes!("public_key.pem"))
-///     .expect("Invalid RSA key");
-/// ```
 pub struct ConstDecoder {
     /// Key used for validating JWT signatures
     decoding_key: DecodingKey,

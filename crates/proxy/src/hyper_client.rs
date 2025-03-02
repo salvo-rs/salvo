@@ -125,6 +125,7 @@ mod tests {
             .take_string()
             .await
             .unwrap();
+        println!("{}", content);
         assert!(content.contains("Install Rust"));
     }
 

@@ -379,7 +379,7 @@ where
                     tracing::info!(error = ?e, "jwt auth error");
                     depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     depot.insert(JWT_AUTH_ERROR_KEY, e);
-                    if (!self.force_passed) {
+                    if !self.force_passed {
                         res.render(StatusError::forbidden());
                         ctrl.skip_rest();
                     }
@@ -387,7 +387,7 @@ where
             }
         } else {
             depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Unauthorized);
-            if (!self.force_passed) {
+            if !self.force_passed {
                 res.render(StatusError::unauthorized());
                 ctrl.skip_rest();
             }
