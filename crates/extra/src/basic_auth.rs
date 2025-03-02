@@ -1,4 +1,7 @@
-//! Middleware for basic authentication.
+//! Middleware for HTTP Basic Authentication.
+//!
+//! This middleware implements the standard HTTP Basic Authentication scheme as described in RFC 7617.
+//! It extracts credentials from the Authorization header and validates them against your custom validator.
 //!
 //! # Example
 //!
@@ -35,14 +38,18 @@ use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};
 /// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 
-/// BasicAuthValidator
+/// Validator for Basic Authentication credentials.
 pub trait BasicAuthValidator: Send + Sync {
-    /// Validate is that username and password is right.
+    /// Validates whether the provided username and password are correct.
+    /// 
+    /// Implement this method to check credentials against your authentication system.
+    /// Return `true` if authentication succeeds, `false` otherwise.
     fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> impl Future<Output = bool> + Send;
 }
-/// BasicAuthDepotExt
+
+/// Extension trait for retrieving the authenticated username from a Depot.
 pub trait BasicAuthDepotExt {
-    /// Get basic auth username reference.
+    /// Returns the authenticated username if authentication was successful.
     fn basic_auth_username(&self) -> Option<&str>;
 }
 

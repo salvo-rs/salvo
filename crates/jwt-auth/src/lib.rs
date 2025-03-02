@@ -1,6 +1,17 @@
-//! Provide JWT authentication support for Salvo web framework.
+//! Provides JWT (JSON Web Token) authentication support for the Salvo web framework.
 //!
-//! Example:
+//! This crate helps you implement JWT-based authentication in your Salvo web applications.
+//! It offers flexible token extraction from various sources (headers, query parameters, cookies, etc.)
+//! and multiple decoding strategies.
+//!
+//! # Features
+//!
+//! - Extract JWT tokens from multiple sources (headers, query parameters, cookies, forms)
+//! - Configurable token validation
+//! - OpenID Connect support (behind the `oidc` feature flag)
+//! - Seamless integration with Salvo's middleware system
+//!
+//! # Example:
 //!
 //! ```no_run
 //! use jsonwebtoken::{self, EncodingKey};
@@ -10,7 +21,7 @@
 //! use serde::{Deserialize, Serialize};
 //! use time::{Duration, OffsetDateTime};
 //!
-//! const SECRET_KEY: &str = "YOUR SECRET_KEY";
+//! const SECRET_KEY: &str = "YOUR_SECRET_KEY"; // In production, use a secure key management solution
 //!
 //! #[derive(Debug, Serialize, Deserialize)]
 //! pub struct JwtClaims {
@@ -60,7 +71,7 @@
 //!             JwtAuthState::Authorized => {
 //!                 let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
 //!                 res.render(Text::Plain(format!(
-//!                     "Hi {}, have logged in successfully!",
+//!                     "Hi {}, you have logged in successfully!",
 //!                     data.claims.username
 //!                 )));
 //!             }
@@ -76,6 +87,7 @@
 //! }
 //!
 //! fn validate(username: &str, password: &str) -> bool {
+//!     // In a real application, use secure password verification
 //!     username == "root" && password == "pwd"
 //! }
 //!
@@ -199,27 +211,43 @@ pub enum JwtAuthError {
     MissingKid,
 }
 
-/// JwtAuthState
+/// Possible states of JWT authentication.
+///
+/// The middleware sets this state in the depot after processing a request.
+/// You can access it via `depot.jwt_auth_state()`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum JwtAuthState {
-    /// Authorized. Used if decoding jwt token successfully.
+    /// Authentication was successful and the token was valid.
     Authorized,
-    /// Unauthorized. Used if no jwt token is provided.
+    /// No token was provided in the request.
+    /// Usually results in a 401 Unauthorized response unless `force_passed` is true.
     Unauthorized,
-    /// Forbidden. Used if decoding jwt token failed.
+    /// A token was provided but it failed validation.
+    /// Usually results in a 403 Forbidden response unless `force_passed` is true.
     Forbidden,
 }
-/// JwtAuthDepotExt
+
+/// Extension trait for accessing JWT authentication data from the depot.
+///
+/// This trait provides convenient methods to retrieve JWT authentication information
+/// that was previously stored in the depot by the `JwtAuth` middleware.
 pub trait JwtAuthDepotExt {
-    /// get jwt auth token reference from depot.
+    /// Gets the JWT token string from the depot.
     fn jwt_auth_token(&self) -> Option<&str>;
-    /// get jwt auth decoded data from depot.
+
+    /// Gets the decoded JWT claims data from the depot.
+    ///
+    /// The generic parameter `C` should be the same type used when configuring the `JwtAuth` middleware.
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Send + Sync + 'static;
-    /// get jwt auth state from depot.
+
+    /// Gets the current JWT authentication state from the depot.
+    ///
+    /// Returns `JwtAuthState::Unauthorized` if no state is present in the depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
-    /// get jwt auth error from depot.
+
+    /// Gets the JWT error if authentication failed.
     fn jwt_auth_error(&self) -> Option<&JwtError>;
 }
 
@@ -251,17 +279,28 @@ impl JwtAuthDepotExt for Depot {
     }
 }
 
-/// JwtAuth, used as middleware.
+/// JWT Authentication middleware for Salvo.
+///
+/// `JwtAuth` extracts and validates JWT tokens from incoming requests based on the configured
+/// token finders and decoder. If valid, it stores the decoded data in the depot for later use.
+///
+/// # Type Parameters
+///
+/// * `C` - The claims type that will be deserialized from the JWT payload.
+/// * `D` - The decoder implementation used to validate and decode the JWT token.
 #[non_exhaustive]
 pub struct JwtAuth<C, D> {
-    /// Only write auth state to depot when set to `true`.
+    /// When set to `true`, the middleware will allow the request to proceed even if
+    /// authentication fails, storing only the authentication state in the depot.
     ///
-    /// **Note**: If you set to `true`, you must handle auth state in next middlewares or handler.
+    /// When set to `false` (default), requests with invalid or missing tokens will be
+    /// immediately rejected with appropriate status codes.
     pub force_passed: bool,
     _claims: PhantomData<C>,
-    /// The decoder.
+    /// The decoder used to validate and decode the JWT token.
     pub decoder: D,
-    /// The finders list.
+    /// A list of token finders that will be used to extract the token from the request.
+    /// Finders are tried in order until one returns a token.
     pub finders: Vec<Box<dyn JwtTokenFinder>>,
 }
 

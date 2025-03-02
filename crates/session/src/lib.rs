@@ -1,67 +1,62 @@
 /*!
-# Salvo session support
+# Salvo Session Support
 
-Salvo session middleware is built on top of
+Salvo's session middleware is built on top of
 [`async-session`](https://github.com/http-rs/async-session).
 
-An example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
+See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
 
-Sessions allows salvo to securely attach data to a browser session
-allowing for retrieval and modification of this data within salvo
-on subsequent visits. Session data is generally only retained for the
-duration of a browser session.
+Sessions allow Salvo applications to securely attach data to browser sessions,
+enabling retrieval and modification of this data on subsequent visits.
+Session data is typically retained only for the duration of a browser session.
 
 ## Stores
 
-It is highly recommended that salvo applications use an
-external-datastore-backed session storage. For a list of currently
-available session stores, see [the documentation for
-async-session](https://github.com/http-rs/async-session).
+It is highly recommended to use an external-datastore-backed session storage
+for production Salvo applications. For a list of currently available session
+stores, see [the documentation for async-session](https://github.com/http-rs/async-session).
 
 ## Security
 
-Although each session store may have different security implications,
-the general approach of salvo's session system is as follows: On
-each request, salvo checks the cookie configurable as `cookie_name`
-on the handler.
+While each session store may have different security implications,
+Salvo's session system works as follows:
 
-### If no cookie is found:
+On each request, Salvo checks for the cookie specified by `cookie_name`
+in the handler configuration.
 
-A cryptographically random cookie value is generated. A cookie is set
-on the outbound response and signed with an HKDF key derived from the
-`secret` provided on creation of the SessionHandler.  The configurable
-session store uses a SHA256 digest of the cookie value and stores the
-session along with a potential expiry.
+### When no cookie is found:
 
-### If a cookie is found:
+1. A cryptographically random cookie value is generated
+2. A cookie is set on the outbound response and signed with an HKDF key
+   derived from the `secret` provided when creating the SessionHandler
+3. The session store uses a SHA256 digest of the cookie value to store
+   the session along with an optional expiry time
 
-The hkdf derived signing key is used to verify the cookie value's
-signature. If it verifies, it is then passed to the session store to
-retrieve a Session. For most session stores, this will involve taking
-a SHA256 digest of the cookie value and retrieving a serialized
-Session from an external datastore based on that digest.
+### When a cookie is found:
 
-### Expiry
+1. The HKDF-derived signing key verifies the cookie value's signature
+2. If verification succeeds, the value is passed to the session store to
+   retrieve the associated Session
+3. For most session stores, this involves taking a SHA256 digest of the
+   cookie value and retrieving a serialized Session from an external datastore
 
-In addition to setting an expiry on the session cookie, salvo
-sessions include the same expiry in their serialization format. If an
-adversary were able to tamper with the expiry of a cookie, salvo
-sessions would still check the expiry on the contained session before
-using it
+### Expiry Handling
 
-### If anything goes wrong with the above process
+Sessions include expiry information in both the cookie and the serialization format.
+Even if an adversary tampers with a cookie's expiry, Salvo validates
+the expiry on the contained session before using it.
 
-If there are any failures in the above session retrieval process, a
-new empty session is generated for the request, which proceeds through
-the application as normal.
+### Error Handling
 
-## Stale/expired session cleanup
+If any failures occur during session retrieval, a new empty session
+is generated for the request, which proceeds through the application normally.
 
-Any session store other than the cookie store will accumulate stale
-sessions. Although the salvo session handler ensures that they
-will not be used as valid sessions, For most session stores, it is the
-salvo application's responsibility to call cleanup on the session
-store if it requires it.
+## Stale/Expired Session Cleanup
+
+Any session store (except the cookie store) will accumulate stale sessions over time.
+Although Salvo ensures expired sessions won't be used, it remains the
+application's responsibility to periodically call cleanup on the session
+store if required.
 
 Read more: <https://salvo.rs>
 */

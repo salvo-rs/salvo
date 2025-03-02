@@ -1,8 +1,8 @@
-//! Middleware for etag and last-modified-since headers.
+//! Middleware for handling ETag and Last-Modified headers.
 //!
 //! This crate provides three handlers: [`ETag`], [`Modified`], and [`CachingHeaders`].
-//! Unless you are sure that you _don't_ want either etag or last-modified
-//! behavior, please use the combined [`CachingHeaders`] handler.
+//! Unless you are sure that you _don't_ want either ETag or Last-Modified
+//! behavior, use the combined [`CachingHeaders`] handler for better cache control.
 
 use etag::EntityTag;
 use salvo_core::http::header::{ETAG, IF_NONE_MATCH};
@@ -157,6 +157,10 @@ impl Handler for Modified {
 }
 
 /// A combined handler that provides both [`ETag`] and [`Modified`] behavior.
+/// 
+/// This handler helps improve performance by preventing unnecessary data transfers
+/// when a client already has the latest version of a resource, as determined by
+/// either ETag or Last-Modified comparisons.
 #[derive(Clone, Debug, Copy, Default)]
 pub struct CachingHeaders(Modified, ETag);
 

@@ -5,7 +5,8 @@ authors = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 description = """
-TBD: Proxy support for salvo web server framework.
+HTTP proxy support for the Salvo web server framework. Provides flexible proxy middleware
+for forwarding requests to upstream servers.
 """
 homepage = { workspace = true }
 repository = { workspace = true }

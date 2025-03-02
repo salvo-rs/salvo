@@ -10,6 +10,9 @@ use tokio::io::copy_bidirectional;
 use crate::{Client, HyperRequest, Proxy, BoxedError, Upstreams, HyperResponse};
 
 /// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
+/// 
+/// This client provides proxy capabilities using the Hyper HTTP client library.
+/// It's lightweight and tightly integrated with the Tokio runtime.
 #[derive(Clone, Debug)]
 pub struct HyperClient {
     inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>,
@@ -34,7 +37,9 @@ where
     U: Upstreams,
     U::Error: Into<BoxedError>,
 {
-    /// Create new `Proxy` which use default hyper util client.
+    /// Create a new `Proxy` using the default Hyper client.
+    /// 
+    /// This is a convenient way to create a proxy with standard configuration.
     pub fn use_hyper_client(upstreams: U) -> Self {
         Proxy::new(upstreams, HyperClient::default())
     }
@@ -120,6 +125,7 @@ mod tests {
             .take_string()
             .await
             .unwrap();
+        println!("{}", content);
         assert!(content.contains("Install Rust"));
     }
 

@@ -37,7 +37,20 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 # salvo-proxy
 
-## Proxy middleware for Salvo.
+## Proxy middleware for Salvo
+
+This crate provides proxy capabilities for the Salvo web framework, allowing you to forward requests to upstream servers. It's useful for creating API gateways, load balancers, and reverse proxies.
+
+### Features
+
+- Support for HTTP and HTTPS proxying
+- Multiple upstream server selection strategies
+- WebSocket connection support
+- Header manipulation
+- Path and query rewriting
+- Multiple HTTP client backends (Hyper, Reqwest)
+
+### Usage
 
 This is an official crate, so you can enable it in `Cargo.toml` like this:
 
