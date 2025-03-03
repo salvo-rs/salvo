@@ -2,31 +2,8 @@
 //!
 //! [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 //!
-//! # Example
-//!
-//! ```
-//! use salvo_core::http::Method;
-//! use salvo_core::prelude::*;
-//! use salvo_cors::Cors;
-//!
-//! let cors_handler = Cors::new()
-//!     .allow_origin("https://salvo.rs")
-//!     .allow_methods(vec![Method::GET, Method::POST, Method::DELETE]).into_handler();
-//!
-//! let router = Router::new().hoop(cors_handler).post(upload_file).options(upload_file);
-//! #[handler]
-//! async fn upload_file(res: &mut Response) {
-//! }
-//!
-//! ```
-//! If you want to allow any origin:
-//! ```
-//! use salvo_core::prelude::*;
-//! use salvo_cors::{self as cors, Cors};
-//! let cors_handler = Cors::new().allow_origin(cors::Any).into_handler();
-//! ```
-//!
-//! Read more: <https://salvo.rs>
+//! # Docs
+//! Find the docs here: <https://salvo.rs/book/features/cors.html>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
