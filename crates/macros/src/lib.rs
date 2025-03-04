@@ -64,7 +64,6 @@ mod tests {
                 #[derive(Debug)]
                 struct hello;
                 impl hello {
-                    #[handler]
                     async fn hello(req: &mut Request,depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                         {
                             res.render_plain_text("Hello World");
