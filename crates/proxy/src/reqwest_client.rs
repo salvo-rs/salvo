@@ -9,6 +9,10 @@ use tokio::io::copy_bidirectional;
 use crate::{Client, HyperRequest, BoxedError, Proxy, Upstreams, HyperResponse};
 
 /// A [`Client`] implementation based on [`reqwest::Client`].
+/// 
+/// This client provides proxy capabilities using the Reqwest HTTP client.
+/// It supports all features of Reqwest including automatic redirect handling,
+/// connection pooling, and other HTTP client features.
 #[derive(Default, Clone, Debug)]
 pub struct ReqwestClient {
     inner: InnerClient,
@@ -19,7 +23,9 @@ where
     U: Upstreams,
     U::Error: Into<BoxedError>,
 {
-    /// Create new `Proxy` which use default reqwest util client.
+    /// Create a new `Proxy` using the default Reqwest client.
+    /// 
+    /// This is a convenient way to create a proxy with standard configuration.
     pub fn use_reqwest_client(upstreams: U) -> Self {
         Proxy::new(upstreams, ReqwestClient::default())
     }

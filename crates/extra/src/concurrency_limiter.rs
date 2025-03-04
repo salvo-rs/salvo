@@ -1,8 +1,9 @@
-//! Middleware for limit concurrency.
+//! Middleware for limiting concurrency.
 //! 
-//! Limit the max number of requests being concurrently processed.
+//! This middleware limits the maximum number of requests being processed concurrently,
+//! which helps prevent server overload during traffic spikes.
 //!
-//! Example:
+//! # Example
 //! 
 //! ```no_run
 //! use std::fs::create_dir_all;

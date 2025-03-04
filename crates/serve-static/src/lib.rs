@@ -1,4 +1,9 @@
-//! serve static dir and file middleware for Salvo web framework.
+//! Serve static files and directories for Salvo web framework.
+//!
+//! This crate provides handlers for serving static content:
+//! - `StaticDir` - Serve files from directory with options for directory listing
+//! - `StaticFile` - Serve a single file
+//! - `StaticEmbed` - Serve embedded files using rust-embed (when "embed" feature is enabled)
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

@@ -9,18 +9,21 @@ use salvo_core::handler::{ Handler};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
 
-/// Handler that serves embed file.
+/// Handler that serves embedded files using `rust-embed`.
+///
+/// This handler allows serving files embedded in the application binary,
+/// which is useful for distributing a self-contained executable.
 #[non_exhaustive]
 #[derive(Default)]
 pub struct StaticEmbed<T> {
     _assets: PhantomData<T>,
-    /// Default file names list.
+    /// Default file names list (e.g., "index.html")
     pub defaults: Vec<String>,
-    /// Fallback file name. This is used when the requested file is not found.
+    /// Fallback file name used when the requested file isn't found
     pub fallback: Option<String>,
 }
 
-/// Create a new `StaticEmbed` middleware.
+/// Create a new `StaticEmbed` handler for the given embedded asset type.
 #[inline]
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
@@ -30,7 +33,7 @@ pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     }
 }
 
-/// Render [`EmbeddedFile`] to [`Response`].
+/// Render an [`EmbeddedFile`] to the [`Response`].
 #[inline]
 pub fn render_embedded_file(file: EmbeddedFile, req: &Request, res: &mut Response, mime: Option<Mime>) {
     let EmbeddedFile { data, metadata, .. } = file;

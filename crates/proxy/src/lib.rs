@@ -1,10 +1,14 @@
-//! Provide proxy support for Salvo web framework.
+//! Provide HTTP proxy capabilities for the Salvo web framework.
+//!
+//! This crate allows you to easily forward requests to upstream servers,
+//! supporting both HTTP and HTTPS protocols. It's useful for creating API gateways,
+//! load balancers, and reverse proxies.
 //!
 //! # Example
 //!
-//! In this example, if the requested URL begins with <http://127.0.0.1:5800/>, the proxy goes to
-//! <https://www.rust-lang.org>; if the requested URL begins with <http://localhost:5800/>, the proxy
-//! goes to <https://crates.io>.
+//! In this example, requests to different hosts are proxied to different upstream servers:
+//! - Requests to http://127.0.0.1:5800/ are proxied to https://www.rust-lang.org
+//! - Requests to http://localhost:5800/ are proxied to https://crates.io
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
@@ -70,11 +74,15 @@ pub(crate) fn encode_url_path(path: &str) -> String {
         .join("/")
 }
 
-/// Client trait.
+/// Client trait for implementing different HTTP clients for proxying.
+///
+/// Implement this trait to create custom proxy clients with different
+/// backends or configurations.
 pub trait Client: Send + Sync + 'static {
-    /// Error type.
+    /// Error type returned by the client.
     type Error: StdError + Send + Sync + 'static;
-    /// Elect a upstream to process current request.
+
+    /// Execute a request through the proxy client.
     fn execute(
         &self,
         req: HyperRequest,
@@ -82,11 +90,16 @@ pub trait Client: Send + Sync + 'static {
     ) -> impl Future<Output = Result<HyperResponse, Self::Error>> + Send;
 }
 
-/// Upstreams trait.
+/// Upstreams trait for selecting target servers.
+///
+/// Implement this trait to customize how target servers are selected
+/// for proxying requests. This can be used to implement load balancing,
+/// failover, or other server selection strategies.
 pub trait Upstreams: Send + Sync + 'static {
-    /// Error type.
+    /// Error type returned when selecting a server fails.
     type Error: StdError + Send + Sync + 'static;
-    /// Elect a upstream to process current request.
+
+    /// Elect a server to handle the current request.
     fn elect(&self) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }
 impl Upstreams for &'static str {

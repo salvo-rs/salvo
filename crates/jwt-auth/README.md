@@ -37,9 +37,19 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 # salvo-jwt-auth
 
-## Jwt auth middleware for Salvo.
+JWT (JSON Web Token) authentication middleware for the Salvo web framework.
 
-This is an official crate, so you can enable it in `Cargo.toml` like this:
+## Features
+
+- **Flexible token extraction**: Extract tokens from headers, query parameters, cookies, or form data
+- **Multiple authentication strategies**: Use either static keys or OpenID Connect for token validation
+- **Easy integration**: Works seamlessly within Salvo's middleware system
+- **Type-safe claims**: Decode tokens into your own custom claims structs
+- **Configurable validation**: Customize token validation rules
+
+## Installation
+
+This is an official crate, so you can enable it in `Cargo.toml`:
 
 ```toml
 salvo = { version = "*", features = ["jwt-auth"] }

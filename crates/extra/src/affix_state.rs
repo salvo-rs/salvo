@@ -1,4 +1,8 @@
-//! Middleware for add any data to depot.
+//! Middleware for adding shared application state to the request context.
+//!
+//! This middleware allows you to inject any data into the Depot, making it
+//! available to all subsequent handlers in the request pipeline. This is useful
+//! for sharing configuration, database connections, and other application state.
 //!
 //! # Example
 //!
@@ -76,7 +80,9 @@ where
     }
 }
 
-/// Inject a value into depot.
+/// Inject a typed value into depot using the type's ID as the key.
+/// 
+/// This is useful when you want to access the value by its type rather than by an explicit key.
 /// 
 /// View [module level documentation](index.html) for more details.
 #[inline]
@@ -84,7 +90,9 @@ pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
     insert(format!("{:?}", TypeId::of::<V>()), value)
 }
 
-/// Insert a key-value pair into depot.
+/// Insert a key-value pair into depot with an explicit key.
+/// 
+/// Use this when you need to access the value using a specific key string.
 /// 
 /// View [module level documentation](index.html) for more details.
 #[inline]
