@@ -8,7 +8,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     let salvo = salvo_crate();
     match input {
         Item::Fn(mut item_fn) => {
-            let attrs = &item_fn
+            let attrs = item_fn
                 .attrs
                 .iter()
                 .filter(|attr| !attr.path().is_ident("handler"))

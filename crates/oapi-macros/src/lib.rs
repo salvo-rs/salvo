@@ -181,7 +181,6 @@ mod tests {
                 #[derive(Debug)]
                 struct hello;
                 impl hello {
-                    #[endpoint]
                     async fn hello() {
                         {res.render_plain_text("Hello World");}
                     }
