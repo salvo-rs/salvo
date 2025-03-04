@@ -29,7 +29,8 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [yiirs](https://github.com/shenghui0779/yiirs): Rust API 快速开发脚手架 (Salvo & Axum).
 - [luxy](https://github.com/alley-rs/fluxy): Software for fast file transfer between terminals in the same network segment.
 - [ffxiv-best-craft](https://github.com/Tnze/ffxiv-best-craft): A crafting simulator and solver for FF14 with friendly GUI.
-- [System-Monitor-Server](https://github.com/SimonYen/System-Monitor-Server): A server monitoring program written in Rust. 
+- [System-Monitor-Server](https://github.com/SimonYen/System-Monitor-Server): A server monitoring program written in Rust.
+- [mvt server](https://github.com/mvt-proj/mvt-rs) - A simple and high-speed vector tile server (and more) developed in Rust, using the Salvo web framework.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
