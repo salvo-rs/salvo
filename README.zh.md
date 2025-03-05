@@ -41,7 +41,7 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架。�
 >
 > 中国同步仓库：
 > - Gitee: https://gitee.com/salvo-rs/salvo
-> - Gitecode: https://gitcode.com/salvo-rs/salvo
+> - Gitcode: https://gitcode.com/salvo-rs/salvo
 
 ## 🎯 功能特色
 
