@@ -17,6 +17,7 @@ async fn main() -> Result<(), salvo::Error> {
 
     let mut listenfd = ListenFd::from_env();
     let (addr, listener) = if let Some(listener) = listenfd.take_tcp_listener(0)? {
+        listener.set_nonblocking(true)?;
         (
             listener.local_addr()?,
             tokio::net::TcpListener::from_std(listener).unwrap(),
