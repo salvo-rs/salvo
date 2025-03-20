@@ -325,14 +325,14 @@ impl HyperHandler {
                 use bytes::Bytes;
                 use std::sync::Mutex;
                 if let Some(session) = req.extensions.remove::<Arc<
-                    crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>,
+                    crate::proto::WebTransportSession<salvo_http3::quinn::Connection, Bytes>,
                 >>() {
                     res.extensions.insert(session);
                 }
                 if let Some(conn) = req.extensions.remove::<Arc<
                     Mutex<
                         salvo_http3::server::Connection<
-                            salvo_http3::http3_quinn::Connection,
+                            salvo_http3::quinn::Connection,
                             Bytes,
                         >,
                     >,
@@ -341,7 +341,7 @@ impl HyperHandler {
                 }
                 if let Some(stream) = req.extensions.remove::<Arc<
                     salvo_http3::server::RequestStream<
-                        salvo_http3::http3_quinn::BidiStream<Bytes>,
+                        salvo_http3::quinn::BidiStream<Bytes>,
                         Bytes,
                     >,
                 >>() {

@@ -42,7 +42,7 @@ impl Builder {
         let mut builder = salvo_http3::server::builder();
         builder
             .enable_webtransport(true)
-            .enable_connect(true)
+            .enable_extended_connect(true)
             .enable_datagram(true)
             .max_webtransport_sessions(1)
             .send_grease(true);
@@ -61,7 +61,7 @@ impl Builder {
         let fusewire = conn.fusewire();
         let mut conn = self
             .0
-            .build::<salvo_http3::http3_quinn::Connection, bytes::Bytes>(conn.into_inner())
+            .build::<salvo_http3::quinn::Connection, bytes::Bytes>(conn.into_inner())
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid connection: {}", e)))?;
 
@@ -117,12 +117,12 @@ impl Builder {
 }
 
 async fn process_web_transport(
-    conn: salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>,
+    conn: salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>,
     request: hyper::Request<()>,
-    stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
+    stream: RequestStream<salvo_http3::quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
     _fusewire: Option<ArcFusewire>,
-) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
+) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
     request.extensions_mut().insert(Arc::new(Mutex::new(conn)));
@@ -136,7 +136,7 @@ async fn process_web_transport(
     let stream;
     if let Some(session) = response
         .extensions_mut()
-        .remove::<WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>()
+        .remove::<WebTransportSession<salvo_http3::quinn::Connection, Bytes>>()
     {
         let (server_conn, connect_stream) = session.split();
 
@@ -149,7 +149,7 @@ async fn process_web_transport(
     } else {
         conn = response
             .extensions_mut()
-            .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>>()
+            .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>>>()
             .map(|c| {
                 Arc::into_inner(c).expect("http3 connection must exist").into_inner()
                     .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))
@@ -157,7 +157,7 @@ async fn process_web_transport(
             .transpose()?;
         stream = response
             .extensions_mut()
-            .remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>>()
+            .remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::quinn::BidiStream<Bytes>, Bytes>>>()
             .and_then(Arc::into_inner);
     }
 

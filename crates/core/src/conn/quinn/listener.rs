@@ -11,7 +11,8 @@ use std::vec;
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
-use salvo_http3::http3_quinn::{self, Endpoint};
+use salvo_http3::quinn::{Endpoint};
+use salvo_http3::quinn as http3_quinn;
 
 use super::H3Connection;
 use crate::conn::quinn::ServerConfig;
