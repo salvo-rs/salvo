@@ -1,20 +1,21 @@
 //! `QuinnListener` and utils.
+use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
-use std::future::{ready, Ready};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use salvo_http3::http3_quinn;
+use futures_util::stream::{Once, once};
 pub use quinn::ServerConfig;
+use salvo_http3::quinn as http3_quinn;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
-use futures_util::stream::{once, Once};
 
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::fuse::ArcFusewire;
 use crate::http::HttpConnection;
+
 use crate::service::HyperHandler;
 
 mod builder;
@@ -48,13 +49,21 @@ impl DerefMut for H3Connection {
     }
 }
 impl AsyncRead for H3Connection {
-    fn poll_read(self: Pin<&mut Self>, _cx: &mut Context<'_>, _buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut ReadBuf<'_>,
+    ) -> Poll<IoResult<()>> {
         unimplemented!()
     }
 }
 
 impl AsyncWrite for H3Connection {
-    fn poll_write(self: Pin<&mut Self>, _cx: &mut Context<'_>, _buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
         unimplemented!()
     }
 
@@ -74,7 +83,10 @@ impl HttpConnection for H3Connection {
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
-        builder.quinn.serve_connection(self, handler, graceful_stop_token).await
+        builder
+            .quinn
+            .serve_connection(self, handler, graceful_stop_token)
+            .await
     }
     fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
@@ -88,7 +100,6 @@ impl IntoConfigStream<ServerConfig> for ServerConfig {
         once(ready(self))
     }
 }
-
 
 impl IntoConfigStream<ServerConfig> for quinn::crypto::rustls::QuicServerConfig {
     type Stream = Once<Ready<ServerConfig>>;
