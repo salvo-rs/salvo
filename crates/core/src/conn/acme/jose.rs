@@ -1,15 +1,15 @@
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 
 use super::client::HyperClient;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Incoming as HyperBody, Method};
-use ring::digest::{digest, Digest, SHA256};
-use serde::{de::DeserializeOwned, Serialize};
+use hyper::{Method, body::Incoming as HyperBody};
+use ring::digest::{Digest, SHA256, digest};
+use serde::{Serialize, de::DeserializeOwned};
 
-use crate::conn::acme::key_pair::KeyPair;
 use crate::Error;
+use crate::conn::acme::key_pair::KeyPair;
 
 #[derive(Serialize)]
 struct Protected<'a> {
@@ -23,7 +23,12 @@ struct Protected<'a> {
 }
 
 impl<'a> Protected<'a> {
-    fn base64(jwk: Option<Jwk>, kid: Option<&'a str>, nonce: &'a str, url: &'a str) -> IoResult<String> {
+    fn base64(
+        jwk: Option<Jwk>,
+        kid: Option<&'a str>,
+        nonce: &'a str,
+        url: &'a str,
+    ) -> IoResult<String> {
         let protected = Self {
             alg: "ES256",
             jwk,
@@ -32,7 +37,7 @@ impl<'a> Protected<'a> {
             url,
         };
         let protected = serde_json::to_vec(&protected)
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to encode jwt: {}", e)))?;
         Ok(URL_SAFE_NO_PAD.encode(protected))
     }
 }
@@ -78,7 +83,7 @@ impl Jwk {
             y: &self.y,
         };
         let json = serde_json::to_vec(&jwk_thumb)
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to encode jwt: {}", e)))?;
         Ok(URL_SAFE_NO_PAD.encode(sha256(json)))
     }
 }
@@ -110,7 +115,7 @@ pub(crate) async fn request(
     let protected = Protected::base64(jwk, kid, nonce, uri)?;
     let payload = match payload {
         Some(payload) => serde_json::to_vec(&payload)
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode payload: {}", e)))?,
+            .map_err(|e| IoError::other(format!("failed to encode payload: {}", e)))?,
         None => Vec::new(),
     };
     let payload = URL_SAFE_NO_PAD.encode(payload);
@@ -121,24 +126,24 @@ pub(crate) async fn request(
         payload,
         signature,
     })
-    .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+    .map_err(IoError::other)?;
 
     let req = hyper::Request::builder()
         .header("content-type", "application/jose+json")
         .method(Method::POST)
         .uri(uri)
         .body(Full::from(body))
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build http request: {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to build http request: {}", e)))?;
 
     let res = client
         .request(req)
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send http request: {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to send http request: {}", e)))?;
     if !res.status().is_success() {
-        return Err(IoError::new(
-            ErrorKind::Other,
-            format!("unexpected status code: status = {}", res.status()),
-        ));
+        return Err(IoError::other(format!(
+            "unexpected status code: status = {}",
+            res.status()
+        )));
     }
     Ok(res)
 }
@@ -157,7 +162,8 @@ where
     let res = request(cli, key_pair, kid, nonce, url, payload).await?;
 
     let data = res.into_body().collect().await?.to_bytes();
-    serde_json::from_slice(&data).map_err(|e| Error::other(format!("response is not a valid json: {}", e)))
+    serde_json::from_slice(&data)
+        .map_err(|e| Error::other(format!("response is not a valid json: {}", e)))
 }
 
 #[inline]

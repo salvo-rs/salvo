@@ -1,5 +1,5 @@
 //! HTTP3 suppports.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -63,7 +63,7 @@ impl Builder {
             .0
             .build::<salvo_http3::quinn::Connection, bytes::Bytes>(conn.into_inner())
             .await
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid connection: {}", e)))?;
+            .map_err(|e| IoError::other(format!("invalid connection: {}", e)))?;
 
         loop {
             match conn.accept().await {
@@ -130,7 +130,7 @@ async fn process_web_transport(
 
     let mut response = hyper::service::Service::call(&hyper_handler, request)
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to call hyper service : {}", e)))?;
 
     let conn;
     let stream;
@@ -143,7 +143,7 @@ async fn process_web_transport(
         conn = Some(
             server_conn
                 .into_inner()
-                .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))?,
+                .map_err(|e| IoError::other(format!("failed to get conn : {}", e)))?,
         );
         stream = Some(connect_stream);
     } else {
@@ -152,7 +152,7 @@ async fn process_web_transport(
             .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>>>()
             .map(|c| {
                 Arc::into_inner(c).expect("http3 connection must exist").into_inner()
-                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))
+                    .map_err(|e| IoError::other( format!("failed to get conn : {}", e)))
             })
             .transpose()?;
         stream = response
@@ -199,7 +199,7 @@ async fn process_web_transport(
     stream
         .finish()
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to finish stream : {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to finish stream : {}", e)))?;
 
     Ok(Some(conn))
 }
@@ -221,7 +221,7 @@ where
 
     let response = hyper::service::Service::call(&hyper_handler, request)
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to call hyper service : {}", e)))?;
 
     let (parts, mut body) = response.into_parts();
     let empty_res = http::Response::from_parts(parts, ());
@@ -253,5 +253,5 @@ where
     }
     tx.finish()
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to finish stream : {}", e)))
+        .map_err(|e| IoError::other(format!("failed to finish stream : {}", e)))
 }

@@ -364,7 +364,7 @@ impl Object {
 
 impl From<Object> for Schema {
     fn from(s: Object) -> Self {
-        Self::Object(s)
+        Self::Object(Box::new(s))
     }
 }
 
@@ -372,7 +372,7 @@ impl ToArray for Object {}
 
 impl From<Object> for RefOr<Schema> {
     fn from(obj: Object) -> Self {
-        Self::Type(Schema::Object(obj))
+        Self::Type(Schema::Object(Box::new(obj)))
     }
 }
 

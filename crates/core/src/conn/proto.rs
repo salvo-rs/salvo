@@ -101,11 +101,7 @@ impl HttpBuilder {
         match version {
             Version::HTTP_10 | Version::HTTP_11 => {
                 #[cfg(not(feature = "http1"))]
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "http1 feature not enabled",
-                )
-                .into());
+                return Err(std::io::Error::other("http1 feature not enabled").into());
                 #[cfg(feature = "http1")]
                 {
                     let mut conn = self
@@ -166,11 +162,7 @@ impl HttpBuilder {
             }
             Version::HTTP_2 => {
                 #[cfg(not(feature = "http2"))]
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "http2 feature not enabled",
-                )
-                .into());
+                return Err(std::io::Error::other("http2 feature not enabled").into());
                 #[cfg(feature = "http2")]
                 {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);

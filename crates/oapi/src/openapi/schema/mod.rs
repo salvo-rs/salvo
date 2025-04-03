@@ -119,7 +119,7 @@ impl Schemas {
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(
+    Schema::object(
         Object::new()
             .schema_type(SchemaType::AnyValue)
             .default_value(serde_json::Value::Null),
@@ -139,7 +139,7 @@ pub enum Schema {
     Array(Array),
     /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
-    Object(Object),
+    Object(Box<Object>),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -164,15 +164,12 @@ impl Default for Schema {
     }
 }
 
-// impl Schema {
-//     pub fn origin_type_id(&self) -> Option<TypeId> {
-//         if let Self::Object(o) = self {
-//             o.origin_type_id
-//         } else {
-//             None
-//         }
-//     }
-// }
+impl Schema {
+    /// Construct a new [`Schema`] object.
+    pub fn object(obj: Object) -> Self {
+        Self::Object(Box::new(obj))
+    }
+}
 
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
 /// [`OneOf`] composite object.
@@ -235,7 +232,7 @@ impl<T> From<RefOr<T>> for AdditionalProperties<T> {
 
 impl From<Object> for AdditionalProperties<Schema> {
     fn from(value: Object) -> Self {
-        Self::RefOr(RefOr::Type(Schema::Object(value)))
+        Self::RefOr(RefOr::Type(Schema::object(value)))
     }
 }
 
@@ -341,7 +338,7 @@ impl<T> From<T> for RefOr<T> {
 
 impl Default for RefOr<Schema> {
     fn default() -> Self {
-        Self::Type(Schema::Object(Object::new()))
+        Self::Type(Schema::object(Object::new()))
     }
 }
 
@@ -899,10 +896,10 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_array_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::Type(Schema::Object(Object::new().property(
+        let ref_or_schema = RefOr::Type(Schema::object(Object::new().property(
             "test",
             RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(
-                Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+                Schema::object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
             )))),
         )));
 
@@ -914,18 +911,18 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_one_of_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::Type(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::object(
             Object::new().property(
                 "test",
                 RefOr::Type(Schema::OneOf(
                     OneOf::new()
                         .item(Schema::Array(Array::new().items(RefOr::Type(
-                            Schema::Object(
+                            Schema::object(
                                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                             ),
                         ))))
                         .item(Schema::Array(Array::new().items(RefOr::Type(
-                            Schema::Object(
+                            Schema::object(
                                 Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                             ),
                         )))),
@@ -941,17 +938,17 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_all_of_of_within_ref_or_t_object() {
-        let ref_or_schema = RefOr::Type(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::object(
             Object::new().property(
                 "test",
                 RefOr::Type(Schema::AllOf(
                     AllOf::new()
                         .item(Schema::Array(Array::new().items(RefOr::Type(
-                            Schema::Object(
+                            Schema::object(
                                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                             ),
                         ))))
-                        .item(RefOr::Type(Schema::Object(
+                        .item(RefOr::Type(Schema::object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
                 )),
@@ -966,17 +963,17 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_any_of_of_within_ref_or_t_object() {
-        let ref_or_schema = RefOr::Type(Schema::Object(
+        let ref_or_schema = RefOr::Type(Schema::object(
             Object::new().property(
                 "test",
                 RefOr::Type(Schema::AnyOf(
                     AnyOf::new()
                         .item(Schema::Array(Array::new().items(RefOr::Type(
-                            Schema::Object(
+                            Schema::object(
                                 Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
                             ),
                         ))))
-                        .item(RefOr::Type(Schema::Object(
+                        .item(RefOr::Type(Schema::object(
                             Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
                         ))),
                 )),
@@ -993,7 +990,9 @@ mod tests {
     #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
         let ref_or_schema = RefOr::Type(Schema::Array(Array::new().items(RefOr::Type(
-            Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+            Schema::Object(Box::new(
+                Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
+            )),
         ))));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -1004,7 +1003,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_array() {
-        let ref_or_schema = Array::new().items(RefOr::Type(Schema::Object(
+        let ref_or_schema = Array::new().items(RefOr::Type(Schema::object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )));
 
@@ -1016,7 +1015,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_with_additional_properties() {
-        let schema = Schema::Object(Object::new().property(
+        let schema = Schema::object(Object::new().property(
             "map",
             Object::new().additional_properties(AdditionalProperties::FreeForm(true)),
         ));
@@ -1029,7 +1028,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_with_additional_properties_object() {
-        let schema = Schema::Object(Object::new().property(
+        let schema = Schema::object(Object::new().property(
             "map",
             Object::new().additional_properties(
                 Object::new().property("name", Object::with_type(BasicType::String)),
@@ -1075,10 +1074,10 @@ mod tests {
     fn deserialize_reserialize_one_of_default_type() {
         let a = OneOf::new()
             .item(Schema::Array(Array::new().items(RefOr::Type(
-                Schema::Object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
+                Schema::object(Object::new().property("element", RefOr::Ref(Ref::new("#/test")))),
             ))))
             .item(Schema::Array(Array::new().items(RefOr::Type(
-                Schema::Object(Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar")))),
+                Schema::object(Object::new().property("foobar", RefOr::Ref(Ref::new("#/foobar")))),
             ))));
 
         let serialized_json = serde_json::to_string(&a).expect("should serialize to json");
@@ -1135,7 +1134,7 @@ mod tests {
     #[test]
     fn test_additional_properties_from_ref_or() {
         let additional_properties =
-            AdditionalProperties::from(RefOr::Type(Schema::Object(Object::new())));
+            AdditionalProperties::from(RefOr::Type(Schema::Object(Box::default())));
         assert_json_eq!(
             additional_properties,
             json!({

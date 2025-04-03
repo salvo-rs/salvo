@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::future::{ready, Ready};
-use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult};
+use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -90,30 +90,30 @@ impl Keycert {
         let key = {
             let mut ec = rustls_pemfile::ec_private_keys(&mut self.key.as_ref())
                 .collect::<Result<Vec<_>, _>>()
-                .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+                .map_err(|_| IoError::other("failed to parse tls private keys"))?;
             if !ec.is_empty() {
                 PrivateKeyDer::Sec1(ec.remove(0))
             } else {
                 let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+                    .map_err(|_| IoError::other("failed to parse tls private keys"))?;
                 if !pkcs8.is_empty() {
                     PrivateKeyDer::Pkcs8(pkcs8.remove(0))
                 } else {
                     let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
                         .collect::<Result<Vec<_>, _>>()
-                        .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+                        .map_err(|_| IoError::other("failed to parse tls private keys"))?;
 
                     if !rsa.is_empty() {
                         PrivateKeyDer::Pkcs1(rsa.remove(0))
                     } else {
-                        return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
+                        return Err(IoError::other("failed to parse tls private keys"));
                     }
                 }
             }
         };
 
-        let key = any_supported_type(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
+        let key = any_supported_type(&key).map_err(|_| IoError::other("invalid private key"))?;
 
         Ok(CertifiedKey {
             cert,
@@ -138,6 +138,7 @@ pub enum TlsClientAuth {
     Required(Vec<u8>),
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn alpn_protocols() -> Vec<Vec<u8>> {
     #[allow(unused_mut)]
     let mut alpn_protocols = Vec::with_capacity(3);
@@ -253,12 +254,12 @@ impl RustlsConfig {
                 WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
                     .allow_unauthenticated()
                     .build()
-                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
+                    .map_err(|e| IoError::other(format!("failed to build server config: {}", e)))?
             }
             TlsClientAuth::Required(trust_anchor) => {
                 WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
                     .build()
-                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
+                    .map_err(|e| IoError::other(format!("failed to build server config: {}", e)))?
             }
         };
 
@@ -295,7 +296,7 @@ cfg_feature! {
         type Error = IoError;
 
         fn try_into(self) -> IoResult<crate::conn::quinn::ServerConfig> {
-            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::new(ErrorKind::Other, "failed to build quinn server config"))?;
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::other( "failed to build quinn server config"))?;
             Ok(crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto)))
         }
     }

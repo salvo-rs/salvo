@@ -1,5 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -30,7 +30,7 @@ impl BodySender {
     pub(crate) fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         self.data_tx
             .poll_ready(cx)
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to poll ready: {}", e)))
+            .map_err(|e| IoError::other(format!("failed to poll ready: {}", e)))
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -55,17 +55,17 @@ impl BodySender {
         self.ready().await?;
         self.data_tx
             .try_send(Ok(chunk.into()))
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send data: {}", e)))
+            .map_err(|e| IoError::other(format!("failed to send data: {}", e)))
     }
 
     /// Send trailers on trailers channel.
     pub async fn send_trailers(&mut self, trailers: HeaderMap) -> IoResult<()> {
         let tx = match self.trailers_tx.take() {
             Some(tx) => tx,
-            None => return Err(IoError::new(ErrorKind::Other, "failed to send railers")),
+            None => return Err(IoError::other("failed to send railers")),
         };
         tx.send(trailers)
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to send railers"))
+            .map_err(|_| IoError::other("failed to send railers"))
     }
 
     /// Send error on data channel.
@@ -88,14 +88,16 @@ impl futures_util::AsyncWrite for BodySender {
             Poll::Ready(Ok(())) => {
                 let data: Bytes = Bytes::from(buf.to_vec());
                 let len = buf.len();
-                Poll::Ready(self.data_tx.try_send(Ok(data)).map(|_| len).map_err(|e| {
-                    IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))
-                }))
+                Poll::Ready(
+                    self.data_tx
+                        .try_send(Ok(data))
+                        .map(|_| len)
+                        .map_err(|e| IoError::other(format!("failed to send data: {}", e))),
+                )
             }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
-                ErrorKind::Other,
-                format!("failed to poll ready: {}", e),
-            ))),
+            Poll::Ready(Err(e)) => {
+                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {}", e))))
+            }
             Poll::Pending => Poll::Pending,
         }
     }
@@ -123,14 +125,16 @@ impl tokio::io::AsyncWrite for BodySender {
             Poll::Ready(Ok(())) => {
                 let data: Bytes = Bytes::from(buf.to_vec());
                 let len = buf.len();
-                Poll::Ready(self.data_tx.try_send(Ok(data)).map(|_| len).map_err(|e| {
-                    IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))
-                }))
+                Poll::Ready(
+                    self.data_tx
+                        .try_send(Ok(data))
+                        .map(|_| len)
+                        .map_err(|e| IoError::other(format!("failed to send data: {}", e))),
+                )
             }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
-                ErrorKind::Other,
-                format!("failed to poll ready: {}", e),
-            ))),
+            Poll::Ready(Err(e)) => {
+                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {}", e))))
+            }
             Poll::Pending => Poll::Pending,
         }
     }

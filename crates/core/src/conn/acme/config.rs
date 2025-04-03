@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -151,9 +151,9 @@ impl AcmeConfigBuilder {
     pub fn build(self) -> IoResult<AcmeConfig> {
         self.directory_url
             .parse::<Uri>()
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid directory url: {}", e)))?;
+            .map_err(|e| IoError::other(format!("invalid directory url: {}", e)))?;
         if self.domains.is_empty() {
-            return Err(IoError::new(ErrorKind::Other, "at least one domain name is expected"));
+            return Err(IoError::other("at least one domain name is expected"));
         }
         let Self {
             directory_name,

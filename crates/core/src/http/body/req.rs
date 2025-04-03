@@ -1,5 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -116,15 +116,11 @@ impl Body for ReqBody {
                 }
             }
             Self::Hyper { inner, fusewire } => {
-                let poll = Pin::new(inner)
-                    .poll_frame(cx)
-                    .map_err(|e| IoError::new(ErrorKind::Other, e));
+                let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
                 through_fursewire(poll, fusewire)
             }
             Self::Boxed { inner, fusewire } => {
-                let poll = Pin::new(inner)
-                    .poll_frame(cx)
-                    .map_err(|e| IoError::new(ErrorKind::Other, e));
+                let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
                 through_fursewire(poll, fusewire)
             }
         }
@@ -154,7 +150,7 @@ impl Stream for ReqBody {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
             Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::other(e)))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }

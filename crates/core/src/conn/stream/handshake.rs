@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError,ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -62,7 +62,7 @@ where
         builder
             .serve_connection(self, handler, fusewire, graceful_stop_token)
             .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+            .map_err(IoError::other)
     }
     fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()

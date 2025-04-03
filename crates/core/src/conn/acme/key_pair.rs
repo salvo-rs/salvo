@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 
 use ring::{
     rand::SystemRandom,
@@ -12,7 +12,7 @@ impl KeyPair {
     pub(crate) fn from_pkcs8(pkcs8: impl AsRef<[u8]>) -> IoResult<Self> {
         EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(), &SystemRandom::new())
             .map(KeyPair)
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to load key pair"))
+            .map_err(|_| IoError::other("failed to load key pair"))
     }
 
     #[inline]
@@ -20,7 +20,7 @@ impl KeyPair {
         let alg = &ECDSA_P256_SHA256_FIXED_SIGNING;
         let rng = SystemRandom::new();
         EcdsaKeyPair::generate_pkcs8(alg, &rng)
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to generate acme key pair"))
+            .map_err(|_| IoError::other("failed to generate acme key pair"))
     }
 
     #[inline]
@@ -32,7 +32,7 @@ impl KeyPair {
     pub(crate) fn sign(&self, message: impl AsRef<[u8]>) -> IoResult<Signature> {
         self.0
             .sign(&SystemRandom::new(), message.as_ref())
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to sign message"))
+            .map_err(|_| IoError::other("failed to sign message"))
     }
 
     #[inline]

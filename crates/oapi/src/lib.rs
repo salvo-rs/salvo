@@ -291,7 +291,7 @@ impl<T: ToSchema> ToSchema for Option<T> {
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Object::default()).into()
+        Schema::Object(Box::default()).into()
     }
 }
 
@@ -357,7 +357,7 @@ where
 
 impl ToSchema for serde_json::Value {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Object::default()).into()
+        Schema::Object(Box::default()).into()
     }
 }
 impl ToSchema for serde_json::Map<String, serde_json::Value> {

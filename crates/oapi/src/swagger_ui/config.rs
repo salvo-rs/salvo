@@ -187,7 +187,7 @@ impl<'a> Config<'a> {
             urls: urls
                 .into_iter()
                 .map(|mut url| {
-                    if url.name == "" {
+                    if url.name.is_empty() {
                         url.name = Cow::Owned(String::from(&url.url[..]));
 
                         url
@@ -206,12 +206,12 @@ impl<'a> Config<'a> {
 
         Self {
             urls_primary_name: primary_name,
-            url: if url.name == "" {
+            url: if url.name.is_empty() {
                 Some(url.url.to_string())
             } else {
                 None
             },
-            urls: if url.name != "" { vec![url] } else { Vec::new() },
+            urls: if !url.name.is_empty() { vec![url] } else { Vec::new() },
             ..Default::default()
         }
     }

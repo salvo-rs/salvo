@@ -1,6 +1,6 @@
 //! QuinnListener and it's implements.
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError,ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -12,7 +12,7 @@ use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::quinn::{Endpoint};
-use salvo_http3::quinn as http3_quinn;
+use salvo_http3::quinn::Connection as QuinnConnection;
 
 use super::H3Connection;
 use crate::conn::quinn::ServerConfig;
@@ -123,7 +123,7 @@ where
         if let Some(config) = config {
             let config = config
                 .try_into()
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+                .map_err(|e|IoError::other(e.to_string()))?;
             let endpoint = Endpoint::server(config, self.socket)?;
             if self.endpoint.is_some() {
                 tracing::info!("quinn config changed.");
@@ -134,7 +134,7 @@ where
         }
         let endpoint = match &self.endpoint {
             Some(endpoint) => endpoint,
-            None => return Err(IoError::new(ErrorKind::Other, "quinn: invalid quinn config.")),
+            None => return Err(IoError::other("quinn: invalid quinn config.")),
         };
 
         if let Some(new_conn) = endpoint.accept().await {
@@ -142,7 +142,7 @@ where
             let local_addr = self.holdings[0].local_addr.clone();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = http3_quinn::Connection::new(conn);
+                    let conn = QuinnConnection::new(conn);
                     return Ok(Accepted {
                         conn: H3Connection::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
                             trans_proto: TransProto::Quic,
@@ -154,9 +154,9 @@ where
                         http_scheme: self.holdings[0].http_scheme.clone(),
                     });
                 }
-                Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),
+                Err(e) => return Err(IoError::other(e.to_string())),
             }
         }
-        Err(IoError::new(ErrorKind::Other, "quinn accept error"))
+        Err(IoError::other("quinn accept error"))
     }
 }

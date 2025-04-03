@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::fmt::{self, Debug};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll, ready};
 
@@ -154,17 +154,13 @@ impl Body for ResBody {
             }
             Self::Hyper(body) => match Body::poll_frame(Pin::new(body), cx) {
                 Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
-                Poll::Ready(Some(Err(e))) => {
-                    Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e))))
-                }
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::other(e)))),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
             },
             Self::Boxed(body) => match Body::poll_frame(Pin::new(body), cx) {
                 Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
-                Poll::Ready(Some(Err(e))) => {
-                    Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e))))
-                }
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::other(e)))),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
             },
@@ -173,7 +169,7 @@ impl Body for ResBody {
                 .as_mut()
                 .poll_next(cx)
                 .map_ok(|frame| frame.0)
-                .map_err(|e| IoError::new(ErrorKind::Other, e)),
+                .map_err(IoError::other),
             Self::Channel(rx) => {
                 if !rx.data_rx.is_terminated() {
                     if let Some(chunk) = ready!(Pin::new(&mut rx.data_rx).poll_next(cx)?) {
@@ -228,7 +224,7 @@ impl Stream for ResBody {
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
             Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::other(e)))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }

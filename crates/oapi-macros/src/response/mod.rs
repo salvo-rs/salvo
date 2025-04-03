@@ -56,7 +56,7 @@ pub(crate) enum Response<'r> {
     /// A type that implements `salvo_oapi::ToResponses`.
     ToResponses(ExprPath),
     /// The tuple definition of a response.
-    Tuple(ResponseTuple<'r>),
+    Tuple(Box<ResponseTuple<'r>>),
 }
 
 impl Parse for Response<'_> {
@@ -85,7 +85,9 @@ impl<'r> ResponseTuple<'r> {
     // This will error if the `response` attribute has already been set
     fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
         if self.inner.is_none() {
-            self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
+            self.inner = Some(ResponseTupleInner::Value(
+                Box::new(ResponseValue::default()),
+            ));
         }
         if let ResponseTupleInner::Value(val) = self
             .inner
@@ -101,8 +103,8 @@ impl<'r> ResponseTuple<'r> {
     // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
     fn set_ref_type(&mut self, span: Span, ty: InlineType<'r>) -> syn::Result<()> {
         match &mut self.inner {
-            None => self.inner = Some(ResponseTupleInner::Ref(ty)),
-            Some(ResponseTupleInner::Ref(r)) => *r = ty,
+            None => self.inner = Some(ResponseTupleInner::Ref(Box::new(ty))),
+            Some(ResponseTupleInner::Ref(r)) => *r = Box::new(ty),
             Some(ResponseTupleInner::Value(_)) => {
                 return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG));
             }
@@ -113,8 +115,8 @@ impl<'r> ResponseTuple<'r> {
 
 #[derive(Debug)]
 pub(crate) enum ResponseTupleInner<'r> {
-    Value(ResponseValue<'r>),
-    Ref(InlineType<'r>),
+    Value(Box<ResponseValue<'r>>),
+    Ref(Box<InlineType<'r>>),
 }
 
 impl Parse for ResponseTuple<'_> {
@@ -180,7 +182,9 @@ impl Parse for ResponseTuple<'_> {
         }
 
         if response.inner.is_none() {
-            response.inner = Some(ResponseTupleInner::Value(ResponseValue::default()))
+            response.inner = Some(ResponseTupleInner::Value(
+                Box::new(ResponseValue::default()),
+            ))
         }
 
         Ok(response)
@@ -190,7 +194,7 @@ impl Parse for ResponseTuple<'_> {
 impl<'r> From<ResponseValue<'r>> for ResponseTuple<'r> {
     fn from(value: ResponseValue<'r>) -> Self {
         ResponseTuple {
-            inner: Some(ResponseTupleInner::Value(value)),
+            inner: Some(ResponseTupleInner::Value(Box::new(value))),
             ..Default::default()
         }
     }
@@ -199,7 +203,7 @@ impl<'r> From<ResponseValue<'r>> for ResponseTuple<'r> {
 impl<'r> From<(ResponseStatusCode, ResponseValue<'r>)> for ResponseTuple<'r> {
     fn from((status_code, response_value): (ResponseStatusCode, ResponseValue<'r>)) -> Self {
         ResponseTuple {
-            inner: Some(ResponseTupleInner::Value(response_value)),
+            inner: Some(ResponseTupleInner::Value(Box::new(response_value))),
             status_code,
         }
     }

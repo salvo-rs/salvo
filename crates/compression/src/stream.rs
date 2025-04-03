@@ -1,6 +1,6 @@
 //! Compress the body of a response.
 use std::collections::VecDeque;
-use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
@@ -36,22 +36,21 @@ impl<B> EncodeStream<B> {
 impl EncodeStream<BoxStream<'static, Result<Bytes, BoxedError>>> {
     #[inline]
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
-        Stream::poll_next(Pin::new(&mut self.body), cx)
-            .map_err(|e| IoError::new(ErrorKind::Other, e))
+        Stream::poll_next(Pin::new(&mut self.body), cx).map_err(IoError::other)
     }
 }
 impl EncodeStream<BoxStream<'static, Result<BytesFrame, BoxedError>>> {
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         Stream::poll_next(Pin::new(&mut self.body), cx)
             .map_ok(|f| f.into_data().unwrap_or_default())
-            .map_err(|e| IoError::new(ErrorKind::Other, e))
+            .map_err(IoError::other)
     }
 }
 impl EncodeStream<HyperBody> {
     fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         match ready!(Body::poll_frame(Pin::new(&mut self.body), cx)) {
             Some(Ok(frame)) => Poll::Ready(frame.into_data().map(Ok).ok()),
-            Some(Err(e)) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Some(Err(e)) => Poll::Ready(Some(Err(IoError::other(e)))),
             None => Poll::Ready(None),
         }
     }
@@ -87,10 +86,7 @@ macro_rules! impl_stream {
                     }
                     if let Some(encoding) = &mut this.encoding {
                         let mut encoder = ready!(Pin::new(encoding).poll(cx)).map_err(|e| {
-                            IoError::new(
-                                io::ErrorKind::Other,
-                                format!("blocking task was cancelled unexpectedly: {e}"),
-                            )
+                            IoError::other(format!("blocking task was cancelled unexpectedly: {e}"))
                         })??;
 
                         let chunk = encoder.take()?;
