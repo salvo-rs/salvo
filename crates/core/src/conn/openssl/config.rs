@@ -9,7 +9,6 @@ use futures_util::stream::{Once, Stream, once};
 use openssl::pkey::PKey;
 use openssl::ssl::{SslAcceptor, SslMethod};
 use openssl::x509::X509;
-use tokio::io::ErrorKind;
 
 use crate::conn::IntoConfigStream;
 
@@ -71,7 +70,7 @@ impl Keycert {
     #[inline]
     pub fn key(&mut self) -> IoResult<&[u8]> {
         if self.key.is_empty() {
-            Err(IoError::new(ErrorKind::Other, "empty key"))
+            Err(IoError::other("empty key"))
         } else {
             Ok(&self.key)
         }
@@ -81,13 +80,14 @@ impl Keycert {
     #[inline]
     pub fn cert(&mut self) -> IoResult<&[u8]> {
         if self.cert.is_empty() {
-            Err(IoError::new(ErrorKind::Other, "empty cert"))
+            Err(IoError::other("empty cert"))
         } else {
             Ok(&self.cert)
         }
     }
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn alpn_protocols() -> Vec<u8> {
     #[allow(unused_mut)]
     let mut alpn_protocols: Vec<Vec<u8>> = Vec::with_capacity(3);
@@ -155,7 +155,7 @@ impl OpensslConfig {
         builder.set_certificate(
             certs
                 .next()
-                .ok_or_else(|| IoError::new(ErrorKind::Other, "no leaf certificate"))?
+                .ok_or_else(|| IoError::other("no leaf certificate"))?
                 .as_ref(),
         )?;
         certs.try_for_each(|cert| builder.add_extra_chain_cert(cert))?;

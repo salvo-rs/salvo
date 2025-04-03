@@ -1,6 +1,6 @@
 //! rustls module
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -13,8 +13,8 @@ use tokio_rustls::server::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
+use crate::http::HttpConnection;
 use crate::http::uri::Scheme;
-use crate::http::{HttpConnection};
 
 use super::ServerConfig;
 
@@ -128,20 +128,21 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
-            while let Poll::Ready(Some(item)) =
-                Pin::new(&mut self.config_stream).poll_next(&mut Context::from_waker(noop_waker_ref()))
+            while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
+                .poll_next(&mut Context::from_waker(noop_waker_ref()))
             {
                 config = Some(item);
             }
             config
         };
         if let Some(config) = config {
-            let config: ServerConfig = config
-                .try_into()
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+            let config: ServerConfig = config.try_into().map_err(|e| IoError::other(e.to_string()))?;
             let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
             if self.tls_acceptor.is_some() {
                 tracing::info!("tls config changed.");
@@ -152,7 +153,11 @@ where
         }
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor,
-            None => return Err(IoError::new(ErrorKind::Other, "rustls: invalid tls config.")),
+            None => {
+                return Err(IoError::other(
+                    "rustls: invalid tls config.",
+                ));
+            }
         };
 
         let Accepted {

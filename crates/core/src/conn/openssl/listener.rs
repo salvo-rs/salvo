@@ -9,14 +9,13 @@ use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
-use tokio::io::ErrorKind;
 use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::{HttpConnection,};
+use crate::http::HttpConnection;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -128,7 +127,10 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -154,7 +156,7 @@ where
         }
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "openssl: tls_acceptor is none.")),
+            None => return Err(IoError::other("openssl: tls_acceptor is none.")),
         };
 
         let Accepted {
@@ -165,14 +167,12 @@ where
         } = self.inner.accept(fuse_factory).await?;
         let fusewire = conn.fusewire();
         let conn = async move {
-            let ssl =
-                Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-            let mut tls_stream =
-                SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            let ssl = Ssl::new(tls_acceptor.context()).map_err(IoError::other)?;
+            let mut tls_stream = SslStream::new(ssl, conn).map_err(IoError::other)?;
             std::pin::Pin::new(&mut tls_stream)
                 .accept()
                 .await
-                .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                .map_err(IoError::other)?;
             Ok(tls_stream)
         };
 

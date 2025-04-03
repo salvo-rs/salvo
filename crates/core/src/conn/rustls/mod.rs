@@ -1,5 +1,5 @@
 //! `RustlsListener` and utils.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError,  Result as IoResult};
 
 use tokio_rustls::rustls::RootCertStore;
 
@@ -13,9 +13,7 @@ pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertSto
     let certs = rustls_pemfile::certs(&mut trust_anchor).collect::<IoResult<Vec<_>>>()?;
     let mut store = RootCertStore::empty();
     for cert in certs {
-        store
-            .add(cert)
-            .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+        store.add(cert).map_err(IoError::other)?;
     }
     Ok(store)
 }
@@ -26,8 +24,8 @@ mod tests {
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
-    use tokio_rustls::rustls::{pki_types::ServerName, ClientConfig};
     use tokio_rustls::TlsConnector;
+    use tokio_rustls::rustls::{ClientConfig, pki_types::ServerName};
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
@@ -44,7 +42,11 @@ mod tests {
             ))
             .bind()
             .await;
-        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();

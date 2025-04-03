@@ -1,6 +1,6 @@
 use std::cmp;
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
+use std::io::{Error as IoError,ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
 use std::task::{self, Context, Poll, ready};
@@ -101,8 +101,7 @@ impl HttpBuilder {
         match version {
             Version::HTTP_10 | Version::HTTP_11 => {
                 #[cfg(not(feature = "http1"))]
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(std::io::Error::other(
                     "http1 feature not enabled",
                 )
                 .into());
@@ -166,8 +165,7 @@ impl HttpBuilder {
             }
             Version::HTTP_2 => {
                 #[cfg(not(feature = "http2"))]
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(std::io::Error::other(
                     "http2 feature not enabled",
                 )
                 .into());

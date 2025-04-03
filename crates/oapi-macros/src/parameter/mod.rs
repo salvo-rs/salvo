@@ -52,7 +52,7 @@ pub(crate) fn to_parameters(input: DeriveInput) -> DiagResult<TokenStream> {
 /// The `= String` type statement is optional if automatic resolution is supported.
 #[derive(Debug)]
 pub(crate) enum Parameter<'a> {
-    Value(ValueParameter<'a>),
+    Value(Box<ValueParameter<'a>>),
     /// Identifier for a struct that implements `ToParameters` trait.
     Struct(StructParameter),
 }

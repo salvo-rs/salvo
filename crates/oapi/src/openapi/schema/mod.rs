@@ -119,11 +119,11 @@ impl Schemas {
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(
+    Schema::Object(Box::new(
         Object::new()
             .schema_type(SchemaType::AnyValue)
             .default_value(serde_json::Value::Null),
-    )
+    ))
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -139,7 +139,7 @@ pub enum Schema {
     Array(Array),
     /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
-    Object(Object),
+    Object(Box<Object>),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -235,7 +235,7 @@ impl<T> From<RefOr<T>> for AdditionalProperties<T> {
 
 impl From<Object> for AdditionalProperties<Schema> {
     fn from(value: Object) -> Self {
-        Self::RefOr(RefOr::Type(Schema::Object(value)))
+        Self::RefOr(RefOr::Type(Schema::Object(Box::new(value))))
     }
 }
 
@@ -341,7 +341,7 @@ impl<T> From<T> for RefOr<T> {
 
 impl Default for RefOr<Schema> {
     fn default() -> Self {
-        Self::Type(Schema::Object(Object::new()))
+        Self::Type(Schema::Object(Box::new(Object::new())))
     }
 }
 

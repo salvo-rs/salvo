@@ -1,7 +1,7 @@
 //! native_tls module
 use std::fmt::{self, Debug, Formatter};
 use std::fs::File;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult, Read};
+use std::io::{Error as IoError, Result as IoResult, Read};
 use std::path::{Path, PathBuf};
 use std::future::{ready, Ready};
 
@@ -73,7 +73,7 @@ impl NativeTlsConfig {
                 file.read_to_end(&mut self.pkcs12)?;
             }
         }
-        Identity::from_pkcs12(&self.pkcs12, &self.password).map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+        Identity::from_pkcs12(&self.pkcs12, &self.password).map_err(IoError::other)
     }
 }
 

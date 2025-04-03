@@ -1,6 +1,6 @@
 //! native_tls module
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
@@ -12,7 +12,7 @@ use tokio_native_tls::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::{HttpConnection,};
+use crate::http::HttpConnection;
 
 use super::Identity;
 
@@ -125,7 +125,10 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -137,9 +140,7 @@ where
             config
         };
         if let Some(config) = config {
-            let identity = config
-                .try_into()
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+            let identity = config.try_into().map_err(|e|IoError::other(e.to_string()))?;
             let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity);
             match tls_acceptor {
                 Ok(tls_acceptor) => {
@@ -156,7 +157,7 @@ where
 
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "native_tls: invalid TLS config")),
+            None => return Err(IoError::other("native_tls: invalid TLS config")),
         };
         let Accepted {
             conn,
@@ -165,12 +166,7 @@ where
             ..
         } = self.inner.accept(fuse_factory.clone()).await?;
         let fusewire = conn.fusewire();
-        let conn = async move {
-            tls_acceptor
-                .accept(conn)
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-        };
+        let conn = async move { tls_acceptor.accept(conn).await.map_err(IoError::other) };
         Ok(Accepted {
             conn: HandshakeStream::new(conn, fusewire),
             local_addr,

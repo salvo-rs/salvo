@@ -7,13 +7,13 @@ use flate2::write::{GzDecoder, ZlibDecoder};
 use http_body_util::BodyExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
-use tokio::io::{Error as IoError, ErrorKind};
+use tokio::io::Error as IoError;
 use zstd::stream::write::Decoder as ZstdDecoder;
 
+use crate::Error;
 use crate::catcher::status_error_bytes;
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{ResBody, Response};
-use crate::Error;
 
 struct Writer {
     buf: BytesMut,
@@ -56,7 +56,10 @@ pub trait ResponseExt {
         compress: Option<&str>,
     ) -> impl Future<Output = crate::Result<String>>;
     /// Take all body bytes. If body is none, it will creates and returns a new [`Bytes`].
-    fn take_bytes(&mut self, content_type: Option<&Mime>) -> impl Future<Output = crate::Result<Bytes>> + Send;
+    fn take_bytes(
+        &mut self,
+        content_type: Option<&Mime>,
+    ) -> impl Future<Output = crate::Result<Bytes>> + Send;
 }
 
 impl ResponseExt for Response {
@@ -111,7 +114,8 @@ impl ResponseExt for Response {
                     full = decoder.get_mut().take();
                 }
                 "zstd" => {
-                    let mut decoder = ZstdDecoder::new(Writer::new()).expect("failed to create zstd decoder");
+                    let mut decoder =
+                        ZstdDecoder::new(Writer::new()).expect("failed to create zstd decoder");
                     decoder.write_all(full.as_ref())?;
                     decoder.flush()?;
                     full = decoder.get_mut().take();
@@ -125,7 +129,7 @@ impl ResponseExt for Response {
         if let Cow::Owned(s) = text {
             return Ok(s);
         }
-        String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
+        String::from_utf8(full.to_vec()).map_err(|e| IoError::other(e).into())
     }
     async fn take_bytes(&mut self, content_type: Option<&Mime>) -> crate::Result<Bytes> {
         let body = self.take_body();
