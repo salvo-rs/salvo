@@ -1144,7 +1144,7 @@ mod tests {
                 SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
             )
             .extend_security_schemes([("TLS", SecurityScheme::MutualTls { description: None })])
-            .add_schema("example", Schema::Object(Object::new()))
+            .add_schema("example", Schema::object(Object::new()))
             .extend_schemas([("", Schema::from(Object::new()))])
             .response("200", Response::new("OK"))
             .extend_responses([("404", Response::new("Not Found"))])
