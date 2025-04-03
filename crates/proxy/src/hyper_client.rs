@@ -23,8 +23,8 @@ impl Default for HyperClient {
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
             .expect("no native root CA certificates found")
-            .https_only()
-            .enable_http1()
+            .https_or_http()
+            .enable_all_versions()
             .build();
         Self {
             inner: HyperUtilClient::builder(TokioExecutor::new()).build(https),
