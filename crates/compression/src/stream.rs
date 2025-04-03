@@ -86,9 +86,7 @@ macro_rules! impl_stream {
                     }
                     if let Some(encoding) = &mut this.encoding {
                         let mut encoder = ready!(Pin::new(encoding).poll(cx)).map_err(|e| {
-                            IoError::other(
-                                format!("blocking task was cancelled unexpectedly: {e}"),
-                            )
+                            IoError::other(format!("blocking task was cancelled unexpectedly: {e}"))
                         })??;
 
                         let chunk = encoder.take()?;

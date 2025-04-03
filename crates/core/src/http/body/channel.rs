@@ -125,13 +125,16 @@ impl tokio::io::AsyncWrite for BodySender {
             Poll::Ready(Ok(())) => {
                 let data: Bytes = Bytes::from(buf.to_vec());
                 let len = buf.len();
-                Poll::Ready(self.data_tx.try_send(Ok(data)).map(|_| len).map_err(|e| {
-                    IoError::other(format!("failed to send data: {}", e))
-                }))
+                Poll::Ready(
+                    self.data_tx
+                        .try_send(Ok(data))
+                        .map(|_| len)
+                        .map_err(|e| IoError::other(format!("failed to send data: {}", e))),
+                )
             }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::other(
-                format!("failed to poll ready: {}", e),
-            ))),
+            Poll::Ready(Err(e)) => {
+                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {}", e))))
+            }
             Poll::Pending => Poll::Pending,
         }
     }

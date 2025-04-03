@@ -85,7 +85,9 @@ impl<'r> ResponseTuple<'r> {
     // This will error if the `response` attribute has already been set
     fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
         if self.inner.is_none() {
-            self.inner = Some(ResponseTupleInner::Value(Box::new(ResponseValue::default())));
+            self.inner = Some(ResponseTupleInner::Value(
+                Box::new(ResponseValue::default()),
+            ));
         }
         if let ResponseTupleInner::Value(val) = self
             .inner
@@ -180,7 +182,9 @@ impl Parse for ResponseTuple<'_> {
         }
 
         if response.inner.is_none() {
-            response.inner = Some(ResponseTupleInner::Value(Box::new(ResponseValue::default())))
+            response.inner = Some(ResponseTupleInner::Value(
+                Box::new(ResponseValue::default()),
+            ))
         }
 
         Ok(response)
