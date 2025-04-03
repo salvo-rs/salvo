@@ -34,7 +34,7 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "rustls-native-certs", "ring", "http1", "tls12", "logging"] }
+hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "rustls-native-certs", "ring", "http1", "http2", "tls12", "logging"] }
 hyper-util = { workspace = true, optional = true, features = ["tokio", "http1", "http2", "client-legacy"] }
 percent-encoding = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["stream"] }
