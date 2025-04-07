@@ -32,7 +32,7 @@ pub struct CachePolicy {
 impl CachePolicy {
     /// Create a new cache policy from the header value of the Cache-Control header
     pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
-        // Initalize the default config of polling every second
+        // Initialize the default config of polling every second
         let mut config = Self::default();
 
         if let Some(value) = value {
@@ -52,7 +52,7 @@ impl CachePolicy {
                 (split.next(), split.next())
             };
             //Modify the default config based on the values that matter
-            //Any values here would be more permisssive than the default behavior
+            //Any values here would be more permissive than the default behavior
             match (key, val) {
                 (Some("max-age"), Some(val)) => {
                     if let Ok(secs) = val.parse::<u64>() {
@@ -85,7 +85,7 @@ impl Default for CachePolicy {
     }
 }
 
-/// The udpate action of cache.
+/// The update action of cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateAction {
     /// We checked the JWKS uri and it was the same as the last time we refreshed it so no action was taken
