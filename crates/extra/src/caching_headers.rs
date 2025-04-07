@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_affix() {
+    async fn test_caching_headers() {
         let router = Router::with_hoop(CachingHeaders::new()).get(hello);
         let service = Service::new(router);
 
