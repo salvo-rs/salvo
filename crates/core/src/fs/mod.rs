@@ -101,8 +101,8 @@ mod test {
 
         let mut result = BytesMut::with_capacity(SIZE as usize);
 
-        while let Some(Ok(read_chunck)) = chunk.next().await {
-            result.extend_from_slice(&read_chunck)
+        while let Some(Ok(read_chunk)) = chunk.next().await {
+            result.extend_from_slice(&read_chunk)
         }
 
         assert_eq!(mock.into_inner(), result)
