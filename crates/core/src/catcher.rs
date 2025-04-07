@@ -210,8 +210,12 @@ fn status_error_html(
         code.as_u16(),
         name,
         brief,
-        detail.map(|detail| format!("<pre>{detail}</pre>")).unwrap_or_default(),
-        cause.map(|cause| format!("<pre>{cause:#?}</pre>")).unwrap_or_default(),
+        detail
+            .map(|detail| format!("<pre>{detail}</pre>"))
+            .unwrap_or_default(),
+        cause
+            .map(|cause| format!("<pre>{cause:#?}</pre>"))
+            .unwrap_or_default(),
         footer.unwrap_or(SALVO_LINK)
     )
 }
@@ -262,8 +266,12 @@ fn status_error_plain(
         code.as_u16(),
         name,
         brief,
-        detail.map(|detail| format!("\n\ndetail: {detail}")).unwrap_or_default(),
-        cause.map(|cause| format!("\n\ncause: {cause:#?}")).unwrap_or_default(),
+        detail
+            .map(|detail| format!("\n\ndetail: {detail}"))
+            .unwrap_or_default(),
+        cause
+            .map(|cause| format!("\n\ncause: {cause:#?}"))
+            .unwrap_or_default(),
     )
 }
 
@@ -309,24 +317,25 @@ pub fn status_error_bytes(
         prefer_format.clone()
     };
     #[cfg(debug_assertions)]
-    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e.as_ref()));
+    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e));
     #[cfg(not(debug_assertions))]
     let cause: Option<String> = None;
     #[cfg(debug_assertions)]
-    let detail = err.detail.clone();
+    let detail = err.detail.as_deref();
     #[cfg(not(debug_assertions))]
     let detail: Option<String> = None;
     let content = match format.subtype().as_ref() {
-        "plain" => status_error_plain(err.code, &err.name, &err.brief, detail.as_deref(), cause.as_deref()),
-        "json" => status_error_json(
+        "plain" => status_error_plain(err.code, &err.name, &err.brief, detail, cause.as_deref()),
+        "json" => status_error_json(err.code, &err.name, &err.brief, detail, cause.as_deref()),
+        "xml" => status_error_xml(err.code, &err.name, &err.brief, detail, cause.as_deref()),
+        _ => status_error_html(
             err.code,
             &err.name,
             &err.brief,
-            detail.as_deref(),
+            detail,
             cause.as_deref(),
+            footer,
         ),
-        "xml" => status_error_xml(err.code, &err.name, &err.brief, detail.as_deref(), cause.as_deref()),
-        _ => status_error_html(err.code, &err.name, &err.brief, detail.as_deref(), cause.as_deref(), footer),
     };
     (format, Bytes::from(content))
 }
