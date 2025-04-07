@@ -216,7 +216,13 @@ fn status_error_html(
 }
 
 #[inline]
-fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
+fn status_error_json(
+    code: StatusCode,
+    name: &str,
+    brief: &str,
+    cause: Option<&str>,
+    detail: Option<&str>,
+) -> String {
     #[derive(Serialize)]
     struct Data<'a> {
         error: Error<'a>,
@@ -226,6 +232,7 @@ fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&s
         code: u16,
         name: &'a str,
         brief: &'a str,
+        detail: &'a str,
         cause: &'a str,
     }
     let data = Data {
@@ -233,6 +240,7 @@ fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&s
             code: code.as_u16(),
             name,
             brief,
+            detail: detail.unwrap_or(EMPTY_CAUSE_MSG),
             cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
         },
     };
@@ -284,9 +292,19 @@ pub fn status_error_bytes(
     let cause = err.cause.as_ref().map(|e| format!("{:#?}", e.as_ref()));
     #[cfg(not(debug_assertions))]
     let cause: Option<String> = None;
+    #[cfg(debug_assertions)]
+    let detail = err.detail.clone();
+    #[cfg(not(debug_assertions))]
+    let detail: Option<String> = None;
     let content = match format.subtype().as_ref() {
         "plain" => status_error_plain(err.code, &err.name, &err.brief, cause.as_deref()),
-        "json" => status_error_json(err.code, &err.name, &err.brief, cause.as_deref()),
+        "json" => status_error_json(
+            err.code,
+            &err.name,
+            &err.brief,
+            cause.as_deref(),
+            detail.as_deref(),
+        ),
         "xml" => status_error_xml(err.code, &err.name, &err.brief, cause.as_deref()),
         _ => status_error_html(err.code, &err.name, &err.brief, cause.as_deref(), footer),
     };
