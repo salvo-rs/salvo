@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fixed_dynmaic_quota() {
+    async fn test_fixed_dynamic_quota() {
         static USER_QUOTAS: LazyLock<HashMap<String, BasicQuota>> = LazyLock::new(|| {
             let mut map = HashMap::new();
             map.insert("user1".into(), BasicQuota::per_second(1));
@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sliding_dynmaic_quota() {
+    async fn test_sliding_dynamic_quota() {
         static USER_QUOTAS: LazyLock<HashMap<String, CelledQuota>> = LazyLock::new(|| {
             let mut map = HashMap::new();
             map.insert("user1".into(), CelledQuota::per_second(1, 1));
