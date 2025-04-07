@@ -311,7 +311,7 @@ impl Request {
         &mut self.uri
     }
 
-    /// Set the associated URI. `querie` will be reset.
+    /// Set the associated URI. `queries` will be reset.
     ///
     /// *Notice: `params` will not reset.*
     #[inline]
