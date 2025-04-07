@@ -152,7 +152,7 @@ impl Depot {
             if value.downcast_mut::<V>().is_some() {
                 Ok(value
                     .downcast_mut::<V>()
-                    .expect("downcast_mut shuold not be failed"))
+                    .expect("downcast_mut should not be failed"))
             } else {
                 Err(Some(value))
             }
