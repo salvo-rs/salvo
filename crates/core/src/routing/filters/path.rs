@@ -202,9 +202,9 @@ impl WispBuilder for CharsWispBuilder {
                 if max.is_empty() {
                     (min, None)
                 } else {
-                    let trimed_max = max.trim_start_matches('=');
-                    let max = if trimed_max == max {
-                        let max = trimed_max
+                    let trimmed_max = max.trim_start_matches('=');
+                    let max = if trimmed_max == max {
+                        let max = trimmed_max
                             .parse::<usize>()
                             .map_err(|_| format!("parse range for {name} failed"))?;
                         if max <= 1 {
@@ -212,7 +212,7 @@ impl WispBuilder for CharsWispBuilder {
                         }
                         max - 1
                     } else {
-                        let max = trimed_max
+                        let max = trimmed_max
                             .parse::<usize>()
                             .map_err(|_| format!("parse range for {name} failed"))?;
                         if max < 1 {
@@ -695,7 +695,7 @@ impl PathParser {
         let mut ident = "".to_owned();
         let mut ch = self
             .curr()
-            .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
+            .ok_or_else(|| "current position is out of index when scan ident".to_owned())?;
         while !['/', ':', '|', '{', '}', '<', '>', '[', ']', '(', ')'].contains(&ch) {
             ident.push(ch);
             if let Some(c) = self.next(false) {
@@ -715,7 +715,7 @@ impl PathParser {
         let mut regex = "".to_owned();
         let mut ch = self
             .curr()
-            .ok_or_else(|| "current postion is out of index when scan regex".to_owned())?;
+            .ok_or_else(|| "current position is out of index when scan regex".to_owned())?;
         let mut escaping = false;
         let mut brace_opening = false;
         loop {
@@ -746,7 +746,7 @@ impl PathParser {
         let mut cnst = "".to_owned();
         let mut ch = self
             .curr()
-            .ok_or_else(|| "current postion is out of index when scan const".to_owned())?;
+            .ok_or_else(|| "current position is out of index when scan const".to_owned())?;
         while ch != '/' {
             if ch == '{' || ch == '}' {
                 // match `{{` or `}}`
@@ -797,7 +797,7 @@ impl PathParser {
     fn scan_wisps(&mut self) -> Result<Vec<WispKind>, String> {
         let mut ch = self
             .curr()
-            .ok_or_else(|| "current postion is out of index when scan part".to_owned())?;
+            .ok_or_else(|| "current position is out of index when scan part".to_owned())?;
         let mut wisps: Vec<WispKind> = vec![];
         while ch != '/' {
             if ch == '{' {
@@ -919,10 +919,10 @@ impl PathParser {
                     self.offset
                 ));
             }
-            let mut scaned = self.scan_wisps()?;
-            if scaned.len() > 1 {
-                wisps.push(CombWisp::new(scaned)?.into());
-            } else if let Some(wisp) = scaned.pop() {
+            let mut scanned = self.scan_wisps()?;
+            if scanned.len() > 1 {
+                wisps.push(CombWisp::new(scanned)?.into());
+            } else if let Some(wisp) = scanned.pop() {
                 wisps.push(wisp);
             } else {
                 return Err("scan parts is empty".to_owned());
