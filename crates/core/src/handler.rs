@@ -98,7 +98,7 @@
 //!
 //! ## Implement Handler trait directly
 //!
-//! Under certain circumstances, We need to implment `Handler` direclty.
+//! Under certain circumstances, We need to implement `Handler` directly.
 //!
 //! ```
 //! use salvo_core::prelude::*;
@@ -220,7 +220,7 @@ impl Handler for EmptyHandler {
 
 /// This is a empty implement for `Handler`.
 ///
-/// `EmptyHandler` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
+/// `EmptyHandler` does nothing except set [`Response`]'s status as [`StatusCode::OK`], it just marker a router exits.
 pub fn empty() -> EmptyHandler {
     EmptyHandler
 }
@@ -271,7 +271,7 @@ where
     }
 }
 
-/// Handler that wrap [`Handler`] to let it use middlwares.
+/// Handler that wrap [`Handler`] to let it use middlewares.
 #[non_exhaustive]
 pub struct HoopedHandler {
     inner: Arc<dyn Handler>,
