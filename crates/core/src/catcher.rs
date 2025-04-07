@@ -319,11 +319,11 @@ pub fn status_error_bytes(
     #[cfg(debug_assertions)]
     let cause = err.cause.as_ref().map(|e| format!("{:#?}", e));
     #[cfg(not(debug_assertions))]
-    let cause: Option<String> = None;
+    let cause: Option<&str> = None;
     #[cfg(debug_assertions)]
     let detail = err.detail.as_deref();
     #[cfg(not(debug_assertions))]
-    let detail: Option<String> = None;
+    let detail: Option<&str> = None;
     let content = match format.subtype().as_ref() {
         "plain" => status_error_plain(err.code, &err.name, &err.brief, detail, cause.as_deref()),
         "json" => status_error_json(err.code, &err.name, &err.brief, detail, cause.as_deref()),
