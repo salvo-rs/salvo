@@ -24,9 +24,9 @@ use salvo_core::http::{header::HeaderName, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// Key for incoming flash messages in depot.
-pub const REQUST_ID_KEY: &str = "::salvo::request_id";
+pub const REQUEST_ID_KEY: &str = "::salvo::request_id";
 
-/// Extesion for Depot.
+/// Extension for Depot.
 pub trait RequestIdDepotExt {
     /// Get request id reference from depot.
     fn csrf_token(&self) -> Option<&str>;
@@ -35,7 +35,7 @@ pub trait RequestIdDepotExt {
 impl RequestIdDepotExt for Depot {
     #[inline]
     fn csrf_token(&self) -> Option<&str> {
-        self.get::<String>(REQUST_ID_KEY).map(|v|&**v).ok()
+        self.get::<String>(REQUEST_ID_KEY).map(|v|&**v).ok()
     }
 }
 
@@ -123,6 +123,6 @@ impl Handler for RequestId {
         }
         let id = self.generator.generate(req, depot);
         let _ = req.add_header(self.header_name.clone(), &id, true);
-        depot.insert(REQUST_ID_KEY, id);
+        depot.insert(REQUEST_ID_KEY, id);
     }
 }
