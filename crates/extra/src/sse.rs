@@ -36,8 +36,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let router = Router::with_path("push-notifications").get(handle);
-//!     let accepor = TcpListener::new("127.0.0.1:5800").bind().await;
-//!     Server::new(accepor).serve(router).await;
+//!     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+//!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
 //!
