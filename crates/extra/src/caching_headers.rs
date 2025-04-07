@@ -199,15 +199,17 @@ mod tests {
         let router = Router::with_hoop(CachingHeaders::new()).get(hello);
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
-        assert_eq!(respone.status_code, Some(StatusCode::OK));
+        let response = TestClient::get("http://127.0.0.1:5800/")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
 
-        let etag = respone.headers().get(ETAG).unwrap();
-        let respone = TestClient::get("http://127.0.0.1:5800/")
+        let etag = response.headers().get(ETAG).unwrap();
+        let response = TestClient::get("http://127.0.0.1:5800/")
             .add_header(IF_NONE_MATCH, etag, true)
             .send(&service)
             .await;
-        assert_eq!(respone.status_code, Some(StatusCode::NOT_MODIFIED));
-        assert!(respone.body.is_none());
+        assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
+        assert!(response.body.is_none());
     }
 }
