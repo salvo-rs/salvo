@@ -498,6 +498,7 @@ impl OpenApi {
                             })
                     })
                     .collect::<Vec<_>>();
+                #[cfg(debug_assertions)]
                 if !meta_not_exist_parameters.is_empty() {
                     tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
                 }
