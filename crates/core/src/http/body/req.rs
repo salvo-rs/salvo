@@ -87,7 +87,7 @@ impl Body for ReqBody {
 
     fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> PollFrame {
         #[inline]
-        fn through_fursewire(poll: PollFrame, fusewire: &Option<ArcFusewire>) -> PollFrame {
+        fn through_fusewire(poll: PollFrame, fusewire: &Option<ArcFusewire>) -> PollFrame {
             match poll {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Ready(Some(Ok(data))) => {
@@ -117,11 +117,11 @@ impl Body for ReqBody {
             }
             Self::Hyper { inner, fusewire } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fursewire(poll, fusewire)
+                through_fusewire(poll, fusewire)
             }
             Self::Boxed { inner, fusewire } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fursewire(poll, fusewire)
+                through_fusewire(poll, fusewire)
             }
         }
     }
