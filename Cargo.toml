@@ -137,7 +137,7 @@ x509-parser = "0.17"
 compact_str = { version = "0.9", features = ["serde"] }
 
 # Compress
-brotli = { version = "7", default-features = false }
+brotli = { version = "8", default-features = false }
 flate2 = { version = "1", default-features = false }
 zstd = { version = "0.13", default-features = false }
 
