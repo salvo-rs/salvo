@@ -44,7 +44,7 @@ pub struct StatusError {
     /// Detail information about http error.
     pub detail: Option<String>,
     /// Cause about http error. This field is only used for internal debugging and only used in debug mode.
-    pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
+    pub cause: Option<Box<dyn std::any::Any + Sync + Send + 'static>>,
 }
 
 impl StatusError {
@@ -59,12 +59,12 @@ impl StatusError {
         self
     }
     /// Sets cause field and returns `Self`.
-    pub fn cause<C>(mut self, cause: C) -> Self
-    where
-        C: Into<Box<dyn StdError + Sync + Send + 'static>>,
-    {
-        self.cause = Some(cause.into());
+    pub fn cause<C: Send + Sync + 'static>(mut self, cause: C) -> Self {
+        self.cause = Some(Box::new(cause));
         self
+    }
+    pub fn downcast_cause<T: 'static>(&self) -> Option<&T> {
+        self.cause.as_ref().and_then(|c| c.downcast_ref::<T>())
     }
 
     default_errors! {
@@ -200,7 +200,15 @@ impl Display for StatusError {
             write!(&mut str_error, " detail: {}", detail)?;
         }
         if let Some(cause) = &self.cause {
-            write!(&mut str_error, " cause: {}", cause)?;
+            if let Some(err) = cause.downcast_ref::<&dyn StdError>() {
+                write!(&mut str_error, " cause: {}", err)?;
+            } else if let Some(err) = cause.downcast_ref::<String>() {
+                write!(&mut str_error, " cause: {}", err)?;
+            } else if let Some(err) = cause.downcast_ref::<&str>() {
+                write!(&mut str_error, " cause: {}", err)?;
+            } else {
+                write!(&mut str_error, " cause: <unknown error type>")?;
+            }
         }
         f.write_str(&str_error)
     }
