@@ -86,6 +86,7 @@ ulid = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 compact_str = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
 
 [build-dependencies]
 regex = { workspace = true }
