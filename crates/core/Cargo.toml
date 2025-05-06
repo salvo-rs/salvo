@@ -50,6 +50,7 @@ eyre = { workspace = true, optional = true }
 form_urlencoded = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
+h3-datagram = { workspace = true }
 headers = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 use salvo::prelude::*;
 use salvo::proto::webtransport;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -50,24 +50,25 @@ async fn connect(req: &mut Request) -> Result<(), salvo::Error> {
 
     // This will open a bidirectional stream and send a message to the client right after connecting!
     let stream = session.open_bi(session_id).await?;
+    let mut datagram_reader = session.datagram_reader();
+    let mut datagram_sender = session.datagram_sender();
 
     tokio::spawn(async move {
         log_result!(open_bidi_test(stream).await);
     });
     loop {
         tokio::select! {
-            datagram = session.accept_datagram() => {
-                let datagram = datagram?;
-                if let Some((_, datagram)) = datagram {
-                    tracing::info!("Responding with {datagram:?}");
-                    // Put something before to make sure encoding and decoding works and don't just
-                    // pass through
-                    let mut resp = BytesMut::from(&b"Response: "[..]);
-                    resp.put(datagram);
-
-                    session.send_datagram(resp.freeze())?;
-                    tracing::info!("Finished sending datagram");
-                }
+            datagram = datagram_reader.read_datagram() => {
+                let datagram = match datagram {
+                    Ok(datagram) => datagram,
+                    Err(e) => {
+                        tracing::error!("Failed to read datagram: {e:?}");
+                        break;
+                    }
+                };
+                tracing::info!("Received datagram: {datagram:?}");
+                let datagram = datagram.into_payload();
+                datagram_sender.send_datagram(datagram)?;
             }
             uni_stream = session.accept_uni() => {
                 let (id, stream) = uni_stream?.unwrap();
