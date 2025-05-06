@@ -26,7 +26,7 @@ server-handle = []
 http1 = []
 http2 = ["hyper/http2"]
 http2-cleartext = ["http2"]
-quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
+quinn = ["dep:salvo-http3", "dep:quinn", "dep:h3-datagram", "rustls"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "ring"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
@@ -50,6 +50,7 @@ eyre = { workspace = true, optional = true }
 form_urlencoded = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
+h3-datagram = { workspace = true, optional = true }
 headers = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
@@ -85,7 +86,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
-tokio-rustls = { workspace = true, optional = true, features = ["logging", "tls12"]}
+tokio-rustls = { workspace = true, optional = true, features = ["logging", "tls12"] }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
 url = { workspace = true, optional = true }

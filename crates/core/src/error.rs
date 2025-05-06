@@ -27,8 +27,16 @@ pub enum Error {
     InvalidUri(http::uri::InvalidUri),
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
-    /// H3 error.
-    H3(salvo_http3::Error),
+    /// H3 ConnectionError.
+    H3Connection(salvo_http3::error::ConnectionError),
+    #[cfg(feature = "quinn")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
+    /// H3 StreamError.
+    H3Stream(salvo_http3::error::StreamError),
+    #[cfg(feature = "quinn")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
+    /// H3 SendDatagramError.
+    H3SendDatagram(h3_datagram::datagram_handler::SendDatagramError),
     /// Anyhow error.
     #[cfg(feature = "anyhow")]
     #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
@@ -58,7 +66,11 @@ impl Display for Error {
             Self::SerdeJson(e) => Display::fmt(e, f),
             Self::InvalidUri(e) => Display::fmt(e, f),
             #[cfg(feature = "quinn")]
-            Self::H3(e) => Display::fmt(e, f),
+            Self::H3Connection(e) => Display::fmt(e, f),
+            #[cfg(feature = "quinn")]
+            Self::H3Stream(e) => Display::fmt(e, f),
+            #[cfg(feature = "quinn")]
+            Self::H3SendDatagram(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
             #[cfg(feature = "eyre")]
@@ -114,10 +126,22 @@ impl From<serde_json::Error> for Error {
 }
 cfg_feature! {
     #![feature = "quinn"]
-    impl From<salvo_http3::Error> for Error {
+    impl From<salvo_http3::error::ConnectionError> for Error {
         #[inline]
-        fn from(e: salvo_http3::Error) -> Error {
-            Error::H3(e)
+        fn from(e: salvo_http3::error::ConnectionError) -> Error {
+            Error::H3Connection(e)
+        }
+    }
+    impl From<salvo_http3::error::StreamError> for Error {
+        #[inline]
+        fn from(e: salvo_http3::error::StreamError) -> Error {
+            Error::H3Stream(e)
+        }
+    }
+    impl From<h3_datagram::datagram_handler::SendDatagramError> for Error {
+        #[inline]
+        fn from(e: h3_datagram::datagram_handler::SendDatagramError) -> Error {
+            Error::H3SendDatagram(e)
         }
     }
 }
