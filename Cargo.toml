@@ -27,7 +27,7 @@ salvo-cache = { version = "0.78.0", path = "crates/cache", default-features = fa
 salvo-cors = { version = "0.78.0", path = "crates/cors", default-features = false }
 salvo-csrf = { version = "0.78.0", path = "crates/csrf", default-features = false }
 salvo-flash = { version = "0.78.0", path = "crates/flash", default-features = false }
-salvo-http3 = { version = "0.5.0", default-features = false }
+salvo-http3 = { version = "0.6.0", default-features = false }
 salvo-jwt-auth = { version = "0.78.0", path = "crates/jwt-auth", default-features = false }
 salvo-oapi = { version = "0.78.0", path = "./crates/oapi", default-features = false }
 salvo-oapi-macros = { version = "0.78.0", path = "crates/oapi-macros", default-features = false }
@@ -107,7 +107,7 @@ rustls-pemfile = "2"
 rust-embed = { version = ">= 6, <= 9" }
 serde = "1"
 serde_json = "1"
-serde-xml-rs = "0.7"
+serde-xml-rs = "0.8"
 serde_urlencoded = "0.7"
 serde_norway = "0.9"
 serde_with = "3"

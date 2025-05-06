@@ -6,9 +6,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use bytes::Bytes;
-use futures_util::future::poll_fn;
 use futures_util::Stream;
-use salvo_http3::error::ErrorLevel;
+use futures_util::future::poll_fn;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio_util::sync::CancellationToken;
@@ -67,15 +66,29 @@ impl Builder {
 
         loop {
             match conn.accept().await {
-                Ok(Some((request, stream))) => {
-                    tracing::debug!("new request: {:#?}", request);
+                Ok(Some(resolver)) => {
                     let hyper_handler = hyper_handler.clone();
+                    let (request, stream) = match resolver.resolve_request().await {
+                        Ok(request) => request,
+                        Err(err) => {
+                            tracing::error!("error resolving request: {err:?}");
+                            continue;
+                        }
+                    };
+                    tracing::debug!("new request: {:#?}", request);
                     match request.method() {
                         &Method::CONNECT
-                            if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) =>
+                            if request.extensions().get::<Protocol>()
+                                == Some(&Protocol::WEB_TRANSPORT) =>
                         {
-                            if let Some(c) =
-                                process_web_transport(conn, request, stream, hyper_handler, fusewire.clone()).await?
+                            if let Some(c) = process_web_transport(
+                                conn,
+                                request,
+                                stream,
+                                hyper_handler,
+                                fusewire.clone(),
+                            )
+                            .await?
                             {
                                 conn = c;
                             } else {
@@ -85,7 +98,9 @@ impl Builder {
                         _ => {
                             let fusewire = fusewire.clone();
                             tokio::spawn(async move {
-                                match process_request(request, stream, hyper_handler, fusewire).await {
+                                match process_request(request, stream, hyper_handler, fusewire)
+                                    .await
+                                {
                                     Ok(_) => {}
                                     Err(e) => {
                                         tracing::error!(error = ?e, "process request failed")
@@ -99,11 +114,8 @@ impl Builder {
                     break;
                 }
                 Err(e) => {
-                    tracing::debug!(error = ?e, "accept stopped {:?}", e.get_error_level());
-                    match e.get_error_level() {
-                        ErrorLevel::ConnectionError => break,
-                        ErrorLevel::StreamError => continue,
-                    }
+                    tracing::error!("Connection errored with {}", e);
+                    break;
                 }
             }
             if let Some(graceful_stop_token) = &graceful_stop_token {
@@ -155,10 +167,16 @@ async fn process_web_transport(
                     .map_err(|e| IoError::other( format!("failed to get conn : {}", e)))
             })
             .transpose()?;
-        stream = response
-            .extensions_mut()
-            .remove::<Arc<salvo_http3::server::RequestStream<salvo_http3::quinn::BidiStream<Bytes>, Bytes>>>()
-            .and_then(Arc::into_inner);
+        stream =
+            response
+                .extensions_mut()
+                .remove::<Arc<
+                    salvo_http3::server::RequestStream<
+                        salvo_http3::quinn::BidiStream<Bytes>,
+                        Bytes,
+                    >,
+                >>()
+                .and_then(Arc::into_inner);
     }
 
     let Some(conn) = conn else {
@@ -184,10 +202,16 @@ async fn process_web_transport(
         match result {
             Ok(frame) => {
                 if frame.is_data() {
-                    if let Err(e) = stream.send_data(frame.into_data().unwrap_or_default()).await {
+                    if let Err(e) = stream
+                        .send_data(frame.into_data().unwrap_or_default())
+                        .await
+                    {
                         tracing::error!(error = ?e, "unable to send data to connection peer");
                     }
-                } else if let Err(e) = stream.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                } else if let Err(e) = stream
+                    .send_trailers(frame.into_trailers().unwrap_or_default())
+                    .await
+                {
                     tracing::error!(error = ?e, "unable to send trailers to connection peer");
                 }
             }
@@ -242,7 +266,10 @@ where
                     if let Err(e) = tx.send_data(frame.into_data().unwrap_or_default()).await {
                         tracing::error!(error = ?e, "unable to send data to connection peer");
                     }
-                } else if let Err(e) = tx.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                } else if let Err(e) = tx
+                    .send_trailers(frame.into_trailers().unwrap_or_default())
+                    .await
+                {
                     tracing::error!(error = ?e, "unable to send trailers to connection peer");
                 }
             }
