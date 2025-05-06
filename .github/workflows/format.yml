@@ -4,6 +4,8 @@ on:
       - '*'
 
 name: "Format Code"
+permissions:
+  contents: read
 
 jobs:
   format:
