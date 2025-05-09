@@ -74,6 +74,7 @@ regex = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 http = { workspace = true }
+anyhow = { workspace = true }
 
 # Feature optional dependencies
 chrono = { workspace = true, optional = true }
