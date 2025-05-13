@@ -25,6 +25,7 @@ macro_rules! default_errors {
                     brief: $brief.into(),
                     detail: None,
                     cause: None,
+                    origin: None,
                 }
             }
         )+
@@ -43,8 +44,10 @@ pub struct StatusError {
     pub brief: String,
     /// Detail information about http error.
     pub detail: Option<String>,
-    /// Cause about http error. This field is only used for internal debugging and only used in debug mode.
-    pub cause: Option<Box<dyn std::any::Any + Sync + Send + 'static>>,
+    /// Cause about http error. Similar to the `origin` field, but using [`std::error::Error`].
+    pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
+    /// Origin about http error. Similar to the `cause` field, but using [`std::any::Any`].
+    pub origin: Option<Box<dyn std::any::Any + Sync + Send + 'static>>,
 }
 
 impl StatusError {
@@ -60,14 +63,23 @@ impl StatusError {
     }
 
     /// Sets cause field and returns `Self`.
-    pub fn cause<C: Send + Sync + 'static>(mut self, cause: C) -> Self {
-        self.cause = Some(Box::new(cause));
+    pub fn cause<T>(mut self, cause: T) -> Self
+    where
+        T: Into<Box<dyn StdError + Sync + Send + 'static>>,
+    {
+        self.cause = Some(cause.into());
         self
     }
 
-    /// Downcast to T
-    pub fn downcast_cause<T: 'static>(&self) -> Option<&T> {
-        self.cause.as_ref().and_then(|c| c.downcast_ref::<T>())
+    /// Sets origin field and returns `Self`.
+    pub fn origin<T: Send + Sync + 'static>(mut self, origin: T) -> Self {
+        self.origin = Some(Box::new(origin));
+        self
+    }
+
+    /// Downcast origin to T
+    pub fn downcast_origin<T: 'static>(&self) -> Option<&T> {
+        self.origin.as_ref().and_then(|o| o.downcast_ref::<T>())
     }
 
     default_errors! {
@@ -203,21 +215,24 @@ impl Display for StatusError {
             write!(&mut str_error, " detail: {}", detail)?;
         }
         if let Some(cause) = &self.cause {
+            write!(&mut str_error, " cause: {}", cause)?;
+        }
+        if let Some(origin) = &self.origin {
             let mut handle_cause = || {
-                if let Some(err) = cause.downcast_ref::<&dyn StdError>() {
-                    return write!(&mut str_error, " cause: {}", err);
+                if let Some(e) = origin.downcast_ref::<&dyn StdError>() {
+                    return write!(&mut str_error, " origin: {}", e);
                 }
-                if let Some(err) = cause.downcast_ref::<String>() {
-                    return write!(&mut str_error, " cause: {}", err);
+                if let Some(e) = origin.downcast_ref::<String>() {
+                    return write!(&mut str_error, " origin: {}", e);
                 }
-                if let Some(err) = cause.downcast_ref::<&str>() {
-                    return write!(&mut str_error, " cause: {}", err);
+                if let Some(e) = origin.downcast_ref::<&str>() {
+                    return write!(&mut str_error, " origin: {}", e);
                 }
                 #[cfg(feature = "anyhow")]
-                if let Some(err) = cause.downcast_ref::<anyhow::Error>() {
-                    return write!(&mut str_error, " cause: {}", err);
+                if let Some(e) = origin.downcast_ref::<anyhow::Error>() {
+                    return write!(&mut str_error, " origin: {}", e);
                 }
-                write!(&mut str_error, " cause: <unknown error type>")
+                write!(&mut str_error, " origin: <unknown error type>")
             };
             handle_cause()?;
         }

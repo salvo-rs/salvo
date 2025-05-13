@@ -25,6 +25,7 @@ full = [
     "redoc",
     "chrono",
     "decimal",
+    "anyhow", # Ignore eyre, no one uses anyhow and eyre at the same time.
     "url",
     "ulid",
     "uuid",
@@ -43,6 +44,8 @@ chrono = ["salvo-oapi-macros/chrono", "dep:chrono"]
 decimal = ["salvo-oapi-macros/decimal", "dep:rust_decimal"]
 decimal-float = ["salvo-oapi-macros/decimal-float", "dep:rust_decimal"]
 non-strict-integers = ["salvo-oapi-macros/non-strict-integers"]
+anyhow = ["dep:anyhow"]
+eyre = ["dep:eyre"]
 url = ["salvo-oapi-macros/url", "dep:url"]
 ulid = ["salvo-oapi-macros/ulid", "dep:ulid"]
 uuid = ["salvo-oapi-macros/uuid", "dep:uuid"]
@@ -87,6 +90,7 @@ url = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 compact_str = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
+eyre = { workspace = true, optional = true }
 
 [build-dependencies]
 regex = { workspace = true }

@@ -179,61 +179,18 @@ impl EndpointRegistry {
 }
 inventory::collect!(EndpointRegistry);
 
-
-// ----> support anyhow::Result
 #[cfg(feature = "anyhow")]
-impl<T> EndpointOutRegister for anyhow::Result<T>
-where
-    T: EndpointOutRegister + Send,
-{
+impl EndpointOutRegister for anyhow::Error {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
-        // 注册成功情况的响应
-        T::register(components, operation);
-
-        // 注册错误情况的响应
-        // anyhow::Error 可能代表多种错误情况，我们将其映射为 500 内部服务器错误
-        operation.responses.insert(
-            "500",
-            Response::new("Internal Server Error")
-                .add_content("text/plain", String::to_schema(components)),
-        );
-
-        // 可选：添加其他可能的状态码
-        operation.responses.insert(
-            "400",
-            Response::new("Bad Request")
-                .add_content("text/plain", String::to_schema(components)),
-        );
-
-        // 添加对 StatusError 的支持，因为 anyhow::Error 可能会包装 StatusError
         StatusError::register(components, operation);
     }
 }
 
-// 特殊处理 anyhow::Result<()> 的情况
-#[cfg(feature = "anyhow")]
-impl EndpointOutRegister for anyhow::Result<()> {
+#[cfg(feature = "eyre")]
+impl EndpointOutRegister for eyre::Report {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
-        // 成功情况
-        operation.responses.insert("200", Response::new("Ok"));
-
-        // 错误情况
-        operation.responses.insert(
-            "500",
-            Response::new("Internal Server Error")
-                .add_content("text/plain", String::to_schema(components)),
-        );
-
-        // 可选：添加其他可能的状态码
-        operation.responses.insert(
-            "400",
-            Response::new("Bad Request")
-                .add_content("text/plain", String::to_schema(components)),
-        );
-
-        // 添加对 StatusError 的支持
         StatusError::register(components, operation);
     }
 }
