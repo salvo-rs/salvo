@@ -186,7 +186,7 @@ cfg_feature! {
         #[inline]
         fn render(self, res: &mut Response) {
             tracing::error!(error = ?self, "anyhow error occurred");
-            res.render(StatusError::internal_server_error().cause(self));
+            res.render(StatusError::internal_server_error().origin(self));
         }
     }
 }
