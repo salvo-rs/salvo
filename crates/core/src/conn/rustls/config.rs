@@ -162,6 +162,8 @@ pub struct RustlsConfig {
     pub client_auth: TlsClientAuth,
     /// Protocols through ALPN (Application-Layer Protocol Negotiation).
     pub alpn_protocols: Vec<Vec<u8>>,
+    /// Force TLS 1.3
+    pub force_tls13: bool,
 }
 
 
@@ -174,6 +176,7 @@ impl RustlsConfig {
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
             alpn_protocols: alpn_protocols(),
+            force_tls13: false,
         }
     }
 
@@ -187,6 +190,15 @@ impl RustlsConfig {
         file.read_to_end(&mut data)?;
         self.client_auth = TlsClientAuth::Optional(data);
         Ok(self)
+    }
+
+    /// Forces RustlsConfig to use TLS 1.3 only.
+    ///
+    /// This method is useful when you want to enforce the use of TLS 1.3 for all connections.
+    /// It will disable the use of TLS 1.2 and below.
+    pub fn force_tls13(mut self) -> Self {
+        self.force_tls13 = true;
+        self
     }
 
     /// Sets the trust anchor for optional Tls client authentication via bytes slice.
@@ -263,7 +275,12 @@ impl RustlsConfig {
             }
         };
 
-        let mut config = ServerConfig::builder()
+        let config = if self.force_tls13 {
+            ServerConfig::builder_with_protocol_versions(&[&tokio_rustls::rustls::version::TLS13])
+        } else {
+            ServerConfig::builder_with_protocol_versions(tokio_rustls::rustls::ALL_VERSIONS)
+        };
+        let mut config = config
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
                 certified_keys,
