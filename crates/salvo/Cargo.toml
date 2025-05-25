@@ -74,6 +74,7 @@ oapi = ["dep:salvo-oapi"]
 # aws-lc-rs = ["salvo_core/aws-lc-rs", "salvo-jwt-auth?/aws-lc-rs", "salvo-proxy?/aws-lc-rs"]
 ring = ["salvo_core/ring", "salvo-jwt-auth?/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path"]
+tls12 = ["salvo_core/tls12"]
 
 [dependencies]
 salvo_core = { workspace = true }
