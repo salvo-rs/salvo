@@ -83,10 +83,9 @@ multimap = "0.10"
 native-tls = "0.2"
 nix = { version = "0.30", default-features = false }
 openssl = { version = "0.10" }
-opentelemetry = { version = "0.29", default-features = false }
-opentelemetry-http = { version = "0.29", default-features = false }
-opentelemetry-prometheus = { version = "0.29", default-features = false }
-opentelemetry-semantic-conventions = { version = "0.29", default-features = false }
+opentelemetry = { version = "0.30", default-features = false }
+opentelemetry-http = { version = "0.30", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.30", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
@@ -117,7 +116,7 @@ smallvec = "1"
 socket2 = "0.5"
 syn = "2"
 sync_wrapper = "1"
-tempfile = "3"
+tempfile = ">= 3.20"
 thiserror = "2"
 time = "0.3"
 tokio = "1"
