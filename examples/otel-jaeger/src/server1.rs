@@ -11,9 +11,6 @@ use reqwest::{Client, Method, Url};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 
-mod exporter;
-use exporter::Exporter;
-
 fn init_tracer_provider() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let exporter = opentelemetry_otlp::SpanExporter::builder()
@@ -75,8 +72,7 @@ async fn main() {
         .hoop(affix_state::inject(Arc::new(tracer.clone())))
         .hoop(Metrics::new())
         .hoop(Tracing::new(tracer))
-        .push(Router::with_path("api1").get(index))
-        .push(Router::with_path("metrics").get(Exporter::new()));
+        .push(Router::with_path("api1").get(index));
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }

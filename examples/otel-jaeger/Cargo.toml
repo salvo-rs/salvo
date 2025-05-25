@@ -23,8 +23,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 opentelemetry = { workspace = true, features = ["metrics"]  }
 reqwest = { workspace = true }
-prometheus = "0.13"
-opentelemetry-prometheus.workspace = true
 opentelemetry-http.workspace = true
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 opentelemetry-otlp = { workspace = true, features = ["http-proto", "tonic", "trace", "reqwest"] }

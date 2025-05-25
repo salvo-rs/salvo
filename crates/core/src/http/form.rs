@@ -159,7 +159,7 @@ impl FilePart {
             tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
                 .await
                 .expect("Runtime spawn blocking poll error")?
-                .into_path();
+                .keep();
         let temp_dir = Some(path.clone());
         let name = field.file_name().map(|s| s.to_owned());
         path.push(format!(
