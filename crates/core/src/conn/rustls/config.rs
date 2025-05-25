@@ -1,13 +1,12 @@
 //! rustls module
 use std::collections::HashMap;
 use std::fs::File;
-use std::future::{Ready, ready};
+use std::future::{ready, Ready};
 use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
 
-use futures_util::stream::{Once, Stream, once};
-use tokio_rustls::rustls::SupportedProtocolVersion;
+use futures_util::stream::{once, Once, Stream};
 use tokio_rustls::rustls::crypto::ring::sign::any_supported_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
@@ -163,9 +162,8 @@ pub struct RustlsConfig {
     pub client_auth: TlsClientAuth,
     /// Protocols through ALPN (Application-Layer Protocol Negotiation).
     pub alpn_protocols: Vec<Vec<u8>>,
-    /// Supported TLS versions.
-    pub tls_versions: &'static [&'static SupportedProtocolVersion],
 }
+
 
 impl RustlsConfig {
     /// Create new `RustlsConfig`
@@ -176,7 +174,6 @@ impl RustlsConfig {
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
             alpn_protocols: alpn_protocols(),
-            tls_versions: tokio_rustls::rustls::ALL_VERSIONS,
         }
     }
 
@@ -237,16 +234,6 @@ impl RustlsConfig {
         self
     }
 
-    /// Set specific TLS versions supported.
-    #[inline]
-    pub fn tls_versions(
-        mut self,
-        tls_versions: &'static [&'static SupportedProtocolVersion],
-    ) -> Self {
-        self.tls_versions = tls_versions;
-        self
-    }
-
     /// ServerConfig
     pub(crate) fn build_server_config(mut self) -> IoResult<ServerConfig> {
         let fallback = self
@@ -276,7 +263,7 @@ impl RustlsConfig {
             }
         };
 
-        let mut config = ServerConfig::builder_with_protocol_versions(self.tls_versions)
+        let mut config = ServerConfig::builder()
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
                 certified_keys,
