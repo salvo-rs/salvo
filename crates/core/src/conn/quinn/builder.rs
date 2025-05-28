@@ -114,7 +114,9 @@ impl Builder {
                     break;
                 }
                 Err(e) => {
-                    tracing::error!("Connection errored with {}", e);
+                    if !e.is_h3_no_error() {
+                        tracing::error!("Connection errored with {}", e);
+                    }
                     break;
                 }
             }
