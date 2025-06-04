@@ -30,7 +30,7 @@ impl BodySender {
     pub(crate) fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         self.data_tx
             .poll_ready(cx)
-            .map_err(|e| IoError::other(format!("failed to poll ready: {}", e)))
+            .map_err(|e| IoError::other(format!("failed to poll ready: {e}")))
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -55,7 +55,7 @@ impl BodySender {
         self.ready().await?;
         self.data_tx
             .try_send(Ok(chunk.into()))
-            .map_err(|e| IoError::other(format!("failed to send data: {}", e)))
+            .map_err(|e| IoError::other(format!("failed to send data: {e}")))
     }
 
     /// Send trailers on trailers channel.
@@ -92,11 +92,11 @@ impl futures_util::AsyncWrite for BodySender {
                     self.data_tx
                         .try_send(Ok(data))
                         .map(|_| len)
-                        .map_err(|e| IoError::other(format!("failed to send data: {}", e))),
+                        .map_err(|e| IoError::other(format!("failed to send data: {e}"))),
                 )
             }
             Poll::Ready(Err(e)) => {
-                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {}", e))))
+                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {e}"))))
             }
             Poll::Pending => Poll::Pending,
         }
@@ -129,11 +129,11 @@ impl tokio::io::AsyncWrite for BodySender {
                     self.data_tx
                         .try_send(Ok(data))
                         .map(|_| len)
-                        .map_err(|e| IoError::other(format!("failed to send data: {}", e))),
+                        .map_err(|e| IoError::other(format!("failed to send data: {e}"))),
                 )
             }
             Poll::Ready(Err(e)) => {
-                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {}", e))))
+                Poll::Ready(Err(IoError::other(format!("failed to poll ready: {e}"))))
             }
             Poll::Pending => Poll::Pending,
         }

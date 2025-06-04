@@ -246,9 +246,9 @@ where
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if query.starts_with('?') {
-                format!("{}{}", path, query)
+                format!("{path}{query}")
             } else {
-                format!("{}?{}", path, query)
+                format!("{path}?{query}")
             }
         } else {
             path
@@ -256,11 +256,11 @@ where
         let forward_url = if upstream.ends_with('/') && rest.starts_with('/') {
             format!("{}{}", upstream.trim_end_matches('/'), rest)
         } else if upstream.ends_with('/') || rest.starts_with('/') {
-            format!("{}{}", upstream, rest)
+            format!("{upstream}{rest}")
         } else if rest.is_empty() {
             upstream.to_string()
         } else {
-            format!("{}/{}", upstream, rest)
+            format!("{upstream}/{rest}")
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
         let mut build = hyper::Request::builder()

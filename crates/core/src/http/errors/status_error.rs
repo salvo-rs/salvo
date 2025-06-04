@@ -212,25 +212,25 @@ impl Display for StatusError {
             self.code, self.name, self.brief
         );
         if let Some(detail) = &self.detail {
-            write!(&mut str_error, " detail: {}", detail)?;
+            write!(&mut str_error, " detail: {detail}")?;
         }
         if let Some(cause) = &self.cause {
-            write!(&mut str_error, " cause: {}", cause)?;
+            write!(&mut str_error, " cause: {cause}")?;
         }
         if let Some(origin) = &self.origin {
             let mut handle_cause = || {
                 if let Some(e) = origin.downcast_ref::<&dyn StdError>() {
-                    return write!(&mut str_error, " origin: {}", e);
+                    return write!(&mut str_error, " origin: {e}");
                 }
                 if let Some(e) = origin.downcast_ref::<String>() {
-                    return write!(&mut str_error, " origin: {}", e);
+                    return write!(&mut str_error, " origin: {e}");
                 }
                 if let Some(e) = origin.downcast_ref::<&str>() {
-                    return write!(&mut str_error, " origin: {}", e);
+                    return write!(&mut str_error, " origin: {e}");
                 }
                 #[cfg(feature = "anyhow")]
                 if let Some(e) = origin.downcast_ref::<anyhow::Error>() {
-                    return write!(&mut str_error, " origin: {}", e);
+                    return write!(&mut str_error, " origin: {e}");
                 }
                 write!(&mut str_error, " origin: <unknown error type>")
             };

@@ -16,7 +16,7 @@ impl Validate for MultipleOf {
             Err(Diagnostic::spanned(
                 self.1.span(),
                 DiagLevel::Error,
-                format!("`multiple_of` error: {}", error),
+                format!("`multiple_of` error: {error}"),
             )
             .help(
                 "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`",
@@ -49,7 +49,7 @@ impl Validate for Maximum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
             Err(
-                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`maximum` error: {}", error)).help(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`maximum` error: {error}")).help(
                     "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`",
                 ),
             )
@@ -89,7 +89,7 @@ impl Validate for Minimum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
             Err(
-                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`minimum` error: {}", error)).help(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`minimum` error: {error}")).help(
                     "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`",
                 ),
             )
@@ -123,7 +123,7 @@ pub(crate) struct ExclusiveMaximum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_maximum` error: {}", error))
+            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_maximum` error: {error}"))
             .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`"))
         } else {
             Ok(())
@@ -155,7 +155,7 @@ pub(crate) struct ExclusiveMinimum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMinimum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
-            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_minimum` error: {}", error))
+            Err(Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`exclusive_minimum` error: {error}"))
             .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`"))
         } else {
             Ok(())
@@ -190,7 +190,7 @@ impl Validate for MaxLength {
             Err(Diagnostic::spanned(
                 self.1.span(),
                 DiagLevel::Error,
-                format!("`max_length` error: {}", error),
+                format!("`max_length` error: {error}"),
             )
             .help(
                 "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`",
@@ -228,7 +228,7 @@ impl Validate for MinLength {
             Err(Diagnostic::spanned(
                 self.1.span(),
                 DiagLevel::Error,
-                format!("`min_length` error: {}", error),
+                format!("`min_length` error: {error}"),
             )
             .help(
                 "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`",
@@ -264,7 +264,7 @@ impl Validate for Pattern {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
             Err(
-                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`pattern` error: {}", error)).help(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`pattern` error: {error}")).help(
                     "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`",
                 ),
             )
@@ -300,7 +300,7 @@ impl Validate for MaxItems {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
             Err(
-                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`max_items` error: {}", error)).help(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`max_items` error: {error}")).help(
                     "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems",
                 ),
             )
@@ -335,7 +335,7 @@ impl Validate for MinItems {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
             Err(
-                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`min_items` error: {}", error)).help(
+                Diagnostic::spanned(self.1.span(), DiagLevel::Error, format!("`min_items` error: {error}")).help(
                     "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems",
                 ),
             )

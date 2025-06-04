@@ -112,10 +112,10 @@ where
         let hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
             Err(e) => {
-                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                tracing::error!(error = ?e, "call tower service failed: {e}");
                 res.render(
                     StatusError::internal_server_error()
-                        .cause(format!("call tower service failed: {}", e)),
+                        .cause(format!("call tower service failed: {e}")),
                 );
                 return;
             }
@@ -274,10 +274,10 @@ where
         let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
             Err(e) => {
-                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                tracing::error!(error = ?e, "call tower service failed: {e}");
                 res.render(
                     StatusError::internal_server_error()
-                        .cause(format!("call tower service failed: {}", e)),
+                        .cause(format!("call tower service failed: {e}")),
                 );
                 return;
             }

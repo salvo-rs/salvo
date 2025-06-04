@@ -16,11 +16,11 @@ fn metadata(
     mut modifiers: Vec<TokenStream>,
 ) -> DiagResult<TokenStream> {
     let tfn = Ident::new(
-        &format!("__macro_gen_oapi_endpoint_type_id_{}", name),
+        &format!("__macro_gen_oapi_endpoint_type_id_{name}"),
         Span::call_site(),
     );
     let cfn = Ident::new(
-        &format!("__macro_gen_oapi_endpoint_creator_{}", name),
+        &format!("__macro_gen_oapi_endpoint_creator_{name}"),
         Span::call_site(),
     );
     let opt = Operation::new(&attr);

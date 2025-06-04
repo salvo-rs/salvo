@@ -142,7 +142,7 @@ impl Namer for FlexNamer {
                 while let Some(exist_id) = type_info_by_name(&name).map(|t| t.0) {
                     if exist_id != type_id {
                         count += 1;
-                        name = format!("{}{}", base, count);
+                        name = format!("{base}{count}");
                     } else {
                         break;
                     }
@@ -165,7 +165,7 @@ impl Namer for FlexNamer {
                     if exist_id != type_id {
                         count += 1;
                         tracing::error!("Duplicate name for types: {}, {}", exist_name, type_name);
-                        name = format!("{}{}", base, count);
+                        name = format!("{base}{count}");
                     } else {
                         break;
                     }

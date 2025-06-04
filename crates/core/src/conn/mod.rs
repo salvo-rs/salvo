@@ -61,7 +61,7 @@ pub mod tcp;
 pub use tcp::TcpListener;
 
 mod joined;
-pub use joined::JoinedListener;
+pub use joined::{JoinedAcceptor, JoinedListener};
 
 cfg_feature! {
     #![unix]

@@ -109,6 +109,7 @@ where
     }
 }
 
+/// `JoinedAcceptor` is an acceptor that can accept connections from two different acceptors.
 pub struct JoinedAcceptor<A, B> {
     a: A,
     b: B,
@@ -116,6 +117,7 @@ pub struct JoinedAcceptor<A, B> {
 }
 
 impl<A, B> JoinedAcceptor<A, B> {
+    /// Create a new `JoinedAcceptor`.
     pub fn new(a: A, b: B, holdings: Vec<Holding>) -> Self {
         JoinedAcceptor { a, b, holdings }
     }

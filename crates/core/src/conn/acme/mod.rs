@@ -72,10 +72,10 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::http::StatusError;
-use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use crate::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
-pub use listener::AcmeListener;
+pub use listener::{AcmeAcceptor, AcmeListener};
 cfg_feature! {
     #![feature = "quinn"]
     pub use listener::AcmeQuinnListener;
@@ -154,7 +154,13 @@ pub(crate) struct Http01Handler {
 
 #[async_trait]
 impl Handler for Http01Handler {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         if let Some(token) = req.params().get("token") {
             let keys = self.keys.read();
             if let Some(value) = keys.get(token) {
