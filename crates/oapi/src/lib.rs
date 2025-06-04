@@ -310,7 +310,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         let name = crate::naming::assign_name::<StatusError>(Default::default());
-        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());
             let schema = Schema::from(
@@ -343,7 +343,7 @@ where
 {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         let name = crate::naming::assign_name::<StatusError>(Default::default());
-        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", name)));
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());
             let schema = OneOf::new()

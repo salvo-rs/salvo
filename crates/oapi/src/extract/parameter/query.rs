@@ -97,8 +97,7 @@ where
     async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.query(arg).ok_or_else(|| {
             ParseError::other(format!(
-                "query parameter {} not found or convert to type failed",
-                arg
+                "query parameter {arg} not found or convert to type failed"
             ))
         })?;
         Ok(Self(value))

@@ -388,7 +388,7 @@ impl CombWisp {
                     ));
                 }
                 _ => {
-                    return Err(format!("unsupported wisp: {:?} add to CombWisp", wisp));
+                    return Err(format!("unsupported wisp: {wisp:?} add to CombWisp"));
                 }
             }
         }
@@ -402,7 +402,7 @@ impl CombWisp {
                 wild_regex,
                 wild_start,
             })
-            .map_err(|e| format!("Regex error: {}", e))
+            .map_err(|e| format!("Regex error: {e}"))
     }
 }
 impl PathWisp for CombWisp {
@@ -438,7 +438,7 @@ impl PathWisp for CombWisp {
                         if value.start() > start {
                             matched_part.push_str(&picked[start..value.start()]);
                         }
-                        matched_part.push_str(&format!("{{{}}}", name));
+                        matched_part.push_str(&format!("{{{name}}}"));
                         start = value.end();
                     }
                 } else {
@@ -483,7 +483,7 @@ impl PathWisp for CombWisp {
                     state.forward(cap.len());
                     state.params.insert(wild_name, cap);
                     #[cfg(feature = "matched-path")]
-                    state.matched_parts.push(format!("{{{}}}", wild_name));
+                    state.matched_parts.push(format!("{{{wild_name}}}"));
                     true
                 } else {
                     false
@@ -551,18 +551,18 @@ impl RegexWisp {
     #[inline]
     fn new(name: String, regex: &str) -> Result<Self, String> {
         let regex = if !regex.starts_with('^') {
-            &*format!("^{}", regex)
+            &*format!("^{regex}")
         } else {
             regex
         };
         let regex = if !regex.ends_with('$') {
-            &*format!("{}$", regex)
+            &*format!("{regex}$")
         } else {
             regex
         };
         Ok(Self {
             name,
-            regex: Regex::new(regex).map_err(|e| format!("invalid regex: `{}`, {}", regex, e))?,
+            regex: Regex::new(regex).map_err(|e| format!("invalid regex: `{regex}`, {e}"))?,
         })
     }
 }
@@ -1035,7 +1035,7 @@ impl PathFilter {
         let path_wisps = match parser.parse() {
             Ok(path_wisps) => path_wisps,
             Err(e) => {
-                panic!("{}, raw_value: {}", e, raw_value);
+                panic!("{e}, raw_value: {raw_value}");
             }
         };
         PathFilter {

@@ -317,7 +317,7 @@ pub fn status_error_bytes(
         prefer_format.clone()
     };
     #[cfg(debug_assertions)]
-    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e));
+    let cause = err.cause.as_ref().map(|e| format!("{e:#?}"));
     #[cfg(not(debug_assertions))]
     let cause: Option<&str> = None;
     #[cfg(debug_assertions)]

@@ -381,7 +381,7 @@ impl<'de> RequestDeserializer<'de> {
                             return false;
                         }
                         _ => {
-                            panic!("unsupported source parser: {:?}", parser);
+                            panic!("unsupported source parser: {parser:?}");
                         }
                     }
                 }

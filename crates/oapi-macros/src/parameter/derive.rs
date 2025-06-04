@@ -160,7 +160,7 @@ impl TryToTokens for ToParameters {
                         name: names.as_ref().map(|names| names.get(index).ok_or_else(||  Diagnostic::spanned(
                             ident.span(),
                             DiagLevel::Error,
-                            format!("There is no name specified in the names(...) container attribute for tuple struct field {}", index)
+                            format!("There is no name specified in the names(...) container attribute for tuple struct field {index}")
                         ))).transpose()?,
                     },
                     serde_container: serde_container.as_ref(),
@@ -274,8 +274,7 @@ impl ToParameters {
         let ident = &self.ident;
         let abort = |note: &str| {
             let msg = format!(
-                "unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
-                ident, ident
+                "unsupported data type, expected struct with named fields `struct {ident} {{...}}` or unnamed fields `struct {ident}(...)`"
             );
             Err(Diagnostic::spanned(ident.span(), DiagLevel::Error, msg).note(note))
         };
@@ -335,8 +334,7 @@ impl ToParameters {
                 "struct with unnamed fields must have explicit name declarations.",
             )
             .help(format!(
-                "Try defining `#[salvo(parameters(names(...)))]` over your type: {}",
-                ident
+                "Try defining `#[salvo(parameters(names(...)))]` over your type: {ident}"
             ))),
         }
     }

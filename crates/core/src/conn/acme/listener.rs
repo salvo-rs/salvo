@@ -343,6 +343,8 @@ where
         });
         Ok(acceptor)
     }
+    
+    /// Returns the config of this acceptor.
     pub fn server_config(&self) -> Arc<ServerConfig> {
         self.server_config.clone()
     }

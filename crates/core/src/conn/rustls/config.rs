@@ -267,12 +267,12 @@ impl RustlsConfig {
                 WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
                     .allow_unauthenticated()
                     .build()
-                    .map_err(|e| IoError::other(format!("failed to build server config: {}", e)))?
+                    .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             }
             TlsClientAuth::Required(trust_anchor) => {
                 WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
                     .build()
-                    .map_err(|e| IoError::other(format!("failed to build server config: {}", e)))?
+                    .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             }
         };
 

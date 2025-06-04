@@ -102,8 +102,7 @@ where
             .and_then(|v| from_str_val(v.value()).ok())
             .ok_or_else(|| {
                 ParseError::other(format!(
-                    "cookie parameter {} not found or convert to type failed",
-                    arg
+                    "cookie parameter {arg} not found or convert to type failed"
                 ))
             })?;
         Ok(Self(value))

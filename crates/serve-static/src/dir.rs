@@ -417,7 +417,7 @@ impl Handler for StaticDir {
                         if accept_algos.contains(algo) {
                             for zip_ext in exts {
                                 let mut path = abs_path.clone();
-                                path.as_mut_os_string().push(&*format!(".{}", zip_ext));
+                                path.as_mut_os_string().push(&*format!(".{zip_ext}"));
                                 if path.is_file() {
                                     new_abs_path = Some(path);
                                     content_encoding = Some(algo.to_string());

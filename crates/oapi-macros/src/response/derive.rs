@@ -524,7 +524,7 @@ impl<'r> EnumResponse<'r> {
                 return Err(Diagnostic::spanned(
                     ident.span(), DiagLevel::Error,
                     "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined"
-             ).help(format!("Try defining `{}` on the enum variant", ident)));
+             ).help(format!("Try defining `{ident}` on the enum variant")));
             }
         }
 
