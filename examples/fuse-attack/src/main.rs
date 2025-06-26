@@ -17,7 +17,7 @@ async fn main() {
     let router = Router::new()
         .get(hello)
         .push(Router::with_path("你好").get(hello_zh));
-    println!("{:?}", router);
+    println!("{router:?}");
     Server::new(acceptor)
         .fuse_factory(salvo::fuse::flex::FlexFactory::new())
         .serve(router)

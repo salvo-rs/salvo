@@ -28,7 +28,7 @@ async fn main() {
         .push(Router::with_path("你好").get(hello_zh));
 
     // Print router structure for debugging
-    println!("{:?}", router);
+    println!("{router:?}");
 
     // Start serving requests
     Server::new(acceptor).serve(router).await;

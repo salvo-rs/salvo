@@ -11,19 +11,19 @@ struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
 /// Use string type, this will add to openapi doc.
 #[endpoint]
 async fn use_string(body: JsonBody<MyObject<String>>) -> String {
-    format!("{:?}", body)
+    format!("{body:?}")
 }
 
 /// Use i32 type, this will add to openapi doc.
 #[endpoint]
 async fn use_i32(body: JsonBody<MyObject<i32>>) -> String {
-    format!("{:?}", body)
+    format!("{body:?}")
 }
 
 /// Use u64 type, this will add to openapi doc.
 #[endpoint]
 async fn use_u64(body: JsonBody<MyObject<u64>>) -> String {
-    format!("{:?}", body)
+    format!("{body:?}")
 }
 
 #[tokio::main]
