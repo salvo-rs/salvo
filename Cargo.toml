@@ -97,7 +97,7 @@ proc-macro2 = "1"
 quinn = { version = "0.11", default-features = false }
 quote = "1"
 rand = "0.9"
-rcgen = "0.13"
+rcgen = "0.14"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "http2", "macos-system-configuration"] }
 ring = "0.17"
