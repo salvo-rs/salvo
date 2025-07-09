@@ -5,8 +5,8 @@ use crate::{Client, HyperRequest, HyperResponse, Proxy, Upstreams};
 
 use hyper::client::conn::http1::handshake;
 use hyper::upgrade::OnUpgrade;
-use hyper_util::rt::TokioIo;
 use salvo_core::http::{ReqBody, ResBody};
+use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{BoxedError, Error};
 use tokio::net::UnixStream;
 use tokio::time::timeout;

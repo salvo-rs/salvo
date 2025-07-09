@@ -20,12 +20,13 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["ring", "hyper-client"]
+default = ["ring", "hyper-client", "unix-sock-client"]
 full = ["ring", "hyper-client", "reqwest-client"]
 # aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
 ring = ["hyper-rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
 reqwest-client = ["dep:reqwest"]
+unix-sock-client = []
 
 [dependencies]
 futures-util = { workspace = true, default-features = false }

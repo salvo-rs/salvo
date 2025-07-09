@@ -45,7 +45,7 @@ impl<'t> TypeTree<'t> {
         Self::from_type_paths(Self::get_type_paths(ty)?)
     }
 
-    fn get_type_paths(ty: &Type) -> DiagResult<Vec<TypeTreeValue>> {
+    fn get_type_paths(ty: &Type) -> DiagResult<Vec<TypeTreeValue<'_>>> {
         let type_tree_values = match ty {
             Type::Path(path) => {
                 vec![TypeTreeValue::TypePath(path)]
