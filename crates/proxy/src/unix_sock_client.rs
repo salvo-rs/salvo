@@ -11,6 +11,7 @@ use salvo_core::{BoxedError, Error};
 use tokio::net::UnixStream;
 use tokio::time::timeout;
 
+const UNIX_SOCKET_CONNECT_TIMEOUT: u64 = 5; // seconds
 /// A client that creates a direct bidirectional channel (TCP tunnel) to a Unix socket.
 ///
 /// This client is designed for scenarios where a raw data stream is established
@@ -39,10 +40,13 @@ impl Client for UnixSockClient {
         _request_upgraded: Option<OnUpgrade>,
     ) -> Result<HyperResponse, Self::Error> {
         let (unix_sock_path, request_path) = extract_unix_paths(proxied_request.uri())?;
-        let stream = timeout(Duration::from_secs(5), UnixStream::connect(unix_sock_path))
-            .await
-            .map_err(|_| Error::other("Connection to unix socket timed out"))?
-            .map_err(|e| Error::other(format!("Failed to connect to unix socket: {e}")))?;
+        let stream = timeout(
+            Duration::from_secs(UNIX_SOCKET_CONNECT_TIMEOUT),
+            UnixStream::connect(unix_sock_path),
+        )
+        .await
+        .map_err(|_| Error::other("Connection to unix socket timed out"))?
+        .map_err(|e| Error::other(format!("Failed to connect to unix socket: {e}")))?;
         let io = TokioIo::new(stream);
         let (mut sender, conn) = handshake::<_, ReqBody>(io).await.map_err(Error::other)?;
         tokio::spawn(async move {
@@ -65,7 +69,7 @@ impl Client for UnixSockClient {
 
 fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
     let full_path = uri.path();
-    // assume the pach contain a unix socket path ending with ".sock"
+    // assume the pach contains a unix socket path ending with ".sock"
     if let Some(sock_end_index) = full_path.find(".sock") {
         let sock_path_end = sock_end_index + ".sock".len();
         let sock_path_str = &full_path[..sock_path_end];
