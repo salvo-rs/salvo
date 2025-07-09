@@ -6,7 +6,7 @@
 #[doc(hidden)]
 pub use hyper::rt::*;
 
-/// Tokio runtimes
+/// Tokio runtime
 pub mod tokio {
     pub use hyper_util::rt::{TokioExecutor, TokioIo};
 }
