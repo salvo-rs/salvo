@@ -26,6 +26,7 @@ full = ["ring", "hyper-client", "reqwest-client"]
 ring = ["hyper-rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
 reqwest-client = ["dep:reqwest"]
+unix-sock-client = ["dep:hyper-util"]
 
 [dependencies]
 futures-util = { workspace = true, default-features = false }

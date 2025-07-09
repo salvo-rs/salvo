@@ -627,12 +627,12 @@ impl Parse for DeriveToResponsesValue {
 pub(crate) struct ResponseStatusCode(TokenStream);
 
 impl Parse for ResponseStatusCode {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        fn parse_lit_int(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        fn parse_lit_int(input: ParseStream<'_>) -> syn::Result<Cow<'_, str>> {
             input.parse::<LitInt>()?.base10_parse().map(Cow::Owned)
         }
 
-        fn parse_lit_str_status_range(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+        fn parse_lit_str_status_range(input: ParseStream<'_>) -> syn::Result<Cow<'_, str>> {
             const VALID_STATUS_RANGES: [&str; 6] = ["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
 
             input

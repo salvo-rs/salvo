@@ -205,7 +205,7 @@ impl_get_name!(Format = "format");
 pub(crate) struct ValueType(pub(crate) syn::Type);
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree> {
+    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree<'_>> {
         TypeTree::from_type(&self.0)
     }
 }

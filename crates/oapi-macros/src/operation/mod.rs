@@ -313,7 +313,7 @@ pub(crate) struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree> {
+    pub(crate) fn as_type_tree(&self) -> DiagResult<TypeTree<'_>> {
         TypeTree::from_type(&self.ty)
     }
 }

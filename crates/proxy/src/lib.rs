@@ -62,10 +62,13 @@ cfg_feature! {
     pub use reqwest_client::*;
 }
 
-#[cfg(unix)]
-mod unix_sock_client;
-#[cfg(unix)]
-pub use unix_sock_client::*;
+cfg_feature! {
+    #![feature = "unix-sock-client"]
+    #[cfg(unix)]
+    mod unix_sock_client;
+    #[cfg(unix)]
+    pub use unix_sock_client::*;
+}
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;

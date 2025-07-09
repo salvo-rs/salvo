@@ -31,7 +31,7 @@ pub(crate) fn salvo_crate() -> syn::Ident {
     }
 }
 
-pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
+pub(crate) fn parse_input_type(input: &FnArg) -> InputType<'_> {
     if let FnArg::Typed(p) = input {
         if let Type::Reference(ty) = &*p.ty {
             if let syn::Type::Path(nty) = &*ty.elem {
