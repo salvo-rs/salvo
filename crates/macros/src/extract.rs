@@ -317,6 +317,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             .as_ref()
             .ok_or_else(|| Error::new_spanned(name, "All fields must be named."))?
             .to_string();
+        let field_ident = field_ident.trim_start_matches("r#");
         let mut nested_metadata = None;
         let mut sources = Vec::with_capacity(field.sources.len());
         if field.flatten {
