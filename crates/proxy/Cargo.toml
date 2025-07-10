@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["ring", "hyper-client", "unix-sock-client"]
-full = ["ring", "hyper-client", "reqwest-client"]
+full = ["ring", "hyper-client", "reqwest-client", "unix-sock-client"]
 # aws-lc-rs = ["hyper-rustls/aws-lc-rs"]
 ring = ["hyper-rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
