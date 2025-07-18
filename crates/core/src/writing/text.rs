@@ -125,16 +125,16 @@ impl<C: Debug> Debug for Text<C> {
 impl<C: Display> Display for Text<C> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Plain(content) => Display::fmt(content, f),
-            Self::Json(content) => Display::fmt(content, f),
-            Self::Xml(content) => Display::fmt(content, f),
-            Self::Html(content) => Display::fmt(content, f),
-            Self::Js(content) => Display::fmt(content, f),
-            Self::Css(content) => Display::fmt(content, f),
-            Self::Csv(content) => Display::fmt(content, f),
-            Self::Atom(content) => Display::fmt(content, f),
-            Self::Rss(content) => Display::fmt(content, f),
-            Self::Rdf(content) => Display::fmt(content, f),
+            Self::Plain(content)
+            | Self::Json(content)
+            | Self::Xml(content)
+            | Self::Html(content)
+            | Self::Js(content)
+            | Self::Css(content)
+            | Self::Csv(content)
+            | Self::Atom(content)
+            | Self::Rss(content)
+            | Self::Rdf(content) => Display::fmt(content, f),
         }
     }
 }

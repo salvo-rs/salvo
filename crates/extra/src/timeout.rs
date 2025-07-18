@@ -34,15 +34,15 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-use std::time::Duration;
 use std::fmt::{self, Debug, Formatter};
+use std::time::Duration;
 
 use salvo_core::http::headers::{Connection, HeaderMapExt};
 use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Middleware for controlling request timeout.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 pub struct Timeout {
     value: Duration,
@@ -60,13 +60,16 @@ impl Debug for Timeout {
 impl Timeout {
     /// Create a new `Timeout`.
     #[inline]
-    #[must_use] pub fn new(value: Duration) -> Self {
+    #[must_use]
+    pub fn new(value: Duration) -> Self {
         // If a 408 error code is returned, the browser may resend the request multiple times. In most cases,
         // this behavior is undesirable.
         // https://github.com/tower-rs/tower-http/issues/300
         Self {
             value,
-            error: Box::new(|| StatusError::service_unavailable().brief("Server process the request timeout.")),
+            error: Box::new(|| {
+                StatusError::service_unavailable().brief("Server process the request timeout.")
+            }),
         }
     }
 
@@ -75,6 +78,7 @@ impl Timeout {
     /// By default, a `503 Service Unavailable` error is returned. You can set this function to other error types,
     /// such as `403 Request Timeout`, but the 403 error code may cause the browser to automatically resend the
     /// request multiple times.
+    #[must_use]
     pub fn error(mut self, error: impl Fn() -> StatusError + Send + Sync + 'static) -> Self {
         self.error = Box::new(error);
         self
@@ -83,7 +87,13 @@ impl Timeout {
 #[async_trait]
 impl Handler for Timeout {
     #[inline]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         tokio::select! {
             _ = ctrl.call_next(req, depot, res) => {},
             _ = tokio::time::sleep(self.value) => {

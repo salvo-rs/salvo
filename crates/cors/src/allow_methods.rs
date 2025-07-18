@@ -35,8 +35,7 @@ impl AllowMethods {
     /// See [`Cors::allow_methods`] for more details.
     ///
     /// [`Cors::allow_methods`]: super::Cors::allow_methods
-    #[must_use]
-    pub fn exact(method: Method) -> Self {
+    pub fn exact(method: &Method) -> Self {
         let value = HeaderValue::from_str(method.as_str()).expect("Invalid method.");
         Self(AllowMethodsInner::Exact(value))
     }
@@ -46,7 +45,6 @@ impl AllowMethods {
     /// See [`Cors::allow_methods`] for more details.
     ///
     /// [`Cors::allow_methods`]: super::Cors::allow_methods
-    #[must_use]
     pub fn list<I>(methods: I) -> Self
     where
         I: IntoIterator<Item = Method>,
@@ -126,7 +124,7 @@ impl From<Any> for AllowMethods {
 
 impl From<Method> for AllowMethods {
     fn from(method: Method) -> Self {
-        Self::exact(method)
+        Self::exact(&method)
     }
 }
 

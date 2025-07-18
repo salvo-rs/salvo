@@ -330,6 +330,7 @@ impl HoopedHandler {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -339,6 +340,7 @@ impl HoopedHandler {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,

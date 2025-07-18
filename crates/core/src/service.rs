@@ -86,6 +86,7 @@ impl Service {
     /// }
     /// ```
     #[inline]
+    #[must_use]
     pub fn catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
         self.catcher = Some(catcher.into());
         self
@@ -93,6 +94,7 @@ impl Service {
 
     /// Add a handler as middleware, it will run the handler when request received.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -102,6 +104,7 @@ impl Service {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
@@ -127,6 +130,7 @@ impl Service {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,

@@ -40,8 +40,7 @@ impl FromStr for CompressionAlgo {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "br" => Ok(Self::Brotli),
-            "brotli" => Ok(Self::Brotli),
+            "br" | "brotli" => Ok(Self::Brotli),
             "deflate" => Ok(Self::Deflate),
             "gzip" => Ok(Self::Gzip),
             "zstd" => Ok(Self::Zstd),

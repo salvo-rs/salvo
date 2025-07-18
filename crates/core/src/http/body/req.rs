@@ -43,12 +43,8 @@ impl ReqBody {
     #[doc(hidden)]
     pub fn set_fusewire(&mut self, value: Option<ArcFusewire>) {
         match self {
-            Self::None => {}
-            Self::Once(_) => {}
-            Self::Hyper { fusewire, .. } => {
-                *fusewire = value;
-            }
-            Self::Boxed { fusewire, .. } => {
+            Self::None | Self::Once(_) => {}
+            Self::Hyper { fusewire, .. } | Self::Boxed { fusewire, .. } => {
                 *fusewire = value;
             }
         }
@@ -76,6 +72,7 @@ impl ReqBody {
 
     /// Set body to none and returns current body.
     #[inline]
+    #[must_use]
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Self::None)
     }
@@ -87,7 +84,7 @@ impl Body for ReqBody {
 
     fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> PollFrame {
         #[inline]
-        fn through_fusewire(poll: PollFrame, fusewire: &Option<ArcFusewire>) -> PollFrame {
+        fn through_fusewire(poll: PollFrame, fusewire: Option<&ArcFusewire>) -> PollFrame {
             match poll {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Ready(Some(Ok(data))) => {
@@ -117,11 +114,11 @@ impl Body for ReqBody {
             }
             Self::Hyper { inner, fusewire } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire)
+                through_fusewire(poll, fusewire.as_ref())
             }
             Self::Boxed { inner, fusewire } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire)
+                through_fusewire(poll, fusewire.as_ref())
             }
         }
     }

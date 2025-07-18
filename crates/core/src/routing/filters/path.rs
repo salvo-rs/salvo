@@ -394,7 +394,7 @@ impl CombWisp {
                         wisp.name
                     ));
                 }
-                _ => {
+                WispKind::Comb(_) => {
                     return Err(format!("unsupported wisp: {wisp:?} add to CombWisp"));
                 }
             }

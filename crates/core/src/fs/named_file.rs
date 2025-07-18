@@ -70,6 +70,7 @@ pub struct NamedFileBuilder {
 impl NamedFileBuilder {
     /// Sets attached filename and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
         self.attached_name = Some(attached_name.into());
         self.flags.insert(Flag::ContentDisposition);
@@ -78,6 +79,7 @@ impl NamedFileBuilder {
 
     /// Sets disposition encoding and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
         self.flags.insert(Flag::ContentDisposition);
@@ -102,6 +104,7 @@ impl NamedFileBuilder {
 
     /// Sets content encoding and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self

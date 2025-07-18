@@ -115,11 +115,11 @@ impl ResBody {
             Self::None => Some(0),
             Self::Once(bytes) => Some(bytes.len() as u64),
             Self::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
-            Self::Hyper(_) => None,
-            Self::Boxed(_) => None,
-            Self::Stream(_) => None,
-            Self::Channel { .. } => None,
-            Self::Error(_) => None,
+            Self::Hyper(_)
+            | Self::Boxed(_)
+            | Self::Stream(_)
+            | Self::Channel { .. }
+            | Self::Error(_) => None,
         }
     }
 
@@ -139,7 +139,7 @@ impl Body for ResBody {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, <Self as Body>::Error>>> {
         match self.get_mut() {
-            Self::None => Poll::Ready(None),
+            Self::None | Self::Error(_) => Poll::Ready(None),
             Self::Once(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
@@ -182,26 +182,23 @@ impl Body for ResBody {
                     Err(_) => Poll::Ready(None),
                 }
             }
-            Self::Error(_) => Poll::Ready(None),
         }
     }
 
     fn is_end_stream(&self) -> bool {
         match self {
-            Self::None => true,
+            Self::None | Self::Error(_) => true,
             Self::Once(bytes) => bytes.is_empty(),
             Self::Chunks(chunks) => chunks.is_empty(),
             Self::Hyper(body) => body.is_end_stream(),
             Self::Boxed(body) => body.is_end_stream(),
-            Self::Stream(_) => false,
-            Self::Channel(_) => false,
-            Self::Error(_) => true,
+            Self::Stream(_) | Self::Channel(_) => false,
         }
     }
 
     fn size_hint(&self) -> SizeHint {
         match self {
-            Self::None => SizeHint::with_exact(0),
+            Self::None | Self::Error(_) => SizeHint::with_exact(0),
             Self::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
             Self::Chunks(chunks) => {
                 let size = chunks.iter().map(|bytes| bytes.len() as u64).sum();
@@ -209,9 +206,7 @@ impl Body for ResBody {
             }
             Self::Hyper(recv) => recv.size_hint(),
             Self::Boxed(recv) => recv.size_hint(),
-            Self::Stream(_) => SizeHint::default(),
-            Self::Channel { .. } => SizeHint::default(),
-            Self::Error(_) => SizeHint::with_exact(0),
+            Self::Stream(_) | Self::Channel { .. } => SizeHint::default(),
         }
     }
 }

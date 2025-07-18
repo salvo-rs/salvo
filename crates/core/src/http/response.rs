@@ -424,9 +424,6 @@ impl Response {
     /// Write bytes data to body. If body is none, a new `ResBody` will created.
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
-            ResBody::None => {
-                self.body = ResBody::Once(data.into());
-            }
             ResBody::Once(bytes) => {
                 let mut chunks = VecDeque::new();
                 chunks.push_back(bytes.clone());
@@ -468,7 +465,7 @@ impl Response {
                     "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));
             }
-            ResBody::Error(_) => {
+            ResBody::None | ResBody::Error(_) => {
                 self.body = ResBody::Once(data.into());
             }
         }

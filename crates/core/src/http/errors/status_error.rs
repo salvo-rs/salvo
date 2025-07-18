@@ -52,17 +52,20 @@ pub struct StatusError {
 
 impl StatusError {
     /// Sets brief field and returns `Self`.
+    #[must_use]
     pub fn brief(mut self, brief: impl Into<String>) -> Self {
         self.brief = brief.into();
         self
     }
     /// Sets detail field and returns `Self`.
+    #[must_use]
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
     }
 
     /// Sets cause field and returns `Self`.
+    #[must_use]
     pub fn cause<T>(mut self, cause: T) -> Self
     where
         T: Into<Box<dyn StdError + Sync + Send + 'static>>,
@@ -72,6 +75,7 @@ impl StatusError {
     }
 
     /// Sets origin field and returns `Self`.
+    #[must_use]
     pub fn origin<T: Send + Sync + 'static>(mut self, origin: T) -> Self {
         self.origin = Some(Box::new(origin));
         self
