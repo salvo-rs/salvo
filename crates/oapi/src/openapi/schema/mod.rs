@@ -163,7 +163,7 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Default::default())
+        Self::Object(Default::default())
     }
 }
 
@@ -376,7 +376,7 @@ impl Default for SchemaType {
 
 impl From<BasicType> for SchemaType {
     fn from(value: BasicType) -> Self {
-        SchemaType::basic(value)
+        Self::basic(value)
     }
 }
 
@@ -408,7 +408,7 @@ impl SchemaType {
     /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
     #[must_use]
     pub fn any() -> Self {
-        SchemaType::AnyValue
+        Self::AnyValue
     }
 
     /// Check whether this [`SchemaType`] is any value _(typeless)_ returning true on any value

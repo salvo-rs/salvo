@@ -22,11 +22,11 @@ impl IntoIterator for Parameters {
 
 impl Parameters {
     /// Construct a new empty [`Parameters`]. This is effectively same as calling [`Parameters::default`].
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
     /// Returns `true` if instance contains no elements.
-    pub fn is_empty(&self) -> bool {
+    #[must_use] pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Add a new paramater and returns `self`.
@@ -35,7 +35,7 @@ impl Parameters {
         self
     }
     /// Returns `true` if instance contains a parameter with the given name and location.
-    pub fn contains(&self, name: &str, parameter_in: ParameterIn) -> bool {
+    #[must_use] pub fn contains(&self, name: &str, parameter_in: ParameterIn) -> bool {
         self.0
             .iter()
             .any(|item| item.name == name && item.parameter_in == parameter_in)
@@ -57,7 +57,7 @@ impl Parameters {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Parameters) {
+    pub fn append(&mut self, other: &mut Self) {
         for item in other.0.drain(..) {
             self.insert(item);
         }
@@ -159,7 +159,7 @@ impl Parameter {
     }
 
     /// Add in of the [`Parameter`].
-    pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
+    #[must_use] pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
         self.parameter_in = parameter_in;
         if self.parameter_in == ParameterIn::Path {
             self.required = Required::True;
@@ -168,8 +168,8 @@ impl Parameter {
     }
 
     /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
-    pub fn merge(&mut self, other: Parameter) -> bool {
-        let Parameter {
+    pub fn merge(&mut self, other: Self) -> bool {
+        let Self {
             name,
             parameter_in,
             description,
@@ -247,25 +247,25 @@ impl Parameter {
     }
 
     /// Add or change serialization style of [`Parameter`].
-    pub fn style(mut self, style: ParameterStyle) -> Self {
+    #[must_use] pub fn style(mut self, style: ParameterStyle) -> Self {
         self.style = Some(style);
         self
     }
 
     /// Define whether [`Parameter`]s are exploded or not.
-    pub fn explode(mut self, explode: bool) -> Self {
+    #[must_use] pub fn explode(mut self, explode: bool) -> Self {
         self.explode = Some(explode);
         self
     }
 
     /// Add or change whether [`Parameter`] should allow reserved characters.
-    pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
+    #[must_use] pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
         self.allow_reserved = Some(allow_reserved);
         self
     }
 
     /// Add or change example of [`Parameter`]'s potential value.
-    pub fn example(mut self, example: Value) -> Self {
+    #[must_use] pub fn example(mut self, example: Value) -> Self {
         self.example = Some(example);
         self
     }

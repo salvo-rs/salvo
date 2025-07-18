@@ -62,7 +62,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| QueryParam(Some(value)))
+        T::deserialize(deserializer).map(|value| Self(Some(value)))
     }
 }
 

@@ -87,7 +87,7 @@ impl OneOf {
     /// # use salvo_oapi::schema::OneOf;
     /// let one_of = OneOf::with_capacity(5);
     /// ```
-    pub fn with_capacity(capacity: usize) -> Self {
+    #[must_use] pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
             ..Default::default()

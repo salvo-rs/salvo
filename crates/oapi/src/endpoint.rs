@@ -19,7 +19,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Create new `Endpoint` with given operation and components.
-    pub fn new(operation: Operation, components: Components) -> Self {
+    #[must_use] pub fn new(operation: Operation, components: Components) -> Self {
         Self {
             operation,
             components,
@@ -176,7 +176,7 @@ impl EndpointRegistry {
         Self { type_id, creator }
     }
     /// Find the endpoint information from the registry.
-    pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
+    #[must_use] pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
         for record in inventory::iter::<Self> {
             if (record.type_id)() == *type_id {
                 return Some(record.creator);

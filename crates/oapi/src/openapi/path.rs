@@ -27,7 +27,7 @@ impl DerefMut for Paths {
 }
 impl Paths {
     /// Construct a new empty [`Paths`]. This is effectively same as calling [`Paths::default`].
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
@@ -58,7 +58,7 @@ impl Paths {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Paths) {
+    pub fn append(&mut self, other: &mut Self) {
         let items = std::mem::take(&mut other.0);
         for item in items {
             self.insert(item.0, item.1);

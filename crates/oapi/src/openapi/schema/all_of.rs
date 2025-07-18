@@ -70,7 +70,7 @@ impl Default for AllOf {
 
 impl AllOf {
     /// Construct a new empty [`AllOf`]. This is effectively same as calling [`AllOf::default`].
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
 
@@ -86,7 +86,7 @@ impl AllOf {
     /// # use salvo_oapi::schema::AllOf;
     /// let one_of = AllOf::with_capacity(5);
     /// ```
-    pub fn with_capacity(capacity: usize) -> Self {
+    #[must_use] pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
             ..Default::default()
@@ -121,7 +121,7 @@ impl AllOf {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default_value(mut self, default: Value) -> Self {
+    #[must_use] pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
         self
     }
@@ -133,7 +133,7 @@ impl AllOf {
     }
 
     /// Add or change discriminator field of the composite [`AllOf`] type.
-    pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
+    #[must_use] pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
         self.discriminator = Some(discriminator);
         self
     }

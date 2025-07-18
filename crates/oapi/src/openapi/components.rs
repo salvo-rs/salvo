@@ -40,7 +40,7 @@ pub struct Components {
 
 impl Components {
     /// Construct a new empty [`Components`]. This is effectively same as calling [`Components::default`].
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
 
@@ -157,7 +157,7 @@ impl Components {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Components) {
+    pub fn append(&mut self, other: &mut Self) {
         other
             .schemas
             .retain(|name, _| !self.schemas.contains_key(name));
@@ -175,7 +175,7 @@ impl Components {
     }
 
     /// Returns `true` if instance contains no elements.
-    pub fn is_empty(&self) -> bool {
+    #[must_use] pub fn is_empty(&self) -> bool {
         self.schemas.is_empty() && self.responses.is_empty() && self.security_schemes.is_empty()
     }
 }

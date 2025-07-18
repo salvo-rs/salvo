@@ -74,7 +74,7 @@ impl IntoIterator for Responses {
 
 impl Responses {
     /// Construct a new empty [`Responses`]. This is effectively same as calling [`Responses::default`].
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and retuns `self`.
@@ -96,7 +96,7 @@ impl Responses {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Responses) {
+    pub fn append(&mut self, other: &mut Self) {
         self.0.append(&mut other.0);
     }
 

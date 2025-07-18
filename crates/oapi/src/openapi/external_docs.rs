@@ -27,7 +27,7 @@ impl ExternalDocs {
     /// ```
     pub fn new<S: AsRef<str>>(url: S) -> Self {
         Self {
-            url: url.as_ref().to_string(),
+            url: url.as_ref().to_owned(),
             ..Default::default()
         }
     }

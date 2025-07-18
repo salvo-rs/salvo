@@ -39,7 +39,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| PathParam(value))
+        T::deserialize(deserializer).map(|value| Self(value))
     }
 }
 
