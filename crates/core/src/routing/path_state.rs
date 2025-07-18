@@ -17,6 +17,7 @@ pub struct PathState {
 impl PathState {
     /// Creates a new `PathState`.
     #[inline]
+    #[must_use]
     pub fn new(url_path: &str) -> Self {
         let end_slash = url_path.ends_with('/');
         let parts = url_path
@@ -31,7 +32,7 @@ impl PathState {
                 }
             })
             .collect::<Vec<_>>();
-        PathState {
+        Self {
             parts,
             cursor: (0, 0),
             params: PathParams::new(),
@@ -43,6 +44,7 @@ impl PathState {
     }
 
     #[inline]
+    #[must_use]
     pub fn pick(&self) -> Option<&str> {
         match self.parts.get(self.cursor.0) {
             None => None,
@@ -58,6 +60,7 @@ impl PathState {
     }
 
     #[inline]
+    #[must_use]
     pub fn all_rest(&self) -> Option<Cow<'_, str>> {
         if let Some(picked) = self.pick() {
             if self.cursor.0 >= self.parts.len() - 1 {
@@ -94,6 +97,7 @@ impl PathState {
     }
 
     #[inline]
+    #[must_use]
     pub fn is_ended(&self) -> bool {
         self.cursor.0 >= self.parts.len()
     }

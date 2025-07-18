@@ -18,7 +18,7 @@ macro_rules! default_errors {
         $(
             #[doc=concat!($brief,"\n ")]
             $(#[$docs])*
-            pub fn $sname() -> StatusError {
+            #[must_use] pub fn $sname() -> StatusError {
                 StatusError {
                     code: $code,
                     name: $name.into(),
@@ -52,17 +52,20 @@ pub struct StatusError {
 
 impl StatusError {
     /// Sets brief field and returns `Self`.
+    #[must_use]
     pub fn brief(mut self, brief: impl Into<String>) -> Self {
         self.brief = brief.into();
         self
     }
     /// Sets detail field and returns `Self`.
+    #[must_use]
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
     }
 
     /// Sets cause field and returns `Self`.
+    #[must_use]
     pub fn cause<T>(mut self, cause: T) -> Self
     where
         T: Into<Box<dyn StdError + Sync + Send + 'static>>,
@@ -72,12 +75,14 @@ impl StatusError {
     }
 
     /// Sets origin field and returns `Self`.
+    #[must_use]
     pub fn origin<T: Send + Sync + 'static>(mut self, origin: T) -> Self {
         self.origin = Some(Box::new(origin));
         self
     }
 
     /// Downcast origin to T
+    #[must_use]
     pub fn downcast_origin<T: 'static>(&self) -> Option<&T> {
         self.origin.as_ref().and_then(|o| o.downcast_ref::<T>())
     }
@@ -242,56 +247,53 @@ impl Display for StatusError {
 
 impl StatusError {
     /// Create new `StatusError` with code. If code is not error, it will be `None`.
-    pub fn from_code(code: StatusCode) -> Option<StatusError> {
+    #[must_use]
+    pub fn from_code(code: StatusCode) -> Option<Self> {
         match code {
-            StatusCode::BAD_REQUEST => Some(StatusError::bad_request()),
-            StatusCode::UNAUTHORIZED => Some(StatusError::unauthorized()),
-            StatusCode::PAYMENT_REQUIRED => Some(StatusError::payment_required()),
-            StatusCode::FORBIDDEN => Some(StatusError::forbidden()),
-            StatusCode::NOT_FOUND => Some(StatusError::not_found()),
-            StatusCode::METHOD_NOT_ALLOWED => Some(StatusError::method_not_allowed()),
-            StatusCode::NOT_ACCEPTABLE => Some(StatusError::not_acceptable()),
+            StatusCode::BAD_REQUEST => Some(Self::bad_request()),
+            StatusCode::UNAUTHORIZED => Some(Self::unauthorized()),
+            StatusCode::PAYMENT_REQUIRED => Some(Self::payment_required()),
+            StatusCode::FORBIDDEN => Some(Self::forbidden()),
+            StatusCode::NOT_FOUND => Some(Self::not_found()),
+            StatusCode::METHOD_NOT_ALLOWED => Some(Self::method_not_allowed()),
+            StatusCode::NOT_ACCEPTABLE => Some(Self::not_acceptable()),
             StatusCode::PROXY_AUTHENTICATION_REQUIRED => {
-                Some(StatusError::proxy_authentication_required())
+                Some(Self::proxy_authentication_required())
             }
-            StatusCode::REQUEST_TIMEOUT => Some(StatusError::request_timeout()),
-            StatusCode::CONFLICT => Some(StatusError::conflict()),
-            StatusCode::GONE => Some(StatusError::gone()),
-            StatusCode::LENGTH_REQUIRED => Some(StatusError::length_required()),
-            StatusCode::PRECONDITION_FAILED => Some(StatusError::precondition_failed()),
-            StatusCode::PAYLOAD_TOO_LARGE => Some(StatusError::payload_too_large()),
-            StatusCode::URI_TOO_LONG => Some(StatusError::uri_too_long()),
-            StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(StatusError::unsupported_media_type()),
-            StatusCode::RANGE_NOT_SATISFIABLE => Some(StatusError::range_not_satisfiable()),
-            StatusCode::EXPECTATION_FAILED => Some(StatusError::expectation_failed()),
-            StatusCode::IM_A_TEAPOT => Some(StatusError::im_a_teapot()),
-            StatusCode::MISDIRECTED_REQUEST => Some(StatusError::misdirected_request()),
-            StatusCode::UNPROCESSABLE_ENTITY => Some(StatusError::unprocessable_entity()),
-            StatusCode::LOCKED => Some(StatusError::locked()),
-            StatusCode::FAILED_DEPENDENCY => Some(StatusError::failed_dependency()),
-            StatusCode::UPGRADE_REQUIRED => Some(StatusError::upgrade_required()),
-            StatusCode::PRECONDITION_REQUIRED => Some(StatusError::precondition_required()),
-            StatusCode::TOO_MANY_REQUESTS => Some(StatusError::too_many_requests()),
+            StatusCode::REQUEST_TIMEOUT => Some(Self::request_timeout()),
+            StatusCode::CONFLICT => Some(Self::conflict()),
+            StatusCode::GONE => Some(Self::gone()),
+            StatusCode::LENGTH_REQUIRED => Some(Self::length_required()),
+            StatusCode::PRECONDITION_FAILED => Some(Self::precondition_failed()),
+            StatusCode::PAYLOAD_TOO_LARGE => Some(Self::payload_too_large()),
+            StatusCode::URI_TOO_LONG => Some(Self::uri_too_long()),
+            StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(Self::unsupported_media_type()),
+            StatusCode::RANGE_NOT_SATISFIABLE => Some(Self::range_not_satisfiable()),
+            StatusCode::EXPECTATION_FAILED => Some(Self::expectation_failed()),
+            StatusCode::IM_A_TEAPOT => Some(Self::im_a_teapot()),
+            StatusCode::MISDIRECTED_REQUEST => Some(Self::misdirected_request()),
+            StatusCode::UNPROCESSABLE_ENTITY => Some(Self::unprocessable_entity()),
+            StatusCode::LOCKED => Some(Self::locked()),
+            StatusCode::FAILED_DEPENDENCY => Some(Self::failed_dependency()),
+            StatusCode::UPGRADE_REQUIRED => Some(Self::upgrade_required()),
+            StatusCode::PRECONDITION_REQUIRED => Some(Self::precondition_required()),
+            StatusCode::TOO_MANY_REQUESTS => Some(Self::too_many_requests()),
             StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => {
-                Some(StatusError::request_header_fields_toolarge())
+                Some(Self::request_header_fields_toolarge())
             }
-            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => {
-                Some(StatusError::unavailable_for_legalreasons())
-            }
-            StatusCode::INTERNAL_SERVER_ERROR => Some(StatusError::internal_server_error()),
-            StatusCode::NOT_IMPLEMENTED => Some(StatusError::not_implemented()),
-            StatusCode::BAD_GATEWAY => Some(StatusError::bad_gateway()),
-            StatusCode::SERVICE_UNAVAILABLE => Some(StatusError::service_unavailable()),
-            StatusCode::GATEWAY_TIMEOUT => Some(StatusError::gateway_timeout()),
-            StatusCode::HTTP_VERSION_NOT_SUPPORTED => {
-                Some(StatusError::http_version_not_supported())
-            }
-            StatusCode::VARIANT_ALSO_NEGOTIATES => Some(StatusError::variant_also_negotiates()),
-            StatusCode::INSUFFICIENT_STORAGE => Some(StatusError::insufficient_storage()),
-            StatusCode::LOOP_DETECTED => Some(StatusError::loop_detected()),
-            StatusCode::NOT_EXTENDED => Some(StatusError::not_extended()),
+            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(Self::unavailable_for_legalreasons()),
+            StatusCode::INTERNAL_SERVER_ERROR => Some(Self::internal_server_error()),
+            StatusCode::NOT_IMPLEMENTED => Some(Self::not_implemented()),
+            StatusCode::BAD_GATEWAY => Some(Self::bad_gateway()),
+            StatusCode::SERVICE_UNAVAILABLE => Some(Self::service_unavailable()),
+            StatusCode::GATEWAY_TIMEOUT => Some(Self::gateway_timeout()),
+            StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(Self::http_version_not_supported()),
+            StatusCode::VARIANT_ALSO_NEGOTIATES => Some(Self::variant_also_negotiates()),
+            StatusCode::INSUFFICIENT_STORAGE => Some(Self::insufficient_storage()),
+            StatusCode::LOOP_DETECTED => Some(Self::loop_detected()),
+            StatusCode::NOT_EXTENDED => Some(Self::not_extended()),
             StatusCode::NETWORK_AUTHENTICATION_REQUIRED => {
-                Some(StatusError::network_authentication_required())
+                Some(Self::network_authentication_required())
             }
             _ => None,
         }

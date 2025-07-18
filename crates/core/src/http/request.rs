@@ -61,11 +61,13 @@ pub fn set_global_secure_max_size(size: usize) {
 /// **Note**: The security maximum value is only effective when directly obtaining data
 /// from the body. For uploaded files, the files are written to temporary files
 /// and the bytes is not directly obtained, so they will not be affected.
+#[derive(Debug, Clone, Copy)]
 pub struct SecureMaxSize(pub usize);
 impl SecureMaxSize {
     /// Create a new `SecureMaxSize` instance.
+    #[must_use]
     pub fn new(size: usize) -> Self {
-        SecureMaxSize(size)
+        Self(size)
     }
 }
 #[async_trait]
@@ -136,16 +138,17 @@ impl Debug for Request {
 
 impl Default for Request {
     #[inline]
-    fn default() -> Request {
-        Request::new()
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl Request {
     /// Creates a new blank `Request`
     #[inline]
-    pub fn new() -> Request {
-        Request {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
             uri: Uri::default(),
             headers: HeaderMap::default(),
             body: ReqBody::default(),
@@ -209,7 +212,7 @@ impl Request {
             cookie_jar
         };
 
-        Request {
+        Self {
             queries: OnceLock::new(),
             uri,
             headers,

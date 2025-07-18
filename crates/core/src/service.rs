@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -29,14 +30,25 @@ pub struct Service {
     pub allowed_media_types: Arc<Vec<Mime>>,
 }
 
+impl Debug for Service {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Service")
+            .field("router", &self.router)
+            .field("catcher", &self.catcher)
+            .field("hoops", &self.hoops.len())
+            .field("allowed_media_types", &self.allowed_media_types.len())
+            .finish()
+    }
+}
+
 impl Service {
     /// Create a new Service with a [`Router`].
     #[inline]
-    pub fn new<T>(router: T) -> Service
+    pub fn new<T>(router: T) -> Self
     where
         T: Into<Arc<Router>>,
     {
-        Service {
+        Self {
             router: router.into(),
             catcher: None,
             hoops: vec![],
@@ -46,6 +58,7 @@ impl Service {
 
     /// Get router in this `Service`.
     #[inline]
+    #[must_use]
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
@@ -73,6 +86,7 @@ impl Service {
     /// }
     /// ```
     #[inline]
+    #[must_use]
     pub fn catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
         self.catcher = Some(catcher.into());
         self
@@ -80,6 +94,7 @@ impl Service {
 
     /// Add a handler as middleware, it will run the handler when request received.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -89,6 +104,7 @@ impl Service {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
@@ -114,6 +130,7 @@ impl Service {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -124,6 +141,7 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
+    #[must_use]
     pub fn hyper_handler(
         &self,
         local_addr: SocketAddr,
@@ -167,7 +185,7 @@ where
 {
     #[inline]
     fn from(router: T) -> Self {
-        Service::new(router)
+        Self::new(router)
     }
 }
 
@@ -200,6 +218,19 @@ pub struct HyperHandler {
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
     pub(crate) fusewire: Option<ArcFusewire>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
+}
+impl Debug for HyperHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HyperHandler")
+            .field("local_addr", &self.local_addr)
+            .field("remote_addr", &self.remote_addr)
+            .field("http_scheme", &self.http_scheme)
+            .field("router", &self.router)
+            .field("catcher", &self.catcher)
+            .field("allowed_media_types", &self.allowed_media_types)
+            .field("alt_svc_h3", &self.alt_svc_h3)
+            .finish()
+    }
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
@@ -454,7 +485,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, b: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:5801/level1/level2/hello?b={}", b))
+            TestClient::get(format!("http://127.0.0.1:5801/level1/level2/hello?b={b}"))
                 .send(service)
                 .await
                 .take_string()

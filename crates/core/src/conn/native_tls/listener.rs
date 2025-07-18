@@ -1,5 +1,6 @@
 //! native_tls module
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::task::{Context, Poll};
@@ -21,6 +22,13 @@ pub struct NativeTlsListener<S, C, T, E> {
     config_stream: S,
     inner: T,
     _phantom: PhantomData<(C, E)>,
+}
+impl<S, C, T: Debug, E> Debug for NativeTlsListener<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NativeTlsListener")
+            .field("inner", &self.inner)
+            .finish()
+    }
 }
 impl<S, C, T, E> NativeTlsListener<S, C, T, E>
 where
@@ -65,6 +73,13 @@ pub struct NativeTlsAcceptor<S, C, T, E> {
     holdings: Vec<Holding>,
     tls_acceptor: Option<tokio_native_tls::TlsAcceptor>,
     _phantom: PhantomData<(C, E)>,
+}
+impl<S, C, T: Debug, E> Debug for NativeTlsAcceptor<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NativeTlsAcceptor")
+            .field("inner", &self.inner)
+            .finish()
+    }
 }
 impl<S, C, T, E> NativeTlsAcceptor<S, C, T, E>
 where
@@ -140,7 +155,9 @@ where
             config
         };
         if let Some(config) = config {
-            let identity = config.try_into().map_err(|e|IoError::other(e.to_string()))?;
+            let identity = config
+                .try_into()
+                .map_err(|e| IoError::other(e.to_string()))?;
             let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity);
             match tls_acceptor {
                 Ok(tls_acceptor) => {

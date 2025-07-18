@@ -1,4 +1,5 @@
 //! TcpListener and it's implements.
+use std::fmt::Debug;
 use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;
 use std::vec;
@@ -34,13 +35,21 @@ pub struct TcpListener<T> {
     #[cfg(feature = "socket2")]
     backlog: Option<u32>,
 }
+impl<T: Debug> Debug for TcpListener<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TcpListener")
+            .field("local_addr", &self.local_addr)
+            .field("ttl", &self.ttl)
+            .finish()
+    }
+}
 impl<T: ToSocketAddrs + Send> TcpListener<T> {
     /// Bind to socket address.
     #[cfg(not(feature = "socket2"))]
     #[inline]
     pub fn new(local_addr: T) -> Self {
         #[cfg(not(feature = "socket2"))]
-        TcpListener {
+        Self {
             local_addr,
             ttl: None,
         }
@@ -115,6 +124,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     ///
     /// This value sets the time-to-live field that is used in every packet sent
     /// from this socket.
+    #[must_use]
     pub fn ttl(mut self, ttl: u32) -> Self {
         self.ttl = Some(ttl);
         self
@@ -152,6 +162,7 @@ where
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.
+#[derive(Debug)]
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,
@@ -197,7 +208,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
             http_scheme: Scheme::HTTP,
         }];
 
-        Ok(TcpAcceptor { inner, holdings })
+        Ok(Self { inner, holdings })
     }
 }
 

@@ -84,44 +84,44 @@ impl StdError for Error {}
 
 impl From<Infallible> for Error {
     #[inline]
-    fn from(infallible: Infallible) -> Error {
+    fn from(infallible: Infallible) -> Self {
         match infallible {}
     }
 }
 impl From<hyper::Error> for Error {
     #[inline]
-    fn from(e: hyper::Error) -> Error {
-        Error::Hyper(e)
+    fn from(e: hyper::Error) -> Self {
+        Self::Hyper(e)
     }
 }
 impl From<ParseError> for Error {
     #[inline]
-    fn from(d: ParseError) -> Error {
-        Error::HttpParse(d)
+    fn from(d: ParseError) -> Self {
+        Self::HttpParse(d)
     }
 }
 impl From<StatusError> for Error {
     #[inline]
-    fn from(e: StatusError) -> Error {
-        Error::HttpStatus(e)
+    fn from(e: StatusError) -> Self {
+        Self::HttpStatus(e)
     }
 }
 impl From<IoError> for Error {
     #[inline]
-    fn from(e: IoError) -> Error {
-        Error::Io(e)
+    fn from(e: IoError) -> Self {
+        Self::Io(e)
     }
 }
 impl From<http::uri::InvalidUri> for Error {
     #[inline]
-    fn from(e: http::uri::InvalidUri) -> Error {
-        Error::InvalidUri(e)
+    fn from(e: http::uri::InvalidUri) -> Self {
+        Self::InvalidUri(e)
     }
 }
 impl From<serde_json::Error> for Error {
     #[inline]
-    fn from(e: serde_json::Error) -> Error {
-        Error::SerdeJson(e)
+    fn from(e: serde_json::Error) -> Self {
+        Self::SerdeJson(e)
     }
 }
 cfg_feature! {
@@ -149,8 +149,8 @@ cfg_feature! {
     #![feature = "anyhow"]
     impl From<anyhow::Error> for Error {
         #[inline]
-        fn from(e: anyhow::Error) -> Error {
-            Error::Anyhow(e)
+        fn from(e: anyhow::Error) -> Self {
+            Self::Anyhow(e)
         }
     }
 }
@@ -166,15 +166,15 @@ cfg_feature! {
 
 impl From<BoxedError> for Error {
     #[inline]
-    fn from(e: BoxedError) -> Error {
-        Error::Other(e)
+    fn from(e: BoxedError) -> Self {
+        Self::Other(e)
     }
 }
 
 impl Scribe for Error {
     fn render(self, res: &mut Response) {
         let status_error = match self {
-            Error::HttpStatus(e) => e,
+            Self::HttpStatus(e) => e,
             _ => StatusError::internal_server_error().cause(self),
         };
         res.render(status_error);

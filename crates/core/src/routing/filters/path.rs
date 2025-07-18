@@ -136,10 +136,12 @@ impl From<CombWisp> for WispKind {
 }
 
 /// RegexWispBuilder
+#[derive(Debug)]
 pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
     /// Create new `RegexWispBuilder`.
     #[inline]
+    #[must_use]
     pub fn new(checker: Regex) -> Self {
         Self(checker)
     }
@@ -164,6 +166,11 @@ impl CharsWispBuilder {
         C: Fn(char) -> bool + Send + Sync + 'static,
     {
         Self(Arc::new(checker))
+    }
+}
+impl Debug for CharsWispBuilder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CharsWispBuilder").finish()
     }
 }
 impl WispBuilder for CharsWispBuilder {
@@ -387,7 +394,7 @@ impl CombWisp {
                         wisp.name
                     ));
                 }
-                _ => {
+                WispKind::Comb(_) => {
                     return Err(format!("unsupported wisp: {wisp:?} add to CombWisp"));
                 }
             }
@@ -431,7 +438,7 @@ impl PathWisp for CombWisp {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
-                        wild_path = wild_path.trim_start_matches(value.as_str()).to_string();
+                        wild_path = wild_path.trim_start_matches(value.as_str()).to_owned();
                     }
                     #[cfg(feature = "matched-path")]
                     {
@@ -646,8 +653,8 @@ struct PathParser {
 }
 impl PathParser {
     #[inline]
-    fn new(raw_value: &str) -> PathParser {
-        PathParser {
+    fn new(raw_value: &str) -> Self {
+        Self {
             offset: 0,
             path: raw_value.trim_start_matches('/').chars().collect(),
         }
@@ -801,7 +808,7 @@ impl PathParser {
         let mut wisps: Vec<WispKind> = vec![];
         while ch != '/' {
             if ch == '{' {
-                if let Some('{') = self.peek(false) {
+                if self.peek(false) == Some('{') {
                     let part = self.scan_const().unwrap_or_default();
                     if part.is_empty() {
                         return Err("const part is empty string".to_owned());
@@ -1038,7 +1045,7 @@ impl PathFilter {
                 panic!("{e}, raw_value: {raw_value}");
             }
         };
-        PathFilter {
+        Self {
             raw_value,
             path_wisps,
         }
@@ -1099,13 +1106,13 @@ mod tests {
     #[test]
     fn test_parse_single_const() {
         let segments = PathParser::new("/hello").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello")]"#);
+        assert_eq!(format!("{segments:?}"), r#"[ConstWisp("hello")]"#);
     }
     #[test]
     fn test_parse_multi_const() {
         let segments = PathParser::new("/hello/world").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[ConstWisp("hello"), ConstWisp("world")]"#
         );
     }
@@ -1113,7 +1120,7 @@ mod tests {
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/{abc|\d+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[RegexWisp { name: "abc", regex: Regex("^\\d+$") }]"#
         );
     }
@@ -1121,7 +1128,7 @@ mod tests {
     fn test_parse_wildcard_regex() {
         let segments = PathParser::new(r"/{abc|\d+\.+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[RegexWisp { name: "abc", regex: Regex("^\\d+\\.+$") }]"#
         );
     }
@@ -1129,7 +1136,7 @@ mod tests {
     fn test_parse_single_regex_with_prefix() {
         let segments = PathParser::new(r"/prefix_{abc|\d+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix_(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1137,7 +1144,7 @@ mod tests {
     fn test_parse_single_regex_with_suffix() {
         let segments = PathParser::new(r"/{abc|\d+}_suffix.png").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^(?<abc>\\d+)_suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1147,7 +1154,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1157,7 +1164,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[NamedWisp("pid"), ConstWisp("show"), CombWisp { names: ["table_name"], comb_regex: Regex("^(?<table_name>.*)\\.bu$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1167,7 +1174,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1177,7 +1184,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1187,7 +1194,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>\\d+)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1197,7 +1204,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)ext$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1205,19 +1212,19 @@ mod tests {
     fn test_parse_rest() {
         let segments = PathParser::new(r"/first{id}/{**rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("**rest")]"#
         );
 
         let segments = PathParser::new(r"/first{id}/{*+rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("*+rest")]"#
         );
 
         let segments = PathParser::new(r"/first{id}/{*?rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("*?rest")]"#
         );
     }
@@ -1234,7 +1241,7 @@ mod tests {
     fn test_parse_comb_1() {
         let segments = PathParser::new(r"/first{id}world{**rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id", "rest"], comb_regex: Regex("^first(?<id>.*)world"), wild_regex: Some(Regex(".*")), wild_start: Some("**") }]"#
         );
 

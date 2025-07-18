@@ -1,6 +1,7 @@
 //! Memory store module.
 use std::borrow::Borrow;
 use std::convert::Infallible;
+use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,18 +16,24 @@ use super::{CacheStore, CachedEntry};
 pub struct Builder<K> {
     inner: MokaCacheBuilder<K, CachedEntry, MokaCache<K, CachedEntry>>,
 }
+
+impl<K> Debug for Builder<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Builder").finish()
+    }
+}
 impl<K> Builder<K>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
 {
     /// Sets the initial capacity (number of entries) of the cache.
-    pub fn initial_capacity(mut self, capacity: usize) -> Self {
+    #[must_use] pub fn initial_capacity(mut self, capacity: usize) -> Self {
         self.inner = self.inner.initial_capacity(capacity);
         self
     }
 
     /// Sets the max capacity of the cache.
-    pub fn max_capacity(mut self, capacity: u64) -> Self {
+    #[must_use] pub fn max_capacity(mut self, capacity: u64) -> Self {
         self.inner = self.inner.max_capacity(capacity);
         self
     }
@@ -41,7 +48,7 @@ where
     /// `CacheBuilder::build*` methods will panic if the given `duration` is longer
     /// than 1000 years. This is done to protect against overflow when computing key
     /// expiration.
-    pub fn time_to_idle(mut self, duration: Duration) -> Self {
+    #[must_use] pub fn time_to_idle(mut self, duration: Duration) -> Self {
         self.inner = self.inner.time_to_idle(duration);
         self
     }
@@ -56,7 +63,7 @@ where
     /// `CacheBuilder::build*` methods will panic if the given `duration` is longer
     /// than 1000 years. This is done to protect against overflow when computing key
     /// expiration.
-    pub fn time_to_live(mut self, duration: Duration) -> Self {
+    #[must_use] pub fn time_to_live(mut self, duration: Duration) -> Self {
         self.inner = self.inner.time_to_live(duration);
         self
     }
@@ -69,6 +76,7 @@ where
     /// the cache will stop calling the listener after a panic. This is intended
     /// behavior because the cache cannot know whether it is memory safe to
     /// call the panicked listener again.
+    #[must_use]
     pub fn eviction_listener(
         mut self,
         listener: impl Fn(Arc<K>, CachedEntry, RemovalCause) + Send + Sync + 'static,
@@ -84,7 +92,7 @@ where
     /// Panics if configured with either `time_to_live` or `time_to_idle` higher than
     /// 1000 years. This is done to protect against overflow when computing key
     /// expiration.
-    pub fn build(self) -> MokaStore<K> {
+    #[must_use] pub fn build(self) -> MokaStore<K> {
         MokaStore {
             inner: self.inner.build(),
         }
@@ -94,19 +102,25 @@ where
 pub struct MokaStore<K> {
     inner: MokaCache<K, CachedEntry>,
 }
+
+impl<K> Debug for MokaStore<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MokaStore").finish()
+    }
+}
 impl<K> MokaStore<K>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
 {
     /// Create a new `MokaStore`.
-    pub fn new(max_capacity: u64) -> Self {
+    #[must_use] pub fn new(max_capacity: u64) -> Self {
         Self {
             inner: MokaCache::new(max_capacity),
         }
     }
 
     /// Returns a [`Builder`], which can build a `MokaStore`.
-    pub fn builder() -> Builder<K> {
+    #[must_use] pub fn builder() -> Builder<K> {
         Builder {
             inner: MokaCache::builder(),
         }

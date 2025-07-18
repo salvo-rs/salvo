@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use crate::http::{Request, Response};
@@ -23,11 +24,22 @@ pub struct FlowCtrl {
     pub(crate) handlers: Vec<Arc<dyn Handler>>,
 }
 
+impl Debug for FlowCtrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlowCtrl")
+            .field("catching", &self.catching)
+            .field("is_ceased", &self.is_ceased)
+            .field("cursor", &self.cursor)
+            .finish()
+    }
+}
+
 impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
+    #[must_use]
     pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
-        FlowCtrl {
+        Self {
             catching: None,
             is_ceased: false,
             cursor: 0,
@@ -36,6 +48,7 @@ impl FlowCtrl {
     }
     /// Has next handler.
     #[inline]
+    #[must_use]
     pub fn has_next(&self) -> bool {
         self.cursor < self.handlers.len() // && !self.handlers.is_empty()
     }
@@ -86,6 +99,7 @@ impl FlowCtrl {
     /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow ceased.
     /// If `is_ceased` returns `true`, the handler should skip the following logic.
     #[inline]
+    #[must_use]
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }

@@ -39,6 +39,7 @@ pub struct Content {
 
 impl Content {
     /// Construct a new [`Content`].
+    #[must_use]
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
         Self {
             schema: schema.into(),
@@ -47,12 +48,14 @@ impl Content {
     }
 
     /// Add schema.
+    #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = component.into();
         self
     }
 
     /// Add example of schema.
+    #[must_use]
     pub fn example(mut self, example: Value) -> Self {
         self.example = Some(example);
         self
@@ -65,6 +68,7 @@ impl Content {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
+    #[must_use]
     pub fn extend_examples<
         E: IntoIterator<Item = (N, V)>,
         N: Into<String>,
@@ -90,6 +94,7 @@ impl Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
+    #[must_use]
     pub fn encoding<S: Into<String>, E: Into<Encoding>>(
         mut self,
         property_name: S,
@@ -121,10 +126,10 @@ mod tests {
         let content = Content::new(RefOr::Ref(crate::Ref::from_schema_name("MySchema")))
             .example(Value::Object(Map::from_iter([(
                 "schema".into(),
-                Value::String("MySchema".to_string()),
+                Value::String("MySchema".to_owned()),
             )])))
             .encoding(
-                "schema".to_string(),
+                "schema".to_owned(),
                 Encoding::default().content_type("text/plain"),
             );
         assert_json_eq!(
@@ -147,10 +152,10 @@ mod tests {
         let content = content
             .schema(RefOr::Ref(crate::Ref::from_schema_name("NewSchema")))
             .extend_examples([(
-                "example1".to_string(),
+                "example1".to_owned(),
                 Example::new().value(Value::Object(Map::from_iter([(
                     "schema".into(),
-                    Value::String("MySchema".to_string()),
+                    Value::String("MySchema".to_owned()),
                 )]))),
             )]);
         assert_json_eq!(

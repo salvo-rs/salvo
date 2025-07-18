@@ -7,7 +7,7 @@
 //! ```no_run
 //! use salvo_core::prelude::*;
 //! use salvo_extra::trailing_slash::add_slash;
-//! 
+//!
 //! #[handler]
 //! async fn hello() -> &'static str {
 //!     "Hello"
@@ -44,6 +44,7 @@
 //! }
 //! ```
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 
 use salvo_core::handler::Skipper;
@@ -88,6 +89,16 @@ pub struct TrailingSlash {
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
+
+impl Debug for TrailingSlash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TrailingSlash")
+            .field("action", &self.action)
+            .field("redirect_code", &self.redirect_code)
+            .finish()
+    }
+}
+
 impl TrailingSlash {
     /// Create new `TrailingSlash`.
     #[inline]
@@ -103,16 +114,19 @@ impl TrailingSlash {
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Add`].
     #[inline]
+    #[must_use]
     pub fn new_add() -> Self {
         Self::new(TrailingSlashAction::Add)
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Remove`].
     #[inline]
+    #[must_use]
     pub fn new_remove() -> Self {
         Self::new(TrailingSlashAction::Remove)
     }
     /// Sets skipper and returns new `TrailingSlash`.
     #[inline]
+    #[must_use]
     pub fn skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
@@ -120,6 +134,7 @@ impl TrailingSlash {
 
     /// Sets redirect code and returns new `TrailingSlash`.
     #[inline]
+    #[must_use]
     pub fn redirect_code(mut self, redirect_code: StatusCode) -> Self {
         self.redirect_code = redirect_code;
         self
@@ -128,7 +143,13 @@ impl TrailingSlash {
 
 #[async_trait]
 impl Handler for TrailingSlash {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if self.skipper.skipped(req, depot) {
             return;
         }
@@ -172,12 +193,14 @@ fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Result<Uri, ParseErro
 
 /// Create an add slash middleware.
 #[inline]
+#[must_use]
 pub fn add_slash() -> TrailingSlash {
     TrailingSlash::new(TrailingSlashAction::Add)
 }
 
 /// Create a remove slash middleware.
 #[inline]
+#[must_use]
 pub fn remove_slash() -> TrailingSlash {
     TrailingSlash::new(TrailingSlashAction::Remove)
 }
@@ -200,10 +223,14 @@ mod tests {
             .push(Router::with_path("hello").get(hello))
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
-        let res = TestClient::get("http://127.0.0.1:5800/hello").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5800/hello")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::MOVED_PERMANENTLY);
 
-        let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5800/hello/")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world")
@@ -213,11 +240,14 @@ mod tests {
     }
     #[tokio::test]
     async fn test_remove_slash() {
-        let router = Router::with_hoop(remove_slash().redirect_code(StatusCode::TEMPORARY_REDIRECT))
-            .push(Router::with_path("hello").get(hello))
-            .push(Router::with_path("hello.world").get(hello));
+        let router =
+            Router::with_hoop(remove_slash().redirect_code(StatusCode::TEMPORARY_REDIRECT))
+                .push(Router::with_path("hello").get(hello))
+                .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
-        let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
+        let res = TestClient::get("http://127.0.0.1:5800/hello/")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world/")

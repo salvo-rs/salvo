@@ -46,14 +46,16 @@ impl Depot {
     ///
     /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
     #[inline]
-    pub fn new() -> Depot {
-        Depot {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
             map: HashMap::new(),
         }
     }
 
     /// Get reference to depot inner map.
     #[inline]
+    #[must_use]
     pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send + Sync>> {
         &self.map
     }
@@ -62,13 +64,15 @@ impl Depot {
     ///
     /// The depot will be able to hold at least capacity elements without reallocating. If capacity is 0, the depot will not allocate.
     #[inline]
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
-        Depot {
+        Self {
             map: HashMap::with_capacity(capacity),
         }
     }
     /// Returns the number of elements the depot can hold without reallocating.
     #[inline]
+    #[must_use]
     pub fn capacity(&self) -> usize {
         self.map.capacity()
     }
@@ -113,6 +117,7 @@ impl Depot {
 
     /// Check is there a value stored in depot with this key.
     #[inline]
+    #[must_use]
     pub fn contains_key(&self, key: &str) -> bool {
         self.map.contains_key(key)
     }
@@ -120,6 +125,7 @@ impl Depot {
     ///
     /// **Note**: This is only check injected value.
     #[inline]
+    #[must_use]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
         self.map.contains_key(&type_key::<T>())
     }

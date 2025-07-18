@@ -31,7 +31,7 @@ pub struct CachePolicy {
 
 impl CachePolicy {
     /// Create a new cache policy from the header value of the Cache-Control header
-    pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
+    #[must_use] pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
         // Initialize the default config of polling every second
         let mut config = Self::default();
 
@@ -109,7 +109,7 @@ pub struct CacheState {
 
 impl CacheState {
     /// Create a new `CacheState`
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             last_update: AtomicU64::new(current_time()),
             is_revalidating: AtomicBool::new(false),
@@ -151,6 +151,7 @@ impl Default for CacheState {
 }
 
 /// Helper Struct for storing
+#[derive(Debug)]
 pub struct JwkSetStore {
     /// The current JWKS
     pub jwks: JwkSet,
@@ -162,7 +163,7 @@ pub struct JwkSetStore {
 
 impl JwkSetStore {
     /// Create a new `JwkSetStore`
-    pub fn new(jwks: JwkSet, cache_policy: CachePolicy, validation: Validation) -> Self {
+    #[must_use] pub fn new(jwks: JwkSet, cache_policy: CachePolicy, validation: Validation) -> Self {
         Self {
             jwks,
             decoding_map: HashMap::new(),
@@ -187,7 +188,7 @@ impl JwkSetStore {
     }
 
     /// Get the DecodingInfo for a given kid
-    pub fn get_key(&self, kid: &str) -> Option<Arc<DecodingInfo>> {
+    #[must_use] pub fn get_key(&self, kid: &str) -> Option<Arc<DecodingInfo>> {
         self.decoding_map.get(kid).cloned()
     }
 
@@ -233,14 +234,12 @@ impl JwkSetStore {
 mod tests {
     #[test]
     fn validate_headers() {
-        let _input = vec![
-            "max-age=604800",
+        let _input = ["max-age=604800",
             "no-cache",
             "max-age=604800, must-revalidate",
             "no-store",
             "public, max-age=604800, immutable",
             "max-age=604800, stale-while-revalidate=86400",
-            "max-age=604800, stale-if-error=86400",
-        ];
+            "max-age=604800, stale-if-error=86400"];
     }
 }

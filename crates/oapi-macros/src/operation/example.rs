@@ -19,7 +19,7 @@ impl Parse for Example {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let example_stream;
         parenthesized!(example_stream in input);
-        let mut example = Example {
+        let mut example = Self {
             name: example_stream.parse::<LitStr>()?.value(),
             ..Default::default()
         };

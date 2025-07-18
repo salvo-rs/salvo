@@ -13,11 +13,13 @@ impl CommentAttributes {
     /// other attributes which are not `doc` comments
     pub(crate) fn from_attributes(attributes: &[Attribute]) -> Self {
         Self(Self::as_string_vec(
-            attributes.iter().filter(Self::is_doc_attribute),
+            attributes
+                .iter()
+                .filter(|attr| Self::is_doc_attribute(attr)),
         ))
     }
 
-    fn is_doc_attribute(attr: &&Attribute) -> bool {
+    fn is_doc_attribute(attr: &Attribute) -> bool {
         attr.path().is_ident(DOC_ATTRIBUTE_TYPE)
     }
 
@@ -33,7 +35,7 @@ impl CommentAttributes {
             Meta::NameValue(name_value) => {
                 if let Expr::Lit(ref doc_comment) = name_value.value {
                     if let Lit::Str(ref comment) = doc_comment.lit {
-                        Some(comment.value().trim().to_string())
+                        Some(comment.value().trim().to_owned())
                     } else {
                         None
                     }

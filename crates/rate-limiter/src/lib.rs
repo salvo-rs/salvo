@@ -17,6 +17,7 @@
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;
@@ -73,6 +74,7 @@ where
 }
 
 /// Identify user by IP address.
+#[derive(Debug)]
 pub struct RemoteIpIssuer;
 impl RateIssuer for RemoteIpIssuer {
     type Key = String;
@@ -136,10 +138,28 @@ pub struct RateLimiter<G, S, I, Q> {
     add_headers: bool,
     skipper: Box<dyn Skipper>,
 }
+impl<G, S, I, Q> Debug for RateLimiter<G, S, I, Q>
+where
+    G: Debug,
+    S: Debug,
+    I: Debug,
+    Q: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RateLimiter")
+            .field("guard", &self.guard)
+            .field("store", &self.store)
+            .field("issuer", &self.issuer)
+            .field("quota_getter", &self.quota_getter)
+            .field("add_headers", &self.add_headers)
+            .finish()
+    }
+}
 
 impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimiter<G, S, I, P> {
     /// Create a new `RateLimiter`
     #[inline]
+    #[must_use]
     pub fn new(guard: G, store: S, issuer: I, quota_getter: P) -> Self {
         Self {
             guard,
@@ -153,6 +173,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
 
     /// Sets skipper and returns new `RateLimiter`.
     #[inline]
+    #[must_use]
     pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
@@ -161,6 +182,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
     /// Sets `add_headers` and returns new `RateLimiter`.
     /// If `add_headers` is true, the rate limit headers will be added to the response.
     #[inline]
+    #[must_use]
     pub fn add_headers(mut self, add_headers: bool) -> Self {
         self.add_headers = add_headers;
         self
@@ -185,13 +207,10 @@ where
         if self.skipper.skipped(req, depot) {
             return;
         }
-        let key = match self.issuer.issue(req, depot).await {
-            Some(key) => key,
-            None => {
-                res.render(StatusError::bad_request().brief("Invalid identifier."));
-                ctrl.skip_rest();
-                return;
-            }
+        let Some(key) = self.issuer.issue(req, depot).await else {
+            res.render(StatusError::bad_request().brief("Invalid identifier."));
+            ctrl.skip_rest();
+            return;
         };
         let quota = match self.quota_getter.get(&key).await {
             Ok(quota) => quota,

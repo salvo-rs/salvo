@@ -6,14 +6,14 @@ use syn::{Error, Ident, LitStr, Path, parse::Parse};
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
 /// Represents data type of [`Schema`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 #[allow(dead_code)]
 pub(crate) enum SchemaTypeInner {
     /// Generic schema type allows "properties" with custom types
     Object,
     /// Indicates string type of content.
     String,
-    /// Indicates integer type of content.    
+    /// Indicates integer type of content.
     Integer,
     /// Indicates floating point number type of content.
     Number,
@@ -64,9 +64,8 @@ impl SchemaType<'_> {
     /// Check whether type is known to be primitive in which case returns true.
     pub(crate) fn is_primitive(&self) -> bool {
         let SchemaType { path, .. } = self;
-        let last_segment = match path.segments.last() {
-            Some(segment) => segment,
-            None => return false,
+        let Some(last_segment) = path.segments.last() else {
+            return false;
         };
         let name = &*last_segment.ident.to_string();
 
@@ -218,7 +217,7 @@ impl TryToTokens for SchemaType<'_> {
 
         fn schema_type_tokens(
             tokens: &mut TokenStream,
-            oapi: syn::Ident,
+            oapi: &syn::Ident,
             schema_type: SchemaTypeInner,
             nullable: bool,
         ) {
@@ -234,48 +233,48 @@ impl TryToTokens for SchemaType<'_> {
 
         match name {
             "String" | "str" | "char" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
-            "bool" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Boolean, self.nullable),
+            "bool" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Boolean, self.nullable),
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::Integer, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::Integer, self.nullable)
             }
             "f32" | "f64" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::Number, self.nullable)
             }
             #[cfg(feature = "chrono")]
             "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(feature = "compact_str")]
             "CompactString" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Number, self.nullable),
             #[cfg(feature = "url")]
-            "Url" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Url" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "ulid")]
-            "Ulid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Ulid" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "uuid")]
-            "Uuid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Uuid" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             "Ipv4Addr" | "Ipv6Addr" | "IpAddr" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
-            _ => schema_type_tokens(tokens, oapi, SchemaTypeInner::Object, self.nullable),
+            _ => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Object, self.nullable),
         };
         Ok(())
     }
@@ -330,9 +329,8 @@ pub(crate) struct Type<'a>(&'a syn::Path);
 impl Type<'_> {
     /// Check is the format know format. Known formats can be used within `quote!{...}` statements.
     pub(crate) fn is_known_format(&self) -> bool {
-        let last_segment = match self.0.segments.last() {
-            Some(segment) => segment,
-            None => return false,
+        let Some(last_segment) = self.0.segments.last() else {
+            return false;
         };
         let name = &*last_segment.ident.to_string();
 

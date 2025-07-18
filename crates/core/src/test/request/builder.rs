@@ -31,6 +31,7 @@ impl RequestBuilder {
     ///
     /// # Panics
     /// Panics if the base url is invalid or if the method is CONNECT.
+    #[must_use]
     pub fn new<U>(url: U, method: Method) -> Self
     where
         U: AsRef<str>,
@@ -50,6 +51,7 @@ impl RequestBuilder {
     /// Associate a query string parameter to the given value.
     ///
     /// The same key can be used multiple times.
+    #[must_use]
     pub fn query<K, V>(mut self, key: K, value: V) -> Self
     where
         K: AsRef<str>,
@@ -67,6 +69,7 @@ impl RequestBuilder {
     /// ```ignore
     /// TestClient::get("http://foo.bar").queries(&[("p1", "v1"), ("p2", "v2")]);
     /// ```
+    #[must_use]
     pub fn queries<P, K, V>(mut self, pairs: P) -> Self
     where
         P: IntoIterator,
@@ -107,6 +110,7 @@ impl RequestBuilder {
     // }
 
     /// Enable HTTP basic authentication.
+    #[must_use]
     pub fn basic_auth(self, username: impl std::fmt::Display, password: Option<impl std::fmt::Display>) -> Self {
         let auth = match password {
             Some(password) => format!("{username}:{password}"),
@@ -117,11 +121,13 @@ impl RequestBuilder {
     }
 
     /// Enable HTTP bearer authentication.
+    #[must_use]
     pub fn bearer_auth(self, token: impl Into<String>) -> Self {
         self.add_header(header::AUTHORIZATION, format!("Bearer {}", token.into()), true)
     }
 
     /// Sets the body of this request.
+    #[must_use]
     pub fn body(mut self, body: impl Into<ReqBody>) -> Self {
         self.body = body.into();
         self
@@ -130,6 +136,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be text.
     ///
     /// If the `Content-Type` header is unset, it will be set to `text/plain` and the charset to UTF-8.
+    #[must_use]
     pub fn text(mut self, body: impl Into<String>) -> Self {
         self.headers
             .entry(header::CONTENT_TYPE)
@@ -140,6 +147,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be bytes.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
+    #[must_use]
     pub fn bytes(mut self, body: Vec<u8>) -> Self {
         self.headers
             .entry(header::CONTENT_TYPE)
@@ -150,6 +158,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be the JSON representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
+    #[must_use]
     pub fn json<T: serde::Serialize>(mut self, value: &T) -> Self {
         self.headers
             .entry(header::CONTENT_TYPE)
@@ -160,6 +169,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be the JSON representation of the given string.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
+    #[must_use]
     pub fn raw_json(mut self, value: impl Into<String>) -> Self {
         self.headers
             .entry(header::CONTENT_TYPE)
@@ -170,6 +180,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be the URL-encoded representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
+    #[must_use]
     pub fn form<T: serde::Serialize>(mut self, value: &T) -> Self {
         let body = serde_urlencoded::to_string(value)
             .expect("`serde_urlencoded::to_string` returns error")
@@ -182,6 +193,7 @@ impl RequestBuilder {
     /// Sets the body of this request to be the URL-encoded representation of the given string.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
+    #[must_use]
     pub fn raw_form(mut self, value: impl Into<String>) -> Self {
         self.headers
             .entry(header::CONTENT_TYPE)
@@ -192,6 +204,7 @@ impl RequestBuilder {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    #[must_use]
     pub fn add_header<N, V>(mut self, name: N, value: V, overwrite: bool) -> Self
     where
         N: IntoHeaderName,

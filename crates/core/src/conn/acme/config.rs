@@ -45,6 +45,7 @@ impl Debug for AcmeConfig {
 }
 
 /// ACME configuration builder
+#[derive(Debug)]
 pub struct AcmeConfigBuilder {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,

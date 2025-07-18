@@ -37,15 +37,18 @@ impl IntoIterator for Operations {
 }
 impl Operations {
     /// Construct a new empty [`Operations`]. This is effectively same as calling [`Operations::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Returns `true` if instance contains no elements.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Add a new operation and returns `self`.
+    #[must_use]
     pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(
         mut self,
         item_type: K,
@@ -68,7 +71,7 @@ impl Operations {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Operations) {
+    pub fn append(&mut self, other: &mut Self) {
         self.0.append(&mut other.0);
     }
     /// Extends a collection with the contents of an iterator.
@@ -171,11 +174,13 @@ pub struct Operation {
 
 impl Operation {
     /// Construct a new API [`Operation`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Add or change tags of the [`Operation`].
+    #[must_use]
     pub fn tags<I, T>(mut self, tags: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -185,30 +190,35 @@ impl Operation {
         self
     }
     /// Append tag to [`Operation`] tags and returns `Self`.
+    #[must_use]
     pub fn add_tag<S: Into<String>>(mut self, tag: S) -> Self {
         self.tags.push(tag.into());
         self
     }
 
     /// Add or change short summary of the [`Operation`].
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = Some(summary.into());
         self
     }
 
     /// Add or change description of the [`Operation`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change operation id of the [`Operation`].
+    #[must_use]
     pub fn operation_id<S: Into<String>>(mut self, operation_id: S) -> Self {
         self.operation_id = Some(operation_id.into());
         self
     }
 
     /// Add or change parameters of the [`Operation`].
+    #[must_use]
     pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
         mut self,
         parameters: I,
@@ -218,18 +228,21 @@ impl Operation {
         self
     }
     /// Append parameter to [`Operation`] parameters and returns `Self`.
+    #[must_use]
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.parameters.insert(parameter);
         self
     }
 
     /// Add or change request body of the [`Operation`].
+    #[must_use]
     pub fn request_body(mut self, request_body: RequestBody) -> Self {
         self.request_body = Some(request_body);
         self
     }
 
     /// Add or change responses of the [`Operation`].
+    #[must_use]
     pub fn responses<R: Into<Responses>>(mut self, responses: R) -> Self {
         self.responses = responses.into();
         self
@@ -238,6 +251,7 @@ impl Operation {
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
+    #[must_use]
     pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         code: S,
@@ -248,12 +262,14 @@ impl Operation {
     }
 
     /// Add or change deprecated status of the [`Operation`].
+    #[must_use]
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
         self.deprecated = Some(deprecated.into());
         self
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
+    #[must_use]
     pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(
         mut self,
         securities: I,
@@ -262,23 +278,27 @@ impl Operation {
         self
     }
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements and returns `Self`.
+    #[must_use]
     pub fn add_security(mut self, security: SecurityRequirement) -> Self {
         self.securities.push(security);
         self
     }
 
     /// Add or change list of [`Server`]s of the [`Operation`].
+    #[must_use]
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
         self.servers = Servers(servers.into_iter().collect());
         self
     }
     /// Append a new [`Server`] to the [`Operation`] servers and returns `Self`.
+    #[must_use]
     pub fn add_server(mut self, server: Server) -> Self {
         self.servers.insert(server);
         self
     }
 
     /// For easy chaining of operations.
+    #[must_use]
     pub fn then<F>(self, func: F) -> Self
     where
         F: FnOnce(Self) -> Self,
@@ -413,7 +433,7 @@ mod tests {
     #[test]
     fn test_operations_then() {
         let print_operation = |operation: Operation| {
-            println!("{:?}", operation);
+            println!("{operation:?}");
             operation
         };
         let operation = Operation::new();

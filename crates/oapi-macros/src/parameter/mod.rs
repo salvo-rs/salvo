@@ -1,4 +1,5 @@
-use std::{borrow::Cow, fmt::Display};
+use std::borrow::Cow;
+use std::fmt::{self, Debug, Display, Formatter};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
@@ -321,12 +322,12 @@ impl ParameterIn {
 }
 
 impl Display for ParameterIn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ParameterIn::Query => write!(f, "Query"),
-            ParameterIn::Path => write!(f, "Path"),
-            ParameterIn::Header => write!(f, "Header"),
-            ParameterIn::Cookie => write!(f, "Cookie"),
+            Self::Query => write!(f, "Query"),
+            Self::Path => write!(f, "Path"),
+            Self::Header => write!(f, "Header"),
+            Self::Cookie => write!(f, "Cookie"),
         }
     }
 }
@@ -382,13 +383,13 @@ impl Parse for ParameterStyle {
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {
-            "Matrix" => Ok(ParameterStyle::Matrix),
-            "Label" => Ok(ParameterStyle::Label),
-            "Form" => Ok(ParameterStyle::Form),
-            "Simple" => Ok(ParameterStyle::Simple),
-            "SpaceDelimited" => Ok(ParameterStyle::SpaceDelimited),
-            "PipeDelimited" => Ok(ParameterStyle::PipeDelimited),
-            "DeepObject" => Ok(ParameterStyle::DeepObject),
+            "Matrix" => Ok(Self::Matrix),
+            "Label" => Ok(Self::Label),
+            "Form" => Ok(Self::Form),
+            "Simple" => Ok(Self::Simple),
+            "SpaceDelimited" => Ok(Self::SpaceDelimited),
+            "PipeDelimited" => Ok(Self::PipeDelimited),
+            "DeepObject" => Ok(Self::DeepObject),
             _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
         }
     }
@@ -398,25 +399,21 @@ impl ToTokens for ParameterStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            ParameterStyle::Matrix => {
+            Self::Matrix => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix })
             }
-            ParameterStyle::Label => {
-                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label })
-            }
-            ParameterStyle::Form => {
-                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form })
-            }
-            ParameterStyle::Simple => {
+            Self::Label => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label }),
+            Self::Form => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form }),
+            Self::Simple => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple })
             }
-            ParameterStyle::SpaceDelimited => {
+            Self::SpaceDelimited => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
             }
-            ParameterStyle::PipeDelimited => {
+            Self::PipeDelimited => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
             }
-            ParameterStyle::DeepObject => {
+            Self::DeepObject => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject })
             }
         }

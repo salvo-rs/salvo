@@ -12,9 +12,9 @@ pub use config::Config;
 pub use oauth::Config as OauthConfig;
 use rust_embed::RustEmbed;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
-use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
+use salvo_core::http::{HeaderValue, ResBody, StatusError, header};
 use salvo_core::writing::Redirect;
-use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router};
+use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, Router, async_trait};
 use serde::Serialize;
 
 #[derive(RustEmbed)]
@@ -164,6 +164,7 @@ impl SwaggerUi {
     ///     ]
     /// );
     /// ```
+    #[must_use]
     pub fn urls(mut self, urls: Vec<Url<'static>>) -> Self {
         self.config.urls = urls;
         self
@@ -188,6 +189,7 @@ impl SwaggerUi {
     ///         .use_pkce_with_authorization_code_grant(true)
     ///     );
     /// ```
+    #[must_use]
     pub fn oauth(mut self, oauth: oauth::Config) -> Self {
         self.config.oauth = Some(oauth);
         self
@@ -232,7 +234,13 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 
 #[async_trait]
 impl Handler for SwaggerUi {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         let path = req.params().tail().unwrap_or_default();
         // Redirect to dir url if path is empty and not end with '/'
         if path.is_empty() && !req.uri().path().ends_with('/') {
@@ -253,12 +261,14 @@ impl Handler for SwaggerUi {
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
             .unwrap_or_default();
         match serve(path, &self.title, &keywords, &description, &self.config) {
             Ok(Some(file)) => {
-                res.headers_mut()
-                    .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).expect("content type parse failed"));
+                res.headers_mut().insert(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_str(&file.content_type).expect("content type parse failed"),
+                );
                 res.body(ResBody::Once(file.bytes.to_vec().into()));
             }
             Ok(None) => {
@@ -296,6 +306,7 @@ impl<'a> Url<'a> {
     /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
+    #[must_use]
     pub fn new(name: &'a str, url: &'a str) -> Self {
         Self {
             name: Cow::Borrowed(name),
@@ -321,6 +332,7 @@ impl<'a> Url<'a> {
     /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
+    #[must_use]
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
         Self {
             name: Cow::Borrowed(name),
@@ -360,6 +372,7 @@ impl From<Cow<'static, str>> for Url<'_> {
 /// Represents servable file of Swagger UI. This is used together with [`serve`] function
 /// to serve Swagger UI files via web server.
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub struct SwaggerFile<'a> {
     /// Content of the file as [`Cow`] [`slice`] of bytes.
     pub bytes: Cow<'a, [u8]>,
@@ -406,7 +419,10 @@ pub fn serve<'a>(
 
         if let Some(oauth) = &config.oauth {
             let oauth_json = serde_json::to_string(oauth)?;
-            index = index.replace("//{{oauth}}", &format!("window.ui.initOAuth({});", &oauth_json));
+            index = index.replace(
+                "//{{oauth}}",
+                &format!("window.ui.initOAuth({});", &oauth_json),
+            );
         }
         Some(Cow::Owned(index.as_bytes().to_vec()))
     } else {
@@ -414,7 +430,9 @@ pub fn serve<'a>(
     };
     let file = bytes.map(|bytes| SwaggerFile {
         bytes,
-        content_type: mime_infer::from_path(path).first_or_octet_stream().to_string(),
+        content_type: mime_infer::from_path(path)
+            .first_or_octet_stream()
+            .to_string(),
     });
 
     Ok(file)

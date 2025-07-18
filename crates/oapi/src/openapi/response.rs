@@ -74,10 +74,12 @@ impl IntoIterator for Responses {
 
 impl Responses {
     /// Construct a new empty [`Responses`]. This is effectively same as calling [`Responses::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and retuns `self`.
+    #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         key: S,
@@ -96,7 +98,7 @@ impl Responses {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Responses) {
+    pub fn append(&mut self, other: &mut Self) {
         self.0.append(&mut other.0);
     }
 
@@ -171,6 +173,7 @@ impl Response {
     /// Construct a new [`Response`].
     ///
     /// Function takes description as argument.
+    #[must_use]
     pub fn new<S: Into<String>>(description: S) -> Self {
         Self {
             description: description.into(),
@@ -179,29 +182,34 @@ impl Response {
     }
 
     /// Add description. Description supports markdown syntax.
+    #[must_use]
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
         self.description = description.into();
         self
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json` and returns `Self`.
+    #[must_use]
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, key: S, content: C) -> Self {
         self.contents.insert(key.into(), content.into());
         self
     }
     /// Add response [`Header`] and returns `Self`.
+    #[must_use]
     pub fn add_header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
         self.headers.insert(name.into(), header);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`Response`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
     }
 
     /// Add link that can be followed from the response.
+    #[must_use]
     pub fn add_link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
         self.links.insert(name.into(), link.into());
 
@@ -267,17 +275,17 @@ mod tests {
     #[test]
     fn test_responses_from_btree_map() {
         let input = PropMap::from([
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ]);
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -290,17 +298,17 @@ mod tests {
     #[test]
     fn test_responses_from_kv_sequence() {
         let input = [
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ];
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -313,17 +321,17 @@ mod tests {
     #[test]
     fn test_responses_from_iter() {
         let input = [
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ];
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -344,11 +352,11 @@ mod tests {
     fn test_btree_map_from_responses() {
         let expected = PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]);

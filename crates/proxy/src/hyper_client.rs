@@ -41,13 +41,13 @@ where
     /// 
     /// This is a convenient way to create a proxy with standard configuration.
     pub fn use_hyper_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, HyperClient::default())
+        Self::new(upstreams, HyperClient::default())
     }
 }
 
 impl HyperClient {
     /// Create a new `HyperClient` with the given `HyperClient`.
-    pub fn new(inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>) -> Self {
+    #[must_use] pub fn new(inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>) -> Self {
         Self { inner }
     }
 }
@@ -125,7 +125,7 @@ mod tests {
             .take_string()
             .await
             .unwrap();
-        println!("{}", content);
+        println!("{content}");
         assert!(content.contains("Install Rust"));
     }
 

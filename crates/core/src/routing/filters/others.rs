@@ -10,6 +10,7 @@ use crate::routing::{Filter, PathState};
 pub struct MethodFilter(pub Method);
 impl MethodFilter {
     /// Create a new `MethodFilter`.
+    #[must_use]
     pub fn new(method: Method) -> Self {
         Self(method)
     }
@@ -40,6 +41,7 @@ pub struct SchemeFilter {
 }
 impl SchemeFilter {
     /// Create a new `SchemeFilter`.
+    #[must_use]
     pub fn new(scheme: Scheme) -> Self {
         Self {
             scheme,
@@ -47,6 +49,7 @@ impl SchemeFilter {
         }
     }
     /// Set lack value and return `Self`.
+    #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
         self
@@ -87,6 +90,7 @@ impl HostFilter {
         }
     }
     /// Set lack value and return `Self`.
+    #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
         self
@@ -139,10 +143,12 @@ pub struct PortFilter {
 
 impl PortFilter {
     /// Create a new `PortFilter`.
+    #[must_use]
     pub fn new(port: u16) -> Self {
         Self { port, lack: false }
     }
     /// Set lack value and return `Self`.
+    #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
         self

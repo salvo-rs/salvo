@@ -28,30 +28,34 @@ pub struct RequestBody {
 
 impl RequestBody {
     /// Construct a new empty [`RequestBody`]. This is effectively same as calling [`RequestBody::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Add description for [`RequestBody`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Define [`RequestBody`] required.
+    #[must_use]
     pub fn required(mut self, required: Required) -> Self {
         self.required = Some(required);
         self
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
+    #[must_use]
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, kind: S, content: C) -> Self {
         self.contents.insert(kind.into(), content.into());
         self
     }
 
     /// Fill [`RequestBody`] with values from another [`RequestBody`].
-    pub fn merge(&mut self, other: RequestBody) {
-        let RequestBody {
+    pub fn merge(&mut self, other: Self) {
+        let Self {
             description,
             contents,
             required,

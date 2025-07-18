@@ -73,17 +73,14 @@ pub(crate) struct RequestDeserializer<'de> {
     metadata: &'de Metadata,
     field_index: isize,
     field_flatten: bool,
-    field_source: Option<&'de Source>,
+    field_source: Option<Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
 }
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    pub(crate) fn new(
-        request: &'de Request,
-        metadata: &'de Metadata,
-    ) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<Self, ParseError> {
         let mut payload = None;
 
         if metadata.has_body_required() {
@@ -128,7 +125,7 @@ impl<'de> RequestDeserializer<'de> {
         })
     }
 
-    fn real_parser(&self, source: &Source) -> SourceParser {
+    fn real_parser(&self, source: Source) -> SourceParser {
         let mut parser = source.parser;
         if parser == SourceParser::Smart {
             if source.from == SourceFrom::Body {
@@ -232,7 +229,7 @@ impl<'de> RequestDeserializer<'de> {
             field.decl_name
         };
 
-        for source in sources {
+        for source in sources.iter().cloned() {
             match source.from {
                 SourceFrom::Param => {
                     let mut value = self.params.get(field_name);
@@ -503,7 +500,7 @@ mod tests {
         assert_eq!(
             data,
             RequestData {
-                q1: "q1v".to_string(),
+                q1: "q1v".to_owned(),
                 q2: 23
             }
         );
@@ -594,9 +591,9 @@ mod tests {
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
-        req.params.insert("param1".into(), "param1v".into());
-        req.params.insert("p2".into(), "921".into());
-        req.params.insert("p3".into(), "89785".into());
+        req.params.insert("param1", "param1v".into());
+        req.params.insert("p2", "921".into());
+        req.params.insert("p3", "89785".into());
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -637,7 +634,7 @@ mod tests {
                 },
             ])
             .build();
-        req.params.insert("p2".into(), "921".into());
+        req.params.insert("p2", "921".into());
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -670,7 +667,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
             .json(&true)
             .build();
-        req.params.insert("p2".into(), "921".into());
+        req.params.insert("p2", "921".into());
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(data, RequestData { p2: "921", b: true });
     }
@@ -688,7 +685,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
             .json(&"abcd-good")
             .build();
-        req.params.insert("p2".into(), "921".into());
+        req.params.insert("p2", "921".into());
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -716,7 +713,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
             .raw_form(r#"user={"name": "chris", "age": 20}"#)
             .build();
-        req.params.insert("p2".into(), "921".into());
+        req.params.insert("p2", "921".into());
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -814,7 +811,7 @@ mod tests {
         assert_eq!(
             data,
             RequestData {
-                ids: vec!["3".to_string(), "2".to_string(), "11".to_string()]
+                ids: vec!["3".to_owned(), "2".to_owned(), "11".to_owned()]
             }
         );
         let mut req = TestClient::get(
@@ -826,10 +823,10 @@ mod tests {
             data,
             RequestData {
                 ids: vec![
-                    "3".to_string(),
-                    "2".to_string(),
-                    "11".to_string(),
-                    "1,2".to_string()
+                    "3".to_owned(),
+                    "2".to_owned(),
+                    "11".to_owned(),
+                    "1,2".to_owned()
                 ]
             }
         );

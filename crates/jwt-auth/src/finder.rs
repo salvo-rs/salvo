@@ -39,7 +39,7 @@ pub trait JwtTokenFinder: Send + Sync {
 /// let get_only = HeaderFinder::new()
 ///     .cared_methods(vec![Method::GET]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct HeaderFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -52,6 +52,7 @@ pub struct HeaderFinder {
 impl HeaderFinder {
     /// Create new `HeaderFinder`.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cared_methods: ALL_METHODS.to_vec(),
@@ -67,6 +68,7 @@ impl HeaderFinder {
 
     /// Sets header names and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
         self.header_names = header_names.into();
         self
@@ -79,6 +81,7 @@ impl HeaderFinder {
     }
     /// Sets cared methods list and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -118,7 +121,7 @@ impl JwtTokenFinder for HeaderFinder {
 /// let post_only = FormFinder::new("access_token")
 ///     .cared_methods(vec![Method::POST]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct FormFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -143,6 +146,7 @@ impl FormFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -177,7 +181,7 @@ impl JwtTokenFinder for FormFinder {
 /// let get_only = QueryFinder::new("token")
 ///     .cared_methods(vec![Method::GET]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct QueryFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -202,6 +206,7 @@ impl QueryFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -237,7 +242,7 @@ impl JwtTokenFinder for QueryFinder {
 /// let restricted = CookieFinder::new("jwt")
 ///     .cared_methods(vec![Method::GET, Method::POST]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct CookieFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -262,6 +267,7 @@ impl CookieFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self

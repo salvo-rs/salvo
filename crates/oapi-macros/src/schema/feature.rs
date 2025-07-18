@@ -18,7 +18,7 @@ pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);
 
 impl Parse for NamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(NamedFieldStructFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             XmlAttr,
@@ -46,7 +46,7 @@ pub(crate) struct UnnamedFieldStructFeatures(Vec<Feature>);
 
 impl Parse for UnnamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(UnnamedFieldStructFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             Default,
@@ -71,7 +71,7 @@ pub(crate) struct EnumFeatures(Vec<Feature>);
 
 impl Parse for EnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(EnumFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             Default,
@@ -94,7 +94,7 @@ pub(crate) struct ComplexEnumFeatures(Vec<Feature>);
 
 impl Parse for ComplexEnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(ComplexEnumFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             Default,
@@ -117,7 +117,7 @@ pub(crate) struct NamedFieldFeatures(Vec<Feature>);
 
 impl Parse for NamedFieldFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(NamedFieldFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             ValueType,
@@ -156,7 +156,7 @@ pub(crate) struct EnumNamedFieldVariantFeatures(Vec<Feature>);
 
 impl Parse for EnumNamedFieldVariantFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(EnumNamedFieldVariantFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             XmlAttr,
@@ -175,7 +175,7 @@ pub(crate) struct EnumUnnamedFieldVariantFeatures(Vec<Feature>);
 
 impl Parse for EnumUnnamedFieldVariantFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
+        Ok(Self(parse_features!(
             input as Example,
             Examples,
             Default,

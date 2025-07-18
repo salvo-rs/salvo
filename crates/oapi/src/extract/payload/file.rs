@@ -27,6 +27,7 @@ pub struct FormFile {
 }
 impl FormFile {
     /// Create a new `FormFile` from a `FilePart`.
+    #[must_use]
     pub fn new(file_part: &FilePart) -> Self {
         Self {
             name: file_part.name().map(|s| s.to_owned()),
@@ -38,6 +39,7 @@ impl FormFile {
 
     /// Get file name.
     #[inline]
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
@@ -48,6 +50,7 @@ impl FormFile {
     }
     /// Get headers.
     #[inline]
+    #[must_use]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -65,11 +68,13 @@ impl FormFile {
     }
     /// Get file path.
     #[inline]
+    #[must_use]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
     /// Get file size.
     #[inline]
+    #[must_use]
     pub fn size(&self) -> u64 {
         self.size
     }
@@ -88,7 +93,7 @@ impl<'ex> Extractible<'ex> for FormFile {
     async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         req.file(arg)
             .await
-            .map(FormFile::new)
+            .map(Self::new)
             .ok_or_else(|| ParseError::other("file not found"))
     }
 }
@@ -122,11 +127,13 @@ impl EndpointArgRegister for FormFile {
 pub struct FormFiles(pub Vec<FormFile>);
 impl FormFiles {
     /// Create a new `FormFiles` from a `Vec<&FilePart>`.
+    #[must_use]
     pub fn new(file_parts: Vec<&FilePart>) -> Self {
         Self(file_parts.into_iter().map(FormFile::new).collect())
     }
 
     /// Get inner files.
+    #[must_use]
     pub fn into_inner(self) -> Vec<FormFile> {
         self.0
     }

@@ -34,6 +34,7 @@ impl BodySender {
     }
 
     /// Returns whether this channel is closed without needing a context.
+    #[must_use]
     pub fn is_closed(&self) -> bool {
         self.data_tx.is_closed()
     }
@@ -60,9 +61,8 @@ impl BodySender {
 
     /// Send trailers on trailers channel.
     pub async fn send_trailers(&mut self, trailers: HeaderMap) -> IoResult<()> {
-        let tx = match self.trailers_tx.take() {
-            Some(tx) => tx,
-            None => return Err(IoError::other("failed to send railers")),
+        let Some(tx) = self.trailers_tx.take() else {
+            return Err(IoError::other("failed to send railers"));
         };
         tx.send(trailers)
             .map_err(|_| IoError::other("failed to send railers"))
@@ -164,4 +164,9 @@ impl Debug for BodySender {
 pub struct BodyReceiver {
     pub(crate) data_rx: mpsc::Receiver<Result<Bytes, IoError>>,
     pub(crate) trailers_rx: oneshot::Receiver<HeaderMap>,
+}
+impl Debug for BodyReceiver {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BodyReceiver").finish()
+    }
 }

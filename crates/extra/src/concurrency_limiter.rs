@@ -76,6 +76,7 @@ use salvo_core::http::{Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxConcurrency
+#[derive(Debug)]
 pub struct MaxConcurrency {
     semaphore: Semaphore,
 }
@@ -99,7 +100,7 @@ impl Handler for MaxConcurrency {
 }
 /// Create a new `MaxConcurrency`.
 #[inline]
-pub fn max_concurrency(size: usize) -> MaxConcurrency {
+#[must_use] pub fn max_concurrency(size: usize) -> MaxConcurrency {
     MaxConcurrency {
         semaphore: Semaphore::new(size),
     }

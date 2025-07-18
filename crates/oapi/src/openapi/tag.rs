@@ -60,6 +60,7 @@ impl<'a> From<&'a str> for Tag {
 
 impl Tag {
     /// Construct a new [`Tag`] with given name.
+    #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -67,24 +68,28 @@ impl Tag {
         }
     }
     /// Add name of the tag.
+    #[must_use]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
     /// Add additional description for the tag.
+    #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add additional external documentation for the tag.
+    #[must_use]
     pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
         self.external_docs = Some(external_docs);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`Tag`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
@@ -116,16 +121,16 @@ mod tests {
 
     #[test]
     fn from_string() {
-        let name = "tag name".to_string();
+        let name = "tag name".to_owned();
         let tag = Tag::from(name);
-        assert_eq!(tag.name, "tag name".to_string());
+        assert_eq!(tag.name, "tag name".to_owned());
     }
 
     #[test]
     fn from_string_ref() {
-        let name = "tag name".to_string();
+        let name = "tag name".to_owned();
         let tag = Tag::from(&name);
-        assert_eq!(tag.name, "tag name".to_string());
+        assert_eq!(tag.name, "tag name".to_owned());
     }
 
     #[test]

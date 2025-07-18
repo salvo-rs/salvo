@@ -20,8 +20,8 @@ struct Writer {
 }
 
 impl Writer {
-    fn new() -> Writer {
-        Writer {
+    fn new() -> Self {
+        Self {
             buf: BytesMut::with_capacity(8192),
         }
     }

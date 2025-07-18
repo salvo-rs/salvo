@@ -13,48 +13,59 @@ pub struct MethodSkipper {
 }
 impl MethodSkipper {
     /// Create a new `MethodSkipper`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             skipped_methods: HashSet::new(),
         }
     }
     /// Add the [`Method::GET`] method to skipped methods.
+    #[must_use]
     pub fn skip_get(self, value: bool) -> Self {
         self.skip_method(Method::GET, value)
     }
     /// Add the [`Method::POST`] method to skipped methods.
+    #[must_use]
     pub fn skip_post(self, value: bool) -> Self {
         self.skip_method(Method::POST, value)
     }
     /// Add the [`Method::PUT`] method to skipped methods.
+    #[must_use]
     pub fn skip_put(self, value: bool) -> Self {
         self.skip_method(Method::PUT, value)
     }
     /// Add the [`Method::DELETE`] method to skipped methods.
+    #[must_use]
     pub fn skip_delete(self, value: bool) -> Self {
         self.skip_method(Method::DELETE, value)
     }
     /// Add the [`Method::HEAD`] method to skipped methods.
+    #[must_use]
     pub fn skip_head(self, value: bool) -> Self {
         self.skip_method(Method::HEAD, value)
     }
     /// Add the [`Method::PATCH`] method to skipped methods.
+    #[must_use]
     pub fn skip_patch(self, value: bool) -> Self {
         self.skip_method(Method::PATCH, value)
     }
     /// Add the [`Method::OPTIONS`] method to skipped methods.
+    #[must_use]
     pub fn skip_options(self, value: bool) -> Self {
         self.skip_method(Method::OPTIONS, value)
     }
     /// Add the [`Method::CONNECT`] method to skipped methods.
+    #[must_use]
     pub fn skip_connect(self, value: bool) -> Self {
         self.skip_method(Method::CONNECT, value)
     }
     /// Add the [`Method::TRACE`] method to skipped methods.
+    #[must_use]
     pub fn skip_trace(self, value: bool) -> Self {
         self.skip_method(Method::TRACE, value)
     }
     /// Add a [`Method`] to skipped methods.
+    #[must_use]
     pub fn skip_method(mut self, method: Method, value: bool) -> Self {
         if value {
             self.skipped_methods.insert(method);
@@ -64,6 +75,7 @@ impl MethodSkipper {
         self
     }
     /// Add all methods to skipped methods.
+    #[must_use]
     pub fn skip_all(mut self) -> Self {
         self.skipped_methods = [
             Method::GET,

@@ -38,11 +38,13 @@ pub struct Example {
 
 impl Example {
     /// Construct a new empty [`Example`]. This is effectively same as calling [`Example::default`].
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
     /// Add or change a short description for the [`Example`]. Setting this to empty `String`
     /// will make it not render in the generated OpenAPI document.
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = summary.into();
         self
@@ -53,6 +55,7 @@ impl Example {
     ///
     /// Setting this to empty `String` will make it not render in the generated
     /// OpenAPI document.
+    #[must_use]
     pub fn description<D: Into<String>>(mut self, description: D) -> Self {
         self.description = description.into();
         self
@@ -60,6 +63,7 @@ impl Example {
 
     /// Add or change embedded literal example value. [`Example::value`] and [`Example::external_value`]
     /// are mutually exclusive.
+    #[must_use]
     pub fn value(mut self, value: serde_json::Value) -> Self {
         self.value = Some(value);
         self
@@ -71,6 +75,7 @@ impl Example {
     ///
     /// Setting this to an empty String will make the field not to render in the generated OpenAPI
     /// document.
+    #[must_use]
     pub fn external_value<E: Into<String>>(mut self, external_value: E) -> Self {
         self.external_value = external_value.into();
         self
@@ -98,8 +103,8 @@ mod tests {
         let example = example.external_value("external_value");
         assert!(example.external_value == "external_value");
 
-        let example = example.value(serde_json::Value::String("value".to_string()));
+        let example = example.value(serde_json::Value::String("value".to_owned()));
         assert!(example.value.is_some());
-        assert!(example.value.unwrap() == serde_json::Value::String("value".to_string()));
+        assert!(example.value.unwrap() == serde_json::Value::String("value".to_owned()));
     }
 }

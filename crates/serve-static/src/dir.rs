@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::{self, Display, Formatter, Write};
+use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -40,8 +40,7 @@ impl FromStr for CompressionAlgo {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "br" => Ok(Self::Brotli),
-            "brotli" => Ok(Self::Brotli),
+            "br" | "brotli" => Ok(Self::Brotli),
             "deflate" => Ok(Self::Deflate),
             "gzip" => Ok(Self::Gzip),
             "zstd" => Ok(Self::Zstd),
@@ -65,10 +64,10 @@ impl From<CompressionAlgo> for HeaderValue {
     #[inline]
     fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            CompressionAlgo::Brotli => HeaderValue::from_static("br"),
-            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
-            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
-            CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
+            CompressionAlgo::Brotli => Self::from_static("br"),
+            CompressionAlgo::Deflate => Self::from_static("deflate"),
+            CompressionAlgo::Gzip => Self::from_static("gzip"),
+            CompressionAlgo::Zstd => Self::from_static("zstd"),
         }
     }
 }
@@ -148,7 +147,6 @@ pub struct StaticDir {
     pub chunk_size: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
     pub include_dot_files: bool,
-    #[allow(clippy::type_complexity)]
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     /// Whether to automatically list directories when default file isn't found
     pub auto_list: bool,
@@ -158,6 +156,19 @@ pub struct StaticDir {
     pub defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
+}
+impl Debug for StaticDir {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StaticDir")
+            .field("roots", &self.roots)
+            .field("chunk_size", &self.chunk_size)
+            .field("include_dot_files", &self.include_dot_files)
+            .field("auto_list", &self.auto_list)
+            .field("compressed_variations", &self.compressed_variations)
+            .field("defaults", &self.defaults)
+            .field("fallback", &self.fallback)
+            .finish()
+    }
 }
 impl StaticDir {
     /// Create new `StaticDir`.
@@ -183,6 +194,7 @@ impl StaticDir {
 
     /// Sets include_dot_files.
     #[inline]
+    #[must_use]
     pub fn include_dot_files(mut self, include_dot_files: bool) -> Self {
         self.include_dot_files = include_dot_files;
         self
@@ -192,6 +204,7 @@ impl StaticDir {
     ///
     /// The filter function returns true to exclude the file.
     #[inline]
+    #[must_use]
     pub fn exclude<F>(mut self, filter: F) -> Self
     where
         F: Fn(&str) -> bool + Send + Sync + 'static,
@@ -202,6 +215,7 @@ impl StaticDir {
 
     /// Sets auto_list.
     #[inline]
+    #[must_use]
     pub fn auto_list(mut self, auto_list: bool) -> Self {
         self.auto_list = auto_list;
         self
@@ -209,25 +223,28 @@ impl StaticDir {
 
     /// Sets compressed_variations.
     #[inline]
+    #[must_use]
     pub fn compressed_variation<A>(mut self, algo: A, exts: &str) -> Self
     where
         A: Into<CompressionAlgo>,
     {
         self.compressed_variations.insert(
             algo.into(),
-            exts.split(',').map(|s| s.trim().to_string()).collect(),
+            exts.split(',').map(|s| s.trim().to_owned()).collect(),
         );
         self
     }
 
     /// Sets defaults.
     #[inline]
+    #[must_use]
     pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
     /// Sets fallback.
+    #[must_use]
     pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
@@ -240,6 +257,7 @@ impl StaticDir {
     ///
     /// The default is 1M.
     #[inline]
+    #[must_use]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
@@ -263,8 +281,8 @@ struct CurrentInfo {
 }
 impl CurrentInfo {
     #[inline]
-    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> CurrentInfo {
-        CurrentInfo { path, files, dirs }
+    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> Self {
+        Self { path, files, dirs }
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -275,8 +293,9 @@ struct FileInfo {
 }
 impl FileInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> FileInfo {
-        FileInfo {
+    #[must_use]
+    fn new(name: String, metadata: &Metadata) -> Self {
+        Self {
             name,
             size: metadata.len(),
             modified: metadata
@@ -293,8 +312,8 @@ struct DirInfo {
 }
 impl DirInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> DirInfo {
-        DirInfo {
+    fn new(name: String, metadata: &Metadata) -> Self {
+        Self {
             name,
             modified: metadata
                 .modified()
@@ -335,10 +354,8 @@ impl Handler for StaticDir {
                 if !Path::new(&raw_path).starts_with(root) {
                     continue;
                 }
-                for filter in &self.exclude_filters {
-                    if filter(&raw_path) {
-                        continue;
-                    }
+                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                    continue;
                 }
                 let path = Path::new(&raw_path);
                 if path.is_dir() {
@@ -370,10 +387,8 @@ impl Handler for StaticDir {
         if abs_path.is_none() && !fallback.is_empty() {
             for root in &self.roots {
                 let raw_path = join_path!(root, fallback);
-                for filter in &self.exclude_filters {
-                    if filter(&raw_path) {
-                        continue;
-                    }
+                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                    continue;
                 }
                 let path = Path::new(&raw_path);
                 if path.is_file() {
@@ -383,12 +398,9 @@ impl Handler for StaticDir {
             }
         }
 
-        let abs_path = match abs_path {
-            Some(path) => path,
-            None => {
-                res.render(StatusError::not_found());
-                return;
-            }
+        let Some(abs_path) = abs_path else {
+            res.render(StatusError::not_found());
+            return;
         };
 
         if abs_path.is_file() {
@@ -460,10 +472,8 @@ impl Handler for StaticDir {
                     let file_name = entry.file_name().to_string_lossy().to_string();
                     if self.include_dot_files || !file_name.starts_with('.') {
                         let raw_path = join_path!(&abs_path, &file_name);
-                        for filter in &self.exclude_filters {
-                            if filter(&raw_path) {
-                                continue;
-                            }
+                        if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                            continue;
                         }
                         if let Ok(metadata) = entry.metadata().await {
                             if metadata.is_dir() {
@@ -479,12 +489,12 @@ impl Handler for StaticDir {
             let format = req.first_accept().unwrap_or(mime::TEXT_HTML);
             let mut files: Vec<FileInfo> = files
                 .into_iter()
-                .map(|(name, metadata)| FileInfo::new(name, metadata))
+                .map(|(name, metadata)| FileInfo::new(name, &metadata))
                 .collect();
             files.sort_by(|a, b| a.name.cmp(&b.name));
             let mut dirs: Vec<DirInfo> = dirs
                 .into_iter()
-                .map(|(name, metadata)| DirInfo::new(name, metadata))
+                .map(|(name, metadata)| DirInfo::new(name, &metadata))
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
             let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
@@ -555,7 +565,7 @@ fn list_html(current: &CurrentInfo) -> String {
             .trim_start_matches('/')
             .trim_end_matches('/')
             .split('/');
-        let mut link = "".to_string();
+        let mut link = "".to_owned();
         format!(
             r#"<a href="/">{}</a>{}"#,
             HOME_ICON,

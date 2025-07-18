@@ -39,7 +39,7 @@ pub struct ETag {
 
 impl ETag {
     /// constructs a new Etag handler
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self::default()
     }
 
@@ -47,7 +47,7 @@ impl ETag {
     /// [`etag::EntityTag`](https://docs.rs/etag/3.0.0/etag/struct.EntityTag.html#comparison)
     /// for further documentation on the differences between strong
     /// and weak etag comparison.
-    pub fn strong(mut self) -> Self {
+    #[must_use] pub fn strong(mut self) -> Self {
         self.strong = true;
         self
     }
@@ -131,7 +131,7 @@ pub struct Modified {
 
 impl Modified {
     /// Constructs a new Modified handler
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self { _private: () }
     }
 }
@@ -166,7 +166,7 @@ pub struct CachingHeaders(Modified, ETag);
 
 impl CachingHeaders {
     /// Constructs a new combination modified and etag handler
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self::default()
     }
 }

@@ -60,7 +60,7 @@ impl NamedStructSchema<'_> {
         &self,
         field: &Field,
         flatten: bool,
-        container_rules: &Option<SerdeContainer>,
+        container_rules: Option<&SerdeContainer>,
     ) -> DiagResult<NamedStructFieldOptions<'_>> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
 
@@ -200,18 +200,18 @@ impl TryToTokens for NamedStructSchema<'_> {
                 rename_field_value,
                 required,
                 is_option,
-            } = self.field_as_schema_property(field, false, &container_rules)?;
+            } = self.field_as_schema_property(field, false, container_rules.as_ref())?;
             let rename_to = field_rule
                 .as_ref()
                 .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
                 .or(rename_field_value);
             let rename_all = container_rules
                 .as_ref()
-                .and_then(|container_rule| container_rule.rename_all.as_ref())
+                .and_then(|container_rule| container_rule.rename_all)
                 .or_else(|| {
                     self.rename_all
                         .as_ref()
-                        .map(|rename_all| rename_all.as_rename_rule())
+                        .map(|rename_all| rename_all.to_rename_rule())
                 });
 
             let name = crate::rename::<FieldRename>(field_name, rename_to, rename_all)
@@ -251,7 +251,7 @@ impl TryToTokens for NamedStructSchema<'_> {
 
             for field in flatten_fields {
                 let NamedStructFieldOptions { property, .. } =
-                    self.field_as_schema_property(field, true, &container_rules)?;
+                    self.field_as_schema_property(field, true, container_rules.as_ref())?;
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {

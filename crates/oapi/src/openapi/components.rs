@@ -40,6 +40,7 @@ pub struct Components {
 
 impl Components {
     /// Construct a new empty [`Components`]. This is effectively same as calling [`Components::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
@@ -50,6 +51,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
@@ -67,6 +69,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
@@ -86,6 +89,7 @@ impl Components {
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
+    #[must_use]
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(
         mut self,
         name: S,
@@ -112,6 +116,7 @@ impl Components {
     ///     ),
     /// )]);
     /// ```
+    #[must_use]
     pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
     where
         I: IntoIterator<Item = (S, C)>,
@@ -127,6 +132,7 @@ impl Components {
     }
 
     /// Add a new response and returns `self`.
+    #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         name: S,
@@ -137,6 +143,7 @@ impl Components {
     }
 
     /// Extends responses with the contents of an iterator.
+    #[must_use]
     pub fn extend_responses<
         I: IntoIterator<Item = (S, R)>,
         S: Into<String>,
@@ -157,7 +164,7 @@ impl Components {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Components) {
+    pub fn append(&mut self, other: &mut Self) {
         other
             .schemas
             .retain(|name, _| !self.schemas.contains_key(name));
@@ -175,6 +182,7 @@ impl Components {
     }
 
     /// Returns `true` if instance contains no elements.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.schemas.is_empty() && self.responses.is_empty() && self.security_schemes.is_empty()
     }

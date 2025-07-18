@@ -23,7 +23,7 @@
 //! }
 //! ```
 use std::error::Error as StdError;
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
 use std::io::Error as IoError;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -67,6 +67,11 @@ where
 
 /// Tower service compat handler.
 pub struct TowerServiceHandler<Svc, QB>(Svc, PhantomData<QB>);
+impl<Svc, QB> Debug for TowerServiceHandler<Svc, QB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TowerServiceHandler").finish()
+    }
+}
 
 #[async_trait]
 impl<Svc, QB, SB, E, Fut> Handler for TowerServiceHandler<Svc, QB>
@@ -98,15 +103,12 @@ where
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
         }
-        let hyper_req = match req.strip_to_hyper::<QB>() {
-            Ok(hyper_req) => hyper_req,
-            Err(_) => {
-                tracing::error!("strip request to hyper failed.");
-                res.render(
-                    StatusError::internal_server_error().cause("strip request to hyper failed."),
-                );
-                return;
-            }
+        let Ok(hyper_req) = req.strip_to_hyper::<QB>() else {
+            tracing::error!("strip request to hyper failed.");
+            res.render(
+                StatusError::internal_server_error().cause("strip request to hyper failed."),
+            );
+            return;
         };
 
         let hyper_res = match svc.call(hyper_req).await {
@@ -225,6 +227,11 @@ impl<T> TowerLayerCompat for T where T: Layer<FlowCtrlService> + Send + Sync + S
 pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(
     Buffer<hyper::Request<QB>, Svc::Future>,
 );
+impl<Svc: Service<hyper::Request<QB>>, QB> Debug for TowerLayerHandler<Svc, QB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TowerLayerHandler").finish()
+    }
+}
 
 #[async_trait]
 impl<Svc, QB, SB, E> Handler for TowerLayerHandler<Svc, QB>
@@ -253,15 +260,12 @@ where
             return;
         }
 
-        let mut hyper_req = match req.strip_to_hyper::<QB>() {
-            Ok(hyper_req) => hyper_req,
-            Err(_) => {
-                tracing::error!("strip request to hyper failed.");
-                res.render(
-                    StatusError::internal_server_error().cause("strip request to hyper failed."),
-                );
-                return;
-            }
+        let Ok(mut hyper_req) = req.strip_to_hyper::<QB>() else {
+            tracing::error!("strip request to hyper failed.");
+            res.render(
+                StatusError::internal_server_error().cause("strip request to hyper failed."),
+            );
+            return;
         };
         let ctx = FlowCtrlInContext::new(
             std::mem::take(ctrl),

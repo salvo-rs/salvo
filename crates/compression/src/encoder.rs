@@ -19,8 +19,8 @@ pub(super) struct Writer {
 
 impl Writer {
     #[allow(dead_code)]
-    fn new() -> Writer {
-        Writer {
+    fn new() -> Self {
+        Self {
             buf: BytesMut::with_capacity(8192),
         }
     }
@@ -46,10 +46,9 @@ impl CompressionLevel {
     #[cfg(feature = "brotli")]
     fn into_brotli(self) -> BrotliEncoder<Writer> {
         let quality = match self {
-            Self::Fastest => 0,
+            Self::Fastest | Self::Default => 0,
             Self::Minsize => 11,
             Self::Precise(quality) => quality.min(11),
-            Self::Default => 0,
         };
         BrotliEncoder::new(
             Writer::new(),
@@ -62,10 +61,9 @@ impl CompressionLevel {
     #[cfg(feature = "deflate")]
     fn into_deflate(self) -> ZlibEncoder<Writer> {
         let compression = match self {
-            Self::Fastest => flate2::Compression::fast(),
+            Self::Fastest | Self::Default => flate2::Compression::fast(),
             Self::Minsize => flate2::Compression::best(),
             Self::Precise(quality) => flate2::Compression::new(quality.min(10)),
-            Self::Default => flate2::Compression::fast(),
         };
         ZlibEncoder::new(Writer::new(), compression)
     }
@@ -73,10 +71,9 @@ impl CompressionLevel {
     #[cfg(feature = "gzip")]
     fn into_gzip(self) -> GzEncoder<Writer> {
         let compression = match self {
-            Self::Fastest => flate2::Compression::fast(),
+            Self::Fastest | Self::Default => flate2::Compression::fast(),
             Self::Minsize => flate2::Compression::best(),
             Self::Precise(quality) => flate2::Compression::new(quality.min(10)),
-            Self::Default => flate2::Compression::fast(),
         };
         GzEncoder::new(Writer::new(), compression)
     }
@@ -84,10 +81,9 @@ impl CompressionLevel {
     #[cfg(feature = "zstd")]
     fn into_zstd(self) -> ZstdEncoder<'static, Writer> {
         let quality = match self {
-            Self::Fastest => 1,
+            Self::Fastest | Self::Default => 1,
             Self::Minsize => 21,
             Self::Precise(quality) => quality.min(21) as i32,
-            Self::Default => 1,
         };
         ZstdEncoder::new(Writer::new(), quality).expect("`ZstdEncoder::new` returned an error")
     }

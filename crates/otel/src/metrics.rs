@@ -7,6 +7,7 @@ use salvo_core::http::ResBody;
 use salvo_core::prelude::*;
 
 /// Middleware for metrics with OpenTelemetry.
+#[derive(Debug)]
 pub struct Metrics {
     request_count: Counter<u64>,
     error_count: Counter<u64>,
@@ -21,6 +22,7 @@ impl Default for Metrics {
 
 impl Metrics {
     /// Create `Metrics` middleware with `meter`.
+    #[must_use]
     pub fn new() -> Self {
         let meter = global::meter("salvo");
         Self {

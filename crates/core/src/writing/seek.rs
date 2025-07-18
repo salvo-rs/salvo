@@ -39,7 +39,7 @@ where
 {
     /// Create a new [`ReadSeeker`] from a reader which implements [`AsyncRead`] and [`AsyncSeek`].
     pub fn new(reader: R, length: u64) -> Self {
-        ReadSeeker {
+        Self {
             reader,
             length,
             last_modified: None,
@@ -48,12 +48,14 @@ where
     }
 
     /// Set the last modified time for the response.
+    #[must_use]
     pub fn last_modified(mut self, time: SystemTime) -> Self {
         self.last_modified = Some(time);
         self
     }
 
     /// Set the ETag header for the response.
+    #[must_use]
     pub fn etag(mut self, etag: ETag) -> Self {
         self.etag = Some(etag);
         self

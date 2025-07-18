@@ -57,7 +57,7 @@ pub struct NamedFile {
 }
 
 /// Builder for build [`NamedFile`].
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,
     attached_name: Option<String>,
@@ -70,6 +70,7 @@ pub struct NamedFileBuilder {
 impl NamedFileBuilder {
     /// Sets attached filename and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
         self.attached_name = Some(attached_name.into());
         self.flags.insert(Flag::ContentDisposition);
@@ -78,6 +79,7 @@ impl NamedFileBuilder {
 
     /// Sets disposition encoding and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
         self.flags.insert(Flag::ContentDisposition);
@@ -94,6 +96,7 @@ impl NamedFileBuilder {
 
     /// Sets content type and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn content_type(mut self, content_type: mime::Mime) -> Self {
         self.content_type = Some(content_type);
         self
@@ -101,6 +104,7 @@ impl NamedFileBuilder {
 
     /// Sets content encoding and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
@@ -108,6 +112,7 @@ impl NamedFileBuilder {
 
     /// Sets buffer size and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
         self
@@ -117,6 +122,7 @@ impl NamedFileBuilder {
     ///
     /// Default is true.
     #[inline]
+    #[must_use]
     pub fn use_etag(mut self, value: bool) -> Self {
         if value {
             self.flags.insert(Flag::Etag);
@@ -130,6 +136,7 @@ impl NamedFileBuilder {
     ///
     ///Default is true.
     #[inline]
+    #[must_use]
     pub fn use_last_modified(mut self, value: bool) -> Self {
         if value {
             self.flags.insert(Flag::LastModified);
@@ -153,7 +160,7 @@ impl NamedFileBuilder {
 
     /// Build a new [`NamedFile`].
     pub async fn build(self) -> Result<NamedFile> {
-        let NamedFileBuilder {
+        let Self {
             path,
             content_type,
             content_encoding,
@@ -275,7 +282,7 @@ impl NamedFile {
     /// # }
     /// ```
     #[inline]
-    pub async fn open<P>(path: P) -> Result<NamedFile>
+    pub async fn open<P>(path: P) -> Result<Self>
     where
         P: Into<PathBuf> + Send,
     {

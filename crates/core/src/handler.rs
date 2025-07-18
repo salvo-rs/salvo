@@ -117,6 +117,7 @@
 //!     }
 //! }
 //! ```
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use crate::http::StatusCode;
@@ -189,6 +190,13 @@ pub trait Handler: Send + Sync + 'static {
 /// A handler that wraps another [Handler] to enable it to be cloneable.
 #[derive(Clone)]
 pub struct ArcHandler(Arc<dyn Handler>);
+impl Debug for ArcHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ArcHandler")
+            .field("inner", &self.0.type_name())
+            .finish()
+    }
+}
 
 #[async_trait]
 impl Handler for ArcHandler {
@@ -204,6 +212,7 @@ impl Handler for ArcHandler {
 }
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct EmptyHandler;
 #[async_trait]
 impl Handler for EmptyHandler {
@@ -221,6 +230,7 @@ impl Handler for EmptyHandler {
 /// This is a empty implement for `Handler`.
 ///
 /// `EmptyHandler` does nothing except set [`Response`]'s status as [`StatusCode::OK`], it just marker a router exits.
+#[must_use]
 pub fn empty() -> EmptyHandler {
     EmptyHandler
 }
@@ -231,6 +241,16 @@ pub struct WhenHoop<H, F> {
     pub inner: H,
     pub filter: F,
 }
+
+impl<H: Debug, F: Debug> Debug for WhenHoop<H, F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WhenHoop")
+            .field("inner", &self.inner)
+            .field("filter", &self.filter)
+            .finish()
+    }
+}
+
 impl<H, F> WhenHoop<H, F> {
     pub fn new(inner: H, filter: F) -> Self {
         Self { inner, filter }
@@ -277,6 +297,16 @@ pub struct HoopedHandler {
     inner: Arc<dyn Handler>,
     hoops: Vec<Arc<dyn Handler>>,
 }
+
+impl Debug for HoopedHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HoopedHandler")
+            .field("inner", &self.inner.type_name())
+            .field("hoops.len", &self.hoops.len())
+            .finish()
+    }
+}
+
 impl HoopedHandler {
     /// Create new `HoopedHandler`.
     pub fn new<H: Handler>(inner: H) -> Self {
@@ -288,6 +318,7 @@ impl HoopedHandler {
 
     /// Get current catcher's middlewares reference.
     #[inline]
+    #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
@@ -299,6 +330,7 @@ impl HoopedHandler {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -308,6 +340,7 @@ impl HoopedHandler {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,

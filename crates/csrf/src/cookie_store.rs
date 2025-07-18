@@ -29,6 +29,7 @@ impl Default for CookieStore {
 
 impl CookieStore {
     /// Create a new `CookieStore`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             ttl: Duration::days(1),
@@ -38,24 +39,28 @@ impl CookieStore {
         }
     }
     /// Sets cookie name.
+    #[must_use]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
     /// Sets cookie ttl.
+    #[must_use]
     pub fn ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self
     }
 
     /// Sets cookie path.
+    #[must_use]
     pub fn path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
     }
 
     /// Sets cookie domain.
+    #[must_use]
     pub fn domain(mut self, domain: impl Into<String>) -> Self {
         self.domain = Some(domain.into());
         self
@@ -63,7 +68,12 @@ impl CookieStore {
 }
 impl CsrfStore for CookieStore {
     type Error = Error;
-    async fn load<C: CsrfCipher>(&self, req: &mut Request, _depot: &mut Depot, cipher: &C) -> Option<(String, String)> {
+    async fn load<C: CsrfCipher>(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        cipher: &C,
+    ) -> Option<(String, String)> {
         req.cookie(&self.name)
             .and_then(|c| c.value().split_once('.'))
             .and_then(|(token, proof)| {

@@ -79,10 +79,12 @@ impl IntoIterator for Schemas {
 
 impl Schemas {
     /// Construct a new empty [`Schemas`]. This is effectively same as calling [`Schemas::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
+    #[must_use]
     pub fn schema<K: Into<String>, V: Into<RefOr<Schema>>>(mut self, key: K, value: V) -> Self {
         self.insert(key, value);
         self
@@ -95,7 +97,7 @@ impl Schemas {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Schemas) {
+    pub fn append(&mut self, other: &mut Self) {
         let items = std::mem::take(&mut other.0);
         for item in items {
             self.insert(item.0, item.1);
@@ -118,6 +120,7 @@ impl Schemas {
 ///
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
+#[must_use]
 pub fn empty() -> Schema {
     Schema::object(
         Object::new()
@@ -160,12 +163,13 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Default::default())
+        Self::Object(Default::default())
     }
 }
 
 impl Schema {
     /// Construct a new [`Schema`] object.
+    #[must_use]
     pub fn object(obj: Object) -> Self {
         Self::Object(Box::new(obj))
     }
@@ -208,6 +212,7 @@ impl Discriminator {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_false(value: &bool) -> bool {
     !*value
 }
@@ -274,6 +279,7 @@ pub struct Ref {
 impl Ref {
     /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary
     /// and [`Ref::from_schema_name`] could be used instead.
+    #[must_use]
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
             ref_location: ref_location.into(),
@@ -283,17 +289,20 @@ impl Ref {
 
     /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
     /// references the reusable schemas.
+    #[must_use]
     pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
         Self::new(format!("#/components/schemas/{}", schema_name.into()))
     }
 
     /// Construct a new [`Ref`] from provided response name. This will create a [`Ref`] that
     /// references the reusable response.
+    #[must_use]
     pub fn from_response_name<I: Into<String>>(response_name: I) -> Self {
         Self::new(format!("#/components/responses/{}", response_name.into()))
     }
 
     /// Add or change reference location of the actual component.
+    #[must_use]
     pub fn ref_location(mut self, ref_location: String) -> Self {
         self.ref_location = ref_location;
         self
@@ -301,6 +310,7 @@ impl Ref {
 
     /// Add or change reference location of the actual component automatically formatting the $ref
     /// to `#/components/schemas/...` format.
+    #[must_use]
     pub fn ref_location_from_schema_name<S: Into<String>>(mut self, schema_name: S) -> Self {
         self.ref_location = format!("#/components/schemas/{}", schema_name.into());
         self
@@ -311,6 +321,7 @@ impl Ref {
     /// Add or change description which by default should override that of the referenced component.
     /// Description supports markdown syntax. If referenced object type does not support
     /// description this field does not have effect.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = description.into();
         self
@@ -318,6 +329,7 @@ impl Ref {
 
     /// Add or change short summary which by default should override that of the referenced component. If
     /// referenced component does not support summary field this does not have effect.
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = summary.into();
         self
@@ -365,7 +377,7 @@ impl Default for SchemaType {
 
 impl From<BasicType> for SchemaType {
     fn from(value: BasicType) -> Self {
-        SchemaType::basic(value)
+        Self::basic(value)
     }
 }
 
@@ -386,6 +398,7 @@ impl SchemaType {
     /// # use salvo_oapi::schema::{SchemaType, BasicType};
     /// let ty = SchemaType::basic(BasicType::String);
     /// ```
+    #[must_use]
     pub fn basic(r#type: BasicType) -> Self {
         Self::Basic(r#type)
     }
@@ -394,12 +407,14 @@ impl SchemaType {
     ///
     /// This is same as calling [`SchemaType::AnyValue`] but in a function form `() -> SchemaType`
     /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
+    #[must_use]
     pub fn any() -> Self {
-        SchemaType::AnyValue
+        Self::AnyValue
     }
 
     /// Check whether this [`SchemaType`] is any value _(typeless)_ returning true on any value
     /// schema type.
+    #[must_use]
     pub fn is_any_value(&self) -> bool {
         matches!(self, Self::AnyValue)
     }
@@ -1035,22 +1050,23 @@ mod tests {
             ),
         ));
 
-        let json_str = serde_json::to_string(&schema).unwrap();
-        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
-        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        let json_str = serde_json::to_string(&schema).expect("serde json should success");
+        let deserialized: RefOr<Schema> =
+            serde_json::from_str(&json_str).expect("serde json should success");
+        let json_de_str = serde_json::to_string(&deserialized).expect("serde json should success");
         assert_eq!(json_str, json_de_str);
     }
 
     #[test]
     fn serialize_discriminator_with_mapping() {
         let mut discriminator = Discriminator::new("type");
-        discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
+        discriminator.mapping = [("int".to_owned(), "#/components/schemas/MyInt".to_owned())]
             .into_iter()
             .collect::<PropMap<_, _>>();
         let one_of = OneOf::new()
             .item(Ref::from_schema_name("MyInt"))
             .discriminator(discriminator);
-        let json_value = serde_json::to_value(one_of).unwrap();
+        let json_value = serde_json::to_value(one_of).expect("serde json should success");
 
         assert_json_eq!(
             json_value,
@@ -1092,9 +1108,10 @@ mod tests {
         let object =
             Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
 
-        let json_str = serde_json::to_string(&object).unwrap();
-        let deserialized: Object = serde_json::from_str(&json_str).unwrap();
-        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        let json_str = serde_json::to_string(&object).expect("serde json should success");
+        let deserialized: Object =
+            serde_json::from_str(&json_str).expect("serde json should success");
+        let json_de_str = serde_json::to_string(&deserialized).expect("serde json should success");
         assert_eq!(json_str, json_de_str);
     }
 

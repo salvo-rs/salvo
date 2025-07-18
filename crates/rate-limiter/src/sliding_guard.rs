@@ -20,7 +20,7 @@ impl Default for SlidingGuard {
 
 impl SlidingGuard {
     /// Create a new `SlidingGuard`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             cell_inst: OffsetDateTime::now_utc(),
             cell_span: Duration::default(),

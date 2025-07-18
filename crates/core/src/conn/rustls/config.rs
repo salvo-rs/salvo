@@ -40,6 +40,7 @@ impl Default for Keycert {
 impl Keycert {
     /// Create a new keycert.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             key: vec![],
@@ -57,6 +58,7 @@ impl Keycert {
 
     /// Sets the Tls private key via bytes slice.
     #[inline]
+    #[must_use]
     pub fn key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = key.into();
         self
@@ -72,6 +74,7 @@ impl Keycert {
 
     /// Sets the Tls certificate via bytes slice
     #[inline]
+    #[must_use]
     pub fn cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = cert.into();
         self
@@ -79,11 +82,12 @@ impl Keycert {
 
     /// Get ocsp_resp.
     #[inline]
+    #[must_use]
     pub fn ocsp_resp(&self) -> &[u8] {
         &self.ocsp_resp
     }
 
-    fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
+    fn build_certified_key(&self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
             .flat_map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
             .collect::<Vec<_>>();
@@ -170,8 +174,9 @@ pub struct RustlsConfig {
 impl RustlsConfig {
     /// Create new `RustlsConfig`
     #[inline]
+    #[must_use]
     pub fn new(fallback: impl Into<Option<Keycert>>) -> Self {
-        RustlsConfig {
+        Self {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
@@ -196,6 +201,7 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
+    #[must_use]
     pub fn client_auth_optional(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         self.client_auth = TlsClientAuth::Optional(trust_anchor.into());
         self
@@ -218,6 +224,7 @@ impl RustlsConfig {
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
     #[inline]
+    #[must_use]
     pub fn client_auth_required(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         self.client_auth = TlsClientAuth::Required(trust_anchor.into());
         self
@@ -225,6 +232,7 @@ impl RustlsConfig {
 
     /// Add a new keycert to be used for the given SNI `name`.
     #[inline]
+    #[must_use]
     pub fn keycert(mut self, name: impl Into<String>, keycert: Keycert) -> Self {
         self.keycerts.insert(name.into(), keycert);
         self
@@ -232,6 +240,7 @@ impl RustlsConfig {
 
     /// Set specific protocols through ALPN (Application-Layer Protocol Negotiation).
     #[inline]
+    #[must_use]
     pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<Vec<u8>>>) -> Self {
         self.alpn_protocols = alpn_protocols.into();
         self
@@ -239,6 +248,7 @@ impl RustlsConfig {
 
     /// Set specific TLS versions supported.
     #[inline]
+    #[must_use]
     pub fn tls_versions(
         mut self,
         tls_versions: &'static [&'static SupportedProtocolVersion],
@@ -330,8 +340,8 @@ impl ResolvesServerCert for CertResolver {
     }
 }
 
-impl IntoConfigStream<RustlsConfig> for RustlsConfig {
-    type Stream = Once<Ready<RustlsConfig>>;
+impl IntoConfigStream<Self> for RustlsConfig {
+    type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))

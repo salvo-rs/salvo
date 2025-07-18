@@ -30,7 +30,7 @@ where
     G: RateGuard,
 {
     /// Create a new `MokaStore`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             inner: MokaCache::new(u64::MAX),
         }

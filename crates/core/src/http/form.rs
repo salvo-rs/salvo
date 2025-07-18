@@ -35,15 +35,16 @@ pub struct FormData {
 impl FormData {
     /// Create new `FormData`.
     #[inline]
-    pub fn new() -> FormData {
-        FormData {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
             fields: MultiMap::new(),
             files: MultiMap::new(),
         }
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
+    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<Self, ParseError> {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
@@ -54,12 +55,12 @@ impl FormData {
                     .await
                     .map_err(ParseError::other)?
                     .to_bytes();
-                let mut form_data = FormData::new();
+                let mut form_data = Self::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
             }
             Some(ctype) if ctype.type_() == mime::MULTIPART => {
-                let mut form_data = FormData::new();
+                let mut form_data = Self::new();
                 if let Some(boundary) = headers
                     .get(CONTENT_TYPE)
                     .and_then(|ct| ct.to_str().ok())
@@ -109,6 +110,7 @@ pub struct FilePart {
 impl FilePart {
     /// Get file name.
     #[inline]
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
@@ -119,6 +121,7 @@ impl FilePart {
     }
     /// Get headers.
     #[inline]
+    #[must_use]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -136,11 +139,13 @@ impl FilePart {
     }
     /// Get file path.
     #[inline]
+    #[must_use]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
     /// Get file size.
     #[inline]
+    #[must_use]
     pub fn size(&self) -> u64 {
         self.size
     }
@@ -153,7 +158,7 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
-    pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
+    pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
         // Setup a file to capture the contents.
         let mut path =
             tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
@@ -176,7 +181,7 @@ impl FilePart {
             file.write_all(&chunk).await?;
         }
         file.sync_all().await?;
-        Ok(FilePart {
+        Ok(Self {
             name,
             headers: field.headers().to_owned(),
             path,

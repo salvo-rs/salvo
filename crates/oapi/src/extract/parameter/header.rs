@@ -62,7 +62,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
+        T::deserialize(deserializer).map(|value| Self(Some(value)))
     }
 }
 // impl<'de, T> Deserialize<'de> for HeaderParam<T, false>
@@ -73,7 +73,7 @@ where
 //     where
 //         D: Deserializer<'de>,
 //     {
-//         T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
+//         T::deserialize(deserializer).map(|value| Self(Some(value)))
 //     }
 // }
 
@@ -160,38 +160,38 @@ mod tests {
 
     #[test]
     fn test_required_header_param_into_inner() {
-        let param = HeaderParam::<String, true>(Some("param".to_string()));
-        assert_eq!("param".to_string(), param.into_inner());
+        let param = HeaderParam::<String, true>(Some("param".to_owned()));
+        assert_eq!("param".to_owned(), param.into_inner());
     }
 
     #[test]
     fn test_required_header_param_deref() {
-        let param = HeaderParam::<String, true>(Some("param".to_string()));
-        assert_eq!(&"param".to_string(), param.deref())
+        let param = HeaderParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(&"param".to_owned(), param.deref())
     }
 
     #[test]
     fn test_required_header_param_deref_mut() {
-        let mut param = HeaderParam::<String, true>(Some("param".to_string()));
-        assert_eq!(&mut "param".to_string(), param.deref_mut())
+        let mut param = HeaderParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(&mut "param".to_owned(), param.deref_mut())
     }
 
     #[test]
     fn test_header_param_into_inner() {
-        let param = HeaderParam::<String, false>(Some("param".to_string()));
-        assert_eq!(Some("param".to_string()), param.into_inner());
+        let param = HeaderParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(Some("param".to_owned()), param.into_inner());
     }
 
     #[test]
     fn test_header_param_deref() {
-        let param = HeaderParam::<String, false>(Some("param".to_string()));
-        assert_eq!(&Some("param".to_string()), param.deref())
+        let param = HeaderParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(&Some("param".to_owned()), param.deref())
     }
 
     #[test]
     fn test_header_param_deref_mut() {
-        let mut param = HeaderParam::<String, false>(Some("param".to_string()));
-        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+        let mut param = HeaderParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(&mut Some("param".to_owned()), param.deref_mut())
     }
 
     #[test]
@@ -202,14 +202,14 @@ mod tests {
 
     #[test]
     fn test_header_param_debug() {
-        let param = HeaderParam::<String, true>(Some("param".to_string()));
-        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+        let param = HeaderParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(format!("{param:?}"), r#"Some("param")"#);
     }
 
     #[test]
     fn test_header_param_display() {
-        let param = HeaderParam::<String, true>(Some("param".to_string()));
-        assert_eq!(format!("{}", param), "param");
+        let param = HeaderParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(format!("{param}"), "param");
     }
 
     #[test]

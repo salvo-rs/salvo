@@ -63,7 +63,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| CookieParam(Some(value)))
+        T::deserialize(deserializer).map(|value| Self(Some(value)))
     }
 }
 
@@ -156,38 +156,38 @@ mod tests {
 
     #[test]
     fn test_required_cookie_param_into_inner() {
-        let param = CookieParam::<String, true>(Some("param".to_string()));
-        assert_eq!("param".to_string(), param.into_inner());
+        let param = CookieParam::<String, true>(Some("param".to_owned()));
+        assert_eq!("param".to_owned(), param.into_inner());
     }
 
     #[test]
     fn test_required_cookie_param_deref() {
-        let param = CookieParam::<String, true>(Some("param".to_string()));
-        assert_eq!(&"param".to_string(), param.deref())
+        let param = CookieParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(&"param".to_owned(), param.deref())
     }
 
     #[test]
     fn test_required_cookie_param_deref_mut() {
-        let mut param = CookieParam::<String, true>(Some("param".to_string()));
-        assert_eq!(&mut "param".to_string(), param.deref_mut())
+        let mut param = CookieParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(&mut "param".to_owned(), param.deref_mut())
     }
 
     #[test]
     fn test_cookie_param_into_inner() {
-        let param = CookieParam::<String, false>(Some("param".to_string()));
-        assert_eq!(Some("param".to_string()), param.into_inner());
+        let param = CookieParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(Some("param".to_owned()), param.into_inner());
     }
 
     #[test]
     fn test_cookie_param_deref() {
-        let param = CookieParam::<String, false>(Some("param".to_string()));
-        assert_eq!(&Some("param".to_string()), param.deref())
+        let param = CookieParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(&Some("param".to_owned()), param.deref())
     }
 
     #[test]
     fn test_cookie_param_deref_mut() {
-        let mut param = CookieParam::<String, false>(Some("param".to_string()));
-        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+        let mut param = CookieParam::<String, false>(Some("param".to_owned()));
+        assert_eq!(&mut Some("param".to_owned()), param.deref_mut())
     }
 
     #[test]
@@ -198,14 +198,14 @@ mod tests {
 
     #[test]
     fn test_cookie_param_debug() {
-        let param = CookieParam::<String, true>(Some("param".to_string()));
-        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+        let param = CookieParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(format!("{param:?}"), r#"Some("param")"#);
     }
 
     #[test]
     fn test_cookie_param_display() {
-        let param = CookieParam::<String, true>(Some("param".to_string()));
-        assert_eq!(format!("{}", param), "param");
+        let param = CookieParam::<String, true>(Some("param".to_owned()));
+        assert_eq!(format!("{param}"), "param");
     }
 
     #[test]

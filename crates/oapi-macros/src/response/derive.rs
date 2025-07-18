@@ -32,7 +32,7 @@ impl<'a> ToResponse<'a> {
         data: &'a Data,
         ident: &'a Ident,
         generics: &'a Generics,
-    ) -> DiagResult<ToResponse<'a>> {
+    ) -> DiagResult<Self> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {

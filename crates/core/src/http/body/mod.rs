@@ -19,6 +19,7 @@ use bytes::Bytes;
 use crate::http::HeaderMap;
 
 /// Frame with it's DATA type is [`Bytes`].
+#[derive(Debug)]
 pub struct BytesFrame(pub Frame<Bytes>);
 impl BytesFrame {
     /// Create a DATA frame with the provided [`Bytes`].
@@ -92,7 +93,7 @@ impl From<Vec<u8>> for BytesFrame {
 
 impl<T> From<Box<T>> for BytesFrame
 where
-    T: Into<BytesFrame>,
+    T: Into<Self>,
 {
     fn from(value: Box<T>) -> Self {
         (*value).into()

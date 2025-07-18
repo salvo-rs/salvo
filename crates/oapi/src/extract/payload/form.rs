@@ -118,20 +118,20 @@ mod tests {
 
     #[test]
     fn test_form_body_into_inner() {
-        let form = FormBody::<String>("form_body".to_string());
-        assert_eq!(form.into_inner(), "form_body".to_string());
+        let form = FormBody::<String>("form_body".to_owned());
+        assert_eq!(form.into_inner(), "form_body".to_owned());
     }
 
     #[test]
     fn test_form_body_deref() {
-        let form = FormBody::<String>("form_body".to_string());
-        assert_eq!(form.deref(), &"form_body".to_string());
+        let form = FormBody::<String>("form_body".to_owned());
+        assert_eq!(form.deref(), &"form_body".to_owned());
     }
 
     #[test]
     fn test_form_body_deref_mut() {
-        let mut form = FormBody::<String>("form_body".to_string());
-        assert_eq!(form.deref_mut(), &mut "form_body".to_string());
+        let mut form = FormBody::<String>("form_body".to_owned());
+        assert_eq!(form.deref_mut(), &mut "form_body".to_owned());
     }
 
     #[test]
@@ -160,14 +160,14 @@ mod tests {
 
     #[test]
     fn test_form_body_debug() {
-        let form = FormBody::<String>("form_body".to_string());
-        assert_eq!(format!("{:?}", form), r#""form_body""#);
+        let form = FormBody::<String>("form_body".to_owned());
+        assert_eq!(format!("{form:?}"), r#""form_body""#);
     }
 
     #[test]
     fn test_form_body_display() {
-        let form = FormBody::<String>("form_body".to_string());
-        assert_eq!(format!("{}", form), "form_body");
+        let form = FormBody::<String>("form_body".to_owned());
+        assert_eq!(format!("{form}"), "form_body");
     }
 
     #[test]

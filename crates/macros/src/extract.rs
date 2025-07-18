@@ -137,7 +137,7 @@ struct SourceInfo {
 
 impl Parse for SourceInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut source = SourceInfo {
+        let mut source = Self {
             from: "body".to_owned(),
             parser: "smart".to_owned(),
         };
@@ -152,7 +152,7 @@ impl Parse for SourceInfo {
             }
         }
         if source.parser.is_empty() {
-            source.parser = "smart".to_string();
+            source.parser = "smart".to_owned();
         }
         if !["param", "query", "header", "body"].contains(&source.from.as_str()) {
             return Err(Error::new(
@@ -185,14 +185,11 @@ impl ExtractibleArgs {
         let ident = input.ident.clone();
         let generics = input.generics.clone();
         let attrs = input.attrs.clone();
-        let data = match &input.data {
-            syn::Data::Struct(data) => data,
-            _ => {
-                return Err(Error::new_spanned(
-                    ident,
-                    "extractible can only be applied to an struct.",
-                ));
-            }
+        let syn::Data::Struct(data) = &input.data else {
+            return Err(Error::new_spanned(
+                ident,
+                "extractible can only be applied to an struct.",
+            ));
         };
         let mut fields = Vec::with_capacity(data.fields.len());
         for field in data.fields.iter() {
@@ -278,7 +275,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             metadata = metadata.add_default_source(#source);
         });
     }
-    fn quote_rename_rule(salvo: &Ident, rename_all: &RenameRule) -> TokenStream {
+    fn quote_rename_rule(salvo: &Ident, rename_all: RenameRule) -> TokenStream {
         let rename_all = match rename_all {
             RenameRule::LowerCase => "LowerCase",
             RenameRule::UpperCase => "UpperCase",
@@ -294,7 +291,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             #salvo::extract::RenameRule::#rule
         }
     }
-    let rename_all = if let Some(rename_all) = &args.rename_all {
+    let rename_all = if let Some(rename_all) = args.rename_all {
         let rule = quote_rename_rule(&salvo, rename_all);
         Some(quote! {
             metadata = metadata.rename_all(#rule);
@@ -302,7 +299,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     } else {
         None
     };
-    let serde_rename_all = if let Some(serde_rename_all) = &args.serde_rename_all {
+    let serde_rename_all = if let Some(serde_rename_all) = args.serde_rename_all {
         let rule = quote_rename_rule(&salvo, serde_rename_all);
         Some(quote! {
             metadata = metadata.serde_rename_all(#rule);

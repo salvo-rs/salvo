@@ -1,5 +1,6 @@
 use std::cmp;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -46,8 +47,14 @@ impl Default for HttpBuilder {
         Self::new()
     }
 }
+impl Debug for HttpBuilder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HttpBuilder").finish()
+    }
+}
 
 impl HttpBuilder {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             #[cfg(feature = "http1")]
@@ -293,7 +300,7 @@ pub(crate) struct Rewind<T> {
 #[allow(dead_code)]
 impl<T> Rewind<T> {
     fn new_buffered(buf: Bytes, io: T) -> Self {
-        Rewind {
+        Self {
             pre: Some(buf),
             inner: io,
         }

@@ -39,7 +39,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| PathParam(value))
+        T::deserialize(deserializer).map(|value| Self(value))
     }
 }
 
@@ -108,20 +108,20 @@ mod tests {
 
     #[test]
     fn test_path_param_into_inner() {
-        let param = PathParam::<String>("param".to_string());
-        assert_eq!("param".to_string(), param.into_inner());
+        let param = PathParam::<String>("param".to_owned());
+        assert_eq!("param".to_owned(), param.into_inner());
     }
 
     #[test]
     fn test_path_param_deref() {
-        let param = PathParam::<String>("param".to_string());
-        assert_eq!(&"param".to_string(), param.deref())
+        let param = PathParam::<String>("param".to_owned());
+        assert_eq!(&"param".to_owned(), param.deref())
     }
 
     #[test]
     fn test_path_param_deref_mut() {
-        let mut param = PathParam::<String>("param".to_string());
-        assert_eq!(&mut "param".to_string(), param.deref_mut())
+        let mut param = PathParam::<String>("param".to_owned());
+        assert_eq!(&mut "param".to_owned(), param.deref_mut())
     }
 
     #[test]
@@ -132,14 +132,14 @@ mod tests {
 
     #[test]
     fn test_path_param_debug() {
-        let param = PathParam::<String>("param".to_string());
-        assert_eq!(format!("{:?}", param), r#""param""#);
+        let param = PathParam::<String>("param".to_owned());
+        assert_eq!(format!("{param:?}"), r#""param""#);
     }
 
     #[test]
     fn test_path_param_display() {
-        let param = PathParam::<String>("param".to_string());
-        assert_eq!(format!("{}", param), "param");
+        let param = PathParam::<String>("param".to_owned());
+        assert_eq!(format!("{param}"), "param");
     }
 
     #[test]
@@ -160,7 +160,7 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.params_mut().insert("param", "param".to_string());
+        req.params_mut().insert("param", "param".to_owned());
         let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
         assert_eq!(result.unwrap().0, "param");
     }

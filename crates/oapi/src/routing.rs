@@ -20,10 +20,10 @@ pub(crate) struct NormNode {
 
 impl NormNode {
     pub(crate) fn new(router: &Router, inherted_metadata: Metadata) -> Self {
-        let mut node = NormNode {
+        let mut node = Self {
             // router_id: router.id,
             metadata: inherted_metadata,
-            ..NormNode::default()
+            ..Self::default()
         };
         let registry = METADATA_REGISTRY
             .read()
@@ -68,8 +68,7 @@ impl NormNode {
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {
-                node.children
-                    .push(NormNode::new(router, node.metadata.clone()));
+                node.children.push(Self::new(router, node.metadata.clone()));
             }
         }
         node
@@ -85,11 +84,13 @@ pub trait RouterExt {
     /// Add security requirement to the router.
     ///
     /// All endpoints in the router and it's descents will inherit this security requirement.
+    #[must_use]
     fn oapi_security(self, security: SecurityRequirement) -> Self;
 
     /// Add security requirements to the router.
     ///
     /// All endpoints in the router and it's descents will inherit these security requirements.
+    #[must_use]
     fn oapi_securities<I>(self, security: I) -> Self
     where
         I: IntoIterator<Item = SecurityRequirement>;
@@ -97,11 +98,13 @@ pub trait RouterExt {
     /// Add tag to the router.
     ///
     /// All endpoints in the router and it's descents will inherit this tag.
+    #[must_use]
     fn oapi_tag(self, tag: impl Into<String>) -> Self;
 
     /// Add tags to the router.
     ///
     /// All endpoints in the router and it's descents will inherit thes tags.
+    #[must_use]
     fn oapi_tags<I, V>(self, tags: I) -> Self
     where
         I: IntoIterator<Item = V>,

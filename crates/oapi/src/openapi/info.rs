@@ -75,6 +75,7 @@ impl Info {
     /// # use salvo_oapi::Info;
     /// let info = Info::new("Pet api", "1.1.0");
     /// ```
+    #[must_use]
     pub fn new(title: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             title: title.into(),
@@ -83,36 +84,42 @@ impl Info {
         }
     }
     /// Add title of the API.
+    #[must_use]
     pub fn title<I: Into<String>>(mut self, title: I) -> Self {
         self.title = title.into();
         self
     }
 
     /// Add version of the api document typically the API version.
+    #[must_use]
     pub fn version<I: Into<String>>(mut self, version: I) -> Self {
         self.version = version.into();
         self
     }
 
     /// Add description of the API.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add url for terms of the API.
+    #[must_use]
     pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: S) -> Self {
         self.terms_of_service = Some(terms_of_service.into());
         self
     }
 
     /// Add contact information of the API.
+    #[must_use]
     pub fn contact(mut self, contact: Contact) -> Self {
         self.contact = Some(contact);
         self
     }
 
     /// Add license of the API.
+    #[must_use]
     pub fn license(mut self, license: License) -> Self {
         self.license = Some(license);
         self
@@ -143,22 +150,26 @@ pub struct Contact {
 
 impl Contact {
     /// Construct a new empty [`Contact`]. This is effectively same as calling [`Contact::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Add name contact person or organization of the API.
+    #[must_use]
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
         self.name = Some(name.into());
         self
     }
 
     /// Add url pointing to the contact information of the API.
+    #[must_use]
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
         self
     }
 
     /// Add email of the contact person or organization of the API.
+    #[must_use]
     pub fn email<S: Into<String>>(mut self, email: S) -> Self {
         self.email = Some(email.into());
         self
@@ -184,6 +195,7 @@ impl License {
     /// Construct a new [`License`] object.
     ///
     /// Function takes name of the license as an argument e.g MIT.
+    #[must_use]
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
@@ -191,12 +203,14 @@ impl License {
         }
     }
     /// Add name of the license used in API.
+    #[must_use]
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
         self.name = name.into();
         self
     }
 
     /// Add url pointing to the license used in API.
+    #[must_use]
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
         self

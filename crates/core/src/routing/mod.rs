@@ -381,6 +381,7 @@ pub use path_state::PathState;
 mod flow_ctrl;
 pub use flow_ctrl::FlowCtrl;
 
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use crate::Handler;
@@ -389,6 +390,14 @@ use crate::Handler;
 pub struct DetectMatched {
     pub hoops: Vec<Arc<dyn Handler>>,
     pub goal: Arc<dyn Handler>,
+}
+
+impl Debug for DetectMatched {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DetectMatched")
+            .field("hoops.len", &self.hoops.len())
+            .finish()
+    }
 }
 
 pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
@@ -429,7 +438,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, host: &str) -> String {
-            TestClient::get(format!("http://{}/", host))
+            TestClient::get(format!("http://{host}/"))
                 .send(service)
                 .await
                 .take_string()
@@ -497,7 +506,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, path: &str) {
-            TestClient::get(format!("http://127.0.0.1/{}", path))
+            TestClient::get(format!("http://127.0.0.1/{path}"))
                 .send(service)
                 .await;
         }

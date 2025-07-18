@@ -295,7 +295,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .query_config_enabled(true);
     /// ```
-    pub fn query_config_enabled(mut self, query_config_enabled: bool) -> Self {
+    #[must_use] pub fn query_config_enabled(mut self, query_config_enabled: bool) -> Self {
         self.query_config_enabled = Some(query_config_enabled);
 
         self
@@ -317,7 +317,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .deep_linking(false);
     /// ```
-    pub fn deep_linking(mut self, deep_linking: bool) -> Self {
+    #[must_use] pub fn deep_linking(mut self, deep_linking: bool) -> Self {
         self.deep_linking = Some(deep_linking);
 
         self
@@ -335,7 +335,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_operation_id(true);
     /// ```
-    pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
+    #[must_use] pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
         self.display_operation_id = Some(display_operation_id);
 
         self
@@ -353,7 +353,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .use_base_layout();
     /// ```
-    pub fn use_base_layout(mut self) -> Self {
+    #[must_use] pub fn use_base_layout(mut self) -> Self {
         self.layout = SWAGGER_BASE_LAYOUT;
 
         self
@@ -371,7 +371,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_models_expand_depth(-1);
     /// ```
-    pub fn default_models_expand_depth(mut self, default_models_expand_depth: isize) -> Self {
+    #[must_use] pub fn default_models_expand_depth(mut self, default_models_expand_depth: isize) -> Self {
         self.default_models_expand_depth = Some(default_models_expand_depth);
 
         self
@@ -386,7 +386,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_expand_depth(1);
     /// ```
-    pub fn default_model_expand_depth(mut self, default_model_expand_depth: isize) -> Self {
+    #[must_use] pub fn default_model_expand_depth(mut self, default_model_expand_depth: isize) -> Self {
         self.default_model_expand_depth = Some(default_model_expand_depth);
 
         self
@@ -423,7 +423,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_request_duration(true);
     /// ```
-    pub fn display_request_duration(mut self, display_request_duration: bool) -> Self {
+    #[must_use] pub fn display_request_duration(mut self, display_request_duration: bool) -> Self {
         self.display_request_duration = Some(display_request_duration);
 
         self
@@ -463,7 +463,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .filter(true);
     /// ```
-    pub fn filter(mut self, filter: bool) -> Self {
+    #[must_use] pub fn filter(mut self, filter: bool) -> Self {
         self.filter = Some(filter);
 
         self
@@ -481,7 +481,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .max_displayed_tags(4);
     /// ```
-    pub fn max_displayed_tags(mut self, max_displayed_tags: usize) -> Self {
+    #[must_use] pub fn max_displayed_tags(mut self, max_displayed_tags: usize) -> Self {
         self.max_displayed_tags = Some(max_displayed_tags);
 
         self
@@ -498,7 +498,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_extensions(true);
     /// ```
-    pub fn show_extensions(mut self, show_extensions: bool) -> Self {
+    #[must_use] pub fn show_extensions(mut self, show_extensions: bool) -> Self {
         self.show_extensions = Some(show_extensions);
 
         self
@@ -516,7 +516,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_common_extensions(true);
     /// ```
-    pub fn show_common_extensions(mut self, show_common_extensions: bool) -> Self {
+    #[must_use] pub fn show_common_extensions(mut self, show_common_extensions: bool) -> Self {
         self.show_common_extensions = Some(show_common_extensions);
 
         self
@@ -534,7 +534,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .try_it_out_enabled(true);
     /// ```
-    pub fn try_it_out_enabled(mut self, try_it_out_enabled: bool) -> Self {
+    #[must_use] pub fn try_it_out_enabled(mut self, try_it_out_enabled: bool) -> Self {
         self.try_it_out_enabled = Some(try_it_out_enabled);
 
         self
@@ -554,7 +554,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .request_snippets_enabled(true);
     /// ```
-    pub fn request_snippets_enabled(mut self, request_snippets_enabled: bool) -> Self {
+    #[must_use] pub fn request_snippets_enabled(mut self, request_snippets_enabled: bool) -> Self {
         self.request_snippets_enabled = Some(request_snippets_enabled);
 
         self
@@ -588,7 +588,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_mutated_request(true);
     /// ```
-    pub fn show_mutated_request(mut self, show_mutated_request: bool) -> Self {
+    #[must_use] pub fn show_mutated_request(mut self, show_mutated_request: bool) -> Self {
         self.show_mutated_request = Some(show_mutated_request);
 
         self
@@ -670,7 +670,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .with_credentials(true);
     /// ```
-    pub fn with_credentials(mut self, with_credentials: bool) -> Self {
+    #[must_use] pub fn with_credentials(mut self, with_credentials: bool) -> Self {
         self.with_credentials = Some(with_credentials);
 
         self
@@ -689,7 +689,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .persist_authorization(true);
     /// ```
-    pub fn persist_authorization(mut self, persist_authorization: bool) -> Self {
+    #[must_use] pub fn persist_authorization(mut self, persist_authorization: bool) -> Self {
         self.persist_authorization = Some(persist_authorization);
 
         self
@@ -700,7 +700,7 @@ impl Default for Config<'_> {
     fn default() -> Self {
         Self {
             config_url: Default::default(),
-            dom_id: Some("#swagger-ui".to_string()),
+            dom_id: Some("#swagger-ui".to_owned()),
             url: Default::default(),
             urls_primary_name: Default::default(),
             urls: Default::default(),

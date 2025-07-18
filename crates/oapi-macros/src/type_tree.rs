@@ -21,11 +21,9 @@ enum TypeTreeValue<'t> {
 impl PartialEq for TypeTreeValue<'_> {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Self::Path(_) => self == other,
-            Self::TypePath(_) => self == other,
+            Self::Path(_) | Self::TypePath(_) | Self::UnitType => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
             Self::Tuple(tuple, _) => matches!(other, Self::Tuple(other, _) if other == tuple),
-            Self::UnitType => self == other,
         }
     }
 }
@@ -41,7 +39,7 @@ pub(crate) struct TypeTree<'t> {
 }
 
 impl<'t> TypeTree<'t> {
-    pub(crate) fn from_type(ty: &'t Type) -> DiagResult<TypeTree<'t>> {
+    pub(crate) fn from_type(ty: &'t Type) -> DiagResult<Self> {
         Self::from_type_paths(Self::get_type_paths(ty)?)
     }
 
@@ -82,9 +80,8 @@ impl<'t> TypeTree<'t> {
                 .iter()
                 .find_map(|bound| match &bound {
                     syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                    syn::TypeParamBound::Lifetime(_) => None,
-                    syn::TypeParamBound::Verbatim(_) => None,
-                    _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
+                    syn::TypeParamBound::Lifetime(_) | syn::TypeParamBound::Verbatim(_) => None,
+                    _ => panic!("TypeTree trait object found unrecognized TypeParamBound"),
                 })
                 .map(|path| vec![TypeTreeValue::Path(path)])
                 .unwrap_or_else(Vec::new),
@@ -99,7 +96,7 @@ impl<'t> TypeTree<'t> {
         Ok(type_tree_values)
     }
 
-    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> DiagResult<TypeTree<'t>> {
+    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> DiagResult<Self> {
         if paths.len() > 1 {
             Ok(TypeTree {
                 path: None,
@@ -173,10 +170,7 @@ impl<'t> TypeTree<'t> {
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(
-        path: &'t Path,
-        last_segment: &'t PathSegment,
-    ) -> DiagResult<TypeTree<'t>> {
+    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> DiagResult<Self> {
         if last_segment.arguments.is_empty() {
             return Err(Diagnostic::spanned(
                 last_segment.ident.span(),
@@ -238,7 +232,7 @@ impl<'t> TypeTree<'t> {
         Ok(generic_schema_type)
     }
 
-    fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn convert(path: &'t Path, last_segment: &'t PathSegment) -> Self {
         let generic_type = Self::get_generic_type(last_segment);
         let schema_type = SchemaType {
             path,

@@ -1,5 +1,6 @@
 //! Oidc(OpenID Connect) supports.
 
+use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -38,6 +39,16 @@ pub struct OidcDecoder {
     notifier: Arc<Notify>,
 }
 
+impl Debug for OidcDecoder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OidcDecoder")
+            .field("issuer", &self.issuer)
+            .field("http_client", &self.http_client)
+            .field("cache_state", &self.cache_state)
+            .finish()
+    }
+}
+
 impl JwtAuthDecoder for OidcDecoder {
     type Error = JwtAuthError;
 
@@ -67,6 +78,14 @@ where
     pub http_client: Option<HyperClient>,
     /// The validation options for the decoder.
     pub validation: Option<Validation>,
+}
+impl<T: AsRef<str>> Debug for DecoderBuilder<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecoderBuilder")
+            .field("http_client", &self.http_client)
+            .field("validation", &self.validation)
+            .finish()
+    }
 }
 impl<T> DecoderBuilder<T>
 where
@@ -98,7 +117,7 @@ where
             http_client,
             validation,
         } = self;
-        let issuer = issuer.as_ref().trim_end_matches('/').to_string();
+        let issuer = issuer.as_ref().trim_end_matches('/').to_owned();
 
         //Create an empty JWKS to initalize our Cache
         let jwks = JwkSet { keys: Vec::new() };
@@ -291,6 +310,13 @@ pub struct DecodingInfo {
     key: DecodingKey,
     validation: Validation,
     // alg: Algorithm,
+}
+impl Debug for DecodingInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecodingInfo")
+            .field("validation", &self.validation)
+            .finish()
+    }
 }
 impl DecodingInfo {
     fn new(key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {

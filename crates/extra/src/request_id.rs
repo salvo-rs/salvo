@@ -18,10 +18,12 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
+use std::fmt::{self, Debug, Formatter};
+
 use ulid::Ulid;
 
-use salvo_core::http::{header::HeaderName, Request, Response};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::http::{Request, Response, header::HeaderName};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Key for incoming flash messages in depot.
 pub const REQUEST_ID_KEY: &str = "::salvo::request_id";
@@ -35,7 +37,7 @@ pub trait RequestIdDepotExt {
 impl RequestIdDepotExt for Depot {
     #[inline]
     fn csrf_token(&self) -> Option<&str> {
-        self.get::<String>(REQUEST_ID_KEY).map(|v|&**v).ok()
+        self.get::<String>(REQUEST_ID_KEY).map(|v| &**v).ok()
     }
 }
 
@@ -50,8 +52,18 @@ pub struct RequestId {
     pub generator: Box<dyn IdGenerator + Send + Sync>,
 }
 
+impl Debug for RequestId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RequestId")
+            .field("header_name", &self.header_name)
+            .field("overwrite", &self.overwrite)
+            .finish()
+    }
+}
+
 impl RequestId {
     /// Create new `CatchPanic` middleware.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             header_name: HeaderName::from_static("x-request-id"),
@@ -61,18 +73,21 @@ impl RequestId {
     }
 
     /// Set the header name for request id.
+    #[must_use]
     pub fn header_name(mut self, name: HeaderName) -> Self {
         self.header_name = name;
         self
     }
 
     /// Set whether overwrite exists request id. Default is `true`.
+    #[must_use]
     pub fn overwrite(mut self, overwrite: bool) -> Self {
         self.overwrite = overwrite;
         self
     }
 
     /// Set the generator for request id.
+    #[must_use]
     pub fn generator(mut self, generator: impl IdGenerator + Send + Sync + 'static) -> Self {
         self.generator = Box::new(generator);
         self
@@ -102,9 +117,10 @@ where
 
 /// A generator for generate request id with ulid.
 #[derive(Default, Debug)]
-pub struct UlidGenerator{}
-impl UlidGenerator{
+pub struct UlidGenerator {}
+impl UlidGenerator {
     /// Create new `UlidGenerator`.
+    #[must_use]
     pub fn new() -> Self {
         Self {}
     }
@@ -117,7 +133,13 @@ impl IdGenerator for UlidGenerator {
 
 #[async_trait]
 impl Handler for RequestId {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, _res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        _res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
         if !self.overwrite && req.headers().contains_key(&self.header_name) {
             return;
         }

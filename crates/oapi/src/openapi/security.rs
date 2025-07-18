@@ -49,6 +49,7 @@ impl SecurityRequirement {
     /// # use salvo_oapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
+    #[must_use]
     pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         name: N,
         scopes: S,
@@ -67,6 +68,7 @@ impl SecurityRequirement {
     }
 
     /// Check if the security requirement is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.value.is_empty()
     }
@@ -76,6 +78,7 @@ impl SecurityRequirement {
     /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
     /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
     /// Scopes must match to the ones defined in [`SecurityScheme`].
+    #[must_use]
     pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         mut self,
         name: N,
@@ -246,6 +249,7 @@ impl Http {
     /// # use salvo_oapi::security::{SecurityScheme, Http, HttpAuthScheme};
     /// SecurityScheme::Http(Http::new(HttpAuthScheme::Basic));
     /// ```
+    #[must_use]
     pub fn new(scheme: HttpAuthScheme) -> Self {
         Self {
             scheme,
@@ -254,6 +258,7 @@ impl Http {
         }
     }
     /// Add or change http authentication scheme used.
+    #[must_use]
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
         self.scheme = scheme;
 
@@ -270,6 +275,7 @@ impl Http {
     /// # use salvo_oapi::security::{Http, HttpAuthScheme};
     /// Http::new(HttpAuthScheme::Bearer).bearer_format("JWT");
     /// ```
+    #[must_use]
     pub fn bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
         if self.scheme == HttpAuthScheme::Bearer {
             self.bearer_format = Some(bearer_format.into());
@@ -279,6 +285,7 @@ impl Http {
     }
 
     /// Add or change optional description supporting markdown syntax.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
 
@@ -885,6 +892,7 @@ impl Scopes {
     /// # use salvo_oapi::security::Scopes;
     /// let scopes = Scopes::new();
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
@@ -901,6 +909,7 @@ impl Scopes {
     /// # use salvo_oapi::security::Scopes;
     /// let scopes = Scopes::one("edit:item", "edit items");
     /// ```
+    #[must_use]
     pub fn one<S: Into<String>>(scope: S, description: S) -> Self {
         Self {
             scopes: PropMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),

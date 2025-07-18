@@ -41,8 +41,8 @@ pub struct CatchPanic {}
 impl CatchPanic {
     /// Create new `CatchPanic` middleware.
     #[inline]
-    pub fn new() -> Self {
-        CatchPanic {}
+    #[must_use] pub fn new() -> Self {
+        Self {}
     }
 }
 

@@ -37,6 +37,7 @@ impl Header {
     /// # use salvo_oapi::Header;
     /// let header = Header::default();
     /// ```
+    #[must_use]
     pub fn new<C: Into<RefOr<Schema>>>(component: C) -> Self {
         Self {
             schema: component.into(),
@@ -44,12 +45,14 @@ impl Header {
         }
     }
     /// Add schema of header.
+    #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = component.into();
         self
     }
 
     /// Add additional description for header.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self

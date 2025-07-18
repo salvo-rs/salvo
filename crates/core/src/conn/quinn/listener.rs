@@ -1,6 +1,7 @@
 //! QuinnListener and it's implements.
 use std::error::Error as StdError;
-use std::io::{Error as IoError,ErrorKind, Result as IoResult};
+use std::fmt::{self, Debug, Formatter};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -11,8 +12,8 @@ use std::vec;
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
-use salvo_http3::quinn::{Endpoint};
 use salvo_http3::quinn::Connection as QuinnConnection;
+use salvo_http3::quinn::Endpoint;
 
 use super::H3Connection;
 use crate::conn::quinn::ServerConfig;
@@ -25,6 +26,13 @@ pub struct QuinnListener<S, C, T, E> {
     config_stream: S,
     local_addr: T,
     _phantom: PhantomData<(C, E)>,
+}
+impl<S, C, T: Debug, E> Debug for QuinnListener<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuinnListener")
+            .field("local_addr", &self.local_addr)
+            .finish()
+    }
 }
 impl<S, C, T, E> QuinnListener<S, C, T, E>
 where
@@ -62,7 +70,10 @@ where
             .to_socket_addrs()?
             .next()
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
-        Ok(QuinnAcceptor::new(config_stream.into_stream().boxed(), socket))
+        Ok(QuinnAcceptor::new(
+            config_stream.into_stream().boxed(),
+            socket,
+        ))
     }
 }
 
@@ -73,6 +84,16 @@ pub struct QuinnAcceptor<S, C, E> {
     holdings: Vec<Holding>,
     endpoint: Option<Endpoint>,
     _phantom: PhantomData<(C, E)>,
+}
+
+impl<S, C, E> Debug for QuinnAcceptor<S, C, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuinnAcceptor")
+            .field("socket", &self.socket)
+            .field("holdings", &self.holdings)
+            .field("endpoint", &self.endpoint)
+            .finish()
+    }
 }
 
 impl<S, C, E> QuinnAcceptor<S, C, E>
@@ -110,11 +131,14 @@ where
         &self.holdings
     }
 
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
         let config = {
             let mut config = None;
-            while let Poll::Ready(Some(item)) =
-                Pin::new(&mut self.config_stream).poll_next(&mut Context::from_waker(noop_waker_ref()))
+            while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
+                .poll_next(&mut Context::from_waker(noop_waker_ref()))
             {
                 config = Some(item);
             }
@@ -123,7 +147,7 @@ where
         if let Some(config) = config {
             let config = config
                 .try_into()
-                .map_err(|e|IoError::other(e.to_string()))?;
+                .map_err(|e| IoError::other(e.to_string()))?;
             let endpoint = Endpoint::server(config, self.socket)?;
             if self.endpoint.is_some() {
                 tracing::info!("quinn config changed.");
@@ -144,11 +168,16 @@ where
                 Ok(conn) => {
                     let conn = QuinnConnection::new(conn);
                     return Ok(Accepted {
-                        conn: H3Connection::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
-                            trans_proto: TransProto::Quic,
-                            remote_addr: remote_addr.into(),
-                            local_addr: local_addr.clone()
-                        }))),
+                        conn: H3Connection::new(
+                            conn,
+                            fuse_factory.map(|f| {
+                                f.create(FuseInfo {
+                                    trans_proto: TransProto::Quic,
+                                    remote_addr: remote_addr.into(),
+                                    local_addr: local_addr.clone(),
+                                })
+                            }),
+                        ),
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),

@@ -3,6 +3,7 @@ use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -35,6 +36,11 @@ impl H3Connection {
     /// Get inner quinn connection.
     pub fn into_inner(self) -> http3_quinn::Connection {
         self.inner
+    }
+}
+impl Debug for H3Connection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("H3Connection").finish()
     }
 }
 impl Deref for H3Connection {

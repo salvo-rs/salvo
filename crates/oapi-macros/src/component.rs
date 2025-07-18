@@ -63,12 +63,12 @@ impl ComponentSchema {
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
-        let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
+        let deprecated_stream = Self::get_deprecated(deprecated);
 
         match type_tree.generic_type {
             Some(GenericType::Map) => {
                 features.push(AdditionalProperties(true).into());
-                ComponentSchema::map_to_tokens(
+                Self::map_to_tokens(
                     &mut tokens,
                     features,
                     type_tree,
@@ -78,7 +78,7 @@ impl ComponentSchema {
                 )?
             }
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
-                ComponentSchema::vec_to_tokens(
+                Self::vec_to_tokens(
                     &mut tokens,
                     features,
                     type_tree,
@@ -88,7 +88,7 @@ impl ComponentSchema {
                 )?
             }
             #[cfg(feature = "smallvec")]
-            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::SmallVec) => Self::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -105,7 +105,7 @@ impl ComponentSchema {
                     features.push(Nullable::new().into());
                 }
 
-                ComponentSchema::new(ComponentSchemaProps {
+                Self::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -127,7 +127,7 @@ impl ComponentSchema {
                 | GenericType::Rc
                 | GenericType::RefCell,
             ) => {
-                ComponentSchema::new(ComponentSchemaProps {
+                Self::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -142,7 +142,7 @@ impl ComponentSchema {
                 })?
                 .to_tokens(&mut tokens);
             }
-            None => ComponentSchema::non_generic_to_tokens(
+            None => Self::non_generic_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -203,7 +203,7 @@ impl ComponentSchema {
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
-                let schema_property = ComponentSchema::new(ComponentSchemaProps {
+                let schema_property = Self::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -220,8 +220,7 @@ impl ComponentSchema {
                 Ok::<_, Diagnostic>(Some(quote! { .additional_properties(#schema_property) }))
             })?;
 
-        let schema_type =
-            ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
+        let schema_type = Self::get_schema_type_override(nullable, SchemaTypeInner::Object);
 
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
@@ -267,7 +266,7 @@ impl ComponentSchema {
 
         let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
 
-        let component_schema = ComponentSchema::new(ComponentSchemaProps {
+        let component_schema = Self::new(ComponentSchemaProps {
             type_tree: child,
             features: Some(features),
             description: None,
@@ -282,8 +281,7 @@ impl ComponentSchema {
             },
             false => quote! {},
         };
-        let schema_type =
-            ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Array);
+        let schema_type = Self::get_schema_type_override(nullable, SchemaTypeInner::Array);
 
         let schema = quote! {
             #oapi::oapi::schema::Array::new().items(#component_schema)
@@ -403,10 +401,8 @@ impl ComponentSchema {
 
                 if type_tree.is_object() {
                     let oapi = crate::oapi_crate();
-                    let nullable_schema_type = ComponentSchema::get_schema_type_override(
-                        nullable_feat,
-                        SchemaTypeInner::Object,
-                    );
+                    let nullable_schema_type =
+                        Self::get_schema_type_override(nullable_feat, SchemaTypeInner::Object);
                     tokens.extend(quote! {
                         #oapi::oapi::Object::new()
                             #nullable_schema_type
@@ -480,7 +476,7 @@ impl ComponentSchema {
                                     None
                                 };
 
-                                ComponentSchema::new(ComponentSchemaProps {
+                                Self::new(ComponentSchemaProps {
                                     type_tree: child,
                                     features,
                                     description: None,
@@ -500,10 +496,8 @@ impl ComponentSchema {
                                 all_of
                             },
                         );
-                        let nullable_schema_type = ComponentSchema::get_schema_type_override(
-                            nullable_feat,
-                            SchemaTypeInner::Array,
-                        );
+                        let nullable_schema_type =
+                            Self::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
                         quote! {
                             #oapi::oapi::schema::Array::new().items(#all_of)
                                 #nullable_schema_type

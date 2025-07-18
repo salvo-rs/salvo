@@ -123,7 +123,7 @@ impl Handler for ReDoc {
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
             .unwrap_or_default();
         let html = INDEX_TMPL
             .replacen("{{spec_url}}", &self.spec_url, 1)

@@ -27,6 +27,7 @@ impl Default for CookieStore {
 
 impl CookieStore {
     /// Create a new `CookieStore`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             max_age: Duration::seconds(60),
@@ -38,37 +39,43 @@ impl CookieStore {
     }
 
     /// Sets cookie name.
+    #[must_use]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
     /// Sets cookie max_age.
+    #[must_use]
     pub fn max_age(mut self, max_age: Duration) -> Self {
         self.max_age = max_age;
         self
     }
 
     /// Sets cookie same site.
+    #[must_use]
     pub fn same_site(mut self, same_site: SameSite) -> Self {
         self.same_site = same_site;
         self
     }
 
     /// Sets cookie http only.
+    #[must_use]
     pub fn http_only(mut self, http_only: bool) -> Self {
         self.http_only = http_only;
         self
     }
 
     /// Sets cookie path.
+    #[must_use]
     pub fn path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
     }
 
     /// Into `FlashHandler`.
-    pub fn into_handler(self) -> FlashHandler<CookieStore> {
+    #[must_use]
+    pub fn into_handler(self) -> FlashHandler<Self> {
         FlashHandler::new(self)
     }
 }
@@ -85,14 +92,23 @@ impl FlashStore for CookieStore {
             },
         }
     }
-    async fn save_flash(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, flash: Flash) {
+    async fn save_flash(
+        &self,
+        _req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+        flash: Flash,
+    ) {
         res.add_cookie(
-            Cookie::build((self.name.clone(), serde_json::to_string(&flash).unwrap_or_default()))
-                .max_age(self.max_age)
-                .path(self.path.clone())
-                .same_site(self.same_site)
-                .http_only(self.http_only)
-                .build(),
+            Cookie::build((
+                self.name.clone(),
+                serde_json::to_string(&flash).unwrap_or_default(),
+            ))
+            .max_age(self.max_age)
+            .path(self.path.clone())
+            .same_site(self.same_site)
+            .http_only(self.http_only)
+            .build(),
         );
     }
     async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {

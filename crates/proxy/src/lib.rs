@@ -40,6 +40,7 @@
 
 use std::convert::Infallible;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{CONTROLS, utf8_percent_encode};
@@ -181,6 +182,16 @@ where
     pub url_query_getter: UrlPartGetter,
 }
 
+impl<U, C> Debug for Proxy<U, C>
+where
+    U: Upstreams,
+    C: Client,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Proxy").finish()
+    }
+}
+
 impl<U, C> Proxy<U, C>
 where
     U: Upstreams,
@@ -188,8 +199,9 @@ where
     C: Client,
 {
     /// Create new `Proxy` with upstreams list.
+    #[must_use]
     pub fn new(upstreams: U, client: C) -> Self {
-        Proxy {
+        Self {
             upstreams,
             client,
             url_path_getter: Box::new(default_url_path_getter),
@@ -199,6 +211,7 @@ where
 
     /// Set url path getter.
     #[inline]
+    #[must_use]
     pub fn url_path_getter<G>(mut self, url_path_getter: G) -> Self
     where
         G: Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static,
@@ -209,6 +222,7 @@ where
 
     /// Set url query getter.
     #[inline]
+    #[must_use]
     pub fn url_query_getter<G>(mut self, url_query_getter: G) -> Self
     where
         G: Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static,
@@ -266,7 +280,7 @@ where
         } else if upstream.ends_with('/') || rest.starts_with('/') {
             format!("{upstream}{rest}")
         } else if rest.is_empty() {
-            upstream.to_string()
+            upstream.to_owned()
         } else {
             format!("{upstream}/{rest}")
         };

@@ -116,6 +116,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
@@ -303,6 +304,17 @@ pub struct JwtAuth<C, D> {
     /// Finders are tried in order until one returns a token.
     pub finders: Vec<Box<dyn JwtTokenFinder>>,
 }
+impl<C, D> Debug for JwtAuth<C, D>
+where
+    C: DeserializeOwned + Send + Sync + 'static,
+    D: JwtAuthDecoder + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JwtAuth")
+            .field("force_passed", &self.force_passed)
+            .finish()
+    }
+}
 
 impl<C, D> JwtAuth<C, D>
 where
@@ -311,8 +323,9 @@ where
 {
     /// Create new `JwtAuth`.
     #[inline]
+    #[must_use]
     pub fn new(decoder: D) -> Self {
-        JwtAuth {
+        Self {
             force_passed: false,
             decoder,
             _claims: PhantomData::<C>,
@@ -321,6 +334,7 @@ where
     }
     /// Sets force_passed value and return Self.
     #[inline]
+    #[must_use]
     pub fn force_passed(mut self, force_passed: bool) -> Self {
         self.force_passed = force_passed;
         self
@@ -339,6 +353,7 @@ where
     }
     /// Sets extractor list with new value and return Self.
     #[inline]
+    #[must_use]
     pub fn finders(mut self, finders: Vec<Box<dyn JwtTokenFinder>>) -> Self {
         self.finders = finders;
         self
@@ -431,7 +446,7 @@ mod tests {
 
         async fn access(service: &Service, token: &str) -> String {
             TestClient::get("http://127.0.0.1:5801/hello")
-                .add_header("Authorization", format!("Bearer {}", token), true)
+                .add_header("Authorization", format!("Bearer {token}"), true)
                 .send(service)
                 .await
                 .take_string()
@@ -453,7 +468,7 @@ mod tests {
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
-        let content = TestClient::get(format!("http://127.0.0.1:5801/hello?jwt_token={}", token))
+        let content = TestClient::get(format!("http://127.0.0.1:5801/hello?jwt_token={token}"))
             .send(&service)
             .await
             .take_string()
@@ -461,7 +476,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("hello"));
         let content = TestClient::get("http://127.0.0.1:5801/hello")
-            .add_header("Cookie", format!("jwt_token={}", token), true)
+            .add_header("Cookie", format!("jwt_token={token}"), true)
             .send(&service)
             .await
             .take_string()

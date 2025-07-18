@@ -1,4 +1,5 @@
 use std::any::TypeId;
+use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::http::StatusCode;
 use salvo_core::{prelude::StatusError, writing};
@@ -8,6 +9,7 @@ use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 /// Represents an endpoint.
 ///
 /// View [module level documentation](index.html) for more details.
+#[derive(Clone, Debug)]
 pub struct Endpoint {
     /// The operation information of the endpoint.
     pub operation: Operation,
@@ -17,6 +19,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Create new `Endpoint` with given operation and components.
+    #[must_use]
     pub fn new(operation: Operation, components: Components) -> Self {
         Self {
             operation,
@@ -80,27 +83,27 @@ impl EndpointOutRegister for StatusError {
 impl EndpointOutRegister for StatusCode {
     fn register(components: &mut Components, operation: &mut Operation) {
         for code in [
-            StatusCode::CONTINUE,
-            StatusCode::SWITCHING_PROTOCOLS,
-            StatusCode::PROCESSING,
-            StatusCode::OK,
-            StatusCode::CREATED,
-            StatusCode::ACCEPTED,
-            StatusCode::NON_AUTHORITATIVE_INFORMATION,
-            StatusCode::NO_CONTENT,
-            StatusCode::RESET_CONTENT,
-            StatusCode::PARTIAL_CONTENT,
-            StatusCode::MULTI_STATUS,
-            StatusCode::ALREADY_REPORTED,
-            StatusCode::IM_USED,
-            StatusCode::MULTIPLE_CHOICES,
-            StatusCode::MOVED_PERMANENTLY,
-            StatusCode::FOUND,
-            StatusCode::SEE_OTHER,
-            StatusCode::NOT_MODIFIED,
-            StatusCode::USE_PROXY,
-            StatusCode::TEMPORARY_REDIRECT,
-            StatusCode::PERMANENT_REDIRECT,
+            Self::CONTINUE,
+            Self::SWITCHING_PROTOCOLS,
+            Self::PROCESSING,
+            Self::OK,
+            Self::CREATED,
+            Self::ACCEPTED,
+            Self::NON_AUTHORITATIVE_INFORMATION,
+            Self::NO_CONTENT,
+            Self::RESET_CONTENT,
+            Self::PARTIAL_CONTENT,
+            Self::MULTI_STATUS,
+            Self::ALREADY_REPORTED,
+            Self::IM_USED,
+            Self::MULTIPLE_CHOICES,
+            Self::MOVED_PERMANENTLY,
+            Self::FOUND,
+            Self::SEE_OTHER,
+            Self::NOT_MODIFIED,
+            Self::USE_PROXY,
+            Self::TEMPORARY_REDIRECT,
+            Self::PERMANENT_REDIRECT,
         ] {
             operation.responses.insert(
                 code.as_str(),
@@ -138,7 +141,7 @@ impl EndpointOutRegister for String {
     fn register(components: &mut Components, operation: &mut Operation) {
         operation.responses.insert(
             "200",
-            Response::new("Ok").add_content("text/plain", String::to_schema(components)),
+            Response::new("Ok").add_content("text/plain", Self::to_schema(components)),
         );
     }
 }
@@ -162,14 +165,21 @@ pub struct EndpointRegistry {
     pub creator: fn() -> Endpoint,
 }
 
+impl Debug for EndpointRegistry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EndpointRegistry").finish()
+    }
+}
+
 impl EndpointRegistry {
     /// Save the endpoint information to the registry.
     pub const fn save(type_id: fn() -> TypeId, creator: fn() -> Endpoint) -> Self {
         Self { type_id, creator }
     }
     /// Find the endpoint information from the registry.
+    #[must_use]
     pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
-        for record in inventory::iter::<EndpointRegistry> {
+        for record in inventory::iter::<Self> {
             if (record.type_id)() == *type_id {
                 return Some(record.creator);
             }

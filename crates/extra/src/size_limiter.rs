@@ -74,6 +74,7 @@ use salvo_core::http::{Body, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxSize limit for request size.
+#[derive(Debug)]
 pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
@@ -94,7 +95,7 @@ impl Handler for MaxSize {
 }
 /// Create a new `MaxSize`.
 #[inline]
-pub fn max_size(size: u64) -> MaxSize {
+#[must_use] pub fn max_size(size: u64) -> MaxSize {
     MaxSize(size)
 }
 

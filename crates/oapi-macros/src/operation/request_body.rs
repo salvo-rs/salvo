@@ -184,12 +184,11 @@ impl TryToTokens for RequestBodyAttr<'_> {
                     let type_tree = body_type.as_type_tree()?;
                     let required: Required = (!type_tree.is_option()).into();
 
-                    let content_type = match &self.content_type {
-                        Some(content_type) => content_type.to_token_stream(),
-                        None => {
-                            let content_type = type_tree.get_default_content_type();
-                            quote!(#content_type)
-                        }
+                    let content_type = if let Some(content_type) = &self.content_type {
+                        content_type.to_token_stream()
+                    } else {
+                        let content_type = type_tree.get_default_content_type();
+                        quote!(#content_type)
                     };
 
                     tokens.extend(quote! {

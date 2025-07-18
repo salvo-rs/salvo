@@ -35,6 +35,7 @@
 //! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
@@ -60,16 +61,21 @@ pub struct Catcher {
 impl Default for Catcher {
     /// Create new `Catcher` with its goal handler is [`DefaultGoal`].
     fn default() -> Self {
-        Catcher {
+        Self {
             goal: Arc::new(DefaultGoal::new()),
             hoops: vec![],
         }
     }
 }
+impl Debug for Catcher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Catcher").finish()
+    }
+}
 impl Catcher {
     /// Create new `Catcher`.
     pub fn new<H: Handler>(goal: H) -> Self {
-        Catcher {
+        Self {
             goal: Arc::new(goal),
             hoops: vec![],
         }
@@ -77,6 +83,7 @@ impl Catcher {
 
     /// Get current catcher's middlewares reference.
     #[inline]
+    #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
@@ -88,6 +95,7 @@ impl Catcher {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -97,6 +105,7 @@ impl Catcher {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
@@ -122,17 +131,19 @@ impl Catcher {
 /// `DefaultGoal` will used to catch them.
 ///
 /// `DefaultGoal` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DefaultGoal {
     footer: Option<Cow<'static, str>>,
 }
 impl DefaultGoal {
     /// Create new `DefaultGoal`.
+    #[must_use]
     pub fn new() -> Self {
-        DefaultGoal { footer: None }
+        Self { footer: None }
     }
     /// Create new `DefaultGoal` with custom footer.
     #[inline]
+    #[must_use]
     pub fn with_footer(footer: impl Into<Cow<'static, str>>) -> Self {
         Self::new().footer(footer)
     }
@@ -141,6 +152,7 @@ impl DefaultGoal {
     ///
     /// If footer is `None`, then use default footer.
     /// Default footer is `<a href="https://salvo.rs" target="_blank">salvo</a>`.
+    #[must_use]
     pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
         self.footer = Some(footer.into());
         self
@@ -400,7 +412,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:5800/{}", name))
+            TestClient::get(format!("http://127.0.0.1:5800/{name}"))
                 .send(service)
                 .await
                 .take_string()
@@ -421,7 +433,7 @@ mod tests {
         let service = Service::new(router).catcher(Catcher::default().hoop(handle404));
 
         async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:5800/{}", name))
+            TestClient::get(format!("http://127.0.0.1:5800/{name}"))
                 .send(service)
                 .await
                 .take_string()

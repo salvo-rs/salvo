@@ -133,7 +133,7 @@ pub trait IntoVecString {
 
 impl IntoVecString for &'static str {
     fn into_vec_string(self) -> Vec<String> {
-        vec![self.to_string()]
+        vec![self.to_owned()]
     }
 }
 impl IntoVecString for String {

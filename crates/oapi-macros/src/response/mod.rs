@@ -484,7 +484,7 @@ impl DeriveResponseValue for DeriveToResponseValue {
 
 impl Parse for DeriveToResponseValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveToResponseValue::default();
+        let mut response = Self::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
@@ -561,7 +561,7 @@ impl DeriveResponseValue for DeriveToResponsesValue {
 
 impl Parse for DeriveToResponsesValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveToResponsesValue::default();
+        let mut response = Self::default();
         const MISSING_STATUS_ERROR: &str = "missing expected `status_code` attribute";
         let first_span = input.span();
 
@@ -847,7 +847,7 @@ struct Header {
 
 impl Parse for Header {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut header = Header {
+        let mut header = Self {
             name: input.parse::<LitStr>()?.value(),
             ..Default::default()
         };

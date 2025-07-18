@@ -34,8 +34,8 @@ pub struct Logger {}
 impl Logger {
     /// Create new `Logger` middleware.
     #[inline]
-    pub fn new() -> Self {
-        Logger {}
+    #[must_use] pub fn new() -> Self {
+        Self {}
     }
 }
 

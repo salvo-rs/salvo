@@ -22,19 +22,23 @@ impl IntoIterator for Parameters {
 
 impl Parameters {
     /// Construct a new empty [`Parameters`]. This is effectively same as calling [`Parameters::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Returns `true` if instance contains no elements.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Add a new paramater and returns `self`.
+    #[must_use]
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.insert(parameter);
         self
     }
     /// Returns `true` if instance contains a parameter with the given name and location.
+    #[must_use]
     pub fn contains(&self, name: &str, parameter_in: ParameterIn) -> bool {
         self.0
             .iter()
@@ -57,7 +61,7 @@ impl Parameters {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Parameters) {
+    pub fn append(&mut self, other: &mut Self) {
         for item in other.0.drain(..) {
             self.insert(item);
         }
@@ -145,6 +149,7 @@ pub struct Parameter {
 
 impl Parameter {
     /// Constructs a new required [`Parameter`] with given name.
+    #[must_use]
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
@@ -153,12 +158,14 @@ impl Parameter {
         }
     }
     /// Add name of the [`Parameter`].
+    #[must_use]
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
         self.name = name.into();
         self
     }
 
     /// Add in of the [`Parameter`].
+    #[must_use]
     pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
         self.parameter_in = parameter_in;
         if self.parameter_in == ParameterIn::Path {
@@ -168,8 +175,8 @@ impl Parameter {
     }
 
     /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
-    pub fn merge(&mut self, other: Parameter) -> bool {
-        let Parameter {
+    pub fn merge(&mut self, other: Self) -> bool {
+        let Self {
             name,
             parameter_in,
             description,
@@ -218,6 +225,7 @@ impl Parameter {
 
     /// Add required declaration of the [`Parameter`]. If [`ParameterIn::Path`] is
     /// defined this is always [`Required::True`].
+    #[must_use]
     pub fn required(mut self, required: impl Into<Required>) -> Self {
         self.required = required.into();
         // required must be true, if parameter_in is Path
@@ -229,42 +237,49 @@ impl Parameter {
     }
 
     /// Add or change description of the [`Parameter`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
+    #[must_use]
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
         self.deprecated = Some(deprecated.into());
         self
     }
 
     /// Add or change [`Parameter`]s schema.
+    #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = Some(component.into());
         self
     }
 
     /// Add or change serialization style of [`Parameter`].
+    #[must_use]
     pub fn style(mut self, style: ParameterStyle) -> Self {
         self.style = Some(style);
         self
     }
 
     /// Define whether [`Parameter`]s are exploded or not.
+    #[must_use]
     pub fn explode(mut self, explode: bool) -> Self {
         self.explode = Some(explode);
         self
     }
 
     /// Add or change whether [`Parameter`] should allow reserved characters.
+    #[must_use]
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
         self.allow_reserved = Some(allow_reserved);
         self
     }
 
     /// Add or change example of [`Parameter`]'s potential value.
+    #[must_use]
     pub fn example(mut self, example: Value) -> Self {
         self.example = Some(example);
         self
@@ -345,7 +360,7 @@ mod tests {
             .style(ParameterStyle::Simple)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
         assert_json_eq!(
             parameter,
             json!({
@@ -384,12 +399,12 @@ mod tests {
             .style(ParameterStyle::Form)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
 
         parameter1.extensions =
-            PropMap::from([("key1".to_string(), Value::String("value1".to_string()))]);
+            PropMap::from([("key1".to_owned(), Value::String("value1".to_owned()))]);
         parameter2.extensions =
-            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
+            PropMap::from([("key2".to_owned(), Value::String("value2".to_owned()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(
@@ -424,10 +439,10 @@ mod tests {
             .style(ParameterStyle::Form)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
 
         parameter2.extensions =
-            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
+            PropMap::from([("key2".to_owned(), Value::String("value2".to_owned()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(

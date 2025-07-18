@@ -1,5 +1,5 @@
 //! A flexible fusewire.
-
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use tokio::sync::Notify;
@@ -33,6 +33,7 @@ where
 }
 
 /// Skip the quic connection.
+#[must_use]
 pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
     if info.trans_proto.is_quic() {
         GuardAction::Permit
@@ -60,25 +61,43 @@ pub struct FlexFusewire {
     tls_handshake_token: CancellationToken,
     tls_handshake_notify: Arc<Notify>,
 }
+
+impl Debug for FlexFusewire {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlexFusewire")
+            .field("info", &self.info)
+            .field("guards.len", &self.guards.len())
+            .field("tcp_idle_timeout", &self.tcp_idle_timeout)
+            .field("tcp_frame_timeout", &self.tcp_frame_timeout)
+            .field("tls_handshake_timeout", &self.tls_handshake_timeout)
+            .finish()
+    }
+}
+
 impl FlexFusewire {
     /// Create a new `FlexFusewire`.
+    #[must_use]
     pub fn new(info: FuseInfo) -> Self {
         Self::builder().build(info)
     }
 
     /// Create a new `FlexFactory`.
+    #[must_use]
     pub fn builder() -> FlexFactory {
         FlexFactory::new()
     }
     /// Get the timeout for close the idle tcp connection.
+    #[must_use]
     pub fn tcp_idle_timeout(&self) -> Duration {
         self.tcp_idle_timeout
     }
     /// Get the timeout for close the connection if frame can not be recived.
+    #[must_use]
     pub fn tcp_frame_timeout(&self) -> Duration {
         self.tcp_frame_timeout
     }
     /// Set the timeout for close the connection if handshake not finished.
+    #[must_use]
     pub fn tls_handshake_timeout(&self) -> Duration {
         self.tls_handshake_timeout
     }
@@ -95,7 +114,7 @@ impl Fusewire for FlexFusewire {
                     self.reject_token.cancel();
                     return;
                 }
-                _ => {}
+                GuardAction::ToNext => {}
             }
         }
         self.tcp_idle_notify.notify_waiters();
@@ -161,6 +180,17 @@ pub struct FlexFactory {
     guards: Arc<Vec<Box<dyn Guard>>>,
 }
 
+impl Debug for FlexFactory {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlexFactory")
+            .field("tcp_idle_timeout", &self.tcp_idle_timeout)
+            .field("tcp_frame_timeout", &self.tcp_frame_timeout)
+            .field("tls_handshake_timeout", &self.tls_handshake_timeout)
+            .field("guards.len", &self.guards.len())
+            .finish()
+    }
+}
+
 impl Default for FlexFactory {
     fn default() -> Self {
         Self::new()
@@ -179,22 +209,26 @@ impl FlexFactory {
     }
 
     /// Set the timeout for close the idle tcp connection.
+    #[must_use]
     pub fn tcp_idle_timeout(mut self, timeout: Duration) -> Self {
         self.tcp_idle_timeout = timeout;
         self
     }
     /// Set the timeout for close the connection if frame can not be recived.
+    #[must_use]
     pub fn tcp_frame_timeout(mut self, timeout: Duration) -> Self {
         self.tcp_frame_timeout = timeout;
         self
     }
 
     /// Set guards to new value.
+    #[must_use]
     pub fn guards(mut self, guards: Vec<Box<dyn Guard>>) -> Self {
         self.guards = Arc::new(guards);
         self
     }
     /// Add a guard.
+    #[must_use]
     pub fn add_guard(mut self, guard: impl Guard) -> Self {
         Arc::get_mut(&mut self.guards)
             .expect("guards get mut failed")
@@ -203,6 +237,7 @@ impl FlexFactory {
     }
 
     /// Build a `FlexFusewire`.
+    #[must_use]
     pub fn build(&self, info: FuseInfo) -> FlexFusewire {
         let Self {
             tcp_idle_timeout,
