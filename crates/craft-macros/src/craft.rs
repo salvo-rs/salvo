@@ -77,7 +77,6 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
     Ok(None)
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 enum FnReceiver {

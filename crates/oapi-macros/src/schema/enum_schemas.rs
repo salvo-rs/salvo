@@ -340,10 +340,7 @@ fn rename_enum_variant<'a>(
     let rename_all = container_rules
         .as_ref()
         .and_then(|container_rules| container_rules.rename_all)
-        .or_else(|| {
-            rename_all
-                .map(|rename_all| rename_all.to_rename_rule())
-        });
+        .or_else(|| rename_all.map(|rename_all| rename_all.to_rename_rule()));
 
     crate::rename::<VariantRename>(name, rename_to, rename_all)
 }
@@ -369,46 +366,51 @@ impl TryToTokens for SimpleEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let container_rules = serde_util::parse_container(self.attributes);
 
-        regular_enum_to_tokens(tokens, container_rules.as_ref(), &self.enum_features, || {
-            self.variants
-                .iter()
-                .filter_map(|variant| {
-                    let variant_rules = serde_util::parse_value(&variant.attrs);
+        regular_enum_to_tokens(
+            tokens,
+            container_rules.as_ref(),
+            &self.enum_features,
+            || {
+                self.variants
+                    .iter()
+                    .filter_map(|variant| {
+                        let variant_rules = serde_util::parse_value(&variant.attrs);
 
-                    if is_not_skipped(variant_rules.as_ref()) {
-                        Some((variant, variant_rules))
-                    } else {
-                        None
-                    }
-                })
-                .flat_map(|(variant, variant_rules)| {
-                    let name = &*variant.ident.to_string();
-                    let mut variant_features =
-                        feature::parse_schema_features_with(&variant.attrs, |input| {
-                            Ok(parse_features!(input as Rename))
-                        })
-                        .ok()?
-                        .unwrap_or_default();
-                    let variant_name = rename_enum_variant(
-                        name,
-                        &mut variant_features,
-                        variant_rules.as_ref(),
-                        container_rules.as_ref(),
-                        self.rename_all,
-                    );
+                        if is_not_skipped(variant_rules.as_ref()) {
+                            Some((variant, variant_rules))
+                        } else {
+                            None
+                        }
+                    })
+                    .flat_map(|(variant, variant_rules)| {
+                        let name = &*variant.ident.to_string();
+                        let mut variant_features =
+                            feature::parse_schema_features_with(&variant.attrs, |input| {
+                                Ok(parse_features!(input as Rename))
+                            })
+                            .ok()?
+                            .unwrap_or_default();
+                        let variant_name = rename_enum_variant(
+                            name,
+                            &mut variant_features,
+                            variant_rules.as_ref(),
+                            container_rules.as_ref(),
+                            self.rename_all,
+                        );
 
-                    variant_name
-                        .map(|name| SimpleEnumVariant {
-                            value: name.to_token_stream(),
-                        })
-                        .or_else(|| {
-                            Some(SimpleEnumVariant {
+                        variant_name
+                            .map(|name| SimpleEnumVariant {
                                 value: name.to_token_stream(),
                             })
-                        })
-                })
-                .collect::<Vec<SimpleEnumVariant<TokenStream>>>()
-        })
+                            .or_else(|| {
+                                Some(SimpleEnumVariant {
+                                    value: name.to_token_stream(),
+                                })
+                            })
+                    })
+                    .collect::<Vec<SimpleEnumVariant<TokenStream>>>()
+            },
+        )
     }
 }
 

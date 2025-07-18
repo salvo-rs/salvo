@@ -46,7 +46,7 @@ impl CompressionLevel {
     #[cfg(feature = "brotli")]
     fn into_brotli(self) -> BrotliEncoder<Writer> {
         let quality = match self {
-            Self::Fastest | Self::Default=> 0,
+            Self::Fastest | Self::Default => 0,
             Self::Minsize => 11,
             Self::Precise(quality) => quality.min(11),
         };

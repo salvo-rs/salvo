@@ -425,8 +425,7 @@ pub(crate) fn rename<'r, R: Rename>(
     let rename = to.and_then(|to| if !to.is_empty() { Some(to) } else { None });
 
     rename.or_else(|| {
-        container_rule
-            .map(|container_rule| Cow::Owned(R::rename(container_rule, value)))
+        container_rule.map(|container_rule| Cow::Owned(R::rename(container_rule, value)))
     })
 }
 
