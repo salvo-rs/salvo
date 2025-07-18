@@ -330,7 +330,7 @@ mod tests {
     #[cfg(feature = "cookie-store")]
     #[tokio::test]
     async fn test_cookie_store() {
-        let cookie_name = "my-custom-cookie-name".to_string();
+        let cookie_name = "my-custom-cookie-name".to_owned();
         let router = Router::new()
             .hoop(CookieStore::new().name(&cookie_name).into_handler())
             .push(Router::with_path("get").get(get_flash))

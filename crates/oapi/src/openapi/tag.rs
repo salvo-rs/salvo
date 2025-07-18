@@ -121,16 +121,16 @@ mod tests {
 
     #[test]
     fn from_string() {
-        let name = "tag name".to_string();
+        let name = "tag name".to_owned();
         let tag = Tag::from(name);
-        assert_eq!(tag.name, "tag name".to_string());
+        assert_eq!(tag.name, "tag name".to_owned());
     }
 
     #[test]
     fn from_string_ref() {
-        let name = "tag name".to_string();
+        let name = "tag name".to_owned();
         let tag = Tag::from(&name);
-        assert_eq!(tag.name, "tag name".to_string());
+        assert_eq!(tag.name, "tag name".to_owned());
     }
 
     #[test]

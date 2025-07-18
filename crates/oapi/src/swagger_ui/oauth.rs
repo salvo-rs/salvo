@@ -76,7 +76,7 @@ impl Config {
     /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new();
     /// ```
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self { ..Default::default() }
     }
 
@@ -91,7 +91,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .client_id("client-id");
     /// ```
-    pub fn client_id(mut self, client_id: &str) -> Self {
+    #[must_use] pub fn client_id(mut self, client_id: &str) -> Self {
         self.client_id = Some(String::from(client_id));
 
         self
@@ -110,7 +110,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .client_secret("client-secret");
     /// ```
-    pub fn client_secret(mut self, client_secret: &str) -> Self {
+    #[must_use] pub fn client_secret(mut self, client_secret: &str) -> Self {
         self.client_secret = Some(String::from(client_secret));
 
         self
@@ -128,7 +128,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .realm("realm");
     /// ```
-    pub fn realm(mut self, realm: &str) -> Self {
+    #[must_use] pub fn realm(mut self, realm: &str) -> Self {
         self.realm = Some(String::from(realm));
 
         self
@@ -146,7 +146,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .app_name("app-name");
     /// ```
-    pub fn app_name(mut self, app_name: &str) -> Self {
+    #[must_use] pub fn app_name(mut self, app_name: &str) -> Self {
         self.app_name = Some(String::from(app_name));
 
         self
@@ -164,7 +164,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .scope_separator(",");
     /// ```
-    pub fn scope_separator(mut self, scope_separator: &str) -> Self {
+    #[must_use] pub fn scope_separator(mut self, scope_separator: &str) -> Self {
         self.scope_separator = Some(String::from(scope_separator));
 
         self
@@ -182,7 +182,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .scopes(vec![String::from("openid")]);
     /// ```
-    pub fn scopes(mut self, scopes: Vec<String>) -> Self {
+    #[must_use] pub fn scopes(mut self, scopes: Vec<String>) -> Self {
         self.scopes = Some(scopes);
 
         self
@@ -201,7 +201,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .additional_query_string_params(HashMap::from([(String::from("a"), String::from("1"))]));
     /// ```
-    pub fn additional_query_string_params(mut self, additional_query_string_params: HashMap<String, String>) -> Self {
+    #[must_use] pub fn additional_query_string_params(mut self, additional_query_string_params: HashMap<String, String>) -> Self {
         self.additional_query_string_params = Some(additional_query_string_params);
 
         self
@@ -222,7 +222,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .use_basic_authentication_with_access_code_grant(true);
     /// ```
-    pub fn use_basic_authentication_with_access_code_grant(
+    #[must_use] pub fn use_basic_authentication_with_access_code_grant(
         mut self,
         use_basic_authentication_with_access_code_grant: bool,
     ) -> Self {
@@ -245,7 +245,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .use_pkce_with_authorization_code_grant(true);
     /// ```
-    pub fn use_pkce_with_authorization_code_grant(mut self, use_pkce_with_authorization_code_grant: bool) -> Self {
+    #[must_use] pub fn use_pkce_with_authorization_code_grant(mut self, use_pkce_with_authorization_code_grant: bool) -> Self {
         self.use_pkce_with_authorization_code_grant = Some(use_pkce_with_authorization_code_grant);
 
         self

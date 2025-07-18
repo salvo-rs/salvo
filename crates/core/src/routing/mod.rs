@@ -438,7 +438,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, host: &str) -> String {
-            TestClient::get(format!("http://{}/", host))
+            TestClient::get(format!("http://{host}/"))
                 .send(service)
                 .await
                 .take_string()
@@ -506,7 +506,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, path: &str) {
-            TestClient::get(format!("http://127.0.0.1/{}", path))
+            TestClient::get(format!("http://127.0.0.1/{path}"))
                 .send(service)
                 .await;
         }

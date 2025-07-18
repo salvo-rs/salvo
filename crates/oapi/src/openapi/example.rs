@@ -100,8 +100,8 @@ mod tests {
         let example = example.external_value("external_value");
         assert!(example.external_value == "external_value");
 
-        let example = example.value(serde_json::Value::String("value".to_string()));
+        let example = example.value(serde_json::Value::String("value".to_owned()));
         assert!(example.value.is_some());
-        assert!(example.value.unwrap() == serde_json::Value::String("value".to_string()));
+        assert!(example.value.unwrap() == serde_json::Value::String("value".to_owned()));
     }
 }

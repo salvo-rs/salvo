@@ -149,8 +149,8 @@ cfg_feature! {
     #![feature = "anyhow"]
     impl From<anyhow::Error> for Error {
         #[inline]
-        fn from(e: anyhow::Error) -> Error {
-            Error::Anyhow(e)
+        fn from(e: anyhow::Error) -> Self {
+            Self::Anyhow(e)
         }
     }
 }

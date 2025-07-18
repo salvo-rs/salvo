@@ -353,7 +353,7 @@ mod tests {
             .style(ParameterStyle::Simple)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
         assert_json_eq!(
             parameter,
             json!({
@@ -392,12 +392,12 @@ mod tests {
             .style(ParameterStyle::Form)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
 
         parameter1.extensions =
-            PropMap::from([("key1".to_string(), Value::String("value1".to_string()))]);
+            PropMap::from([("key1".to_owned(), Value::String("value1".to_owned()))]);
         parameter2.extensions =
-            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
+            PropMap::from([("key2".to_owned(), Value::String("value2".to_owned()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(
@@ -432,10 +432,10 @@ mod tests {
             .style(ParameterStyle::Form)
             .explode(true)
             .allow_reserved(true)
-            .example(Value::String("example".to_string()));
+            .example(Value::String("example".to_owned()));
 
         parameter2.extensions =
-            PropMap::from([("key2".to_string(), Value::String("value2".to_string()))]);
+            PropMap::from([("key2".to_owned(), Value::String("value2".to_owned()))]);
 
         assert!(parameter1.merge(parameter2));
         assert_json_eq!(

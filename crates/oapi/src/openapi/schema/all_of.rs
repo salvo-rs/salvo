@@ -173,10 +173,10 @@ mod tests {
         let all_of = AllOf::with_capacity(5)
             .title("title")
             .description("description")
-            .default_value(Value::String("default".to_string()))
-            .add_example(Value::String("example1".to_string()))
-            .add_example(Value::String("example2".to_string()))
-            .discriminator(Discriminator::new("discriminator".to_string()));
+            .default_value(Value::String("default".to_owned()))
+            .add_example(Value::String("example1".to_owned()))
+            .add_example(Value::String("example2".to_owned()))
+            .discriminator(Discriminator::new("discriminator".to_owned()));
 
         assert_eq!(all_of.items.len(), 0);
         assert_eq!(all_of.items.capacity(), 5);

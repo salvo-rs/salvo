@@ -238,10 +238,10 @@ mod tests {
             .description("description")
             .deprecated(Deprecated::False)
             .examples([
-                Value::String("example1".to_string()),
-                Value::String("example2".to_string()),
+                Value::String("example1".to_owned()),
+                Value::String("example2".to_owned()),
             ])
-            .default_value(Value::String("default".to_string()))
+            .default_value(Value::String("default".to_owned()))
             .max_items(10)
             .min_items(1)
             .unique_items(true)

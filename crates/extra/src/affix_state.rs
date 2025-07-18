@@ -169,7 +169,7 @@ mod tests {
     #[tokio::test]
     async fn test_affix() {
         let user = User {
-            name: "salvo".to_string(),
+            name: "salvo".to_owned(),
         };
         let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).goal(hello);
         let content = TestClient::get("http://127.0.0.1:5800/")

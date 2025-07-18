@@ -268,17 +268,17 @@ mod tests {
     #[test]
     fn test_responses_from_btree_map() {
         let input = PropMap::from([
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ]);
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -291,17 +291,17 @@ mod tests {
     #[test]
     fn test_responses_from_kv_sequence() {
         let input = [
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ];
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -314,17 +314,17 @@ mod tests {
     #[test]
     fn test_responses_from_iter() {
         let input = [
-            ("response1".to_string(), Response::new("response1")),
-            ("response2".to_string(), Response::new("response2")),
+            ("response1".to_owned(), Response::new("response1")),
+            ("response2".to_owned(), Response::new("response2")),
         ];
 
         let expected = Responses(PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]));
@@ -345,11 +345,11 @@ mod tests {
     fn test_btree_map_from_responses() {
         let expected = PropMap::from([
             (
-                "response1".to_string(),
+                "response1".to_owned(),
                 RefOr::Type(Response::new("response1")),
             ),
             (
-                "response2".to_string(),
+                "response2".to_owned(),
                 RefOr::Type(Response::new("response2")),
             ),
         ]);

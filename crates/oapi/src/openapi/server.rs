@@ -430,12 +430,12 @@ mod tests {
     #[test]
     fn test_servers_insert_existed_server() {
         let mut servers = Servers::new();
-        let server1 = Server::new("/api/v1".to_string())
+        let server1 = Server::new("/api/v1".to_owned())
             .description("api v1")
             .add_variable("key1", ServerVariable::new());
         servers.insert(server1);
 
-        let server2 = Server::new("/api/v1".to_string())
+        let server2 = Server::new("/api/v1".to_owned())
             .description("api v1 new description")
             .add_variable("key2", ServerVariable::new());
         servers.insert(server2);

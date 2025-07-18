@@ -118,12 +118,12 @@ impl Handler for Scalar {
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
             .unwrap_or_default();
         let style = self
             .style
             .as_ref()
-            .map(|s| format!("<style>{}</style>", s))
+            .map(|s| format!("<style>{s}</style>"))
             .unwrap_or_default();
         let html = INDEX_TMPL
             .replacen("{{lib_url}}", &self.lib_url, 1)

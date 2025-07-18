@@ -1058,7 +1058,7 @@ mod tests {
     #[test]
     fn serialize_discriminator_with_mapping() {
         let mut discriminator = Discriminator::new("type");
-        discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
+        discriminator.mapping = [("int".to_owned(), "#/components/schemas/MyInt".to_owned())]
             .into_iter()
             .collect::<PropMap<_, _>>();
         let one_of = OneOf::new()

@@ -481,7 +481,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, b: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:5801/level1/level2/hello?b={}", b))
+            TestClient::get(format!("http://127.0.0.1:5801/level1/level2/hello?b={b}"))
                 .send(service)
                 .await
                 .take_string()

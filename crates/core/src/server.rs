@@ -460,7 +460,7 @@ mod tests {
             .unwrap();
         assert_eq!(result, "Hello World");
 
-        let result = TestClient::get(format!("{}/json", base_url))
+        let result = TestClient::get(format!("{base_url}/json"))
             .send(&service)
             .await
             .take_string()
@@ -468,14 +468,14 @@ mod tests {
             .unwrap();
         assert_eq!(result, r#"{"name":"jobs"}"#);
 
-        let result = TestClient::get(format!("{}/not_exist", base_url))
+        let result = TestClient::get(format!("{base_url}/not_exist"))
             .send(&service)
             .await
             .take_string()
             .await
             .unwrap();
         assert!(result.contains("Not Found"));
-        let result = TestClient::get(format!("{}/not_exist", base_url))
+        let result = TestClient::get(format!("{base_url}/not_exist"))
             .add_header("accept", "application/json", true)
             .send(&service)
             .await
@@ -483,7 +483,7 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains(r#""code":404"#));
-        let result = TestClient::get(format!("{}/not_exist", base_url))
+        let result = TestClient::get(format!("{base_url}/not_exist"))
             .add_header("accept", "text/plain", true)
             .send(&service)
             .await
@@ -491,7 +491,7 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("code: 404"));
-        let result = TestClient::get(format!("{}/not_exist", base_url))
+        let result = TestClient::get(format!("{base_url}/not_exist"))
             .add_header("accept", "application/xml", true)
             .send(&service)
             .await

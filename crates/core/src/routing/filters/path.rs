@@ -1106,13 +1106,13 @@ mod tests {
     #[test]
     fn test_parse_single_const() {
         let segments = PathParser::new("/hello").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello")]"#);
+        assert_eq!(format!("{segments:?}"), r#"[ConstWisp("hello")]"#);
     }
     #[test]
     fn test_parse_multi_const() {
         let segments = PathParser::new("/hello/world").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[ConstWisp("hello"), ConstWisp("world")]"#
         );
     }
@@ -1120,7 +1120,7 @@ mod tests {
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/{abc|\d+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[RegexWisp { name: "abc", regex: Regex("^\\d+$") }]"#
         );
     }
@@ -1128,7 +1128,7 @@ mod tests {
     fn test_parse_wildcard_regex() {
         let segments = PathParser::new(r"/{abc|\d+\.+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[RegexWisp { name: "abc", regex: Regex("^\\d+\\.+$") }]"#
         );
     }
@@ -1136,7 +1136,7 @@ mod tests {
     fn test_parse_single_regex_with_prefix() {
         let segments = PathParser::new(r"/prefix_{abc|\d+}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix_(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1144,7 +1144,7 @@ mod tests {
     fn test_parse_single_regex_with_suffix() {
         let segments = PathParser::new(r"/{abc|\d+}_suffix.png").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^(?<abc>\\d+)_suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1154,7 +1154,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)suffix\\.png$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1164,7 +1164,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[NamedWisp("pid"), ConstWisp("show"), CombWisp { names: ["table_name"], comb_regex: Regex("^(?<table_name>.*)\\.bu$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1174,7 +1174,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1184,7 +1184,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1194,7 +1194,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>\\d+)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1204,7 +1204,7 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, CombWisp { names: ["abc"], comb_regex: Regex("^prefix(?<abc>\\d+)ext$"), wild_regex: None, wild_start: None }]"#
         );
     }
@@ -1212,19 +1212,19 @@ mod tests {
     fn test_parse_rest() {
         let segments = PathParser::new(r"/first{id}/{**rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("**rest")]"#
         );
 
         let segments = PathParser::new(r"/first{id}/{*+rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("*+rest")]"#
         );
 
         let segments = PathParser::new(r"/first{id}/{*?rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id"], comb_regex: Regex("^first(?<id>.*)$"), wild_regex: None, wild_start: None }, NamedWisp("*?rest")]"#
         );
     }
@@ -1241,7 +1241,7 @@ mod tests {
     fn test_parse_comb_1() {
         let segments = PathParser::new(r"/first{id}world{**rest}").parse().unwrap();
         assert_eq!(
-            format!("{:?}", segments),
+            format!("{segments:?}"),
             r#"[CombWisp { names: ["id", "rest"], comb_regex: Regex("^first(?<id>.*)world"), wild_regex: Some(Regex(".*")), wild_start: Some("**") }]"#
         );
 

@@ -98,7 +98,7 @@ where
             http_client,
             validation,
         } = self;
-        let issuer = issuer.as_ref().trim_end_matches('/').to_string();
+        let issuer = issuer.as_ref().trim_end_matches('/').to_owned();
 
         //Create an empty JWKS to initalize our Cache
         let jwks = JwkSet { keys: Vec::new() };

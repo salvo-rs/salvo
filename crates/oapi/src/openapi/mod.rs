@@ -1012,7 +1012,7 @@ mod tests {
             let pet = Pet {
                 id: pet_id.into_inner(),
                 age: None,
-                name: "lightning".to_string(),
+                name: "lightning".to_owned(),
             };
             Json(pet)
         }
@@ -1254,7 +1254,7 @@ mod tests {
 
         assert_eq!(
             res.content_type().unwrap().to_string(),
-            "application/json; charset=utf-8".to_string()
+            "application/json; charset=utf-8".to_owned()
         );
         assert_eq!(
             bytes,
@@ -1270,7 +1270,7 @@ mod tests {
 
         let mut req = Request::new();
         req.queries_mut()
-            .insert("pretty".to_string(), "true".to_string());
+            .insert("pretty".to_owned(), "true".to_owned());
 
         let mut depot = Depot::new();
         let mut res = salvo_core::Response::new();
@@ -1284,7 +1284,7 @@ mod tests {
 
         assert_eq!(
             res.content_type().unwrap().to_string(),
-            "application/json; charset=utf-8".to_string()
+            "application/json; charset=utf-8".to_owned()
         );
         assert_eq!(
             bytes,
@@ -1324,11 +1324,11 @@ mod tests {
         )]
         pub async fn get_all_cities() -> Result<Json<ApiResponse<Vec<CityDTO>>>, StatusError> {
             Ok(Json(ApiResponse {
-                status: "200".to_string(),
-                message: "OK".to_string(),
+                status: "200".to_owned(),
+                message: "OK".to_owned(),
                 data: vec![CityDTO {
-                    id: "1".to_string(),
-                    name: "Beijing".to_string(),
+                    id: "1".to_owned(),
+                    name: "Beijing".to_owned(),
                 }],
             }))
         }

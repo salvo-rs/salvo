@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn test_operations_then() {
         let print_operation = |operation: Operation| {
-            println!("{:?}", operation);
+            println!("{operation:?}");
             operation
         };
         let operation = Operation::new();

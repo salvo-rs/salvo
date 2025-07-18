@@ -455,10 +455,10 @@ mod tests {
         .cookie_path("/abc")
         .same_site_policy(SameSite::Strict)
         .session_ttl(Some(Duration::from_secs(30)));
-        assert!(format!("{:?}", builder).contains("test_cookie"));
+        assert!(format!("{builder:?}").contains("test_cookie"));
 
         let handler = builder.build().unwrap();
-        assert!(format!("{:?}", handler).contains("test_cookie"));
+        assert!(format!("{handler:?}").contains("test_cookie"));
         assert_eq!(handler.cookie_domain, Some("test.domain".into()));
         assert_eq!(handler.cookie_name, "test_cookie");
         assert_eq!(handler.cookie_path, "/abc");

@@ -164,7 +164,7 @@ impl SwaggerUi {
     ///     ]
     /// );
     /// ```
-    pub fn urls(mut self, urls: Vec<Url<'static>>) -> Self {
+    #[must_use] pub fn urls(mut self, urls: Vec<Url<'static>>) -> Self {
         self.config.urls = urls;
         self
     }
@@ -188,7 +188,7 @@ impl SwaggerUi {
     ///         .use_pkce_with_authorization_code_grant(true)
     ///     );
     /// ```
-    pub fn oauth(mut self, oauth: oauth::Config) -> Self {
+    #[must_use] pub fn oauth(mut self, oauth: oauth::Config) -> Self {
         self.config.oauth = Some(oauth);
         self
     }
@@ -253,7 +253,7 @@ impl Handler for SwaggerUi {
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
             .unwrap_or_default();
         match serve(path, &self.title, &keywords, &description, &self.config) {
             Ok(Some(file)) => {
@@ -296,7 +296,7 @@ impl<'a> Url<'a> {
     /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
-    pub fn new(name: &'a str, url: &'a str) -> Self {
+    #[must_use] pub fn new(name: &'a str, url: &'a str) -> Self {
         Self {
             name: Cow::Borrowed(name),
             url: Cow::Borrowed(url),
@@ -321,7 +321,7 @@ impl<'a> Url<'a> {
     /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
-    pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
+    #[must_use] pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
         Self {
             name: Cow::Borrowed(name),
             url: Cow::Borrowed(url),

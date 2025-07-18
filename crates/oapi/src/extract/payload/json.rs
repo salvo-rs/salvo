@@ -113,20 +113,20 @@ mod tests {
 
     #[test]
     fn test_json_body_into_inner() {
-        let form = JsonBody::<String>("json_body".to_string());
-        assert_eq!(form.into_inner(), "json_body".to_string());
+        let form = JsonBody::<String>("json_body".to_owned());
+        assert_eq!(form.into_inner(), "json_body".to_owned());
     }
 
     #[test]
     fn test_json_body_deref() {
-        let form = JsonBody::<String>("json_body".to_string());
-        assert_eq!(form.deref(), &"json_body".to_string());
+        let form = JsonBody::<String>("json_body".to_owned());
+        assert_eq!(form.deref(), &"json_body".to_owned());
     }
 
     #[test]
     fn test_json_body_deref_mut() {
-        let mut form = JsonBody::<String>("json_body".to_string());
-        assert_eq!(form.deref_mut(), &mut "json_body".to_string());
+        let mut form = JsonBody::<String>("json_body".to_owned());
+        assert_eq!(form.deref_mut(), &mut "json_body".to_owned());
     }
 
     #[test]
@@ -150,14 +150,14 @@ mod tests {
 
     #[test]
     fn test_json_body_debug() {
-        let form = JsonBody::<String>("json_body".to_string());
-        assert_eq!(format!("{:?}", form), r#""json_body""#);
+        let form = JsonBody::<String>("json_body".to_owned());
+        assert_eq!(format!("{form:?}"), r#""json_body""#);
     }
 
     #[test]
     fn test_json_body_display() {
-        let form = JsonBody::<String>("json_body".to_string());
-        assert_eq!(format!("{}", form), "json_body");
+        let form = JsonBody::<String>("json_body".to_owned());
+        assert_eq!(format!("{form}"), "json_body");
     }
 
     #[test]

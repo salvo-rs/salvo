@@ -88,7 +88,7 @@ impl ComponentSchema {
                 )?
             }
             #[cfg(feature = "smallvec")]
-            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::SmallVec) => Self::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,

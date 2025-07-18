@@ -460,7 +460,7 @@ mod tests {
                     ),
             );
         assert_eq!(
-            format!("{:?}", router),
+            format!("{router:?}"),
             r#"└──!NULL!
     ├──users
     │   ├──{id}

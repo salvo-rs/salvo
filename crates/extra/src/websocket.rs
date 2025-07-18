@@ -567,13 +567,13 @@ mod tests {
             .unwrap();
         tokio::task::spawn(async move {
             if let Err(err) = conn.await {
-                println!("Connection failed: {:?}", err);
+                println!("Connection failed: {err:?}");
             }
         });
 
         // Fetch the url...
         let req = hyper::Request::builder()
-            .uri(format!("http://{}", addr))
+            .uri(format!("http://{addr}"))
             .header(UPGRADE, "websocket")
             .header(CONNECTION, "Upgrade")
             .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
