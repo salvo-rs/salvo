@@ -64,13 +64,15 @@ impl<T> UnixListener<T> {
 
     /// Provides permissions to be set on actual bind.
     #[inline]
+    #[must_use]
     pub fn permissions(mut self, permissions: impl Into<Option<Permissions>>) -> Self {
         self.permissions = permissions.into();
         self
     }
 
-    #[inline]
     /// Provides owner to be set on actual bind.
+    #[inline]
+    #[must_use]
     pub fn owner(mut self, uid: Option<u32>, gid: Option<u32>) -> Self {
         self.owner = Some((uid.map(Uid::from_raw), gid.map(Gid::from_raw)));
         self

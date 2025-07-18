@@ -38,7 +38,6 @@ pub(crate) fn to_schema(input: DeriveInput) -> DiagResult<TokenStream> {
         data,
         generics,
         vis,
-        ..
     } = input;
     ToSchema::new(&attrs, &data, &ident, &generics, &vis).and_then(|s| s.try_to_token_stream())
 }
@@ -121,7 +120,7 @@ impl TryToTokens for ToSchema<'_> {
                 None => bound::with_bound(
                     self.data,
                     &generics,
-                    parse_quote!(#oapi::oapi::ToSchema + 'static),
+                    &parse_quote!(#oapi::oapi::ToSchema + 'static),
                 ),
             };
         }
@@ -178,6 +177,7 @@ impl TryToTokens for ToSchema<'_> {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 enum SchemaVariant<'a> {
     Named(NamedStructSchema<'a>),
     Unnamed(UnnamedStructSchema<'a>),

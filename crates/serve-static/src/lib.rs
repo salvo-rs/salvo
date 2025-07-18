@@ -66,7 +66,8 @@ pub(crate) fn format_url_path_safely(path: &str) -> String {
     for part in path.split(['/', '\\']) {
         if part.is_empty() || part == "." || (cfg!(windows) && part.contains(':')) {
             continue;
-        } else if part == ".." {
+        }
+        if part == ".." {
             used_parts.pop();
         } else {
             used_parts.push(part);

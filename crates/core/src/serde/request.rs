@@ -73,7 +73,7 @@ pub(crate) struct RequestDeserializer<'de> {
     metadata: &'de Metadata,
     field_index: isize,
     field_flatten: bool,
-    field_source: Option<&'de Source>,
+    field_source: Option<Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
 }
@@ -125,7 +125,7 @@ impl<'de> RequestDeserializer<'de> {
         })
     }
 
-    fn real_parser(&self, source: &Source) -> SourceParser {
+    fn real_parser(&self, source: Source) -> SourceParser {
         let mut parser = source.parser;
         if parser == SourceParser::Smart {
             if source.from == SourceFrom::Body {
@@ -229,7 +229,7 @@ impl<'de> RequestDeserializer<'de> {
             field.decl_name
         };
 
-        for source in sources {
+        for source in sources.iter().cloned() {
             match source.from {
                 SourceFrom::Param => {
                     let mut value = self.params.get(field_name);

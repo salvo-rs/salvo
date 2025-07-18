@@ -11,7 +11,7 @@ pub(crate) use attr::EndpointAttr;
 fn metadata(
     salvo: &Ident,
     oapi: &Ident,
-    attr: EndpointAttr,
+    attr: &EndpointAttr,
     name: &Ident,
     mut modifiers: Vec<TokenStream>,
 ) -> DiagResult<TokenStream> {
@@ -23,7 +23,7 @@ fn metadata(
         &format!("__macro_gen_oapi_endpoint_creator_{name}"),
         Span::call_site(),
     );
-    let opt = Operation::new(&attr);
+    let opt = Operation::new(attr);
     modifiers.append(opt.modifiers()?.as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
         Expr::Lit(lit) => {
@@ -121,7 +121,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             };
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
-            let meta = metadata(&salvo, &oapi, attr, name, modifiers)?;
+            let meta = metadata(&salvo, &oapi, &attr, name, modifiers)?;
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -159,7 +159,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
             let name = Ident::new(&ty.to_token_stream().to_string(), Span::call_site());
-            let meta = metadata(&salvo, &oapi, attr, &name, modifiers)?;
+            let meta = metadata(&salvo, &oapi, &attr, &name, modifiers)?;
 
             Ok(quote! {
                 #item_impl

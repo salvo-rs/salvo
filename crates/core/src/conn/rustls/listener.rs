@@ -167,11 +167,8 @@ where
             }
             self.tls_acceptor = Some(tls_acceptor);
         }
-        let tls_acceptor = match &self.tls_acceptor {
-            Some(tls_acceptor) => tls_acceptor,
-            None => {
-                return Err(IoError::other("rustls: invalid tls config."));
-            }
+        let Some(tls_acceptor) = &self.tls_acceptor else {
+            return Err(IoError::other("rustls: invalid tls config."));
         };
 
         let Accepted {

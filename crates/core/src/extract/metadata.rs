@@ -126,12 +126,14 @@ impl Metadata {
     }
 
     /// Rule for rename all fields of type.
+    #[must_use]
     pub fn rename_all(mut self, rename_all: impl Into<Option<RenameRule>>) -> Self {
         self.rename_all = rename_all.into();
         self
     }
 
     /// Rule for rename all fields of type defined by serde.
+    #[must_use]
     pub fn serde_rename_all(mut self, serde_rename_all: impl Into<Option<RenameRule>>) -> Self {
         self.serde_rename_all = serde_rename_all.into();
         self

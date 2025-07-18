@@ -125,6 +125,7 @@ impl ResBody {
 
     /// Set body to none and returns current body.
     #[inline]
+    #[must_use]
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Self::None)
     }

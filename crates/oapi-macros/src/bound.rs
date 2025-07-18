@@ -57,7 +57,7 @@ fn ungroup(mut ty: &syn::Type) -> &syn::Type {
 pub(crate) fn with_bound(
     data: &syn::Data,
     generics: &syn::Generics,
-    bounds: Punctuated<syn::TypeParamBound, syn::token::Plus>,
+    bounds: &Punctuated<syn::TypeParamBound, syn::token::Plus>,
 ) -> syn::Generics {
     struct FindTyParams<'ast> {
         // Set of all generic type parameters on the current struct (A, B, C in
@@ -121,7 +121,7 @@ pub(crate) fn with_bound(
                         self.visit_type_param_bound(bound);
                     }
                 }
-                syn::Type::Macro(ty) => self.visit_macro(&ty.mac),
+                // syn::Type::Macro(ty) => self.visit_macro(&ty.mac),
                 syn::Type::Paren(ty) => self.visit_type(&ty.elem),
                 syn::Type::Path(ty) => {
                     if let Some(qself) = &ty.qself {
@@ -142,9 +142,7 @@ pub(crate) fn with_bound(
                         self.visit_type(elem);
                     }
                 }
-
-                syn::Type::Infer(_) | syn::Type::Never(_) | syn::Type::Verbatim(_) => {}
-
+                // syn::Type::Infer(_) | syn::Type::Never(_) | syn::Type::Verbatim(_) => {}
                 _ => {}
             }
         }
@@ -199,7 +197,7 @@ pub(crate) fn with_bound(
         //         mac: T!(),
         //         marker: PhantomData<T>,
         //     }
-        fn visit_macro(&mut self, _mac: &'ast syn::Macro) {}
+        // fn visit_macro(&self, _mac: &'ast syn::Macro) {}
     }
 
     let all_type_params = generics

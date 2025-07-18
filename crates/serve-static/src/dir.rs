@@ -354,10 +354,8 @@ impl Handler for StaticDir {
                 if !Path::new(&raw_path).starts_with(root) {
                     continue;
                 }
-                for filter in &self.exclude_filters {
-                    if filter(&raw_path) {
-                        continue;
-                    }
+                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                    continue;
                 }
                 let path = Path::new(&raw_path);
                 if path.is_dir() {
@@ -389,10 +387,8 @@ impl Handler for StaticDir {
         if abs_path.is_none() && !fallback.is_empty() {
             for root in &self.roots {
                 let raw_path = join_path!(root, fallback);
-                for filter in &self.exclude_filters {
-                    if filter(&raw_path) {
-                        continue;
-                    }
+                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                    continue;
                 }
                 let path = Path::new(&raw_path);
                 if path.is_file() {
@@ -476,10 +472,8 @@ impl Handler for StaticDir {
                     let file_name = entry.file_name().to_string_lossy().to_string();
                     if self.include_dot_files || !file_name.starts_with('.') {
                         let raw_path = join_path!(&abs_path, &file_name);
-                        for filter in &self.exclude_filters {
-                            if filter(&raw_path) {
-                                continue;
-                            }
+                        if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                            continue;
                         }
                         if let Ok(metadata) = entry.metadata().await {
                             if metadata.is_dir() {

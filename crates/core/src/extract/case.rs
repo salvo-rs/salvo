@@ -82,7 +82,7 @@ impl RenameRule {
     pub fn apply_to_field(self, field: &str) -> String {
         match self {
             LowerCase | SnakeCase => field.to_owned(),
-            UpperCase => field.to_ascii_uppercase(),
+            UpperCase | ScreamingSnakeCase => field.to_ascii_uppercase(),
             PascalCase => {
                 let mut pascal = String::new();
                 let mut capitalize = true;
@@ -102,7 +102,6 @@ impl RenameRule {
                 let pascal = PascalCase.apply_to_field(field);
                 pascal[..1].to_ascii_lowercase() + &pascal[1..]
             }
-            ScreamingSnakeCase => field.to_ascii_uppercase(),
             KebabCase => field.replace('_', "-"),
             ScreamingKebabCase => ScreamingSnakeCase.apply_to_field(field).replace('_', "-"),
         }

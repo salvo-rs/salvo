@@ -153,6 +153,7 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Set the fuse factory.
+    #[must_use]
     pub fn fuse_factory<F>(mut self, factory: F) -> Self
     where
         F: FuseFactory + Send + Sync + 'static,

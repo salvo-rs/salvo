@@ -21,11 +21,9 @@ enum TypeTreeValue<'t> {
 impl PartialEq for TypeTreeValue<'_> {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Self::Path(_) => self == other,
-            Self::TypePath(_) => self == other,
+            Self::Path(_) | Self::TypePath(_) | Self::UnitType => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
             Self::Tuple(tuple, _) => matches!(other, Self::Tuple(other, _) if other == tuple),
-            Self::UnitType => self == other,
         }
     }
 }
@@ -82,9 +80,8 @@ impl<'t> TypeTree<'t> {
                 .iter()
                 .find_map(|bound| match &bound {
                     syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                    syn::TypeParamBound::Lifetime(_) => None,
-                    syn::TypeParamBound::Verbatim(_) => None,
-                    _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
+                    syn::TypeParamBound::Lifetime(_) | syn::TypeParamBound::Verbatim(_) => None,
+                    _ => panic!("TypeTree trait object found unrecognized TypeParamBound"),
                 })
                 .map(|path| vec![TypeTreeValue::Path(path)])
                 .unwrap_or_else(Vec::new),

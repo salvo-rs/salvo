@@ -15,7 +15,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                 if let ImplItem::Fn(method) = item {
                     rewrite_method(
                         item_impl.generics.clone(),
-                        item_impl.self_ty.clone(),
+                        item_impl.self_ty.as_ref(),
                         method,
                     )?;
                 }
@@ -77,6 +77,9 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
     Ok(None)
 }
 
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 enum FnReceiver {
     None,
     Ref,
@@ -108,7 +111,7 @@ impl FnReceiver {
 
 fn rewrite_method(
     mut impl_generics: Generics,
-    self_ty: Box<Type>,
+    self_ty: &Type,
     method: &mut ImplItemFn,
 ) -> syn::Result<()> {
     let Some(macro_attr) = take_method_macro(method)? else {
@@ -142,7 +145,7 @@ fn rewrite_method(
             method.sig.ident = Ident::new("handle", Span::call_site());
             let where_clause = impl_generics.make_where_clause().clone();
             let mut angle_bracketed: Option<AngleBracketedGenericArguments> = None;
-            if let Type::Path(TypePath { path, .. }) = &*self_ty {
+            if let Type::Path(TypePath { path, .. }) = self_ty {
                 if let Some(last_segment) = path.segments.last() {
                     if let PathArguments::AngleBracketed(_angle_bracketed) = &last_segment.arguments
                     {

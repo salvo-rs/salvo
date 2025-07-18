@@ -124,6 +124,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     ///
     /// This value sets the time-to-live field that is used in every packet sent
     /// from this socket.
+    #[must_use]
     pub fn ttl(mut self, ttl: u32) -> Self {
         self.ttl = Some(ttl);
         self

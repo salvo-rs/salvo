@@ -116,17 +116,11 @@ pub(crate) type DiagResult<T> = Result<T, Diagnostic>;
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
 #[inline]
 pub(crate) fn is_default(
-    container_rules: &Option<&SerdeContainer>,
-    field_rule: &Option<&SerdeValue>,
+    container_rules: Option<&SerdeContainer>,
+    field_rule: Option<&SerdeValue>,
 ) -> bool {
-    container_rules
-        .as_ref()
-        .map(|rule| rule.is_default)
-        .unwrap_or(false)
-        || field_rule
-            .as_ref()
-            .map(|rule| rule.is_default)
-            .unwrap_or(false)
+    container_rules.map(|rule| rule.is_default).unwrap_or(false)
+        || field_rule.map(|rule| rule.is_default).unwrap_or(false)
 }
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
@@ -154,7 +148,7 @@ pub(crate) fn is_required(
         .map(|rule| rule.skip_serializing_if)
         .unwrap_or(false)
         && !field_rule.map(|rule| rule.double_option).unwrap_or(false)
-        && !is_default(&container_rules, &field_rule)
+        && !is_default(container_rules, field_rule)
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -413,7 +407,7 @@ impl ToTokens for AnyValue {
 }
 
 pub(crate) trait Rename {
-    fn rename(rule: &RenameRule, value: &str) -> String;
+    fn rename(rule: RenameRule, value: &str) -> String;
 }
 
 /// Performs a rename for given `value` based on given rules. If no rules were
@@ -426,13 +420,12 @@ pub(crate) trait Rename {
 pub(crate) fn rename<'r, R: Rename>(
     value: &'r str,
     to: Option<Cow<'r, str>>,
-    container_rule: Option<&'r RenameRule>,
+    container_rule: Option<RenameRule>,
 ) -> Option<Cow<'r, str>> {
     let rename = to.and_then(|to| if !to.is_empty() { Some(to) } else { None });
 
     rename.or_else(|| {
         container_rule
-            .as_ref()
             .map(|container_rule| Cow::Owned(R::rename(container_rule, value)))
     })
 }
@@ -441,7 +434,7 @@ pub(crate) fn rename<'r, R: Rename>(
 pub(crate) struct VariantRename;
 
 impl Rename for VariantRename {
-    fn rename(rule: &RenameRule, value: &str) -> String {
+    fn rename(rule: RenameRule, value: &str) -> String {
         rule.apply_to_variant(value)
     }
 }
@@ -450,7 +443,7 @@ impl Rename for VariantRename {
 pub(crate) struct FieldRename;
 
 impl Rename for FieldRename {
-    fn rename(rule: &RenameRule, value: &str) -> String {
+    fn rename(rule: RenameRule, value: &str) -> String {
         rule.apply_to_field(value)
     }
 }

@@ -95,6 +95,7 @@ impl Catcher {
 
     /// Add a handler as middleware, it will run the handler when error catched.
     #[inline]
+    #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
@@ -104,6 +105,7 @@ impl Catcher {
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]
+    #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
@@ -141,6 +143,7 @@ impl DefaultGoal {
     }
     /// Create new `DefaultGoal` with custom footer.
     #[inline]
+    #[must_use]
     pub fn with_footer(footer: impl Into<Cow<'static, str>>) -> Self {
         Self::new().footer(footer)
     }
@@ -149,6 +152,7 @@ impl DefaultGoal {
     ///
     /// If footer is `None`, then use default footer.
     /// Default footer is `<a href="https://salvo.rs" target="_blank">salvo</a>`.
+    #[must_use]
     pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
         self.footer = Some(footer.into());
         self

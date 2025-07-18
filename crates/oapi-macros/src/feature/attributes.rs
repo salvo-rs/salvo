@@ -142,14 +142,14 @@ impl XmlAttr {
 
             Ok((Some(Self(vec_xml)), Some(value_xml)))
         } else {
-            self.validate_xml(&self.0)?;
+            Self::validate_xml(&self.0)?;
 
             Ok((None, Some(mem::take(self))))
         }
     }
 
     #[inline]
-    fn validate_xml(&self, xml: &schema::XmlAttr) -> DiagResult<()> {
+    fn validate_xml(xml: &schema::XmlAttr) -> DiagResult<()> {
         if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
             Err(Diagnostic::spanned(
                 wrapped_ident.span(),
@@ -304,7 +304,7 @@ impl Nullable {
         Self(true)
     }
 
-    pub(crate) fn value(&self) -> bool {
+    pub(crate) fn value(self) -> bool {
         self.0
     }
 
@@ -359,11 +359,11 @@ impl From<Rename> for Feature {
 }
 impl_get_name!(Rename = "rename");
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub(crate) struct RenameAll(pub(crate) RenameRule);
 impl RenameAll {
-    pub(crate) fn as_rename_rule(&self) -> &RenameRule {
-        &self.0
+    pub(crate) fn to_rename_rule(self) -> RenameRule {
+        self.0
     }
 }
 impl Parse for RenameAll {

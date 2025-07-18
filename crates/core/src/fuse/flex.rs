@@ -114,7 +114,7 @@ impl Fusewire for FlexFusewire {
                     self.reject_token.cancel();
                     return;
                 }
-                _ => {}
+                GuardAction::ToNext => {}
             }
         }
         self.tcp_idle_notify.notify_waiters();
@@ -228,6 +228,7 @@ impl FlexFactory {
         self
     }
     /// Add a guard.
+    #[must_use]
     pub fn add_guard(mut self, guard: impl Guard) -> Self {
         Arc::get_mut(&mut self.guards)
             .expect("guards get mut failed")

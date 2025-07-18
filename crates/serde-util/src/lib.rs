@@ -131,7 +131,7 @@ impl SerdeContainer {
     ///     * `content = ...`
     ///     * `untagged = ...`
     ///     * `default = ...`
-    fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
+    fn parse_attribute(&mut self, ident: &Ident, next: Cursor) -> syn::Result<()> {
         match ident.to_string().as_str() {
             "rename_all" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
@@ -208,7 +208,7 @@ impl SerdeContainer {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 if let TokenTree::Ident(ident) = tt {
-                    container.parse_attribute(ident, next)?
+                    container.parse_attribute(&ident, next)?
                 }
 
                 rest = next;

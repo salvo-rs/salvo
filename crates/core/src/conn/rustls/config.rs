@@ -174,6 +174,7 @@ pub struct RustlsConfig {
 impl RustlsConfig {
     /// Create new `RustlsConfig`
     #[inline]
+    #[must_use]
     pub fn new(fallback: impl Into<Option<Keycert>>) -> Self {
         Self {
             fallback: fallback.into(),
@@ -200,6 +201,7 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
+    #[must_use]
     pub fn client_auth_optional(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         self.client_auth = TlsClientAuth::Optional(trust_anchor.into());
         self
@@ -222,6 +224,7 @@ impl RustlsConfig {
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
     #[inline]
+    #[must_use]
     pub fn client_auth_required(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         self.client_auth = TlsClientAuth::Required(trust_anchor.into());
         self
@@ -229,6 +232,7 @@ impl RustlsConfig {
 
     /// Add a new keycert to be used for the given SNI `name`.
     #[inline]
+    #[must_use]
     pub fn keycert(mut self, name: impl Into<String>, keycert: Keycert) -> Self {
         self.keycerts.insert(name.into(), keycert);
         self
@@ -236,6 +240,7 @@ impl RustlsConfig {
 
     /// Set specific protocols through ALPN (Application-Layer Protocol Negotiation).
     #[inline]
+    #[must_use]
     pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<Vec<u8>>>) -> Self {
         self.alpn_protocols = alpn_protocols.into();
         self
