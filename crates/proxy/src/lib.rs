@@ -188,8 +188,7 @@ where
     C: Client,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Proxy")
-            .finish()
+        f.debug_struct("Proxy").finish()
     }
 }
 
@@ -201,7 +200,7 @@ where
 {
     /// Create new `Proxy` with upstreams list.
     pub fn new(upstreams: U, client: C) -> Self {
-        Proxy {
+        Self {
             upstreams,
             client,
             url_path_getter: Box::new(default_url_path_getter),
@@ -278,7 +277,7 @@ where
         } else if upstream.ends_with('/') || rest.starts_with('/') {
             format!("{upstream}{rest}")
         } else if rest.is_empty() {
-            upstream.to_string()
+            upstream.to_owned()
         } else {
             format!("{upstream}/{rest}")
         };

@@ -44,11 +44,11 @@ impl Debug for Service {
 impl Service {
     /// Create a new Service with a [`Router`].
     #[inline]
-    pub fn new<T>(router: T) -> Service
+    pub fn new<T>(router: T) -> Self
     where
         T: Into<Arc<Router>>,
     {
-        Service {
+        Self {
             router: router.into(),
             catcher: None,
             hoops: vec![],
@@ -58,6 +58,7 @@ impl Service {
 
     /// Get router in this `Service`.
     #[inline]
+    #[must_use]
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
@@ -136,6 +137,7 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
+    #[must_use]
     pub fn hyper_handler(
         &self,
         local_addr: SocketAddr,
@@ -179,7 +181,7 @@ where
 {
     #[inline]
     fn from(router: T) -> Self {
-        Service::new(router)
+        Self::new(router)
     }
 }
 

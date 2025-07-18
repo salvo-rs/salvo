@@ -28,7 +28,8 @@ pub struct RequestBody {
 
 impl RequestBody {
     /// Construct a new empty [`RequestBody`]. This is effectively same as calling [`RequestBody::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
     /// Add description for [`RequestBody`].
@@ -38,7 +39,8 @@ impl RequestBody {
     }
 
     /// Define [`RequestBody`] required.
-    #[must_use] pub fn required(mut self, required: Required) -> Self {
+    #[must_use]
+    pub fn required(mut self, required: Required) -> Self {
         self.required = Some(required);
         self
     }

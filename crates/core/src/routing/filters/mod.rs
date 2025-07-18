@@ -113,6 +113,7 @@ impl<F> fmt::Debug for FnFilter<F> {
 
 /// Filter request by uri scheme.
 #[inline]
+#[must_use]
 pub fn scheme(scheme: Scheme) -> SchemeFilter {
     SchemeFilter::new(scheme)
 }
@@ -125,6 +126,7 @@ pub fn host(host: impl Into<String>) -> HostFilter {
 
 /// Filter request by uri port.
 #[inline]
+#[must_use]
 pub fn port(port: u16) -> PortFilter {
     PortFilter::new(port)
 }
@@ -136,37 +138,44 @@ pub fn path(path: impl Into<String>) -> PathFilter {
 }
 /// Filter request, only allow get method.
 #[inline]
+#[must_use]
 pub fn get() -> MethodFilter {
     MethodFilter(Method::GET)
 }
 /// Filter request, only allow head method.
 #[inline]
+#[must_use]
 pub fn head() -> MethodFilter {
     MethodFilter(Method::HEAD)
 }
 /// Filter request, only allow options method.
 #[inline]
+#[must_use]
 pub fn options() -> MethodFilter {
     MethodFilter(Method::OPTIONS)
 }
 /// Filter request, only allow post method.
 #[inline]
+#[must_use]
 pub fn post() -> MethodFilter {
     MethodFilter(Method::POST)
 }
 /// Filter request, only allow patch method.
 #[inline]
+#[must_use]
 pub fn patch() -> MethodFilter {
     MethodFilter(Method::PATCH)
 }
 /// Filter request, only allow put method.
 #[inline]
+#[must_use]
 pub fn put() -> MethodFilter {
     MethodFilter(Method::PUT)
 }
 
 /// Filter request, only allow delete method.
 #[inline]
+#[must_use]
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
 }

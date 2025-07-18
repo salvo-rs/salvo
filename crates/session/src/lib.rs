@@ -389,13 +389,13 @@ where
         let mut hmac = self.hmac.clone();
         hmac.update(value.as_bytes());
         if hmac.verify(&digest).is_ok() {
-            return Ok(value.to_string());
+            return Ok(value.to_owned());
         }
         for hmac in &self.fallback_hmacs {
             let mut hmac = hmac.clone();
             hmac.update(value.as_bytes());
             if hmac.verify(&digest).is_ok() {
-                return Ok(value.to_string());
+                return Ok(value.to_owned());
             }
         }
         Err(Error::Other("value did not verify".into()))

@@ -49,7 +49,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
     #[inline]
     pub fn new(local_addr: T) -> Self {
         #[cfg(not(feature = "socket2"))]
-        TcpListener {
+        Self {
             local_addr,
             ttl: None,
         }
@@ -207,7 +207,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
             http_scheme: Scheme::HTTP,
         }];
 
-        Ok(TcpAcceptor { inner, holdings })
+        Ok(Self { inner, holdings })
     }
 }
 

@@ -43,8 +43,8 @@ impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[cfg(not(feature = "socket2"))]
     #[inline]
-    pub fn new(path: T) -> UnixListener<T> {
-        UnixListener {
+    pub fn new(path: T) -> Self {
+        Self {
             path,
             permissions: None,
             owner: None,
@@ -103,7 +103,7 @@ where
             }
             (Some(permissions), None) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;
-                set_permissions(self.path.clone(), permissions)?;
+                set_permissions(self.path, permissions)?;
                 inner
             }
             (None, Some((uid, gid))) => {
@@ -175,7 +175,7 @@ impl Acceptor for UnixAcceptor {
                     }),
                 ),
                 local_addr: self.holdings[0].local_addr.clone(),
-                remote_addr: remote_addr.clone().into(),
+                remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,
             }
         })

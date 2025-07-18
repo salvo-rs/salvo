@@ -27,7 +27,8 @@ impl DerefMut for Paths {
 }
 impl Paths {
     /// Construct a new empty [`Paths`]. This is effectively same as calling [`Paths::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and returns `self`.

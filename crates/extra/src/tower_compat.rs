@@ -103,15 +103,12 @@ where
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
         }
-        let hyper_req = match req.strip_to_hyper::<QB>() {
-            Ok(hyper_req) => hyper_req,
-            Err(_) => {
-                tracing::error!("strip request to hyper failed.");
-                res.render(
-                    StatusError::internal_server_error().cause("strip request to hyper failed."),
-                );
-                return;
-            }
+        let hyper_req = if let Ok(hyper_req) = req.strip_to_hyper::<QB>() { hyper_req } else {
+            tracing::error!("strip request to hyper failed.");
+            res.render(
+                StatusError::internal_server_error().cause("strip request to hyper failed."),
+            );
+            return;
         };
 
         let hyper_res = match svc.call(hyper_req).await {
@@ -263,15 +260,12 @@ where
             return;
         }
 
-        let mut hyper_req = match req.strip_to_hyper::<QB>() {
-            Ok(hyper_req) => hyper_req,
-            Err(_) => {
-                tracing::error!("strip request to hyper failed.");
-                res.render(
-                    StatusError::internal_server_error().cause("strip request to hyper failed."),
-                );
-                return;
-            }
+        let mut hyper_req = if let Ok(hyper_req) = req.strip_to_hyper::<QB>() { hyper_req } else {
+            tracing::error!("strip request to hyper failed.");
+            res.render(
+                StatusError::internal_server_error().cause("strip request to hyper failed."),
+            );
+            return;
         };
         let ctx = FlowCtrlInContext::new(
             std::mem::take(ctrl),

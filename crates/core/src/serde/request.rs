@@ -80,10 +80,7 @@ pub(crate) struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    pub(crate) fn new(
-        request: &'de Request,
-        metadata: &'de Metadata,
-    ) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<Self, ParseError> {
         let mut payload = None;
 
         if metadata.has_body_required() {

@@ -27,7 +27,8 @@ pub struct FormFile {
 }
 impl FormFile {
     /// Create a new `FormFile` from a `FilePart`.
-    #[must_use] pub fn new(file_part: &FilePart) -> Self {
+    #[must_use]
+    pub fn new(file_part: &FilePart) -> Self {
         Self {
             name: file_part.name().map(|s| s.to_owned()),
             headers: file_part.headers().clone(),
@@ -38,7 +39,8 @@ impl FormFile {
 
     /// Get file name.
     #[inline]
-    #[must_use] pub fn name(&self) -> Option<&str> {
+    #[must_use]
+    pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
     /// Get file name mutable reference.
@@ -48,7 +50,8 @@ impl FormFile {
     }
     /// Get headers.
     #[inline]
-    #[must_use] pub fn headers(&self) -> &HeaderMap {
+    #[must_use]
+    pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
     /// Get headers mutable reference.
@@ -130,7 +133,8 @@ impl FormFiles {
     }
 
     /// Get inner files.
-    #[must_use] pub fn into_inner(self) -> Vec<FormFile> {
+    #[must_use]
+    pub fn into_inner(self) -> Vec<FormFile> {
         self.0
     }
 }

@@ -39,7 +39,7 @@ where
 {
     /// Create a new [`ReadSeeker`] from a reader which implements [`AsyncRead`] and [`AsyncSeek`].
     pub fn new(reader: R, length: u64) -> Self {
-        ReadSeeker {
+        Self {
             reader,
             length,
             last_modified: None,

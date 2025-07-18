@@ -141,6 +141,7 @@ pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
     /// Create new `RegexWispBuilder`.
     #[inline]
+    #[must_use]
     pub fn new(checker: Regex) -> Self {
         Self(checker)
     }
@@ -437,7 +438,7 @@ impl PathWisp for CombWisp {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
-                        wild_path = wild_path.trim_start_matches(value.as_str()).to_string();
+                        wild_path = wild_path.trim_start_matches(value.as_str()).to_owned();
                     }
                     #[cfg(feature = "matched-path")]
                     {
@@ -652,8 +653,8 @@ struct PathParser {
 }
 impl PathParser {
     #[inline]
-    fn new(raw_value: &str) -> PathParser {
-        PathParser {
+    fn new(raw_value: &str) -> Self {
+        Self {
             offset: 0,
             path: raw_value.trim_start_matches('/').chars().collect(),
         }
@@ -807,7 +808,7 @@ impl PathParser {
         let mut wisps: Vec<WispKind> = vec![];
         while ch != '/' {
             if ch == '{' {
-                if let Some('{') = self.peek(false) {
+                if self.peek(false) == Some('{') {
                     let part = self.scan_const().unwrap_or_default();
                     if part.is_empty() {
                         return Err("const part is empty string".to_owned());
@@ -1044,7 +1045,7 @@ impl PathFilter {
                 panic!("{e}, raw_value: {raw_value}");
             }
         };
-        PathFilter {
+        Self {
             raw_value,
             path_wisps,
         }

@@ -35,7 +35,7 @@
 //! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
-use std::fmt::{self, Formatter, Debug};
+use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
@@ -61,7 +61,7 @@ pub struct Catcher {
 impl Default for Catcher {
     /// Create new `Catcher` with its goal handler is [`DefaultGoal`].
     fn default() -> Self {
-        Catcher {
+        Self {
             goal: Arc::new(DefaultGoal::new()),
             hoops: vec![],
         }
@@ -69,14 +69,13 @@ impl Default for Catcher {
 }
 impl Debug for Catcher {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Catcher")
-            .finish()
+        f.debug_struct("Catcher").finish()
     }
 }
 impl Catcher {
     /// Create new `Catcher`.
     pub fn new<H: Handler>(goal: H) -> Self {
-        Catcher {
+        Self {
             goal: Arc::new(goal),
             hoops: vec![],
         }
@@ -84,6 +83,7 @@ impl Catcher {
 
     /// Get current catcher's middlewares reference.
     #[inline]
+    #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
@@ -135,8 +135,9 @@ pub struct DefaultGoal {
 }
 impl DefaultGoal {
     /// Create new `DefaultGoal`.
+    #[must_use]
     pub fn new() -> Self {
-        DefaultGoal { footer: None }
+        Self { footer: None }
     }
     /// Create new `DefaultGoal` with custom footer.
     #[inline]

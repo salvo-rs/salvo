@@ -52,6 +52,7 @@ pub struct HeaderFinder {
 impl HeaderFinder {
     /// Create new `HeaderFinder`.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cared_methods: ALL_METHODS.to_vec(),
@@ -79,6 +80,7 @@ impl HeaderFinder {
     }
     /// Sets cared methods list and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -143,6 +145,7 @@ impl FormFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -202,6 +205,7 @@ impl QueryFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -262,6 +266,7 @@ impl CookieFinder {
     }
     /// Sets cared methods list and returns Self.
     #[inline]
+    #[must_use]
     pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self

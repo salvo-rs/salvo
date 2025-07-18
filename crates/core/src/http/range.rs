@@ -18,7 +18,7 @@ impl HttpRange {
     ///
     /// `header` is HTTP Range header (e.g. `bytes=bytes=0-9`).
     /// `size` is full size of response (file).
-    pub fn parse(header: &str, size: u64) -> Result<Vec<HttpRange>, ParseError> {
+    pub fn parse(header: &str, size: u64) -> Result<Vec<Self>, ParseError> {
         if header.is_empty() {
             return Ok(Vec::new());
         }
@@ -29,7 +29,7 @@ impl HttpRange {
         let size_sig = size as i64;
         let mut no_overlap = false;
 
-        let all_ranges: Vec<Option<HttpRange>> = header[PREFIX_LEN..]
+        let all_ranges: Vec<Option<Self>> = header[PREFIX_LEN..]
             .split(',')
             .map(|x| x.trim())
             .filter(|x| !x.is_empty())
@@ -48,7 +48,7 @@ impl HttpRange {
                         length = size_sig;
                     }
 
-                    Ok(Some(HttpRange {
+                    Ok(Some(Self {
                         start: (size_sig - length) as u64,
                         length: length as u64,
                     }))
@@ -80,7 +80,7 @@ impl HttpRange {
                         end - start + 1
                     };
 
-                    Ok(Some(HttpRange {
+                    Ok(Some(Self {
                         start: start as u64,
                         length: length as u64,
                     }))
@@ -89,7 +89,7 @@ impl HttpRange {
             .collect::<Result<_, _>>()
             .map_err(|_| ParseError::InvalidRange)?;
 
-        let ranges: Vec<HttpRange> = all_ranges.into_iter().flatten().collect();
+        let ranges: Vec<Self> = all_ranges.into_iter().flatten().collect();
 
         if no_overlap && ranges.is_empty() {
             return Err(ParseError::InvalidRange);

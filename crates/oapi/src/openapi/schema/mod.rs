@@ -120,7 +120,7 @@ impl Schemas {
 ///
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
-    #[must_use]
+#[must_use]
 pub fn empty() -> Schema {
     Schema::object(
         Object::new()

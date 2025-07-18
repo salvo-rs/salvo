@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use self::RenameRule::*;
+use self::RenameRule::{
+    CamelCase, KebabCase, LowerCase, PascalCase, ScreamingKebabCase, ScreamingSnakeCase, SnakeCase,
+    UpperCase,
+};
 
 /// Rename rule for field.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -75,6 +78,7 @@ impl RenameRule {
     }
 
     /// Apply a renaming rule to a struct field, returning the version expected in the source.
+    #[must_use]
     pub fn apply_to_field(self, field: &str) -> String {
         match self {
             LowerCase | SnakeCase => field.to_owned(),

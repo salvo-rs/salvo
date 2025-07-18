@@ -68,8 +68,7 @@ impl NormNode {
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {
-                node.children
-                    .push(Self::new(router, node.metadata.clone()));
+                node.children.push(Self::new(router, node.metadata.clone()));
             }
         }
         node

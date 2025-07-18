@@ -40,7 +40,7 @@ impl Default for Keycert {
 impl Keycert {
     /// Create a new keycert.
     #[inline]
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             key: vec![],
             cert: vec![],
@@ -79,7 +79,7 @@ impl Keycert {
 
     /// Get ocsp_resp.
     #[inline]
-    pub fn ocsp_resp(&self) -> &[u8] {
+    #[must_use] pub fn ocsp_resp(&self) -> &[u8] {
         &self.ocsp_resp
     }
 
@@ -171,7 +171,7 @@ impl RustlsConfig {
     /// Create new `RustlsConfig`
     #[inline]
     pub fn new(fallback: impl Into<Option<Keycert>>) -> Self {
-        RustlsConfig {
+        Self {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
@@ -239,7 +239,7 @@ impl RustlsConfig {
 
     /// Set specific TLS versions supported.
     #[inline]
-    pub fn tls_versions(
+    #[must_use] pub fn tls_versions(
         mut self,
         tls_versions: &'static [&'static SupportedProtocolVersion],
     ) -> Self {
@@ -330,8 +330,8 @@ impl ResolvesServerCert for CertResolver {
     }
 }
 
-impl IntoConfigStream<RustlsConfig> for RustlsConfig {
-    type Stream = Once<Ready<RustlsConfig>>;
+impl IntoConfigStream<Self> for RustlsConfig {
+    type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))

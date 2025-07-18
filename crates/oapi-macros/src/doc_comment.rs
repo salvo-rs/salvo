@@ -33,7 +33,7 @@ impl CommentAttributes {
             Meta::NameValue(name_value) => {
                 if let Expr::Lit(ref doc_comment) = name_value.value {
                     if let Lit::Str(ref comment) = doc_comment.lit {
-                        Some(comment.value().trim().to_string())
+                        Some(comment.value().trim().to_owned())
                     } else {
                         None
                     }

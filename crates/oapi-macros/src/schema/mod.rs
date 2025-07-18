@@ -191,7 +191,7 @@ impl<'a> SchemaVariant<'a> {
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-    ) -> DiagResult<SchemaVariant<'a>> {
+    ) -> DiagResult<Self> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {

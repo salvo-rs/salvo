@@ -21,7 +21,7 @@ cfg_feature! {
     pub use cookie_store::CookieStore;
 
     /// Helper function to create a `CookieStore`.
-    pub fn cookie_store() -> CookieStore {
+    #[must_use] pub fn cookie_store() -> CookieStore {
         CookieStore::new()
     }
 }
@@ -156,13 +156,14 @@ pub enum FlashLevel {
 }
 impl FlashLevel {
     /// Convert a `FlashLevel` to a `&str`.
+    #[must_use]
     pub fn to_str(&self) -> &'static str {
         match self {
-            FlashLevel::Debug => "debug",
-            FlashLevel::Info => "info",
-            FlashLevel::Success => "success",
-            FlashLevel::Warning => "warning",
-            FlashLevel::Error => "error",
+            Self::Debug => "debug",
+            Self::Info => "info",
+            Self::Success => "success",
+            Self::Warning => "warning",
+            Self::Error => "error",
         }
     }
 }

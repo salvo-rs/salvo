@@ -19,14 +19,17 @@ impl Deref for PathParams {
 }
 impl PathParams {
     /// Create new `PathParams`.
+    #[must_use]
     pub fn new() -> Self {
-        PathParams::default()
+        Self::default()
     }
     /// If there is a wildcard param, its value is `true`.
+    #[must_use]
     pub fn greedy(&self) -> bool {
         self.greedy
     }
     /// Get the last param starts with '*', for example: <**rest>, <*?rest>.
+    #[must_use]
     pub fn tail(&self) -> Option<&str> {
         if self.greedy {
             self.inner.last().map(|(_, v)| &**v)

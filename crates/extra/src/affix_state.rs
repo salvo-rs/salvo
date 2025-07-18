@@ -121,8 +121,8 @@ impl Debug for AffixList {
 #[handler]
 impl AffixList {
     /// Create an empty affix list.
-    pub fn new() -> AffixList {
-        AffixList(Vec::new())
+    #[must_use] pub fn new() -> Self {
+        Self(Vec::new())
     }
     /// Inject a value into depot.
     pub fn inject<V: Send + Sync + Clone + 'static>(self, value: V) -> Self {

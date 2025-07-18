@@ -18,7 +18,7 @@ impl Default for BcryptCipher {
 impl BcryptCipher {
     /// Create a new `BcryptCipher`.
     #[inline]
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             cost: 8,
             token_size: 32,
@@ -27,7 +27,7 @@ impl BcryptCipher {
 
     /// Sets the length of the token.
     #[inline]
-    pub fn token_size(mut self, token_size: usize) -> Self {
+    #[must_use] pub fn token_size(mut self, token_size: usize) -> Self {
         assert!((1..=72).contains(&token_size), "length must be between 1 and 72");
         self.token_size = token_size;
         self
@@ -35,7 +35,7 @@ impl BcryptCipher {
 
     /// Sets the cost for bcrypt.
     #[inline]
-    pub fn cost(mut self, cost: u32) -> Self {
+    #[must_use] pub fn cost(mut self, cost: u32) -> Self {
         assert!((4..=31).contains(&cost), "cost must be between 4 and 31");
         self.cost = cost;
         self

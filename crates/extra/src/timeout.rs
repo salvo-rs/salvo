@@ -60,11 +60,11 @@ impl Debug for Timeout {
 impl Timeout {
     /// Create a new `Timeout`.
     #[inline]
-    pub fn new(value: Duration) -> Self {
+    #[must_use] pub fn new(value: Duration) -> Self {
         // If a 408 error code is returned, the browser may resend the request multiple times. In most cases,
         // this behavior is undesirable.
         // https://github.com/tower-rs/tower-http/issues/300
-        Timeout {
+        Self {
             value,
             error: Box::new(|| StatusError::service_unavailable().brief("Server process the request timeout.")),
         }

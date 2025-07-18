@@ -94,42 +94,42 @@ pub struct SseEvent {
 impl SseEvent {
     /// Sets Server-sent event data.
     #[inline]
-    pub fn text<T: Into<String>>(mut self, data: T) -> SseEvent {
+    pub fn text<T: Into<String>>(mut self, data: T) -> Self {
         self.data = Some(DataType::Text(data.into()));
         self
     }
 
     /// Sets Server-sent event data.
     #[inline]
-    pub fn json<T: Serialize>(mut self, data: T) -> Result<SseEvent, serde_json::Error> {
+    pub fn json<T: Serialize>(mut self, data: T) -> Result<Self, serde_json::Error> {
         self.data = Some(DataType::Json(serde_json::to_string(&data)?));
         Ok(self)
     }
 
     /// Sets Server-sent event comment.`
     #[inline]
-    pub fn comment<T: Into<String>>(mut self, comment: T) -> SseEvent {
+    pub fn comment<T: Into<String>>(mut self, comment: T) -> Self {
         self.comment = Some(comment.into());
         self
     }
 
     /// Sets Server-sent event event.
     #[inline]
-    pub fn name<T: Into<String>>(mut self, event: T) -> SseEvent {
+    pub fn name<T: Into<String>>(mut self, event: T) -> Self {
         self.name = Some(event.into());
         self
     }
 
     /// Sets Server-sent event retry.
     #[inline]
-    pub fn retry(mut self, duration: Duration) -> SseEvent {
+    #[must_use] pub fn retry(mut self, duration: Duration) -> Self {
         self.retry = Some(duration);
         self
     }
 
     /// Sets Server-sent event id.
     #[inline]
-    pub fn id<T: Into<String>>(mut self, id: T) -> SseEvent {
+    pub fn id<T: Into<String>>(mut self, id: T) -> Self {
         self.id = Some(id.into());
         self
     }
@@ -222,10 +222,10 @@ where
 {
     /// Create new `SseKeepAlive`.
     #[inline]
-    pub fn new(event_stream: S) -> SseKeepAlive<S> {
+    pub fn new(event_stream: S) -> Self {
         let max_interval = Duration::from_secs(15);
         let alive_timer = time::sleep(max_interval);
-        SseKeepAlive {
+        Self {
             event_stream,
             comment: Cow::Borrowed(""),
             max_interval,

@@ -100,7 +100,7 @@ impl ResBody {
             data_tx,
             trailers_tx: Some(trailers_tx),
         };
-        let rx = ResBody::Channel(BodyReceiver {
+        let rx = Self::Channel(BodyReceiver {
             data_rx,
             trailers_rx,
         });
@@ -137,7 +137,7 @@ impl Body for ResBody {
     fn poll_frame(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Self::Data>, <ResBody as Body>::Error>>> {
+    ) -> Poll<Option<Result<Frame<Self::Data>, <Self as Body>::Error>>> {
         match self.get_mut() {
             Self::None => Poll::Ready(None),
             Self::Once(bytes) => {
@@ -182,7 +182,7 @@ impl Body for ResBody {
                     Err(_) => Poll::Ready(None),
                 }
             }
-            ResBody::Error(_) => Poll::Ready(None),
+            Self::Error(_) => Poll::Ready(None),
         }
     }
 
@@ -272,7 +272,7 @@ impl From<Vec<u8>> for ResBody {
 
 impl<T> From<Box<T>> for ResBody
 where
-    T: Into<ResBody>,
+    T: Into<Self>,
 {
     fn from(value: Box<T>) -> Self {
         (*value).into()

@@ -76,8 +76,9 @@ impl Default for Cors {
 impl Cors {
     /// Create new `Cors`.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        Cors {
+        Self {
             allow_credentials: Default::default(),
             allow_headers: Default::default(),
             allow_methods: Default::default(),
@@ -94,6 +95,7 @@ impl Cors {
     /// - All methods allowed.
     /// - All origins allowed.
     /// - All headers exposed.
+    #[must_use]
     pub fn permissive() -> Self {
         Self::new()
             .allow_headers(Any)
@@ -111,6 +113,7 @@ impl Cors {
     /// - The header names received in `Access-Control-Request-Headers` are sent
     ///   back as allowed headers.
     /// - No headers are currently exposed, but this may change in the future.
+    #[must_use]
     pub fn very_permissive() -> Self {
         Self::new()
             .allow_credentials(true)

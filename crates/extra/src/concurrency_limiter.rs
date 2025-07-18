@@ -100,7 +100,7 @@ impl Handler for MaxConcurrency {
 }
 /// Create a new `MaxConcurrency`.
 #[inline]
-pub fn max_concurrency(size: usize) -> MaxConcurrency {
+#[must_use] pub fn max_concurrency(size: usize) -> MaxConcurrency {
     MaxConcurrency {
         semaphore: Semaphore::new(size),
     }

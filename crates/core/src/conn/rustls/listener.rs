@@ -42,7 +42,7 @@ where
     /// Create a new `RustlsListener`.
     #[inline]
     pub fn new(config_stream: S, inner: T) -> Self {
-        RustlsListener {
+        Self {
             config_stream,
             inner,
             _phantom: PhantomData,
@@ -91,7 +91,7 @@ where
     E: StdError + Send,
 {
     /// Create a new `RustlsAcceptor`.
-    pub fn new(config_stream: S, inner: T) -> RustlsAcceptor<S, C, T, E> {
+    pub fn new(config_stream: S, inner: T) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -113,7 +113,7 @@ where
                 }
             })
             .collect();
-        RustlsAcceptor {
+        Self {
             config_stream,
             inner,
             holdings,

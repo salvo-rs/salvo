@@ -114,12 +114,12 @@ impl TrailingSlash {
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Add`].
     #[inline]
-    pub fn new_add() -> Self {
+    #[must_use] pub fn new_add() -> Self {
         Self::new(TrailingSlashAction::Add)
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Remove`].
     #[inline]
-    pub fn new_remove() -> Self {
+    #[must_use] pub fn new_remove() -> Self {
         Self::new(TrailingSlashAction::Remove)
     }
     /// Sets skipper and returns new `TrailingSlash`.
@@ -131,7 +131,7 @@ impl TrailingSlash {
 
     /// Sets redirect code and returns new `TrailingSlash`.
     #[inline]
-    pub fn redirect_code(mut self, redirect_code: StatusCode) -> Self {
+    #[must_use] pub fn redirect_code(mut self, redirect_code: StatusCode) -> Self {
         self.redirect_code = redirect_code;
         self
     }
@@ -183,13 +183,13 @@ fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Result<Uri, ParseErro
 
 /// Create an add slash middleware.
 #[inline]
-pub fn add_slash() -> TrailingSlash {
+#[must_use] pub fn add_slash() -> TrailingSlash {
     TrailingSlash::new(TrailingSlashAction::Add)
 }
 
 /// Create a remove slash middleware.
 #[inline]
-pub fn remove_slash() -> TrailingSlash {
+#[must_use] pub fn remove_slash() -> TrailingSlash {
     TrailingSlash::new(TrailingSlashAction::Remove)
 }
 

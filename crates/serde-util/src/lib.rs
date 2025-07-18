@@ -221,6 +221,7 @@ impl SerdeContainer {
 }
 
 /// Parse value.
+#[must_use]
 pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
@@ -254,6 +255,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
 }
 
 /// Parse container.
+#[must_use]
 pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()

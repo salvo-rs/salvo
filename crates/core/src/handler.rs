@@ -230,6 +230,7 @@ impl Handler for EmptyHandler {
 /// This is a empty implement for `Handler`.
 ///
 /// `EmptyHandler` does nothing except set [`Response`]'s status as [`StatusCode::OK`], it just marker a router exits.
+#[must_use]
 pub fn empty() -> EmptyHandler {
     EmptyHandler
 }
@@ -317,6 +318,7 @@ impl HoopedHandler {
 
     /// Get current catcher's middlewares reference.
     #[inline]
+    #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }

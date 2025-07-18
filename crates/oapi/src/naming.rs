@@ -56,9 +56,7 @@ pub fn set_name_type_info(
     type_id: TypeId,
     type_name: &'static str,
 ) -> Option<(TypeId, &'static str)> {
-    NAME_TYPES
-        .write()
-        .insert(name, (type_id, type_name))
+    NAME_TYPES.write().insert(name, (type_id, type_name))
 }
 
 /// Assign name to type and returns the name.

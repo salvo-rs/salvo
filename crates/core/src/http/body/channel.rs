@@ -34,6 +34,7 @@ impl BodySender {
     }
 
     /// Returns whether this channel is closed without needing a context.
+    #[must_use]
     pub fn is_closed(&self) -> bool {
         self.data_tx.is_closed()
     }

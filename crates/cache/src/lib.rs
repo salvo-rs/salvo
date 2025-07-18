@@ -18,8 +18,8 @@
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
-use std::fmt::{self, Formatter, Debug};
 
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
@@ -77,6 +77,7 @@ impl Default for RequestIssuer {
 }
 impl RequestIssuer {
     /// Create a new `RequestIssuer`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             use_scheme: true,
@@ -87,26 +88,31 @@ impl RequestIssuer {
         }
     }
     /// Whether to use the request's URI scheme when generating the key.
+    #[must_use]
     pub fn use_scheme(mut self, value: bool) -> Self {
         self.use_scheme = value;
         self
     }
     /// Whether to use the request's URI authority when generating the key.
+    #[must_use]
     pub fn use_authority(mut self, value: bool) -> Self {
         self.use_authority = value;
         self
     }
     /// Whether to use the request's URI path when generating the key.
+    #[must_use]
     pub fn use_path(mut self, value: bool) -> Self {
         self.use_path = value;
         self
     }
     /// Whether to use the request's URI query when generating the key.
+    #[must_use]
     pub fn use_query(mut self, value: bool) -> Self {
         self.use_query = value;
         self
     }
     /// Whether to use the request method when generating the key.
+    #[must_use]
     pub fn use_method(mut self, value: bool) -> Self {
         self.use_method = value;
         self
@@ -283,7 +289,7 @@ impl<S, I> Cache<S, I> {
     #[inline]
     pub fn new(store: S, issuer: I) -> Self {
         let skipper = MethodSkipper::new().skip_all().skip_get(false);
-        Cache {
+        Self {
             store,
             issuer,
             skipper: Box::new(skipper),
@@ -319,25 +325,24 @@ where
                 return;
             }
         };
-        let cache = match self.store.load_entry(&key).await {
-            Some(cache) => cache,
-            None => {
-                ctrl.call_next(req, depot, res).await;
-                if !res.body.is_stream() && !res.body.is_error() {
-                    let headers = res.headers().clone();
-                    let body = TryInto::<CachedBody>::try_into(&res.body);
-                    match body {
-                        Ok(body) => {
-                            let cached_data = CachedEntry::new(res.status_code, headers, body);
-                            if let Err(e) = self.store.save_entry(key, cached_data).await {
-                                tracing::error!(error = ?e, "cache failed");
-                            }
+        let cache = if let Some(cache) = self.store.load_entry(&key).await {
+            cache
+        } else {
+            ctrl.call_next(req, depot, res).await;
+            if !res.body.is_stream() && !res.body.is_error() {
+                let headers = res.headers().clone();
+                let body = TryInto::<CachedBody>::try_into(&res.body);
+                match body {
+                    Ok(body) => {
+                        let cached_data = CachedEntry::new(res.status_code, headers, body);
+                        if let Err(e) = self.store.save_entry(key, cached_data).await {
+                            tracing::error!(error = ?e, "cache failed");
                         }
-                        Err(e) => tracing::error!(error = ?e, "cache failed"),
                     }
+                    Err(e) => tracing::error!(error = ?e, "cache failed"),
                 }
-                return;
             }
+            return;
         };
         let CachedEntry {
             status,

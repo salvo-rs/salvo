@@ -37,8 +37,9 @@ impl Debug for FlowCtrl {
 impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
+    #[must_use]
     pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
-        FlowCtrl {
+        Self {
             catching: None,
             is_ceased: false,
             cursor: 0,
@@ -47,6 +48,7 @@ impl FlowCtrl {
     }
     /// Has next handler.
     #[inline]
+    #[must_use]
     pub fn has_next(&self) -> bool {
         self.cursor < self.handlers.len() // && !self.handlers.is_empty()
     }
@@ -97,6 +99,7 @@ impl FlowCtrl {
     /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow ceased.
     /// If `is_ceased` returns `true`, the handler should skip the following logic.
     #[inline]
+    #[must_use]
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }

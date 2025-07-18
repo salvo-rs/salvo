@@ -126,14 +126,14 @@ impl Default for WebSocketUpgrade {
 impl WebSocketUpgrade {
     /// Create new `WebSocketUpgrade`.
     #[inline]
-    pub fn new() -> Self {
-        WebSocketUpgrade { config: None }
+    #[must_use] pub fn new() -> Self {
+        Self { config: None }
     }
 
     /// Create new `WebSocketUpgrade` with config.
     #[inline]
-    pub fn with_config(config: WebSocketConfig) -> Self {
-        WebSocketUpgrade {
+    #[must_use] pub fn with_config(config: WebSocketConfig) -> Self {
+        Self {
             config: Some(config),
         }
     }
@@ -298,7 +298,7 @@ impl WebSocket {
         config: Option<protocol::WebSocketConfig>,
     ) -> Self {
         WebSocketStream::from_raw_socket(TokioIo::new(upgraded), role, config)
-            .map(|inner| WebSocket { inner })
+            .map(|inner| Self { inner })
             .await
     }
 
@@ -391,48 +391,48 @@ pub struct Message {
 impl Message {
     /// Construct a new Text `Message`.
     #[inline]
-    pub fn text<S: Into<Utf8Bytes>>(s: S) -> Message {
-        Message {
+    pub fn text<S: Into<Utf8Bytes>>(s: S) -> Self {
+        Self {
             inner: protocol::Message::text(s),
         }
     }
 
     /// Construct a new Binary `Message`.
     #[inline]
-    pub fn binary<V: Into<Bytes>>(v: V) -> Message {
-        Message {
+    pub fn binary<V: Into<Bytes>>(v: V) -> Self {
+        Self {
             inner: protocol::Message::binary(v),
         }
     }
 
     /// Construct a new Ping `Message`.
     #[inline]
-    pub fn ping<V: Into<Bytes>>(v: V) -> Message {
-        Message {
+    pub fn ping<V: Into<Bytes>>(v: V) -> Self {
+        Self {
             inner: protocol::Message::Ping(v.into()),
         }
     }
 
     /// Construct a new Pong `Message`.
     #[inline]
-    pub fn pong<V: Into<Bytes>>(v: V) -> Message {
-        Message {
+    pub fn pong<V: Into<Bytes>>(v: V) -> Self {
+        Self {
             inner: protocol::Message::Pong(v.into()),
         }
     }
 
     /// Construct the default Close `Message`.
     #[inline]
-    pub fn close() -> Message {
-        Message {
+    pub fn close() -> Self {
+        Self {
             inner: protocol::Message::Close(None),
         }
     }
 
     /// Construct a Close `Message` with a code and reason.
     #[inline]
-    pub fn close_with(code: impl Into<u16>, reason: impl Into<Utf8Bytes>) -> Message {
-        Message {
+    pub fn close_with(code: impl Into<u16>, reason: impl Into<Utf8Bytes>) -> Self {
+        Self {
             inner: protocol::Message::Close(Some(CloseFrame {
                 code: CloseCode::from(code.into()),
                 reason: reason.into(),

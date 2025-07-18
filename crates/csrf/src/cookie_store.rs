@@ -29,7 +29,7 @@ impl Default for CookieStore {
 
 impl CookieStore {
     /// Create a new `CookieStore`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             ttl: Duration::days(1),
             name: "salvo.csrf".into(),
@@ -44,7 +44,7 @@ impl CookieStore {
     }
 
     /// Sets cookie ttl.
-    pub fn ttl(mut self, ttl: Duration) -> Self {
+    #[must_use] pub fn ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self
     }

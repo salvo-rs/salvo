@@ -36,7 +36,7 @@ impl ToTokens for MultipleOf {
 }
 impl From<MultipleOf> for Feature {
     fn from(value: MultipleOf) -> Self {
-        Feature::MultipleOf(value)
+        Self::MultipleOf(value)
     }
 }
 impl_get_name!(MultipleOf = "multiple_of");
@@ -71,7 +71,7 @@ impl ToTokens for Maximum {
 }
 impl From<Maximum> for Feature {
     fn from(value: Maximum) -> Self {
-        Feature::Maximum(value)
+        Self::Maximum(value)
     }
 }
 impl_get_name!(Maximum = "maximum");
@@ -111,7 +111,7 @@ impl ToTokens for Minimum {
 }
 impl From<Minimum> for Feature {
     fn from(value: Minimum) -> Self {
-        Feature::Minimum(value)
+        Self::Minimum(value)
     }
 }
 impl_get_name!(Minimum = "minimum");
@@ -143,7 +143,7 @@ impl ToTokens for ExclusiveMaximum {
 }
 impl From<ExclusiveMaximum> for Feature {
     fn from(value: ExclusiveMaximum) -> Self {
-        Feature::ExclusiveMaximum(value)
+        Self::ExclusiveMaximum(value)
     }
 }
 impl_get_name!(ExclusiveMaximum = "exclusive_maximum");
@@ -175,7 +175,7 @@ impl ToTokens for ExclusiveMinimum {
 }
 impl From<ExclusiveMinimum> for Feature {
     fn from(value: ExclusiveMinimum) -> Self {
-        Feature::ExclusiveMinimum(value)
+        Self::ExclusiveMinimum(value)
     }
 }
 impl_get_name!(ExclusiveMinimum = "exclusive_minimum");
@@ -213,7 +213,7 @@ impl ToTokens for MaxLength {
 }
 impl From<MaxLength> for Feature {
     fn from(value: MaxLength) -> Self {
-        Feature::MaxLength(value)
+        Self::MaxLength(value)
     }
 }
 impl_get_name!(MaxLength = "max_length");
@@ -251,7 +251,7 @@ impl ToTokens for MinLength {
 }
 impl From<MinLength> for Feature {
     fn from(value: MinLength) -> Self {
-        Feature::MinLength(value)
+        Self::MinLength(value)
     }
 }
 impl_get_name!(MinLength = "min_length");
@@ -287,7 +287,7 @@ impl ToTokens for Pattern {
 }
 impl From<Pattern> for Feature {
     fn from(value: Pattern) -> Self {
-        Feature::Pattern(value)
+        Self::Pattern(value)
     }
 }
 impl_get_name!(Pattern = "pattern");
@@ -322,7 +322,7 @@ impl ToTokens for MaxItems {
 }
 impl From<MaxItems> for Feature {
     fn from(value: MaxItems) -> Self {
-        Feature::MaxItems(value)
+        Self::MaxItems(value)
     }
 }
 impl_get_name!(MaxItems = "max_items");
@@ -357,7 +357,7 @@ impl ToTokens for MinItems {
 }
 impl From<MinItems> for Feature {
     fn from(value: MinItems) -> Self {
-        Feature::MinItems(value)
+        Self::MinItems(value)
     }
 }
 impl_get_name!(MinItems = "min_items");
@@ -380,7 +380,7 @@ impl ToTokens for MaxProperties {
 }
 impl From<MaxProperties> for Feature {
     fn from(value: MaxProperties) -> Self {
-        Feature::MaxProperties(value)
+        Self::MaxProperties(value)
     }
 }
 impl_get_name!(MaxProperties = "max_properties");
@@ -403,7 +403,7 @@ impl ToTokens for MinProperties {
 }
 impl From<MinProperties> for Feature {
     fn from(value: MinProperties) -> Self {
-        Feature::MinProperties(value)
+        Self::MinProperties(value)
     }
 }
 impl_get_name!(MinProperties = "min_properties");

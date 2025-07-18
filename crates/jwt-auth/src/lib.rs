@@ -116,7 +116,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::fmt::{self, Formatter, Debug};
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
@@ -324,7 +324,7 @@ where
     /// Create new `JwtAuth`.
     #[inline]
     pub fn new(decoder: D) -> Self {
-        JwtAuth {
+        Self {
             force_passed: false,
             decoder,
             _claims: PhantomData::<C>,

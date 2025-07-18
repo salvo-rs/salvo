@@ -381,8 +381,8 @@ pub use path_state::PathState;
 mod flow_ctrl;
 pub use flow_ctrl::FlowCtrl;
 
-use std::sync::Arc;
 use std::fmt::{self, Debug, Formatter};
+use std::sync::Arc;
 
 use crate::Handler;
 

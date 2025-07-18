@@ -255,7 +255,7 @@ impl From<bool> for Required {
 impl From<attributes::Required> for Required {
     fn from(value: attributes::Required) -> Self {
         let attributes::Required(required) = value;
-        crate::Required::from(required)
+        Self::from(required)
     }
 }
 
@@ -280,7 +280,7 @@ impl Parse for ExternalDocs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str = "unexpected attribute, expected any of: url, description";
 
-        let mut external_docs = ExternalDocs::default();
+        let mut external_docs = Self::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -346,7 +346,7 @@ impl AnyValue {
             let punct = input.parse::<Option<Token![-]>>()?;
             let lit = input.parse::<Lit>().expect("parse_any: parse `Lit` failed");
 
-            Ok(AnyValue::Json(quote! { #punct #lit}))
+            Ok(Self::Json(quote! { #punct #lit}))
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
@@ -359,7 +359,7 @@ impl AnyValue {
             if is_json {
                 let json = parse_utils::parse_json_token_stream(input)?;
 
-                Ok(AnyValue::Json(json))
+                Ok(Self::Json(json))
             } else {
                 let method = input.parse::<ExprPath>().map_err(|error| {
                     syn::Error::new(
@@ -368,21 +368,21 @@ impl AnyValue {
                     )
                 })?;
 
-                Ok(AnyValue::Json(quote! { #method() }))
+                Ok(Self::Json(quote! { #method() }))
             }
         }
     }
 
     pub(crate) fn parse_lit_str_or_json(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok(AnyValue::String(
+            Ok(Self::String(
                 input
                     .parse::<LitStr>()
                     .expect("parse_lit_str_or_json: parse `LitStr` failed")
                     .to_token_stream(),
             ))
         } else {
-            Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
+            Ok(Self::Json(parse_utils::parse_json_token_stream(input)?))
         }
     }
 

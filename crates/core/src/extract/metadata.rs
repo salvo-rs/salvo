@@ -86,6 +86,7 @@ pub struct Metadata {
 
 impl Metadata {
     /// Create a new metadata object.
+    #[must_use]
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -97,24 +98,28 @@ impl Metadata {
     }
 
     /// Sets the default sources list to a new value.
+    #[must_use]
     pub fn default_sources(mut self, default_sources: Vec<Source>) -> Self {
         self.default_sources = default_sources;
         self
     }
 
     /// set all fields list to a new value.
+    #[must_use]
     pub fn fields(mut self, fields: Vec<Field>) -> Self {
         self.fields = fields;
         self
     }
 
     /// Add a default source to default sources list.
+    #[must_use]
     pub fn add_default_source(mut self, source: Source) -> Self {
         self.default_sources.push(source);
         self
     }
 
     /// Add a field to the fields list.
+    #[must_use]
     pub fn add_field(mut self, field: Field) -> Self {
         self.fields.push(field);
         self
@@ -166,11 +171,13 @@ pub struct Field {
 }
 impl Field {
     /// Create a new field with the given name and kind.
+    #[must_use]
     pub fn new(decl_name: &'static str) -> Self {
         Self::with_sources(decl_name, vec![])
     }
 
     /// Create a new field with the given name and kind, and the given sources.
+    #[must_use]
     pub fn with_sources(decl_name: &'static str, sources: Vec<Source>) -> Self {
         Self {
             decl_name,
@@ -184,42 +191,49 @@ impl Field {
     }
 
     /// Sets the flatten to the given value.
+    #[must_use]
     pub fn flatten(mut self, flatten: bool) -> Self {
         self.flatten = flatten;
         self
     }
 
     /// Sets the metadata to the field type.
+    #[must_use]
     pub fn metadata(mut self, metadata: &'static Metadata) -> Self {
         self.metadata = Some(metadata);
         self
     }
 
     /// Add a source to sources list.
+    #[must_use]
     pub fn add_source(mut self, source: Source) -> Self {
         self.sources.push(source);
         self
     }
 
     /// Sets the aliases list to a new value.
+    #[must_use]
     pub fn aliases(mut self, aliases: Vec<&'static str>) -> Self {
         self.aliases = aliases;
         self
     }
 
     /// Add a alias to aliases list.
+    #[must_use]
     pub fn add_alias(mut self, alias: &'static str) -> Self {
         self.aliases.push(alias);
         self
     }
 
     /// Sets the rename to the given value.
+    #[must_use]
     pub fn rename(mut self, rename: &'static str) -> Self {
         self.rename = Some(rename);
         self
     }
 
     /// Sets the rename to the given value.
+    #[must_use]
     pub fn serde_rename(mut self, serde_rename: &'static str) -> Self {
         self.serde_rename = Some(serde_rename);
         self
@@ -242,6 +256,7 @@ pub struct Source {
 }
 impl Source {
     /// Create a new source from a string.
+    #[must_use]
     pub fn new(from: SourceFrom, parser: SourceParser) -> Self {
         Self { from, parser }
     }

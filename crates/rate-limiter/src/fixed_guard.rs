@@ -19,7 +19,7 @@ impl Default for FixedGuard {
 
 impl FixedGuard {
     /// Create a new `FixedGuard`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             reset: OffsetDateTime::now_utc(),
             count: 0,

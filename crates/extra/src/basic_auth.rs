@@ -89,7 +89,7 @@ where
     /// Create new `BasicAuthValidator`.
     #[inline]
     pub fn new(validator: V) -> Self {
-        BasicAuth {
+        Self {
             realm: "realm".to_owned(),
             header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
             validator,

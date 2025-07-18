@@ -40,7 +40,8 @@ pub struct Components {
 
 impl Components {
     /// Construct a new empty [`Components`]. This is effectively same as calling [`Components::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 
@@ -175,7 +176,8 @@ impl Components {
     }
 
     /// Returns `true` if instance contains no elements.
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.schemas.is_empty() && self.responses.is_empty() && self.security_schemes.is_empty()
     }
 }

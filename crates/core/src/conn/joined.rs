@@ -26,8 +26,7 @@ pub enum JoinedStream<A, B> {
 
 impl<A, B> Debug for JoinedStream<A, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("JoinedStream")
-            .finish()
+        f.debug_struct("JoinedStream").finish()
     }
 }
 
@@ -43,8 +42,8 @@ where
         buf: &mut ReadBuf<'_>,
     ) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
-            JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
-            JoinedStream::B(b) => Pin::new(b).poll_read(cx, buf),
+            Self::A(a) => Pin::new(a).poll_read(cx, buf),
+            Self::B(b) => Pin::new(b).poll_read(cx, buf),
         }
     }
 }
@@ -57,24 +56,24 @@ where
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         match &mut self.get_mut() {
-            JoinedStream::A(a) => Pin::new(a).poll_write(cx, buf),
-            JoinedStream::B(b) => Pin::new(b).poll_write(cx, buf),
+            Self::A(a) => Pin::new(a).poll_write(cx, buf),
+            Self::B(b) => Pin::new(b).poll_write(cx, buf),
         }
     }
 
     #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
-            JoinedStream::A(a) => Pin::new(a).poll_flush(cx),
-            JoinedStream::B(b) => Pin::new(b).poll_flush(cx),
+            Self::A(a) => Pin::new(a).poll_flush(cx),
+            Self::B(b) => Pin::new(b).poll_flush(cx),
         }
     }
 
     #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
-            JoinedStream::A(a) => Pin::new(a).poll_shutdown(cx),
-            JoinedStream::B(b) => Pin::new(b).poll_shutdown(cx),
+            Self::A(a) => Pin::new(a).poll_shutdown(cx),
+            Self::B(b) => Pin::new(b).poll_shutdown(cx),
         }
     }
 }
@@ -101,7 +100,7 @@ impl<A, B> JoinedListener<A, B> {
     /// Create a new `JoinedListener`.
     #[inline]
     pub fn new(a: A, b: B) -> Self {
-        JoinedListener { a, b }
+        Self { a, b }
     }
 }
 impl<A, B> Listener for JoinedListener<A, B>
@@ -146,7 +145,7 @@ impl<A: Debug, B: Debug> Debug for JoinedAcceptor<A, B> {
 impl<A, B> JoinedAcceptor<A, B> {
     /// Create a new `JoinedAcceptor`.
     pub fn new(a: A, b: B, holdings: Vec<Holding>) -> Self {
-        JoinedAcceptor { a, b, holdings }
+        Self { a, b, holdings }
     }
 }
 
@@ -162,8 +161,8 @@ where
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.serve(handler, builder, graceful_stop_token).await,
-            JoinedStream::B(b) => b.serve(handler, builder, graceful_stop_token).await,
+            Self::A(a) => a.serve(handler, builder, graceful_stop_token).await,
+            Self::B(b) => b.serve(handler, builder, graceful_stop_token).await,
         }
     }
     fn fusewire(&self) -> Option<ArcFusewire> {

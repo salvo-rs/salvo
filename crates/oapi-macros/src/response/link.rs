@@ -20,7 +20,7 @@ impl Parse for LinkTuple {
         inner.parse::<Token![=]>()?;
         let value = inner.parse::<Link>()?;
 
-        Ok(LinkTuple(name, value))
+        Ok(Self(name, value))
     }
 }
 
@@ -47,7 +47,7 @@ impl Parse for Link {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let inner;
         syn::parenthesized!(inner in input);
-        let mut link = Link::default();
+        let mut link = Self::default();
 
         while !inner.is_empty() {
             let ident = inner.parse::<Ident>()?;
@@ -159,6 +159,6 @@ impl Parse for LinkParameter {
 
         let value = inner.parse::<parse_utils::LitStrOrExpr>()?;
 
-        Ok(LinkParameter { name, value })
+        Ok(Self { name, value })
     }
 }

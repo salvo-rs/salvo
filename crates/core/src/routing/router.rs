@@ -48,17 +48,19 @@ impl Router {
 
     /// Get current router's children reference.
     #[inline]
-    pub fn routers(&self) -> &Vec<Router> {
+    #[must_use]
+    pub fn routers(&self) -> &Vec<Self> {
         &self.routers
     }
     /// Get current router's children mutable reference.
     #[inline]
-    pub fn routers_mut(&mut self) -> &mut Vec<Router> {
+    pub fn routers_mut(&mut self) -> &mut Vec<Self> {
         &mut self.routers
     }
 
     /// Get current router's middlewares reference.
     #[inline]
+    #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
@@ -70,6 +72,7 @@ impl Router {
 
     /// Get current router's filters reference.
     #[inline]
+    #[must_use]
     pub fn filters(&self) -> &Vec<Box<dyn Filter>> {
         &self.filters
     }
@@ -126,26 +129,29 @@ impl Router {
 
     /// Insert a router at the beginning of current router, shifting all routers after it to the right.
     #[inline]
-    pub fn unshift(mut self, router: Router) -> Self {
+    #[must_use]
+    pub fn unshift(mut self, router: Self) -> Self {
         self.routers.insert(0, router);
         self
     }
     /// Insert a router at position `index` within current router, shifting all routers after it to the right.
     #[inline]
-    pub fn insert(mut self, index: usize, router: Router) -> Self {
+    #[must_use]
+    pub fn insert(mut self, index: usize, router: Self) -> Self {
         self.routers.insert(index, router);
         self
     }
 
     /// Push a router as child of current router.
     #[inline]
-    pub fn push(mut self, router: Router) -> Self {
+    #[must_use]
+    pub fn push(mut self, router: Self) -> Self {
         self.routers.push(router);
         self
     }
     /// Append all routers in a Vec as children of current router.
     #[inline]
-    pub fn append(mut self, others: &mut Vec<Router>) -> Self {
+    pub fn append(mut self, others: &mut Vec<Self>) -> Self {
         self.routers.append(others);
         self
     }
@@ -154,7 +160,7 @@ impl Router {
     /// handle the request.
     #[inline]
     pub fn with_hoop<H: Handler>(hoop: H) -> Self {
-        Router::new().hoop(hoop)
+        Self::new().hoop(hoop)
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
@@ -165,7 +171,7 @@ impl Router {
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Router::new().hoop_when(hoop, filter)
+        Self::new().hoop_when(hoop, filter)
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
@@ -198,7 +204,7 @@ impl Router {
     /// Panics if path value is not in correct format.
     #[inline]
     pub fn with_path(path: impl Into<String>) -> Self {
-        Router::with_filter(PathFilter::new(path))
+        Self::with_filter(PathFilter::new(path))
     }
 
     /// Create a new path filter for current router.
@@ -214,7 +220,7 @@ impl Router {
     /// Create a new router and set filter.
     #[inline]
     pub fn with_filter(filter: impl Filter + Sized) -> Self {
-        Router::new().filter(filter)
+        Self::new().filter(filter)
     }
     /// Add a filter for current router.
     #[inline]
@@ -229,7 +235,7 @@ impl Router {
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
-        Router::with_filter(FnFilter(func))
+        Self::with_filter(FnFilter(func))
     }
     /// Create a new FnFilter from Fn.
     #[inline]
@@ -261,6 +267,7 @@ impl Router {
     ///
     /// [`SchemeFilter`]: super::filters::HostFilter
     #[inline]
+    #[must_use]
     pub fn scheme(self, scheme: Scheme) -> Self {
         self.filter(filters::scheme(scheme))
     }
@@ -278,13 +285,14 @@ impl Router {
     /// [`HostFilter`]: super::filters::HostFilter
     #[inline]
     pub fn with_host(host: impl Into<String>) -> Self {
-        Router::with_filter(filters::host(host))
+        Self::with_filter(filters::host(host))
     }
 
     /// Add a [`PortFilter`] to current router.
     ///
     /// [`PortFilter`]: super::filters::PortFilter
     #[inline]
+    #[must_use]
     pub fn port(self, port: u16) -> Self {
         self.filter(filters::port(port))
     }
@@ -293,8 +301,9 @@ impl Router {
     ///
     /// [`PortFilter`]: super::filters::PortFilter
     #[inline]
+    #[must_use]
     pub fn with_port(port: u16) -> Self {
-        Router::with_filter(filters::port(port))
+        Self::with_filter(filters::port(port))
     }
 
     /// reates a new child router with [`MethodFilter`] to filter GET method and set this child router's handler.
@@ -302,7 +311,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn get<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::get()).goal(goal))
+        self.push(Self::with_filter(filters::get()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
@@ -310,7 +319,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn post<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::post()).goal(goal))
+        self.push(Self::with_filter(filters::post()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
@@ -318,7 +327,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn put<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::put()).goal(goal))
+        self.push(Self::with_filter(filters::put()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
@@ -326,7 +335,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn delete<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::delete()).goal(goal))
+        self.push(Self::with_filter(filters::delete()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
@@ -334,7 +343,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn patch<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::patch()).goal(goal))
+        self.push(Self::with_filter(filters::patch()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
@@ -342,7 +351,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn head<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::head()).goal(goal))
+        self.push(Self::with_filter(filters::head()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
@@ -350,7 +359,7 @@ impl Router {
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn options<H: Handler>(self, goal: H) -> Self {
-        self.push(Router::with_filter(filters::options()).goal(goal))
+        self.push(Self::with_filter(filters::options()).goal(goal))
     }
 }
 

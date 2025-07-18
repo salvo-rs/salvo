@@ -53,7 +53,8 @@ impl Content {
     }
 
     /// Add example of schema.
-    #[must_use] pub fn example(mut self, example: Value) -> Self {
+    #[must_use]
+    pub fn example(mut self, example: Value) -> Self {
         self.example = Some(example);
         self
     }

@@ -27,7 +27,7 @@ impl Default for CookieStore {
 
 impl CookieStore {
     /// Create a new `CookieStore`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             max_age: Duration::seconds(60),
             same_site: SameSite::Lax,
@@ -44,19 +44,19 @@ impl CookieStore {
     }
 
     /// Sets cookie max_age.
-    pub fn max_age(mut self, max_age: Duration) -> Self {
+    #[must_use] pub fn max_age(mut self, max_age: Duration) -> Self {
         self.max_age = max_age;
         self
     }
 
     /// Sets cookie same site.
-    pub fn same_site(mut self, same_site: SameSite) -> Self {
+    #[must_use] pub fn same_site(mut self, same_site: SameSite) -> Self {
         self.same_site = same_site;
         self
     }
 
     /// Sets cookie http only.
-    pub fn http_only(mut self, http_only: bool) -> Self {
+    #[must_use] pub fn http_only(mut self, http_only: bool) -> Self {
         self.http_only = http_only;
         self
     }
@@ -68,7 +68,7 @@ impl CookieStore {
     }
 
     /// Into `FlashHandler`.
-    pub fn into_handler(self) -> FlashHandler<CookieStore> {
+    #[must_use] pub fn into_handler(self) -> FlashHandler<Self> {
         FlashHandler::new(self)
     }
 }

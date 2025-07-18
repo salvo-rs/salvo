@@ -1,5 +1,4 @@
-
-use std::fmt::{self, Formatter, Debug};
+use std::fmt::{self, Debug, Formatter};
 
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
 use opentelemetry::{Context, KeyValue, global};
@@ -19,7 +18,10 @@ impl<T> Tracing<T> {
         Self { tracer }
     }
 }
-impl<T> Debug for Tracing<T> where T: Debug {
+impl<T> Debug for Tracing<T>
+where
+    T: Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tracing")
             .field("tracer", &self.tracer)
@@ -81,7 +83,7 @@ where
             .with_attributes(attributes)
             .start_with_context(&self.tracer, &parent_cx);
 
-        span.add_event("request.started".to_string(), vec![]);
+        span.add_event("request.started".to_owned(), vec![]);
 
         async move {
             ctrl.call_next(req, depot, res).await;
@@ -97,7 +99,7 @@ where
             } else {
                 "request.success"
             };
-            span.add_event(event.to_string(), vec![]);
+            span.add_event(event.to_owned(), vec![]);
             span.set_attribute(KeyValue::new(
                 trace::HTTP_RESPONSE_STATUS_CODE,
                 status.as_u16() as i64,

@@ -28,7 +28,7 @@ impl StaticFile {
     /// Create a new `StaticFile` handler.
     #[inline]
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        StaticFile(NamedFile::builder(path))
+        Self(NamedFile::builder(path))
     }
 
     /// Set the chunk size for file reading.
@@ -40,6 +40,7 @@ impl StaticFile {
     ///
     /// The default is 1MB.
     #[inline]
+    #[must_use]
     pub fn chunk_size(self, size: u64) -> Self {
         Self(self.0.buffer_size(size))
     }

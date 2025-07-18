@@ -63,7 +63,7 @@ impl Debug for RequestId {
 
 impl RequestId {
     /// Create new `CatchPanic` middleware.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             header_name: HeaderName::from_static("x-request-id"),
             overwrite: true,
@@ -116,7 +116,7 @@ where
 pub struct UlidGenerator{}
 impl UlidGenerator{
     /// Create new `UlidGenerator`.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {}
     }
 }

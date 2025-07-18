@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::{self, Display,Debug,  Formatter, Write};
+use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -65,10 +65,10 @@ impl From<CompressionAlgo> for HeaderValue {
     #[inline]
     fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            CompressionAlgo::Brotli => HeaderValue::from_static("br"),
-            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
-            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
-            CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
+            CompressionAlgo::Brotli => Self::from_static("br"),
+            CompressionAlgo::Deflate => Self::from_static("deflate"),
+            CompressionAlgo::Gzip => Self::from_static("gzip"),
+            CompressionAlgo::Zstd => Self::from_static("zstd"),
         }
     }
 }
@@ -195,6 +195,7 @@ impl StaticDir {
 
     /// Sets include_dot_files.
     #[inline]
+    #[must_use]
     pub fn include_dot_files(mut self, include_dot_files: bool) -> Self {
         self.include_dot_files = include_dot_files;
         self
@@ -214,6 +215,7 @@ impl StaticDir {
 
     /// Sets auto_list.
     #[inline]
+    #[must_use]
     pub fn auto_list(mut self, auto_list: bool) -> Self {
         self.auto_list = auto_list;
         self
@@ -227,7 +229,7 @@ impl StaticDir {
     {
         self.compressed_variations.insert(
             algo.into(),
-            exts.split(',').map(|s| s.trim().to_string()).collect(),
+            exts.split(',').map(|s| s.trim().to_owned()).collect(),
         );
         self
     }
@@ -252,6 +254,7 @@ impl StaticDir {
     ///
     /// The default is 1M.
     #[inline]
+    #[must_use]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
@@ -275,8 +278,8 @@ struct CurrentInfo {
 }
 impl CurrentInfo {
     #[inline]
-    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> CurrentInfo {
-        CurrentInfo { path, files, dirs }
+    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> Self {
+        Self { path, files, dirs }
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -287,8 +290,8 @@ struct FileInfo {
 }
 impl FileInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> FileInfo {
-        FileInfo {
+    fn new(name: String, metadata: Metadata) -> Self {
+        Self {
             name,
             size: metadata.len(),
             modified: metadata
@@ -305,8 +308,8 @@ struct DirInfo {
 }
 impl DirInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> DirInfo {
-        DirInfo {
+    fn new(name: String, metadata: Metadata) -> Self {
+        Self {
             name,
             modified: metadata
                 .modified()
@@ -395,12 +398,11 @@ impl Handler for StaticDir {
             }
         }
 
-        let abs_path = match abs_path {
-            Some(path) => path,
-            None => {
-                res.render(StatusError::not_found());
-                return;
-            }
+        let abs_path = if let Some(path) = abs_path {
+            path
+        } else {
+            res.render(StatusError::not_found());
+            return;
         };
 
         if abs_path.is_file() {
@@ -567,7 +569,7 @@ fn list_html(current: &CurrentInfo) -> String {
             .trim_start_matches('/')
             .trim_end_matches('/')
             .split('/');
-        let mut link = "".to_string();
+        let mut link = "".to_owned();
         format!(
             r#"<a href="/">{}</a>{}"#,
             HOME_ICON,

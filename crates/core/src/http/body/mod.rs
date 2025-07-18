@@ -93,7 +93,7 @@ impl From<Vec<u8>> for BytesFrame {
 
 impl<T> From<Box<T>> for BytesFrame
 where
-    T: Into<BytesFrame>,
+    T: Into<Self>,
 {
     fn from(value: Box<T>) -> Self {
         (*value).into()

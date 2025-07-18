@@ -204,13 +204,12 @@ where
         if self.skipper.skipped(req, depot) {
             return;
         }
-        let key = match self.issuer.issue(req, depot).await {
-            Some(key) => key,
-            None => {
-                res.render(StatusError::bad_request().brief("Invalid identifier."));
-                ctrl.skip_rest();
-                return;
-            }
+        let key = if let Some(key) = self.issuer.issue(req, depot).await {
+            key
+        } else {
+            res.render(StatusError::bad_request().brief("Invalid identifier."));
+            ctrl.skip_rest();
+            return;
         };
         let quota = match self.quota_getter.get(&key).await {
             Ok(quota) => quota,

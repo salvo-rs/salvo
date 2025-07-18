@@ -1,5 +1,4 @@
-
-use std::fmt::{self, Formatter, Display, Debug};
+use std::fmt::{self, Debug, Display, Formatter};
 
 use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
@@ -36,9 +35,9 @@ impl Default for LitStrOrExpr {
 impl Parse for LitStrOrExpr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok::<LitStrOrExpr, syn::Error>(LitStrOrExpr::LitStr(input.parse::<LitStr>()?))
+            Ok::<Self, syn::Error>(Self::LitStr(input.parse::<LitStr>()?))
         } else {
-            Ok(LitStrOrExpr::Expr(input.parse::<Expr>()?))
+            Ok(Self::Expr(input.parse::<Expr>()?))
         }
     }
 }

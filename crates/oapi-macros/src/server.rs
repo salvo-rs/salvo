@@ -23,7 +23,7 @@ impl Parse for Server {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let server_stream;
         parenthesized!(server_stream in input);
-        let mut server = Server::default();
+        let mut server = Self::default();
         while !server_stream.is_empty() {
             let ident = server_stream.parse::<Ident>()?;
             let attribute_name = &*ident.to_string();
@@ -123,9 +123,9 @@ impl Parse for ServerVariable {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let variable_stream;
         parenthesized!(variable_stream in input);
-        let mut server_variable = ServerVariable {
+        let mut server_variable = Self {
             name: variable_stream.parse::<LitStr>()?.value(),
-            ..ServerVariable::default()
+            ..Self::default()
         };
 
         variable_stream.parse::<Token![=]>()?;

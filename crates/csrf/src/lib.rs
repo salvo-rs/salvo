@@ -33,7 +33,7 @@ cfg_feature! {
     pub use cookie_store::CookieStore;
 
     /// Helper function to create a `CookieStore`.
-    pub fn cookie_store<>() -> CookieStore {
+    #[must_use] pub fn cookie_store<>() -> CookieStore {
         CookieStore::new()
     }
 }

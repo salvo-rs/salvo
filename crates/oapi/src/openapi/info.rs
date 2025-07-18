@@ -107,13 +107,15 @@ impl Info {
     }
 
     /// Add contact information of the API.
-    #[must_use] pub fn contact(mut self, contact: Contact) -> Self {
+    #[must_use]
+    pub fn contact(mut self, contact: Contact) -> Self {
         self.contact = Some(contact);
         self
     }
 
     /// Add license of the API.
-    #[must_use] pub fn license(mut self, license: License) -> Self {
+    #[must_use]
+    pub fn license(mut self, license: License) -> Self {
         self.license = Some(license);
         self
     }
@@ -143,7 +145,8 @@ pub struct Contact {
 
 impl Contact {
     /// Construct a new empty [`Contact`]. This is effectively same as calling [`Contact::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
     /// Add name contact person or organization of the API.

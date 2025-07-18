@@ -214,7 +214,7 @@ impl From<Vec<u8>> for ReqBody {
 
 impl<T> From<Box<T>> for ReqBody
 where
-    T: Into<ReqBody>,
+    T: Into<Self>,
 {
     fn from(value: Box<T>) -> Self {
         (*value).into()
@@ -297,13 +297,13 @@ cfg_feature! {
 impl Debug for ReqBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ReqBody::None => write!(f, "ReqBody::None"),
-            ReqBody::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),
-            ReqBody::Hyper { inner, .. } => f
+            Self::None => write!(f, "ReqBody::None"),
+            Self::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),
+            Self::Hyper { inner, .. } => f
                 .debug_struct("ReqBody::Hyper")
                 .field("inner", inner)
                 .finish(),
-            ReqBody::Boxed { .. } => write!(f, "ReqBody::Boxed{{..}}"),
+            Self::Boxed { .. } => write!(f, "ReqBody::Boxed{{..}}"),
         }
     }
 }

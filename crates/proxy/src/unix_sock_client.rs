@@ -27,7 +27,7 @@ where
 {
     /// Create a new `Proxy` that tunnels connections to a Unix socket.
     pub fn use_unix_sock_tunnel(upstreams: U) -> Self {
-        Proxy::new(upstreams, UnixSockClient)
+        Self::new(upstreams, UnixSockClient)
     }
 }
 
@@ -84,13 +84,13 @@ fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
         }
         let mut request_path = full_path[sock_path_end..].to_string();
         if request_path.is_empty() {
-            request_path = "/".to_string();
+            request_path = "/".to_owned();
         }
         if let Some(query) = uri.query() {
             request_path.push('?');
             request_path.push_str(query);
         }
-        Ok((sock_path_str.to_string(), request_path))
+        Ok((sock_path_str.to_owned(), request_path))
     } else {
         Err(Error::other(
             "Could not find a .sock file in the URI path to determine the unix socket path.",

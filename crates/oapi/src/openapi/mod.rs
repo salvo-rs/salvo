@@ -20,8 +20,8 @@ mod tag;
 mod xml;
 
 use std::collections::BTreeSet;
+use std::fmt::{self, Debug, Formatter};
 use std::sync::LazyLock;
-use std::fmt::{self, Formatter, Debug};
 
 use regex::Regex;
 use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};

@@ -109,32 +109,32 @@ impl Scribe for Text<&String> {
 impl<C: Debug> Debug for Text<C> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Text::Plain(content) => f.debug_tuple("Text::Plain").field(content).finish(),
-            Text::Json(content) => f.debug_tuple("Text::Json").field(content).finish(),
-            Text::Xml(content) => f.debug_tuple("Text::Xml").field(content).finish(),
-            Text::Html(content) => f.debug_tuple("Text::Html").field(content).finish(),
-            Text::Js(content) => f.debug_tuple("Text::Js").field(content).finish(),
-            Text::Css(content) => f.debug_tuple("Text::Css").field(content).finish(),
-            Text::Csv(content) => f.debug_tuple("Text::Csv").field(content).finish(),
-            Text::Atom(content) => f.debug_tuple("Text::Atom").field(content).finish(),
-            Text::Rss(content) => f.debug_tuple("Text::Rss").field(content).finish(),
-            Text::Rdf(content) => f.debug_tuple("Text::Rdf").field(content).finish(),
+            Self::Plain(content) => f.debug_tuple("Text::Plain").field(content).finish(),
+            Self::Json(content) => f.debug_tuple("Text::Json").field(content).finish(),
+            Self::Xml(content) => f.debug_tuple("Text::Xml").field(content).finish(),
+            Self::Html(content) => f.debug_tuple("Text::Html").field(content).finish(),
+            Self::Js(content) => f.debug_tuple("Text::Js").field(content).finish(),
+            Self::Css(content) => f.debug_tuple("Text::Css").field(content).finish(),
+            Self::Csv(content) => f.debug_tuple("Text::Csv").field(content).finish(),
+            Self::Atom(content) => f.debug_tuple("Text::Atom").field(content).finish(),
+            Self::Rss(content) => f.debug_tuple("Text::Rss").field(content).finish(),
+            Self::Rdf(content) => f.debug_tuple("Text::Rdf").field(content).finish(),
         }
     }
 }
 impl<C: Display> Display for Text<C> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Text::Plain(content) => Display::fmt(content, f),
-            Text::Json(content) => Display::fmt(content, f),
-            Text::Xml(content) => Display::fmt(content, f),
-            Text::Html(content) => Display::fmt(content, f),
-            Text::Js(content) => Display::fmt(content, f),
-            Text::Css(content) => Display::fmt(content, f),
-            Text::Csv(content) => Display::fmt(content, f),
-            Text::Atom(content) => Display::fmt(content, f),
-            Text::Rss(content) => Display::fmt(content, f),
-            Text::Rdf(content) => Display::fmt(content, f),
+            Self::Plain(content) => Display::fmt(content, f),
+            Self::Json(content) => Display::fmt(content, f),
+            Self::Xml(content) => Display::fmt(content, f),
+            Self::Html(content) => Display::fmt(content, f),
+            Self::Js(content) => Display::fmt(content, f),
+            Self::Css(content) => Display::fmt(content, f),
+            Self::Csv(content) => Display::fmt(content, f),
+            Self::Atom(content) => Display::fmt(content, f),
+            Self::Rss(content) => Display::fmt(content, f),
+            Self::Rdf(content) => Display::fmt(content, f),
         }
     }
 }

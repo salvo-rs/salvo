@@ -34,7 +34,7 @@ impl ToTokens for Example {
 
 impl From<Example> for Feature {
     fn from(value: Example) -> Self {
-        Feature::Example(value)
+        Self::Example(value)
     }
 }
 impl_get_name!(Example = "example");
@@ -69,7 +69,7 @@ impl ToTokens for Examples {
 
 impl From<Examples> for Feature {
     fn from(value: Examples) -> Self {
-        Feature::Examples(value)
+        Self::Examples(value)
     }
 }
 impl_get_name!(Examples = "examples");
@@ -100,7 +100,7 @@ impl ToTokens for Default {
 }
 impl From<self::Default> for Feature {
     fn from(value: self::Default) -> Self {
-        Feature::Default(value)
+        Self::Default(value)
     }
 }
 impl_get_name!(Default = "default");
@@ -114,12 +114,12 @@ impl Parse for Inline {
 }
 impl From<bool> for Inline {
     fn from(value: bool) -> Self {
-        Inline(value)
+        Self(value)
     }
 }
 impl From<Inline> for Feature {
     fn from(value: Inline) -> Self {
-        Feature::Inline(value)
+        Self::Inline(value)
     }
 }
 impl_get_name!(Inline = "inline");
@@ -132,7 +132,7 @@ impl XmlAttr {
     pub(crate) fn split_for_vec(
         &mut self,
         type_tree: &TypeTree,
-    ) -> DiagResult<(Option<XmlAttr>, Option<XmlAttr>)> {
+    ) -> DiagResult<(Option<Self>, Option<Self>)> {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
             let mut value_xml = mem::take(self);
             let vec_xml = schema::XmlAttr::with_wrapped(
@@ -140,7 +140,7 @@ impl XmlAttr {
                 mem::take(&mut value_xml.0.wrap_name),
             );
 
-            Ok((Some(XmlAttr(vec_xml)), Some(value_xml)))
+            Ok((Some(Self(vec_xml)), Some(value_xml)))
         } else {
             self.validate_xml(&self.0)?;
 
@@ -176,7 +176,7 @@ impl ToTokens for XmlAttr {
 }
 impl From<XmlAttr> for Feature {
     fn from(value: XmlAttr) -> Self {
-        Feature::XmlAttr(value)
+        Self::XmlAttr(value)
     }
 }
 impl_get_name!(XmlAttr = "xml");
@@ -196,7 +196,7 @@ impl TryToTokens for Format {
 }
 impl From<Format> for Feature {
     fn from(value: Format) -> Self {
-        Feature::Format(value)
+        Self::Format(value)
     }
 }
 impl_get_name!(Format = "format");
@@ -216,7 +216,7 @@ impl Parse for ValueType {
 }
 impl From<ValueType> for Feature {
     fn from(value: ValueType) -> Self {
-        Feature::ValueType(value)
+        Self::ValueType(value)
     }
 }
 impl_get_name!(ValueType = "value_type");
@@ -235,7 +235,7 @@ impl ToTokens for WriteOnly {
 }
 impl From<WriteOnly> for Feature {
     fn from(value: WriteOnly) -> Self {
-        Feature::WriteOnly(value)
+        Self::WriteOnly(value)
     }
 }
 impl_get_name!(WriteOnly = "write_only");
@@ -254,7 +254,7 @@ impl ToTokens for ReadOnly {
 }
 impl From<ReadOnly> for Feature {
     fn from(value: ReadOnly) -> Self {
-        Feature::ReadOnly(value)
+        Self::ReadOnly(value)
     }
 }
 impl_get_name!(ReadOnly = "read_only");
@@ -273,7 +273,7 @@ impl ToTokens for Name {
 }
 impl From<Name> for Feature {
     fn from(value: Name) -> Self {
-        Feature::Name(value)
+        Self::Name(value)
     }
 }
 impl_get_name!(Name = "name");
@@ -292,7 +292,7 @@ impl ToTokens for Title {
 }
 impl From<Title> for Feature {
     fn from(value: Title) -> Self {
-        Feature::Title(value)
+        Self::Title(value)
     }
 }
 impl_get_name!(Title = "title");
@@ -329,7 +329,7 @@ impl ToTokens for Nullable {
 }
 impl From<Nullable> for Feature {
     fn from(value: Nullable) -> Self {
-        Feature::Nullable(value)
+        Self::Nullable(value)
     }
 }
 impl_get_name!(Nullable = "nullable");
@@ -354,7 +354,7 @@ impl ToTokens for Rename {
 
 impl From<Rename> for Feature {
     fn from(value: Rename) -> Self {
-        Feature::Rename(value)
+        Self::Rename(value)
     }
 }
 impl_get_name!(Rename = "rename");
@@ -379,7 +379,7 @@ impl Parse for RenameAll {
 }
 impl From<RenameAll> for Feature {
     fn from(value: RenameAll) -> Self {
-        Feature::RenameAll(value)
+        Self::RenameAll(value)
     }
 }
 impl_get_name!(RenameAll = "rename_all");
@@ -403,7 +403,7 @@ impl ToTokens for DefaultStyle {
 }
 impl From<DefaultStyle> for Feature {
     fn from(value: DefaultStyle) -> Self {
-        Feature::DefaultStyle(value)
+        Self::DefaultStyle(value)
     }
 }
 impl_get_name!(DefaultStyle = "default_style");
@@ -427,7 +427,7 @@ impl ToTokens for Style {
 }
 impl From<Style> for Feature {
     fn from(value: Style) -> Self {
-        Feature::Style(value)
+        Self::Style(value)
     }
 }
 impl_get_name!(Style = "style");
@@ -446,7 +446,7 @@ impl ToTokens for AllowReserved {
 }
 impl From<AllowReserved> for Feature {
     fn from(value: AllowReserved) -> Self {
-        Feature::AllowReserved(value)
+        Self::AllowReserved(value)
     }
 }
 impl_get_name!(AllowReserved = "allow_reserved");
@@ -465,7 +465,7 @@ impl ToTokens for Explode {
 }
 impl From<Explode> for Feature {
     fn from(value: Explode) -> Self {
-        Feature::Explode(value)
+        Self::Explode(value)
     }
 }
 impl_get_name!(Explode = "explode");
@@ -484,7 +484,7 @@ impl ToTokens for DefaultParameterIn {
 }
 impl From<DefaultParameterIn> for Feature {
     fn from(value: DefaultParameterIn) -> Self {
-        Feature::DefaultParameterIn(value)
+        Self::DefaultParameterIn(value)
     }
 }
 impl_get_name!(DefaultParameterIn = "default_parameter_in");
@@ -503,7 +503,7 @@ impl ToTokens for ParameterIn {
 }
 impl From<ParameterIn> for Feature {
     fn from(value: ParameterIn) -> Self {
-        Feature::ParameterIn(value)
+        Self::ParameterIn(value)
     }
 }
 impl_get_name!(ParameterIn = "parameter_in");
@@ -528,7 +528,7 @@ impl Parse for ToParametersNames {
 }
 impl From<ToParametersNames> for Feature {
     fn from(value: ToParametersNames) -> Self {
-        Feature::ToParametersNames(value)
+        Self::ToParametersNames(value)
     }
 }
 impl_get_name!(ToParametersNames = "names");
@@ -550,7 +550,7 @@ impl ToTokens for SchemaWith {
 }
 impl From<SchemaWith> for Feature {
     fn from(value: SchemaWith) -> Self {
-        Feature::SchemaWith(value)
+        Self::SchemaWith(value)
     }
 }
 impl_get_name!(SchemaWith = "schema_with");
@@ -574,7 +574,7 @@ impl TryToTokens for Bound {
 }
 impl From<Bound> for Feature {
     fn from(value: Bound) -> Self {
-        Feature::Bound(value)
+        Self::Bound(value)
     }
 }
 impl_get_name!(Bound = "bound");
@@ -591,7 +591,7 @@ impl ToTokens for SkipBound {
 }
 impl From<SkipBound> for Feature {
     fn from(value: SkipBound) -> Self {
-        Feature::SkipBound(value)
+        Self::SkipBound(value)
     }
 }
 impl_get_name!(SkipBound = "skip_bound");
@@ -664,7 +664,7 @@ impl Parse for Skip {
 }
 impl From<bool> for Skip {
     fn from(value: bool) -> Self {
-        Skip(value)
+        Self(value)
     }
 }
 impl From<Skip> for Feature {
@@ -816,7 +816,7 @@ impl Parse for Aliases {
 
 impl From<Aliases> for Feature {
     fn from(value: Aliases) -> Self {
-        Feature::Aliases(value)
+        Self::Aliases(value)
     }
 }
 impl_get_name!(Aliases = "aliases");

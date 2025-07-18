@@ -28,7 +28,7 @@ impl Parse for XmlAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: name, namespace, prefix, attribute, wrapped";
-        let mut xml = XmlAttr::default();
+        let mut xml = Self::default();
 
         while !input.is_empty() {
             let attribute = input

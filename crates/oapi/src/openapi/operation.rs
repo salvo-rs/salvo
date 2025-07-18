@@ -37,12 +37,14 @@ impl IntoIterator for Operations {
 }
 impl Operations {
     /// Construct a new empty [`Operations`]. This is effectively same as calling [`Operations::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 
     /// Returns `true` if instance contains no elements.
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Add a new operation and returns `self`.
@@ -171,7 +173,8 @@ pub struct Operation {
 
 impl Operation {
     /// Construct a new API [`Operation`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 
@@ -224,7 +227,8 @@ impl Operation {
     }
 
     /// Add or change request body of the [`Operation`].
-    #[must_use] pub fn request_body(mut self, request_body: RequestBody) -> Self {
+    #[must_use]
+    pub fn request_body(mut self, request_body: RequestBody) -> Self {
         self.request_body = Some(request_body);
         self
     }
@@ -262,7 +266,8 @@ impl Operation {
         self
     }
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements and returns `Self`.
-    #[must_use] pub fn add_security(mut self, security: SecurityRequirement) -> Self {
+    #[must_use]
+    pub fn add_security(mut self, security: SecurityRequirement) -> Self {
         self.securities.push(security);
         self
     }
@@ -273,7 +278,8 @@ impl Operation {
         self
     }
     /// Append a new [`Server`] to the [`Operation`] servers and returns `Self`.
-    #[must_use] pub fn add_server(mut self, server: Server) -> Self {
+    #[must_use]
+    pub fn add_server(mut self, server: Server) -> Self {
         self.servers.insert(server);
         self
     }

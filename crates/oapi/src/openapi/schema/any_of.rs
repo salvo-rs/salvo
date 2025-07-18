@@ -71,7 +71,8 @@ impl Default for AnyOf {
 
 impl AnyOf {
     /// Construct a new empty [`AnyOf`]. This is effectively same as calling [`AnyOf::default`].
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 
@@ -87,7 +88,8 @@ impl AnyOf {
     /// # use salvo_oapi::schema::AnyOf;
     /// let one_of = AnyOf::with_capacity(5);
     /// ```
-    #[must_use] pub fn with_capacity(capacity: usize) -> Self {
+    #[must_use]
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
             ..Default::default()
@@ -121,7 +123,8 @@ impl AnyOf {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[must_use] pub fn default_value(mut self, default: Value) -> Self {
+    #[must_use]
+    pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
         self
     }
@@ -133,7 +136,8 @@ impl AnyOf {
     }
 
     /// Add or change discriminator field of the composite [`AnyOf`] type.
-    #[must_use] pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
+    #[must_use]
+    pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
         self.discriminator = Some(discriminator);
         self
     }

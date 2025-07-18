@@ -94,6 +94,7 @@ impl NamedFileBuilder {
 
     /// Sets content type and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn content_type(mut self, content_type: mime::Mime) -> Self {
         self.content_type = Some(content_type);
         self
@@ -108,6 +109,7 @@ impl NamedFileBuilder {
 
     /// Sets buffer size and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
         self
@@ -117,6 +119,7 @@ impl NamedFileBuilder {
     ///
     /// Default is true.
     #[inline]
+    #[must_use]
     pub fn use_etag(mut self, value: bool) -> Self {
         if value {
             self.flags.insert(Flag::Etag);
@@ -130,6 +133,7 @@ impl NamedFileBuilder {
     ///
     ///Default is true.
     #[inline]
+    #[must_use]
     pub fn use_last_modified(mut self, value: bool) -> Self {
         if value {
             self.flags.insert(Flag::LastModified);
@@ -153,7 +157,7 @@ impl NamedFileBuilder {
 
     /// Build a new [`NamedFile`].
     pub async fn build(self) -> Result<NamedFile> {
-        let NamedFileBuilder {
+        let Self {
             path,
             content_type,
             content_encoding,
@@ -275,7 +279,7 @@ impl NamedFile {
     /// # }
     /// ```
     #[inline]
-    pub async fn open<P>(path: P) -> Result<NamedFile>
+    pub async fn open<P>(path: P) -> Result<Self>
     where
         P: Into<PathBuf> + Send,
     {

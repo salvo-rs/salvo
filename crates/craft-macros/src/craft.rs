@@ -49,7 +49,7 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
                 let name = name.as_str();
                 let content = caps
                     .name("content")
-                    .map(|c| c.as_str().to_string())
+                    .map(|c| c.as_str().to_owned())
                     .unwrap_or_default();
                 let ts: TokenStream = match name {
                     "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,

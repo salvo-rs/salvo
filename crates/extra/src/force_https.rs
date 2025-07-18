@@ -69,12 +69,12 @@ impl Debug for ForceHttps {
 
 impl ForceHttps {
     /// Create new `ForceHttps` middleware.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Default::default()
     }
 
     /// Specify https port.
-    pub fn https_port(self, port: u16) -> Self {
+    #[must_use] pub fn https_port(self, port: u16) -> Self {
         Self {
             https_port: Some(port),
             ..self

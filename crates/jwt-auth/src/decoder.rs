@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter, Debug};
+use std::fmt::{self, Debug, Formatter};
 
 use jsonwebtoken::errors::Error as JwtError;
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
@@ -64,6 +64,7 @@ impl Debug for ConstDecoder {
 
 impl ConstDecoder {
     /// Creates a new decoder with the given decoding key and default validation.
+    #[must_use]
     pub fn new(decoding_key: DecodingKey) -> Self {
         Self {
             decoding_key,
@@ -72,6 +73,7 @@ impl ConstDecoder {
     }
 
     /// Creates a new decoder with the given decoding key and custom validation parameters.
+    #[must_use]
     pub fn with_validation(decoding_key: DecodingKey, validation: Validation) -> Self {
         Self {
             decoding_key,
@@ -82,6 +84,7 @@ impl ConstDecoder {
     /// Creates a decoder from a raw secret byte array for HMAC verification.
     ///
     /// This is the most common method for symmetric key validation.
+    #[must_use]
     pub fn from_secret(secret: &[u8]) -> Self {
         Self::with_validation(DecodingKey::from_secret(secret), Validation::default())
     }
@@ -107,6 +110,7 @@ impl ConstDecoder {
     }
 
     /// If you have (n, e) RSA public key components already decoded, use this.
+    #[must_use]
     pub fn from_rsa_raw_components(modulus: &[u8], exponent: &[u8]) -> Self {
         Self::with_validation(
             DecodingKey::from_rsa_raw_components(modulus, exponent),
@@ -135,6 +139,7 @@ impl ConstDecoder {
     }
 
     /// If you know what you're doing and have a RSA DER encoded public key, use this.
+    #[must_use]
     pub fn from_rsa_der(der: &[u8]) -> Self {
         Self::with_validation(
             DecodingKey::from_rsa_der(der),
@@ -143,6 +148,7 @@ impl ConstDecoder {
     }
 
     /// If you know what you're doing and have a RSA EC encoded public key, use this.
+    #[must_use]
     pub fn from_ec_der(der: &[u8]) -> Self {
         Self::with_validation(
             DecodingKey::from_ec_der(der),
@@ -151,6 +157,7 @@ impl ConstDecoder {
     }
 
     /// If you know what you're doing and have a Ed DER encoded public key, use this.
+    #[must_use]
     pub fn from_ed_der(der: &[u8]) -> Self {
         Self::with_validation(
             DecodingKey::from_ed_der(der),

@@ -31,33 +31,40 @@ pub struct BasicQuota {
 }
 impl BasicQuota {
     /// Create new `BasicQuota`.
+    #[must_use]
     pub const fn new(limit: usize, period: Duration) -> Self {
         Self { limit, period }
     }
 
     /// Sets the limit of the quota per second.
+    #[must_use]
     pub const fn per_second(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(1))
     }
     /// Sets the limit of the quota seconds.
+    #[must_use]
     pub const fn set_seconds(limit: usize, seconds: i64) -> Self {
         Self::new(limit, Duration::seconds(seconds))
     }
 
     /// Sets the limit of the quota per minute.
+    #[must_use]
     pub const fn per_minute(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(60))
     }
     /// Sets the limit of the quota minutes.
+    #[must_use]
     pub const fn set_minutes(limit: usize, minutes: i64) -> Self {
         Self::new(limit, Duration::seconds(60 * minutes))
     }
 
     /// Sets the limit of the quota per hour.
+    #[must_use]
     pub const fn per_hour(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(3600))
     }
     /// Sets the limit of the quota hours.
+    #[must_use]
     pub const fn set_hours(limit: usize, hours: i64) -> Self {
         Self::new(limit, Duration::seconds(3600 * hours))
     }
@@ -76,6 +83,7 @@ pub struct CelledQuota {
 }
 impl CelledQuota {
     /// Create new `CelledQuota`.
+    #[must_use]
     pub const fn new(limit: usize, cells: usize, period: Duration) -> Self {
         Self {
             limit,
@@ -85,28 +93,34 @@ impl CelledQuota {
     }
 
     /// Sets the limit of the quota per second.
+    #[must_use]
     pub const fn per_second(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(1))
     }
     /// Sets the limit of the quota seconds.
+    #[must_use]
     pub const fn set_seconds(limit: usize, cells: usize, seconds: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(seconds))
     }
 
     /// Sets the limit of the quota per minute.
+    #[must_use]
     pub const fn per_minute(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(60))
     }
     /// Sets the limit of the quota minutes.
+    #[must_use]
     pub const fn set_minutes(limit: usize, cells: usize, minutes: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(60 * minutes))
     }
 
     /// Sets the limit of the quota per hour.
+    #[must_use]
     pub const fn per_hour(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(3600))
     }
     /// Sets the limit of the quota hours.
+    #[must_use]
     pub const fn set_hours(limit: usize, cells: usize, hours: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(3600 * hours))
     }
