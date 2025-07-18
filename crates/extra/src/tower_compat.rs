@@ -103,7 +103,7 @@ where
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
         }
-        let hyper_req = if let Ok(hyper_req) = req.strip_to_hyper::<QB>() { hyper_req } else {
+        let Ok(hyper_req) = req.strip_to_hyper::<QB>() else {
             tracing::error!("strip request to hyper failed.");
             res.render(
                 StatusError::internal_server_error().cause("strip request to hyper failed."),
@@ -260,7 +260,7 @@ where
             return;
         }
 
-        let mut hyper_req = if let Ok(hyper_req) = req.strip_to_hyper::<QB>() { hyper_req } else {
+        let Ok(mut hyper_req) = req.strip_to_hyper::<QB>() else {
             tracing::error!("strip request to hyper failed.");
             res.render(
                 StatusError::internal_server_error().cause("strip request to hyper failed."),

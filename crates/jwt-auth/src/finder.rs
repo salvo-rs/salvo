@@ -68,6 +68,7 @@ impl HeaderFinder {
 
     /// Sets header names and returns `Self`.
     #[inline]
+    #[must_use]
     pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
         self.header_names = header_names.into();
         self

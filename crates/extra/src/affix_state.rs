@@ -81,9 +81,9 @@ where
 }
 
 /// Inject a typed value into depot using the type's ID as the key.
-/// 
+///
 /// This is useful when you want to access the value by its type rather than by an explicit key.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
@@ -91,9 +91,9 @@ pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
 }
 
 /// Insert a key-value pair into depot with an explicit key.
-/// 
+///
 /// Use this when you need to access the value using a specific key string.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn insert<K, V>(key: K, value: V) -> AffixList
@@ -105,7 +105,7 @@ where
 }
 
 /// AffixList is used to add any data to depot.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 #[derive(Default)]
 pub struct AffixList(Vec<Box<dyn AffixState + Send + Sync + 'static>>);
@@ -121,21 +121,27 @@ impl Debug for AffixList {
 #[handler]
 impl AffixList {
     /// Create an empty affix list.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self(Vec::new())
     }
     /// Inject a value into depot.
+    #[must_use]
     pub fn inject<V: Send + Sync + Clone + 'static>(self, value: V) -> Self {
         self.insert(format!("{:?}", TypeId::of::<V>()), value)
     }
 
     /// Insert a key-value pair into depot.
+    #[must_use]
     pub fn insert<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<String>,
         V: Send + Sync + Clone + 'static,
     {
-        let cell = AffixCell { key: key.into(), value };
+        let cell = AffixCell {
+            key: key.into(),
+            value,
+        };
         self.0.push(Box::new(cell));
         self
     }
@@ -162,7 +168,10 @@ mod tests {
     async fn hello(depot: &mut Depot) -> String {
         format!(
             "{}:{}",
-            depot.obtain::<Arc<User>>().map(|u| u.name.clone()).unwrap_or_default(),
+            depot
+                .obtain::<Arc<User>>()
+                .map(|u| u.name.clone())
+                .unwrap_or_default(),
             depot.get::<&str>("data1").copied().unwrap_or_default()
         )
     }
@@ -171,7 +180,8 @@ mod tests {
         let user = User {
             name: "salvo".to_owned(),
         };
-        let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).goal(hello);
+        let router =
+            Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).goal(hello);
         let content = TestClient::get("http://127.0.0.1:5800/")
             .send(router)
             .await

@@ -124,6 +124,7 @@ impl Cors {
 
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
+    #[must_use]
     pub fn allow_credentials(mut self, allow_credentials: impl Into<AllowCredentials>) -> Self {
         self.allow_credentials = allow_credentials.into();
         self
@@ -137,6 +138,7 @@ impl Cors {
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
     #[inline]
+    #[must_use]
     pub fn allow_headers(mut self, headers: impl Into<AllowHeaders>) -> Self {
         self.allow_headers = headers.into();
         self
@@ -155,6 +157,7 @@ impl Cors {
     /// let cors = Cors::new().max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]
+    #[must_use]
     pub fn max_age(mut self, max_age: impl Into<MaxAge>) -> Self {
         self.max_age = max_age.into();
         self
@@ -166,6 +169,7 @@ impl Cors {
     ///
     /// Panics if the provided argument is not a valid `http::Method`.
     #[inline]
+    #[must_use]
     pub fn allow_methods<I>(mut self, methods: I) -> Self
     where
         I: Into<AllowMethods>,
@@ -178,6 +182,7 @@ impl Cors {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     #[inline]
+    #[must_use]
     pub fn allow_origin(mut self, origin: impl Into<AllowOrigin>) -> Self {
         self.allow_origin = origin.into();
         self
@@ -187,6 +192,7 @@ impl Cors {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
     #[inline]
+    #[must_use]
     pub fn expose_headers(mut self, headers: impl Into<ExposeHeaders>) -> Self {
         self.expose_headers = headers.into();
         self
@@ -202,6 +208,7 @@ impl Cors {
     /// vary header accordingly.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
+    #[must_use]
     pub fn vary<T>(mut self, headers: impl Into<Vary>) -> Self {
         self.vary = headers.into();
         self

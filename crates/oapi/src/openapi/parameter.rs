@@ -32,6 +32,7 @@ impl Parameters {
         self.0.is_empty()
     }
     /// Add a new paramater and returns `self`.
+    #[must_use]
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.insert(parameter);
         self
@@ -148,6 +149,7 @@ pub struct Parameter {
 
 impl Parameter {
     /// Constructs a new required [`Parameter`] with given name.
+    #[must_use]
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
@@ -156,6 +158,7 @@ impl Parameter {
         }
     }
     /// Add name of the [`Parameter`].
+    #[must_use]
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
         self.name = name.into();
         self
@@ -222,6 +225,7 @@ impl Parameter {
 
     /// Add required declaration of the [`Parameter`]. If [`ParameterIn::Path`] is
     /// defined this is always [`Required::True`].
+    #[must_use]
     pub fn required(mut self, required: impl Into<Required>) -> Self {
         self.required = required.into();
         // required must be true, if parameter_in is Path
@@ -233,18 +237,21 @@ impl Parameter {
     }
 
     /// Add or change description of the [`Parameter`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
+    #[must_use]
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
         self.deprecated = Some(deprecated.into());
         self
     }
 
     /// Add or change [`Parameter`]s schema.
+    #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = Some(component.into());
         self

@@ -76,6 +76,7 @@ where
     /// the cache will stop calling the listener after a panic. This is intended
     /// behavior because the cache cannot know whether it is memory safe to
     /// call the panicked listener again.
+    #[must_use]
     pub fn eviction_listener(
         mut self,
         listener: impl Fn(Arc<K>, CachedEntry, RemovalCause) + Send + Sync + 'static,

@@ -205,6 +205,7 @@ impl StaticDir {
     ///
     /// The filter function returns true to exclude the file.
     #[inline]
+    #[must_use]
     pub fn exclude<F>(mut self, filter: F) -> Self
     where
         F: Fn(&str) -> bool + Send + Sync + 'static,
@@ -223,6 +224,7 @@ impl StaticDir {
 
     /// Sets compressed_variations.
     #[inline]
+    #[must_use]
     pub fn compressed_variation<A>(mut self, algo: A, exts: &str) -> Self
     where
         A: Into<CompressionAlgo>,
@@ -236,12 +238,14 @@ impl StaticDir {
 
     /// Sets defaults.
     #[inline]
+    #[must_use]
     pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
     /// Sets fallback.
+    #[must_use]
     pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
@@ -290,7 +294,8 @@ struct FileInfo {
 }
 impl FileInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> Self {
+    #[must_use]
+    fn new(name: String, metadata: &Metadata) -> Self {
         Self {
             name,
             size: metadata.len(),
@@ -308,7 +313,7 @@ struct DirInfo {
 }
 impl DirInfo {
     #[inline]
-    fn new(name: String, metadata: Metadata) -> Self {
+    fn new(name: String, metadata: &Metadata) -> Self {
         Self {
             name,
             modified: metadata
@@ -398,9 +403,7 @@ impl Handler for StaticDir {
             }
         }
 
-        let abs_path = if let Some(path) = abs_path {
-            path
-        } else {
+        let Some(abs_path) = abs_path else {
             res.render(StatusError::not_found());
             return;
         };
@@ -493,12 +496,12 @@ impl Handler for StaticDir {
             let format = req.first_accept().unwrap_or(mime::TEXT_HTML);
             let mut files: Vec<FileInfo> = files
                 .into_iter()
-                .map(|(name, metadata)| FileInfo::new(name, metadata))
+                .map(|(name, metadata)| FileInfo::new(name, &metadata))
                 .collect();
             files.sort_by(|a, b| a.name.cmp(&b.name));
             let mut dirs: Vec<DirInfo> = dirs
                 .into_iter()
-                .map(|(name, metadata)| DirInfo::new(name, metadata))
+                .map(|(name, metadata)| DirInfo::new(name, &metadata))
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
             let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);

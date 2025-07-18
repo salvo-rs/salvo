@@ -247,12 +247,13 @@ impl ServerVariables {
     pub fn new() -> Self {
         Default::default()
     }
-    /// Returns `true` if instance contains no elements.    
+    /// Returns `true` if instance contains no elements.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
+    #[must_use]
     pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(
         mut self,
         key: K,

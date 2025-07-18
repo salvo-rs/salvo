@@ -79,11 +79,11 @@
 
 use std::fmt::{self, Debug, Formatter};
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 use futures_util::sink::{Sink, SinkExt};
 use futures_util::stream::{Stream, StreamExt};
-use futures_util::{future, FutureExt, TryFutureExt};
+use futures_util::{FutureExt, TryFutureExt, future};
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{
@@ -92,11 +92,11 @@ use salvo_core::http::headers::{
 use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{Error, Request, Response};
+use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::tungstenite::Bytes;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::frame::{CloseFrame, Utf8Bytes};
 use tokio_tungstenite::tungstenite::protocol::{self, WebSocketConfig};
-use tokio_tungstenite::tungstenite::Bytes;
-use tokio_tungstenite::WebSocketStream;
 
 /// Creates a WebSocket Handler.
 /// Request:
@@ -126,13 +126,15 @@ impl Default for WebSocketUpgrade {
 impl WebSocketUpgrade {
     /// Create new `WebSocketUpgrade`.
     #[inline]
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self { config: None }
     }
 
     /// Create new `WebSocketUpgrade` with config.
     #[inline]
-    #[must_use] pub fn with_config(config: WebSocketConfig) -> Self {
+    #[must_use]
+    pub fn with_config(config: WebSocketConfig) -> Self {
         Self {
             config: Some(config),
         }
@@ -145,6 +147,7 @@ impl WebSocketUpgrade {
     /// If set to `0` each message will be eagerly written to the underlying stream.
     /// It is often more optimal to allow them to buffer a little, hence the default value.
     #[inline]
+    #[must_use]
     pub fn write_buffer_size(mut self, max: usize) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -163,6 +166,7 @@ impl WebSocketUpgrade {
     /// Should always be at least [`write_buffer_size + 1 message`](Self::write_buffer_size)
     /// and probably a little more depending on error handling strategy.
     #[inline]
+    #[must_use]
     pub fn max_write_buffer_size(mut self, max: usize) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -174,6 +178,7 @@ impl WebSocketUpgrade {
     /// which should be reasonably big for all normal use-cases but small enough to prevent
     /// memory eating by a malicious user.
     #[inline]
+    #[must_use]
     pub fn max_message_size(mut self, max: usize) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -186,6 +191,7 @@ impl WebSocketUpgrade {
     /// be reasonably big for all normal use-cases but small enough to prevent memory eating
     /// by a malicious user.
     #[inline]
+    #[must_use]
     pub fn max_frame_size(mut self, max: usize) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -199,6 +205,7 @@ impl WebSocketUpgrade {
     /// some popular libraries that are sending unmasked frames, ignoring the RFC.
     /// By default this option is set to `false`, i.e. according to RFC 6455.
     #[inline]
+    #[must_use]
     pub fn accept_unmasked_frames(mut self, accept: bool) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -245,9 +252,7 @@ impl WebSocketUpgrade {
             tracing::debug!("websocket version is not equal 13");
             return Err(StatusError::bad_request().brief("Websocket version is not equal 13."));
         }
-        let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
-            key
-        } else {
+        let Some(sec_ws_key) = req_headers.typed_get::<SecWebsocketKey>() else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
             return Err(StatusError::bad_request()
                 .brief("sec_websocket_key is not exist in request headers."));
@@ -494,9 +499,9 @@ impl Message {
     pub fn as_bytes(&self) -> &[u8] {
         match &self.inner {
             protocol::Message::Text(s) => s.as_bytes(),
-            protocol::Message::Binary(v) => v.as_ref(),
-            protocol::Message::Ping(v) => v.as_ref(),
-            protocol::Message::Pong(v) => v.as_ref(),
+            protocol::Message::Binary(v)
+            | protocol::Message::Ping(v)
+            | protocol::Message::Pong(v) => v.as_ref(),
             protocol::Message::Close(_) => &[],
             protocol::Message::Frame(v) => v.payload(),
         }

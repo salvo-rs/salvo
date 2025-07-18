@@ -79,6 +79,7 @@ impl Responses {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and retuns `self`.
+    #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         key: S,
@@ -172,6 +173,7 @@ impl Response {
     /// Construct a new [`Response`].
     ///
     /// Function takes description as argument.
+    #[must_use]
     pub fn new<S: Into<String>>(description: S) -> Self {
         Self {
             description: description.into(),
@@ -180,29 +182,34 @@ impl Response {
     }
 
     /// Add description. Description supports markdown syntax.
+    #[must_use]
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
         self.description = description.into();
         self
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json` and returns `Self`.
+    #[must_use]
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, key: S, content: C) -> Self {
         self.contents.insert(key.into(), content.into());
         self
     }
     /// Add response [`Header`] and returns `Self`.
+    #[must_use]
     pub fn add_header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
         self.headers.insert(name.into(), header);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`Response`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
     }
 
     /// Add link that can be followed from the response.
+    #[must_use]
     pub fn add_link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
         self.links.insert(name.into(), link.into());
 

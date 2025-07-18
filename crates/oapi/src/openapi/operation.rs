@@ -48,6 +48,7 @@ impl Operations {
         self.0.is_empty()
     }
     /// Add a new operation and returns `self`.
+    #[must_use]
     pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(
         mut self,
         item_type: K,
@@ -179,6 +180,7 @@ impl Operation {
     }
 
     /// Add or change tags of the [`Operation`].
+    #[must_use]
     pub fn tags<I, T>(mut self, tags: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -188,30 +190,35 @@ impl Operation {
         self
     }
     /// Append tag to [`Operation`] tags and returns `Self`.
+    #[must_use]
     pub fn add_tag<S: Into<String>>(mut self, tag: S) -> Self {
         self.tags.push(tag.into());
         self
     }
 
     /// Add or change short summary of the [`Operation`].
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = Some(summary.into());
         self
     }
 
     /// Add or change description of the [`Operation`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change operation id of the [`Operation`].
+    #[must_use]
     pub fn operation_id<S: Into<String>>(mut self, operation_id: S) -> Self {
         self.operation_id = Some(operation_id.into());
         self
     }
 
     /// Add or change parameters of the [`Operation`].
+    #[must_use]
     pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
         mut self,
         parameters: I,
@@ -221,6 +228,7 @@ impl Operation {
         self
     }
     /// Append parameter to [`Operation`] parameters and returns `Self`.
+    #[must_use]
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.parameters.insert(parameter);
         self
@@ -234,6 +242,7 @@ impl Operation {
     }
 
     /// Add or change responses of the [`Operation`].
+    #[must_use]
     pub fn responses<R: Into<Responses>>(mut self, responses: R) -> Self {
         self.responses = responses.into();
         self
@@ -242,6 +251,7 @@ impl Operation {
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
+    #[must_use]
     pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         code: S,
@@ -252,12 +262,14 @@ impl Operation {
     }
 
     /// Add or change deprecated status of the [`Operation`].
+    #[must_use]
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
         self.deprecated = Some(deprecated.into());
         self
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
+    #[must_use]
     pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(
         mut self,
         securities: I,
@@ -273,6 +285,7 @@ impl Operation {
     }
 
     /// Add or change list of [`Server`]s of the [`Operation`].
+    #[must_use]
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
         self.servers = Servers(servers.into_iter().collect());
         self
@@ -285,6 +298,7 @@ impl Operation {
     }
 
     /// For easy chaining of operations.
+    #[must_use]
     pub fn then<F>(self, func: F) -> Self
     where
         F: FnOnce(Self) -> Self,

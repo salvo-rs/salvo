@@ -33,6 +33,7 @@ impl RequestBody {
         Default::default()
     }
     /// Add description for [`RequestBody`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
@@ -46,6 +47,7 @@ impl RequestBody {
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
+    #[must_use]
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, kind: S, content: C) -> Self {
         self.contents.insert(kind.into(), content.into());
         self

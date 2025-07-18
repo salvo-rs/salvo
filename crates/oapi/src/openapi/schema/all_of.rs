@@ -97,6 +97,7 @@ impl AllOf {
     /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite]
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    #[must_use]
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
@@ -105,18 +106,21 @@ impl AllOf {
 
     /// Add or change type of the object e.g. to change type to _`string`_
     /// use value `SchemaType::Type(Type::String)`.
+    #[must_use]
     pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
         self.schema_type = schema_type.into();
         self
     }
 
     /// Add or change the title of the [`AllOf`].
+    #[must_use]
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
     /// Add or change optional description for `AllOf` component.
+    #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
@@ -130,6 +134,7 @@ impl AllOf {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn add_example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
         self
@@ -143,6 +148,7 @@ impl AllOf {
     }
 
     /// Add openapi extension (`x-something`) for [`AllOf`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self

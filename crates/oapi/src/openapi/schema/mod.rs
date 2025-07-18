@@ -1049,9 +1049,10 @@ mod tests {
             ),
         ));
 
-        let json_str = serde_json::to_string(&schema).unwrap();
-        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
-        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        let json_str = serde_json::to_string(&schema).expect("serde json should success");
+        let deserialized: RefOr<Schema> =
+            serde_json::from_str(&json_str).expect("serde json should success");
+        let json_de_str = serde_json::to_string(&deserialized).expect("serde json should success");
         assert_eq!(json_str, json_de_str);
     }
 
@@ -1064,7 +1065,7 @@ mod tests {
         let one_of = OneOf::new()
             .item(Ref::from_schema_name("MyInt"))
             .discriminator(discriminator);
-        let json_value = serde_json::to_value(one_of).unwrap();
+        let json_value = serde_json::to_value(one_of).expect("serde json should success");
 
         assert_json_eq!(
             json_value,
@@ -1106,9 +1107,10 @@ mod tests {
         let object =
             Object::new().schema_type(SchemaType::from_iter([BasicType::Object, BasicType::Null]));
 
-        let json_str = serde_json::to_string(&object).unwrap();
-        let deserialized: Object = serde_json::from_str(&json_str).unwrap();
-        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        let json_str = serde_json::to_string(&object).expect("serde json should success");
+        let deserialized: Object =
+            serde_json::from_str(&json_str).expect("serde json should success");
+        let json_de_str = serde_json::to_string(&deserialized).expect("serde json should success");
         assert_eq!(json_str, json_de_str);
     }
 

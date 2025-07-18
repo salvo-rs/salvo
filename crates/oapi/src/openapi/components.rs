@@ -51,6 +51,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
@@ -68,6 +69,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
@@ -87,6 +89,7 @@ impl Components {
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
+    #[must_use]
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(
         mut self,
         name: S,
@@ -113,6 +116,7 @@ impl Components {
     ///     ),
     /// )]);
     /// ```
+    #[must_use]
     pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
     where
         I: IntoIterator<Item = (S, C)>,
@@ -128,6 +132,7 @@ impl Components {
     }
 
     /// Add a new response and returns `self`.
+    #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         name: S,
@@ -138,6 +143,7 @@ impl Components {
     }
 
     /// Extends responses with the contents of an iterator.
+    #[must_use]
     pub fn extend_responses<
         I: IntoIterator<Item = (S, R)>,
         S: Into<String>,

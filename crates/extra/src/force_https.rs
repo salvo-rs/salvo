@@ -50,7 +50,7 @@ use salvo_core::http::header;
 use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::{Request, ResBody, Response};
 use salvo_core::writing::Redirect;
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Middleware for force redirect to http uri.
 #[derive(Default)]
@@ -69,12 +69,14 @@ impl Debug for ForceHttps {
 
 impl ForceHttps {
     /// Create new `ForceHttps` middleware.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Default::default()
     }
 
     /// Specify https port.
-    #[must_use] pub fn https_port(self, port: u16) -> Self {
+    #[must_use]
+    pub fn https_port(self, port: u16) -> Self {
         Self {
             https_port: Some(port),
             ..self
@@ -82,6 +84,7 @@ impl ForceHttps {
     }
 
     /// Uses a closure to determine if a request should be redirect.
+    #[must_use]
     pub fn skipper(self, skipper: impl Skipper) -> Self {
         Self {
             skipper: Some(Box::new(skipper)),
@@ -92,7 +95,13 @@ impl ForceHttps {
 
 #[async_trait]
 impl Handler for ForceHttps {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if req.uri().scheme() == Some(&Scheme::HTTPS)
             || self
                 .skipper
@@ -137,7 +146,10 @@ mod tests {
     #[test]
     fn test_redirect_host() {
         assert_eq!(redirect_host("example.com", Some(1234)), "example.com:1234");
-        assert_eq!(redirect_host("example.com:5678", Some(1234)), "example.com:1234");
+        assert_eq!(
+            redirect_host("example.com:5678", Some(1234)),
+            "example.com:1234"
+        );
         assert_eq!(redirect_host("example.com", Some(1234)), "example.com:1234");
         assert_eq!(redirect_host("example.com:1234", None), "example.com:1234");
         assert_eq!(redirect_host("example.com", None), "example.com");

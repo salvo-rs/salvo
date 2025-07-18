@@ -159,6 +159,7 @@ where
 impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimiter<G, S, I, P> {
     /// Create a new `RateLimiter`
     #[inline]
+    #[must_use]
     pub fn new(guard: G, store: S, issuer: I, quota_getter: P) -> Self {
         Self {
             guard,
@@ -172,6 +173,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
 
     /// Sets skipper and returns new `RateLimiter`.
     #[inline]
+    #[must_use]
     pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
@@ -180,6 +182,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
     /// Sets `add_headers` and returns new `RateLimiter`.
     /// If `add_headers` is true, the rate limit headers will be added to the response.
     #[inline]
+    #[must_use]
     pub fn add_headers(mut self, add_headers: bool) -> Self {
         self.add_headers = add_headers;
         self
@@ -204,9 +207,7 @@ where
         if self.skipper.skipped(req, depot) {
             return;
         }
-        let key = if let Some(key) = self.issuer.issue(req, depot).await {
-            key
-        } else {
+        let Some(key) = self.issuer.issue(req, depot).await else {
             res.render(StatusError::bad_request().brief("Invalid identifier."));
             ctrl.skip_rest();
             return;

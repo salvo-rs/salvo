@@ -199,6 +199,7 @@ where
     C: Client,
 {
     /// Create new `Proxy` with upstreams list.
+    #[must_use]
     pub fn new(upstreams: U, client: C) -> Self {
         Self {
             upstreams,
@@ -210,6 +211,7 @@ where
 
     /// Set url path getter.
     #[inline]
+    #[must_use]
     pub fn url_path_getter<G>(mut self, url_path_getter: G) -> Self
     where
         G: Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static,
@@ -220,6 +222,7 @@ where
 
     /// Set url query getter.
     #[inline]
+    #[must_use]
     pub fn url_query_getter<G>(mut self, url_query_getter: G) -> Self
     where
         G: Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static,

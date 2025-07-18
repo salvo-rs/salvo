@@ -25,6 +25,7 @@ impl ExternalDocs {
     /// # use salvo_oapi::ExternalDocs;
     /// let external_docs = ExternalDocs::new("https://pet-api.external.docs");
     /// ```
+    #[must_use]
     pub fn new<S: AsRef<str>>(url: S) -> Self {
         Self {
             url: url.as_ref().to_owned(),
@@ -33,12 +34,14 @@ impl ExternalDocs {
     }
 
     /// Add target url for external documentation location.
+    #[must_use]
     pub fn url<I: Into<String>>(mut self, url: I) -> Self {
         self.url = url.into();
         self
     }
 
     /// Add additional description of external documentation.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self

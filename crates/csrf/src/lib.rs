@@ -231,6 +231,7 @@ where
 impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
     /// Create a new instance.
     #[inline]
+    #[must_use]
     pub fn new(cipher: C, store: S, finder: impl CsrfTokenFinder) -> Self {
         Self {
             cipher,
@@ -242,6 +243,7 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
 
     /// Add finder to find csrf token.
     #[inline]
+    #[must_use]
     pub fn add_finder(mut self, finder: impl CsrfTokenFinder) -> Self {
         self.finders.push(Box::new(finder));
         self

@@ -39,6 +39,7 @@ pub struct Content {
 
 impl Content {
     /// Construct a new [`Content`].
+    #[must_use]
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
         Self {
             schema: schema.into(),
@@ -47,6 +48,7 @@ impl Content {
     }
 
     /// Add schema.
+    #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = component.into();
         self
@@ -66,6 +68,7 @@ impl Content {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
+    #[must_use]
     pub fn extend_examples<
         E: IntoIterator<Item = (N, V)>,
         N: Into<String>,
@@ -91,6 +94,7 @@ impl Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
+    #[must_use]
     pub fn encoding<S: Into<String>, E: Into<Encoding>>(
         mut self,
         property_name: S,

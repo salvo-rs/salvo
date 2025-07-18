@@ -113,6 +113,7 @@ impl OneOf {
     }
 
     /// Add or change the title of the [`OneOf`].
+    #[must_use]
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self

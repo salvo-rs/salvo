@@ -44,6 +44,7 @@ impl Example {
     }
     /// Add or change a short description for the [`Example`]. Setting this to empty `String`
     /// will make it not render in the generated OpenAPI document.
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = summary.into();
         self
@@ -54,6 +55,7 @@ impl Example {
     ///
     /// Setting this to empty `String` will make it not render in the generated
     /// OpenAPI document.
+    #[must_use]
     pub fn description<D: Into<String>>(mut self, description: D) -> Self {
         self.description = description.into();
         self
@@ -73,6 +75,7 @@ impl Example {
     ///
     /// Setting this to an empty String will make the field not to render in the generated OpenAPI
     /// document.
+    #[must_use]
     pub fn external_value<E: Into<String>>(mut self, external_value: E) -> Self {
         self.external_value = external_value.into();
         self

@@ -146,6 +146,7 @@ where
 {
     /// Create new `HandlerBuilder`
     #[inline]
+    #[must_use]
     pub fn new(store: S, secret: &[u8]) -> Self {
         Self {
             store,
@@ -164,6 +165,7 @@ where
     ///
     /// The default for this value is "/".
     #[inline]
+    #[must_use]
     pub fn cookie_path(mut self, cookie_path: impl Into<String>) -> Self {
         self.cookie_path = cookie_path.into();
         self
@@ -175,6 +177,7 @@ where
     /// The default for this value is one day. Set this to None to not
     /// set a cookie or session expiry. This is not recommended.
     #[inline]
+    #[must_use]
     pub fn session_ttl(mut self, session_ttl: Option<Duration>) -> Self {
         self.session_ttl = session_ttl;
         self
@@ -186,6 +189,7 @@ where
     /// domain, you will need different values for each
     /// application. The default value is "salvo.session_id".
     #[inline]
+    #[must_use]
     pub fn cookie_name(mut self, cookie_name: impl Into<String>) -> Self {
         self.cookie_name = cookie_name.into();
         self
@@ -201,6 +205,7 @@ where
     /// request, the session will only be persisted if
     /// `save_unchanged` is enabled.
     #[inline]
+    #[must_use]
     pub fn save_unchanged(mut self, value: bool) -> Self {
         self.save_unchanged = value;
         self
@@ -211,6 +216,7 @@ where
     /// cookies](https://tools.ietf.org/html/draft-west-cookie-incrementalism-01)
     /// for more information about this setting.
     #[inline]
+    #[must_use]
     pub fn same_site_policy(mut self, policy: SameSite) -> Self {
         self.same_site_policy = policy;
         self
@@ -218,12 +224,14 @@ where
 
     /// Sets the domain of the cookie.
     #[inline]
+    #[must_use]
     pub fn cookie_domain(mut self, cookie_domain: impl AsRef<str>) -> Self {
         self.cookie_domain = Some(cookie_domain.as_ref().to_owned());
         self
     }
     /// Sets fallbacks.
     #[inline]
+    #[must_use]
     pub fn fallback_keys(mut self, keys: Vec<impl Into<Key>>) -> Self {
         self.fallback_keys = keys.into_iter().map(|s| s.into()).collect();
         self
@@ -231,6 +239,7 @@ where
 
     /// Add fallback secret.
     #[inline]
+    #[must_use]
     pub fn add_fallback_key(mut self, key: impl Into<Key>) -> Self {
         self.fallback_keys.push(key.into());
         self

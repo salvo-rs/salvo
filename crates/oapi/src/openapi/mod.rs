@@ -1253,7 +1253,9 @@ mod tests {
         };
 
         assert_eq!(
-            res.content_type().unwrap().to_string(),
+            res.content_type()
+                .expect("content type should exists")
+                .to_string(),
             "application/json; charset=utf-8".to_owned()
         );
         assert_eq!(
@@ -1283,7 +1285,9 @@ mod tests {
         };
 
         assert_eq!(
-            res.content_type().unwrap().to_string(),
+            res.content_type()
+                .expect("content type should exists")
+                .to_string(),
             "application/json; charset=utf-8".to_owned()
         );
         assert_eq!(

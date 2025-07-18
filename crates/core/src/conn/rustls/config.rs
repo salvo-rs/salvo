@@ -40,7 +40,8 @@ impl Default for Keycert {
 impl Keycert {
     /// Create a new keycert.
     #[inline]
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             key: vec![],
             cert: vec![],
@@ -57,6 +58,7 @@ impl Keycert {
 
     /// Sets the Tls private key via bytes slice.
     #[inline]
+    #[must_use]
     pub fn key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = key.into();
         self
@@ -72,6 +74,7 @@ impl Keycert {
 
     /// Sets the Tls certificate via bytes slice
     #[inline]
+    #[must_use]
     pub fn cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = cert.into();
         self
@@ -79,11 +82,12 @@ impl Keycert {
 
     /// Get ocsp_resp.
     #[inline]
-    #[must_use] pub fn ocsp_resp(&self) -> &[u8] {
+    #[must_use]
+    pub fn ocsp_resp(&self) -> &[u8] {
         &self.ocsp_resp
     }
 
-    fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
+    fn build_certified_key(&self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
             .flat_map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
             .collect::<Vec<_>>();
@@ -239,7 +243,8 @@ impl RustlsConfig {
 
     /// Set specific TLS versions supported.
     #[inline]
-    #[must_use] pub fn tls_versions(
+    #[must_use]
+    pub fn tls_versions(
         mut self,
         tls_versions: &'static [&'static SupportedProtocolVersion],
     ) -> Self {

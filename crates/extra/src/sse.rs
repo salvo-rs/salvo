@@ -58,7 +58,7 @@ use std::time::Duration;
 use futures_util::future;
 use futures_util::stream::{Stream, TryStream, TryStreamExt};
 use pin_project::pin_project;
-use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
+use salvo_core::http::header::{CACHE_CONTROL, CONTENT_TYPE, HeaderValue};
 use tokio::time::{self, Sleep};
 
 use salvo_core::http::Response;
@@ -94,6 +94,7 @@ pub struct SseEvent {
 impl SseEvent {
     /// Sets Server-sent event data.
     #[inline]
+    #[must_use]
     pub fn text<T: Into<String>>(mut self, data: T) -> Self {
         self.data = Some(DataType::Text(data.into()));
         self
@@ -108,6 +109,7 @@ impl SseEvent {
 
     /// Sets Server-sent event comment.`
     #[inline]
+    #[must_use]
     pub fn comment<T: Into<String>>(mut self, comment: T) -> Self {
         self.comment = Some(comment.into());
         self
@@ -115,6 +117,7 @@ impl SseEvent {
 
     /// Sets Server-sent event event.
     #[inline]
+    #[must_use]
     pub fn name<T: Into<String>>(mut self, event: T) -> Self {
         self.name = Some(event.into());
         self
@@ -122,13 +125,15 @@ impl SseEvent {
 
     /// Sets Server-sent event retry.
     #[inline]
-    #[must_use] pub fn retry(mut self, duration: Duration) -> Self {
+    #[must_use]
+    pub fn retry(mut self, duration: Duration) -> Self {
         self.retry = Some(duration);
         self
     }
 
     /// Sets Server-sent event id.
     #[inline]
+    #[must_use]
     pub fn id<T: Into<String>>(mut self, id: T) -> Self {
         self.id = Some(id.into());
         self
@@ -171,7 +176,7 @@ impl Display for SseEvent {
             f.write_char('\n')?;
         }
 
-        if let Some( duration) = &self.retry {
+        if let Some(duration) = &self.retry {
             "retry:".fmt(f)?;
 
             let secs = duration.as_secs();
@@ -222,6 +227,7 @@ where
 {
     /// Create new `SseKeepAlive`.
     #[inline]
+    #[must_use]
     pub fn new(event_stream: S) -> Self {
         let max_interval = Duration::from_secs(15);
         let alive_timer = time::sleep(max_interval);
@@ -236,6 +242,7 @@ where
     ///
     /// Default is 15 seconds.
     #[inline]
+    #[must_use]
     pub fn max_interval(mut self, time: Duration) -> Self {
         self.max_interval = time;
         self
@@ -245,6 +252,7 @@ where
     ///
     /// Default is an empty comment.
     #[inline]
+    #[must_use]
     pub fn comment(mut self, comment: impl Into<Cow<'static, str>>) -> Self {
         self.comment = comment.into();
         self
@@ -298,14 +306,16 @@ where
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(_) => {
                     // restart timer
-                    pin.alive_timer.reset(tokio::time::Instant::now() + *pin.max_interval);
+                    pin.alive_timer
+                        .reset(tokio::time::Instant::now() + *pin.max_interval);
                     let event = SseEvent::default().comment(pin.comment.clone());
                     Poll::Ready(Some(Ok(event)))
                 }
             },
             Poll::Ready(Some(Ok(event))) => {
                 // restart timer
-                pin.alive_timer.reset(tokio::time::Instant::now() + *pin.max_interval);
+                pin.alive_timer
+                    .reset(tokio::time::Instant::now() + *pin.max_interval);
                 Poll::Ready(Some(Ok(event)))
             }
             Poll::Ready(None) => Poll::Ready(None),
@@ -342,7 +352,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_keep_alive() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().text("1"))]);
+        let event_stream =
+            tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().text("1"))]);
         let mut res = Response::new();
         SseKeepAlive::new(event_stream)
             .comment("love you")
@@ -370,7 +381,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_comment() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().comment("comment"))]);
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
+            SseEvent::default().comment("comment"),
+        )]);
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
@@ -379,7 +392,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_name() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().name("evt2"))]);
+        let event_stream =
+            tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().name("evt2"))]);
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
@@ -407,7 +421,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_id() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().id("jobs"))]);
+        let event_stream =
+            tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().id("jobs"))]);
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();

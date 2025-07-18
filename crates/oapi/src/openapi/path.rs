@@ -32,6 +32,7 @@ impl Paths {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
+    #[must_use]
     pub fn path<K: Into<String>, V: Into<PathItem>>(mut self, key: K, value: V) -> Self {
         self.insert(key, value);
         self
@@ -141,6 +142,7 @@ impl PathItem {
 
     /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`PathItemType`].
+    #[must_use]
     pub fn add_operation<O: Into<Operation>>(
         mut self,
         path_item_type: PathItemType,
@@ -151,6 +153,7 @@ impl PathItem {
     }
 
     /// Add or change summary intended to apply all operations in this [`PathItem`].
+    #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = Some(summary.into());
         self
@@ -158,6 +161,7 @@ impl PathItem {
 
     /// Add or change optional description intended to apply all operations in this [`PathItem`].
     /// Description supports markdown syntax.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
@@ -165,12 +169,14 @@ impl PathItem {
 
     /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`] overriding
     /// the global server array.
+    #[must_use]
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
         self.servers = Servers(servers.into_iter().collect());
         self
     }
 
     /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
+    #[must_use]
     pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
         self.parameters = Parameters(parameters.into_iter().collect());
         self

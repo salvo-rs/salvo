@@ -287,6 +287,7 @@ where
 impl<S, I> Cache<S, I> {
     /// Create a new `Cache`.
     #[inline]
+    #[must_use]
     pub fn new(store: S, issuer: I) -> Self {
         let skipper = MethodSkipper::new().skip_all().skip_get(false);
         Self {
@@ -297,6 +298,7 @@ impl<S, I> Cache<S, I> {
     }
     /// Sets skipper and returns a new `Cache`.
     #[inline]
+    #[must_use]
     pub fn skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
@@ -319,15 +321,10 @@ where
         if self.skipper.skipped(req, depot) {
             return;
         }
-        let key = match self.issuer.issue(req, depot).await {
-            Some(key) => key,
-            None => {
-                return;
-            }
+        let Some(key) = self.issuer.issue(req, depot).await else {
+            return;
         };
-        let cache = if let Some(cache) = self.store.load_entry(&key).await {
-            cache
-        } else {
+        let Some(cache) = self.store.load_entry(&key).await else {
             ctrl.call_next(req, depot, res).await;
             if !res.body.is_stream() && !res.body.is_error() {
                 let headers = res.headers().clone();

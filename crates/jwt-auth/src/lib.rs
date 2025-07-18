@@ -323,6 +323,7 @@ where
 {
     /// Create new `JwtAuth`.
     #[inline]
+    #[must_use]
     pub fn new(decoder: D) -> Self {
         Self {
             force_passed: false,
@@ -333,6 +334,7 @@ where
     }
     /// Sets force_passed value and return Self.
     #[inline]
+    #[must_use]
     pub fn force_passed(mut self, force_passed: bool) -> Self {
         self.force_passed = force_passed;
         self
@@ -351,6 +353,7 @@ where
     }
     /// Sets extractor list with new value and return Self.
     #[inline]
+    #[must_use]
     pub fn finders(mut self, finders: Vec<Box<dyn JwtTokenFinder>>) -> Self {
         self.finders = finders;
         self
