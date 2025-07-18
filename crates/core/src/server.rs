@@ -1,8 +1,9 @@
 //! Server module
+use std::fmt::{self, Debug, Formatter};
 use std::io::Result as IoResult;
+use std::sync::Arc;
 #[cfg(feature = "server-handle")]
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 #[cfg(not(any(feature = "http1", feature = "http2", feature = "quinn")))]
 compile_error!(
@@ -15,19 +16,21 @@ use hyper::server::conn::http1;
 use hyper::server::conn::http2;
 #[cfg(feature = "server-handle")]
 use tokio::{
-    time::Duration,sync::{
-    Notify,
-    mpsc::{UnboundedReceiver, UnboundedSender}
-}};
+    sync::{
+        Notify,
+        mpsc::{UnboundedReceiver, UnboundedSender},
+    },
+    time::Duration,
+};
 #[cfg(feature = "server-handle")]
 use tokio_util::sync::CancellationToken;
 
+use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
 use crate::http::{HeaderValue, HttpConnection, Version};
-use crate::Service;
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -35,6 +38,11 @@ cfg_feature! {
     #[derive(Clone)]
     pub struct ServerHandle {
         tx_cmd: UnboundedSender<ServerCommand>,
+    }
+    impl Debug for ServerHandle {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            f.debug_struct("ServerHandle").finish()
+        }
     }
 }
 
@@ -80,7 +88,9 @@ impl ServerHandle {
     /// }
     /// ```
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
-        let _ = self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into()));
+        let _ = self
+            .tx_cmd
+            .send(ServerCommand::StopGraceful(timeout.into()));
     }
 }
 
@@ -101,6 +111,12 @@ pub struct Server<A> {
     tx_cmd: UnboundedSender<ServerCommand>,
     #[cfg(feature = "server-handle")]
     rx_cmd: UnboundedReceiver<ServerCommand>,
+}
+
+impl<A> Debug for Server<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Server").finish()
+    }
 }
 
 impl<A: Acceptor + Send> Server<A> {
@@ -170,7 +186,7 @@ impl<A: Acceptor + Send> Server<A> {
             let _ = self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into()));
         }
     }
-    
+
     /// Get holding information of this server.
     #[inline]
     pub fn holdings(&self) -> &[Holding] {
@@ -224,17 +240,19 @@ impl<A: Acceptor + Send> Server<A> {
     where
         S: Into<Service> + Send,
     {
-        self.try_serve(service).await.expect("failed to call `Server::serve`");
+        self.try_serve(service)
+            .await
+            .expect("failed to call `Server::serve`");
     }
 
     /// Try to serve a [`Service`].
     #[cfg(feature = "server-handle")]
-    #[allow(clippy::manual_async_fn)]//Fix: https://github.com/salvo-rs/salvo/issues/902
-    pub fn try_serve<S>(self, service: S) -> impl Future<Output=IoResult<()>> + Send
+    #[allow(clippy::manual_async_fn)] //Fix: https://github.com/salvo-rs/salvo/issues/902
+    pub fn try_serve<S>(self, service: S) -> impl Future<Output = IoResult<()>> + Send
     where
         S: Into<Service> + Send,
     {
-        async{
+        async {
             let Self {
                 mut acceptor,
                 builder,
@@ -334,7 +352,10 @@ impl<A: Acceptor + Send> Server<A> {
             }
 
             if !force_stop_token.is_cancelled() && alive_connections.load(Ordering::Acquire) > 0 {
-                tracing::info!("wait for {} connections to close.",alive_connections.load(Ordering::Acquire));
+                tracing::info!(
+                    "wait for {} connections to close.",
+                    alive_connections.load(Ordering::Acquire)
+                );
                 notify.notified().await;
             }
 
@@ -345,8 +366,8 @@ impl<A: Acceptor + Send> Server<A> {
     /// Try to serve a [`Service`].
     #[cfg(not(feature = "server-handle"))]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
-        where
-            S: Into<Service> + Send,
+    where
+        S: Into<Service> + Send,
     {
         let Self {
             mut acceptor,
@@ -373,16 +394,27 @@ impl<A: Acceptor + Send> Server<A> {
         let builder = Arc::new(builder);
         loop {
             match acceptor.accept(fuse_factory.clone()).await {
-                Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
-
+                Ok(Accepted {
+                    conn,
+                    local_addr,
+                    remote_addr,
+                    http_scheme,
+                    ..
+                }) => {
                     let service = service.clone();
-                    let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                    let handler = service.hyper_handler(
+                        local_addr,
+                        remote_addr,
+                        http_scheme,
+                        conn.fusewire(),
+                        alt_svc_h3.clone(),
+                    );
                     let builder = builder.clone();
 
                     tokio::spawn(async move {
                         let _ = conn.serve(handler, builder, None).await;
                     });
-                },
+                }
                 Err(e) => {
                     tracing::error!(error = ?e, "accept connection failed");
                 }
@@ -410,9 +442,13 @@ mod tests {
             struct User {
                 name: String,
             }
-            res.render(Json(User { name: "jobs".into() }));
+            res.render(Json(User {
+                name: "jobs".into(),
+            }));
         }
-        let router = Router::new().get(hello).push(Router::with_path("json").get(json));
+        let router = Router::new()
+            .get(hello)
+            .push(Router::with_path("json").get(json));
         let service = Service::new(router);
 
         let base_url = "http://127.0.0.1:5800";
@@ -496,14 +532,15 @@ mod tests {
             use crate::conn::openssl::{Keycert, OpensslConfig};
 
             let acceptor = TcpListener::new("127.0.0.1:0")
-            .openssl(OpensslConfig::new(
-                Keycert::new()
-                    .key_from_path("certs/key.pem")
-                    .unwrap()
-                    .cert_from_path("certs/cert.pem")
-                    .unwrap(),
-            )).bind()
-            .await;
+                .openssl(OpensslConfig::new(
+                    Keycert::new()
+                        .key_from_path("certs/key.pem")
+                        .unwrap()
+                        .cert_from_path("certs/cert.pem")
+                        .unwrap(),
+                ))
+                .bind()
+                .await;
             Server::new(acceptor).serve(Router::new()).await;
         };
         #[cfg(feature = "rustls")]
@@ -528,7 +565,8 @@ mod tests {
 
             let cert = include_bytes!("../certs/cert.pem").to_vec();
             let key = include_bytes!("../certs/key.pem").to_vec();
-            let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
+            let config =
+                RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
             let listener = TcpListener::new(("127.0.0.1", 2048)).rustls(config.clone());
             let acceptor = QuinnListener::new(config, ("127.0.0.1", 2048))
                 .join(listener)

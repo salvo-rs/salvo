@@ -33,6 +33,7 @@ use crate::conn::quinn;
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
     pub(crate) http1: http1::Builder,

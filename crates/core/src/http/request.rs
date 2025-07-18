@@ -61,6 +61,7 @@ pub fn set_global_secure_max_size(size: usize) {
 /// **Note**: The security maximum value is only effective when directly obtaining data
 /// from the body. For uploaded files, the files are written to temporary files
 /// and the bytes is not directly obtained, so they will not be affected.
+#[derive(Debug, Clone, Copy)]
 pub struct SecureMaxSize(pub usize);
 impl SecureMaxSize {
     /// Create a new `SecureMaxSize` instance.

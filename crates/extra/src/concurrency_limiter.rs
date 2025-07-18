@@ -76,6 +76,7 @@ use salvo_core::http::{Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxConcurrency
+#[derive(Debug)]
 pub struct MaxConcurrency {
     semaphore: Semaphore,
 }

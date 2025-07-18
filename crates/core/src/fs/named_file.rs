@@ -57,7 +57,7 @@ pub struct NamedFile {
 }
 
 /// Builder for build [`NamedFile`].
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,
     attached_name: Option<String>,

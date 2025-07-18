@@ -19,6 +19,7 @@ use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::hash::Hash;
+use std::fmt::{self, Formatter, Debug};
 
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
@@ -263,6 +264,18 @@ pub struct Cache<S, I> {
     pub issuer: I,
     /// Skipper.
     pub skipper: Box<dyn Skipper>,
+}
+impl<S, I> Debug for Cache<S, I>
+where
+    S: Debug,
+    I: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Cache")
+            .field("store", &self.store)
+            .field("issuer", &self.issuer)
+            .finish()
+    }
 }
 
 impl<S, I> Cache<S, I> {

@@ -75,7 +75,7 @@ pub struct SseError;
 
 impl Display for SseError {
     #[inline]
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "sse error")
     }
 }

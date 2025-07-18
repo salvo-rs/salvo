@@ -42,6 +42,7 @@ pub struct Xml {
 
 impl Xml {
     /// Construct a new [`Xml`] object.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -53,6 +54,7 @@ impl Xml {
     /// Add [`Xml::name`] to xml object.
     ///
     /// Builder style chainable consuming add name method.
+    #[must_use]
     pub fn name<S: Into<Cow<'static, str>>>(mut self, name: S) -> Self {
         self.name = Some(name.into());
         self
@@ -61,6 +63,7 @@ impl Xml {
     /// Add [`Xml::namespace`] to xml object.
     ///
     /// Builder style chainable consuming add namespace method.
+    #[must_use]
     pub fn namespace<S: Into<Cow<'static, str>>>(mut self, namespace: S) -> Self {
         self.namespace = Some(namespace.into());
         self
@@ -69,6 +72,7 @@ impl Xml {
     /// Add [`Xml::prefix`] to xml object.
     ///
     /// Builder style chainable consuming add prefix method.
+    #[must_use]
     pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: S) -> Self {
         self.prefix = Some(prefix.into());
         self
@@ -77,6 +81,7 @@ impl Xml {
     /// Mark [`Xml`] object as attribute. See [`Xml::attribute`]
     ///
     /// Builder style chainable consuming add attribute method.
+    #[must_use]
     pub fn attribute(mut self, attribute: bool) -> Self {
         self.attribute = Some(attribute);
         self
@@ -85,6 +90,7 @@ impl Xml {
     /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`]
     ///
     /// Builder style chainable consuming add wrapped method.
+    #[must_use]
     pub fn wrapped(mut self, wrapped: bool) -> Self {
         self.wrapped = Some(wrapped);
         self

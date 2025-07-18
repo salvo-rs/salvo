@@ -35,6 +35,7 @@
 //! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
+use std::fmt::{self, Formatter, Debug};
 use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
@@ -64,6 +65,12 @@ impl Default for Catcher {
             goal: Arc::new(DefaultGoal::new()),
             hoops: vec![],
         }
+    }
+}
+impl Debug for Catcher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Catcher")
+            .finish()
     }
 }
 impl Catcher {
@@ -122,7 +129,7 @@ impl Catcher {
 /// `DefaultGoal` will used to catch them.
 ///
 /// `DefaultGoal` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DefaultGoal {
     footer: Option<Cow<'static, str>>,
 }

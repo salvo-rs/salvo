@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use crate::http::{Request, Response};
@@ -21,6 +22,16 @@ pub struct FlowCtrl {
     is_ceased: bool,
     pub(crate) cursor: usize,
     pub(crate) handlers: Vec<Arc<dyn Handler>>,
+}
+
+impl Debug for FlowCtrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlowCtrl")
+            .field("catching", &self.catching)
+            .field("is_ceased", &self.is_ceased)
+            .field("cursor", &self.cursor)
+            .finish()
+    }
 }
 
 impl FlowCtrl {

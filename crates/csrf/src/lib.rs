@@ -11,6 +11,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 
 mod finder;
 
@@ -212,6 +213,19 @@ pub struct Csrf<C, S> {
     store: S,
     skipper: Box<dyn Skipper>,
     finders: Vec<Box<dyn CsrfTokenFinder>>,
+}
+
+impl<C, S> Debug for Csrf<C, S>
+where
+    C: Debug,
+    S: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Csrf")
+            .field("cipher", &self.cipher)
+            .field("store", &self.store)
+            .finish()
+    }
 }
 
 impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {

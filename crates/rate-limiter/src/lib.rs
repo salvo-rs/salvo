@@ -17,6 +17,7 @@
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
 
 use salvo_core::conn::SocketAddr;
@@ -73,6 +74,7 @@ where
 }
 
 /// Identify user by IP address.
+#[derive(Debug)]
 pub struct RemoteIpIssuer;
 impl RateIssuer for RemoteIpIssuer {
     type Key = String;
@@ -135,6 +137,23 @@ pub struct RateLimiter<G, S, I, Q> {
     quota_getter: Q,
     add_headers: bool,
     skipper: Box<dyn Skipper>,
+}
+impl<G, S, I, Q> Debug for RateLimiter<G, S, I, Q>
+where
+    G: Debug,
+    S: Debug,
+    I: Debug,
+    Q: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RateLimiter")
+            .field("guard", &self.guard)
+            .field("store", &self.store)
+            .field("issuer", &self.issuer)
+            .field("quota_getter", &self.quota_getter)
+            .field("add_headers", &self.add_headers)
+            .finish()
+    }
 }
 
 impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimiter<G, S, I, P> {

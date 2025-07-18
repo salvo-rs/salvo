@@ -3,6 +3,7 @@ mod named_file;
 pub use named_file::*;
 
 use std::cmp;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
@@ -25,6 +26,16 @@ pub struct ChunkedFile<T> {
     buffer_size: u64,
     offset: u64,
     state: ChunkedState<T>,
+}
+impl<T> Debug for ChunkedFile<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChunkedFile")
+            .field("total_size", &self.total_size)
+            .field("read_size", &self.read_size)
+            .field("buffer_size", &self.buffer_size)
+            .field("offset", &self.offset)
+            .finish()
+    }
 }
 
 impl<T> Stream for ChunkedFile<T>

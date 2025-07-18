@@ -16,7 +16,6 @@ use crate::http::body::{BodyReceiver, BodySender, BytesFrame};
 use crate::prelude::StatusError;
 
 /// Body for HTTP response.
-#[allow(clippy::type_complexity)]
 #[non_exhaustive]
 #[derive(Default)]
 pub enum ResBody {

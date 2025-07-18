@@ -1,3 +1,5 @@
+use std::fmt::{self, Formatter, Debug};
+
 use jsonwebtoken::errors::Error as JwtError;
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
 use serde::Deserialize;
@@ -50,6 +52,14 @@ pub struct ConstDecoder {
 
     /// JWT validation parameters
     validation: Validation,
+}
+
+impl Debug for ConstDecoder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConstDecoder")
+            .field("validation", &self.validation)
+            .finish()
+    }
 }
 
 impl ConstDecoder {

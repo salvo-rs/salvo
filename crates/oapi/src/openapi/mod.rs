@@ -20,8 +20,8 @@ mod tag;
 mod xml;
 
 use std::collections::BTreeSet;
-use std::fmt::Formatter;
 use std::sync::LazyLock;
+use std::fmt::{self, Formatter, Debug};
 
 use regex::Regex;
 use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};
@@ -168,6 +168,7 @@ impl OpenApi {
     /// #
     /// let openapi = OpenApi::new("pet api", "0.1.0");
     /// ```
+    #[must_use]
     pub fn with_info(info: Info) -> Self {
         Self {
             info,
@@ -206,7 +207,8 @@ impl OpenApi {
     /// comparison.
     ///
     /// **Note!** `info`, `openapi` and `external_docs` and `schema` will not be merged.
-    pub fn merge(mut self, mut other: OpenApi) -> Self {
+    #[must_use]
+    pub fn merge(mut self, mut other: Self) -> Self {
         self.servers.append(&mut other.servers);
         self.paths.append(&mut other.paths);
         self.components.append(&mut other.components);
@@ -216,17 +218,20 @@ impl OpenApi {
     }
 
     /// Add [`Info`] metadata of the API.
+    #[must_use]
     pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
         self.info = info.into();
         self
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
+    #[must_use]
     pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
         self.servers = servers.into_iter().collect();
         self
     }
     /// Add [`Server`] to configure operations and endpoints of the API and returns `Self`.
+    #[must_use]
     pub fn add_server<S>(mut self, server: S) -> Self
     where
         S: Into<Server>,
@@ -236,11 +241,13 @@ impl OpenApi {
     }
 
     /// Set paths to configure operations and endpoints of the API.
+    #[must_use]
     pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
         self.paths = paths.into();
         self
     }
     /// Add [`PathItem`] to configure operations and endpoints of the API and returns `Self`.
+    #[must_use]
     pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
     where
         P: Into<String>,
@@ -251,12 +258,14 @@ impl OpenApi {
     }
 
     /// Add [`Components`] to configure reusable schemas.
+    #[must_use]
     pub fn components(mut self, components: impl Into<Components>) -> Self {
         self.components = components.into();
         self
     }
 
     /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
+    #[must_use]
     pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
         self.security = security.into_iter().collect();
         self
@@ -268,6 +277,7 @@ impl OpenApi {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
@@ -286,6 +296,7 @@ impl OpenApi {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
+    #[must_use]
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
@@ -305,6 +316,7 @@ impl OpenApi {
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
+    #[must_use]
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(
         mut self,
         name: S,
@@ -331,6 +343,7 @@ impl OpenApi {
     ///     ),
     /// )]);
     /// ```
+    #[must_use]
     pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
     where
         I: IntoIterator<Item = (S, C)>,
@@ -346,6 +359,7 @@ impl OpenApi {
     }
 
     /// Add a new response and returns `self`.
+    #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         name: S,
@@ -358,6 +372,7 @@ impl OpenApi {
     }
 
     /// Extends responses with the contents of an iterator.
+    #[must_use]
     pub fn extend_responses<
         I: IntoIterator<Item = (S, R)>,
         S: Into<String>,
@@ -375,6 +390,7 @@ impl OpenApi {
     }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
+    #[must_use]
     pub fn tags<I, T>(mut self, tags: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -385,6 +401,7 @@ impl OpenApi {
     }
 
     /// Add [`ExternalDocs`] for referring additional documentation.
+    #[must_use]
     pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
         self.external_docs = Some(external_docs);
         self
@@ -399,12 +416,14 @@ impl OpenApi {
     /// # use salvo_oapi::OpenApi;
     /// let _ = OpenApi::new("openapi", "0.1.0").schema("http://json-schema.org/draft-07/schema#");
     /// ```
+    #[must_use]
     pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
         self.schema = schema.into();
         self
     }
 
     /// Add openapi extension (`x-something`) for [`OpenApi`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
@@ -416,11 +435,13 @@ impl OpenApi {
     }
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`].
+    #[must_use]
     pub fn merge_router(self, router: &Router) -> Self {
         self.merge_router_with_base(router, "/")
     }
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
+    #[must_use]
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
         let mut node = NormNode::new(router, Default::default());
         self.merge_norm_node(&mut node, base.as_ref());
@@ -459,7 +480,6 @@ impl OpenApi {
                 let Endpoint {
                     mut operation,
                     mut components,
-                    ..
                 } = (creator)();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
                 operation
@@ -566,7 +586,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
         impl Visitor<'_> for VersionVisitor {
             type Value = OpenApiVersion;
 
-            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
                 formatter.write_str("a version string in 3.1.x format")
             }
 
@@ -574,7 +594,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             where
                 E: Error,
             {
-                self.visit_string(v.to_string())
+                self.visit_string(v.to_owned())
             }
 
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
@@ -636,7 +656,7 @@ impl<'de> Deserialize<'de> for Deprecated {
         impl Visitor<'_> for BoolVisitor {
             type Value = Deprecated;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
                 formatter.write_str("a bool true or false")
             }
 
@@ -692,7 +712,7 @@ impl<'de> Deserialize<'de> for Required {
         impl Visitor<'_> for BoolVisitor {
             type Value = Required;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
                 formatter.write_str("a bool true or false")
             }
 

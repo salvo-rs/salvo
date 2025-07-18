@@ -309,7 +309,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = crate::naming::assign_name::<StatusError>(Default::default());
+        let name = crate::naming::assign_name::<Self>(Default::default());
         let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());
@@ -538,52 +538,52 @@ impl ToResponses for StatusError {
     fn to_responses(components: &mut Components) -> Responses {
         let mut responses = Responses::new();
         let errors = vec![
-            StatusError::bad_request(),
-            StatusError::unauthorized(),
-            StatusError::payment_required(),
-            StatusError::forbidden(),
-            StatusError::not_found(),
-            StatusError::method_not_allowed(),
-            StatusError::not_acceptable(),
-            StatusError::proxy_authentication_required(),
-            StatusError::request_timeout(),
-            StatusError::conflict(),
-            StatusError::gone(),
-            StatusError::length_required(),
-            StatusError::precondition_failed(),
-            StatusError::payload_too_large(),
-            StatusError::uri_too_long(),
-            StatusError::unsupported_media_type(),
-            StatusError::range_not_satisfiable(),
-            StatusError::expectation_failed(),
-            StatusError::im_a_teapot(),
-            StatusError::misdirected_request(),
-            StatusError::unprocessable_entity(),
-            StatusError::locked(),
-            StatusError::failed_dependency(),
-            StatusError::upgrade_required(),
-            StatusError::precondition_required(),
-            StatusError::too_many_requests(),
-            StatusError::request_header_fields_toolarge(),
-            StatusError::unavailable_for_legalreasons(),
-            StatusError::internal_server_error(),
-            StatusError::not_implemented(),
-            StatusError::bad_gateway(),
-            StatusError::service_unavailable(),
-            StatusError::gateway_timeout(),
-            StatusError::http_version_not_supported(),
-            StatusError::variant_also_negotiates(),
-            StatusError::insufficient_storage(),
-            StatusError::loop_detected(),
-            StatusError::not_extended(),
-            StatusError::network_authentication_required(),
+            Self::bad_request(),
+            Self::unauthorized(),
+            Self::payment_required(),
+            Self::forbidden(),
+            Self::not_found(),
+            Self::method_not_allowed(),
+            Self::not_acceptable(),
+            Self::proxy_authentication_required(),
+            Self::request_timeout(),
+            Self::conflict(),
+            Self::gone(),
+            Self::length_required(),
+            Self::precondition_failed(),
+            Self::payload_too_large(),
+            Self::uri_too_long(),
+            Self::unsupported_media_type(),
+            Self::range_not_satisfiable(),
+            Self::expectation_failed(),
+            Self::im_a_teapot(),
+            Self::misdirected_request(),
+            Self::unprocessable_entity(),
+            Self::locked(),
+            Self::failed_dependency(),
+            Self::upgrade_required(),
+            Self::precondition_required(),
+            Self::too_many_requests(),
+            Self::request_header_fields_toolarge(),
+            Self::unavailable_for_legalreasons(),
+            Self::internal_server_error(),
+            Self::not_implemented(),
+            Self::bad_gateway(),
+            Self::service_unavailable(),
+            Self::gateway_timeout(),
+            Self::http_version_not_supported(),
+            Self::variant_also_negotiates(),
+            Self::insufficient_storage(),
+            Self::loop_detected(),
+            Self::not_extended(),
+            Self::network_authentication_required(),
         ];
-        for StatusError { code, brief, .. } in errors {
+        for Self { code, brief, .. } in errors {
             responses.insert(
                 code.as_str(),
                 Response::new(brief).add_content(
                     "application/json",
-                    Content::new(StatusError::to_schema(components)),
+                    Content::new(Self::to_schema(components)),
                 ),
             )
         }

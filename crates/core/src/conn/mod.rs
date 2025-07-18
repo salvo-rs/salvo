@@ -3,7 +3,7 @@
 //! These listeners include implementations for different TLS libraries such as `rustls`, `native-tls`, and `openssl`.
 //! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol.
 //! Additionally, it includes implementations for Unix domain sockets.
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Debug, Formatter};
 use std::io::Result as IoResult;
 
 use http::uri::Scheme;
@@ -95,6 +95,18 @@ where
     pub remote_addr: SocketAddr,
     /// HTTP scheme.
     pub http_scheme: Scheme,
+}
+impl<C> Debug for Accepted<C>
+where
+    C: HttpConnection
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Accepted")
+            .field("local_addr", &self.local_addr)
+            .field("remote_addr", &self.remote_addr)
+            .field("http_scheme", &self.http_scheme)
+            .finish()
+    }
 }
 
 impl<C> Accepted<C>

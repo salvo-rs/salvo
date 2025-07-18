@@ -72,14 +72,17 @@ impl IntoIterator for Servers {
 }
 impl Servers {
     /// Construct a new empty [`Servers`]. This is effectively same as calling [`Servers::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Returns `true` if instance contains no elements.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
     /// Inserts a server into the instance and returns `self`.
+    #[must_use]
     pub fn server<S: Into<Server>>(mut self, server: S) -> Self {
         self.insert(server);
         self
@@ -109,7 +112,7 @@ impl Servers {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut Servers) {
+    pub fn append(&mut self, other: &mut Self) {
         let servers = std::mem::take(&mut other.0);
         for server in servers {
             self.insert(server);
@@ -185,6 +188,7 @@ impl Server {
     /// # use salvo_oapi::server::Server;
     ///  Server::new("https://alternative.pet-api.test/api/v1");
     /// ```
+    #[must_use]
     pub fn new<S: Into<String>>(url: S) -> Self {
         Self {
             url: url.into(),
@@ -192,12 +196,14 @@ impl Server {
         }
     }
     /// Add url to the target [`Server`].
+    #[must_use]
     pub fn url<U: Into<String>>(mut self, url: U) -> Self {
         self.url = url.into();
         self
     }
 
     /// Add or change description of the [`Server`].
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
@@ -209,6 +215,7 @@ impl Server {
     ///   `{username}` substitution then the name should be `username`.
     /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
     ///   within the url.
+    #[must_use]
     pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(
         mut self,
         name: N,
@@ -236,10 +243,12 @@ impl DerefMut for ServerVariables {
 }
 impl ServerVariables {
     /// Construct a new empty [`ServerVariables`]. This is effectively same as calling [`ServerVariables::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
-    /// Returns `true` if instance contains no elements.
+    /// Returns `true` if instance contains no elements.    
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -271,7 +280,7 @@ impl ServerVariables {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
-    pub fn append(&mut self, other: &mut ServerVariables) {
+    pub fn append(&mut self, other: &mut Self) {
         let variables = std::mem::take(&mut other.0);
         for (key, variable) in variables {
             self.insert(key, variable);
@@ -310,22 +319,26 @@ pub struct ServerVariable {
 
 impl ServerVariable {
     /// Construct a new empty [`ServerVariable`]. This is effectively same as calling [`ServerVariable::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
     /// Add default value for substitution.
+    #[must_use]
     pub fn default_value<S: Into<String>>(mut self, default_value: S) -> Self {
         self.default_value = default_value.into();
         self
     }
 
     /// Add or change description of substituted parameter.
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change possible values used to substitute parameter.
+    #[must_use]
     pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(
         mut self,
         enum_values: I,

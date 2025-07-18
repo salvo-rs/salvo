@@ -1,6 +1,6 @@
 //! A flexible fusewire.
-
 use std::sync::Arc;
+use std::fmt::{self, Debug, Formatter};
 
 use tokio::sync::Notify;
 use tokio::time::Duration;
@@ -60,6 +60,19 @@ pub struct FlexFusewire {
     tls_handshake_token: CancellationToken,
     tls_handshake_notify: Arc<Notify>,
 }
+
+impl Debug for FlexFusewire {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlexFusewire")
+            .field("info", &self.info)
+            .field("guards.len", &self.guards.len())
+            .field("tcp_idle_timeout", &self.tcp_idle_timeout)
+            .field("tcp_frame_timeout", &self.tcp_frame_timeout)
+            .field("tls_handshake_timeout", &self.tls_handshake_timeout)
+            .finish()
+    }
+}
+
 impl FlexFusewire {
     /// Create a new `FlexFusewire`.
     pub fn new(info: FuseInfo) -> Self {
@@ -159,6 +172,18 @@ pub struct FlexFactory {
     tls_handshake_timeout: Duration,
 
     guards: Arc<Vec<Box<dyn Guard>>>,
+}
+
+impl Debug for FlexFactory {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlexFactory")
+            .field("tcp_idle_timeout", &self.tcp_idle_timeout)
+            .field("tcp_frame_timeout", &self.tcp_frame_timeout)
+            .field("tls_handshake_timeout", &self.tls_handshake_timeout)
+            .field("guards.len", &self.guards.len())
+            .finish()
+    }
+    
 }
 
 impl Default for FlexFactory {

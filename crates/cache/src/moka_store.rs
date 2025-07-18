@@ -1,6 +1,7 @@
 //! Memory store module.
 use std::borrow::Borrow;
 use std::convert::Infallible;
+use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,6 +15,12 @@ use super::{CacheStore, CachedEntry};
 /// A builder for [`MokaStore`].
 pub struct Builder<K> {
     inner: MokaCacheBuilder<K, CachedEntry, MokaCache<K, CachedEntry>>,
+}
+
+impl<K> Debug for Builder<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Builder").finish()
+    }
 }
 impl<K> Builder<K>
 where
@@ -93,6 +100,12 @@ where
 /// A simple in-memory store for rate limiter.
 pub struct MokaStore<K> {
     inner: MokaCache<K, CachedEntry>,
+}
+
+impl<K> Debug for MokaStore<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MokaStore").finish()
+    }
 }
 impl<K> MokaStore<K>
 where

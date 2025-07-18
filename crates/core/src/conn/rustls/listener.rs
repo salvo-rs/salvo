@@ -1,5 +1,6 @@
 //! rustls module
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::pin::Pin;
@@ -23,6 +24,12 @@ pub struct RustlsListener<S, C, T, E> {
     config_stream: S,
     inner: T,
     _phantom: PhantomData<(C, E)>,
+}
+
+impl<S, C, T, E> Debug for RustlsListener<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RustlsListener").finish()
+    }
 }
 
 impl<S, C, T, E> RustlsListener<S, C, T, E>
@@ -69,6 +76,13 @@ pub struct RustlsAcceptor<S, C, T, E> {
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
     _phantom: PhantomData<(C, E)>,
 }
+
+impl<S, C, T, E> Debug for RustlsAcceptor<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RustlsAcceptor").finish()
+    }
+}
+
 impl<S, C, T, E> RustlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + 'static,
@@ -142,7 +156,9 @@ where
             config
         };
         if let Some(config) = config {
-            let config: ServerConfig = config.try_into().map_err(|e| IoError::other(e.to_string()))?;
+            let config: ServerConfig = config
+                .try_into()
+                .map_err(|e| IoError::other(e.to_string()))?;
             let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
             if self.tls_acceptor.is_some() {
                 tracing::info!("tls config changed.");
@@ -154,9 +170,7 @@ where
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor,
             None => {
-                return Err(IoError::other(
-                    "rustls: invalid tls config.",
-                ));
+                return Err(IoError::other("rustls: invalid tls config."));
             }
         };
 

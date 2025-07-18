@@ -1,17 +1,19 @@
 //! UnixListener module
-use std::fs::{set_permissions, Permissions};
+#[cfg(unix)]
+use std::fmt::{self, Debug, Formatter};
+use std::fs::{Permissions, set_permissions};
 use std::io::Result as IoResult;
 use std::path::Path;
 use std::sync::Arc;
 
 use http::uri::Scheme;
-use nix::unistd::{chown, Gid, Uid};
+use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
-use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory,FuseInfo,TransProto};
-use crate::http::Version;
 use crate::Error;
+use crate::conn::{Holding, StraightStream};
+use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::http::Version;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -24,6 +26,18 @@ pub struct UnixListener<T> {
     #[cfg(feature = "socket2")]
     backlog: Option<u32>,
 }
+
+#[cfg(unix)]
+impl<T: Debug> Debug for UnixListener<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UnixListener")
+            .field("path", &self.path)
+            .field("permissions", &self.permissions)
+            .field("owner", &self.owner)
+            .finish()
+    }
+}
+
 #[cfg(unix)]
 impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
@@ -43,7 +57,8 @@ impl<T> UnixListener<T> {
         UnixListener {
             path,
             permissions: None,
-            owner: None, backlog: None
+            owner: None,
+            backlog: None,
         }
     }
 
@@ -113,18 +128,17 @@ where
             http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
         }];
-        Ok(UnixAcceptor {
-            inner,
-            holdings,
-        })
+        Ok(UnixAcceptor { inner, holdings })
     }
 }
 
 /// `UnixAcceptor` is used to accept a Unix socket connection.
+#[derive(Debug)]
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
 }
+
 impl UnixAcceptor {
     /// Get the inner `TokioUnixListener`.
     pub fn inner(&self) -> &TokioUnixListener {
@@ -142,16 +156,24 @@ impl Acceptor for UnixAcceptor {
     }
 
     #[inline]
-    async fn accept(&mut self, fuse_factory: Option<ArcFuseFactory>) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)|{
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Conn>> {
+        self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
             Accepted {
-                conn: StraightStream::new(conn, fuse_factory.map(|f|f.create(FuseInfo {
-                    trans_proto: TransProto::Tcp,
-                    remote_addr: remote_addr.clone().into(),
-                    local_addr: local_addr.clone()
-                }))),
+                conn: StraightStream::new(
+                    conn,
+                    fuse_factory.map(|f| {
+                        f.create(FuseInfo {
+                            trans_proto: TransProto::Tcp,
+                            remote_addr: remote_addr.clone().into(),
+                            local_addr: local_addr.clone(),
+                        })
+                    }),
+                ),
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.clone().into(),
                 http_scheme: Scheme::HTTP,

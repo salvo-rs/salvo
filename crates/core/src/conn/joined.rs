@@ -1,4 +1,5 @@
 //! JoinListener and its implementations.
+use std::fmt::{self, Debug, Formatter};
 use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -21,6 +22,13 @@ pub enum JoinedStream<A, B> {
     A(A),
     #[allow(missing_docs)]
     B(B),
+}
+
+impl<A, B> Debug for JoinedStream<A, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinedStream")
+            .finish()
+    }
 }
 
 impl<A, B> AsyncRead for JoinedStream<A, B>
@@ -80,6 +88,15 @@ pub struct JoinedListener<A, B> {
     b: B,
 }
 
+impl<A: Debug, B: Debug> Debug for JoinedListener<A, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinedListener")
+            .field("a", &self.a)
+            .field("b", &self.b)
+            .finish()
+    }
+}
+
 impl<A, B> JoinedListener<A, B> {
     /// Create a new `JoinedListener`.
     #[inline]
@@ -114,6 +131,16 @@ pub struct JoinedAcceptor<A, B> {
     a: A,
     b: B,
     holdings: Vec<Holding>,
+}
+
+impl<A: Debug, B: Debug> Debug for JoinedAcceptor<A, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinedAcceptor")
+            .field("a", &self.a)
+            .field("b", &self.b)
+            .field("holdings", &self.holdings)
+            .finish()
+    }
 }
 
 impl<A, B> JoinedAcceptor<A, B> {

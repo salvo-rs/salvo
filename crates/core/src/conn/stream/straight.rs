@@ -1,5 +1,4 @@
-use tokio_util::sync::CancellationToken;
-
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, IoSlice, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -7,6 +6,7 @@ use std::task::{Context, Poll};
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
@@ -19,6 +19,12 @@ pub struct StraightStream<C> {
     #[pin]
     inner: C,
     fusewire: Option<ArcFusewire>,
+}
+
+impl<C> Debug for StraightStream<C> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StraightStream").finish()
+    }
 }
 
 impl<C> StraightStream<C>

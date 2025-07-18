@@ -7,6 +7,7 @@ use salvo_core::http::ResBody;
 use salvo_core::prelude::*;
 
 /// Middleware for metrics with OpenTelemetry.
+#[derive(Debug)]
 pub struct Metrics {
     request_count: Counter<u64>,
     error_count: Counter<u64>,

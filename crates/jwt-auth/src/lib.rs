@@ -116,6 +116,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use std::fmt::{self, Formatter, Debug};
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
@@ -302,6 +303,17 @@ pub struct JwtAuth<C, D> {
     /// A list of token finders that will be used to extract the token from the request.
     /// Finders are tried in order until one returns a token.
     pub finders: Vec<Box<dyn JwtTokenFinder>>,
+}
+impl<C, D> Debug for JwtAuth<C, D>
+where
+    C: DeserializeOwned + Send + Sync + 'static,
+    D: JwtAuthDecoder + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JwtAuth")
+            .field("force_passed", &self.force_passed)
+            .finish()
+    }
 }
 
 impl<C, D> JwtAuth<C, D>

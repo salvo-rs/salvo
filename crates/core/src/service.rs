@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -27,6 +28,17 @@ pub struct Service {
     pub hoops: Vec<Arc<dyn Handler>>,
     /// The allowed media types of this service.
     pub allowed_media_types: Arc<Vec<Mime>>,
+}
+
+impl Debug for Service {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Service")
+            .field("router", &self.router)
+            .field("catcher", &self.catcher)
+            .field("hoops", &self.hoops.len())
+            .field("allowed_media_types", &self.allowed_media_types.len())
+            .finish()
+    }
 }
 
 impl Service {
@@ -200,6 +212,19 @@ pub struct HyperHandler {
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
     pub(crate) fusewire: Option<ArcFusewire>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
+}
+impl Debug for HyperHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HyperHandler")
+            .field("local_addr", &self.local_addr)
+            .field("remote_addr", &self.remote_addr)
+            .field("http_scheme", &self.http_scheme)
+            .field("router", &self.router)
+            .field("catcher", &self.catcher)
+            .field("allowed_media_types", &self.allowed_media_types)
+            .field("alt_svc_h3", &self.alt_svc_h3)
+            .finish()
+    }
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].

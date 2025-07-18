@@ -4,6 +4,7 @@ use base64::Engine;
 use super::CsrfCipher;
 
 /// CSRF protection implementation that uses bcrypt.
+#[derive(Debug, Clone)]
 pub struct BcryptCipher {
     cost: u32,
     token_size: usize,

@@ -43,6 +43,7 @@
 //! }
 //! ```
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::handler::Skipper;
 use salvo_core::http::header;
@@ -57,6 +58,15 @@ pub struct ForceHttps {
     https_port: Option<u16>,
     skipper: Option<Box<dyn Skipper>>,
 }
+
+impl Debug for ForceHttps {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ForceHttps")
+            .field("https_port", &self.https_port)
+            .finish()
+    }
+}
+
 impl ForceHttps {
     /// Create new `ForceHttps` middleware.
     pub fn new() -> Self {

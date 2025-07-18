@@ -10,13 +10,6 @@ macro_rules! impl_get_name {
                 $name
             }
         }
-
-        impl Display for $ident {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let name = <Self as crate::feature::GetName>::get_name();
-                write!(f, "{name}")
-            }
-        }
     };
 }
 

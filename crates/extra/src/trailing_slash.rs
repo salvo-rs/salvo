@@ -45,6 +45,7 @@
 //! ```
 use std::borrow::Cow;
 use std::str::FromStr;
+use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::handler::Skipper;
 use salvo_core::http::uri::{PathAndQuery, Uri};
@@ -88,6 +89,16 @@ pub struct TrailingSlash {
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
+
+impl Debug for TrailingSlash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TrailingSlash")
+            .field("action", &self.action)
+            .field("redirect_code", &self.redirect_code)
+            .finish()
+    }
+}
+
 impl TrailingSlash {
     /// Create new `TrailingSlash`.
     #[inline]

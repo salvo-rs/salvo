@@ -40,6 +40,7 @@
 
 use std::convert::Infallible;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{CONTROLS, utf8_percent_encode};
@@ -179,6 +180,17 @@ where
     pub url_path_getter: UrlPartGetter,
     /// Url query getter.
     pub url_query_getter: UrlPartGetter,
+}
+
+impl<U, C> Debug for Proxy<U, C>
+where
+    U: Upstreams,
+    C: Client,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Proxy")
+            .finish()
+    }
 }
 
 impl<U, C> Proxy<U, C>

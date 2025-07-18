@@ -89,10 +89,12 @@ impl Array {
     /// # use salvo_oapi::schema::{Schema, Array, SchemaType, BasicType, Object};
     /// let string_array = Array::new().items(Object::with_type(BasicType::String));
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
     /// Set [`Schema`] type for the [`Array`].
+    #[must_use]
     pub fn items<I: Into<RefOr<Schema>>>(mut self, items: I) -> Self {
         self.items = Box::new(items.into());
         self
@@ -110,72 +112,84 @@ impl Array {
     ///     .schema_type(SchemaType::from_iter([BasicType::Array, BasicType::Null]))
     ///     .items(Object::with_type(BasicType::String));
     /// ```
+    #[must_use]
     pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
         self.schema_type = schema_type.into();
         self
     }
 
     /// Add or change the title of the [`Array`].
+    #[must_use]
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
+    #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change deprecated status for [`Array`].
+    #[must_use]
     pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
         self.deprecated = Some(deprecated);
         self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
         self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
         self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
         self
     }
 
     /// Set maximum allowed length for [`Array`].
+    #[must_use]
     pub fn max_items(mut self, max_items: usize) -> Self {
         self.max_items = Some(max_items);
         self
     }
 
     /// Set minimum allowed length for [`Array`].
+    #[must_use]
     pub fn min_items(mut self, min_items: usize) -> Self {
         self.min_items = Some(min_items);
         self
     }
 
     /// Set or change whether [`Array`] should enforce all items to be unique.
+    #[must_use]
     pub fn unique_items(mut self, unique_items: bool) -> Self {
         self.unique_items = unique_items;
         self
     }
 
     /// Set [`Xml`] formatting for [`Array`].
+    #[must_use]
     pub fn xml(mut self, xml: Xml) -> Self {
         self.xml = Some(xml);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`Array`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self

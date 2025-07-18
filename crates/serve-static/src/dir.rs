@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::{self, Display, Formatter, Write};
+use std::fmt::{self, Display,Debug,  Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -148,7 +148,6 @@ pub struct StaticDir {
     pub chunk_size: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
     pub include_dot_files: bool,
-    #[allow(clippy::type_complexity)]
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     /// Whether to automatically list directories when default file isn't found
     pub auto_list: bool,
@@ -158,6 +157,19 @@ pub struct StaticDir {
     pub defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
+}
+impl Debug for StaticDir {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StaticDir")
+            .field("roots", &self.roots)
+            .field("chunk_size", &self.chunk_size)
+            .field("include_dot_files", &self.include_dot_files)
+            .field("auto_list", &self.auto_list)
+            .field("compressed_variations", &self.compressed_variations)
+            .field("defaults", &self.defaults)
+            .field("fallback", &self.fallback)
+            .finish()
+    }
 }
 impl StaticDir {
     /// Create new `StaticDir`.

@@ -21,7 +21,7 @@ use salvo_core::{Depot, FlowCtrl, Handler, Writer, async_trait};
 ///    .get(hello)
 ///    .push(Router::with_path("favicon.ico").get(StaticFile::new("assets/favicon.ico")));
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StaticFile(NamedFileBuilder);
 
 impl StaticFile {

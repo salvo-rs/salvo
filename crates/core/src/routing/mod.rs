@@ -382,6 +382,7 @@ mod flow_ctrl;
 pub use flow_ctrl::FlowCtrl;
 
 use std::sync::Arc;
+use std::fmt::{self, Debug, Formatter};
 
 use crate::Handler;
 
@@ -389,6 +390,14 @@ use crate::Handler;
 pub struct DetectMatched {
     pub hoops: Vec<Arc<dyn Handler>>,
     pub goal: Arc<dyn Handler>,
+}
+
+impl Debug for DetectMatched {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DetectMatched")
+            .field("hoops.len", &self.hoops.len())
+            .finish()
+    }
 }
 
 pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {

@@ -34,8 +34,8 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-
 use std::time::Duration;
+use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::http::headers::{Connection, HeaderMapExt};
 use salvo_core::http::{Request, Response, StatusError};
@@ -48,6 +48,15 @@ pub struct Timeout {
     value: Duration,
     error: Box<dyn Fn() -> StatusError + Send + Sync + 'static>,
 }
+
+impl Debug for Timeout {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Timeout")
+            .field("value", &self.value)
+            .finish()
+    }
+}
+
 impl Timeout {
     /// Create a new `Timeout`.
     #[inline]

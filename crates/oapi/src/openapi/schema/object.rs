@@ -154,6 +154,7 @@ pub struct Object {
 impl Object {
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
@@ -165,6 +166,7 @@ impl Object {
     /// # use salvo_oapi::schema::{Object, BasicType};
     /// let object = Object::with_type(BasicType::String);
     /// ```
+    #[must_use]
     pub fn with_type<T: Into<SchemaType>>(schema_type: T) -> Self {
         Self {
             schema_type: schema_type.into(),
@@ -174,12 +176,14 @@ impl Object {
 
     /// Add or change type of the object e.g. to change type to _`string`_
     /// use value `SchemaType::Type(Type::String)`.
+    #[must_use]
     pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
         self.schema_type = schema_type.into();
         self
     }
 
     /// Add or change additional format for detailing the schema type.
+    #[must_use]
     pub fn format(mut self, format: SchemaFormat) -> Self {
         self.format = Some(format);
         self
@@ -188,6 +192,7 @@ impl Object {
     /// Add new property to the [`Object`].
     ///
     /// Method accepts property name and property component as an arguments.
+    #[must_use]
     pub fn property<S: Into<String>, I: Into<RefOr<Schema>>>(
         mut self,
         property_name: S,
@@ -200,6 +205,7 @@ impl Object {
     }
 
     /// Add additional properties to the [`Object`].
+    #[must_use]
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
         mut self,
         additional_properties: I,
@@ -209,36 +215,42 @@ impl Object {
     }
 
     /// Add field to the required fields of [`Object`].
+    #[must_use]
     pub fn required(mut self, required_field: impl Into<String>) -> Self {
         self.required.insert(required_field.into());
         self
     }
 
     /// Add or change the name of the [`Object`].
+    #[must_use]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
+    #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
         self
     }
 
     /// Add or change deprecated status for [`Object`].
+    #[must_use]
     pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
         self.deprecated = Some(deprecated);
         self
     }
 
     /// Add or change enum property variants.
+    #[must_use]
     pub fn enum_values<I, E>(mut self, enum_values: I) -> Self
     where
         I: IntoIterator<Item = E>,
@@ -252,96 +264,112 @@ impl Object {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
         self
     }
 
     /// Add or change examples shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
         self.examples = examples.into_iter().map(Into::into).collect();
         self
     }
 
     /// Add or change write only flag for [`Object`].
+    #[must_use]
     pub fn write_only(mut self, write_only: bool) -> Self {
         self.write_only = Some(write_only);
         self
     }
 
     /// Add or change read only flag for [`Object`].
+    #[must_use]
     pub fn read_only(mut self, read_only: bool) -> Self {
         self.read_only = Some(read_only);
         self
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
+    #[must_use]
     pub fn xml(mut self, xml: Xml) -> Self {
         self.xml = Some(xml);
         self
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
+    #[must_use]
     pub fn multiple_of(mut self, multiple_of: f64) -> Self {
         self.multiple_of = Some(multiple_of);
         self
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
+    #[must_use]
     pub fn maximum(mut self, maximum: f64) -> Self {
         self.maximum = Some(maximum);
         self
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
+    #[must_use]
     pub fn minimum(mut self, minimum: f64) -> Self {
         self.minimum = Some(minimum);
         self
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
+    #[must_use]
     pub fn exclusive_maximum(mut self, exclusive_maximum: f64) -> Self {
         self.exclusive_maximum = Some(exclusive_maximum);
         self
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
+    #[must_use]
     pub fn exclusive_minimum(mut self, exclusive_minimum: f64) -> Self {
         self.exclusive_minimum = Some(exclusive_minimum);
         self
     }
 
     /// Set or change maximum length for `string` values.
+    #[must_use]
     pub fn max_length(mut self, max_length: usize) -> Self {
         self.max_length = Some(max_length);
         self
     }
 
     /// Set or change minimum length for `string` values.
+    #[must_use]
     pub fn min_length(mut self, min_length: usize) -> Self {
         self.min_length = Some(min_length);
         self
     }
 
     /// Set or change a valid regular expression for `string` value to match.
+    #[must_use]
     pub fn pattern<I: Into<String>>(mut self, pattern: I) -> Self {
         self.pattern = Some(pattern.into());
         self
     }
 
     /// Set or change maximum number of properties the [`Object`] can hold.
+    #[must_use]
     pub fn max_properties(mut self, max_properties: usize) -> Self {
         self.max_properties = Some(max_properties);
         self
     }
 
     /// Set or change minimum number of properties the [`Object`] can hold.
+    #[must_use]
     pub fn min_properties(mut self, min_properties: usize) -> Self {
         self.min_properties = Some(min_properties);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`Object`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
@@ -349,6 +377,7 @@ impl Object {
 
     /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
     /// example.
+    #[must_use]
     pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
         self.content_encoding = content_encoding.into();
         self
@@ -356,6 +385,7 @@ impl Object {
 
     /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
     /// `application/json`.
+    #[must_use]
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         self.content_media_type = content_media_type.into();
         self

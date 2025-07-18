@@ -62,7 +62,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
+        T::deserialize(deserializer).map(|value| Self(Some(value)))
     }
 }
 // impl<'de, T> Deserialize<'de> for HeaderParam<T, false>
@@ -73,7 +73,7 @@ where
 //     where
 //         D: Deserializer<'de>,
 //     {
-//         T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
+//         T::deserialize(deserializer).map(|value| Self(Some(value)))
 //     }
 // }
 

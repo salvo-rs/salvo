@@ -18,6 +18,8 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
+use std::fmt::{self, Debug, Formatter};
+
 use ulid::Ulid;
 
 use salvo_core::http::{header::HeaderName, Request, Response};
@@ -48,6 +50,15 @@ pub struct RequestId {
     pub overwrite: bool,
     /// The generator for request id.
     pub generator: Box<dyn IdGenerator + Send + Sync>,
+}
+
+impl Debug for RequestId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RequestId")
+            .field("header_name", &self.header_name)
+            .field("overwrite", &self.overwrite)
+            .finish()
+    }
 }
 
 impl RequestId {

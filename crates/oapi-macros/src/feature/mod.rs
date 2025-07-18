@@ -1,4 +1,5 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::{self, Debug, Display, Formatter};
+use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
@@ -288,7 +289,7 @@ impl TryToTokens for Feature {
 }
 
 impl Display for Feature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Feature::Default(default) => default.fmt(f),
             Feature::Example(example) => example.fmt(f),

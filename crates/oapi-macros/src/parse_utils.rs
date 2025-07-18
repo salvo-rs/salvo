@@ -1,4 +1,5 @@
-use std::fmt::Display;
+
+use std::fmt::{self, Formatter, Display, Debug};
 
 use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
@@ -52,7 +53,7 @@ impl ToTokens for LitStrOrExpr {
 }
 
 impl Display for LitStrOrExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::LitStr(str) => write!(f, "{str}", str = str.value()),
             Self::Expr(expr) => write!(f, "{expr}", expr = expr.into_token_stream()),

@@ -1,3 +1,6 @@
+
+use std::fmt::{self, Formatter, Debug};
+
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
 use opentelemetry::{Context, KeyValue, global};
 use opentelemetry_http::HeaderExtractor;
@@ -14,6 +17,13 @@ impl<T> Tracing<T> {
     /// Create `Tracing` middleware with `tracer`.
     pub fn new(tracer: T) -> Self {
         Self { tracer }
+    }
+}
+impl<T> Debug for Tracing<T> where T: Debug {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tracing")
+            .field("tracer", &self.tracer)
+            .finish()
     }
 }
 

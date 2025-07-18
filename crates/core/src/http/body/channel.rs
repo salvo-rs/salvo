@@ -165,3 +165,8 @@ pub struct BodyReceiver {
     pub(crate) data_rx: mpsc::Receiver<Result<Bytes, IoError>>,
     pub(crate) trailers_rx: oneshot::Receiver<HeaderMap>,
 }
+impl Debug for BodyReceiver {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BodyReceiver").finish()
+    }
+}

@@ -2,6 +2,7 @@ use std::io::{Error as IoError,ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::fmt::{self, Debug, Formatter};
 
 use futures_util::{future::BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
@@ -22,6 +23,15 @@ enum State<S> {
 pub struct HandshakeStream<S> {
     state: State<S>,
     fusewire: Option<ArcFusewire>,
+}
+
+impl<S> Debug for HandshakeStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HandshakeStream").finish()
+    }
 }
 
 impl<S> HandshakeStream<S> {

@@ -56,8 +56,8 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-
 use std::any::TypeId;
+use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::handler;
 use salvo_core::prelude::*;
@@ -109,6 +109,14 @@ where
 /// View [module level documentation](index.html) for more details.
 #[derive(Default)]
 pub struct AffixList(Vec<Box<dyn AffixState + Send + Sync + 'static>>);
+
+impl Debug for AffixList {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AffixList")
+            .field("items.len", &self.0.len())
+            .finish()
+    }
+}
 
 #[handler]
 impl AffixList {

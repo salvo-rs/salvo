@@ -136,6 +136,7 @@ impl From<CombWisp> for WispKind {
 }
 
 /// RegexWispBuilder
+#[derive(Debug)]
 pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
     /// Create new `RegexWispBuilder`.
@@ -164,6 +165,11 @@ impl CharsWispBuilder {
         C: Fn(char) -> bool + Send + Sync + 'static,
     {
         Self(Arc::new(checker))
+    }
+}
+impl Debug for CharsWispBuilder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CharsWispBuilder").finish()
     }
 }
 impl WispBuilder for CharsWispBuilder {

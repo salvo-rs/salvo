@@ -1,4 +1,5 @@
-use std::{borrow::Cow, fmt::Display};
+use std::borrow::Cow;
+use std::fmt::{self, Debug, Display, Formatter};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
@@ -321,7 +322,7 @@ impl ParameterIn {
 }
 
 impl Display for ParameterIn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ParameterIn::Query => write!(f, "Query"),
             ParameterIn::Path => write!(f, "Path"),

@@ -70,6 +70,7 @@ impl Default for OneOf {
 
 impl OneOf {
     /// Construct a new empty [`OneOf`]. This is effectively same as calling [`OneOf::default`].
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }
@@ -95,6 +96,7 @@ impl OneOf {
     /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite]
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    #[must_use]
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
@@ -103,6 +105,7 @@ impl OneOf {
 
     /// Add or change type of the object e.g. to change type to _`string`_
     /// use value `SchemaType::Type(Type::String)`.
+    #[must_use]
     pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
         self.schema_type = schema_type.into();
         self
@@ -115,30 +118,35 @@ impl OneOf {
     }
 
     /// Add or change optional description for `OneOf` component.
+    #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
         self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[must_use]
     pub fn add_example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
         self
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
+    #[must_use]
     pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
         self.discriminator = Some(discriminator);
         self
     }
 
     /// Add openapi extension (`x-something`) for [`OneOf`].
+    #[must_use]
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self

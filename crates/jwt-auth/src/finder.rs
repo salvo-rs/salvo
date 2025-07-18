@@ -39,7 +39,7 @@ pub trait JwtTokenFinder: Send + Sync {
 /// let get_only = HeaderFinder::new()
 ///     .cared_methods(vec![Method::GET]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct HeaderFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -118,7 +118,7 @@ impl JwtTokenFinder for HeaderFinder {
 /// let post_only = FormFinder::new("access_token")
 ///     .cared_methods(vec![Method::POST]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct FormFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -177,7 +177,7 @@ impl JwtTokenFinder for FormFinder {
 /// let get_only = QueryFinder::new("token")
 ///     .cared_methods(vec![Method::GET]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct QueryFinder {
     /// List of HTTP methods for which this finder should extract tokens.
@@ -237,7 +237,7 @@ impl JwtTokenFinder for QueryFinder {
 /// let restricted = CookieFinder::new("jwt")
 ///     .cared_methods(vec![Method::GET, Method::POST]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct CookieFinder {
     /// List of HTTP methods for which this finder should extract tokens.
