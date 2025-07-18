@@ -300,25 +300,30 @@ impl TryToTokens for ReprEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let container_rules = serde_util::parse_container(self.attributes);
 
-        regular_enum_to_tokens(tokens, &container_rules, &self.enum_features, || {
-            self.variants
-                .iter()
-                .filter_map(|variant| {
-                    let variant_type = &variant.ident;
-                    let variant_rules = serde_util::parse_value(&variant.attrs);
+        regular_enum_to_tokens(
+            tokens,
+            container_rules.as_ref(),
+            &self.enum_features,
+            || {
+                self.variants
+                    .iter()
+                    .filter_map(|variant| {
+                        let variant_type = &variant.ident;
+                        let variant_rules = serde_util::parse_value(&variant.attrs);
 
-                    if is_not_skipped(variant_rules.as_ref()) {
-                        let repr_type = &self.enum_type;
-                        Some(enum_variant::ReprVariant {
-                            value: quote! { Self::#variant_type as #repr_type },
-                            type_path: repr_type,
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>()
-        })
+                        if is_not_skipped(variant_rules.as_ref()) {
+                            let repr_type = &self.enum_type;
+                            Some(enum_variant::ReprVariant {
+                                value: quote! { Self::#variant_type as #repr_type },
+                                type_path: repr_type,
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>()
+            },
+        )
     }
 }
 

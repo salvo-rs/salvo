@@ -1,4 +1,5 @@
 //! HTTP3 suppports.
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
@@ -19,6 +20,11 @@ use crate::proto::WebTransportSession;
 
 /// Builder is used to serve HTTP3 connection.
 pub struct Builder(salvo_http3::server::Builder);
+impl Debug for Builder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Builder").finish()
+    }
+}
 impl Deref for Builder {
     type Target = salvo_http3::server::Builder;
     fn deref(&self) -> &Self::Target {

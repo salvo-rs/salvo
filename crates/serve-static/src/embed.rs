@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
@@ -24,6 +25,14 @@ pub struct StaticEmbed<T> {
     pub defaults: Vec<String>,
     /// Fallback file name used when the requested file isn't found
     pub fallback: Option<String>,
+}
+impl<T: Debug> Debug for StaticEmbed<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StaticEmbed")
+            .field("defaults", &self.defaults)
+            .field("fallback", &self.fallback)
+            .finish()
+    }
 }
 
 /// Create a new `StaticEmbed` handler for the given embedded asset type.
@@ -264,6 +273,11 @@ where
 
 /// Handler for [`EmbeddedFile`].
 pub struct EmbeddedFileHandler(pub EmbeddedFile);
+impl Debug for EmbeddedFileHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EmbeddedFileHandler").finish()
+    }
+}
 
 #[async_trait]
 impl Handler for EmbeddedFileHandler {

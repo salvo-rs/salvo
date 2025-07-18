@@ -1,5 +1,6 @@
 use std::cmp;
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -33,7 +34,6 @@ use crate::conn::quinn;
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 #[doc(hidden)]
-#[derive(Debug)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
     pub(crate) http1: http1::Builder,
@@ -45,6 +45,11 @@ pub struct HttpBuilder {
 impl Default for HttpBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl Debug for HttpBuilder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HttpBuilder").finish()
     }
 }
 

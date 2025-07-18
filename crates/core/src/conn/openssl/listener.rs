@@ -1,5 +1,6 @@
 //! openssl module
 use std::error::Error as StdError;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -22,6 +23,13 @@ pub struct OpensslListener<S, C, T, E> {
     config_stream: S,
     inner: T,
     _phantom: PhantomData<(C, E)>,
+}
+impl<S, C, T: Debug, E> Debug for OpensslListener<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OpensslListener")
+            .field("inner", &self.inner)
+            .finish()
+    }
 }
 
 impl<S, C, T, E> OpensslListener<S, C, T, E>
@@ -67,6 +75,13 @@ pub struct OpensslAcceptor<S, C, T, E> {
     holdings: Vec<Holding>,
     tls_acceptor: Option<Arc<SslAcceptor>>,
     _phantom: PhantomData<(C, E)>,
+}
+impl<S, C, T, E> Debug for OpensslAcceptor<S, C, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OpensslAcceptor")
+            .field("holdings", &self.holdings)
+            .finish()
+    }
 }
 impl<S, C, T, E> OpensslAcceptor<S, C, T, E>
 where

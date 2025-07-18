@@ -151,6 +151,7 @@ impl Default for CacheState {
 }
 
 /// Helper Struct for storing
+#[derive(Debug)]
 pub struct JwkSetStore {
     /// The current JWKS
     pub jwks: JwkSet,

@@ -245,28 +245,28 @@ impl TryToTokens for SchemaType<'_> {
             }
             #[cfg(feature = "chrono")]
             "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(feature = "compact_str")]
             "CompactString" => {
-                schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable)
+                schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => schema_type_tokens(tokens, oapi, SchemaTypeInner::Number, self.nullable),
+            "Decimal" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Number, self.nullable),
             #[cfg(feature = "url")]
-            "Url" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Url" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "ulid")]
-            "Ulid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Ulid" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "uuid")]
-            "Uuid" => schema_type_tokens(tokens, oapi, SchemaTypeInner::String, self.nullable),
+            "Uuid" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
                 schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)

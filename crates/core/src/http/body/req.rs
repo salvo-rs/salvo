@@ -224,6 +224,7 @@ cfg_feature! {
         use std::boxed::Box;
         use std::pin::Pin;
         use std::task::{ready, Context, Poll};
+        use std::fmt::{self, Debug, Formatter};
 
         use hyper::body::{Body, Frame, SizeHint};
         use salvo_http3::quic::RecvStream;
@@ -236,6 +237,12 @@ cfg_feature! {
         /// Http3 request body.
         pub struct H3ReqBody<S, B> {
             inner: salvo_http3::server::RequestStream<S, B>,
+        }
+        impl<S, B> Debug for H3ReqBody<S, B>
+        {
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                f.debug_struct("H3ReqBody").finish()
+            }
         }
         impl<S, B> H3ReqBody<S, B>
         where

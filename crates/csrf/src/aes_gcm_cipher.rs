@@ -1,12 +1,15 @@
+use std::fmt::Debug;
+
 use aead::generic_array::GenericArray;
 use aead::{Aead, KeyInit};
 use aes_gcm::Aes256Gcm;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use super::CsrfCipher;
 
 /// CSRF protection implementation that uses AES-GCM.
+#[derive(Debug, Clone)]
 pub struct AesGcmCipher {
     aead_key: [u8; 32],
     token_size: usize,
@@ -48,7 +51,9 @@ impl CsrfCipher for AesGcmCipher {
             } else {
                 let nonce = GenericArray::from_slice(&proof[0..12]);
                 let aead = self.aead();
-                aead.decrypt(nonce, &proof[12..]).map(|p| p == token).unwrap_or(false)
+                aead.decrypt(nonce, &proof[12..])
+                    .map(|p| p == token)
+                    .unwrap_or(false)
             }
         } else {
             false
@@ -59,15 +64,19 @@ impl CsrfCipher for AesGcmCipher {
         let aead = self.aead();
         let mut proof = self.random_bytes(12);
         let nonce = GenericArray::from_slice(&proof);
-        proof.append(&mut aead.encrypt(nonce, token.as_slice()).expect("encryption failed"));
+        proof.append(
+            &mut aead
+                .encrypt(nonce, token.as_slice())
+                .expect("encryption failed"),
+        );
         (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
     use super::AesGcmCipher;
     use super::CsrfCipher;
