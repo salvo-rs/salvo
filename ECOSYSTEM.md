@@ -36,6 +36,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [NetLink](https://github.com/rustp2p/NetLink) - NetLink is a decentralized networking tool built on the [rustp2p] library.
 - [poe2openai](https://github.com/jeromeleong/poe2openai) - Convert Poe API into OpenAI format API.
 - [ssr-rs](https://github.com/Valerioageno/ssr-rs) - Server side rendering on rust servers using the v8 engine for parse and evaluate the javascript code.
+- [chia gaming](https://github.com/Chia-Network/chia-gaming) - chia-gaming Traits and Structs.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
