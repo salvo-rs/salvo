@@ -53,6 +53,7 @@ bcrypt = "0.17"
 cookie = "0.18"
 chacha20poly1305 = "0.10"
 chrono = "0.4"
+compact_str = { version = "0.9", features = ["serde"] }
 encoding_rs = "0.8"
 email_address = "0.2"
 enumflags2 = "0.7"
@@ -134,7 +135,6 @@ ulid = { version = "1", default-features = false }
 url = "2"
 uuid = "1"
 x509-parser = "0.17"
-compact_str = { version = "0.9", features = ["serde"] }
 
 # Compress
 brotli = { version = "8", default-features = false }
@@ -142,15 +142,12 @@ flate2 = { version = "1", default-features = false }
 zstd = { version = "0.13", default-features = false }
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
-unreachable_pub = "deny"
 missing_debug_implementations = "warn"
 missing_docs = "warn"
+unreachable_pub = "deny"
+unsafe_code = "forbid"
 
 [workspace.lints.clippy]
-future_not_send = "warn"
-unwrap_used = "warn"
-type_complexity = "allow"
 await_holding_lock = "warn"
 dbg_macro = "warn"
 empty_enum = "warn"
@@ -159,6 +156,7 @@ equatable_if_let = "warn"
 exit = "warn"
 filter_map_next = "warn"
 fn_params_excessive_bools = "warn"
+future_not_send = "warn"
 if_let_mutex = "warn"
 implicit_clone = "warn"
 imprecise_flops = "warn"
@@ -182,9 +180,11 @@ str_to_string = "warn"
 suboptimal_flops = "warn"
 todo = "warn"
 trivially_copy_pass_by_ref = "warn"
+type_complexity = "allow"
 uninlined_format_args = "warn"
 unnested_or_patterns = "warn"
 unused_self = "warn"
+unwrap_used = "warn"
 use_self = "warn"
 
 [workspace.lints.rustdoc]
