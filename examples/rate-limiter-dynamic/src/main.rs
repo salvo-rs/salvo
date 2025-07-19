@@ -72,7 +72,7 @@ static HOME_HTML: &str = r#"
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Rate Limiter Dynmaic</title>
+        <title>Rate Limiter Dynamic</title>
     </head>
     <body>
         <h2>Rate Limiter Dynamic</h2>

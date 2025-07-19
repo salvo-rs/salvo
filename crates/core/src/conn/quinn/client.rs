@@ -253,7 +253,7 @@ where
 /// Maintains the internal state of an HTTP/3 connection, including control and QPACK.
 /// It needs to be polled continuously via [`poll_close()`]. On connection closure, this
 /// will resolve to `Ok(())` if the peer sent `HTTP_NO_ERROR`, or `Err()` if a connection-level
-/// error occured.
+/// error occurred.
 ///
 /// [`shutdown()`] initiates a graceful shutdown of this connection. After calling it, no request
 /// initiation will be further allowed. Then [`poll_close()`] will resolve when all ongoing requests
@@ -522,7 +522,7 @@ impl Builder {
 ///
 /// TODO: If data is polled before the response has been received, an error will be thrown.
 ///
-/// TODO: If trailers are polled but the body hasn't been fully received, an UNEXPECT_FRAME error will be
+/// TODO: If trailers are polled but the body hasn't been fully received, an UNEXPECTED_FRAME error will be
 /// thrown
 ///
 /// Whenever the client wants to cancel this request, it can call [`stop_sending()`], which will

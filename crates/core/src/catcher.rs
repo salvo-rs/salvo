@@ -93,7 +93,7 @@ impl Catcher {
         &mut self.hoops
     }
 
-    /// Add a handler as middleware, it will run the handler when error catched.
+    /// Add a handler as middleware, it will run the handler when error caught.
     #[inline]
     #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
@@ -101,7 +101,7 @@ impl Catcher {
         self
     }
 
-    /// Add a handler as middleware, it will run the handler when error catched.
+    /// Add a handler as middleware, it will run the handler when error caught.
     ///
     /// This middleware is only effective when the filter returns true..
     #[inline]

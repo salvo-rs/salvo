@@ -45,7 +45,7 @@ pub trait HttpConnection {
     fn fusewire(&self) -> Option<ArcFusewire>;
 }
 
-// /// Get Http version from alph.
+// /// Get Http version from alpha.
 // pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
 //     if proto.as_ref().windows(2).any(|window| window == b"h2") {
 //         Version::HTTP_2

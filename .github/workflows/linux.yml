@@ -19,6 +19,18 @@ on:
       - '.github/workflows/**'  # or workflow changes
 
 jobs:
+  typos:
+    name: Typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Typos check with custom config file
+        uses: crate-ci/typos@master
   udeps:
     runs-on: ubuntu-latest
     steps:

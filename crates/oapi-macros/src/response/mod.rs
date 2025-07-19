@@ -92,7 +92,7 @@ impl<'r> ResponseTuple<'r> {
         if let ResponseTupleInner::Value(val) = self
             .inner
             .as_mut()
-            .expect("inner value shoule not be `None`")
+            .expect("inner value should not be `None`")
         {
             Ok(val)
         } else {

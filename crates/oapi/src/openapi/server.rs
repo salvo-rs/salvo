@@ -254,7 +254,7 @@ impl ServerVariables {
     }
     /// Inserts a key-value pair into the instance and returns `self`.
     #[must_use]
-    pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(
+    pub fn server_variable<K: Into<String>, V: Into<ServerVariable>>(
         mut self,
         key: K,
         variable: V,
@@ -524,10 +524,10 @@ mod tests {
     }
 
     #[test]
-    fn test_server_variables_server_varible() {
+    fn test_server_variables_server_variable() {
         let server_variables = ServerVariables::new();
         let variable = ServerVariable::new();
-        let server_variables = server_variables.server_varible("key", variable);
+        let server_variables = server_variables.server_variable("key", variable);
 
         assert!(!server_variables.is_empty());
     }

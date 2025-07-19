@@ -60,7 +60,7 @@ pub struct Config {
     pub use_basic_authentication_with_access_code_grant: Option<bool>,
 
     /// oauth use_pkce_with_authorization_code_grant the Swagger UI is using for auth flow.
-    /// Only applies to authorizatonCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
+    /// Only applies to authorizationCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
     /// brings enhanced security for OAuth public clients.
     /// The default is false
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -234,7 +234,7 @@ impl Config {
     /// Add use_pkce_with_authorization_code_grant into [`Config`].
     ///
     /// Method takes one argument which exposes the use_pkce_with_authorization_code_grant to the user.
-    /// Only applies to authorizatonCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
+    /// Only applies to authorizationCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
     /// brings enhanced security for OAuth public clients.
     /// The default is false
     ///

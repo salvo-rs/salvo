@@ -91,7 +91,7 @@ impl FlexFusewire {
     pub fn tcp_idle_timeout(&self) -> Duration {
         self.tcp_idle_timeout
     }
-    /// Get the timeout for close the connection if frame can not be recived.
+    /// Get the timeout for close the connection if frame can not be received.
     #[must_use]
     pub fn tcp_frame_timeout(&self) -> Duration {
         self.tcp_frame_timeout
@@ -214,7 +214,7 @@ impl FlexFactory {
         self.tcp_idle_timeout = timeout;
         self
     }
-    /// Set the timeout for close the connection if frame can not be recived.
+    /// Set the timeout for close the connection if frame can not be received.
     #[must_use]
     pub fn tcp_frame_timeout(mut self, timeout: Duration) -> Self {
         self.tcp_frame_timeout = timeout;

@@ -321,7 +321,7 @@ impl Router {
         Self::with_filter(filters::port(port))
     }
 
-    /// reates a new child router with [`MethodFilter`] to filter GET method and set this child router's handler.
+    /// Creates a new child router with [`MethodFilter`] to filter GET method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]

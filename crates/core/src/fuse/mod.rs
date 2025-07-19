@@ -72,7 +72,7 @@ pub trait FuseFactory {
 /// A fusewire.
 #[async_trait]
 pub trait Fusewire {
-    /// Recive a event report.
+    /// Receive a event report.
     fn event(&self, event: FuseEvent);
     /// Check if the fusewire is fused.
     async fn fused(&self);

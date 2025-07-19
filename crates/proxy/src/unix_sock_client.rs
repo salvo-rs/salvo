@@ -69,7 +69,7 @@ impl Client for UnixSockClient {
 
 fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
     let full_path = uri.path();
-    // assume the pach contains a unix socket path ending with ".sock"
+    // Assume the path contains a unix socket path ending with ".sock"
     if let Some(sock_end_index) = full_path.find(".sock") {
         let sock_path_end = sock_end_index + ".sock".len();
         let sock_path_str = &full_path[..sock_path_end];

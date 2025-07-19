@@ -88,7 +88,7 @@ impl NamedStructSchema<'_> {
                 let field_ident = field
                     .ident
                     .as_ref()
-                    .expect("field ident shoule be exist")
+                    .expect("field ident should be exist")
                     .to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(Default::new_default_trait(
@@ -188,7 +188,7 @@ impl TryToTokens for NamedStructSchema<'_> {
             let mut field_name = &*field
                 .ident
                 .as_ref()
-                .expect("field ident shoule be exists")
+                .expect("field ident should be exists")
                 .to_string();
 
             if field_name.starts_with("r#") {

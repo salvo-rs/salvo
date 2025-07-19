@@ -521,7 +521,7 @@ impl NamedFile {
                     res.headers_mut().typed_insert(content_range);
                 }
                 Err(e) => {
-                    tracing::error!(error = ?e, "set file's content ranage failed");
+                    tracing::error!(error = ?e, "set file's content range failed");
                 }
             }
             let reader = ChunkedFile {

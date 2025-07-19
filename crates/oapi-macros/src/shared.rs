@@ -125,8 +125,8 @@ pub(crate) fn is_default(
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
-pub(crate) fn get_deprecated(attributs: &[Attribute]) -> Option<crate::Deprecated> {
-    if attributs
+pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
+    if attributes
         .iter()
         .any(|attr| attr.path().is_ident("deprecated"))
     {

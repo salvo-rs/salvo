@@ -194,7 +194,7 @@ pub trait CsrfCipher: Send + Sync + 'static {
     }
 }
 
-/// Extesion for Depot.
+/// Extension for Depot.
 pub trait CsrfDepotExt {
     /// Get csrf token reference from depot.
     fn csrf_token(&self) -> Option<&str>;

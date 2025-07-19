@@ -136,7 +136,7 @@ pub struct Object {
     /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
     ///
     /// Typically this is either unset for _`string`_ content types which then uses the content
-    /// encoding of the underying JSON document. If the content is in _`binary`_ format such as an image or an audio
+    /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an image or an audio
     /// set it to `base64` to encode it as _`Base64`_.
     ///
     /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>

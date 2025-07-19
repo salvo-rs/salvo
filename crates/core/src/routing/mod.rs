@@ -188,7 +188,7 @@
 //! In this example, the root router has a middleware to check current user is authenticated. This middleware will
 //! affect the root router and its descendants.
 //!
-//! If we don't want to check user is authed when current user view writer informations and articles. We can write
+//! If we don't want to check user is authed when current user view writer information and articles. We can write
 //! router like this:
 //!
 //! ```rust
