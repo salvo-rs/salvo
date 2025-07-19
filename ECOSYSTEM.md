@@ -33,6 +33,9 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [mvt server](https://github.com/mvt-proj/mvt-rs) - A simple and high-speed vector tile server (and more) developed in Rust, using the Salvo web framework.
 - [ddddocr](https://github.com/86maid/ddddocr) - A simple OCR API server, very easy to deploy.
 - [tosu lyrics](https://github.com/HollisMeynell/tosu-lyrics) - tosu 歌词显示器.
+- [NetLink](https://github.com/rustp2p/NetLink) - NetLink is a decentralized networking tool built on the [rustp2p] library.
+- [poe2openai](https://github.com/jeromeleong/poe2openai) - Convert Poe API into OpenAI format API.
+- [ssr-rs](https://github.com/Valerioageno/ssr-rs) - Server side rendering on rust servers using the v8 engine for parse and evaluate the javascript code.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
