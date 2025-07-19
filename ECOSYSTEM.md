@@ -32,6 +32,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [System-Monitor-Server](https://github.com/SimonYen/System-Monitor-Server): A server monitoring program written in Rust.
 - [mvt server](https://github.com/mvt-proj/mvt-rs) - A simple and high-speed vector tile server (and more) developed in Rust, using the Salvo web framework.
 - [ddddocr](https://github.com/86maid/ddddocr) - A simple OCR API server, very easy to deploy.
+- [tosu lyrics](https://github.com/HollisMeynell/tosu-lyrics) - tosu 歌词显示器.
 
 ## Tutorials
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
