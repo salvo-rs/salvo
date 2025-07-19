@@ -316,7 +316,7 @@ impl Ref {
         self
     }
 
-    // TODO: REMOVE THE unnecesary description Option wrapping.
+    // TODO: REMOVE THE unnecessary description Option wrapping.
 
     /// Add or change description which by default should override that of the referenced component.
     /// Description supports markdown syntax. If referenced object type does not support
@@ -364,7 +364,7 @@ pub enum SchemaType {
     Basic(BasicType),
     /// Multiple types rendered as [`slice`]
     Array(Vec<BasicType>),
-    /// Type that is considred typeless. _`AnyValue`_ will omit the type definition from the schema
+    /// Type that is considered typeless. _`AnyValue`_ will omit the type definition from the schema
     /// making it to accept any type possible.
     AnyValue,
 }
@@ -389,7 +389,7 @@ impl FromIterator<BasicType> for SchemaType {
 impl SchemaType {
     /// Instantiate new [`SchemaType`] of given [`BasicType`]
     ///
-    /// Method accpets one argument `type` to create [`SchemaType`] for.
+    /// Method accepets one argument `type` to create [`SchemaType`] for.
     ///
     /// # Examples
     ///
@@ -424,7 +424,7 @@ impl SchemaType {
 ///
 /// [`BasicType`] is used to create a [`SchemaType`] that defines the type of the [`Schema`].
 /// [`SchemaType`] can be created from a single [`BasicType`] or multiple [`BasicType`]s according to the
-/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definiton of
+/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definition of
 /// the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
 ///
 /// # Examples

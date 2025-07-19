@@ -78,7 +78,7 @@ impl Responses {
     pub fn new() -> Self {
         Default::default()
     }
-    /// Inserts a key-value pair into the instance and retuns `self`.
+    /// Inserts a key-value pair into the instance and returns `self`.
     #[must_use]
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,

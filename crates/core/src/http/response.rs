@@ -249,7 +249,7 @@ impl Response {
         res
     }
 
-    /// Strip the respone to [`hyper::Response`].
+    /// Strip the response to [`hyper::Response`].
     #[doc(hidden)]
     #[inline]
     pub fn strip_to_hyper(&mut self) -> hyper::Response<ResBody> {

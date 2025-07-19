@@ -1,4 +1,4 @@
-//! HTTP3 suppports.
+//! HTTP3 supports.
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};

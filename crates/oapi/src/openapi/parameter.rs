@@ -31,7 +31,7 @@ impl Parameters {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    /// Add a new paramater and returns `self`.
+    /// Add a new parameter and returns `self`.
     #[must_use]
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.insert(parameter);

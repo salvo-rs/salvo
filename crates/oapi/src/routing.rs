@@ -19,10 +19,10 @@ pub(crate) struct NormNode {
 }
 
 impl NormNode {
-    pub(crate) fn new(router: &Router, inherted_metadata: Metadata) -> Self {
+    pub(crate) fn new(router: &Router, inherited_metadata: Metadata) -> Self {
         let mut node = Self {
             // router_id: router.id,
-            metadata: inherted_metadata,
+            metadata: inherited_metadata,
             ..Self::default()
         };
         let registry = METADATA_REGISTRY
@@ -103,7 +103,7 @@ pub trait RouterExt {
 
     /// Add tags to the router.
     ///
-    /// All endpoints in the router and it's descents will inherit thes tags.
+    /// All endpoints in the router and it's descents will inherit these tags.
     #[must_use]
     fn oapi_tags<I, V>(self, tags: I) -> Self
     where

@@ -1,4 +1,4 @@
-Enhanced of [handler][handler] for generate OpenAPI documention.
+Enhanced of [handler][handler] for generate OpenAPI documentation.
 
 Macro accepts set of attributes that can be used to configure and override default values what are resolved automatically.
 

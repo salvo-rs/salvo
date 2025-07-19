@@ -45,7 +45,7 @@ impl FromStr for SourceFrom {
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum SourceParser {
-    /// MulitMap parser.
+    /// MultiMap parser.
     MultiMap,
     /// Json parser.
     Json,

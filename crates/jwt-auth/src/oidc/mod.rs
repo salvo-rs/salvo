@@ -119,7 +119,7 @@ where
         } = self;
         let issuer = issuer.as_ref().trim_end_matches('/').to_owned();
 
-        //Create an empty JWKS to initalize our Cache
+        //Create an empty JWKS to initialize our Cache
         let jwks = JwkSet { keys: Vec::new() };
 
         let validation = validation.unwrap_or_default();
@@ -239,7 +239,7 @@ impl OidcDecoder {
     }
 
     /// If we are currently updating the JWKS in the background this function will resolve when the update it complete
-    /// If we are not currently updating the JWKS in the backgroun, this function will resolve immediatly.
+    /// If we are not currently updating the JWKS in the background, this function will resolve immediately.
     async fn wait_update(&self) {
         if self.cache_state.is_revalidating() {
             self.notifier.notified().await;
@@ -353,7 +353,7 @@ impl DecodingInfo {
     }
 }
 
-/// Helper Stuct that contains the response of a request to the jwks uri
+/// Helper Struct that contains the response of a request to the jwks uri
 /// `cache_policy` will be Some when [`cache::Strategy`] is set to [`cache::Strategy::Automatic`].
 #[derive(Debug)]
 pub(crate) struct JwkSetFetch {

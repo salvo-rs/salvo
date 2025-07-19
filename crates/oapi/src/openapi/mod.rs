@@ -132,7 +132,7 @@ pub struct OpenApi {
     /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
     /// “<https://spec.openapis.org/oas/3.1/dialect/base>”.
     ///
-    /// All the references and invidual files could use their own schema dialect.
+    /// All the references and individual files could use their own schema dialect.
     #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
     pub schema: String,
 
@@ -434,13 +434,13 @@ impl OpenApi {
         Router::with_path(path.into()).goal(self)
     }
 
-    /// Consusmes the [`OpenApi`] and informations from a [`Router`].
+    /// Consusmes the [`OpenApi`] and information from a [`Router`].
     #[must_use]
     pub fn merge_router(self, router: &Router) -> Self {
         self.merge_router_with_base(router, "/")
     }
 
-    /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
+    /// Consusmes the [`OpenApi`] and information from a [`Router`] with base path.
     #[must_use]
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
         let mut node = NormNode::new(router, Default::default());

@@ -76,7 +76,7 @@ pub async fn index() -> Text<&'static str> {
 #[endpoint(
     tags("todos"),
     parameters(
-        ("offset", description = "Offset is an optional query paramter."),
+        ("offset", description = "Offset is an optional query parameter."),
     )
 )]
 pub async fn list_todos(

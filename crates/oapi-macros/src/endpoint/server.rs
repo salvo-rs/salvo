@@ -238,7 +238,7 @@ impl ServerVariables {
         self.0.is_empty()
     }
     /// Inserts a key-value pair into the instance and returns `self`.
-    pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(mut self, key: K, variable: V) -> Self {
+    pub fn server_variable<K: Into<String>, V: Into<ServerVariable>>(mut self, key: K, variable: V) -> Self {
         self.insert(key, variable);
         self
     }

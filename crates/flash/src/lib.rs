@@ -66,7 +66,7 @@ impl Flash {
         self.0.push(FlashMessage::success(message));
         self
     }
-    /// Add a new message with level `Waring`.
+    /// Add a new message with level `Warning`.
     #[inline]
     pub fn warning(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::warning(message));

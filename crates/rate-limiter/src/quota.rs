@@ -78,7 +78,7 @@ pub struct CelledQuota {
     pub limit: usize,
     /// The period of requests.
     pub period: Duration,
-    /// The cells of this period splitted to.
+    /// The cells of this period split to.
     pub cells: usize,
 }
 impl CelledQuota {

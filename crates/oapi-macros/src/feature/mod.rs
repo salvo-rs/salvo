@@ -380,8 +380,8 @@ impl Validatable for Feature {
             Self::Description(description) => description.is_validatable(),
             Self::Deprecated(deprecated) => deprecated.is_validatable(),
             Self::Skip(skip) => skip.is_validatable(),
-            Self::AdditionalProperties(additional_properites) => {
-                additional_properites.is_validatable()
+            Self::AdditionalProperties(additional_properties) => {
+                additional_properties.is_validatable()
             }
             Self::Required(required) => required.is_validatable(),
             Self::SkipBound(skip) => skip.is_validatable(),
