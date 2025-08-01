@@ -32,7 +32,6 @@
 <a href="https://gitcode.com/salvo-rs/salvo">
     <img src="https://gitcode.com/salvo-rs/salvo/star/badge.svg">
 </a>
-<a href="https://gurubase.io/g/salvo"><img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20Salvo%20Guru-006BFF" /></a>
 </p>
 </div>
 
