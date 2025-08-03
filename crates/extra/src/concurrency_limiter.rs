@@ -69,7 +69,7 @@
 //! "#;
 //! ```
 
-use tokio::sync::Semaphore;
+use tokio::sync::{Semaphore, TryAcquireError};
 
 use salvo_core::http::StatusError;
 use salvo_core::http::{Request, Response};
@@ -83,18 +83,30 @@ pub struct MaxConcurrency {
 #[async_trait]
 impl Handler for MaxConcurrency {
     #[inline]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        match self.semaphore.acquire().await {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        match self.semaphore.try_acquire() {
             Ok(_) => {
                 ctrl.call_next(req, depot, res).await;
             }
-            Err(e) => {
-                tracing::error!(
-                    "Max concurrency semaphore is never closed, acquire should never fail: {}",
-                    e
-                );
-                res.render(StatusError::payload_too_large().brief("Max concurrency reached."));
-            }
+            Err(e) => match e {
+                TryAcquireError::Closed => {
+                    tracing::error!(
+                        "Max concurrency semaphore is never closed, acquire should never fail: {}",
+                        e
+                    );
+                    res.render(StatusError::payload_too_large().brief("Max concurrency reached."));
+                }
+                TryAcquireError::NoPermits => {
+                    tracing::error!("NoPermits : {}", e);
+                    res.render(StatusError::too_many_requests().brief("Max concurrency reached."));
+                }
+            },
         }
     }
 }
