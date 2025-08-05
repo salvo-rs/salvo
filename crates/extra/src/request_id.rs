@@ -19,10 +19,10 @@
 //! }
 //! ```
 use std::fmt::{self, Debug, Formatter};
-
+use tracing::Instrument;
 use ulid::Ulid;
 
-use salvo_core::http::{Request, Response, header::HeaderName};
+use salvo_core::http::{HeaderValue, Request, Response, header::HeaderName};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Key for incoming flash messages in depot.
@@ -92,6 +92,11 @@ impl RequestId {
         self.generator = Box::new(generator);
         self
     }
+
+    fn generate_id(&self, req: &mut Request, depot: &mut Depot) -> HeaderValue {
+        let id = self.generator.generate(req, depot);
+        HeaderValue::from_str(&id).expect("invalid header value")
+    }
 }
 
 impl Default for RequestId {
@@ -137,14 +142,34 @@ impl Handler for RequestId {
         &self,
         req: &mut Request,
         depot: &mut Depot,
-        _res: &mut Response,
-        _ctrl: &mut FlowCtrl,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
     ) {
-        if !self.overwrite && req.headers().contains_key(&self.header_name) {
-            return;
+        let request_id = match req.headers().get(&self.header_name) {
+            None => self.generate_id(req, depot),
+            Some(value) => {
+                if self.overwrite {
+                    self.generate_id(req, depot)
+                } else {
+                    value.clone()
+                }
+            }
+        };
+
+        let _ = req.add_header(self.header_name.clone(), &request_id, false);
+
+        let span = tracing::info_span!("request", ?request_id);
+
+        res.headers_mut()
+            .insert(self.header_name.clone(), request_id.clone());
+
+        depot.insert(REQUEST_ID_KEY, request_id);
+
+
+        async move {
+            ctrl.call_next(req, depot, res).await;
         }
-        let id = self.generator.generate(req, depot);
-        let _ = req.add_header(self.header_name.clone(), &id, true);
-        depot.insert(REQUEST_ID_KEY, id);
+            .instrument(span)
+            .await;
     }
 }
