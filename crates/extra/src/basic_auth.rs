@@ -96,32 +96,47 @@ where
         }
     }
 
-    #[doc(hidden)]
+    /// Set the realm for the Basic Authentication.
+    #[inline]
+    #[must_use]
+    pub fn set_realm(mut self, realm: impl Into<String>) -> Self {
+        self.realm = realm.into();
+        self
+    }
+
+    /// Get the realm of the Basic Authentication.
+    #[inline]
+    pub fn realm(&self) -> &str {
+        &self.realm
+    }
+
+    /// Set the header names for the Basic Authentication.
     #[inline]
     #[must_use]
     pub fn set_header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
         self.header_names = header_names.into();
         self
     }
-    #[doc(hidden)]
+
+    /// Get the header names of the Basic Authentication.
     #[inline]
     pub fn header_names(&self) -> &Vec<HeaderName> {
         &self.header_names
     }
 
-    #[doc(hidden)]
+    /// Get mutable reference to the header names.
     #[inline]
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
         &mut self.header_names
     }
 
-    #[doc(hidden)]
+    /// Ask for credentials by setting the `WWW-Authenticate` header.
     #[inline]
     pub fn ask_credentials(&self, res: &mut Response) {
         ask_credentials(res, &self.realm)
     }
 
-    #[doc(hidden)]
+    /// Parse credentials from the request.
     #[inline]
     pub fn parse_credentials(&self, req: &Request) -> Result<(String, String), Error> {
         parse_credentials(req, &self.header_names)
