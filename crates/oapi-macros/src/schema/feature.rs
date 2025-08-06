@@ -60,7 +60,17 @@ impl Parse for UnnamedFieldStructFeatures {
             Description,
             Skip,
             Bound,
-            SkipBound
+            SkipBound,
+            MultipleOf,
+            Maximum,
+            Minimum,
+            ExclusiveMaximum,
+            ExclusiveMinimum,
+            MaxLength,
+            MinLength,
+            Pattern,
+            MaxItems,
+            MinItems
         )))
     }
 }

@@ -250,3 +250,215 @@ fn test_derive_to_schema_enum() {
         })
     );
 }
+
+#[test]
+fn test_derive_to_schema_new_type_struct() {
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(multiple_of = 5))]
+    struct MultipleOfType(i32);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(maximum = 100))]
+    struct MaximumType(u32);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(minimum = -100))]
+    struct MinimumType(i32);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(exclusive_maximum = 100))]
+    struct ExclusiveMaximumType(i64);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(exclusive_minimum = -100))]
+    struct ExclusiveMinimumType(i64);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(min_length = 3))]
+    struct MinLengthType(String);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(max_length = 3))]
+    struct MaxLengthType(String);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(pattern = r#"^([a-zA-Z0-9_\-]{3,32}$)"#))]
+    struct PatternType(String);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(max_items = 5))]
+    struct MaxItemsType(Vec<String>);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(min_items = 1))]
+    struct MinItemsType(Vec<String>);
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    struct SomeDto {
+        pub multiple_of: MultipleOfType,
+        pub maximum: MaximumType,
+        pub minimum: MinimumType,
+        pub exclusive_maximum: ExclusiveMaximumType,
+        pub exclusive_minimum: ExclusiveMinimumType,
+        pub min_length: MinLengthType,
+        pub max_length: MaxLengthType,
+        pub pattern: PatternType,
+        pub max_items: MaxItemsType,
+        pub min_items: MinItemsType,
+    }
+
+    #[endpoint]
+    async fn new_type(body: JsonBody<SomeDto>) -> String {
+        format!("{body:?}")
+    }
+
+    salvo::oapi::naming::set_namer(
+        salvo::oapi::naming::FlexNamer::new()
+            .short_mode(true)
+            .generic_delimiter('_', '_'),
+    );
+
+    let router = Router::new().push(Router::with_path("new-type").post(new_type));
+
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+    println!("{}", doc.to_json().unwrap());
+    let value = serde_json::to_value(&doc).unwrap();
+    let schemas = value.pointer("/components/schemas").unwrap();
+    assert_json_eq!(
+        schemas,
+        json!({
+            "ExclusiveMaximumType": {
+                "type": "integer",
+                "format": "int64",
+                "exclusiveMaximum": 100.0
+            },
+            "ExclusiveMinimumType": {
+                "type": "integer",
+                "format": "int64",
+                "exclusiveMinimum": -100.0
+            },
+            "MaxItemsType": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "maxItems": 5
+            },
+            "MaxLengthType": {
+                "type": "string",
+                "maxLength": 3
+            },
+            "MaximumType": {
+                "type": "integer",
+                "format": "uint32",
+                "maximum": 100.0,
+                "minimum": 0.0
+            },
+            "MinItemsType": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "minItems": 1
+            },
+            "MinLengthType": {
+                "type": "string",
+                "minLength": 3
+            },
+            "MinimumType": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": -100.0
+            },
+            "MultipleOfType": {
+                "type": "integer",
+                "format": "int32",
+                "multipleOf": 5.0
+            },
+            "PatternType": {
+                "type": "string",
+                "pattern": "^([a-zA-Z0-9_\\-]{3,32}$)"
+            },
+            "SomeDto": {
+                "type": "object",
+                "required": [
+                    "multiple_of",
+                    "maximum",
+                    "minimum",
+                    "exclusive_maximum",
+                    "exclusive_minimum",
+                    "min_length",
+                    "max_length",
+                    "pattern",
+                    "max_items",
+                    "min_items"
+                ],
+                "properties": {
+                    "exclusive_maximum": {
+                        "$ref": "#/components/schemas/ExclusiveMaximumType"
+                    },
+                    "exclusive_minimum": {
+                        "$ref": "#/components/schemas/ExclusiveMinimumType"
+                    },
+                    "max_items": {
+                        "$ref": "#/components/schemas/MaxItemsType"
+                    },
+                    "max_length": {
+                        "$ref": "#/components/schemas/MaxLengthType"
+                    },
+                    "maximum": {
+                        "$ref": "#/components/schemas/MaximumType"
+                    },
+                    "min_items": {
+                        "$ref": "#/components/schemas/MinItemsType"
+                    },
+                    "min_length": {
+                        "$ref": "#/components/schemas/MinLengthType"
+                    },
+                    "minimum": {
+                        "$ref": "#/components/schemas/MinimumType"
+                    },
+                    "multiple_of": {
+                        "$ref": "#/components/schemas/MultipleOfType"
+                    },
+                    "pattern": {
+                        "$ref": "#/components/schemas/PatternType"
+                    }
+                }
+            }
+        })
+    );
+    let paths = value.pointer("/paths").unwrap();
+    assert_json_eq!(
+        paths,
+        json!({
+            "/new-type": {
+                "post": {
+                    "operationId": "new_type",
+                    "requestBody": {
+                        "description": "Extract json format data from request.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SomeDto"
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Ok",
+                            "content": {
+                                "text/plain": {
+                                    "schema": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    );
+}

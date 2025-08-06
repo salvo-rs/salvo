@@ -121,6 +121,19 @@ enum Card {
    not in the code. If you'd like to mark the fields as deprecated in the code as well use
    Rust's own `#[deprecated]` attribute instead.
 * `skip` Can be used to skip this field.
+* `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
+  division will result an `integer`. Value must be strictly above _`0`_.
+* `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+* `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+* `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+* `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
+* `max_length = ...` Can be used to define maximum length for `string` types.
+* `min_length = ...` Can be used to define minimum length for `string` types.
+* `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+* `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
+  be non-negative integer.
+* `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
+  be non-negative integer.
 
 # Named Fields Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
