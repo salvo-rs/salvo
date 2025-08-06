@@ -31,7 +31,7 @@ sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_j
 trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
 websocket = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
-request-id = ["dep:ulid"]
+request-id = ["dep:ulid", "dep:tracing"]
 tower-compat = ["dep:futures-util", "dep:http-body-util", "dep:tower", "dep:tracing"]
 
 [dependencies]
