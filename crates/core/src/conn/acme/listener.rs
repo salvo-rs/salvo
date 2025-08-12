@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
@@ -229,34 +230,37 @@ impl<T> AcmeListener<T> {
 
 impl<T> Listener for AcmeListener<T>
 where
-    T: Listener + Send,
+    T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
         let Self {
             inner,
             config_builder,
             check_duration,
             ..
         } = self;
-        let acme_config = config_builder.build()?;
 
-        let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
-        let server_config = Arc::new(server_config);
-        let tls_acceptor = TlsAcceptor::from(server_config.clone());
-        let inner = inner.try_bind().await?;
-        let acceptor = AcmeAcceptor::new(
-            acme_config,
-            server_config,
-            cert_resolver,
-            inner,
-            tls_acceptor,
-            check_duration,
-        )
-        .await?;
-        Ok(acceptor)
+        async move {
+            let acme_config = config_builder.build()?;
+            let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
+            let server_config = Arc::new(server_config);
+            let tls_acceptor = TlsAcceptor::from(server_config.clone());
+            let inner = inner.try_bind().await?;
+            let acceptor = AcmeAcceptor::new(
+                acme_config,
+                server_config,
+                cert_resolver,
+                inner,
+                tls_acceptor,
+                check_duration,
+            )
+            .await?;
+            Ok(acceptor)
+        }
+        .boxed()
     }
 }
 
@@ -289,13 +293,14 @@ cfg_feature! {
 
     impl<T, A> Listener for AcmeQuinnListener<T, A>
     where
-        T: Listener + Send,
+        T: Listener + Send + 'static,
         T::Acceptor: Send + Unpin + 'static,
-        A: std::net::ToSocketAddrs + Send,
+        A: std::net::ToSocketAddrs + Send + 'static,
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-        async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+         fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+            async move {
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
@@ -306,6 +311,7 @@ cfg_feature! {
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
             let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
             Ok(JoinedAcceptor::new(a, b, holdings))
+            }.boxed()
         }
     }
 }

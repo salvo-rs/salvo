@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
+use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -52,17 +53,20 @@ impl<S, C, T, E> Listener for NativeTlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<Identity, Error = E> + Send + 'static,
-    T: Listener + Send,
+    T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
     E: StdError + Send,
 {
     type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+     fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
         Ok(NativeTlsAcceptor::new(
             self.config_stream.into_stream().boxed(),
             self.inner.try_bind().await?,
         ))
+
+        }.boxed()
     }
 }
 

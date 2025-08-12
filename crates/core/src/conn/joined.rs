@@ -5,10 +5,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{BoxFuture, FutureExt};
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
-use futures_util::future::{FutureExt, BoxFuture};
 
 use crate::conn::{Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
@@ -113,16 +113,19 @@ where
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        let a = self.a.try_bind().await?;
-        let b = self.b.try_bind().await?;
-        let holdings = a
-            .holdings()
-            .iter()
-            .chain(b.holdings().iter())
-            .cloned()
-            .collect();
-        Ok(JoinedAcceptor { a, b, holdings })
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
+            let a = self.a.try_bind().await?;
+            let b = self.b.try_bind().await?;
+            let holdings = a
+                .holdings()
+                .iter()
+                .chain(b.holdings().iter())
+                .cloned()
+                .collect();
+            Ok(JoinedAcceptor { a, b, holdings })
+        }
+        .boxed()
     }
 }
 
@@ -155,7 +158,7 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-     fn serve(
+    fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,

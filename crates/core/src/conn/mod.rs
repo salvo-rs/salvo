@@ -169,8 +169,7 @@ impl<A: Acceptor> DynAcceptor for ToDynAcceptor<A> {
     fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>
-    {
+    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
         async move {
             let accepted = self.0.accept(fuse_factory).await?;
             Ok(accepted.map_conn(|c| {
@@ -211,15 +210,15 @@ pub trait Listener {
     type Acceptor: Acceptor;
 
     /// Bind and returns acceptor.
-    fn bind(self) -> impl Future<Output = Self::Acceptor> + Send
+    fn bind(self) -> BoxFuture<'static, Self::Acceptor>
     where
-        Self: Sized + Send,
+        Self: Sized + Send + 'static,
     {
-        async move { self.try_bind().await.expect("bind failed") }
+        async move { self.try_bind().await.expect("bind failed") }.boxed()
     }
 
     /// Bind and returns acceptor.
-    fn try_bind(self) -> impl Future<Output = crate::Result<Self::Acceptor>> + Send;
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>>;
 
     /// Join current Listener with the other.
     #[inline]
@@ -231,9 +230,9 @@ pub trait Listener {
     }
 }
 
-// pub struct BoxedListener {
-//     inner: Box<dyn Listener<Acceptor = BoxedAcceptor> + Send>,
-// }
+pub struct BoxedListener {
+    inner: Box<dyn Listener<Acceptor = Box<dyn DynAcceptor>> + Send>,
+}
 // impl BoxedListener {
 //     pub fn join_boxed<T>(self, other: T) -> Self
 //     where

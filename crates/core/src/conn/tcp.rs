@@ -4,6 +4,7 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;
 use std::vec;
 
+use futures_util::future::{BoxFuture, FutureExt};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::conn::{Holding, StraightStream};
@@ -43,7 +44,7 @@ impl<T: Debug> Debug for TcpListener<T> {
             .finish()
     }
 }
-impl<T: ToSocketAddrs + Send> TcpListener<T> {
+impl<T: ToSocketAddrs + Send + 'static> TcpListener<T> {
     /// Bind to socket address.
     #[cfg(not(feature = "socket2"))]
     #[inline]
@@ -74,7 +75,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         where
             S: IntoConfigStream<C> + Send + 'static,
             C: TryInto<crate::conn::rustls::ServerConfig, Error = E> + Send + 'static,
-            E: std::error::Error + Send
+            E: std::error::Error + Send + 'static
         {
             RustlsListener::new(config_stream, self)
         }
@@ -89,7 +90,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         where
             S: IntoConfigStream<C> + Send + 'static,
             C: TryInto<crate::conn::native_tls::Identity, Error = E> + Send + 'static,
-            E: std::error::Error + Send
+            E: std::error::Error + Send + 'static
         {
             NativeTlsListener::new(config_stream, self)
         }
@@ -104,7 +105,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         where
             S: IntoConfigStream<C> + Send + 'static,
             C: TryInto<crate::conn::openssl::SslAcceptorBuilder, Error = E> + Send + 'static,
-            E: std::error::Error + Send
+            E: std::error::Error + Send + 'static
         {
             OpensslListener::new(config_stream, self)
         }
@@ -142,23 +143,26 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 }
 impl<T> Listener for TcpListener<T>
 where
-    T: ToSocketAddrs + Send,
+    T: ToSocketAddrs + Send + 'static,
 {
     type Acceptor = TcpAcceptor;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        let inner = TokioTcpListener::bind(self.local_addr).await?;
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
+            let inner = TokioTcpListener::bind(self.local_addr).await?;
 
-        #[cfg(feature = "socket2")]
-        if let Some(backlog) = self.backlog {
-            let socket = socket2::SockRef::from(&inner);
-            socket.listen(backlog as _)?;
-        }
-        if let Some(ttl) = self.ttl {
-            inner.set_ttl(ttl)?;
-        }
+            #[cfg(feature = "socket2")]
+            if let Some(backlog) = self.backlog {
+                let socket = socket2::SockRef::from(&inner);
+                socket.listen(backlog as _)?;
+            }
+            if let Some(ttl) = self.ttl {
+                inner.set_ttl(ttl)?;
+            }
 
-        Ok(inner.try_into()?)
+            Ok(inner.try_into()?)
+        }
+        .boxed()
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.

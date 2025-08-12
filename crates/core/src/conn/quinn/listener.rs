@@ -10,6 +10,7 @@ use std::task::{Context, Poll};
 use std::vec;
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
+use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::quinn::Connection as QuinnConnection;
@@ -55,25 +56,28 @@ impl<S, C, T, E> Listener for QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    T: ToSocketAddrs + Send,
-    E: StdError + Send,
+    T: ToSocketAddrs + Send + 'static,
+    E: StdError + Send + 'static,
 {
     type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        let Self {
-            config_stream,
-            local_addr,
-            ..
-        } = self;
-        let socket = local_addr
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
-        Ok(QuinnAcceptor::new(
-            config_stream.into_stream().boxed(),
-            socket,
-        ))
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
+            let Self {
+                config_stream,
+                local_addr,
+                ..
+            } = self;
+            let socket = local_addr
+                .to_socket_addrs()?
+                .next()
+                .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
+            Ok(QuinnAcceptor::new(
+                config_stream.into_stream().boxed(),
+                socket,
+            ))
+        }
+        .boxed()
     }
 }
 

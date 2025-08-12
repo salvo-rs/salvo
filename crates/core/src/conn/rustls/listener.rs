@@ -7,6 +7,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -54,17 +55,20 @@ impl<S, C, T, E> Listener for RustlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    T: Listener + Send,
+    T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
     E: StdError + Send,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(RustlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.try_bind().await?,
-        ))
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
+            Ok(RustlsAcceptor::new(
+                self.config_stream.into_stream().boxed(),
+                self.inner.try_bind().await?,
+            ))
+        }
+        .boxed()
     }
 }
 
