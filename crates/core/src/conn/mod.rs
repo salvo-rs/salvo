@@ -257,6 +257,14 @@ pub trait Listener: Send {
     {
         JoinedListener::new(self, other)
     }
+
+    fn boxed(self) -> Box<dyn DynListener>
+    where
+        Self: Sized + Send + 'static,
+        Self::Acceptor: Acceptor + Unpin + 'static,
+    {
+        Box::new(ToDynListener(self))
+    }
 }
 
 pub trait DynListener: Send {
