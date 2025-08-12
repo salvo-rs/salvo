@@ -112,7 +112,7 @@ where
 
 impl<C> Accepted<C>
 where
-    C: HttpConnection + Unpin + 'static,
+    C: HttpConnection +  AsyncRead + AsyncWrite + Unpin + 'static,
 {
     /// Map connection and returns a new `Accepted`.
     #[inline]
