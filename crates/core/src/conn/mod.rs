@@ -8,7 +8,6 @@ use std::io::Result as IoResult;
 
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
-use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
@@ -161,7 +160,7 @@ pub trait DynAcceptor: Send {
 }
 impl DynAcceptor for Box<dyn DynAcceptor + '_> {
     fn holdings(&self) -> &[Holding] {
-        DynAcceptor::holdings(self)
+        (**self).holdings()
     }
 
     /// Accepts a new incoming connection from this listener.
@@ -169,14 +168,14 @@ impl DynAcceptor for Box<dyn DynAcceptor + '_> {
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
-        DynAcceptor::accept(self, fuse_factory)
+        (&mut **self).accept(fuse_factory)
     }
 }
 impl Acceptor for Box<dyn DynAcceptor + '_> {
     type Conn = Box<dyn HttpConnection>;
 
     fn holdings(&self) -> &[Holding] {
-        DynAcceptor::holdings(self)
+        (**self).holdings()
     }
 
     /// Accepts a new incoming connection from this listener.
@@ -184,7 +183,7 @@ impl Acceptor for Box<dyn DynAcceptor + '_> {
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send {
-        DynAcceptor::accept(self, fuse_factory)
+        (&mut **self).accept(fuse_factory)
     }
 }
 
@@ -272,7 +271,7 @@ pub trait DynListener: Send {
 }
 impl DynListener for Box<dyn DynListener + '_> {
     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
-        DynListener::try_bind(self)
+        (**self).try_bind()
     }
 }
 impl Listener for Box<dyn DynListener + '_> {

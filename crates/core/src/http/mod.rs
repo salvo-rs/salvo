@@ -26,7 +26,7 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 
 use futures_util::future::BoxFuture;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
@@ -53,11 +53,11 @@ impl HttpConnection for Box<dyn HttpConnection + '_> {
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        HttpConnection::serve(self, handler, builder, graceful_stop_token)
+        (*self).serve(handler, builder, graceful_stop_token)
     }
 
     fn fusewire(&self) -> Option<ArcFusewire> {
-        HttpConnection::fusewire(self)
+        (**self).fusewire()
     }
 }
 
