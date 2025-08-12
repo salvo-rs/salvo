@@ -10,6 +10,7 @@ cfg_feature! {
     pub use cookie;
 }
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
+use futures_util::FutureExt;
 pub use headers;
 pub use http::method::Method;
 pub use http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header, method, uri};
@@ -25,14 +26,15 @@ pub use http::version::Version;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 
+use futures_util::future::BoxFuture;
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
 use crate::fuse::ArcFusewire;
 use crate::service::HyperHandler;
 
-/// A helper trait for http connection.
-pub trait HttpConnection {
+/// A trait for http connection.
+pub trait HttpConnection: Send {
     /// Serve this http connection.
     fn serve(
         self,
@@ -43,6 +45,35 @@ pub trait HttpConnection {
 
     /// Get the fusewire of this connection.
     fn fusewire(&self) -> Option<ArcFusewire>;
+}
+
+pub trait DynHttpConnection: Send {
+    fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>>;
+
+    /// Get the fusewire of this connection.
+    fn fusewire(&self) -> Option<ArcFusewire>;
+}
+
+pub struct ToDynHttpConnection<C>(pub C);
+
+impl<C: HttpConnection + 'static> DynHttpConnection for ToDynHttpConnection<C> {
+    fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>> {
+        async move { self.0.serve(handler, builder, graceful_stop_token).await }.boxed()
+    }
+
+    fn fusewire(&self) -> Option<ArcFusewire> {
+        self.0.fusewire()
+    }
 }
 
 // /// Get Http version from alpha.

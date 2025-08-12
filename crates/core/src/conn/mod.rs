@@ -197,3 +197,22 @@ pub trait Listener {
         JoinedListener::new(self, other)
     }
 }
+
+// pub struct BoxedListener {
+//     inner: Box<dyn Listener<Acceptor = BoxedAcceptor> + Send>,
+// }
+// impl BoxedListener {
+//     pub fn join_boxed<T>(self, other: T) -> Self
+//     where
+//         Self: Sized + Send,
+//     {
+//         JoinedListener::new(self, other).into_boxed()
+//     }
+// }
+// impl Listener for BoxedListener {
+//     type Acceptor = BoxedAcceptor;
+
+//     fn try_bind(self) -> impl Future<Output = crate::Result<Self::Acceptor>> + Send {
+//         async move { self.inner.try_bind().await }
+//     }
+// }
