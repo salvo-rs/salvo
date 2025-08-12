@@ -1,10 +1,10 @@
-use std::io::{Error as IoError,ErrorKind, Result as IoResult};
+use std::fmt::{self, Debug, Formatter};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::fmt::{self, Debug, Formatter};
 
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::{FutureExt, future::BoxFuture};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 use tokio_util::sync::CancellationToken;
 
@@ -59,20 +59,23 @@ impl<S> HttpConnection for HandshakeStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn serve(
+    fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
         let fusewire = self.fusewire.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);
         }
-        builder
-            .serve_connection(self, handler, fusewire, graceful_stop_token)
-            .await
-            .map_err(IoError::other)
+        async move {
+            builder
+                .serve_connection(self, handler, fusewire, graceful_stop_token)
+                .await
+                .map_err(IoError::other)
+        }
+        .boxed()
     }
     fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
@@ -83,7 +86,11 @@ impl<S> AsyncRead for HandshakeStream<S>
 where
     S: AsyncRead + Unpin + Send + 'static,
 {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<Result<()>> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<()>> {
         let this = &mut *self;
 
         loop {
@@ -98,8 +105,8 @@ where
                         if let Some(fusewire) = &self.fusewire {
                             fusewire.event(FuseEvent::Alive);
                         }
-                        return Poll::Pending
-                    },
+                        return Poll::Pending;
+                    }
                 },
                 State::Ready(stream) => {
                     let remaining = buf.remaining();
@@ -118,8 +125,10 @@ where
                             Poll::Pending
                         }
                     };
-                },
-                State::Error => return Poll::Ready(Err(invalid_data_error("poll read invalid data"))),
+                }
+                State::Error => {
+                    return Poll::Ready(Err(invalid_data_error("poll read invalid data")));
+                }
             }
         }
     }
@@ -129,7 +138,11 @@ impl<S> AsyncWrite for HandshakeStream<S>
 where
     S: AsyncWrite + Unpin + Send + 'static,
 {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
         let this = &mut *self;
 
         loop {
@@ -143,7 +156,9 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_write(cx, buf),
-                State::Error => return Poll::Ready(Err(invalid_data_error("poll write invalid data"))),
+                State::Error => {
+                    return Poll::Ready(Err(invalid_data_error("poll write invalid data")));
+                }
             }
         }
     }
@@ -162,7 +177,9 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_flush(cx),
-                State::Error => return Poll::Ready(Err(invalid_data_error("poll flush invalid data"))),
+                State::Error => {
+                    return Poll::Ready(Err(invalid_data_error("poll flush invalid data")));
+                }
             }
         }
     }
@@ -181,7 +198,9 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_shutdown(cx),
-                State::Error => return Poll::Ready(Err(invalid_data_error("poll shutdown invalid data"))),
+                State::Error => {
+                    return Poll::Ready(Err(invalid_data_error("poll shutdown invalid data")));
+                }
             }
         }
     }

@@ -6,6 +6,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::io::Result as IoResult;
 
+use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -135,7 +136,7 @@ where
 }
 
 /// `Acceptor` represents an acceptor that can accept incoming connections.
-pub trait Acceptor {
+pub trait Acceptor: Send {
     /// Conn type
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
@@ -147,6 +148,38 @@ pub trait Acceptor {
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+}
+
+pub trait DynAcceptor: Send {
+    fn holdings(&self) -> &[Holding];
+
+    /// Accepts a new incoming connection from this listener.
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>;
+}
+pub struct ToDynAcceptor<A>(pub A);
+impl<A: Acceptor> DynAcceptor for ToDynAcceptor<A> {
+    fn holdings(&self) -> &[Holding] {
+        self.0.holdings()
+    }
+
+    /// Accepts a new incoming connection from this listener.
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>
+    {
+        async move {
+            let accepted = self.0.accept(fuse_factory).await?;
+            Ok(accepted.map_conn(|c| {
+                let conn: Box<dyn HttpConnection> = Box::new(c);
+                conn
+            }))
+        }
+        .boxed()
+    }
 }
 
 /// Holding information.

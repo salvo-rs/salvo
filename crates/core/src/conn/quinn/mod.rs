@@ -1,12 +1,13 @@
 //! `QuinnListener` and utils.
+use std::fmt::{self, Debug, Formatter};
 use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
-use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{FutureExt, BoxFuture};
 use futures_util::stream::{Once, once};
 pub use quinn::ServerConfig;
 use salvo_http3::quinn as http3_quinn;
@@ -83,16 +84,19 @@ impl AsyncWrite for H3Connection {
 }
 
 impl HttpConnection for H3Connection {
-    async fn serve(
+    fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
-        builder
-            .quinn
-            .serve_connection(self, handler, graceful_stop_token)
-            .await
+    ) -> BoxFuture<'static, IoResult<()>> {
+        async move {
+            builder
+                .quinn
+                .serve_connection(self, handler, graceful_stop_token)
+                .await
+        }
+        .boxed()
     }
     fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()

@@ -8,6 +8,7 @@ use std::task::{Context, Poll};
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
+use futures_util::future::{FutureExt, BoxFuture};
 
 use crate::conn::{Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
@@ -154,15 +155,15 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn serve(
+     fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
         match self {
-            Self::A(a) => a.serve(handler, builder, graceful_stop_token).await,
-            Self::B(b) => b.serve(handler, builder, graceful_stop_token).await,
+            Self::A(a) => a.serve(handler, builder, graceful_stop_token).boxed(),
+            Self::B(b) => b.serve(handler, builder, graceful_stop_token).boxed(),
         }
     }
     fn fusewire(&self) -> Option<ArcFusewire> {

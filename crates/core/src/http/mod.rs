@@ -10,7 +10,6 @@ cfg_feature! {
     pub use cookie;
 }
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
-use futures_util::FutureExt;
 pub use headers;
 pub use http::method::Method;
 pub use http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header, method, uri};
@@ -41,40 +40,69 @@ pub trait HttpConnection: Send {
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> impl Future<Output = IoResult<()>> + Send;
-
-    /// Get the fusewire of this connection.
-    fn fusewire(&self) -> Option<ArcFusewire>;
-}
-
-pub trait DynHttpConnection: Send {
-    fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>>;
 
     /// Get the fusewire of this connection.
     fn fusewire(&self) -> Option<ArcFusewire>;
 }
-
-pub struct ToDynHttpConnection<C>(pub C);
-
-impl<C: HttpConnection + 'static> DynHttpConnection for ToDynHttpConnection<C> {
+impl HttpConnection for Box<dyn HttpConnection + '_> {
     fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        async move { self.0.serve(handler, builder, graceful_stop_token).await }.boxed()
+        self.serve(handler, builder, graceful_stop_token)
     }
 
     fn fusewire(&self) -> Option<ArcFusewire> {
-        self.0.fusewire()
+        self.fusewire()
     }
 }
+
+// pub trait DynHttpConnection: Send {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>>;
+
+//     /// Get the fusewire of this connection.
+//     fn fusewire(&self) -> Option<ArcFusewire>;
+// }
+
+// pub struct ToDynHttpConnection<C>(pub C);
+
+// impl<C: HttpConnection + 'static> DynHttpConnection for ToDynHttpConnection<C> {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>> {
+//         async move { self.0.serve(handler, builder, graceful_stop_token).await }.boxed()
+//     }
+
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         self.0.fusewire()
+//     }
+// }
+
+// impl HttpConnection for dyn DynHttpConnection + '_ {
+//     async fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> IoResult<()> {
+//         DynHttpConnection::serve(self, handler, builder, graceful_stop_token).await
+//     }
+
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         DynHttpConnection::fusewire(self)
+//     }
+// }
 
 // /// Get Http version from alpha.
 // pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {

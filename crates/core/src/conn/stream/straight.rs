@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{BoxFuture, FutureExt};
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
@@ -41,20 +42,23 @@ impl<C> HttpConnection for StraightStream<C>
 where
     C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn serve(
+    fn serve(
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> std::io::Result<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
         let fusewire = self.fusewire.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);
         }
-        builder
-            .serve_connection(self, handler, fusewire, graceful_stop_token)
-            .await
-            .map_err(IoError::other)
+        async move {
+            builder
+                .serve_connection(self, handler, fusewire, graceful_stop_token)
+                .await
+                .map_err(IoError::other)
+        }
+        .boxed()
     }
     fn fusewire(&self) -> Option<ArcFusewire> {
         self.fusewire.clone()
