@@ -178,8 +178,8 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: HttpConnection + Unpin + 'static,
-    B::Conn: HttpConnection + Unpin + 'static,
+    A::Conn: HttpConnection + AsyncRead + AsyncWrite + Unpin + 'static,
+    B::Conn: HttpConnection + AsyncRead + AsyncWrite + Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
