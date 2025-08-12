@@ -155,8 +155,8 @@ impl<A, B> JoinedAcceptor<A, B> {
 
 impl<A, B> HttpConnection for JoinedStream<A, B>
 where
-    A: HttpConnection + Send,
-    B: HttpConnection + Send,
+    A: HttpConnection + Unpin + 'static,
+    B: HttpConnection + Unpin + 'static,
 {
     fn serve(
         self,
@@ -178,8 +178,8 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    B::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Conn: HttpConnection +  Unpin + 'static,
+    B::Conn: HttpConnection +  Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
