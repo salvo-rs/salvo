@@ -6,12 +6,12 @@ use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
+use super::{Accepted, Acceptor, Listener};
+use crate::async_trait;
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
-
-use super::{Accepted, Acceptor, Listener};
 
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 use crate::conn::IntoConfigStream;
@@ -140,6 +140,8 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         }
     }
 }
+
+#[async_trait]
 impl<T> Listener for TcpListener<T>
 where
     T: ToSocketAddrs + Send,
@@ -212,6 +214,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
     }
 }
 
+#[async_trait]
 impl Acceptor for TcpAcceptor {
     type Conn = StraightStream<TcpStream>;
 

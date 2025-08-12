@@ -10,7 +10,7 @@ use http::uri::Scheme;
 use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
-use crate::Error;
+use crate::{async_trait, Error};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
@@ -89,6 +89,7 @@ impl<T> UnixListener<T> {
     }
 }
 
+#[async_trait]
 impl<T> Listener for UnixListener<T>
 where
     T: AsRef<Path> + Send + Clone,
@@ -149,6 +150,7 @@ impl UnixAcceptor {
 }
 
 #[cfg(unix)]
+#[async_trait]
 impl Acceptor for UnixAcceptor {
     type Conn = StraightStream<UnixStream>;
 

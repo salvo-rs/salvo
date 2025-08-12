@@ -13,10 +13,10 @@ use openssl::ssl::{Ssl, SslAcceptor};
 use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
-
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpConnection;
+use crate::async_trait;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -50,6 +50,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Listener for OpensslListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -128,6 +129,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

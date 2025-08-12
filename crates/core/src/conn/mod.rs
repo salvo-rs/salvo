@@ -9,6 +9,7 @@ use std::io::Result as IoResult;
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::async_trait;
 use crate::fuse::ArcFuseFactory;
 use crate::http::{HttpConnection, Version};
 
@@ -135,6 +136,7 @@ where
 }
 
 /// `Acceptor` represents an acceptor that can accept incoming connections.
+#[async_trait]
 pub trait Acceptor {
     /// Conn type
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
@@ -143,10 +145,10 @@ pub trait Acceptor {
     fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
-    fn accept(
+    async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+    ) -> IoResult<Accepted<Self::Conn>>;
 }
 
 /// Holding information.
@@ -173,20 +175,21 @@ impl Display for Holding {
 }
 
 /// `Listener` represents a listener that can bind to a specific address and port and return an acceptor.
+#[async_trait]
 pub trait Listener {
     /// Acceptor type.
     type Acceptor: Acceptor;
 
     /// Bind and returns acceptor.
-    fn bind(self) -> impl Future<Output = Self::Acceptor> + Send
+    async fn bind(self) -> Self::Acceptor
     where
         Self: Sized + Send,
     {
-        async move { self.try_bind().await.expect("bind failed") }
+        self.try_bind().await.expect("bind failed")
     }
 
     /// Bind and returns acceptor.
-    fn try_bind(self) -> impl Future<Output = crate::Result<Self::Acceptor>> + Send;
+    async fn try_bind(self) -> crate::Result<Self::Acceptor>;
 
     /// Join current Listener with the other.
     #[inline]

@@ -16,6 +16,7 @@ use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpConnection;
 use crate::http::uri::Scheme;
+use crate::async_trait;
 
 use super::ServerConfig;
 
@@ -50,6 +51,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Listener for RustlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -128,6 +130,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Acceptor for RustlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

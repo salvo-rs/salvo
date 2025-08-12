@@ -14,12 +14,11 @@ use tokio_rustls::server::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
-use crate::Router;
+use crate::{async_trait, Router};
 use crate::conn::HandshakeStream;
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
-
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
 use super::{AcmeCache, AcmeClient, ChallengeType, Http01Handler, WELL_KNOWN_PATH};
@@ -227,6 +226,7 @@ impl<T> AcmeListener<T> {
     }
 }
 
+#[async_trait]
 impl<T> Listener for AcmeListener<T>
 where
     T: Listener + Send,
@@ -287,6 +287,7 @@ cfg_feature! {
         }
     }
 
+#[async_trait]
     impl<T, A> Listener for AcmeQuinnListener<T, A>
     where
         T: Listener + Send,
@@ -400,6 +401,7 @@ where
     }
 }
 
+#[async_trait]
 impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,

@@ -11,11 +11,11 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
+use super::Identity;
+use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpConnection;
-
-use super::Identity;
 
 /// NativeTlsListener
 pub struct NativeTlsListener<S, C, T, E> {
@@ -48,6 +48,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Listener for NativeTlsListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -124,6 +125,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, T, E> Acceptor for NativeTlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

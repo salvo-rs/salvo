@@ -16,6 +16,7 @@ use salvo_http3::quinn::Connection as QuinnConnection;
 use salvo_http3::quinn::Endpoint;
 
 use super::H3Connection;
+use crate::async_trait;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
@@ -34,6 +35,7 @@ impl<S, C, T: Debug, E> Debug for QuinnListener<S, C, T, E> {
             .finish()
     }
 }
+
 impl<S, C, T, E> QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -51,6 +53,8 @@ where
         }
     }
 }
+
+#[async_trait]
 impl<S, C, T, E> Listener for QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
@@ -119,6 +123,7 @@ where
     }
 }
 
+#[async_trait]
 impl<S, C, E> Acceptor for QuinnAcceptor<S, C, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,

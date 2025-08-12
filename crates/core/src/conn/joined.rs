@@ -9,12 +9,12 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
+use super::{Accepted, Acceptor, Listener};
+use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
-
-use super::{Accepted, Acceptor, Listener};
 
 /// An I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
@@ -103,6 +103,8 @@ impl<A, B> JoinedListener<A, B> {
         Self { a, b }
     }
 }
+
+#[async_trait]
 impl<A, B> Listener for JoinedListener<A, B>
 where
     A: Listener + Send + Unpin + 'static,
@@ -170,6 +172,7 @@ where
     }
 }
 
+#[async_trait]
 impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
