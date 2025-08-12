@@ -5,6 +5,7 @@
 //! Additionally, it includes implementations for Unix domain sockets.
 use std::fmt::{self, Debug, Display, Formatter};
 use std::io::Result as IoResult;
+use std::pin::Pin;
 
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
@@ -149,65 +150,65 @@ pub trait Acceptor: Send {
     ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
 }
 
-pub trait DynAcceptor: Send {
-    fn holdings(&self) -> &[Holding];
+// pub trait DynAcceptor: Send {
+//     fn holdings(&self) -> &[Holding];
 
-    /// Accepts a new incoming connection from this listener.
-    fn accept(
-        &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
-    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>;
-}
-impl DynAcceptor for Box<dyn DynAcceptor + '_> {
-    fn holdings(&self) -> &[Holding] {
-        (**self).holdings()
-    }
+//     /// Accepts a new incoming connection from this listener.
+//     fn accept(
+//         &mut self,
+//         fuse_factory: Option<ArcFuseFactory>,
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>;
+// }
+// impl DynAcceptor for Box<dyn DynAcceptor + '_> {
+//     fn holdings(&self) -> &[Holding] {
+//         (**self).holdings()
+//     }
 
-    /// Accepts a new incoming connection from this listener.
-    fn accept(
-        &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
-    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
-        (&mut **self).accept(fuse_factory)
-    }
-}
-impl Acceptor for Box<dyn DynAcceptor + '_> {
-    type Conn = Box<dyn HttpConnection>;
+//     /// Accepts a new incoming connection from this listener.
+//     fn accept(
+//         &mut self,
+//         fuse_factory: Option<ArcFuseFactory>,
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
+//         (&mut **self).accept(fuse_factory)
+//     }
+// }
+// impl Acceptor for Box<dyn DynAcceptor + '_> {
+//     type Conn = Box<dyn HttpConnection>;
 
-    fn holdings(&self) -> &[Holding] {
-        (**self).holdings()
-    }
+//     fn holdings(&self) -> &[Holding] {
+//         (**self).holdings()
+//     }
 
-    /// Accepts a new incoming connection from this listener.
-    fn accept(
-        &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
-    ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send {
-        (&mut **self).accept(fuse_factory)
-    }
-}
+//     /// Accepts a new incoming connection from this listener.
+//     fn accept(
+//         &mut self,
+//         fuse_factory: Option<ArcFuseFactory>,
+//     ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send {
+//         (&mut **self).accept(fuse_factory)
+//     }
+// }
 
-pub struct ToDynAcceptor<A>(pub A);
-impl<A: Acceptor> DynAcceptor for ToDynAcceptor<A> {
-    fn holdings(&self) -> &[Holding] {
-        self.0.holdings()
-    }
+// pub struct ToDynAcceptor<A>(pub A);
+// impl<A: Acceptor> DynAcceptor for ToDynAcceptor<A> {
+//     fn holdings(&self) -> &[Holding] {
+//         self.0.holdings()
+//     }
 
-    /// Accepts a new incoming connection from this listener.
-    fn accept(
-        &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
-    ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
-        async move {
-            let accepted = self.0.accept(fuse_factory).await?;
-            Ok(accepted.map_conn(|c| {
-                let conn: Box<dyn HttpConnection> = Box::new(c);
-                conn
-            }))
-        }
-        .boxed()
-    }
-}
+//     /// Accepts a new incoming connection from this listener.
+//     fn accept(
+//         &mut self,
+//         fuse_factory: Option<ArcFuseFactory>,
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
+//         async move {
+//             let accepted = self.0.accept(fuse_factory).await?;
+//             Ok(accepted.map_conn(|c| {
+//                 let conn: Box<dyn HttpConnection> = Box::new(c);
+//                 conn
+//             }))
+//         }
+//         .boxed()
+//     }
+// }
 
 /// Holding information.
 #[derive(Clone, Debug)]
@@ -257,60 +258,60 @@ pub trait Listener: Send {
         JoinedListener::new(self, other)
     }
 
-    fn boxed(self) -> Box<dyn DynListener>
-    where
-        Self: Sized + Send + 'static,
-        Self::Acceptor: Acceptor + Unpin + 'static,
-    {
-        Box::new(ToDynListener(self))
-    }
+    // fn boxed(self) -> Box<dyn DynListener>
+    // where
+    //     Self: Sized + Send + 'static,
+    //     Self::Acceptor: Acceptor + Unpin + 'static,
+    // {
+    //     Box::new(ToDynListener(self))
+    // }
 }
 
-pub trait DynListener: Send {
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>>;
-}
-// impl DynListener for Box<dyn DynListener + '_> {
-//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
-//         (**self).try_bind()
+// pub trait DynListener: Send {
+//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>>;
+// }
+// // impl DynListener for Pin<Box<dyn DynListener + '_>> {
+// //     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
+// //         DynListener::try_bind(self)
+// //     }
+// // }
+// impl Listener for Pin<Box<dyn DynListener + '_>> {
+//     type Acceptor = Box<dyn DynAcceptor>;
+
+//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+//         DynListener::try_bind(self)
 //     }
 // }
-impl Listener for Box<dyn DynListener + '_> {
-    type Acceptor = Box<dyn DynAcceptor>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        DynListener::try_bind(self)
-    }
-}
+// pub struct ToDynListener<L>(pub L);
+// impl<L> ToDynListener<L>
+// where
+//     L: Listener + Unpin + 'static,
+//     L::Acceptor: Acceptor + Unpin + 'static,
+// {
+//     pub fn join_boxed<T>(self, other: T) -> Box<dyn DynListener>
+//     where
+//         Self: Sized + Send,
+//         T: Listener + Unpin + 'static,
+//         T::Acceptor: Acceptor + Unpin + 'static,
+//     {
+//         Box::new(ToDynListener(JoinedListener::new(self, other)))
+//     }
+// }
+// impl<L: Listener + 'static> DynListener for ToDynListener<L> {
+//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
+//         async move {
+//             let acceptor: Box<dyn DynAcceptor> = Box::new(ToDynAcceptor(self.0.try_bind().await?));
+//             Ok(acceptor)
+//         }
+//         .boxed()
+//     }
+// }
 
-pub struct ToDynListener<L>(pub L);
-impl<L> ToDynListener<L>
-where
-    L: Listener + Unpin + 'static,
-    L::Acceptor: Acceptor + Unpin + 'static,
-{
-    pub fn join_boxed<T>(self, other: T) -> Box<dyn DynListener>
-    where
-        Self: Sized + Send,
-        T: Listener + Unpin + 'static,
-        T::Acceptor: Acceptor + Unpin + 'static,
-    {
-        Box::new(ToDynListener(JoinedListener::new(self, other)))
-    }
-}
-impl<L: Listener + 'static> DynListener for ToDynListener<L> {
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
-        async move {
-            let acceptor: Box<dyn DynAcceptor> = Box::new(ToDynAcceptor(self.0.try_bind().await?));
-            Ok(acceptor)
-        }
-        .boxed()
-    }
-}
+// impl<L: Listener + 'static> Listener for ToDynListener<L> {
+//     type Acceptor = L::Acceptor;
 
-impl<L: Listener + 'static> Listener for ToDynListener<L> {
-    type Acceptor = L::Acceptor;
-
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        self.0.try_bind()
-    }
-}
+//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+//         self.0.try_bind()
+//     }
+// }

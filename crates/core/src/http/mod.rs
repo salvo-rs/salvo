@@ -46,20 +46,20 @@ pub trait HttpConnection: AsyncRead + AsyncWrite + Unpin + Send {
     /// Get the fusewire of this connection.
     fn fusewire(&self) -> Option<ArcFusewire>;
 }
-impl HttpConnection for Box<dyn HttpConnection + '_> {
-    fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        (*self).serve(handler, builder, graceful_stop_token)
-    }
+// impl HttpConnection for Box<dyn HttpConnection + '_> {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>> {
+//         (*self).serve(handler, builder, graceful_stop_token)
+//     }
 
-    fn fusewire(&self) -> Option<ArcFusewire> {
-        (**self).fusewire()
-    }
-}
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         (**self).fusewire()
+//     }
+// }
 
 // pub trait DynHttpConnection: Send {
 //     fn serve(
