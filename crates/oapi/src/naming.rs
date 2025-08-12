@@ -138,7 +138,7 @@ impl Namer for FlexNamer {
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
                 }
-                let mut name = base.to_string();
+                let mut name = base.clone();
                 let mut count = 1;
                 while let Some(exist_id) = type_info_by_name(&name).map(|t| t.0) {
                     if exist_id != type_id {
@@ -160,7 +160,7 @@ impl Namer for FlexNamer {
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
                 }
-                let mut name = base.to_string();
+                let mut name = base.clone();
                 let mut count = 1;
                 while let Some((exist_id, exist_name)) = type_info_by_name(&name) {
                     if exist_id != type_id {
