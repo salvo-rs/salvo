@@ -248,7 +248,7 @@ pub trait Listener: Send {
     /// Bind and returns acceptor.
     fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>>;
 
-    /// Join current Listener with the other.
+    /// Join current listener with the other.
     #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
     where
@@ -269,11 +269,11 @@ pub trait Listener: Send {
 pub trait DynListener: Send {
     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>>;
 }
-impl DynListener for Box<dyn DynListener + '_> {
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
-        (**self).try_bind()
-    }
-}
+// impl DynListener for Box<dyn DynListener + '_> {
+//     fn try_bind(self) -> BoxFuture<'static, crate::Result<Box<dyn DynAcceptor>>> {
+//         (**self).try_bind()
+//     }
+// }
 impl Listener for Box<dyn DynListener + '_> {
     type Acceptor = Box<dyn DynAcceptor>;
 
