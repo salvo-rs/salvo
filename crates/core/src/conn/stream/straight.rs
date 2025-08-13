@@ -19,6 +19,7 @@ use crate::service::HyperHandler;
 pub struct StraightStream<C> {
     #[pin]
     inner: C,
+    fusewire: Option<ArcFusewire>,
 }
 
 impl<C> Debug for StraightStream<C> {
@@ -32,8 +33,8 @@ where
     C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     /// Create a new `StraightStream`.
-    pub fn new(inner: C) -> Self {
-        Self { inner }
+    pub fn new(inner: C, fusewire: Option<ArcFusewire>) -> Self {
+        Self { inner, fusewire }
     }
 }
 
@@ -60,7 +61,7 @@ where
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        let fusewire = self.fusewire.clone();
+        let fusewire = handler.fusewire.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);
         }

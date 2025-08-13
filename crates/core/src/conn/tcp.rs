@@ -232,18 +232,17 @@ impl Acceptor for TcpAcceptor {
     ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let local_addr = self.holdings[0].local_addr.clone();
+            let fusewire = fuse_factory.map(|f| {
+                f.create(FuseInfo {
+                    trans_proto: TransProto::Tcp,
+                    remote_addr: remote_addr.into(),
+                    local_addr: local_addr.clone(),
+                })
+            });
             Accepted {
                 adapter: StraightAdapter::new(),
-                stream: StraightStream::new(
-                    conn,
-                ),
-                fusewire: fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.into(),
-                            local_addr: local_addr.clone(),
-                        })
-                    }),
+                stream: StraightStream::new(conn, fusewire.clone()),
+                fusewire: fusewire,
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,

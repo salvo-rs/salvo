@@ -7,11 +7,12 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::Result as IoResult;
 use std::pin::Pin;
 
+use futures_util::Stream;
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::fuse::ArcFuseFactory;
+use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::http::{HttpAdapter, Version};
 
 mod proto;
@@ -87,7 +88,7 @@ pub trait IntoConfigStream<C> {
 #[non_exhaustive]
 pub struct Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub adapter: A,
@@ -103,7 +104,7 @@ where
 }
 impl<A, S> Debug for Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -117,14 +118,18 @@ where
 
 impl<A, S> Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    /// Map stream and returns a new `Accepted`.
     #[inline]
-    pub fn map_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<A, T>
+    pub fn map_into<TA, TS>(
+        self,
+        adapter_fn: impl FnOnce(A) -> TA,
+        stream_fn: impl FnOnce(S) -> TS,
+    ) -> Accepted<TA, TS>
     where
-        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        TA: HttpAdapter<Stream = TS>,
+        TS: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let Self {
             adapter,
@@ -135,8 +140,8 @@ where
             http_scheme,
         } = self;
         Accepted {
-            adapter,
-            stream: wrap_fn(stream),
+            adapter: adapter_fn(adapter),
+            stream: stream_fn(stream),
             fusewire,
             local_addr,
             remote_addr,
@@ -148,7 +153,7 @@ where
 /// An acceptor that can accept incoming connections.
 pub trait Acceptor: Send {
     /// Adapter type.
-    type Adapter: HttpAdapter + 'static;
+    type Adapter: HttpAdapter<Stream = Self::Stream> + 'static;
     /// Stream type.
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 

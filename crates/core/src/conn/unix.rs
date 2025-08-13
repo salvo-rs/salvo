@@ -163,18 +163,17 @@ impl Acceptor for UnixAcceptor {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
+            let fusewire = fuse_factory.map(|f| {
+                f.create(FuseInfo {
+                    trans_proto: TransProto::Tcp,
+                    remote_addr: remote_addr.clone().into(),
+                    local_addr: local_addr.clone(),
+                })
+            });
             Accepted {
                 adapter: StraightAdapter::new(),
-                stream: StraightStream::new(
-                    conn,
-                    fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.clone().into(),
-                            local_addr: local_addr.clone(),
-                        })
-                    }),
-                ),
+                stream: StraightStream::new(conn, fusewire.clone()),
+                fusewire,
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,

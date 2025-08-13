@@ -179,14 +179,15 @@ where
         let Accepted {
             adapter,
             stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = stream.fusewire();
         Ok(Accepted {
             adapter,
-            stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire),
+            stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

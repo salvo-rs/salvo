@@ -194,12 +194,12 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Adapter: HttpAdapter + 'static,
-    B::Adapter: HttpAdapter + 'static,
+    A::Adapter: HttpAdapter<Stream = A::Stream> + Unpin  + 'static,
+    B::Adapter: HttpAdapter<Stream = B::Stream> + Unpin  + 'static,
     A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    type Adapter = JoinedAcceptor<A::Adapter, B::Adapter>;
+    type Adapter = JoinedAdapter<A::Adapter, B::Adapter>;
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
     #[inline]
@@ -214,10 +214,10 @@ where
     ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
-                Ok(accepted?.map_stream(JoinedStream::A))
+                Ok(accepted?.map_into(JoinedAdapter::A, JoinedStream::A))
             }
             accepted = self.b.accept(fuse_factory) => {
-                Ok(accepted?.map_stream(JoinedStream::B))
+                Ok(accepted?.map_into(JoinedAdapter::B, JoinedStream::B))
             }
         }
     }
