@@ -147,7 +147,7 @@ pub struct UnixAcceptor {
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Adapter = StraightAdapter<UnixStream>;
+    type Adapter = StraightAdapter;
     type Stream = StraightStream<UnixStream>;
 
     #[inline]
@@ -159,7 +159,7 @@ impl Acceptor for UnixAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<StraightAdapter<Self::Stream>, Self::Stream>> {
+    ) -> IoResult<Accepted<StraightAdapter, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
@@ -171,7 +171,7 @@ impl Acceptor for UnixAcceptor {
                 })
             });
             Accepted {
-                adapter: StraightAdapter::new(),
+                adapter: StraightAdapter,
                 stream: StraightStream::new(conn, fusewire.clone()),
                 fusewire,
                 local_addr: self.holdings[0].local_addr.clone(),

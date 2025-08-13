@@ -9,14 +9,13 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::vec;
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
-use salvo_http3::quinn::Connection as QuinnConnection;
-use salvo_http3::quinn::Endpoint;
+use salvo_http3::quinn::{self, Endpoint};
 
-use super::H3Connection;
+use super::{QuinnAdapter, QuinnConnection};
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
@@ -129,7 +128,8 @@ where
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     E: StdError + Send,
 {
-    type Conn = H3Connection;
+    type Adapter = QuinnAdapter;
+    type Stream = QuinnConnection;
 
     fn holdings(&self) -> &[Holding] {
         &self.holdings
@@ -138,7 +138,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
@@ -170,18 +170,20 @@ where
             let local_addr = self.holdings[0].local_addr.clone();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = QuinnConnection::new(conn);
+                    let fusewire = fuse_factory.map(|f| {
+                        f.create(FuseInfo {
+                            trans_proto: TransProto::Tcp,
+                            remote_addr: remote_addr.into(),
+                            local_addr: local_addr.clone(),
+                        })
+                    });
                     return Ok(Accepted {
-                        conn: H3Connection::new(
-                            conn,
-                            fuse_factory.map(|f| {
-                                f.create(FuseInfo {
-                                    trans_proto: TransProto::Quic,
-                                    remote_addr: remote_addr.into(),
-                                    local_addr: local_addr.clone(),
-                                })
-                            }),
+                        adapter: QuinnAdapter,
+                        stream: QuinnConnection::new(
+                            quinn::Connection::new(conn),
+                            fusewire.clone(),
                         ),
+                        fusewire,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),

@@ -396,18 +396,22 @@ impl<A: Acceptor + Send> Server<A> {
         loop {
             match acceptor.accept(fuse_factory.clone()).await {
                 Ok(Accepted {
-                    conn,
+                    adapter,
+                    stream,
+                    fusewire,
                     local_addr,
                     remote_addr,
                     http_scheme,
                     ..
                 }) => {
+                    use crate::fuse;
+
                     let service = service.clone();
                     let handler = service.hyper_handler(
                         local_addr,
                         remote_addr,
                         http_scheme,
-                        conn.fusewire(),
+                        fusewire,
                         alt_svc_h3.clone(),
                     );
                     let builder = builder.clone();

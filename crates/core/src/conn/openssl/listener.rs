@@ -139,7 +139,8 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Conn = HandshakeStream<SslStream<T::Conn>>;
+    type Adapter = T::Adapter;
+    type Stream = HandshakeStream<SslStream<T::Stream>>;
 
     /// Get the local address bound to this listener.
     fn holdings(&self) -> &[Holding] {
@@ -149,7 +150,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter,Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -181,14 +182,14 @@ where
         let Accepted {
             adapter,
             stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = conn.fusewire();
         let conn = async move {
             let ssl = Ssl::new(tls_acceptor.context()).map_err(IoError::other)?;
-            let mut tls_stream = SslStream::new(ssl, conn).map_err(IoError::other)?;
+            let mut tls_stream = SslStream::new(ssl, stream).map_err(IoError::other)?;
             std::pin::Pin::new(&mut tls_stream)
                 .accept()
                 .await
@@ -197,7 +198,9 @@ where
         };
 
         Ok(Accepted {
-            conn: HandshakeStream::new(conn, fusewire),
+            adapter,
+            stream: HandshakeStream::new(conn, fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

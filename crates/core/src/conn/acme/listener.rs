@@ -409,9 +409,10 @@ where
 impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
-    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Adapter = T::Adapter;
+    type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -422,17 +423,19 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter,Self::Stream>> {
         let Accepted {
             adapter,
             stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(self.tls_acceptor.accept(conn), fusewire),
+            adapter,
+            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

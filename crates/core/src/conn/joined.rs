@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
-use futures_util::stream;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
@@ -24,6 +23,27 @@ pub enum JoinedAdapter<A, B> {
     A(A),
     #[allow(missing_docs)]
     B(B),
+}
+
+impl<A, B> HttpAdapter for JoinedAdapter<A, B>
+where
+    A: HttpAdapter + Unpin + 'static,
+    B: HttpAdapter + Unpin + 'static,
+{
+    fn adapt<S>(
+        &self,
+        stream: S,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static {
+        match self {
+            Self::A(a) => a.adapt(stream, handler, builder, graceful_stop_token).boxed(),
+            Self::B(b) => b.adapt(stream, handler, builder, graceful_stop_token).boxed(),
+        }
+    }
 }
 
 impl<A, B> Debug for JoinedAdapter<A, B> {
@@ -169,33 +189,12 @@ impl<A, B> JoinedAcceptor<A, B> {
     }
 }
 
-impl<A, B> HttpAdapter for JoinedAdapter<A, B>
-where
-    A: HttpAdapter + Unpin + 'static,
-    B: HttpAdapter + Unpin + 'static,
-{
-    type Stream = JoinedStream<A::Stream, B::Stream>;
-
-    fn adapt(
-        &self,
-        stream: Self::Stream,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        match self {
-            Self::A(a) => a.adapt(handler, builder, graceful_stop_token).boxed(),
-            Self::B(b) => b.adapt(handler, builder, graceful_stop_token).boxed(),
-        }
-    }
-}
-
 impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Adapter: HttpAdapter<Stream = A::Stream> + Unpin  + 'static,
-    B::Adapter: HttpAdapter<Stream = B::Stream> + Unpin  + 'static,
+    A::Adapter: HttpAdapter + Unpin  + 'static,
+    B::Adapter: HttpAdapter + Unpin  + 'static,
     A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {

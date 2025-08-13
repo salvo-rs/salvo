@@ -38,29 +38,18 @@ where
     }
 }
 
-pub struct StraightAdapter<S> {
-    _marker: std::marker::PhantomData<S>,
-}
-impl<S> StraightAdapter<S> {
-    pub fn new() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<C> HttpAdapter for StraightAdapter<C>
-where
-    C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    type Stream = StraightStream<C>;
-    fn adapt(
+pub struct StraightAdapter;
+impl HttpAdapter for StraightAdapter {
+    fn adapt<S>(
         &self,
-        stream: Self::Stream,
+        stream: S,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
+    ) -> BoxFuture<'static, IoResult<()>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let fusewire = handler.fusewire.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);

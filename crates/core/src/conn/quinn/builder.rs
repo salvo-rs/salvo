@@ -59,11 +59,11 @@ impl Builder {
     /// Serve HTTP3 connection.
     pub async fn serve_connection(
         &self,
-        conn: crate::conn::quinn::H3Connection,
+        conn: crate::conn::quinn::QuinnConnection,
         hyper_handler: crate::service::HyperHandler,
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
-        let fusewire = conn.fusewire();
+        let fusewire = hyper_handler.fusewire.clone();
         let mut conn = self
             .0
             .build::<salvo_http3::quinn::Connection, bytes::Bytes>(conn.into_inner())

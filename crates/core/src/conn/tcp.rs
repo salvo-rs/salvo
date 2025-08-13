@@ -217,7 +217,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 }
 
 impl Acceptor for TcpAcceptor {
-    type Adapter = StraightAdapter<TcpStream>;
+    type Adapter = StraightAdapter;
     type Stream = StraightStream<TcpStream>;
 
     #[inline]
@@ -240,7 +240,7 @@ impl Acceptor for TcpAcceptor {
                 })
             });
             Accepted {
-                adapter: StraightAdapter::new(),
+                adapter: StraightAdapter,
                 stream: StraightStream::new(conn, fusewire.clone()),
                 fusewire: fusewire,
                 remote_addr: remote_addr.into(),

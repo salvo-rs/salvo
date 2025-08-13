@@ -19,35 +19,6 @@ enum State<S> {
     Error,
 }
 
-pub struct HandshakeAdapter {
-    fusewire: Option<ArcFusewire>,
-}
-impl<S> HttpAdapter for HandshakeStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    type Stream = HandshakeStream<S>;
-    fn adapt(
-        &self,
-        stream: Self::Stream,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        let fusewire = stream.fusewire.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
-        async move {
-            builder
-                .serve_connection(stream, handler, fusewire, graceful_stop_token)
-                .await
-                .map_err(IoError::other)
-        }
-        .boxed()
-    }
-}
-
 /// Tls stream.
 pub struct HandshakeStream<S> {
     state: State<S>,

@@ -133,10 +133,11 @@ where
     S: Stream<Item = C> + Send + Unpin + 'static,
     C: TryInto<Identity, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
-    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
     E: StdError + Send,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Adapter = T::Adapter;
+    type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -147,7 +148,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -183,14 +184,16 @@ where
         let Accepted {
             adapter,
             stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory.clone()).await?;
-        let fusewire = conn.fusewire();
-        let conn = async move { tls_acceptor.accept(conn).await.map_err(IoError::other) };
+        let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
         Ok(Accepted {
-            conn: HandshakeStream::new(conn, fusewire),
+            adapter,
+            stream: HandshakeStream::new(conn, fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

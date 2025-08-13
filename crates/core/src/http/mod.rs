@@ -30,20 +30,20 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
-use crate::fuse::ArcFusewire;
 use crate::service::HyperHandler;
 
 /// A trait for http connection.
 pub trait HttpAdapter: Send {
-    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
     /// Adapt this http connection.
-    fn adapt(
+    fn adapt<S>(
         &self,
-        stream: Self::Stream,
+        stream: S,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>;
+    ) -> BoxFuture<'static, IoResult<()>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 }
 // impl HttpAdapter for Box<dyn HttpAdapter + '_> {
 //     fn serve(
