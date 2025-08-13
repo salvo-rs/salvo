@@ -7,11 +7,12 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use futures_util::Stream;
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
@@ -252,7 +253,7 @@ impl Display for Holding {
         )
     }
 }
-/// A trait for adapt http stream.
+/// A trait for couple http stream.
 pub trait Coupler: Send {
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
@@ -265,64 +266,53 @@ pub trait Coupler: Send {
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>>;
 }
-// impl Coupler for Box<dyn Coupler + '_> {
-//     fn serve(
-//         self,
-//         handler: HyperHandler,
-//         builder: Arc<HttpBuilder>,
-//         graceful_stop_token: Option<CancellationToken>,
-//     ) -> BoxFuture<'static, IoResult<()>> {
-//         (*self).serve(handler, builder, graceful_stop_token)
-//     }
 
-//     fn fusewire(&self) -> Option<ArcFusewire> {
-//         (**self).fusewire()
-//     }
-// }
+pub trait DynCoupler: Send {
+    fn couple(
+        &self,
+        stream: DynStream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>>;
+}
 
-// pub trait DynCoupler: Send {
-//     fn serve(
-//         self,
-//         handler: HyperHandler,
-//         builder: Arc<HttpBuilder>,
-//         graceful_stop_token: Option<CancellationToken>,
-//     ) -> BoxFuture<'static, IoResult<()>>;
+pub struct ToDynCoupler<C>(pub C);
+impl<C: Coupler + 'static> DynCoupler for ToDynCoupler<C> {
+    fn couple(
+        &self,
+        stream: DynStream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>> {
+        async move {
+            self.0
+                .couple(
+                    DynStream::new(stream),
+                    handler,
+                    builder,
+                    graceful_stop_token,
+                )
+                .await
+        }
+        .boxed()
+    }
+}
 
-//     /// Get the fusewire of this connection.
-//     fn fusewire(&self) -> Option<ArcFusewire>;
-// }
+impl Coupler for dyn DynCoupler + '_ {
+    type Stream = DynStream;
 
-// pub struct ToDynCoupler<C>(pub C);
-
-// impl<C: Coupler + 'static> DynCoupler for ToDynCoupler<C> {
-//     fn serve(
-//         self,
-//         handler: HyperHandler,
-//         builder: Arc<HttpBuilder>,
-//         graceful_stop_token: Option<CancellationToken>,
-//     ) -> BoxFuture<'static, IoResult<()>> {
-//         async move { self.0.serve(handler, builder, graceful_stop_token).await }.boxed()
-//     }
-
-//     fn fusewire(&self) -> Option<ArcFusewire> {
-//         self.0.fusewire()
-//     }
-// }
-
-// impl Coupler for dyn DynCoupler + '_ {
-//     async fn serve(
-//         self,
-//         handler: HyperHandler,
-//         builder: Arc<HttpBuilder>,
-//         graceful_stop_token: Option<CancellationToken>,
-//     ) -> IoResult<()> {
-//         DynCoupler::serve(self, handler, builder, graceful_stop_token).await
-//     }
-
-//     fn fusewire(&self) -> Option<ArcFusewire> {
-//         DynCoupler::fusewire(self)
-//     }
-// }
+    async fn couple(
+        &self,
+        stream: Self::Stream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> IoResult<()> {
+        DynCoupler::couple(self, stream, handler, builder, graceful_stop_token).await
+    }
+}
 
 // /// Get Http version from alpha.
 // pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
@@ -415,3 +405,51 @@ pub trait Listener: Send {
 //         self.0.try_bind()
 //     }
 // }
+
+/// A dynmaic stream type.
+pub struct DynStream {
+    reader: Box<dyn AsyncRead + Send + Unpin + 'static>,
+    writer: Box<dyn AsyncWrite + Send + Unpin + 'static>,
+}
+
+impl DynStream {
+    fn new(stream: impl AsyncRead + AsyncWrite + Send + Unpin + 'static) -> Self {
+        let (reader, writer) = tokio::io::split(stream);
+        Self {
+            reader: Box::new(reader),
+            writer: Box::new(writer),
+        }
+    }
+}
+
+impl AsyncRead for DynStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<IoResult<()>> {
+        let this = &mut *self;
+        Pin::new(&mut this.reader).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for DynStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<IoResult<usize>> {
+        let this = &mut *self;
+        Pin::new(&mut this.writer).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        let this = &mut *self;
+        Pin::new(&mut this.writer).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        let this = &mut *self;
+        Pin::new(&mut this.writer).poll_shutdown(cx)
+    }
+}
