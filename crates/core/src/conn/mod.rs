@@ -147,7 +147,7 @@ pub trait Acceptor: Send {
     /// Adapter type.
     type Adapter: HttpAdapter + 'static;
     /// Stream type.
-    type Stream: AsyncRead + AsyncWrite + Unpin + 'static;
+    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
     /// Returns the holding information that this listener is bound to.
     fn holdings(&self) -> &[Holding];
