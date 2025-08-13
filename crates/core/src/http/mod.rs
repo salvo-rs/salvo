@@ -34,19 +34,18 @@ use crate::fuse::ArcFusewire;
 use crate::service::HyperHandler;
 
 /// A trait for http connection.
-pub trait HttpConnection: AsyncRead + AsyncWrite + Unpin + Send {
-    /// Serve this http connection.
-    fn serve(
-        self,
+pub trait HttpAdapter: Send {
+    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+    /// Adapt this http connection.
+    fn adapt(
+        &self,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>>;
-
-    /// Get the fusewire of this connection.
-    fn fusewire(&self) -> Option<ArcFusewire>;
 }
-// impl HttpConnection for Box<dyn HttpConnection + '_> {
+// impl HttpAdapter for Box<dyn HttpAdapter + '_> {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -61,7 +60,7 @@ pub trait HttpConnection: AsyncRead + AsyncWrite + Unpin + Send {
 //     }
 // }
 
-// pub trait DynHttpConnection: Send {
+// pub trait DynHttpAdapter: Send {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -73,9 +72,9 @@ pub trait HttpConnection: AsyncRead + AsyncWrite + Unpin + Send {
 //     fn fusewire(&self) -> Option<ArcFusewire>;
 // }
 
-// pub struct ToDynHttpConnection<C>(pub C);
+// pub struct ToDynHttpAdapter<C>(pub C);
 
-// impl<C: HttpConnection + 'static> DynHttpConnection for ToDynHttpConnection<C> {
+// impl<C: HttpAdapter + 'static> DynHttpAdapter for ToDynHttpAdapter<C> {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -90,18 +89,18 @@ pub trait HttpConnection: AsyncRead + AsyncWrite + Unpin + Send {
 //     }
 // }
 
-// impl HttpConnection for dyn DynHttpConnection + '_ {
+// impl HttpAdapter for dyn DynHttpAdapter + '_ {
 //     async fn serve(
 //         self,
 //         handler: HyperHandler,
 //         builder: Arc<HttpBuilder>,
 //         graceful_stop_token: Option<CancellationToken>,
 //     ) -> IoResult<()> {
-//         DynHttpConnection::serve(self, handler, builder, graceful_stop_token).await
+//         DynHttpAdapter::serve(self, handler, builder, graceful_stop_token).await
 //     }
 
 //     fn fusewire(&self) -> Option<ArcFusewire> {
-//         DynHttpConnection::fusewire(self)
+//         DynHttpAdapter::fusewire(self)
 //     }
 // }
 

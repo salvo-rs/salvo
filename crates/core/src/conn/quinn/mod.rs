@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::fuse::ArcFusewire;
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 
 use crate::service::HyperHandler;
 
@@ -83,7 +83,7 @@ impl AsyncWrite for H3Connection {
     }
 }
 
-impl HttpConnection for H3Connection {
+impl HttpAdapter for H3Connection {
     fn serve(
         self,
         handler: HyperHandler,

@@ -17,7 +17,7 @@ use super::SslAcceptorBuilder;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {

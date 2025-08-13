@@ -7,7 +7,7 @@ use std::vec;
 use futures_util::future::{BoxFuture, FutureExt};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
-use crate::conn::{Holding, StraightStream};
+use crate::conn::{Holding, StraightAdapter, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
@@ -217,7 +217,8 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 }
 
 impl Acceptor for TcpAcceptor {
-    type Conn = StraightStream<TcpStream>;
+    type Adapter = StraightAdapter<TcpStream>;
+    type Stream = StraightStream<TcpStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -228,11 +229,12 @@ impl Acceptor for TcpAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let local_addr = self.holdings[0].local_addr.clone();
             Accepted {
-                conn: StraightStream::new(
+                adapter: StraightAdapter::new(),
+                stream: StraightStream::new(
                     conn,
                     fuse_factory.map(|f| {
                         f.create(FuseInfo {

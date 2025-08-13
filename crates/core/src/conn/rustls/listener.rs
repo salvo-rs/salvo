@@ -15,7 +15,7 @@ use tokio_rustls::server::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 use crate::http::uri::Scheme;
 
 use super::ServerConfig;
@@ -137,10 +137,11 @@ where
     S: Stream<Item = C> + Send + Unpin + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
-    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     E: StdError + Send,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Adapter = <T as Acceptor>::Adapter;
+    type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     fn holdings(&self) -> &[Holding] {
         &self.holdings
@@ -149,7 +150,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
@@ -176,14 +177,16 @@ where
         };
 
         let Accepted {
-            conn,
+            adapter,
+            stream,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = conn.fusewire();
+        let fusewire = stream.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(tls_acceptor.accept(conn), fusewire),
+            adapter,
+            stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire),
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

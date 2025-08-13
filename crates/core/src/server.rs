@@ -30,7 +30,7 @@ use crate::Service;
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
-use crate::http::{HeaderValue, HttpConnection, Version};
+use crate::http::{HeaderValue, HttpAdapter, Version};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -287,20 +287,20 @@ impl<A: Acceptor + Send> Server<A> {
                 tokio::select! {
                     accepted = acceptor.accept(fuse_factory.clone()) => {
                         match accepted {
-                            Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+                            Ok(Accepted { adapter, stream, local_addr, remote_addr, http_scheme, ..}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
                                 let alive_connections = alive_connections.clone();
                                 let notify = notify.clone();
-                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, stream.fusewire(), alt_svc_h3.clone());
                                 let builder = builder.clone();
 
                                 let force_stop_token = force_stop_token.clone();
                                 let graceful_stop_token = graceful_stop_token.clone();
 
                                 tokio::spawn(async move {
-                                    let conn = conn.serve(handler, builder, Some(graceful_stop_token.clone()));
+                                    let conn = adapter.adapt(stream, handler, builder, Some(graceful_stop_token.clone()));
                                     tokio::select! {
                                         _ = conn => {
                                         },

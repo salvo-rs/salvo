@@ -12,7 +12,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
-use crate::conn::{Holding, StraightStream};
+use crate::conn::{Holding, StraightAdapter, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
 
@@ -95,66 +95,12 @@ where
     T: AsRef<Path> + Send + Clone + 'static,
 {
     type Acceptor = UnixAcceptor;
-
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            let inner = match (self.permissions, self.owner) {
-                (Some(permissions), Some((uid, gid))) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    set_permissions(self.path.clone(), permissions)?;
-                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                    inner
-                }
-                (Some(permissions), None) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    set_permissions(self.path, permissions)?;
-                    inner
-                }
-                (None, Some((uid, gid))) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                    inner
-                }
-                (None, None) => TokioUnixListener::bind(self.path)?,
-            };
-
-            #[cfg(feature = "socket2")]
-            if let Some(backlog) = self.backlog {
-                let socket = socket2::SockRef::from(&inner);
-                socket.listen(backlog as _)?;
-            }
-
-            let holdings = vec![Holding {
-                local_addr: inner.local_addr()?.into(),
-                #[cfg(not(feature = "http2-cleartext"))]
-                http_versions: vec![Version::HTTP_11],
-                #[cfg(feature = "http2-cleartext")]
-                http_versions: vec![Version::HTTP_11, Version::HTTP_2],
-                http_scheme: Scheme::HTTP,
-            }];
-            Ok(UnixAcceptor { inner, holdings })
-        }
-        .boxed()
-    }
-}
-
-/// `UnixAcceptor` is used to accept a Unix socket connection.
-#[derive(Debug)]
-pub struct UnixAcceptor {
-    inner: TokioUnixListener,
-    holdings: Vec<Holding>,
-}
-
-impl UnixAcceptor {
-    /// Get the inner `TokioUnixListener`.
-    pub fn inner(&self) -> &TokioUnixListener {
-        &self.inner
-    }
-}
+ 
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Conn = StraightStream<UnixStream>;
+    type Adapter = StraightAdapter;
+    type Stream = StraightStream<UnixStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -165,12 +111,13 @@ impl Acceptor for UnixAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<StraightAdapter<Self::Stream>, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
             Accepted {
-                conn: StraightStream::new(
+                adapter: StraightAdapter::new(),
+                stream: StraightStream::new(
                     conn,
                     fuse_factory.map(|f| {
                         f.create(FuseInfo {

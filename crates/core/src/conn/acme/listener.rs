@@ -19,7 +19,7 @@ use crate::Router;
 use crate::conn::HandshakeStream;
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::{HttpConnection, Version};
+use crate::http::{HttpAdapter, Version};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};

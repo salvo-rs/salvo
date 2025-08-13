@@ -10,13 +10,42 @@ use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 use crate::service::HyperHandler;
 
 enum State<S> {
     Handshaking(BoxFuture<'static, Result<S>>),
     Ready(S),
     Error,
+}
+
+pub struct HandshakeAdapter {
+    fusewire: Option<ArcFusewire>,
+}
+impl<S> HttpAdapter for HandshakeStream<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    type Stream = HandshakeStream<S>;
+    fn adapt(
+        &self,
+        stream: Self::Stream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>> {
+        let fusewire = stream.fusewire.clone();
+        if let Some(fusewire) = &fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
+        async move {
+            builder
+                .serve_connection(stream, handler, fusewire, graceful_stop_token)
+                .await
+                .map_err(IoError::other)
+        }
+        .boxed()
+    }
 }
 
 /// Tls stream.
@@ -53,32 +82,6 @@ impl<S> HandshakeStream<S> {
         if let Some(fusewire) = &self.fusewire {
             fusewire.event(FuseEvent::TlsHandshaked);
         }
-    }
-}
-impl<S> HttpConnection for HandshakeStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        let fusewire = self.fusewire.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
-        async move {
-            builder
-                .serve_connection(self, handler, fusewire, graceful_stop_token)
-                .await
-                .map_err(IoError::other)
-        }
-        .boxed()
-    }
-    fn fusewire(&self) -> Option<ArcFusewire> {
-        self.fusewire.clone()
     }
 }
 

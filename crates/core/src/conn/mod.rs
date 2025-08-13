@@ -9,9 +9,10 @@ use std::pin::Pin;
 
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::fuse::ArcFuseFactory;
-use crate::http::{HttpConnection, Version};
+use crate::http::{HttpAdapter, Version};
 
 mod proto;
 pub use proto::HttpBuilder;
@@ -84,12 +85,14 @@ pub trait IntoConfigStream<C> {
 /// The `Accepted` struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
 #[non_exhaustive]
-pub struct Accepted<C>
+pub struct Accepted<A, S>
 where
-    C: HttpConnection,
+    A: HttpAdapter,
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    pub adapter: A,
     /// Incoming stream.
-    pub conn: C,
+    pub stream: S,
     /// Local addr.
     pub local_addr: SocketAddr,
     /// Remote addr.
@@ -97,9 +100,10 @@ where
     /// HTTP scheme.
     pub http_scheme: Scheme,
 }
-impl<C> Debug for Accepted<C>
+impl<A, S> Debug for Accepted<A, S>
 where
-    C: HttpConnection,
+    A: HttpAdapter,
+    S: AsyncRead + AsyncWrite + Unpin + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Accepted")
@@ -110,24 +114,27 @@ where
     }
 }
 
-impl<C> Accepted<C>
+impl<A, S> Accepted<A, S>
 where
-    C: HttpConnection +  AsyncRead + AsyncWrite + Unpin + 'static,
+    A: HttpAdapter + AsyncRead + AsyncWrite + Unpin + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + 'static,
 {
-    /// Map connection and returns a new `Accepted`.
+    /// Map stream and returns a new `Accepted`.
     #[inline]
-    pub fn map_conn<T>(self, wrap_fn: impl FnOnce(C) -> T) -> Accepted<T>
+    pub fn map_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<A, T>
     where
-        T: HttpConnection,
+        T: AsyncRead + AsyncWrite + Unpin + 'static,
     {
         let Self {
-            conn,
+            adapter,
+            stream,
             local_addr,
             remote_addr,
             http_scheme,
         } = self;
         Accepted {
-            conn: wrap_fn(conn),
+            adapter,
+            stream: wrap_fn(stream),
             local_addr,
             remote_addr,
             http_scheme,
@@ -135,10 +142,12 @@ where
     }
 }
 
-/// `Acceptor` represents an acceptor that can accept incoming connections.
+/// An acceptor that can accept incoming connections.
 pub trait Acceptor: Send {
-    /// Conn type
-    type Conn: HttpConnection + Send + Unpin + 'static;
+    /// Adapter type.
+    type Adapter: HttpAdapter + 'static;
+    /// Stream type.
+    type Stream: AsyncRead + AsyncWrite + Unpin + 'static;
 
     /// Returns the holding information that this listener is bound to.
     fn holdings(&self) -> &[Holding];
@@ -147,7 +156,7 @@ pub trait Acceptor: Send {
     fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send;
+    ) -> impl Future<Output = IoResult<Accepted<Self::Adapter, Self::Stream>>> + Send;
 }
 
 // pub trait DynAcceptor: Send {
@@ -157,7 +166,7 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>>;
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>>;
 // }
 // impl DynAcceptor for Box<dyn DynAcceptor + '_> {
 //     fn holdings(&self) -> &[Holding] {
@@ -168,12 +177,12 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>> {
 //         (&mut **self).accept(fuse_factory)
 //     }
 // }
 // impl Acceptor for Box<dyn DynAcceptor + '_> {
-//     type Conn = Box<dyn HttpConnection>;
+//     type Conn = Box<dyn HttpAdapter>;
 
 //     fn holdings(&self) -> &[Holding] {
 //         (**self).holdings()
@@ -198,11 +207,11 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpConnection>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>> {
 //         async move {
 //             let accepted = self.0.accept(fuse_factory).await?;
 //             Ok(accepted.map_conn(|c| {
-//                 let conn: Box<dyn HttpConnection> = Box::new(c);
+//                 let conn: Box<dyn HttpAdapter> = Box::new(c);
 //                 conn
 //             }))
 //         }

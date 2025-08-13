@@ -14,7 +14,7 @@ use tokio_native_tls::TlsStream;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 
 use super::Identity;
 

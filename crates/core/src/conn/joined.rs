@@ -6,16 +6,32 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::stream;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
-use crate::http::HttpConnection;
+use crate::http::HttpAdapter;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
+
+/// An Adapter for JoinedListener.
+pub enum JoinedAdapter<A, B> {
+    #[allow(missing_docs)]
+    A(A),
+    #[allow(missing_docs)]
+    B(B),
+}
+
+impl<A, B> Debug for JoinedAdapter<A, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinedAdapter").finish()
+    }
+}
+
 
 /// An I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
@@ -153,24 +169,24 @@ impl<A, B> JoinedAcceptor<A, B> {
     }
 }
 
-impl<A, B> HttpConnection for JoinedStream<A, B>
+impl<A, B> HttpAdapter for JoinedAdapter<A, B>
 where
-    A: HttpConnection + Unpin + 'static,
-    B: HttpConnection + Unpin + 'static,
+    A: HttpAdapter + Unpin + 'static,
+    B: HttpAdapter + Unpin + 'static,
 {
-    fn serve(
-        self,
+    type Stream = JoinedStream<A::Stream, B::Stream>;
+
+    fn adapt(
+        &self,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
         match self {
-            Self::A(a) => a.serve(handler, builder, graceful_stop_token).boxed(),
-            Self::B(b) => b.serve(handler, builder, graceful_stop_token).boxed(),
+            Self::A(a) => a.adapt(handler, builder, graceful_stop_token).boxed(),
+            Self::B(b) => b.adapt(handler, builder, graceful_stop_token).boxed(),
         }
-    }
-    fn fusewire(&self) -> Option<ArcFusewire> {
-        None
     }
 }
 
@@ -178,10 +194,12 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: HttpConnection + AsyncRead + AsyncWrite + Unpin + 'static,
-    B::Conn: HttpConnection + AsyncRead + AsyncWrite + Unpin + 'static,
+    A::Adapter: HttpAdapter + 'static,
+    B::Adapter: HttpAdapter + 'static,
+    A::Stream: AsyncRead + AsyncWrite + Unpin + 'static,
+    B::Stream: AsyncRead + AsyncWrite + Unpin + 'static,
 {
-    type Conn = JoinedStream<A::Conn, B::Conn>;
+    type Stream = JoinedStream<A::Stream, B::Stream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -192,7 +210,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
                 Ok(accepted?.map_conn(JoinedStream::A))
