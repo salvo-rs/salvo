@@ -34,16 +34,16 @@ use crate::service::HyperHandler;
 
 /// A trait for http connection.
 pub trait HttpAdapter: Send {
+    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+
     /// Adapt this http connection.
-    fn adapt<S>(
+    fn adapt(
         &self,
-        stream: S,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+    ) -> BoxFuture<'static, IoResult<()>>;
 }
 // impl HttpAdapter for Box<dyn HttpAdapter + '_> {
 //     fn serve(

@@ -2,17 +2,20 @@
 use std::fmt::Debug;
 use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::vec;
 
 use futures_util::future::{BoxFuture, FutureExt};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
-
-use crate::conn::{Holding, StraightAdapter, StraightStream};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
-use crate::http::Version;
-use crate::http::uri::Scheme;
+use tokio_util::sync::CancellationToken;
 
 use super::{Accepted, Acceptor, Listener};
+use crate::conn::{Holding, HttpBuilder, StraightStream};
+use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
+use crate::http::uri::Scheme;
+use crate::http::{HttpAdapter, Version};
+use crate::service::HyperHandler;
 
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 use crate::conn::IntoConfigStream;
@@ -217,7 +220,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 }
 
 impl Acceptor for TcpAcceptor {
-    type Adapter = StraightAdapter;
+    type Adapter = TcpAdapter<Self::Stream>;
     type Stream = StraightStream<TcpStream>;
 
     #[inline]
@@ -240,7 +243,7 @@ impl Acceptor for TcpAcceptor {
                 })
             });
             Accepted {
-                adapter: StraightAdapter,
+                adapter: TcpAdapter::new(),
                 stream: StraightStream::new(conn, fusewire.clone()),
                 fusewire: fusewire,
                 remote_addr: remote_addr.into(),
@@ -248,6 +251,48 @@ impl Acceptor for TcpAcceptor {
                 http_scheme: Scheme::HTTP,
             }
         })
+    }
+}
+
+pub struct TcpAdapter<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    _marker: std::marker::PhantomData<S>,
+}
+impl<S> TcpAdapter<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    pub fn new() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+impl<S> HttpAdapter for TcpAdapter<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    type Stream = S;
+    fn adapt(
+        &self,
+        stream: Self::Stream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>> {
+        let fusewire = handler.fusewire.clone();
+        if let Some(fusewire) = &fusewire {
+            fusewire.event(FuseEvent::Alive);
+        }
+        async move {
+            builder
+                .serve_connection(stream, handler, fusewire, graceful_stop_token)
+                .await
+                .map_err(IoError::other)
+        }
+        .boxed()
     }
 }
 

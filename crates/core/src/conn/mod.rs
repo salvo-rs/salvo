@@ -88,7 +88,7 @@ pub trait IntoConfigStream<C> {
 #[non_exhaustive]
 pub struct Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub adapter: A,
@@ -104,7 +104,7 @@ where
 }
 impl<A, S> Debug for Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -118,7 +118,7 @@ where
 
 impl<A, S> Accepted<A, S>
 where
-    A: HttpAdapter,
+    A: HttpAdapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     #[inline]
@@ -128,7 +128,7 @@ where
         stream_fn: impl FnOnce(S) -> TS,
     ) -> Accepted<TA, TS>
     where
-        TA: HttpAdapter,
+        TA: HttpAdapter<Stream = TS>,
         TS: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let Self {
@@ -153,7 +153,7 @@ where
 /// An acceptor that can accept incoming connections.
 pub trait Acceptor: Send {
     /// Adapter type.
-    type Adapter: HttpAdapter + Unpin + Send + 'static;
+    type Adapter: HttpAdapter<Stream = Self::Stream> + Unpin + Send + 'static;
     /// Stream type.
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 

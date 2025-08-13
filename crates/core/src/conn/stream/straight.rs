@@ -11,7 +11,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::http::HttpAdapter;
 use crate::service::HyperHandler;
 
 /// A stream that can be fused.
@@ -35,32 +34,6 @@ where
     /// Create a new `StraightStream`.
     pub fn new(inner: C, fusewire: Option<ArcFusewire>) -> Self {
         Self { inner, fusewire }
-    }
-}
-
-pub struct StraightAdapter;
-impl HttpAdapter for StraightAdapter {
-    fn adapt<S>(
-        &self,
-        stream: S,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        let fusewire = handler.fusewire.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
-        async move {
-            builder
-                .serve_connection(stream, handler, fusewire, graceful_stop_token)
-                .await
-                .map_err(IoError::other)
-        }
-        .boxed()
     }
 }
 

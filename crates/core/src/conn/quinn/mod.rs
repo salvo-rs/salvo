@@ -85,16 +85,14 @@ impl AsyncWrite for QuinnConnection {
 
 pub struct QuinnAdapter;
 impl HttpAdapter for QuinnAdapter {
-    fn adapt<S>(
+    type Stream = QuinnConnection;
+    fn adapt(
         &self,
-        stream: S,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
+    ) -> BoxFuture<'static, IoResult<()>> {
         async move {
             builder
                 .quinn

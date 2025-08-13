@@ -4,4 +4,4 @@ cfg_feature! {
     mod handshake;
     pub use handshake::HandshakeStream;
 }
-pub use straight::{StraightAdapter, StraightStream};
+pub use straight::StraightStream;

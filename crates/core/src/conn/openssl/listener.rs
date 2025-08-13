@@ -15,7 +15,9 @@ use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::{
+    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener, TcpAdapter,
+};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpAdapter;
 
@@ -139,7 +141,7 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Adapter = T::Adapter;
+    type Adapter = TcpAdapter<Self::Stream>;
     type Stream = HandshakeStream<SslStream<T::Stream>>;
 
     /// Get the local address bound to this listener.
@@ -150,7 +152,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter,Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self

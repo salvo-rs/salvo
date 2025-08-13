@@ -12,7 +12,7 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, TcpAdapter, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpAdapter;
 
@@ -136,7 +136,7 @@ where
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
     E: StdError + Send,
 {
-    type Adapter = T::Adapter;
+    type Adapter = TcpAdapter<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]

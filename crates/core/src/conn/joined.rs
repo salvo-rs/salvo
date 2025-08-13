@@ -30,18 +30,22 @@ where
     A: HttpAdapter + Unpin + 'static,
     B: HttpAdapter + Unpin + 'static,
 {
-    fn adapt<S>(
+    type Stream = JoinedStream<A::Stream, B::Stream>;
+
+    fn adapt(
         &self,
-        stream: S,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static {
-        match self {
-            Self::A(a) => a.adapt(stream, handler, builder, graceful_stop_token).boxed(),
-            Self::B(b) => b.adapt(stream, handler, builder, graceful_stop_token).boxed(),
+    ) -> BoxFuture<'static, IoResult<()>> {
+        match stream {
+            JoinedStream::A(a) => a
+                .adapt(stream, handler, builder, graceful_stop_token)
+                .boxed(),
+            JoinedStream::B(b) => b
+                .adapt(stream, handler, builder, graceful_stop_token)
+                .boxed(),
         }
     }
 }
@@ -51,7 +55,6 @@ impl<A, B> Debug for JoinedAdapter<A, B> {
         f.debug_struct("JoinedAdapter").finish()
     }
 }
-
 
 /// An I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
@@ -193,8 +196,8 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Adapter: HttpAdapter + Unpin  + 'static,
-    B::Adapter: HttpAdapter + Unpin  + 'static,
+    A::Adapter: HttpAdapter<Stream = A::Stream> + Unpin + 'static,
+    B::Adapter: HttpAdapter<Stream = B::Stream> + Unpin + 'static,
     A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {

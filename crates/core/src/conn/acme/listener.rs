@@ -411,7 +411,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Adapter = T::Adapter;
+    type Adapter = TcpAdapter<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]

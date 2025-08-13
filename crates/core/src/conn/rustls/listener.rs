@@ -13,6 +13,7 @@ use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
+use crate::conn::tcp::TcpAdapter;
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpAdapter;
@@ -137,10 +138,9 @@ where
     S: Stream<Item = C> + Send + Unpin + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
-    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     E: StdError + Send,
 {
-    type Adapter = <T as Acceptor>::Adapter;
+    type Adapter = TcpAdapter<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     fn holdings(&self) -> &[Holding] {
@@ -177,7 +177,7 @@ where
         };
 
         let Accepted {
-            adapter,
+            adapter: _,
             stream,
             fusewire,
             local_addr,
@@ -185,7 +185,7 @@ where
             ..
         } = self.inner.accept(fuse_factory).await?;
         Ok(Accepted {
-            adapter,
+            adapter: TcpAdapter::new(),
             stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire.clone()),
             fusewire,
             local_addr,
