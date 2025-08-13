@@ -6,14 +6,17 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::io::Result as IoResult;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use futures_util::Stream;
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::sync::CancellationToken;
 
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
-use crate::http::{HttpAdapter, Version};
+use crate::http::Version;
+use crate::service::HyperHandler;
 
 mod proto;
 pub use proto::HttpBuilder;
@@ -88,7 +91,7 @@ pub trait IntoConfigStream<C> {
 #[non_exhaustive]
 pub struct Accepted<A, S>
 where
-    A: HttpAdapter<Stream = S>,
+    A: Adapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub adapter: A,
@@ -104,7 +107,7 @@ where
 }
 impl<A, S> Debug for Accepted<A, S>
 where
-    A: HttpAdapter<Stream = S>,
+    A: Adapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -118,7 +121,7 @@ where
 
 impl<A, S> Accepted<A, S>
 where
-    A: HttpAdapter<Stream = S>,
+    A: Adapter<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     #[inline]
@@ -128,7 +131,7 @@ where
         stream_fn: impl FnOnce(S) -> TS,
     ) -> Accepted<TA, TS>
     where
-        TA: HttpAdapter<Stream = TS>,
+        TA: Adapter<Stream = TS>,
         TS: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let Self {
@@ -153,7 +156,7 @@ where
 /// An acceptor that can accept incoming connections.
 pub trait Acceptor: Send {
     /// Adapter type.
-    type Adapter: HttpAdapter<Stream = Self::Stream> + Unpin + Send + 'static;
+    type Adapter: Adapter<Stream = Self::Stream> + Unpin + Send + 'static;
     /// Stream type.
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
@@ -174,9 +177,9 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>>;
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Adapter>>>>;
 // }
-// impl DynAcceptor for Box<dyn DynAcceptor + '_> {
+// impl DynAcceptor for dyn DynAcceptor + '_ {
 //     fn holdings(&self) -> &[Holding] {
 //         (**self).holdings()
 //     }
@@ -185,12 +188,12 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Adapter>>>> {
 //         (&mut **self).accept(fuse_factory)
 //     }
 // }
-// impl Acceptor for Box<dyn DynAcceptor + '_> {
-//     type Conn = Box<dyn HttpAdapter>;
+// impl Acceptor for dyn DynAcceptor + '_ {
+//     type Stream = Box<dyn Adapter>;
 
 //     fn holdings(&self) -> &[Holding] {
 //         (**self).holdings()
@@ -215,11 +218,11 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn HttpAdapter>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynAdapter>, Box<dyn Adapter>>>> {
 //         async move {
 //             let accepted = self.0.accept(fuse_factory).await?;
-//             Ok(accepted.map_conn(|c| {
-//                 let conn: Box<dyn HttpAdapter> = Box::new(c);
+//             Ok(accepted.map_into(|c| {
+//                 let conn: Box<dyn Adapter> = Box::new(c);
 //                 conn
 //             }))
 //         }
@@ -249,6 +252,86 @@ impl Display for Holding {
         )
     }
 }
+/// A trait for adapte http stream.
+pub trait Adapter: Send {
+    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+
+    /// Adapt this http connection.
+    fn adapt(
+        &self,
+        stream: Self::Stream,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_stop_token: Option<CancellationToken>,
+    ) -> BoxFuture<'static, IoResult<()>>;
+}
+// impl Adapter for Box<dyn Adapter + '_> {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>> {
+//         (*self).serve(handler, builder, graceful_stop_token)
+//     }
+
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         (**self).fusewire()
+//     }
+// }
+
+// pub trait DynAdapter: Send {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>>;
+
+//     /// Get the fusewire of this connection.
+//     fn fusewire(&self) -> Option<ArcFusewire>;
+// }
+
+// pub struct ToDynAdapter<C>(pub C);
+
+// impl<C: Adapter + 'static> DynAdapter for ToDynAdapter<C> {
+//     fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>> {
+//         async move { self.0.serve(handler, builder, graceful_stop_token).await }.boxed()
+//     }
+
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         self.0.fusewire()
+//     }
+// }
+
+// impl Adapter for dyn DynAdapter + '_ {
+//     async fn serve(
+//         self,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> IoResult<()> {
+//         DynAdapter::serve(self, handler, builder, graceful_stop_token).await
+//     }
+
+//     fn fusewire(&self) -> Option<ArcFusewire> {
+//         DynAdapter::fusewire(self)
+//     }
+// }
+
+// /// Get Http version from alpha.
+// pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
+//     if proto.as_ref().windows(2).any(|window| window == b"h2") {
+//         Version::HTTP_2
+//     } else {
+//         Version::HTTP_11
+//     }
+// }
 
 /// `Listener` represents a listener that can bind to a specific address and port and return an acceptor.
 pub trait Listener: Send {

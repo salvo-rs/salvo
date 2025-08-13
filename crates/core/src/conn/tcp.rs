@@ -10,11 +10,11 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
-use super::{Accepted, Acceptor, Listener};
+use super::{Accepted, Acceptor, Adapter, Listener};
 use crate::conn::{Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
+use crate::http::Version;
 use crate::http::uri::Scheme;
-use crate::http::{HttpAdapter, Version};
 use crate::service::HyperHandler;
 
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
@@ -270,7 +270,7 @@ where
         }
     }
 }
-impl<S> HttpAdapter for TcpAdapter<S>
+impl<S> Adapter for TcpAdapter<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {

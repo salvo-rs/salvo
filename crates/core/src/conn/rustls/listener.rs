@@ -14,9 +14,10 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
 use crate::conn::tcp::TcpAdapter;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::{
+    Accepted, Acceptor, Adapter, HandshakeStream, Holding, IntoConfigStream, Listener,
+};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpAdapter;
 use crate::http::uri::Scheme;
 
 use super::ServerConfig;

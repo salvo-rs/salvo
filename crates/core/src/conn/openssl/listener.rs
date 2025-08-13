@@ -16,11 +16,10 @@ use tokio_openssl::SslStream;
 use super::SslAcceptorBuilder;
 
 use crate::conn::{
-    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor,Adapter, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
 use crate::conn::tcp::TcpAdapter;
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpAdapter;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {

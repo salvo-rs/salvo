@@ -13,9 +13,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::conn::tcp::TcpAdapter;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Adapter, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpAdapter;
 
 use super::Identity;
 

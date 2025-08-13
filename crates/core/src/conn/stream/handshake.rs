@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::http::HttpAdapter;
+use crate::conn::Adapter;
 use crate::service::HyperHandler;
 
 enum State<S> {

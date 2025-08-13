@@ -14,9 +14,8 @@ use salvo_http3::quinn as http3_quinn;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{HttpBuilder, IntoConfigStream};
+use crate::conn::{HttpBuilder, Adapter, IntoConfigStream};
 use crate::fuse::ArcFusewire;
-use crate::http::HttpAdapter;
 
 use crate::service::HyperHandler;
 
@@ -84,7 +83,7 @@ impl AsyncWrite for QuinnConnection {
 }
 
 pub struct QuinnAdapter;
-impl HttpAdapter for QuinnAdapter {
+impl Adapter for QuinnAdapter {
     type Stream = QuinnConnection;
     fn adapt(
         &self,

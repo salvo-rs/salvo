@@ -10,9 +10,8 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{Holding, HttpBuilder};
+use crate::conn::{Holding, Adapter, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
-use crate::http::HttpAdapter;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
@@ -25,10 +24,10 @@ pub enum JoinedAdapter<A, B> {
     B(B),
 }
 
-impl<A, B> HttpAdapter for JoinedAdapter<A, B>
+impl<A, B> Adapter for JoinedAdapter<A, B>
 where
-    A: HttpAdapter + Unpin + 'static,
-    B: HttpAdapter + Unpin + 'static,
+    A: Adapter + Unpin + 'static,
+    B: Adapter + Unpin + 'static,
 {
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
@@ -197,8 +196,8 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Adapter: HttpAdapter<Stream = A::Stream> + Unpin + 'static,
-    B::Adapter: HttpAdapter<Stream = B::Stream> + Unpin + 'static,
+    A::Adapter: Adapter<Stream = A::Stream> + Unpin + 'static,
+    B::Adapter: Adapter<Stream = B::Stream> + Unpin + 'static,
     A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
