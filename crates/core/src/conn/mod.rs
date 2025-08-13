@@ -89,12 +89,12 @@ pub trait IntoConfigStream<C> {
 /// The `Accepted` struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
 #[non_exhaustive]
-pub struct Accepted<A, S>
+pub struct Accepted<C, S>
 where
-    A: Adapter<Stream = S>,
+    C: Coupler<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    pub adapter: A,
+    pub coupler: C,
     /// Incoming stream.
     pub stream: S,
     pub fusewire: Option<ArcFusewire>,
@@ -105,9 +105,9 @@ where
     /// HTTP scheme.
     pub http_scheme: Scheme,
 }
-impl<A, S> Debug for Accepted<A, S>
+impl<C, S> Debug for Accepted<C, S>
 where
-    A: Adapter<Stream = S>,
+    C: Coupler<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -119,23 +119,23 @@ where
     }
 }
 
-impl<A, S> Accepted<A, S>
+impl<C, S> Accepted<C, S>
 where
-    A: Adapter<Stream = S>,
+    C: Coupler<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     #[inline]
-    pub fn map_into<TA, TS>(
+    pub fn map_into<TC, TS>(
         self,
-        adapter_fn: impl FnOnce(A) -> TA,
+        coupler_fn: impl FnOnce(C) -> TC,
         stream_fn: impl FnOnce(S) -> TS,
-    ) -> Accepted<TA, TS>
+    ) -> Accepted<TC, TS>
     where
-        TA: Adapter<Stream = TS>,
+        TC: Coupler<Stream = TS>,
         TS: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let Self {
-            adapter,
+            coupler,
             stream,
             fusewire,
             local_addr,
@@ -143,7 +143,7 @@ where
             http_scheme,
         } = self;
         Accepted {
-            adapter: adapter_fn(adapter),
+            coupler: coupler_fn(coupler),
             stream: stream_fn(stream),
             fusewire,
             local_addr,
@@ -155,8 +155,8 @@ where
 
 /// An acceptor that can accept incoming connections.
 pub trait Acceptor: Send {
-    /// Adapter type.
-    type Adapter: Adapter<Stream = Self::Stream> + Unpin + Send + 'static;
+    /// Coupler type.
+    type Coupler: Coupler<Stream = Self::Stream> + Unpin + Send + 'static;
     /// Stream type.
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
@@ -167,7 +167,7 @@ pub trait Acceptor: Send {
     fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> impl Future<Output = IoResult<Accepted<Self::Adapter, Self::Stream>>> + Send;
+    ) -> impl Future<Output = IoResult<Accepted<Self::Coupler, Self::Stream>>> + Send;
 }
 
 // pub trait DynAcceptor: Send {
@@ -177,7 +177,7 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Adapter>>>>;
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Coupler>>>>;
 // }
 // impl DynAcceptor for dyn DynAcceptor + '_ {
 //     fn holdings(&self) -> &[Holding] {
@@ -188,12 +188,12 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Adapter>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Coupler>>>> {
 //         (&mut **self).accept(fuse_factory)
 //     }
 // }
 // impl Acceptor for dyn DynAcceptor + '_ {
-//     type Stream = Box<dyn Adapter>;
+//     type Stream = Box<dyn Coupler>;
 
 //     fn holdings(&self) -> &[Holding] {
 //         (**self).holdings()
@@ -218,11 +218,11 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynAdapter>, Box<dyn Adapter>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynCoupler>, Box<dyn Coupler>>>> {
 //         async move {
 //             let accepted = self.0.accept(fuse_factory).await?;
 //             Ok(accepted.map_into(|c| {
-//                 let conn: Box<dyn Adapter> = Box::new(c);
+//                 let conn: Box<dyn Coupler> = Box::new(c);
 //                 conn
 //             }))
 //         }
@@ -252,12 +252,12 @@ impl Display for Holding {
         )
     }
 }
-/// A trait for adapte http stream.
-pub trait Adapter: Send {
+/// A trait for adapt http stream.
+pub trait Coupler: Send {
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
-    /// Adapt this http connection.
-    fn adapt(
+    /// Couple this http connection.
+    fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
@@ -265,7 +265,7 @@ pub trait Adapter: Send {
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>>;
 }
-// impl Adapter for Box<dyn Adapter + '_> {
+// impl Coupler for Box<dyn Coupler + '_> {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -280,7 +280,7 @@ pub trait Adapter: Send {
 //     }
 // }
 
-// pub trait DynAdapter: Send {
+// pub trait DynCoupler: Send {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -292,9 +292,9 @@ pub trait Adapter: Send {
 //     fn fusewire(&self) -> Option<ArcFusewire>;
 // }
 
-// pub struct ToDynAdapter<C>(pub C);
+// pub struct ToDynCoupler<C>(pub C);
 
-// impl<C: Adapter + 'static> DynAdapter for ToDynAdapter<C> {
+// impl<C: Coupler + 'static> DynCoupler for ToDynCoupler<C> {
 //     fn serve(
 //         self,
 //         handler: HyperHandler,
@@ -309,18 +309,18 @@ pub trait Adapter: Send {
 //     }
 // }
 
-// impl Adapter for dyn DynAdapter + '_ {
+// impl Coupler for dyn DynCoupler + '_ {
 //     async fn serve(
 //         self,
 //         handler: HyperHandler,
 //         builder: Arc<HttpBuilder>,
 //         graceful_stop_token: Option<CancellationToken>,
 //     ) -> IoResult<()> {
-//         DynAdapter::serve(self, handler, builder, graceful_stop_token).await
+//         DynCoupler::serve(self, handler, builder, graceful_stop_token).await
 //     }
 
 //     fn fusewire(&self) -> Option<ArcFusewire> {
-//         DynAdapter::fusewire(self)
+//         DynCoupler::fusewire(self)
 //     }
 // }
 

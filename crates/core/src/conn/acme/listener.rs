@@ -17,10 +17,10 @@ use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
 use crate::Router;
 use crate::conn::HandshakeStream;
-use crate::conn::tcp::TcpAdapter;
+use crate::conn::tcp::TcpCoupler;
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
-use crate::http::{Adapter, Version};
+use crate::http::{Coupler, Version};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
@@ -412,7 +412,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]
@@ -424,9 +424,9 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let Accepted {
-            adapter: _,
+            coupler: _,
             stream,
             fusewire,
             local_addr,
@@ -434,7 +434,7 @@ where
             ..
         } = self.inner.accept(fuse_factory).await?;
         Ok(Accepted {
-            adapter: TcpAdapter::new(),
+            coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fusewire.clone()),
             fusewire,
             local_addr,

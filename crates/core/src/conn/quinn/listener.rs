@@ -15,7 +15,7 @@ use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::quinn::{self, Endpoint};
 
-use super::{QuinnAdapter, QuinnConnection};
+use super::{QuinnCoupler, QuinnConnection};
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
@@ -128,7 +128,7 @@ where
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     E: StdError + Send,
 {
-    type Adapter = QuinnAdapter;
+    type Coupler = QuinnCoupler;
     type Stream = QuinnConnection;
 
     fn holdings(&self) -> &[Holding] {
@@ -138,7 +138,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
@@ -178,7 +178,7 @@ where
                         })
                     });
                     return Ok(Accepted {
-                        adapter: QuinnAdapter,
+                        coupler: QuinnCoupler,
                         stream: QuinnConnection::new(
                             quinn::Connection::new(conn),
                             fusewire.clone(),

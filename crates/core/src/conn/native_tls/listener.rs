@@ -12,8 +12,8 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::tcp::TcpAdapter;
-use crate::conn::{Accepted, Adapter, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::tcp::TcpCoupler;
+use crate::conn::{Accepted, Coupler, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 
 use super::Identity;
@@ -136,7 +136,7 @@ where
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
     E: StdError + Send,
 {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]
@@ -148,7 +148,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -182,7 +182,7 @@ where
             None => return Err(IoError::other("native_tls: invalid TLS config")),
         };
         let Accepted {
-            adapter: _,
+            coupler: _,
             stream,
             fusewire,
             local_addr,
@@ -191,7 +191,7 @@ where
         } = self.inner.accept(fuse_factory.clone()).await?;
         let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
         Ok(Accepted {
-            adapter: TcpAdapter::new(),
+            coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(conn, fusewire.clone()),
             fusewire,
             local_addr,

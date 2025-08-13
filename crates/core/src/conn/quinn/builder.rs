@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::fuse::ArcFusewire;
 use crate::http::body::{H3ReqBody, ReqBody};
-use crate::http::{Adapter, Method};
+use crate::http::{Coupler, Method};
 use crate::proto::WebTransportSession;
 
 /// Builder is used to serve HTTP3 connection.

@@ -10,28 +10,28 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{Holding, Adapter, HttpBuilder};
+use crate::conn::{Holding, Coupler, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
-/// An Adapter for JoinedListener.
-pub enum JoinedAdapter<A, B> {
+/// An Coupler for JoinedListener.
+pub enum JoinedCoupler<A, B> {
     #[allow(missing_docs)]
     A(A),
     #[allow(missing_docs)]
     B(B),
 }
 
-impl<A, B> Adapter for JoinedAdapter<A, B>
+impl<A, B> Coupler for JoinedCoupler<A, B>
 where
-    A: Adapter + Unpin + 'static,
-    B: Adapter + Unpin + 'static,
+    A: Coupler + Unpin + 'static,
+    B: Coupler + Unpin + 'static,
 {
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
-    fn adapt(
+    fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
@@ -40,19 +40,19 @@ where
     ) -> BoxFuture<'static, IoResult<()>> {
         match (self, stream) {
             (Self::A(a), JoinedStream::A(stream)) => a
-                .adapt(stream, handler, builder, graceful_stop_token)
+                .couple(stream, handler, builder, graceful_stop_token)
                 .boxed(),
             (Self::B(b), JoinedStream::B(stream)) => b
-                .adapt(stream, handler, builder, graceful_stop_token)
+                .couple(stream, handler, builder, graceful_stop_token)
                 .boxed(),
             _ => unreachable!(),
         }
     }
 }
 
-impl<A, B> Debug for JoinedAdapter<A, B> {
+impl<A, B> Debug for JoinedCoupler<A, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("JoinedAdapter").finish()
+        f.debug_struct("JoinedCoupler").finish()
     }
 }
 
@@ -196,12 +196,12 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Adapter: Adapter<Stream = A::Stream> + Unpin + 'static,
-    B::Adapter: Adapter<Stream = B::Stream> + Unpin + 'static,
+    A::Coupler: Coupler<Stream = A::Stream> + Unpin + 'static,
+    B::Coupler: Coupler<Stream = B::Stream> + Unpin + 'static,
     A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    type Adapter = JoinedAdapter<A::Adapter, B::Adapter>;
+    type Coupler = JoinedCoupler<A::Coupler, B::Coupler>;
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
     #[inline]
@@ -213,13 +213,13 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
-                Ok(accepted?.map_into(JoinedAdapter::A, JoinedStream::A))
+                Ok(accepted?.map_into(JoinedCoupler::A, JoinedStream::A))
             }
             accepted = self.b.accept(fuse_factory) => {
-                Ok(accepted?.map_into(JoinedAdapter::B, JoinedStream::B))
+                Ok(accepted?.map_into(JoinedCoupler::B, JoinedStream::B))
             }
         }
     }

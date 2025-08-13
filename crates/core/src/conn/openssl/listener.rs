@@ -16,9 +16,9 @@ use tokio_openssl::SslStream;
 use super::SslAcceptorBuilder;
 
 use crate::conn::{
-    Accepted, Acceptor,Adapter, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor,Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
-use crate::conn::tcp::TcpAdapter;
+use crate::conn::tcp::TcpCoupler;
 use crate::fuse::ArcFuseFactory;
 
 /// OpensslListener
@@ -141,7 +141,7 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<SslStream<T::Stream>>;
 
     /// Get the local address bound to this listener.
@@ -152,7 +152,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -182,7 +182,7 @@ where
         };
 
         let Accepted {
-            adapter: _,
+            coupler: _,
             stream,
             fusewire,
             local_addr,
@@ -200,7 +200,7 @@ where
         };
 
         Ok(Accepted {
-            adapter: TcpAdapter::new(),
+            coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(conn, fusewire.clone()),
             fusewire,
             local_addr,

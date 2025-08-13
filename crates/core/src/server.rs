@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
-use crate::conn::{Accepted, Adapter, Acceptor, Holding, HttpBuilder};
+use crate::conn::{Accepted, Coupler, Acceptor, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
 use crate::http::{HeaderValue,  Version};
 
@@ -287,7 +287,7 @@ impl<A: Acceptor + Send> Server<A> {
                 tokio::select! {
                     accepted = acceptor.accept(fuse_factory.clone()) => {
                         match accepted {
-                            Ok(Accepted { adapter, stream, fusewire, local_addr, remote_addr, http_scheme, ..}) => {
+                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme, ..}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
@@ -300,7 +300,7 @@ impl<A: Acceptor + Send> Server<A> {
                                 let graceful_stop_token = graceful_stop_token.clone();
 
                                 tokio::spawn(async move {
-                                    let conn = adapter.adapt(stream, handler, builder, Some(graceful_stop_token.clone()));
+                                    let conn = coupler.couple(stream, handler, builder, Some(graceful_stop_token.clone()));
                                     tokio::select! {
                                         _ = conn => {
                                         },
@@ -396,7 +396,7 @@ impl<A: Acceptor + Send> Server<A> {
         loop {
             match acceptor.accept(fuse_factory.clone()).await {
                 Ok(Accepted {
-                    adapter,
+                    coupler,
                     stream,
                     fusewire,
                     local_addr,

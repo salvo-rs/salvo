@@ -13,9 +13,9 @@ use futures_util::task::noop_waker_ref;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::tcp::TcpAdapter;
+use crate::conn::tcp::TcpCoupler;
 use crate::conn::{
-    Accepted, Acceptor, Adapter, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor, Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
@@ -141,7 +141,7 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     fn holdings(&self) -> &[Holding] {
@@ -151,7 +151,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
@@ -178,7 +178,7 @@ where
         };
 
         let Accepted {
-            adapter: _,
+            coupler: _,
             stream,
             fusewire,
             local_addr,
@@ -186,7 +186,7 @@ where
             ..
         } = self.inner.accept(fuse_factory).await?;
         Ok(Accepted {
-            adapter: TcpAdapter::new(),
+            coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire.clone()),
             fusewire,
             local_addr,

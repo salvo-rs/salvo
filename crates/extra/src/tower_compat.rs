@@ -1,4 +1,4 @@
-//! Adapters for [`tower::Layer`](https://docs.rs/tower/latest/tower/trait.Layer.html) and
+//! Couplers for [`tower::Layer`](https://docs.rs/tower/latest/tower/trait.Layer.html) and
 //! [`tower::Service`](https://docs.rs/tower/latest/tower/trait.Service.html).
 //!
 //! # Example

@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
-use super::{Accepted, Acceptor, Adapter, Listener};
+use super::{Accepted, Acceptor, Coupler, Listener};
 use crate::conn::{Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
 use crate::http::Version;
@@ -220,7 +220,7 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 }
 
 impl Acceptor for TcpAcceptor {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = StraightStream<TcpStream>;
 
     #[inline]
@@ -232,7 +232,7 @@ impl Acceptor for TcpAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let local_addr = self.holdings[0].local_addr.clone();
             let fusewire = fuse_factory.map(|f| {
@@ -243,7 +243,7 @@ impl Acceptor for TcpAcceptor {
                 })
             });
             Accepted {
-                adapter: TcpAdapter::new(),
+                coupler: TcpCoupler::new(),
                 stream: StraightStream::new(conn, fusewire.clone()),
                 fusewire: fusewire,
                 remote_addr: remote_addr.into(),
@@ -254,13 +254,13 @@ impl Acceptor for TcpAcceptor {
     }
 }
 
-pub struct TcpAdapter<S>
+pub struct TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     _marker: std::marker::PhantomData<S>,
 }
-impl<S> TcpAdapter<S>
+impl<S> TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -270,12 +270,12 @@ where
         }
     }
 }
-impl<S> Adapter for TcpAdapter<S>
+impl<S> Coupler for TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Stream = S;
-    fn adapt(
+    fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,

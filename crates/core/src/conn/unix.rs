@@ -12,7 +12,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
-use crate::conn::tcp::{TcpAdapter, TcpListener};
+use crate::conn::tcp::{TcpCoupler, TcpListener};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
@@ -148,7 +148,7 @@ pub struct UnixAcceptor {
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Adapter = TcpAdapter<Self::Stream>;
+    type Coupler = TcpCoupler<Self::Stream>;
     type Stream = StraightStream<UnixStream>;
 
     #[inline]
@@ -160,7 +160,7 @@ impl Acceptor for UnixAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<TcpAdapter<Self::Stream>, Self::Stream>> {
+    ) -> IoResult<Accepted<TcpCoupler<Self::Stream>, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
@@ -172,7 +172,7 @@ impl Acceptor for UnixAcceptor {
                 })
             });
             Accepted {
-                adapter: TcpAdapter::new(),
+                coupler: TcpCoupler::new(),
                 stream: StraightStream::new(conn, fusewire.clone()),
                 fusewire,
                 local_addr: self.holdings[0].local_addr.clone(),
