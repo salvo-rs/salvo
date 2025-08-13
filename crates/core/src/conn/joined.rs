@@ -196,9 +196,10 @@ where
     B: Acceptor + Send + Unpin + 'static,
     A::Adapter: HttpAdapter + 'static,
     B::Adapter: HttpAdapter + 'static,
-    A::Stream: AsyncRead + AsyncWrite + Unpin + 'static,
-    B::Stream: AsyncRead + AsyncWrite + Unpin + 'static,
+    A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    type Adapter = JoinedAcceptor<A::Adapter, B::Adapter>;
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
     #[inline]

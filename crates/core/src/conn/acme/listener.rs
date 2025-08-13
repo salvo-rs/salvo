@@ -424,7 +424,8 @@ where
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
-            conn,
+            adapter,
+            stream,
             local_addr,
             remote_addr,
             ..

@@ -236,14 +236,14 @@ impl Acceptor for TcpAcceptor {
                 adapter: StraightAdapter::new(),
                 stream: StraightStream::new(
                     conn,
-                    fuse_factory.map(|f| {
+                ),
+                fusewire: fuse_factory.map(|f| {
                         f.create(FuseInfo {
                             trans_proto: TransProto::Tcp,
                             remote_addr: remote_addr.into(),
                             local_addr: local_addr.clone(),
                         })
                     }),
-                ),
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,

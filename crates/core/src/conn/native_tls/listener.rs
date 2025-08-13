@@ -181,7 +181,8 @@ where
             None => return Err(IoError::other("native_tls: invalid TLS config")),
         };
         let Accepted {
-            conn,
+            adapter,
+            stream,
             local_addr,
             remote_addr,
             ..

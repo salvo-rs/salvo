@@ -93,6 +93,7 @@ where
     pub adapter: A,
     /// Incoming stream.
     pub stream: S,
+    pub fusewire: Option<ArcFusewire>,
     /// Local addr.
     pub local_addr: SocketAddr,
     /// Remote addr.
@@ -128,6 +129,7 @@ where
         let Self {
             adapter,
             stream,
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme,
@@ -135,6 +137,7 @@ where
         Accepted {
             adapter,
             stream: wrap_fn(stream),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme,

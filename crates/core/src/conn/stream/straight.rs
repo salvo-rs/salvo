@@ -19,7 +19,6 @@ use crate::service::HyperHandler;
 pub struct StraightStream<C> {
     #[pin]
     inner: C,
-    fusewire: Option<ArcFusewire>,
 }
 
 impl<C> Debug for StraightStream<C> {
@@ -33,8 +32,8 @@ where
     C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     /// Create a new `StraightStream`.
-    pub fn new(inner: C, fusewire: Option<ArcFusewire>) -> Self {
-        Self { inner, fusewire }
+    pub fn new(inner: C) -> Self {
+        Self { inner }
     }
 }
 
