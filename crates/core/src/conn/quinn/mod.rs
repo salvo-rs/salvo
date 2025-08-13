@@ -14,7 +14,7 @@ use salvo_http3::quinn as http3_quinn;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{HttpBuilder, Coupler, IntoConfigStream};
+use crate::conn::{Coupler, HttpBuilder, IntoConfigStream};
 use crate::fuse::ArcFusewire;
 
 use crate::service::HyperHandler;
@@ -85,20 +85,18 @@ impl AsyncWrite for QuinnConnection {
 pub struct QuinnCoupler;
 impl Coupler for QuinnCoupler {
     type Stream = QuinnConnection;
-    fn couple(
+
+    async fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        async move {
-            builder
-                .quinn
-                .serve_connection(stream, handler, graceful_stop_token)
-                .await
-        }
-        .boxed()
+    ) -> IoResult<()> {
+        builder
+            .quinn
+            .serve_connection(stream, handler, graceful_stop_token)
+            .await
     }
 }
 

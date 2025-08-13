@@ -178,34 +178,22 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Coupler>>>>;
-// }
-// impl DynAcceptor for dyn DynAcceptor + '_ {
-//     fn holdings(&self) -> &[Holding] {
-//         (**self).holdings()
-//     }
-
-//     /// Accepts a new incoming connection from this listener.
-//     fn accept(
-//         &mut self,
-//         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn Coupler>>>> {
-//         (&mut **self).accept(fuse_factory)
-//     }
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynCoupler>, DynStream>>>;
 // }
 // impl Acceptor for dyn DynAcceptor + '_ {
-//     type Stream = Box<dyn Coupler>;
+//     type Coupler = Box<dyn DynCoupler>;
+//     type Stream = DynStream;
 
 //     fn holdings(&self) -> &[Holding] {
-//         (**self).holdings()
+//         DynAcceptor::holdings(self)
 //     }
 
 //     /// Accepts a new incoming connection from this listener.
-//     fn accept(
+//     async fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> impl Future<Output = IoResult<Accepted<Self::Conn>>> + Send {
-//         (&mut **self).accept(fuse_factory)
+//     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
+//         DynAcceptor::accept(self, fuse_factory).await
 //     }
 // }
 
@@ -219,13 +207,16 @@ pub trait Acceptor: Send {
 //     fn accept(
 //         &mut self,
 //         fuse_factory: Option<ArcFuseFactory>,
-//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynCoupler>, Box<dyn Coupler>>>> {
+//     ) -> BoxFuture<'_, IoResult<Accepted<Box<dyn DynCoupler>, DynStream>>> {
 //         async move {
 //             let accepted = self.0.accept(fuse_factory).await?;
-//             Ok(accepted.map_into(|c| {
-//                 let conn: Box<dyn Coupler> = Box::new(c);
-//                 conn
-//             }))
+//             Ok(accepted.map_into(
+//                 |c| {
+//                     let conn: Box<dyn DynCoupler> = Box::new(ToDynCoupler(c));
+//                     conn
+//                 },
+//                 DynStream::new,
+//             ))
 //         }
 //         .boxed()
 //     }
@@ -257,62 +248,87 @@ impl Display for Holding {
 pub trait Coupler: Send {
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
-    /// Couple this http connection.
+    /// Couple http connection.
     fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>;
+    ) -> impl Future<Output = IoResult<()>> + Send;
 }
 
-pub trait DynCoupler: Send {
-    fn couple(
-        &self,
-        stream: DynStream,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>>;
-}
+// pub trait DynCoupler: Send {
+//     fn couple<S>(
+//         &self,
+//         stream: S,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>>
+//     where
+//         S: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+// }
 
-pub struct ToDynCoupler<C>(pub C);
-impl<C: Coupler + 'static> DynCoupler for ToDynCoupler<C> {
-    fn couple(
-        &self,
-        stream: DynStream,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
-        async move {
-            self.0
-                .couple(
-                    DynStream::new(stream),
-                    handler,
-                    builder,
-                    graceful_stop_token,
-                )
-                .await
-        }
-        .boxed()
-    }
-}
+// impl Coupler for dyn DynCoupler + '_ {
+//     type Stream = DynStream;
 
-impl Coupler for dyn DynCoupler + '_ {
-    type Stream = DynStream;
+//     async fn couple(
+//         &self,
+//         stream: Self::Stream,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> IoResult<()> {
+//         DynCoupler::couple(
+//             self,
+//             DynStream::new(stream),
+//             handler,
+//             builder,
+//             graceful_stop_token,
+//         )
+//         .await
+//     }
+// }
 
-    async fn couple(
-        &self,
-        stream: Self::Stream,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
-        DynCoupler::couple(self, stream, handler, builder, graceful_stop_token).await
-    }
-}
+// impl Coupler for Box<dyn DynCoupler> {
+//     type Stream = DynStream;
+
+//     async fn couple(
+//         &self,
+//         stream: Self::Stream,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> IoResult<()> {
+//         (*self)
+//             .couple(
+//                 DynStream::new(stream),
+//                 handler,
+//                 builder,
+//                 graceful_stop_token,
+//             )
+//             .await
+//     }
+// }
+
+// pub struct ToDynCoupler<C>(pub C);
+// impl<C: Coupler + 'static> DynCoupler for ToDynCoupler<C> {
+//     fn couple(
+//         &self,
+//         stream: C::Stream,
+//         handler: HyperHandler,
+//         builder: Arc<HttpBuilder>,
+//         graceful_stop_token: Option<CancellationToken>,
+//     ) -> BoxFuture<'static, IoResult<()>> {
+//         async move {
+//             self.0
+//                 .couple(stream, handler, builder, graceful_stop_token)
+//                 .await
+//         }
+//         .boxed()
+//     }
+// }
 
 // /// Get Http version from alpha.
 // pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {

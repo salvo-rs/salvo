@@ -31,20 +31,20 @@ where
 {
     type Stream = JoinedStream<A::Stream, B::Stream>;
 
-    fn couple(
+    async fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> BoxFuture<'static, IoResult<()>> {
+    ) -> IoResult<()> {
         match (self, stream) {
             (Self::A(a), JoinedStream::A(stream)) => a
                 .couple(stream, handler, builder, graceful_stop_token)
-                .boxed(),
+                .await,
             (Self::B(b), JoinedStream::B(stream)) => b
                 .couple(stream, handler, builder, graceful_stop_token)
-                .boxed(),
+                .await,
             _ => unreachable!(),
         }
     }
