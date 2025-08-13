@@ -13,9 +13,10 @@ use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio_util::sync::CancellationToken;
 
+use crate::conn::Coupler;
 use crate::fuse::ArcFusewire;
+use crate::http::Method;
 use crate::http::body::{H3ReqBody, ReqBody};
-use crate::http::{Coupler, Method};
 use crate::proto::WebTransportSession;
 
 /// Builder is used to serve HTTP3 connection.

@@ -85,7 +85,7 @@ impl AsyncWrite for QuinnConnection {
 pub struct QuinnCoupler;
 impl Coupler for QuinnCoupler {
     type Stream = QuinnConnection;
-    fn adapt(
+    fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,

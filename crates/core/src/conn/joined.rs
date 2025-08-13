@@ -10,7 +10,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{Holding, Coupler, HttpBuilder};
+use crate::conn::{Coupler, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::service::HyperHandler;
 
