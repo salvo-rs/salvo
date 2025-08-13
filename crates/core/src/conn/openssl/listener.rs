@@ -16,8 +16,9 @@ use tokio_openssl::SslStream;
 use super::SslAcceptorBuilder;
 
 use crate::conn::{
-    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener, TcpAdapter,
+    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
+use crate::conn::tcp::TcpAdapter;
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpAdapter;
 
@@ -182,7 +183,7 @@ where
         };
 
         let Accepted {
-            adapter,
+            adapter: _,
             stream,
             fusewire,
             local_addr,
@@ -200,7 +201,7 @@ where
         };
 
         Ok(Accepted {
-            adapter,
+            adapter: TcpAdapter::new(),
             stream: HandshakeStream::new(conn, fusewire.clone()),
             fusewire,
             local_addr,

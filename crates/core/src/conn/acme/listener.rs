@@ -17,6 +17,7 @@ use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
 use crate::Router;
 use crate::conn::HandshakeStream;
+use crate::conn::tcp::TcpAdapter;
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
 use crate::http::{HttpAdapter, Version};
@@ -423,9 +424,9 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Adapter,Self::Stream>> {
+    ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         let Accepted {
-            adapter,
+            adapter: _,
             stream,
             fusewire,
             local_addr,
@@ -433,7 +434,7 @@ where
             ..
         } = self.inner.accept(fuse_factory).await?;
         Ok(Accepted {
-            adapter,
+            adapter: TcpAdapter::new(),
             stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fusewire.clone()),
             fusewire,
             local_addr,

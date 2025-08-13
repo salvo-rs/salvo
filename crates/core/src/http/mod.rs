@@ -32,7 +32,7 @@ use tokio_util::sync::CancellationToken;
 use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
 
-/// A trait for http connection.
+/// A trait for adapte http stream.
 pub trait HttpAdapter: Send {
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 

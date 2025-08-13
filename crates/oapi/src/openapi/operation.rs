@@ -438,6 +438,6 @@ mod tests {
         };
         let operation = Operation::new();
 
-        operation.then(print_operation);
+        let _ = operation.then(print_operation);
     }
 }

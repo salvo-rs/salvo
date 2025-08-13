@@ -39,13 +39,14 @@ where
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        match stream {
-            JoinedStream::A(a) => a
+        match (self, stream) {
+            (Self::A(a), JoinedStream::A(stream)) => a
                 .adapt(stream, handler, builder, graceful_stop_token)
                 .boxed(),
-            JoinedStream::B(b) => b
+            (Self::B(b), JoinedStream::B(stream)) => b
                 .adapt(stream, handler, builder, graceful_stop_token)
                 .boxed(),
+            _ => unreachable!(),
         }
     }
 }
@@ -249,10 +250,10 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
-        let first = conn.read_i32().await.unwrap();
-        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
-        let second = conn.read_i32().await.unwrap();
+        let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
+        let first = stream.read_i32().await.unwrap();
+        let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
+        let second = stream.read_i32().await.unwrap();
         assert_eq!(first + second, 150);
     }
 }

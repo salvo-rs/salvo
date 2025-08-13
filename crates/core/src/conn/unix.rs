@@ -200,8 +200,8 @@ mod tests {
             stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
-        assert_eq!(conn.read_i32().await.unwrap(), 518);
+        let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }
 }

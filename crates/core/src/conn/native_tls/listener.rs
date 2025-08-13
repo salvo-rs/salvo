@@ -5,14 +5,15 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, TcpAdapter, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::tcp::TcpAdapter;
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::HttpAdapter;
 
@@ -59,14 +60,14 @@ where
 {
     type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-     fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
         async move {
-        Ok(NativeTlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.try_bind().await?,
-        ))
-
-        }.boxed()
+            Ok(NativeTlsAcceptor::new(
+                self.config_stream.into_stream().boxed(),
+                self.inner.try_bind().await?,
+            ))
+        }
+        .boxed()
     }
 }
 
@@ -182,7 +183,7 @@ where
             None => return Err(IoError::other("native_tls: invalid TLS config")),
         };
         let Accepted {
-            adapter,
+            adapter: _,
             stream,
             fusewire,
             local_addr,
@@ -191,7 +192,7 @@ where
         } = self.inner.accept(fuse_factory.clone()).await?;
         let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
         Ok(Accepted {
-            adapter,
+            adapter: TcpAdapter::new(),
             stream: HandshakeStream::new(conn, fusewire.clone()),
             fusewire,
             local_addr,
