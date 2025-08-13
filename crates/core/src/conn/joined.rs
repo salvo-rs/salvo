@@ -213,10 +213,10 @@ where
     ) -> IoResult<Accepted<Self::Adapter, Self::Stream>> {
         tokio::select! {
             accepted = self.a.accept(fuse_factory.clone()) => {
-                Ok(accepted?.map_conn(JoinedStream::A))
+                Ok(accepted?.map_stream(JoinedStream::A))
             }
             accepted = self.b.accept(fuse_factory) => {
-                Ok(accepted?.map_conn(JoinedStream::B))
+                Ok(accepted?.map_stream(JoinedStream::B))
             }
         }
     }

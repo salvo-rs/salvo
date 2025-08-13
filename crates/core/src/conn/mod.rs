@@ -103,7 +103,7 @@ where
 impl<A, S> Debug for Accepted<A, S>
 where
     A: HttpAdapter,
-    S: AsyncRead + AsyncWrite + Unpin + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Accepted")
@@ -116,14 +116,14 @@ where
 
 impl<A, S> Accepted<A, S>
 where
-    A: HttpAdapter + AsyncRead + AsyncWrite + Unpin + 'static,
-    S: AsyncRead + AsyncWrite + Unpin + 'static,
+    A: HttpAdapter,
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     /// Map stream and returns a new `Accepted`.
     #[inline]
     pub fn map_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<A, T>
     where
-        T: AsyncRead + AsyncWrite + Unpin + 'static,
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let Self {
             adapter,

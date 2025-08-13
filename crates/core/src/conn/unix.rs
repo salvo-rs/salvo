@@ -95,49 +95,59 @@ where
     T: AsRef<Path> + Send + Clone + 'static,
 {
     type Acceptor = UnixAcceptor;
- 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        let inner = match (self.permissions, self.owner) {
-            (Some(permissions), Some((uid, gid))) => {
-                let inner = TokioUnixListener::bind(self.path.clone())?;
-                set_permissions(self.path.clone(), permissions)?;
-                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                inner
-            }
-            (Some(permissions), None) => {
-                let inner = TokioUnixListener::bind(self.path.clone())?;
-                set_permissions(self.path, permissions)?;
-                inner
-            }
-            (None, Some((uid, gid))) => {
-                let inner = TokioUnixListener::bind(self.path.clone())?;
-                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                inner
-            }
-            (None, None) => TokioUnixListener::bind(self.path)?,
-        };
 
-        #[cfg(feature = "socket2")]
-        if let Some(backlog) = self.backlog {
-            let socket = socket2::SockRef::from(&inner);
-            socket.listen(backlog as _)?;
+    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+        async move {
+            let inner = match (self.permissions, self.owner) {
+                (Some(permissions), Some((uid, gid))) => {
+                    let inner = TokioUnixListener::bind(self.path.clone())?;
+                    set_permissions(self.path.clone(), permissions)?;
+                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
+                    inner
+                }
+                (Some(permissions), None) => {
+                    let inner = TokioUnixListener::bind(self.path.clone())?;
+                    set_permissions(self.path, permissions)?;
+                    inner
+                }
+                (None, Some((uid, gid))) => {
+                    let inner = TokioUnixListener::bind(self.path.clone())?;
+                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
+                    inner
+                }
+                (None, None) => TokioUnixListener::bind(self.path)?,
+            };
+
+            #[cfg(feature = "socket2")]
+            if let Some(backlog) = self.backlog {
+                let socket = socket2::SockRef::from(&inner);
+                socket.listen(backlog as _)?;
+            }
+
+            let holdings = vec![Holding {
+                local_addr: inner.local_addr()?.into(),
+                #[cfg(not(feature = "http2-cleartext"))]
+                http_versions: vec![Version::HTTP_11],
+                #[cfg(feature = "http2-cleartext")]
+                http_versions: vec![Version::HTTP_11, Version::HTTP_2],
+                http_scheme: Scheme::HTTP,
+            }];
+            Ok(UnixAcceptor { inner, holdings })
         }
-
-        let holdings = vec![Holding {
-            local_addr: inner.local_addr()?.into(),
-            #[cfg(not(feature = "http2-cleartext"))]
-            http_versions: vec![Version::HTTP_11],
-            #[cfg(feature = "http2-cleartext")]
-            http_versions: vec![Version::HTTP_11, Version::HTTP_2],
-            http_scheme: Scheme::HTTP,
-        }];
-        Ok(UnixAcceptor { inner, holdings })
+        .boxed()
     }
+}
+
+/// Used to accept a Unix socket connection.
+#[derive(Debug)]
+pub struct UnixAcceptor {
+    inner: TokioUnixListener,
+    holdings: Vec<Holding>,
 }
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Adapter = StraightAdapter;
+    type Adapter = StraightAdapter<UnixStream>;
     type Stream = StraightStream<UnixStream>;
 
     #[inline]
