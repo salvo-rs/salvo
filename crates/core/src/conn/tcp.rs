@@ -377,11 +377,13 @@ impl<A: Debug> Debug for ToDynTcpAcceptor<A> {
     }
 }
 
+/// Dynamic TCP acceptors.
 pub struct DynTcpAcceptors {
     inners: Vec<Box<dyn DynTcpAcceptor>>,
     holdings: Vec<Holding>,
 }
 impl DynTcpAcceptors {
+    /// Create a new `DynTcpAcceptors`.
     pub fn new(inners: Vec<Box<dyn DynTcpAcceptor>>) -> Self {
         let holdings = inners
             .iter()
