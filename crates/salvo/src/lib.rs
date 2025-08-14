@@ -19,7 +19,7 @@
 //! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
 //! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
 //! | `unix` | Listener based on Unix socket | ❌ |
-//! | `tower-compat` | Couplers for `tower::Layer` and `tower::Service` | ❌ |
+//! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
 //! | `affix-state` | Middleware for adding prefix and suffix to the request path | ❌ |

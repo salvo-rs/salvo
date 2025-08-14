@@ -384,6 +384,7 @@ pub struct DynTcpAcceptors {
 }
 impl DynTcpAcceptors {
     /// Create a new `DynTcpAcceptors`.
+    #[must_use]
     pub fn new(inners: Vec<Box<dyn DynTcpAcceptor>>) -> Self {
         let holdings = inners
             .iter()

@@ -6,7 +6,6 @@ use std::io::Result as IoResult;
 use std::path::Path;
 use std::sync::Arc;
 
-use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
