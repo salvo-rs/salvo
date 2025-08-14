@@ -69,7 +69,7 @@ impl CachePolicy {
                         self.stale_if_error = Some(Duration::from_secs(secs));
                     }
                 }
-                _ => continue,
+                _ => {},
             };
         }
     }

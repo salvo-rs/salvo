@@ -54,7 +54,7 @@ impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[cfg(feature = "socket2")]
     #[inline]
-    pub fn new(path: T) -> UnixListener<T> {
+    pub fn new(path: T) -> Self{
         Self {
             path,
             permissions: None,
@@ -83,6 +83,7 @@ impl<T> UnixListener<T> {
         #![feature = "socket2"]
         /// Set backlog capacity.
         #[inline]
+    #[must_use]
         pub fn backlog(mut self, backlog: u32) -> Self {
             self.backlog = Some(backlog);
             self

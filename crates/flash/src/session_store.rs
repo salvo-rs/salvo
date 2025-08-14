@@ -34,7 +34,7 @@ impl SessionStore {
 
     /// Converts into `FlashHandler`.
     #[must_use]
-    pub fn into_handler(self) -> FlashHandler<SessionStore> {
+    pub fn into_handler(self) -> FlashHandler<Self> {
         FlashHandler::new(self)
     }
 }

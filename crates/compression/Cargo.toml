@@ -3,6 +3,7 @@ name = "salvo-compression"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Compression support for salvo web server framework.
 """

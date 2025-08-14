@@ -111,8 +111,8 @@ pub enum ChallengeType {
 impl Display for ChallengeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ChallengeType::Http01 => f.write_str(CHALLENGE_TYPE_HTTP_01),
-            ChallengeType::TlsAlpn01 => f.write_str(CHALLENGE_TYPE_TLS_ALPN_01),
+            Self::Http01 => f.write_str(CHALLENGE_TYPE_HTTP_01),
+            Self::TlsAlpn01 => f.write_str(CHALLENGE_TYPE_TLS_ALPN_01),
         }
     }
 }

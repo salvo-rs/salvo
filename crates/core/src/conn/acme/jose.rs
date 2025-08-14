@@ -37,7 +37,7 @@ impl<'a> Protected<'a> {
             url,
         };
         let protected = serde_json::to_vec(&protected)
-            .map_err(|e| IoError::other(format!("failed to encode jwt: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to encode jwt: {e}")))?;
         Ok(URL_SAFE_NO_PAD.encode(protected))
     }
 }
@@ -83,7 +83,7 @@ impl Jwk {
             y: &self.y,
         };
         let json = serde_json::to_vec(&jwk_thumb)
-            .map_err(|e| IoError::other(format!("failed to encode jwt: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to encode jwt: {e}")))?;
         Ok(URL_SAFE_NO_PAD.encode(sha256(json)))
     }
 }
@@ -115,7 +115,7 @@ pub(crate) async fn request(
     let protected = Protected::base64(jwk, kid, nonce, uri)?;
     let payload = match payload {
         Some(payload) => serde_json::to_vec(&payload)
-            .map_err(|e| IoError::other(format!("failed to encode payload: {}", e)))?,
+            .map_err(|e| IoError::other(format!("failed to encode payload: {e}")))?,
         None => Vec::new(),
     };
     let payload = URL_SAFE_NO_PAD.encode(payload);
@@ -133,12 +133,12 @@ pub(crate) async fn request(
         .method(Method::POST)
         .uri(uri)
         .body(Full::from(body))
-        .map_err(|e| IoError::other(format!("failed to build http request: {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to build http request: {e}")))?;
 
     let res = client
         .request(req)
         .await
-        .map_err(|e| IoError::other(format!("failed to send http request: {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to send http request: {e}")))?;
     if !res.status().is_success() {
         return Err(IoError::other(format!(
             "unexpected status code: status = {}",
@@ -163,7 +163,7 @@ where
 
     let data = res.into_body().collect().await?.to_bytes();
     serde_json::from_slice(&data)
-        .map_err(|e| Error::other(format!("response is not a valid json: {}", e)))
+        .map_err(|e| Error::other(format!("response is not a valid json: {e}")))
 }
 
 #[inline]

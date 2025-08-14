@@ -10,7 +10,7 @@ use super::cache::AcmeCache;
 use super::client::AcmeClient;
 use super::config::AcmeConfig;
 use super::resolver::ResolveServerCert;
-use super::{jose, ChallengeType};
+use super::{ChallengeType, jose};
 
 use crate::Error;
 
@@ -36,7 +36,8 @@ pub(crate) async fn issue_cert(
                 match config.challenge_type {
                     ChallengeType::Http01 => {
                         if let Some(keys) = &config.keys_for_http01 {
-                            let key_authorization = jose::key_authorization(&config.key_pair, &challenge.token)?;
+                            let key_authorization =
+                                jose::key_authorization(&config.key_pair, &challenge.token)?;
                             let mut keys = keys.write();
                             keys.insert(challenge.token.to_string(), key_authorization);
                         }
@@ -44,7 +45,10 @@ pub(crate) async fn issue_cert(
                     ChallengeType::TlsAlpn01 => {
                         let key_authorization_sha256 =
                             jose::key_authorization_sha256(&config.key_pair, &challenge.token)?;
-                        let auth_key = gen_acme_cert(&res.identifier.value, key_authorization_sha256.as_ref())?;
+                        let auth_key = gen_acme_cert(
+                            &res.identifier.value,
+                            key_authorization_sha256.as_ref(),
+                        )?;
                         resolver
                             .acme_keys
                             .write()
@@ -59,7 +63,10 @@ pub(crate) async fn issue_cert(
                 return Err(Error::other(format!(
                     "unable to authorize `{}`: {}",
                     res.identifier.value,
-                    res.error.as_ref().map(|problem| &*problem.detail).unwrap_or("unknown")
+                    res.error
+                        .as_ref()
+                        .map(|problem| &*problem.detail)
+                        .unwrap_or("unknown")
                 )));
             }
         }
@@ -74,15 +81,16 @@ pub(crate) async fn issue_cert(
     }
     // send csr
     let mut params = CertificateParams::new(config.domains.clone())
-        .map_err(|e| Error::other(format!("crate certificate params failed: {}", e)))?;
+        .map_err(|e| Error::other(format!("crate certificate params failed: {e}")))?;
     params.distinguished_name = DistinguishedName::new();
 
-    let key_pair = KeyPair::generate().map_err(|e| Error::other(format!("generate key pair failed: {}", e)))?;
+    let key_pair = KeyPair::generate()
+        .map_err(|e| Error::other(format!("generate key pair failed: {e}")))?;
 
     let csr = params
         .serialize_request(&key_pair)
-        .map_err(|e| Error::other(format!("failed to serialize request der {}", e)))?;
- 
+        .map_err(|e| Error::other(format!("failed to serialize request der {e}")))?;
+
     let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         key_pair.serialize_der(),
     )))
@@ -117,7 +125,8 @@ pub(crate) async fn issue_cert(
         .as_ref()
         .to_vec();
     let key_pem = key_pair.serialize_pem();
-    let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice()).collect::<IoResult<Vec<_>>>()?;
+    let cert_chain =
+        rustls_pemfile::certs(&mut cert_pem.as_slice()).collect::<IoResult<Vec<_>>>()?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
     *resolver.cert.write() = Some(Arc::new(cert_key));
     tracing::debug!("certificate obtained");
@@ -133,10 +142,11 @@ pub(crate) async fn issue_cert(
 }
 
 fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> crate::Result<CertifiedKey> {
-    let key_pair = KeyPair::generate().map_err(|e| Error::other(format!("generate key pair failed: {}", e)))?;
+    let key_pair =
+        KeyPair::generate().map_err(|e| Error::other(format!("generate key pair failed: {e}")))?;
 
-    let mut params = CertificateParams::new(vec![domain.to_string()])
-        .map_err(|e| Error::other(format!("create certificate params failed: {}", e)))?;
+    let mut params = CertificateParams::new(vec![domain.to_owned()])
+        .map_err(|e| Error::other(format!("create certificate params failed: {e}")))?;
     params.custom_extensions = vec![CustomExtension::new_acme_identifier(acme_hash)];
     let cert = params
         .self_signed(&key_pair)
@@ -145,8 +155,5 @@ fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> crate::Result<CertifiedKey> 
         key_pair.serialize_der(),
     )))
     .expect("serialize private key der failed");
-    Ok(CertifiedKey::new(
-        vec![cert.der().clone()],
-        pk,
-    ))
+    Ok(CertifiedKey::new(vec![cert.der().clone()], pk))
 }

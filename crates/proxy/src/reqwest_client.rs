@@ -33,6 +33,7 @@ where
 
 impl ReqwestClient {
     /// Create a new `ReqwestClient` with the given [`reqwest::Client`].
+    #[must_use]
     pub fn new(inner: InnerClient) -> Self {
         Self { inner }
     }

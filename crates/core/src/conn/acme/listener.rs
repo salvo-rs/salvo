@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
@@ -55,7 +54,8 @@ where
 impl<T> AcmeListener<T> {
     /// Create `AcmeListener`
     #[inline]
-    pub fn new(inner: T) -> AcmeListener<T> {
+    #[must_use]
+    pub fn new(inner: T) -> Self{
         Self {
             inner,
             config_builder: AcmeConfig::builder(),
@@ -67,6 +67,7 @@ impl<T> AcmeListener<T> {
     ///
     /// Defaults to lets encrypt.
     #[inline]
+    #[must_use]
     pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.directory(name, url),
@@ -76,6 +77,7 @@ impl<T> AcmeListener<T> {
 
     /// Sets domains.
     #[inline]
+    #[must_use]
     pub fn domains(self, domains: impl Into<Vec<String>>) -> Self {
         Self {
             config_builder: self.config_builder.domains(domains),
@@ -84,6 +86,7 @@ impl<T> AcmeListener<T> {
     }
     /// Add a domain.
     #[inline]
+    #[must_use]
     pub fn add_domain(self, domain: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.add_domain(domain),
@@ -93,6 +96,7 @@ impl<T> AcmeListener<T> {
 
     /// Add contact emails for the ACME account.
     #[inline]
+    #[must_use]
     pub fn contacts(self, contacts: impl Into<Vec<String>>) -> Self {
         Self {
             config_builder: self.config_builder.contacts(contacts.into()),
@@ -101,6 +105,7 @@ impl<T> AcmeListener<T> {
     }
     /// Add a contact email for the ACME account.
     #[inline]
+    #[must_use]
     pub fn add_contact(self, contact: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.add_contact(contact.into()),
@@ -109,6 +114,7 @@ impl<T> AcmeListener<T> {
     }
 
     /// Create an handler for HTTP-01 challenge
+    #[must_use]
     pub fn http01_challenge(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challenge();
         if let Some(keys_for_http01) = &config_builder.keys_for_http01 {
@@ -117,7 +123,7 @@ impl<T> AcmeListener<T> {
             };
             router.routers.insert(
                 0,
-                Router::with_path(format!("{}/{{token}}", WELL_KNOWN_PATH)).goal(handler),
+                Router::with_path(format!("{WELL_KNOWN_PATH}/{{token}}")).goal(handler),
             );
         } else {
             panic!("`HTTP-01` challenge's key should not be none");
@@ -129,6 +135,7 @@ impl<T> AcmeListener<T> {
     }
     /// Create an handler for HTTP-01 challenge
     #[inline]
+    #[must_use]
     pub fn tls_alpn01_challenge(self) -> Self {
         Self {
             config_builder: self.config_builder.tls_alpn01_challenge(),
@@ -142,6 +149,7 @@ impl<T> AcmeListener<T> {
     /// the obtained certificate will be stored in memory and will need to be
     /// obtained again when the server is restarted next time.
     #[inline]
+    #[must_use]
     pub fn cache_path(self, path: impl Into<PathBuf>) -> Self {
         Self {
             config_builder: self.config_builder.cache_path(path),
@@ -342,7 +350,7 @@ where
         inner: T,
         tls_acceptor: TlsAcceptor,
         check_duration: Duration,
-    ) -> crate::Result<AcmeAcceptor<T>>
+    ) -> crate::Result<Self>
     where
         T: Send,
     {
@@ -367,7 +375,7 @@ where
             })
             .collect();
 
-        let acceptor = AcmeAcceptor {
+        let acceptor = Self {
             config: config.into(),
             server_config: server_config.into(),
             inner,

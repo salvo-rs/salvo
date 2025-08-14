@@ -6,7 +6,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{BoxFuture, };
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
@@ -44,7 +43,7 @@ where
     /// Create new OpensslListener with config stream.
     #[inline]
     pub fn new(config_stream: S, inner: T) -> Self {
-        OpensslListener {
+        Self {
             config_stream,
             inner,
             _phantom: PhantomData,
@@ -95,7 +94,7 @@ where
     E: StdError + Send + 'static,
 {
     /// Create new OpensslAcceptor.
-    pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T, E> {
+    pub fn new(config_stream: S, inner: T) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -117,7 +116,7 @@ where
                 }
             })
             .collect();
-        OpensslAcceptor {
+        Self {
             config_stream,
             inner,
             holdings,

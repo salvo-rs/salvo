@@ -26,7 +26,9 @@ impl ResolveServerCert {
             .map(|(_, cert)| cert.validity().not_after.timestamp())
         {
             Some(valid_until) => {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("time went backwards");
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("time went backwards");
                 (now + before).as_secs() as i64 > valid_until
             }
             None => true,
@@ -45,12 +47,11 @@ impl ResolvesServerCert for ResolveServerCert {
                 None => None,
                 Some(domain) => {
                     tracing::debug!(domain, "load acme key");
-                    match self.acme_keys.read().get(domain).cloned() {
-                        Some(cert) => Some(cert),
-                        None => {
-                            tracing::error!(domain, "acme key not found");
-                            None
-                        }
+                    if let Some(cert) = self.acme_keys.read().get(domain).cloned() {
+                        Some(cert)
+                    } else {
+                        tracing::error!(domain, "acme key not found");
+                        None
                     }
                 }
             };

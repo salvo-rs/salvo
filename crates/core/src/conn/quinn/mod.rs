@@ -3,15 +3,12 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{Once, once};
 pub use quinn::ServerConfig;
 use salvo_http3::quinn as http3_quinn;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Coupler, HttpBuilder, IntoConfigStream};
@@ -35,6 +32,7 @@ impl QuinnConnection {
         Self { inner, fusewire }
     }
     /// Get inner quinn connection.
+    #[must_use]
     pub fn into_inner(self) -> http3_quinn::Connection {
         self.inner
     }
@@ -82,7 +80,7 @@ impl Debug for QuinnCoupler {
     }
 }
 
-impl IntoConfigStream<ServerConfig> for ServerConfig {
+impl IntoConfigStream<Self> for ServerConfig {
     type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {
