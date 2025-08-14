@@ -55,33 +55,6 @@ impl DerefMut for QuinnConnection {
         &mut self.inner
     }
 }
-impl AsyncRead for QuinnConnection {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-        _buf: &mut ReadBuf<'_>,
-    ) -> Poll<IoResult<()>> {
-        unimplemented!()
-    }
-}
-
-impl AsyncWrite for QuinnConnection {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-        _buf: &[u8],
-    ) -> Poll<IoResult<usize>> {
-        unimplemented!()
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        unimplemented!()
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        unimplemented!()
-    }
-}
 
 /// QUIC connection coupler.
 pub struct QuinnCoupler;
@@ -110,7 +83,7 @@ impl Debug for QuinnCoupler {
 }
 
 impl IntoConfigStream<ServerConfig> for ServerConfig {
-    type Stream = Once<Ready<ServerConfig>>;
+    type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))

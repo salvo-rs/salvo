@@ -232,6 +232,7 @@ impl<T> Listener for AcmeListener<T>
 where
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
+    <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
@@ -292,6 +293,7 @@ cfg_feature! {
     where
         T: Listener + Send + 'static,
         T::Acceptor: Send + Unpin + 'static,
+        <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         A: std::net::ToSocketAddrs + Send + 'static,
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
@@ -331,6 +333,7 @@ impl<T> Debug for AcmeAcceptor<T> {
 impl<T> AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
+    T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub(crate) async fn new(
         config: impl Into<Arc<AcmeConfig>> + Send,

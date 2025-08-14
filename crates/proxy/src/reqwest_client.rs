@@ -27,7 +27,7 @@ where
     /// 
     /// This is a convenient way to create a proxy with standard configuration.
     pub fn use_reqwest_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, ReqwestClient::default())
+        Self::new(upstreams, ReqwestClient::default())
     }
 }
 
@@ -68,7 +68,7 @@ impl Client for ReqwestClient {
                 let mut response_upgraded = response
                     .upgrade()
                     .await
-                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {}", e)))?;
+                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {e}")))?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {

@@ -16,6 +16,7 @@ impl Default for SessionStore {
 
 impl SessionStore {
     /// Create a new `SessionStore`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             name: "salvo.csrf".into(),

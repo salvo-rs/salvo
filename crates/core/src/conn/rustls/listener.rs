@@ -9,6 +9,7 @@ use std::task::{Context, Poll};
 
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
@@ -55,6 +56,7 @@ where
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
+    <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
@@ -87,6 +89,7 @@ where
     S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
+    T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
     /// Create a new `RustlsAcceptor`.
@@ -137,6 +140,7 @@ where
     S: Stream<Item = C> + Send + Unpin + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send,
 {
     type Coupler = TcpCoupler<Self::Stream>;

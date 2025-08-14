@@ -6,12 +6,13 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::future::{BoxFuture, };
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio_openssl::SslStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::SslAcceptorBuilder;
 
@@ -57,6 +58,7 @@ where
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
+    <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
     type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
@@ -89,6 +91,7 @@ where
     S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
+    T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
     /// Create new OpensslAcceptor.
@@ -139,6 +142,7 @@ where
     S: Stream<Item = C> + Send + Unpin + 'static,
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
+    T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send,
 {
     type Coupler = TcpCoupler<Self::Stream>;

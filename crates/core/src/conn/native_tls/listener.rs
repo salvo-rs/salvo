@@ -55,6 +55,7 @@ where
     C: TryInto<Identity, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
+    <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
     type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
