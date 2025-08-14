@@ -92,7 +92,7 @@ pub trait IntoConfigStream<C> {
 pub struct Accepted<C, S>
 where
     C: Coupler<Stream = S>,
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: Send + 'static,
 {
     /// Coupler for couple stream.
     pub coupler: C,
@@ -110,7 +110,7 @@ where
 impl<C, S> Debug for Accepted<C, S>
 where
     C: Coupler<Stream = S>,
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: Send + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Accepted")
@@ -124,7 +124,7 @@ where
 impl<C, S> Accepted<C, S>
 where
     C: Coupler<Stream = S>,
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: Send + 'static,
 {
     #[inline]
     #[doc(hidden)]
@@ -135,7 +135,7 @@ where
     ) -> Accepted<TC, TS>
     where
         TC: Coupler<Stream = TS>,
-        TS: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        TS: Send + 'static,
     {
         let Self {
             coupler,
@@ -161,7 +161,7 @@ pub trait Acceptor: Send {
     /// Coupler type.
     type Coupler: Coupler<Stream = Self::Stream> + Unpin + Send + 'static;
     /// Stream type.
-    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+    type Stream: Unpin + Send + 'static;
 
     /// Returns the holding information that this listener is bound to.
     fn holdings(&self) -> &[Holding];
@@ -207,7 +207,7 @@ impl Display for Holding {
 /// A trait for couple http stream.
 pub trait Coupler: Send {
     /// Connection stream type.
-    type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+    type Stream: Send + 'static;
 
     /// Couple http connection.
     fn couple(
@@ -252,7 +252,7 @@ pub struct DynStream {
 }
 
 impl DynStream {
-    fn new(stream: impl AsyncRead + AsyncWrite + Send + Unpin + 'static) -> Self {
+    fn new(stream: impl AsyncRead + AsyncWrite + Send + 'static) -> Self {
         let (reader, writer) = tokio::io::split(stream);
         Self {
             reader: Box::new(reader),

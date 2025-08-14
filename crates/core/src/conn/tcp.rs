@@ -351,7 +351,11 @@ impl Acceptor for dyn DynTcpAcceptor {
 
 /// Convert an `Acceptor` into a boxed `DynTcpAcceptor`.
 pub struct ToDynTcpAcceptor<A>(pub A);
-impl<A: Acceptor + 'static> DynTcpAcceptor for ToDynTcpAcceptor<A> {
+impl<A> DynTcpAcceptor for ToDynTcpAcceptor<A>
+where
+    A: Acceptor + 'static,
+    A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     #[inline]
     fn holdings(&self) -> &[Holding] {
         self.0.holdings()

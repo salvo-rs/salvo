@@ -205,8 +205,8 @@ where
     B: Acceptor + Send + Unpin + 'static,
     A::Coupler: Coupler<Stream = A::Stream> + Unpin + 'static,
     B::Coupler: Coupler<Stream = B::Stream> + Unpin + 'static,
-    A::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    B::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    A::Stream:  Unpin + Send + 'static,
+    B::Stream:  Unpin + Send + 'static,
 {
     type Coupler = JoinedCoupler<A::Coupler, B::Coupler>;
     type Stream = JoinedStream<A::Stream, B::Stream>;
