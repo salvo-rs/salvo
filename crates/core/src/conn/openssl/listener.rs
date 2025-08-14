@@ -15,10 +15,10 @@ use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{
-    Accepted, Acceptor,Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor, Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
-use crate::conn::tcp::TcpCoupler;
 use crate::fuse::ArcFuseFactory;
 
 /// OpensslListener
@@ -91,10 +91,10 @@ impl<S, C, T, E> Debug for OpensslAcceptor<S, C, T, E> {
 }
 impl<S, C, T, E> OpensslAcceptor<S, C, T, E>
 where
-    S: Stream<Item = C> + Send + 'static,
+    S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
-    T: Acceptor + Send,
-    E: StdError + Send,
+    T: Acceptor + Send + 'static,
+    E: StdError + Send + 'static,
 {
     /// Create new OpensslAcceptor.
     pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T, E> {
@@ -131,6 +131,10 @@ where
     /// Get the inner `Acceptor`.
     pub fn inner(&self) -> &T {
         &self.inner
+    }
+
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
     }
 }
 

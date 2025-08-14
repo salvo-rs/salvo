@@ -13,14 +13,13 @@ use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, Holding, Listener};
-
 use crate::Router;
-use crate::conn::{HandshakeStream};
-use crate::conn::tcp::TcpCoupler;
+use crate::conn::HandshakeStream;
+use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 use crate::fuse::ArcFuseFactory;
+use crate::http::Version;
 use crate::http::uri::Scheme;
-use crate::http::{ Version};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
@@ -337,7 +336,7 @@ impl<T> Debug for AcmeAcceptor<T> {
 
 impl<T> AcmeAcceptor<T>
 where
-    T: Acceptor + Send,
+    T: Acceptor + Send + 'static,
 {
     pub(crate) async fn new(
         config: impl Into<Arc<AcmeConfig>> + Send,
@@ -405,9 +404,13 @@ where
     pub fn server_config(&self) -> Arc<ServerConfig> {
         self.server_config.clone()
     }
+
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
 
-impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
+impl<T> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,

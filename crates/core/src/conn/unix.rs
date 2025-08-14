@@ -12,7 +12,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
-use crate::conn::tcp::{TcpCoupler};
+use crate::conn::tcp::{ToDynTcpAcceptor, DynTcpAcceptor, TcpCoupler};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
@@ -144,6 +144,12 @@ where
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
+}
+
+impl UnixAcceptor {
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
 
 #[cfg(unix)]

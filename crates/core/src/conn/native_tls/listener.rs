@@ -12,7 +12,7 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::tcp::TcpCoupler;
+use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Coupler, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 
@@ -55,7 +55,7 @@ where
     C: TryInto<Identity, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
-    E: StdError + Send,
+    E: StdError + Send+ 'static,
 {
     type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
@@ -87,8 +87,11 @@ impl<S, C, T: Debug, E> Debug for NativeTlsAcceptor<S, C, T, E> {
 }
 impl<S, C, T, E> NativeTlsAcceptor<S, C, T, E>
 where
-    T: Acceptor,
-    E: StdError + Send,
+    S: Stream<Item = C> + Send + Unpin + 'static,
+    C: TryInto<Identity, Error = E> + Send + 'static,
+    T: Acceptor + Send + 'static,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
+    E: StdError + Send + 'static,
 {
     /// Create a new `NativeTlsAcceptor`.
     pub fn new(config_stream: S, inner: T) -> NativeTlsAcceptor<S, C, T, E> {
@@ -126,7 +129,12 @@ where
     pub fn inner(&self) -> &T {
         &self.inner
     }
+
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
+
 
 impl<S, C, T, E> Acceptor for NativeTlsAcceptor<S, C, T, E>
 where

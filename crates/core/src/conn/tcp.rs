@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
-use super::{Accepted, Acceptor, Coupler, Listener};
+use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
 use crate::conn::{Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
 use crate::http::Version;
@@ -201,6 +201,11 @@ impl TcpAcceptor {
     pub fn set_ttl(&self, ttl: u32) -> IoResult<()> {
         self.inner.set_ttl(ttl)
     }
+
+    /// Converts this `TcpAcceptor` into a boxed trait object.
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
 
 impl TryFrom<TokioTcpListener> for TcpAcceptor {
@@ -314,6 +319,51 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("TcpCoupler").finish()
+    }
+}
+
+pub trait DynTcpAcceptor: Send {
+    fn holdings(&self) -> &[Holding];
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>>;
+}
+impl Acceptor for dyn DynTcpAcceptor {
+    type Coupler = TcpCoupler<DynStream>;
+    type Stream = DynStream;
+
+    #[inline]
+    fn holdings(&self) -> &[Holding] {
+        DynTcpAcceptor::holdings(self)
+    }
+
+    #[inline]
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
+        DynTcpAcceptor::accept(self, fuse_factory).await
+    }
+}
+
+pub struct ToDynTcpAcceptor<A>(pub A);
+impl<A: Acceptor + 'static> DynTcpAcceptor for ToDynTcpAcceptor<A> {
+    #[inline]
+    fn holdings(&self) -> &[Holding] {
+        self.0.holdings()
+    }
+
+    #[inline]
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
+        async move {
+            let accepted = self.0.accept(fuse_factory).await?;
+            Ok(accepted.map_into(|_| TcpCoupler::new(), DynStream::new))
+        }
+        .boxed()
     }
 }
 

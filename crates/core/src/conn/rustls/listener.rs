@@ -12,7 +12,7 @@ use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::tcp::TcpCoupler;
+use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{
     Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
@@ -58,7 +58,7 @@ where
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
-    E: StdError + Send,
+    E: StdError + Send + 'static,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
@@ -90,10 +90,10 @@ impl<S, C, T, E> Debug for RustlsAcceptor<S, C, T, E> {
 
 impl<S, C, T, E> RustlsAcceptor<S, C, T, E>
 where
-    S: Stream<Item = C> + Send + 'static,
+    S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    T: Acceptor + Send,
-    E: StdError + Send,
+    T: Acceptor + Send+ 'static,
+    E: StdError + Send + 'static,
 {
     /// Create a new `RustlsAcceptor`.
     pub fn new(config_stream: S, inner: T) -> Self {
@@ -130,6 +130,10 @@ where
     /// Get the inner `Acceptor`.
     pub fn inner(&self) -> &T {
         &self.inner
+    }
+
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
     }
 }
 
