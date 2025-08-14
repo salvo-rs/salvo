@@ -8,7 +8,6 @@ use std::vec;
 use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
-use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Holding, HttpBuilder, StraightStream};
@@ -412,10 +411,26 @@ impl DynTcpAcceptor for DynTcpAcceptors {
                 let fuse_factory = fuse_factory.clone();
                 set.push(async move { inner.accept(fuse_factory).await }.boxed());
             }
-            futures_util::future::select_all(set.into_iter())
-                .await.0
+            futures_util::future::select_all(set.into_iter()).await.0
         }
         .boxed()
+    }
+}
+impl Acceptor for DynTcpAcceptors {
+    type Coupler = TcpCoupler<DynStream>;
+    type Stream = DynStream;
+
+    #[inline]
+    fn holdings(&self) -> &[Holding] {
+        DynTcpAcceptor::holdings(self)
+    }
+
+    #[inline]
+    async fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
+        DynTcpAcceptor::accept(self, fuse_factory).await
     }
 }
 impl Debug for DynTcpAcceptors {
