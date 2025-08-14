@@ -12,7 +12,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
-use crate::conn::tcp::{TcpCoupler, TcpListener};
+use crate::conn::tcp::{TcpCoupler};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;

@@ -10,12 +10,11 @@ use std::task::{Context, Poll};
 use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
 use crate::conn::tcp::TcpCoupler;
 use crate::conn::{
-    Accepted, Acceptor, Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;

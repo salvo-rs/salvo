@@ -22,16 +22,6 @@ pub use response::Response;
 
 pub use http::version::Version;
 
-use std::io::Result as IoResult;
-use std::sync::Arc;
-
-use futures_util::future::BoxFuture;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_util::sync::CancellationToken;
-
-use crate::conn::HttpBuilder;
-use crate::service::HyperHandler;
-
 #[doc(hidden)]
 #[must_use]
 pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {

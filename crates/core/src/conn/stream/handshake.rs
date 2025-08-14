@@ -1,17 +1,13 @@
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::{FutureExt, future::BoxFuture};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
-use tokio_util::sync::CancellationToken;
 
-use crate::conn::HttpBuilder;
+
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::conn::Coupler;
-use crate::service::HyperHandler;
 
 enum State<S> {
     Handshaking(BoxFuture<'static, Result<S>>),

@@ -1,12 +1,12 @@
 //! TcpListener and it's implements.
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::vec;
 
 use futures_util::future::{BoxFuture, FutureExt};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
@@ -245,7 +245,7 @@ impl Acceptor for TcpAcceptor {
             Accepted {
                 coupler: TcpCoupler::new(),
                 stream: StraightStream::new(conn, fusewire.clone()),
-                fusewire: fusewire,
+                fusewire,
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,
@@ -254,6 +254,7 @@ impl Acceptor for TcpAcceptor {
     }
 }
 
+#[doc(hidden)]
 pub struct TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -264,12 +265,23 @@ impl<S> TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    /// Create a new `TcpCoupler`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
         }
     }
 }
+impl<S> Default for TcpCoupler<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S> Coupler for TcpCoupler<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -294,6 +306,14 @@ where
                 .map_err(IoError::other)
         }
         .boxed()
+    }
+}
+impl<S> Debug for TcpCoupler<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TcpCoupler").finish()
     }
 }
 

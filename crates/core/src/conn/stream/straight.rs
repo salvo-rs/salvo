@@ -1,17 +1,12 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, IoSlice, Result as IoResult};
+use std::io::{IoSlice, Result as IoResult};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{BoxFuture, FutureExt};
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_util::sync::CancellationToken;
 
-use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::service::HyperHandler;
 
 /// A stream that can be fused.
 #[pin_project]
