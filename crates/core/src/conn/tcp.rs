@@ -276,21 +276,23 @@ where
 {
     type Stream = S;
 
-    async fn couple(
+    fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
         let fusewire = handler.fusewire.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);
         }
-        builder
-            .serve_connection(stream, handler, fusewire, graceful_stop_token)
-            .await
-            .map_err(IoError::other)
+        async move {
+            builder
+                .serve_connection(stream, handler, fusewire, graceful_stop_token)
+                .await
+                .map_err(IoError::other)
+        }
     }
 }
 

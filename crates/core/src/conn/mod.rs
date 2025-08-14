@@ -255,7 +255,7 @@ pub trait Coupler: Send {
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> impl Future<Output = IoResult<()>> + Send;
+    ) -> BoxFuture<'static, IoResult<()>>;
 }
 
 // pub trait DynCoupler: Send {
