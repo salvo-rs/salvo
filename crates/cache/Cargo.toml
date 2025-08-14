@@ -3,6 +3,7 @@ name = "salvo-cache"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 description = """
 Cache middleware for Salvo web server framework.
 """
