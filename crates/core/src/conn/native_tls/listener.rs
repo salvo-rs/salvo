@@ -5,7 +5,6 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
-use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
@@ -41,7 +40,7 @@ where
     /// Create a new `NativeTlsListener`.
     #[inline]
     pub fn new(config_stream: S, inner: T) -> Self {
-        NativeTlsListener {
+        Self {
             config_stream,
             inner,
             _phantom: PhantomData,
@@ -92,7 +91,7 @@ where
     E: StdError + Send + 'static,
 {
     /// Create a new `NativeTlsAcceptor`.
-    pub fn new(config_stream: S, inner: T) -> NativeTlsAcceptor<S, C, T, E> {
+    pub fn new(config_stream: S, inner: T) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -114,7 +113,7 @@ where
                 }
             })
             .collect();
-        NativeTlsAcceptor {
+        Self {
             config_stream,
             inner,
             holdings,

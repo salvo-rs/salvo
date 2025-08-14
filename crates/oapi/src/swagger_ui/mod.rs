@@ -107,18 +107,21 @@ impl SwaggerUi {
     }
 
     /// Set title of the html page. The default title is "Swagger UI".
+    #[must_use]
     pub fn title(mut self, title: impl Into<Cow<'static, str>>) -> Self {
         self.title = title.into();
         self
     }
 
     /// Set keywords of the html page.
+    #[must_use]
     pub fn keywords(mut self, keywords: impl Into<Cow<'static, str>>) -> Self {
         self.keywords = Some(keywords.into());
         self
     }
 
     /// Set description of the html page.
+    #[must_use]
     pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
         self.description = Some(description.into());
         self
@@ -137,6 +140,7 @@ impl SwaggerUi {
     /// let swagger = SwaggerUi::new("/api-doc/openapi.json")
     ///     .url("/api-docs/openapi2.json");
     /// ```
+    #[must_use]
     pub fn url<U: Into<Url<'static>>>(mut self, url: U) -> Self {
         self.config.urls.push(url.into());
         self

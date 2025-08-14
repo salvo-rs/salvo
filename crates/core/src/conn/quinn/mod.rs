@@ -35,6 +35,7 @@ impl QuinnConnection {
         Self { inner, fusewire }
     }
     /// Get inner quinn connection.
+    #[must_use]
     pub fn into_inner(self) -> http3_quinn::Connection {
         self.inner
     }
@@ -82,7 +83,7 @@ impl Debug for QuinnCoupler {
     }
 }
 
-impl IntoConfigStream<ServerConfig> for ServerConfig {
+impl IntoConfigStream<Self> for ServerConfig {
     type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {

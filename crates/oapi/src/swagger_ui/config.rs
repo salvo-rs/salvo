@@ -259,6 +259,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .config_url("http://url.to.external.config");
     /// ```
+    #[must_use]
     pub fn config_url<S: Into<String>>(mut self, config_url: S) -> Self {
         self.config_url = Some(config_url.into());
 
@@ -276,6 +277,7 @@ impl<'a> Config<'a> {
     /// # use salvo_oapi::swagger_ui::Config;
     /// let config = Config::new(["/api-docs/openapi.json"]).dom_id("#my-id");
     /// ```
+    #[must_use]
     pub fn dom_id<S: Into<String>>(mut self, dom_id: S) -> Self {
         self.dom_id = Some(dom_id.into());
 
@@ -406,6 +408,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_rendering(r#"["example"*, "model"]"#);
     /// ```
+    #[must_use]
     pub fn default_model_rendering<S: Into<String>>(mut self, default_model_rendering: S) -> Self {
         self.default_model_rendering = Some(default_model_rendering.into());
 
@@ -442,6 +445,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .doc_expansion(r#"["list"*, "full", "none"]"#);
     /// ```
+    #[must_use]
     pub fn doc_expansion<S: Into<String>>(mut self, doc_expansion: S) -> Self {
         self.doc_expansion = Some(doc_expansion.into());
 
@@ -570,6 +574,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .oauth2_redirect_url("http://my.oauth2.redirect.url");
     /// ```
+    #[must_use]
     pub fn oauth2_redirect_url<S: Into<String>>(mut self, oauth2_redirect_url: S) -> Self {
         self.oauth2_redirect_url = Some(oauth2_redirect_url.into());
 
@@ -618,6 +623,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .supported_submit_methods(["get"]);
     /// ```
+    #[must_use]
     pub fn supported_submit_methods<I: IntoIterator<Item = S>, S: Into<String>>(
         mut self,
         supported_submit_methods: I,
@@ -648,6 +654,7 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .validator_url("none");
     /// ```
+    #[must_use]
     pub fn validator_url<S: Into<String>>(mut self, validator_url: S) -> Self {
         self.validator_url = Some(validator_url.into());
 

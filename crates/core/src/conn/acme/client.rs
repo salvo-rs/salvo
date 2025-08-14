@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::engine::{Engine, general_purpose::URL_SAFE_NO_PAD};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::legacy::{connect::HttpConnector, Client};
+use hyper_util::client::legacy::{Client, connect::HttpConnector};
 use hyper_util::rt::TokioExecutor;
 use serde::{Deserialize, Serialize};
 
-use super::{jose, key_pair::KeyPair, ChallengeType};
 use super::{Challenge, Problem};
+use super::{ChallengeType, jose, key_pair::KeyPair};
 use super::{Directory, Identifier};
 
 use crate::Error;
@@ -40,7 +40,7 @@ impl FetchAuthorizationResponse {
         self.challenges
             .iter()
             .find(|c| c.kind == ctype.to_string())
-            .ok_or_else(|| Error::other(format!("unable to find `{}` challenge", ctype)))
+            .ok_or_else(|| Error::other(format!("unable to find `{ctype}` challenge")))
     }
 }
 
@@ -53,7 +53,11 @@ pub(crate) struct AcmeClient {
 }
 
 impl AcmeClient {
-    pub(crate) async fn new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> crate::Result<Self> {
+    pub(crate) async fn new(
+        directory_url: &str,
+        key_pair: Arc<KeyPair>,
+        contacts: Vec<String>,
+    ) -> crate::Result<Self> {
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
             .expect("no native root CA certificates found")
@@ -71,7 +75,10 @@ impl AcmeClient {
         })
     }
 
-    pub(crate) async fn new_order(&mut self, domains: &[String]) -> crate::Result<NewOrderResponse> {
+    pub(crate) async fn new_order(
+        &mut self,
+        domains: &[String],
+    ) -> crate::Result<NewOrderResponse> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct NewOrderRequest {
@@ -101,7 +108,7 @@ impl AcmeClient {
                 identifiers: domains
                     .iter()
                     .map(|domain| Identifier {
-                        kind: "dns".to_string(),
+                        kind: "dns".to_owned(),
                         value: domain.to_string(),
                     })
                     .collect(),
@@ -113,7 +120,10 @@ impl AcmeClient {
         Ok(res)
     }
 
-    pub(crate) async fn fetch_authorization(&self, auth_url: &str) -> crate::Result<FetchAuthorizationResponse> {
+    pub(crate) async fn fetch_authorization(
+        &self,
+        auth_url: &str,
+    ) -> crate::Result<FetchAuthorizationResponse> {
         tracing::debug!(auth_url, "fetch authorization");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
@@ -207,11 +217,11 @@ async fn get_directory(client: &HyperClient, directory_url: &str) -> crate::Resu
     tracing::debug!("loading directory");
     let directory_url = directory_url
         .parse::<Uri>()
-        .map_err(|e| Error::other(format!("failed to parse directory dir: {}", e)))?;
+        .map_err(|e| Error::other(format!("failed to parse directory dir: {e}")))?;
     let res = client
         .get(directory_url)
         .await
-        .map_err(|e| Error::other(format!("failed to load directory: {}", e)))?;
+        .map_err(|e| Error::other(format!("failed to load directory: {e}")))?;
 
     if !res.status().is_success() {
         return Err(Error::other(format!(
@@ -224,10 +234,10 @@ async fn get_directory(client: &HyperClient, directory_url: &str) -> crate::Resu
         .into_body()
         .collect()
         .await
-        .map_err(|e| Error::other(format!("failed to load body: {}", e)))?
+        .map_err(|e| Error::other(format!("failed to load body: {e}")))?
         .to_bytes();
     let directory = serde_json::from_slice::<Directory>(&data)
-        .map_err(|e| Error::other(format!("failed to load directory: {}", e)))?;
+        .map_err(|e| Error::other(format!("failed to load directory: {e}")))?;
 
     tracing::debug!(
         new_nonce = ?directory.new_nonce,
@@ -244,7 +254,7 @@ async fn get_nonce(client: &HyperClient, nonce_url: &str) -> crate::Result<Strin
     let res = client
         .get(nonce_url.parse::<Uri>()?)
         .await
-        .map_err(|e| Error::other(format!("failed to get nonce: {}", e)))?;
+        .map_err(|e| Error::other(format!("failed to get nonce: {e}")))?;
 
     if !res.status().is_success() {
         return Err(Error::other(format!(

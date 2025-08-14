@@ -139,6 +139,7 @@ impl<T: ToSocketAddrs + Send + 'static> TcpListener<T> {
         #![feature = "socket2"]
         /// Set backlog capacity.
         #[inline]
+    #[must_use]
         pub fn backlog(mut self, backlog: u32) -> Self {
             self.backlog = Some(backlog);
             self

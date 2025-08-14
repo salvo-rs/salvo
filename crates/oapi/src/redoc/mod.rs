@@ -67,6 +67,7 @@ impl ReDoc {
     /// # use salvo_oapi::redoc::ReDoc;
     /// let doc = ReDoc::new("/openapi.json");
     /// ```
+    #[must_use]
     pub fn new(spec_url: impl Into<Cow<'static, str>>) -> Self {
         Self {
             title: "ReDoc".into(),
@@ -78,24 +79,28 @@ impl ReDoc {
     }
 
     /// Set title of the html page. The default title is "Scalar".
+    #[must_use]
     pub fn title(mut self, title: impl Into<Cow<'static, str>>) -> Self {
         self.title = title.into();
         self
     }
 
     /// Set keywords of the html page.
+    #[must_use]
     pub fn keywords(mut self, keywords: impl Into<Cow<'static, str>>) -> Self {
         self.keywords = Some(keywords.into());
         self
     }
 
     /// Set description of the html page.
+    #[must_use]
     pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Set the lib url path.
+    #[must_use]
     pub fn lib_url(mut self, lib_url: impl Into<Cow<'static, str>>) -> Self {
         self.lib_url = lib_url.into();
         self

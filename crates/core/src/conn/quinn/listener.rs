@@ -9,7 +9,6 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::vec;
 
-use futures_util::future::BoxFuture;
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
@@ -44,7 +43,7 @@ where
     /// Bind to socket address.
     #[inline]
     pub fn new(config_stream: S, local_addr: T) -> Self {
-        QuinnListener {
+        Self {
             config_stream,
             local_addr,
             _phantom: PhantomData,
@@ -103,13 +102,13 @@ where
     E: StdError + Send,
 {
     /// Create a new `QuinnAcceptor`.
-    pub fn new(config_stream: S, socket: SocketAddr) -> QuinnAcceptor<S, C, E> {
+    pub fn new(config_stream: S, socket: SocketAddr) -> Self {
         let holding = Holding {
             local_addr: socket.into(),
             http_versions: vec![Version::HTTP_3],
             http_scheme: Scheme::HTTPS,
         };
-        QuinnAcceptor {
+        Self {
             config_stream,
             socket,
             holdings: vec![holding],
@@ -157,9 +156,8 @@ where
             }
             self.endpoint = Some(endpoint);
         }
-        let endpoint = match &self.endpoint {
-            Some(endpoint) => endpoint,
-            None => return Err(IoError::other("quinn: invalid quinn config.")),
+        let Some(endpoint) = &self.endpoint else {
+          return Err(IoError::other("quinn: invalid quinn config."));
         };
 
         if let Some(new_conn) = endpoint.accept().await {

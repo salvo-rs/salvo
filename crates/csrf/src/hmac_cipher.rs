@@ -17,6 +17,7 @@ pub struct HmacCipher {
 impl HmacCipher {
     /// Given an HMAC key, return an `HmacCipher` instance.
     #[inline]
+    #[must_use]
     pub fn new(hmac_key: [u8; 32]) -> Self {
         Self {
             hmac_key,
@@ -26,6 +27,7 @@ impl HmacCipher {
 
     /// Sets the length of the token.
     #[inline]
+    #[must_use]
     pub fn token_size(mut self, token_size: usize) -> Self {
         assert!(token_size >= 8, "length must be larger than 8");
         self.token_size = token_size;

@@ -18,6 +18,7 @@ pub struct CcpCipher {
 impl CcpCipher {
     /// Given an aead key, return an `CcpCipher` instance.
     #[inline]
+    #[must_use]
     pub fn new(aead_key: [u8; 32]) -> Self {
         Self {
             aead_key,
@@ -27,6 +28,7 @@ impl CcpCipher {
 
     /// Sets the length of the token.
     #[inline]
+    #[must_use]
     pub fn token_size(mut self, token_size: usize) -> Self {
         assert!(token_size >= 8, "length must be larger than 8");
         self.token_size = token_size;

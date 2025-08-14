@@ -92,6 +92,7 @@ where
     T: AsRef<str>,
 {
     /// Create a new `DecoderBuilder`.
+    #[must_use]
     pub fn new(issuer: T) -> Self {
         Self {
             issuer,

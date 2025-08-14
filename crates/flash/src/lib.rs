@@ -33,6 +33,7 @@ cfg_feature! {
     pub use session_store::SessionStore;
 
     /// Helper function to create a `SessionStore`.
+    #[must_use]
     pub fn session_store() -> SessionStore {
         SessionStore::new()
     }
