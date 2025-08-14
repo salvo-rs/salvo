@@ -3,15 +3,12 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{Once, once};
 pub use quinn::ServerConfig;
 use salvo_http3::quinn as http3_quinn;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Coupler, HttpBuilder, IntoConfigStream};
