@@ -38,20 +38,17 @@ where
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        async move {
-            match (self, stream) {
-                (Self::A(a), JoinedStream::A(stream)) => {
-                    a.couple(stream, handler, builder, graceful_stop_token)
-                        .await
-                }
-                (Self::B(b), JoinedStream::B(stream)) => {
-                    b.couple(stream, handler, builder, graceful_stop_token)
-                        .await
-                }
-                _ => unreachable!(),
-            }
+        match (self, stream) {
+            (Self::A(a), JoinedStream::A(stream)) => a
+                .couple(stream, handler, builder, graceful_stop_token)
+                .await
+                .boxed(),
+            (Self::B(b), JoinedStream::B(stream)) => b
+                .couple(stream, handler, builder, graceful_stop_token)
+                .await
+                .boxed(),
+            _ => unreachable!(),
         }
-        .boxed()
     }
 }
 
