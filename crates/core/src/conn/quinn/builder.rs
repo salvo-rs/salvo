@@ -231,7 +231,7 @@ async fn process_web_transport(
     stream
         .finish()
         .await
-        .map_err(|e| IoError::other(format!("failed to finish stream : {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to finish stream : {e}")))?;
 
     Ok(Some(conn))
 }
@@ -253,7 +253,7 @@ where
 
     let response = hyper::service::Service::call(&hyper_handler, request)
         .await
-        .map_err(|e| IoError::other(format!("failed to call hyper service : {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to call hyper service : {e}")))?;
 
     let (parts, mut body) = response.into_parts();
     let empty_res = http::Response::from_parts(parts, ());
@@ -288,5 +288,5 @@ where
     }
     tx.finish()
         .await
-        .map_err(|e| IoError::other(format!("failed to finish stream : {}", e)))
+        .map_err(|e| IoError::other(format!("failed to finish stream : {e}")))
 }

@@ -128,20 +128,20 @@ cfg_feature! {
     #![feature = "quinn"]
     impl From<salvo_http3::error::ConnectionError> for Error {
         #[inline]
-        fn from(e: salvo_http3::error::ConnectionError) -> Error {
-            Error::H3Connection(e)
+        fn from(e: salvo_http3::error::ConnectionError) -> Self {
+            Self::H3Connection(e)
         }
     }
     impl From<salvo_http3::error::StreamError> for Error {
         #[inline]
-        fn from(e: salvo_http3::error::StreamError) -> Error {
-            Error::H3Stream(e)
+        fn from(e: salvo_http3::error::StreamError) -> Self {
+            Self::H3Stream(e)
         }
     }
     impl From<h3_datagram::datagram_handler::SendDatagramError> for Error {
         #[inline]
-        fn from(e: h3_datagram::datagram_handler::SendDatagramError) -> Error {
-            Error::H3SendDatagram(e)
+        fn from(e: h3_datagram::datagram_handler::SendDatagramError) -> Self {
+            Self::H3SendDatagram(e)
         }
     }
 }
@@ -158,8 +158,8 @@ cfg_feature! {
     #![feature = "eyre"]
     impl From<eyre::Report> for Error {
         #[inline]
-        fn from(e: eyre::Report) -> Error {
-            Error::Eyre(e)
+        fn from(e: eyre::Report) -> Self {
+            Self::Eyre(e)
         }
     }
 }

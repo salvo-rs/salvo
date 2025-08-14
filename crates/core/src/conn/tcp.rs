@@ -63,7 +63,7 @@ impl<T: ToSocketAddrs + Send + 'static> TcpListener<T> {
     #[cfg(feature = "socket2")]
     #[inline]
     pub fn new(local_addr: T) -> Self {
-        TcpListener {
+        Self {
             local_addr,
             ttl: None,
             backlog: None,

@@ -83,7 +83,7 @@ impl Debug for QuinnCoupler {
 }
 
 impl IntoConfigStream<ServerConfig> for ServerConfig {
-    type Stream = Once<Ready<ServerConfig>>;
+    type Stream = Once<Ready<Self>>;
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))

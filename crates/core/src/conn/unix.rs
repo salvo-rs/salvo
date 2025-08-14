@@ -55,7 +55,7 @@ impl<T> UnixListener<T> {
     #[cfg(feature = "socket2")]
     #[inline]
     pub fn new(path: T) -> UnixListener<T> {
-        UnixListener {
+        Self {
             path,
             permissions: None,
             owner: None,

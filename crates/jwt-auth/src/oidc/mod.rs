@@ -100,11 +100,13 @@ where
         }
     }
     /// Set the http client for the decoder.
+    #[must_use]
     pub fn http_client(mut self, client: HyperClient) -> Self {
         self.http_client = Some(client);
         self
     }
     /// Set the validation options for the decoder.
+    #[must_use]
     pub fn validation(mut self, validation: Validation) -> Self {
         self.validation = Some(validation);
         self

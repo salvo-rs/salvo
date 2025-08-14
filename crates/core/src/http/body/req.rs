@@ -291,8 +291,8 @@ cfg_feature! {
             S: RecvStream + Send + Sync +  Unpin + 'static,
             B: Buf + Send + Sync +  Unpin + 'static,
         {
-            fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Boxed{inner: Box::pin(value), fusewire: None}
+            fn from(value: H3ReqBody<S, B>) -> Self {
+                Self::Boxed{inner: Box::pin(value), fusewire: None}
             }
         }
     }

@@ -37,6 +37,7 @@ impl<T: Debug> Debug for StaticEmbed<T> {
 
 /// Create a new `StaticEmbed` handler for the given embedded asset type.
 #[inline]
+#[must_use]
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
         _assets: PhantomData,
@@ -53,7 +54,7 @@ pub fn render_embedded_file(
     res: &mut Response,
     mime: Option<Mime>,
 ) {
-    let EmbeddedFile { data, metadata, .. } = file;
+    let EmbeddedFile { data, metadata } = file;
     render_embedded_data(data, &metadata, req, res, mime);
 }
 
@@ -193,6 +194,7 @@ where
 {
     /// Create a new `StaticEmbed`.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _assets: PhantomData,
@@ -203,6 +205,7 @@ where
 
     /// Create a new `StaticEmbed` with defaults.
     #[inline]
+    #[must_use]
     pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
@@ -210,6 +213,7 @@ where
 
     /// Create a new `StaticEmbed` with fallback.
     #[inline]
+    #[must_use]
     pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self

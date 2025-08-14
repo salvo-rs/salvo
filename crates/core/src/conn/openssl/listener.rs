@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::future::{BoxFuture, };
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
