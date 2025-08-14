@@ -86,17 +86,19 @@ pub struct QuinnCoupler;
 impl Coupler for QuinnCoupler {
     type Stream = QuinnConnection;
 
-    async fn couple(
+     fn couple(
         &self,
         stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
+        async move {
         builder
             .quinn
             .serve_connection(stream, handler, graceful_stop_token)
             .await
+        }.boxed()
     }
 }
 

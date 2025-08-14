@@ -9,7 +9,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::Stream;
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -95,6 +94,7 @@ where
     C: Coupler<Stream = S>,
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    /// Coupler for couple stream.
     pub coupler: C,
     /// Incoming stream.
     pub stream: S,

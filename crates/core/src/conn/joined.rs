@@ -41,11 +41,9 @@ where
         match (self, stream) {
             (Self::A(a), JoinedStream::A(stream)) => a
                 .couple(stream, handler, builder, graceful_stop_token)
-                .await
                 .boxed(),
             (Self::B(b), JoinedStream::B(stream)) => b
                 .couple(stream, handler, builder, graceful_stop_token)
-                .await
                 .boxed(),
             _ => unreachable!(),
         }
