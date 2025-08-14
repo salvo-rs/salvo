@@ -316,7 +316,7 @@ cfg_feature! {
     }
 }
 
-/// AcmeAcceptor
+/// Acceptor for ACME.
 pub struct AcmeAcceptor<T> {
     config: Arc<AcmeConfig>,
     server_config: Arc<ServerConfig>,
@@ -405,6 +405,7 @@ where
         self.server_config.clone()
     }
 
+    /// Convert this `AcmeAcceptor` into a boxed `DynTcpAcceptor`.
     pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
         Box::new(ToDynTcpAcceptor(self))
     }

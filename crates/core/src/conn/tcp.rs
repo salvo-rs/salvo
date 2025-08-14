@@ -202,7 +202,7 @@ impl TcpAcceptor {
         self.inner.set_ttl(ttl)
     }
 
-    /// Converts this `TcpAcceptor` into a boxed trait object.
+    /// Convert this `TcpAcceptor` into a boxed `DynTcpAcceptor`.
     pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
         Box::new(ToDynTcpAcceptor(self))
     }

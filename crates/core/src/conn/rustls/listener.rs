@@ -132,6 +132,7 @@ where
         &self.inner
     }
 
+    /// Convert this `RustlsAcceptor` into a boxed `DynTcpAcceptor`.
     pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
         Box::new(ToDynTcpAcceptor(self))
     }
