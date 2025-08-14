@@ -151,22 +151,19 @@ where
 {
     type Acceptor = TcpAcceptor;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            let inner = TokioTcpListener::bind(self.local_addr).await?;
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        let inner = TokioTcpListener::bind(self.local_addr).await?;
 
-            #[cfg(feature = "socket2")]
-            if let Some(backlog) = self.backlog {
-                let socket = socket2::SockRef::from(&inner);
-                socket.listen(backlog as _)?;
-            }
-            if let Some(ttl) = self.ttl {
-                inner.set_ttl(ttl)?;
-            }
-
-            Ok(inner.try_into()?)
+        #[cfg(feature = "socket2")]
+        if let Some(backlog) = self.backlog {
+            let socket = socket2::SockRef::from(&inner);
+            socket.listen(backlog as _)?;
         }
-        .boxed()
+        if let Some(ttl) = self.ttl {
+            inner.set_ttl(ttl)?;
+        }
+
+        Ok(inner.try_into()?)
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.

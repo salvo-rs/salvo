@@ -12,10 +12,8 @@ use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{
-    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
-};
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
 
@@ -62,14 +60,11 @@ where
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            Ok(RustlsAcceptor::new(
-                self.config_stream.into_stream().boxed(),
-                self.inner.try_bind().await?,
-            ))
-        }
-        .boxed()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        Ok(RustlsAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 
@@ -92,7 +87,7 @@ impl<S, C, T, E> RustlsAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    T: Acceptor + Send+ 'static,
+    T: Acceptor + Send + 'static,
     E: StdError + Send + 'static,
 {
     /// Create a new `RustlsAcceptor`.

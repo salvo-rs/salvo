@@ -15,7 +15,7 @@ use tokio_rustls::server::TlsStream;
 
 use crate::Router;
 use crate::conn::HandshakeStream;
-use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, Holding, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::Version;
@@ -235,7 +235,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -243,24 +243,21 @@ where
             ..
         } = self;
 
-        async move {
-            let acme_config = config_builder.build()?;
-            let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
-            let server_config = Arc::new(server_config);
-            let tls_acceptor = TlsAcceptor::from(server_config.clone());
-            let inner = inner.try_bind().await?;
-            let acceptor = AcmeAcceptor::new(
-                acme_config,
-                server_config,
-                cert_resolver,
-                inner,
-                tls_acceptor,
-                check_duration,
-            )
-            .await?;
-            Ok(acceptor)
-        }
-        .boxed()
+        let acme_config = config_builder.build()?;
+        let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
+        let server_config = Arc::new(server_config);
+        let tls_acceptor = TlsAcceptor::from(server_config.clone());
+        let inner = inner.try_bind().await?;
+        let acceptor = AcmeAcceptor::new(
+            acme_config,
+            server_config,
+            cert_resolver,
+            inner,
+            tls_acceptor,
+            check_duration,
+        )
+        .await?;
+        Ok(acceptor)
     }
 }
 
@@ -299,8 +296,7 @@ cfg_feature! {
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-         fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-            async move {
+        async fn try_bind(self) -> crate::Result<Self::Acceptor>{
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
@@ -310,7 +306,6 @@ cfg_feature! {
             let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
             Ok(JoinedAcceptor::new(a, b))
-            }.boxed()
         }
     }
 }

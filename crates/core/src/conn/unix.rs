@@ -12,7 +12,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
-use crate::conn::tcp::{ToDynTcpAcceptor, DynTcpAcceptor, TcpCoupler};
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
@@ -97,45 +97,42 @@ where
 {
     type Acceptor = UnixAcceptor;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            let inner = match (self.permissions, self.owner) {
-                (Some(permissions), Some((uid, gid))) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    set_permissions(self.path.clone(), permissions)?;
-                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                    inner
-                }
-                (Some(permissions), None) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    set_permissions(self.path, permissions)?;
-                    inner
-                }
-                (None, Some((uid, gid))) => {
-                    let inner = TokioUnixListener::bind(self.path.clone())?;
-                    chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
-                    inner
-                }
-                (None, None) => TokioUnixListener::bind(self.path)?,
-            };
-
-            #[cfg(feature = "socket2")]
-            if let Some(backlog) = self.backlog {
-                let socket = socket2::SockRef::from(&inner);
-                socket.listen(backlog as _)?;
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        let inner = match (self.permissions, self.owner) {
+            (Some(permissions), Some((uid, gid))) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                set_permissions(self.path.clone(), permissions)?;
+                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
+                inner
             }
+            (Some(permissions), None) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                set_permissions(self.path, permissions)?;
+                inner
+            }
+            (None, Some((uid, gid))) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                chown(self.path.as_ref().as_os_str(), uid, gid).map_err(Error::other)?;
+                inner
+            }
+            (None, None) => TokioUnixListener::bind(self.path)?,
+        };
 
-            let holdings = vec![Holding {
-                local_addr: inner.local_addr()?.into(),
-                #[cfg(not(feature = "http2-cleartext"))]
-                http_versions: vec![Version::HTTP_11],
-                #[cfg(feature = "http2-cleartext")]
-                http_versions: vec![Version::HTTP_11, Version::HTTP_2],
-                http_scheme: Scheme::HTTP,
-            }];
-            Ok(UnixAcceptor { inner, holdings })
+        #[cfg(feature = "socket2")]
+        if let Some(backlog) = self.backlog {
+            let socket = socket2::SockRef::from(&inner);
+            socket.listen(backlog as _)?;
         }
-        .boxed()
+
+        let holdings = vec![Holding {
+            local_addr: inner.local_addr()?.into(),
+            #[cfg(not(feature = "http2-cleartext"))]
+            http_versions: vec![Version::HTTP_11],
+            #[cfg(feature = "http2-cleartext")]
+            http_versions: vec![Version::HTTP_11, Version::HTTP_2],
+            http_scheme: Scheme::HTTP,
+        }];
+        Ok(UnixAcceptor { inner, holdings })
     }
 }
 

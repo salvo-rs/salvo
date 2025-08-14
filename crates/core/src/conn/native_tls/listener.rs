@@ -12,7 +12,7 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
-use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 
@@ -55,18 +55,15 @@ where
     C: TryInto<Identity, Error = E> + Send + 'static,
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
-    E: StdError + Send+ 'static,
+    E: StdError + Send + 'static,
 {
     type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            Ok(NativeTlsAcceptor::new(
-                self.config_stream.into_stream().boxed(),
-                self.inner.try_bind().await?,
-            ))
-        }
-        .boxed()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        Ok(NativeTlsAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 
@@ -135,7 +132,6 @@ where
         Box::new(ToDynTcpAcceptor(self))
     }
 }
-
 
 impl<S, C, T, E> Acceptor for NativeTlsAcceptor<S, C, T, E>
 where

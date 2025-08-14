@@ -15,7 +15,7 @@ use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
 use salvo_http3::quinn::{self, Endpoint};
 
-use super::{QuinnCoupler, QuinnConnection};
+use super::{QuinnConnection, QuinnCoupler};
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
@@ -60,23 +60,20 @@ where
 {
     type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            let Self {
-                config_stream,
-                local_addr,
-                ..
-            } = self;
-            let socket = local_addr
-                .to_socket_addrs()?
-                .next()
-                .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
-            Ok(QuinnAcceptor::new(
-                config_stream.into_stream().boxed(),
-                socket,
-            ))
-        }
-        .boxed()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        let Self {
+            config_stream,
+            local_addr,
+            ..
+        } = self;
+        let socket = local_addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
+        Ok(QuinnAcceptor::new(
+            config_stream.into_stream().boxed(),
+            socket,
+        ))
     }
 }
 

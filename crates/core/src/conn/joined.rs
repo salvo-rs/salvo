@@ -152,19 +152,16 @@ where
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            let a = self.a.try_bind().await?;
-            let b = self.b.try_bind().await?;
-            let holdings = a
-                .holdings()
-                .iter()
-                .chain(b.holdings().iter())
-                .cloned()
-                .collect();
-            Ok(JoinedAcceptor { a, b, holdings })
-        }
-        .boxed()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        let a = self.a.try_bind().await?;
+        let b = self.b.try_bind().await?;
+        let holdings = a
+            .holdings()
+            .iter()
+            .chain(b.holdings().iter())
+            .cloned()
+            .collect();
+        Ok(JoinedAcceptor { a, b, holdings })
     }
 }
 

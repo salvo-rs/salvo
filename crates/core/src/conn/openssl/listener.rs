@@ -16,9 +16,7 @@ use tokio_openssl::SslStream;
 use super::SslAcceptorBuilder;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{
-    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
-};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 
 /// OpensslListener
@@ -63,14 +61,11 @@ where
 {
     type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    fn try_bind(self) -> BoxFuture<'static, crate::Result<Self::Acceptor>> {
-        async move {
-            Ok(OpensslAcceptor::new(
-                self.config_stream.into_stream().boxed(),
-                self.inner.try_bind().await?,
-            ))
-        }
-        .boxed()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        Ok(OpensslAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 
