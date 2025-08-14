@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
@@ -12,13 +13,13 @@ use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, Holding, Listener};
-
 use crate::Router;
 use crate::conn::HandshakeStream;
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 use crate::fuse::ArcFuseFactory;
+use crate::http::Version;
 use crate::http::uri::Scheme;
-use crate::http::{HttpConnection, Version};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
@@ -229,7 +230,7 @@ impl<T> AcmeListener<T> {
 
 impl<T> Listener for AcmeListener<T>
 where
-    T: Listener + Send,
+    T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
@@ -241,8 +242,8 @@ where
             check_duration,
             ..
         } = self;
-        let acme_config = config_builder.build()?;
 
+        let acme_config = config_builder.build()?;
         let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
         let server_config = Arc::new(server_config);
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
@@ -289,13 +290,13 @@ cfg_feature! {
 
     impl<T, A> Listener for AcmeQuinnListener<T, A>
     where
-        T: Listener + Send,
+        T: Listener + Send + 'static,
         T::Acceptor: Send + Unpin + 'static,
-        A: std::net::ToSocketAddrs + Send,
+        A: std::net::ToSocketAddrs + Send + 'static,
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-        async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        async fn try_bind(self) -> crate::Result<Self::Acceptor>{
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
@@ -304,13 +305,12 @@ cfg_feature! {
             let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(crate::Error::other)?;
             let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
-            let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
-            Ok(JoinedAcceptor::new(a, b, holdings))
+            Ok(JoinedAcceptor::new(a, b))
         }
     }
 }
 
-/// AcmeAcceptor
+/// Acceptor for ACME.
 pub struct AcmeAcceptor<T> {
     config: Arc<AcmeConfig>,
     server_config: Arc<ServerConfig>,
@@ -330,7 +330,7 @@ impl<T> Debug for AcmeAcceptor<T> {
 
 impl<T> AcmeAcceptor<T>
 where
-    T: Acceptor + Send,
+    T: Acceptor + Send + 'static,
 {
     pub(crate) async fn new(
         config: impl Into<Arc<AcmeConfig>> + Send,
@@ -398,14 +398,20 @@ where
     pub fn server_config(&self) -> Arc<ServerConfig> {
         self.server_config.clone()
     }
+
+    /// Convert this `AcmeAcceptor` into a boxed `DynTcpAcceptor`.
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
 
-impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
+impl<T> Acceptor for AcmeAcceptor<T>
 where
     T: Acceptor + Send + 'static,
-    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Coupler = TcpCoupler<Self::Stream>;
+    type Stream = HandshakeStream<TlsStream<T::Stream>>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -416,16 +422,19 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let Accepted {
-            conn,
+            coupler: _,
+            stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = conn.fusewire();
         Ok(Accepted {
-            conn: HandshakeStream::new(self.tls_acceptor.accept(conn), fusewire),
+            coupler: TcpCoupler::new(),
+            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

@@ -28,9 +28,9 @@ use tokio_util::sync::CancellationToken;
 use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
+use crate::conn::{Accepted, Coupler, Acceptor, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
-use crate::http::{HeaderValue, HttpConnection, Version};
+use crate::http::{HeaderValue,  Version};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -287,20 +287,20 @@ impl<A: Acceptor + Send> Server<A> {
                 tokio::select! {
                     accepted = acceptor.accept(fuse_factory.clone()) => {
                         match accepted {
-                            Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme, ..}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
                                 let alive_connections = alive_connections.clone();
                                 let notify = notify.clone();
-                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, conn.fusewire(), alt_svc_h3.clone());
+                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, fusewire, alt_svc_h3.clone());
                                 let builder = builder.clone();
 
                                 let force_stop_token = force_stop_token.clone();
                                 let graceful_stop_token = graceful_stop_token.clone();
 
                                 tokio::spawn(async move {
-                                    let conn = conn.serve(handler, builder, Some(graceful_stop_token.clone()));
+                                    let conn = coupler.couple(stream, handler, builder, Some(graceful_stop_token.clone()));
                                     tokio::select! {
                                         _ = conn => {
                                         },
@@ -396,18 +396,22 @@ impl<A: Acceptor + Send> Server<A> {
         loop {
             match acceptor.accept(fuse_factory.clone()).await {
                 Ok(Accepted {
-                    conn,
+                    coupler,
+                    stream,
+                    fusewire,
                     local_addr,
                     remote_addr,
                     http_scheme,
                     ..
                 }) => {
+                    use crate::fuse;
+
                     let service = service.clone();
                     let handler = service.hyper_handler(
                         local_addr,
                         remote_addr,
                         http_scheme,
-                        conn.fusewire(),
+                        fusewire,
                         alt_svc_h3.clone(),
                     );
                     let builder = builder.clone();

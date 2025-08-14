@@ -39,7 +39,7 @@ mod tests {
             stream.write_i32(10).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
-        assert_eq!(conn.read_i32().await.unwrap(), 10);
+        let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 10);
     }
 }

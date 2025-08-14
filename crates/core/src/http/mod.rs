@@ -22,38 +22,6 @@ pub use response::Response;
 
 pub use http::version::Version;
 
-use std::io::Result as IoResult;
-use std::sync::Arc;
-
-use tokio_util::sync::CancellationToken;
-
-use crate::conn::HttpBuilder;
-use crate::fuse::ArcFusewire;
-use crate::service::HyperHandler;
-
-/// A helper trait for http connection.
-pub trait HttpConnection {
-    /// Serve this http connection.
-    fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> impl Future<Output = IoResult<()>> + Send;
-
-    /// Get the fusewire of this connection.
-    fn fusewire(&self) -> Option<ArcFusewire>;
-}
-
-// /// Get Http version from alpha.
-// pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
-//     if proto.as_ref().windows(2).any(|window| window == b"h2") {
-//         Version::HTTP_2
-//     } else {
-//         Version::HTTP_11
-//     }
-// }
-
 #[doc(hidden)]
 #[must_use]
 pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {

@@ -11,6 +11,7 @@ use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::Error;
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
@@ -91,7 +92,7 @@ impl<T> UnixListener<T> {
 
 impl<T> Listener for UnixListener<T>
 where
-    T: AsRef<Path> + Send + Clone,
+    T: AsRef<Path> + Send + Clone + 'static,
 {
     type Acceptor = UnixAcceptor;
 
@@ -134,7 +135,7 @@ where
     }
 }
 
-/// `UnixAcceptor` is used to accept a Unix socket connection.
+/// Used to accept a Unix socket connection.
 #[derive(Debug)]
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
@@ -142,15 +143,16 @@ pub struct UnixAcceptor {
 }
 
 impl UnixAcceptor {
-    /// Get the inner `TokioUnixListener`.
-    pub fn inner(&self) -> &TokioUnixListener {
-        &self.inner
+    /// Convert the `UnixAcceptor` into a boxed `DynTcpAcceptor`.
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
     }
 }
 
 #[cfg(unix)]
 impl Acceptor for UnixAcceptor {
-    type Conn = StraightStream<UnixStream>;
+    type Coupler = TcpCoupler<Self::Stream>;
+    type Stream = StraightStream<UnixStream>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -161,21 +163,21 @@ impl Acceptor for UnixAcceptor {
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<TcpCoupler<Self::Stream>, Self::Stream>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| {
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
+            let fusewire = fuse_factory.map(|f| {
+                f.create(FuseInfo {
+                    trans_proto: TransProto::Tcp,
+                    remote_addr: remote_addr.clone().into(),
+                    local_addr: local_addr.clone(),
+                })
+            });
             Accepted {
-                conn: StraightStream::new(
-                    conn,
-                    fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.clone().into(),
-                            local_addr: local_addr.clone(),
-                        })
-                    }),
-                ),
+                coupler: TcpCoupler::new(),
+                stream: StraightStream::new(conn, fusewire.clone()),
+                fusewire,
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,
@@ -201,8 +203,8 @@ mod tests {
             stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted { mut conn, .. } = acceptor.accept(None).await.unwrap();
-        assert_eq!(conn.read_i32().await.unwrap(), 518);
+        let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }
 }

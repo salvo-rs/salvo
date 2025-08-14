@@ -82,7 +82,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "length must be between 1 and 72")]
     fn test_bcrypt_cipher_with_invalid_token_size() {
-        BcryptCipher::new().token_size(0);
+        let _ = BcryptCipher::new().token_size(0);
     }
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "cost must be between 4 and 31")]
     fn test_bcrypt_cipher_with_invalid_cost() {
-        BcryptCipher::new().cost(32);
+        let _ = BcryptCipher::new().cost(32);
     }
 
     #[test]

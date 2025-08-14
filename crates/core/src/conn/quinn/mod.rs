@@ -1,21 +1,21 @@
 //! `QuinnListener` and utils.
+use std::fmt::{self, Debug, Formatter};
 use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
-use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{Once, once};
 pub use quinn::ServerConfig;
 use salvo_http3::quinn as http3_quinn;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::conn::{HttpBuilder, IntoConfigStream};
+use crate::conn::{Coupler, HttpBuilder, IntoConfigStream};
 use crate::fuse::ArcFusewire;
-use crate::http::HttpConnection;
 
 use crate::service::HyperHandler;
 
@@ -25,11 +25,12 @@ mod listener;
 pub use listener::{QuinnAcceptor, QuinnListener};
 
 /// Http3 Connection.
-pub struct H3Connection {
+#[allow(dead_code)]
+pub struct QuinnConnection {
     inner: http3_quinn::Connection,
     fusewire: Option<ArcFusewire>,
 }
-impl H3Connection {
+impl QuinnConnection {
     pub(crate) fn new(inner: http3_quinn::Connection, fusewire: Option<ArcFusewire>) -> Self {
         Self { inner, fusewire }
     }
@@ -38,23 +39,23 @@ impl H3Connection {
         self.inner
     }
 }
-impl Debug for H3Connection {
+impl Debug for QuinnConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("H3Connection").finish()
+        f.debug_struct("QuinnConnection").finish()
     }
 }
-impl Deref for H3Connection {
+impl Deref for QuinnConnection {
     type Target = http3_quinn::Connection;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
-impl DerefMut for H3Connection {
+impl DerefMut for QuinnConnection {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
-impl AsyncRead for H3Connection {
+impl AsyncRead for QuinnConnection {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
@@ -64,7 +65,7 @@ impl AsyncRead for H3Connection {
     }
 }
 
-impl AsyncWrite for H3Connection {
+impl AsyncWrite for QuinnConnection {
     fn poll_write(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
@@ -82,20 +83,29 @@ impl AsyncWrite for H3Connection {
     }
 }
 
-impl HttpConnection for H3Connection {
-    async fn serve(
-        self,
+/// QUIC connection coupler.
+pub struct QuinnCoupler;
+impl Coupler for QuinnCoupler {
+    type Stream = QuinnConnection;
+
+     fn couple(
+        &self,
+        stream: Self::Stream,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
-    ) -> IoResult<()> {
+    ) -> BoxFuture<'static, IoResult<()>> {
+        async move {
         builder
             .quinn
-            .serve_connection(self, handler, graceful_stop_token)
+            .serve_connection(stream, handler, graceful_stop_token)
             .await
+        }.boxed()
     }
-    fn fusewire(&self) -> Option<ArcFusewire> {
-        self.fusewire.clone()
+}
+impl Debug for QuinnCoupler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuinnCoupler").finish()
     }
 }
 

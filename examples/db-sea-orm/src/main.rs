@@ -213,6 +213,6 @@ async fn main() {
         ))));
 
     // Start server
-    let acceptor = TcpListener::new(&server_url).bind().await;
+    let acceptor = TcpListener::new(server_url).bind().await;
     Server::new(acceptor).serve(router).await;
 }

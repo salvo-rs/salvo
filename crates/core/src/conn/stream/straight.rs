@@ -1,17 +1,12 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, IoSlice, Result as IoResult};
+use std::io::{IoSlice, Result as IoResult};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_util::sync::CancellationToken;
 
-use crate::conn::HttpBuilder;
 use crate::fuse::{ArcFusewire, FuseEvent};
-use crate::http::HttpConnection;
-use crate::service::HyperHandler;
 
 /// A stream that can be fused.
 #[pin_project]
@@ -34,30 +29,6 @@ where
     /// Create a new `StraightStream`.
     pub fn new(inner: C, fusewire: Option<ArcFusewire>) -> Self {
         Self { inner, fusewire }
-    }
-}
-
-impl<C> HttpConnection for StraightStream<C>
-where
-    C: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    async fn serve(
-        self,
-        handler: HyperHandler,
-        builder: Arc<HttpBuilder>,
-        graceful_stop_token: Option<CancellationToken>,
-    ) -> std::io::Result<()> {
-        let fusewire = self.fusewire.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
-        builder
-            .serve_connection(self, handler, fusewire, graceful_stop_token)
-            .await
-            .map_err(IoError::other)
-    }
-    fn fusewire(&self) -> Option<ArcFusewire> {
-        self.fusewire.clone()
     }
 }
 

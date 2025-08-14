@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
 use http::uri::Scheme;
@@ -14,9 +15,9 @@ use tokio_openssl::SslStream;
 
 use super::SslAcceptorBuilder;
 
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
-use crate::http::HttpConnection;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -54,9 +55,9 @@ impl<S, C, T, E> Listener for OpensslListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
-    T: Listener + Send,
+    T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
-    E: StdError + Send,
+    E: StdError + Send + 'static,
 {
     type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
@@ -85,10 +86,10 @@ impl<S, C, T, E> Debug for OpensslAcceptor<S, C, T, E> {
 }
 impl<S, C, T, E> OpensslAcceptor<S, C, T, E>
 where
-    S: Stream<Item = C> + Send + 'static,
+    S: Stream<Item = C> + Unpin + Send + 'static,
     C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
-    T: Acceptor + Send,
-    E: StdError + Send,
+    T: Acceptor + Send + 'static,
+    E: StdError + Send + 'static,
 {
     /// Create new OpensslAcceptor.
     pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T, E> {
@@ -126,6 +127,11 @@ where
     pub fn inner(&self) -> &T {
         &self.inner
     }
+
+    /// Convert this `OpoensslAcceptor` into a boxed `DynTcpAcceptor`.
+    pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
+        Box::new(ToDynTcpAcceptor(self))
+    }
 }
 
 impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
@@ -135,7 +141,8 @@ where
     T: Acceptor + Send + 'static,
     E: StdError + Send,
 {
-    type Conn = HandshakeStream<SslStream<T::Conn>>;
+    type Coupler = TcpCoupler<Self::Stream>;
+    type Stream = HandshakeStream<SslStream<T::Stream>>;
 
     /// Get the local address bound to this listener.
     fn holdings(&self) -> &[Holding] {
@@ -145,7 +152,7 @@ where
     async fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
-    ) -> IoResult<Accepted<Self::Conn>> {
+    ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let config = {
             let mut config = None;
             while let Poll::Ready(Some(item)) = self
@@ -175,15 +182,16 @@ where
         };
 
         let Accepted {
-            conn,
+            coupler: _,
+            stream,
+            fusewire,
             local_addr,
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
-        let fusewire = conn.fusewire();
         let conn = async move {
             let ssl = Ssl::new(tls_acceptor.context()).map_err(IoError::other)?;
-            let mut tls_stream = SslStream::new(ssl, conn).map_err(IoError::other)?;
+            let mut tls_stream = SslStream::new(ssl, stream).map_err(IoError::other)?;
             std::pin::Pin::new(&mut tls_stream)
                 .accept()
                 .await
@@ -192,7 +200,9 @@ where
         };
 
         Ok(Accepted {
-            conn: HandshakeStream::new(conn, fusewire),
+            coupler: TcpCoupler::new(),
+            stream: HandshakeStream::new(conn, fusewire.clone()),
+            fusewire,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,
