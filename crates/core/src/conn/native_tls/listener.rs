@@ -13,7 +13,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::conn::tcp::{DynTcpAcceptor,TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{Accepted, Coupler, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 
 use super::Identity;

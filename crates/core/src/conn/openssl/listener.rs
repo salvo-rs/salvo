@@ -17,7 +17,7 @@ use super::SslAcceptorBuilder;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{
-    Accepted, Acceptor, Coupler, HandshakeStream, Holding, IntoConfigStream, Listener,
+    Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener,
 };
 use crate::fuse::ArcFuseFactory;
 

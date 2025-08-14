@@ -147,6 +147,7 @@ pub struct UnixAcceptor {
 }
 
 impl UnixAcceptor {
+    /// Convert the `UnixAcceptor` into a boxed `DynTcpAcceptor`.
     pub fn into_boxed(self) -> Box<dyn DynTcpAcceptor> {
         Box::new(ToDynTcpAcceptor(self))
     }

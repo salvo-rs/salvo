@@ -322,8 +322,12 @@ where
     }
 }
 
+/// Dynamic TCP acceptor trait.
 pub trait DynTcpAcceptor: Send {
+    /// Returns the holdings of the acceptor.
     fn holdings(&self) -> &[Holding];
+
+    /// Accept a new connection.
     fn accept(
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
@@ -347,6 +351,7 @@ impl Acceptor for dyn DynTcpAcceptor {
     }
 }
 
+/// Convert an `Acceptor` into a boxed `DynTcpAcceptor`.
 pub struct ToDynTcpAcceptor<A>(pub A);
 impl<A: Acceptor + 'static> DynTcpAcceptor for ToDynTcpAcceptor<A> {
     #[inline]
@@ -364,6 +369,14 @@ impl<A: Acceptor + 'static> DynTcpAcceptor for ToDynTcpAcceptor<A> {
             Ok(accepted.map_into(|_| TcpCoupler::new(), DynStream::new))
         }
         .boxed()
+    }
+}
+
+impl<A: Debug> Debug for ToDynTcpAcceptor<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ToDynTcpAcceptor")
+            .field("inner", &self.0)
+            .finish()
     }
 }
 

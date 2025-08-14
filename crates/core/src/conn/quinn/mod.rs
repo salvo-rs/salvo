@@ -25,6 +25,7 @@ mod listener;
 pub use listener::{QuinnAcceptor, QuinnListener};
 
 /// Http3 Connection.
+#[allow(dead_code)]
 pub struct QuinnConnection {
     inner: http3_quinn::Connection,
     fusewire: Option<ArcFusewire>,
@@ -82,6 +83,7 @@ impl AsyncWrite for QuinnConnection {
     }
 }
 
+/// QUIC connection coupler.
 pub struct QuinnCoupler;
 impl Coupler for QuinnCoupler {
     type Stream = QuinnConnection;
@@ -99,6 +101,11 @@ impl Coupler for QuinnCoupler {
             .serve_connection(stream, handler, graceful_stop_token)
             .await
         }.boxed()
+    }
+}
+impl Debug for QuinnCoupler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuinnCoupler").finish()
     }
 }
 
