@@ -14,6 +14,8 @@ If your project isn't listed here and you would like it to be, please feel free 
 ## Project showcase
 
 - [AI00 RWKV Server](https://github.com/Ai00-X/ai00_server): AI00 RWKV Server is an inference API server based on the RWKV model..
+- [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
+- [dora](https://github.com/dora-rs/dora): Making robotic applications fast and simple!
 - [Salvo Admin](https://github.com/lyqgit/salvo-admin): 基于salvo和Ruoyi-Vue3的rust快速开发框架.
 - [Salvo Admin](https://github.com/feihua/salvo-admin): 基于salvo和rbatis的rbac权限管理系统.
 - [Geospatial Web](https://gitlab.com/geospatialweb/rust-mvt-postgis): Rust REST API - Martin MVT Tile Server - PostGIS.
@@ -25,7 +27,6 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [myblog](https://github.com/driftluo/myblog): This is my personal blog.
 - [opensound](https://github.com/opensound-org/opensound): Pro-Audio system engine, using `salvo` as the default HTTP server backend（专业音频系统引擎，使用`salvo`作为默认HTTP服务器后端）.
 - [static-api](https://github.com/josejachuf/static-api-rs): This is a simple application emulating a basic REST API.
-- [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
 - [yiirs](https://github.com/shenghui0779/yiirs): Rust API 快速开发脚手架 (Salvo & Axum).
 - [luxy](https://github.com/alley-rs/fluxy): Software for fast file transfer between terminals in the same network segment.
 - [ffxiv-best-craft](https://github.com/Tnze/ffxiv-best-craft): A crafting simulator and solver for FF14 with friendly GUI.
