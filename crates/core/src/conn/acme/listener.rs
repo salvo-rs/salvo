@@ -309,8 +309,7 @@ cfg_feature! {
             let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(crate::Error::other)?;
             let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
-            let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
-            Ok(JoinedAcceptor::new(a, b, holdings))
+            Ok(JoinedAcceptor::new(a, b))
             }.boxed()
         }
     }

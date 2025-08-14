@@ -8,14 +8,16 @@ use std::vec;
 use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
-use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
 use crate::conn::{Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
+
+use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
 
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 use crate::conn::IntoConfigStream;
@@ -371,11 +373,55 @@ impl<A: Acceptor + 'static> DynTcpAcceptor for ToDynTcpAcceptor<A> {
         .boxed()
     }
 }
-
 impl<A: Debug> Debug for ToDynTcpAcceptor<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("ToDynTcpAcceptor")
             .field("inner", &self.0)
+            .finish()
+    }
+}
+
+pub struct DynTcpAcceptors {
+    inners: Vec<Box<dyn DynTcpAcceptor>>,
+    holdings: Vec<Holding>,
+}
+impl DynTcpAcceptors {
+    pub fn new(inners: Vec<Box<dyn DynTcpAcceptor>>) -> Self {
+        let holdings = inners
+            .iter()
+            .flat_map(|inner| inner.holdings())
+            .cloned()
+            .collect();
+        Self { inners, holdings }
+    }
+}
+impl DynTcpAcceptor for DynTcpAcceptors {
+    #[inline]
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
+    }
+
+    #[inline]
+    fn accept(
+        &mut self,
+        fuse_factory: Option<ArcFuseFactory>,
+    ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
+        async move {
+            let mut set = Vec::new();
+            for inner in &mut self.inners {
+                let fuse_factory = fuse_factory.clone();
+                set.push(async move { inner.accept(fuse_factory).await }.boxed());
+            }
+            futures_util::future::select_all(set.into_iter())
+                .await.0
+        }
+        .boxed()
+    }
+}
+impl Debug for DynTcpAcceptors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DynTcpAcceptors")
+            .field("holdings", &self.holdings)
             .finish()
     }
 }

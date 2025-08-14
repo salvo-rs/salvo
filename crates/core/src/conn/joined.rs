@@ -185,9 +185,19 @@ impl<A: Debug, B: Debug> Debug for JoinedAcceptor<A, B> {
     }
 }
 
-impl<A, B> JoinedAcceptor<A, B> {
+impl<A, B> JoinedAcceptor<A, B>
+where
+    A: Acceptor,
+    B: Acceptor,
+{
     /// Create a new `JoinedAcceptor`.
-    pub fn new(a: A, b: B, holdings: Vec<Holding>) -> Self {
+    pub fn new(a: A, b: B) -> Self {
+        let holdings = a
+            .holdings()
+            .iter()
+            .chain(b.holdings().iter())
+            .cloned()
+            .collect();
         Self { a, b, holdings }
     }
 }
