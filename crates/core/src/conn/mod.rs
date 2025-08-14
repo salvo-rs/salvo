@@ -98,6 +98,7 @@ where
     pub coupler: C,
     /// Incoming stream.
     pub stream: S,
+    /// Fusewire for the connection.
     pub fusewire: Option<ArcFusewire>,
     /// Local addr.
     pub local_addr: SocketAddr,
@@ -246,6 +247,7 @@ impl Display for Holding {
 }
 /// A trait for couple http stream.
 pub trait Coupler: Send {
+    /// Connection stream type.
     type Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static;
 
     /// Couple http connection.

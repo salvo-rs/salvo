@@ -11,7 +11,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Coupler, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, ArcFusewire};
+use crate::fuse::ArcFuseFactory;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};

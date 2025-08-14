@@ -292,7 +292,8 @@ where
                 .serve_connection(stream, handler, fusewire, graceful_stop_token)
                 .await
                 .map_err(IoError::other)
-        }.boxed()
+        }
+        .boxed()
     }
 }
 
