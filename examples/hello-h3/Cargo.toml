@@ -3,6 +3,7 @@ name = "example-hello-h3"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 salvo = { workspace = true, features = ["quinn"] }

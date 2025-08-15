@@ -3,7 +3,7 @@ name = "example-size-limiter"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-
+rust-version.workspace = true
 
 [dependencies]
 salvo = { workspace = true, features = ["size-limiter"]}

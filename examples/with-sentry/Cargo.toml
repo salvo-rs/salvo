@@ -3,11 +3,12 @@ name = "example-with-sentry"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 sentry = { version = "0.34.0", features = ["tower"] }
 sentry-tower = { version = "0.34.0", features = ["http"] }
-sentry-tracing = "0.34.0"
+sentry-tracing = "0.42.0"
 tokio = { workspace = true, features = ["macros"] }
 salvo = { workspace = true, features = ["tower-compat"] }
 tracing.workspace = true
