@@ -3,7 +3,7 @@ name = "example-extract-with-lifetimes"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-
+rust-version.workspace = true
 
 [dependencies]
 salvo = { workspace = true }

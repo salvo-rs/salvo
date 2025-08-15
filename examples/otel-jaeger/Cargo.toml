@@ -3,6 +3,7 @@ name = "example-otel-jaeger"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "example-otel-client"

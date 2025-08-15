@@ -3,6 +3,7 @@ name = "example-template-askama"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 askama = "0.11"

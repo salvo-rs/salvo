@@ -3,7 +3,7 @@ name = "example-tls-rustls-reload"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-
+rust-version.workspace = true
 
 [dependencies]
 async-stream.workspace = true

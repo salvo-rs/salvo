@@ -3,7 +3,7 @@ name = "example-routing-guid"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-
+rust-version.workspace = true
 
 [dependencies]
 regex = "1"

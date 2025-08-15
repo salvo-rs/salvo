@@ -3,7 +3,7 @@ name = "example-jwt-clerk"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-
+rust-version.workspace = true
 
 [dependencies]
 anyhow = "1"
