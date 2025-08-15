@@ -7,8 +7,8 @@
 //! # Example
 //!
 //! In this example, requests to different hosts are proxied to different upstream servers:
-//! - Requests to http://127.0.0.1:5800/ are proxied to https://www.rust-lang.org
-//! - Requests to http://localhost:5800/ are proxied to https://crates.io
+//! - Requests to <http://127.0.0.1:5800/> are proxied to <https://www.rust-lang.org>
+//! - Requests to <http://localhost:5800/> are proxied to <https://crates.io>
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
