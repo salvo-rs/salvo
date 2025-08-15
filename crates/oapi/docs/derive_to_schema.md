@@ -173,7 +173,7 @@ enum Card {
   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 * `additional_properties = ...` Can be used to define free form types for maps such as
-  [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
+  [`HashMap`] and [`BTreeMap`].
   Free form type enables use of arbitrary types within map values.
   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but

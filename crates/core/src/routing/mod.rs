@@ -7,7 +7,7 @@
 //! The interior of [`Router`] is actually composed of a series of filters. When a request comes, the route will
 //! test itself and its descendants in order to see if they can match the request in the order they were added, and
 //! then execute the middleware on the entire chain formed by the route and its descendants in sequence. If the
-//! status of [`Response`] is set to error (4XX, 5XX) or jump (3XX) during processing, the subsequent middleware and
+//! status of [`Response`](crate::http::Response) is set to error (4XX, 5XX) or jump (3XX) during processing, the subsequent middleware and
 //! [`Handler`] will be skipped. You can also manually adjust `ctrl.skip_rest()` to skip subsequent middleware and
 //! [`Handler`].
 //!

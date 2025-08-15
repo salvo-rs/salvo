@@ -4,7 +4,7 @@ This is `#[derive]` implementation for [`ToParameters`][to_parameters] trait.
 
 Typically path parameters need to be defined within `#[salvo_oapi::endpoint(...parameters(...))]` section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
-Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
+Still [`std::primitive`] and [`String`] path parameters or [`tuple`] style path parameters need to be defined
 within `parameters(...)` section if description or other than default configuration need to be given.
 
 You can use the Rust's own `#[deprecated]` attribute on field to mark it as
@@ -125,7 +125,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 
 * `additional_properties = ...` Can be used to define free form types for maps such as
-  [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
+  [`HashMap`] and [`BTreeMap`].
   Free form type enables use of arbitrary types within map values.
   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 

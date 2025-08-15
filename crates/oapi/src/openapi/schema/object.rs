@@ -15,7 +15,7 @@ use crate::{Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, ToArra
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    /// Type of [`Object`] e.g. [`Type::Object`] for `object` and [`Type::String`] for
+    /// Type of [`Object`] e.g. [`BasicType::Object`][crate::BasicType] for `object` and [`BasicType::String`][crate::BasicType] for
     /// `string` types.
     #[serde(rename = "type", skip_serializing_if = "SchemaType::is_any_value")]
     pub schema_type: SchemaType,

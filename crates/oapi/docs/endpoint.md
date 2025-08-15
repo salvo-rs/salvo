@@ -199,8 +199,7 @@ _**Example request body definitions.**_
 * `description = ...` Define description of the link. Value supports Markdown syntax.Value can be be [`str`] or
   an expression such as [`include_str!`][include_str] or static [`const`][const] reference.
 
-* `server(...)` Define [Server][server] object to be used by the target operation. See
-  [server syntax][server_derive_syntax]
+* `server(...)` Define [Server][server] object to be used by the target operation.
 
 **Links syntax example:** See the full example below in [examples](#examples).
 ```text
@@ -544,3 +543,5 @@ async fn get_user() -> Json<User> {
 [to_response_trait]: trait.ToResponse.html
 [known_format]: enum.KnownFormat.html
 [xml]: struct.Xml.html
+[const]: https://doc.rust-lang.org/std/keyword.const.html
+[expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
