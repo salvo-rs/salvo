@@ -53,6 +53,7 @@ impl Logger {
     ///
     /// **Note**: If you have handled the error before logging and the body is not [`ResBody::Error`],
     /// the error information cannot be recorded.
+     #[must_use]
     pub fn log_status_error(mut self, log_status_error: bool) -> Self {
         self.log_status_error = log_status_error;
         self
