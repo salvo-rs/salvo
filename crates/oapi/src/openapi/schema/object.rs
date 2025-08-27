@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::AdditionalProperties;
-use crate::{Deprecated, Array, PropMap, RefOr, Schema, SchemaFormat, SchemaType, Xml};
+use crate::{Array, Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, Xml};
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
@@ -392,6 +392,7 @@ impl Object {
     }
 
     /// Convert type to [`Array`].
+    #[must_use]
     pub fn to_array(self) -> Array {
         Array::new().items(self)
     }
