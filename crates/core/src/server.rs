@@ -404,8 +404,6 @@ impl<A: Acceptor + Send> Server<A> {
                     http_scheme,
                     ..
                 }) => {
-                    use crate::fuse;
-
                     let service = service.clone();
                     let handler = service.hyper_handler(
                         local_addr,
@@ -417,7 +415,7 @@ impl<A: Acceptor + Send> Server<A> {
                     let builder = builder.clone();
 
                     tokio::spawn(async move {
-                        let _ = conn.serve(handler, builder, None).await;
+                        let _ = coupler.couple(stream, handler, builder, None).await;
                     });
                 }
                 Err(e) => {
