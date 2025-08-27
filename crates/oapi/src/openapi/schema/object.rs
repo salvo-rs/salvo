@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::AdditionalProperties;
-use crate::{Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, ToArray, Xml};
+use crate::{Deprecated, Array, PropMap, RefOr, Schema, SchemaFormat, SchemaType, Xml};
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
@@ -390,6 +390,11 @@ impl Object {
         self.content_media_type = content_media_type.into();
         self
     }
+
+    /// Convert type to [`Array`].
+    pub fn to_array(self) -> Array {
+        Array::new().items(self)
+    }
 }
 
 impl From<Object> for Schema {
@@ -398,7 +403,7 @@ impl From<Object> for Schema {
     }
 }
 
-impl ToArray for Object {}
+// impl ToArray for Object {}
 
 impl From<Object> for RefOr<Schema> {
     fn from(obj: Object) -> Self {

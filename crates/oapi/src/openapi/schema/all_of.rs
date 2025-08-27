@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Discriminator, PropMap, RefOr, Schema, SchemaType};
+use crate::{Discriminator, Array, PropMap, RefOr, Schema, SchemaType};
 
 /// AllOf [Composite Object][allof] component holds
 /// multiple components together where API endpoint will return a combination of all of them.
@@ -152,6 +152,11 @@ impl AllOf {
     pub fn add_extension<K: Into<String>>(mut self, key: K, value: serde_json::Value) -> Self {
         self.extensions.insert(key.into(), value);
         self
+    }
+
+    /// Convert type to [`Array`].
+    pub fn to_array(self) -> Array {
+        Array::new().items(self)
     }
 }
 

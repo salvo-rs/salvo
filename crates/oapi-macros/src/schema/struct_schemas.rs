@@ -478,9 +478,9 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
             tokens.extend(quote! {
-            .to_array_builder()
-                .max_items(Some(#fields_len))
-                .min_items(Some(#fields_len))
+            .to_array()
+                .max_items(#fields_len)
+                .min_items(#fields_len)
                 #description
             })
         }

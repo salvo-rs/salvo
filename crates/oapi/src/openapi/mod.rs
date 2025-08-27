@@ -42,7 +42,7 @@ pub use self::{
     response::{Response, Responses},
     schema::{
         Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat,
-        SchemaType, Schemas, ToArray,
+        SchemaType, Schemas,
     },
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
