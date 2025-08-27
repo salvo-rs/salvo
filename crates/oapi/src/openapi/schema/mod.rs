@@ -336,6 +336,7 @@ impl Ref {
     }
 
     /// Convert type to [`Array`].
+    #[must_use]
     pub fn to_array(self) -> Array {
         Array::new().items(self)
     }
@@ -601,7 +602,7 @@ pub enum KnownFormat {
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::*;

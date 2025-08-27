@@ -39,7 +39,7 @@ pub(crate) async fn issue_cert(
                             let key_authorization =
                                 jose::key_authorization(&config.key_pair, &challenge.token)?;
                             let mut keys = keys.write();
-                            keys.insert(challenge.token.to_string(), key_authorization);
+                            keys.insert(challenge.token.clone(), key_authorization);
                         }
                     }
                     ChallengeType::TlsAlpn01 => {
@@ -52,7 +52,7 @@ pub(crate) async fn issue_cert(
                         resolver
                             .acme_keys
                             .write()
-                            .insert(res.identifier.value.to_string(), Arc::new(auth_key));
+                            .insert(res.identifier.value.clone(), Arc::new(auth_key));
                     }
                 }
                 client

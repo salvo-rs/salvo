@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::SchemaType;
-use crate::{Discriminator, Array, PropMap, RefOr, Schema};
+use crate::{Array, Discriminator, PropMap, RefOr, Schema};
 
 /// AnyOf [Composite Object][allof] component holds
 /// multiple components together where API endpoint will return a combination of all of them.
@@ -155,6 +155,7 @@ impl AnyOf {
     }
 
     /// Convert type to [`Array`].
+    #[must_use]
     pub fn to_array(self) -> Array {
         Array::new().items(self)
     }
