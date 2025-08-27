@@ -208,19 +208,19 @@ impl From<Array> for RefOr<Schema> {
     }
 }
 
-impl ToArray for Array {}
+// impl ToArray for Array {}
 
-/// Trait for converting a type to [`Array`].
-pub trait ToArray
-where
-    RefOr<Schema>: From<Self>,
-    Self: Sized,
-{
-    /// Convert a type to [`Array`].
-    fn to_array(self) -> Array {
-        Array::new().items(self)
-    }
-}
+// /// Trait for converting a type to [`Array`].
+// pub trait ToArray
+// where
+//     RefOr<Schema>: From<Self>,
+//     Self: Sized,
+// {
+//     /// Convert a type to [`Array`].
+//     pub fn to_array(self) -> Array {
+//         Array::new().items(self)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

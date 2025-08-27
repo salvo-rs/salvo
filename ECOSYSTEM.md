@@ -23,7 +23,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [ALLEY](https://github.com/alley-rs/alley-transfer): Software for fast file transfer between terminals in the same network segment.
 - [musicbot](https://github.com/AdrienPensart/musicbot): Music swiss army knife.
 - [Replex](https://github.com/lostb1t/replex): Remix your Plex recommendations.
-- [Pure Rust Instant Message(PRIM)](https://github.com/SuanCaiYv/prim): 使用纯Rust实现的即时通讯系统.
+- [Pure Rust Instant Message(PRIM)](https://github.com/SuanCaiYv/prim): 使用纯Rust实现的即时通讯系统. 
 - [rblog](https://github.com/prabirshrestha/rblog): Blog engine written in rust.
 - [myblog](https://github.com/driftluo/myblog): This is my personal blog.
 - [opensound](https://github.com/opensound-org/opensound): Pro-Audio system engine, using `salvo` as the default HTTP server backend（专业音频系统引擎，使用`salvo`作为默认HTTP服务器后端）.

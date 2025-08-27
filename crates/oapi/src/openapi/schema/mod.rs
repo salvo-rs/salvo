@@ -10,7 +10,7 @@ mod one_of;
 
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
-pub use array::{Array, ToArray};
+pub use array::Array;
 pub use object::Object;
 pub use one_of::OneOf;
 
@@ -334,6 +334,11 @@ impl Ref {
         self.summary = summary.into();
         self
     }
+
+    /// Convert type to [`Array`].
+    pub fn to_array(self) -> Array {
+        Array::new().items(self)
+    }
 }
 
 impl From<Ref> for RefOr<Schema> {
@@ -354,7 +359,7 @@ impl Default for RefOr<Schema> {
     }
 }
 
-impl ToArray for RefOr<Schema> {}
+// impl ToArray for RefOr<Schema> {}
 
 /// Represents type of [`Schema`].
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -596,7 +601,7 @@ pub enum KnownFormat {
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
 
     use super::*;
     use crate::*;
