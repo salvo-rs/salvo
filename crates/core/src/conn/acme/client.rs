@@ -113,7 +113,7 @@ impl AcmeClient {
                     .iter()
                     .map(|domain| Identifier {
                         kind: "dns".to_owned(),
-                        value: domain.to_string(),
+                        value: domain.clone(),
                     })
                     .collect(),
             }),
