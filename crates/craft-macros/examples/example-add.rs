@@ -5,7 +5,7 @@ use salvo::prelude::*;
 use salvo_craft_macros::craft;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Opts {
     state: i64,
 }

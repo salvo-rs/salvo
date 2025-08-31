@@ -179,6 +179,86 @@ impl Cors {
     }
 
     /// Set the value of the [`Access-Control-Allow-Origin`][mdn] header.
+    /// ```
+    /// use http::HeaderValue;
+    /// use salvo_cors::Cors;
+    ///
+    /// let cors = Cors::new().allow_origin(
+    ///     "http://example.com".parse::<HeaderValue>().unwrap(),
+    /// );
+    /// ```
+    ///
+    /// Multiple origins can be allowed with
+    ///
+    /// ```
+    /// use salvo_cors::Cors;
+    ///
+    /// let origins = [
+    ///     "http://example.com".parse().unwrap(),
+    ///     "http://api.example.com".parse().unwrap(),
+    /// ];
+    ///
+    /// let cors = Cors::new().allow_origin(origins);
+    /// ```
+    ///
+    /// All origins can be allowed with
+    ///
+    /// ```
+    /// use salvo_cors::cors::{Any, Cors};
+    ///
+    /// let cors = Cors::new().allow_origin(Any);
+    /// ```
+    ///
+    /// You can also use an closure:
+    ///
+    /// ```
+    /// # #[derive(Clone)]
+    /// # struct Client;
+    /// # fn get_api_client() -> Client {
+    /// #     Client
+    /// # }
+    /// # impl Client {
+    /// #     async fn fetch_allowed_origins(&self) -> Vec<HeaderValue> {
+    /// #         vec![HeaderValue::from_static("http://example.com")]
+    /// #     }
+    /// #     async fn fetch_allowed_origins_for_path(&self, _path: String) -> Vec<HeaderValue> {
+    /// #         vec![HeaderValue::from_static("http://example.com")]
+    /// #     }
+    /// # }
+    /// use tower_http::cors::{Cors, AllowOrigin};
+    /// use http::{request::Parts as RequestParts, HeaderValue};
+    ///
+    /// let client = get_api_client();
+    ///
+    /// let cors = Cors::new().allow_origin(AllowOrigin::predicate(
+    ///     |origin: HeaderValue, _request_parts: &RequestParts| async move {
+    ///         // fetch list of origins that are allowed
+    ///         let origins = client.fetch_allowed_origins().await;
+    ///         origins.contains(&origin)
+    ///     },
+    /// ));
+    ///
+    /// let client = get_api_client();
+    ///
+    /// // if using &RequestParts, make sure all the values are owned
+    /// // before passing into the future
+    /// let cors = Cors::new().allow_origin(AllowOrigin::predicate(
+    ///     |origin: HeaderValue, parts: &RequestParts| async move{
+    ///         let path = parts.uri.path().to_owned();
+    ///
+    ///         async move {
+    ///             // fetch list of origins that are allowed for this path
+    ///             let origins = client.fetch_allowed_origins_for_path(path).await;
+    ///             origins.contains(&origin)
+    ///         }
+    ///     },
+    /// ));
+    /// ```
+    ///
+    /// **Note** that multiple calls to this method will override any previous
+    /// calls.
+    ///
+    /// **Note** origin must contain http or https protocol name.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     #[inline]

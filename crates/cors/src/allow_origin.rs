@@ -94,7 +94,7 @@ impl AllowOrigin {
         let allow_origin = match &self.0 {
             OriginInner::Exact(v) => v.clone(),
             OriginInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
-            OriginInner::Judge(c) => origin.filter(|origin| c(origin, req, depot))?.clone(),
+            OriginInner::Predicate(c) => origin.filter(|origin| c(origin, req, depot))?.clone(),
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin))
@@ -106,7 +106,7 @@ impl Debug for AllowOrigin {
         match &self.0 {
             OriginInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
             OriginInner::List(inner) => f.debug_tuple("List").field(inner).finish(),
-            OriginInner::Judge(_) => f.debug_tuple("Judge").finish(),
+            OriginInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
         }
     }
 }
