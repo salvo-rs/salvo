@@ -292,7 +292,12 @@ impl Handler for CorsHandler {
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
         headers.extend(self.cors.allow_origin.to_header(origin, req, depot).await);
-        headers.extend(self.cors.allow_credentials.to_header(origin, req, depot).await);
+        headers.extend(
+            self.cors
+                .allow_credentials
+                .to_header(origin, req, depot)
+                .await,
+        );
 
         let mut vary_headers = self.cors.vary.values();
         if let Some(first) = vary_headers.next() {
