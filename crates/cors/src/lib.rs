@@ -291,8 +291,8 @@ impl Handler for CorsHandler {
 
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
-        headers.extend(self.cors.allow_origin.to_header(origin, req, depot));
-        headers.extend(self.cors.allow_credentials.to_header(origin, req, depot));
+        headers.extend(self.cors.allow_origin.to_header(origin, req, depot).await);
+        headers.extend(self.cors.allow_credentials.to_header(origin, req, depot).await);
 
         let mut vary_headers = self.cors.vary.values();
         if let Some(first) = vary_headers.next() {
@@ -311,8 +311,8 @@ impl Handler for CorsHandler {
         // Return results immediately upon preflight request
         if req.method() == Method::OPTIONS {
             // These headers are applied only to preflight requests
-            headers.extend(self.cors.allow_methods.to_header(origin, req, depot));
-            headers.extend(self.cors.allow_headers.to_header(origin, req, depot));
+            headers.extend(self.cors.allow_methods.to_header(origin, req, depot).await);
+            headers.extend(self.cors.allow_headers.to_header(origin, req, depot).await);
             headers.extend(self.cors.max_age.to_header(origin, req, depot));
             res.status_code = Some(StatusCode::NO_CONTENT);
         } else {
