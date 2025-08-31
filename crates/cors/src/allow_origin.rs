@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
@@ -16,8 +17,6 @@ use super::{Any, WILDCARD};
 #[must_use]
 pub struct AllowOrigin(OriginInner);
 
-type JudgeFn =
-    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
 impl AllowOrigin {
     /// Allow any origin by sending a wildcard (`*`)
     ///
@@ -65,11 +64,14 @@ impl AllowOrigin {
     /// See [`Cors::allow_origin`] for more details.
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
-    pub fn judge<F>(f: F) -> Self
+    pub fn predicate<P, Fut>(p: P) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(OriginInner::Judge(Arc::new(f)))
+        Self(OriginInner::Predicate(Arc::new(
+            move |header, req, depot| Box::pin(p(header, req, depot)),
+        )))
     }
 
     /// Allow any origin, by mirroring the request origin.
@@ -78,14 +80,14 @@ impl AllowOrigin {
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
     pub fn mirror_request() -> Self {
-        Self::judge(|_, _, _| true)
+        Self::predicate(|_, _, _| async { true })
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
         matches!(&self.0, OriginInner::Exact(v) if v == WILDCARD)
     }
 
-    pub(super) fn to_header(
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -94,7 +96,14 @@ impl AllowOrigin {
         let allow_origin = match &self.0 {
             OriginInner::Exact(v) => v.clone(),
             OriginInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
-            OriginInner::Predicate(c) => origin.filter(|origin| c(origin, req, depot))?.clone(),
+            OriginInner::Predicate(p) => {
+                let origin = origin?;
+                if p(origin, req, depot).await {
+                    origin.to_owned()
+                } else {
+                    return None;
+                }
+            }
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin))
@@ -179,7 +188,13 @@ impl From<&Vec<String>> for AllowOrigin {
 enum OriginInner {
     Exact(HeaderValue),
     List(Vec<HeaderValue>),
-    Judge(JudgeFn),
+    Predicate(
+        Arc<
+            dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }
 
 impl Default for OriginInner {

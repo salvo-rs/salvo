@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::sync::Arc;
 
 use salvo_core::http::Method;
@@ -17,9 +18,6 @@ use super::{Any, WILDCARD, separated_by_commas};
 #[must_use]
 pub struct AllowMethods(AllowMethodsInner);
 
-type JudgeFn = Arc<
-    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
->;
 impl AllowMethods {
     /// Allow any method by sending a wildcard (`*`)
     ///
@@ -62,11 +60,14 @@ impl AllowMethods {
     /// See [`Cors::allow_methods`] for more details.
     ///
     /// [`Cors::allow_methods`]: super::Cors::allow_methods
-    pub fn judge<F>(f: F) -> Self
+    pub fn predicate<P, Fut>(p: P) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> HeaderValue + Send + Sync + 'static,
+        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = HeaderValue> + Send + 'static,
     {
-        Self(AllowMethodsInner::Judge(Arc::new(f)))
+        Self(AllowMethodsInner::Predicate(Arc::new(
+            move |header, req, depot| Box::pin(p(header, req, depot)),
+        )))
     }
 
     /// Allow any method, by mirroring the preflight [`Access-Control-Request-Method`][mdn]
@@ -85,7 +86,7 @@ impl AllowMethods {
         matches!(&self.0, AllowMethodsInner::Exact(v) if v == WILDCARD)
     }
 
-    pub(super) fn to_header(
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -94,7 +95,7 @@ impl AllowMethods {
         let allow_methods = match &self.0 {
             AllowMethodsInner::None => return None,
             AllowMethodsInner::Exact(v) => v.clone(),
-            AllowMethodsInner::Judge(f) => f(origin?, req, depot),
+            AllowMethodsInner::Predicate(p) => p(origin?, req, depot).await,
             AllowMethodsInner::MirrorRequest => req
                 .headers()
                 .get(header::ACCESS_CONTROL_REQUEST_METHOD)?
@@ -110,8 +111,8 @@ impl Debug for AllowMethods {
         match &self.0 {
             AllowMethodsInner::None => f.debug_tuple("None").finish(),
             AllowMethodsInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            AllowMethodsInner::Judge(_) => f.debug_tuple("Judge").finish(),
             AllowMethodsInner::MirrorRequest => f.debug_tuple("MirrorRequest").finish(),
+            AllowMethodsInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
         }
     }
 }
@@ -145,6 +146,16 @@ enum AllowMethodsInner {
     #[default]
     None,
     Exact(HeaderValue),
-    Judge(JudgeFn),
     MirrorRequest,
+    Predicate(
+        Arc<
+            dyn Fn(
+                    &HeaderValue,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = HeaderValue> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }
