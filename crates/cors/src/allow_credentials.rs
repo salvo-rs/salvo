@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
@@ -14,8 +15,6 @@ use salvo_core::{Depot, Request};
 #[must_use]
 pub struct AllowCredentials(AllowCredentialsInner);
 
-type JudgeFn =
-    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
 impl AllowCredentials {
     /// Allow credentials for all requests
     ///
@@ -31,18 +30,21 @@ impl AllowCredentials {
     /// See [`Cors::allow_credentials`] for more details.
     ///
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
-    pub fn judge<F>(f: F) -> Self
+    pub fn predicate<P, Fut>(p: P) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(AllowCredentialsInner::Judge(Arc::new(f)))
+        Self(AllowCredentialsInner::Predicate(Arc::new(
+            move |header, req, depot| Box::pin(p(header, req, depot)),
+        )))
     }
 
     pub(super) fn is_true(&self) -> bool {
         matches!(&self.0, AllowCredentialsInner::Yes)
     }
 
-    pub(super) fn to_header(
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -51,7 +53,7 @@ impl AllowCredentials {
         let allow_creds = match &self.0 {
             AllowCredentialsInner::Yes => true,
             AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Judge(c) => c(origin?, req, depot),
+            AllowCredentialsInner::Predicate(p) => p(origin?, req, depot).await,
         };
 
         allow_creds.then_some((
@@ -75,7 +77,7 @@ impl Debug for AllowCredentials {
         match self.0 {
             AllowCredentialsInner::Yes => f.debug_tuple("Yes").finish(),
             AllowCredentialsInner::No => f.debug_tuple("No").finish(),
-            AllowCredentialsInner::Judge(_) => f.debug_tuple("Judge").finish(),
+            AllowCredentialsInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
         }
     }
 }
@@ -85,5 +87,11 @@ enum AllowCredentialsInner {
     Yes,
     #[default]
     No,
-    Judge(JudgeFn),
+    Predicate(
+        Arc<
+            dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }

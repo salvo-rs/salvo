@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -16,9 +17,6 @@ use salvo_core::{Depot, Request};
 #[must_use]
 pub struct AllowHeaders(AllowHeadersInner);
 
-type JudgeFn = Arc<
-    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
->;
 impl AllowHeaders {
     /// Allow any headers by sending a wildcard (`*`)
     ///
@@ -50,11 +48,14 @@ impl AllowHeaders {
     /// See [`Cors::allow_headers`] for more details.
     ///
     /// [`Cors::allow_headers`]: super::Cors::allow_headers
-    pub fn judge<F>(f: F) -> Self
+    pub fn predicate<P, Fut>(p: P) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> HeaderValue + Send + Sync + 'static,
+        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = HeaderValue> + Send + 'static,
     {
-        Self(AllowHeadersInner::Judge(Arc::new(f)))
+        Self(AllowHeadersInner::Predicate(Arc::new(
+            move |header, req, depot| Box::pin(p(header, req, depot)),
+        )))
     }
 
     /// Allow any headers, by mirroring the preflight [`Access-Control-Request-Headers`][mdn]
@@ -73,7 +74,7 @@ impl AllowHeaders {
         matches!(&self.0, AllowHeadersInner::Exact(v) if v == WILDCARD)
     }
 
-    pub(super) fn to_header(
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -82,7 +83,7 @@ impl AllowHeaders {
         let allow_headers = match &self.0 {
             AllowHeadersInner::None => return None,
             AllowHeadersInner::Exact(v) => v.clone(),
-            AllowHeadersInner::Judge(f) => f(origin?, req, depot),
+            AllowHeadersInner::Predicate(p) => p(origin?, req, depot).await,
             AllowHeadersInner::MirrorRequest => req
                 .headers()
                 .get(header::ACCESS_CONTROL_REQUEST_HEADERS)?
@@ -98,8 +99,8 @@ impl Debug for AllowHeaders {
         match &self.0 {
             AllowHeadersInner::None => f.debug_tuple("None").finish(),
             AllowHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            AllowHeadersInner::Judge(_) => f.debug_tuple("Judge").finish(),
             AllowHeadersInner::MirrorRequest => f.debug_tuple("MirrorRequest").finish(),
+            AllowHeadersInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
         }
     }
 }
@@ -157,8 +158,18 @@ impl From<&Vec<String>> for AllowHeaders {
 enum AllowHeadersInner {
     None,
     Exact(HeaderValue),
-    Judge(JudgeFn),
     MirrorRequest,
+    Predicate(
+        Arc<
+            dyn Fn(
+                    &HeaderValue,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = HeaderValue> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }
 
 impl Default for AllowHeadersInner {
