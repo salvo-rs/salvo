@@ -55,18 +55,34 @@ impl AllowMethods {
             Some(v) => Self(AllowMethodsInner::Exact(v)),
         }
     }
-    /// Allow custom allow methods based on a given predicate
+
+    /// Set allow methods by a closure
     ///
     /// See [`Cors::allow_methods`] for more details.
     ///
     /// [`Cors::allow_methods`]: super::Cors::allow_methods
-    pub fn predicate<P, Fut>(p: P) -> Self
+    pub fn dynamic<C>(c: C) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = HeaderValue> + Send + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
+            + Send
+            + Sync
+            + 'static,
     {
-        Self(AllowMethodsInner::Predicate(Arc::new(
-            move |header, req, depot| Box::pin(p(header, req, depot)),
+        Self(AllowMethodsInner::Dynamic(Arc::new(c)))
+    }
+
+    /// Set allow methods by a async closure
+    ///
+    /// See [`Cors::allow_methods`] for more details.
+    ///
+    /// [`Cors::allow_methods`]: super::Cors::allow_methods
+    pub fn dynamic_async<C, Fut>(c: C) -> Self
+    where
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+    {
+        Self(AllowMethodsInner::DynamicAsync(Arc::new(
+            move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
 
@@ -95,11 +111,12 @@ impl AllowMethods {
         let allow_methods = match &self.0 {
             AllowMethodsInner::None => return None,
             AllowMethodsInner::Exact(v) => v.clone(),
-            AllowMethodsInner::Predicate(p) => p(origin?, req, depot).await,
             AllowMethodsInner::MirrorRequest => req
                 .headers()
                 .get(header::ACCESS_CONTROL_REQUEST_METHOD)?
                 .clone(),
+            AllowMethodsInner::Dynamic(c) => c(origin, req, depot)?,
+            AllowMethodsInner::DynamicAsync(c) => c(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_METHODS, allow_methods))
@@ -112,7 +129,8 @@ impl Debug for AllowMethods {
             AllowMethodsInner::None => f.debug_tuple("None").finish(),
             AllowMethodsInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
             AllowMethodsInner::MirrorRequest => f.debug_tuple("MirrorRequest").finish(),
-            AllowMethodsInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
+            AllowMethodsInner::Dynamic(_) => f.debug_tuple("Predicate").finish(),
+            AllowMethodsInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
         }
     }
 }
@@ -147,13 +165,16 @@ enum AllowMethodsInner {
     None,
     Exact(HeaderValue),
     MirrorRequest,
-    Predicate(
+    Dynamic(
+        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
+    ),
+    DynamicAsync(
         Arc<
             dyn Fn(
-                    &HeaderValue,
+                    Option<&HeaderValue>,
                     &Request,
                     &Depot,
-                ) -> Pin<Box<dyn Future<Output = HeaderValue> + Send>>
+                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
                 + Send
                 + Sync,
         >,

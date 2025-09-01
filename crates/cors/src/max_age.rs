@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::{sync::Arc, time::Duration};
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
@@ -12,10 +13,6 @@ use salvo_core::{Depot, Request};
 #[derive(Clone, Default)]
 #[must_use]
 pub struct MaxAge(MaxAgeInner);
-
-type JudgeFn = Arc<
-    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
->;
 
 impl MaxAge {
     /// Set a static max-age value
@@ -32,17 +29,33 @@ impl MaxAge {
         Self(MaxAgeInner::Exact(seconds.into()))
     }
 
-    /// Set the max-age based on the preflight request parts
+    /// Set the max-age by a async closure
     ///
     /// See [`Cors::max_age`][super::Cors::max_age] for more details.
-    pub fn judge<F>(f: F) -> Self
+    pub fn dynamic<C>(c: C) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> HeaderValue + Send + Sync + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
+            + Send
+            + Sync
+            + 'static,
     {
-        Self(MaxAgeInner::Judge(Arc::new(f)))
+        Self(MaxAgeInner::Dynamic(Arc::new(c)))
     }
 
-    pub(super) fn to_header(
+    /// Set the max-age by a async closure
+    ///
+    /// See [`Cors::max_age`][super::Cors::max_age] for more details.
+    pub fn dynamic_async<C, Fut>(c: C) -> Self
+    where
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+    {
+        Self(MaxAgeInner::DynamicAsync(Arc::new(
+            move |header, req, depot| Box::pin(c(header, req, depot)),
+        )))
+    }
+
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -51,7 +64,8 @@ impl MaxAge {
         let max_age = match &self.0 {
             MaxAgeInner::None => return None,
             MaxAgeInner::Exact(v) => v.clone(),
-            MaxAgeInner::Judge(f) => f(origin?, req, depot),
+            MaxAgeInner::Dynamic(f) => f(origin, req, depot)?,
+            MaxAgeInner::DynamicAsync(f) => f(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_MAX_AGE, max_age))
@@ -63,7 +77,8 @@ impl Debug for MaxAge {
         match &self.0 {
             MaxAgeInner::None => f.debug_tuple("None").finish(),
             MaxAgeInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            MaxAgeInner::Judge(_) => f.debug_tuple("Judge").finish(),
+            MaxAgeInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
+            MaxAgeInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
         }
     }
 }
@@ -114,7 +129,20 @@ impl From<isize> for MaxAge {
 enum MaxAgeInner {
     None,
     Exact(HeaderValue),
-    Judge(JudgeFn),
+    Dynamic(
+        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
+    ),
+    DynamicAsync(
+        Arc<
+            dyn Fn(
+                    Option<&HeaderValue>,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }
 
 impl Default for MaxAgeInner {

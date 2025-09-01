@@ -43,18 +43,33 @@ impl AllowHeaders {
         }
     }
 
-    /// Allow custom allow headers based on a given predicate
+    /// Set allow headers by a closure
     ///
     /// See [`Cors::allow_headers`] for more details.
     ///
     /// [`Cors::allow_headers`]: super::Cors::allow_headers
-    pub fn predicate<P, Fut>(p: P) -> Self
+    pub fn dynamic<C>(c: C) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = HeaderValue> + Send + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
+            + Send
+            + Sync
+            + 'static,
     {
-        Self(AllowHeadersInner::Predicate(Arc::new(
-            move |header, req, depot| Box::pin(p(header, req, depot)),
+        Self(AllowHeadersInner::Dynamic(Arc::new(c)))
+    }
+
+    /// Set allow headers by a async closure
+    ///
+    /// See [`Cors::allow_headers`] for more details.
+    ///
+    /// [`Cors::allow_headers`]: super::Cors::allow_headers
+    pub fn dynamic_async<C, Fut>(c: C) -> Self
+    where
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+    {
+        Self(AllowHeadersInner::DynamicAsync(Arc::new(
+            move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
 
@@ -83,11 +98,12 @@ impl AllowHeaders {
         let allow_headers = match &self.0 {
             AllowHeadersInner::None => return None,
             AllowHeadersInner::Exact(v) => v.clone(),
-            AllowHeadersInner::Predicate(p) => p(origin?, req, depot).await,
             AllowHeadersInner::MirrorRequest => req
                 .headers()
                 .get(header::ACCESS_CONTROL_REQUEST_HEADERS)?
                 .clone(),
+            AllowHeadersInner::Dynamic(d) => d(origin, req, depot)?,
+            AllowHeadersInner::DynamicAsync(d) => d(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_HEADERS, allow_headers))
@@ -100,7 +116,8 @@ impl Debug for AllowHeaders {
             AllowHeadersInner::None => f.debug_tuple("None").finish(),
             AllowHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
             AllowHeadersInner::MirrorRequest => f.debug_tuple("MirrorRequest").finish(),
-            AllowHeadersInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
+            AllowHeadersInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
+            AllowHeadersInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
         }
     }
 }
@@ -159,13 +176,16 @@ enum AllowHeadersInner {
     None,
     Exact(HeaderValue),
     MirrorRequest,
-    Predicate(
+    Dynamic(
+        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
+    ),
+    DynamicAsync(
         Arc<
             dyn Fn(
-                    &HeaderValue,
+                    Option<&HeaderValue>,
                     &Request,
                     &Depot,
-                ) -> Pin<Box<dyn Future<Output = HeaderValue> + Send>>
+                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
                 + Send
                 + Sync,
         >,

@@ -17,13 +17,15 @@ mod allow_credentials;
 mod allow_headers;
 mod allow_methods;
 mod allow_origin;
+mod allow_private_network;
 mod expose_headers;
 mod max_age;
 mod vary;
 
 pub use self::{
     allow_credentials::AllowCredentials, allow_headers::AllowHeaders, allow_methods::AllowMethods,
-    allow_origin::AllowOrigin, expose_headers::ExposeHeaders, max_age::MaxAge, vary::Vary,
+    allow_origin::AllowOrigin, allow_private_network::AllowPrivateNetwork,
+    expose_headers::ExposeHeaders, max_age::MaxAge, vary::Vary,
 };
 
 static WILDCARD: HeaderValue = HeaderValue::from_static("*");
@@ -62,6 +64,7 @@ pub struct Cors {
     allow_headers: AllowHeaders,
     allow_methods: AllowMethods,
     allow_origin: AllowOrigin,
+    allow_private_network: AllowPrivateNetwork,
     expose_headers: ExposeHeaders,
     max_age: MaxAge,
     vary: Vary,
@@ -83,6 +86,7 @@ impl Cors {
             allow_headers: Default::default(),
             allow_methods: Default::default(),
             allow_origin: Default::default(),
+            allow_private_network: Default::default(),
             expose_headers: Default::default(),
             max_age: Default::default(),
             vary: Default::default(),
@@ -179,6 +183,94 @@ impl Cors {
     }
 
     /// Set the value of the [`Access-Control-Allow-Origin`][mdn] header.
+    /// ```
+    /// use salvo_core::http::HeaderValue;
+    /// use salvo_cors::Cors;
+    ///
+    /// let cors = Cors::new().allow_origin(
+    ///     "http://example.com".parse::<HeaderValue>().unwrap(),
+    /// );
+    /// ```
+    ///
+    /// Multiple origins can be allowed with
+    ///
+    /// ```
+    /// use salvo_cors::Cors;
+    ///
+    /// let origins = ["http://example.com", "http://api.example.com"];
+    ///
+    /// let cors = Cors::new().allow_origin(origins);
+    /// ```
+    ///
+    /// All origins can be allowed with
+    ///
+    /// ```
+    /// use salvo_cors::{Any, Cors};
+    ///
+    /// let cors = Cors::new().allow_origin(Any);
+    /// ```
+    ///
+    /// You can also use a closure
+    ///
+    /// ```
+    /// use salvo_cors::{Cors, AllowOrigin};
+    /// use salvo_core::http::HeaderValue;
+    /// use salvo_core::{Depot, Request};
+    ///
+    /// let cors = Cors::new().allow_origin(AllowOrigin::dynamic(
+    ///     |origin: Option<&HeaderValue>, _req: &Request, _depot: &Depot| {
+    ///         if origin?.as_bytes().ends_with(b".rust-lang.org") {
+    ///             origin.cloned()
+    ///         } else {
+    ///             None
+    ///         }
+    ///     },
+    /// ));
+    /// ```
+    ///
+    /// You can also use an async closure, make sure all the values are owned
+    /// before passing into the future:
+    ///
+    /// ```
+    /// # #[derive(Clone)]
+    /// # struct Client;
+    /// # fn get_api_client() -> Client {
+    /// #     Client
+    /// # }
+    /// # impl Client {
+    /// #     async fn fetch_allowed_origins(&self) -> Vec<HeaderValue> {
+    /// #         vec![HeaderValue::from_static("http://example.com")]
+    /// #     }
+    /// #     async fn fetch_allowed_origins_for_path(&self, _path: String) -> Vec<HeaderValue> {
+    /// #         vec![HeaderValue::from_static("http://example.com")]
+    /// #     }
+    /// # }
+    /// use salvo_cors::{Cors, AllowOrigin};
+    /// use salvo_core::http::header::HeaderValue;
+    /// use salvo_core::{Depot, Request};
+    ///
+    ///
+    /// let cors = Cors::new().allow_origin(AllowOrigin::dynamic_async(
+    ///     |origin: Option<&HeaderValue>, _req: &Request, _depot: &Depot| {
+    ///         let origin = origin.cloned();
+    ///         async move {
+    ///             let client = get_api_client();
+    ///             // fetch list of origins that are allowed
+    ///             let origins = client.fetch_allowed_origins().await;
+    ///             if origins.contains(origin.as_ref()?) {
+    ///                 origin
+    ///             } else {
+    ///                 None
+    ///             }
+    ///         }
+    ///     },
+    /// ));
+    /// ```
+    ///
+    /// **Note** that multiple calls to this method will override any previous
+    /// calls.
+    ///
+    /// **Note** origin must contain http or https protocol name.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     #[inline]
@@ -195,6 +287,24 @@ impl Cors {
     #[must_use]
     pub fn expose_headers(mut self, headers: impl Into<ExposeHeaders>) -> Self {
         self.expose_headers = headers.into();
+        self
+    }
+
+    /// Set the value of the [`Access-Control-Allow-Private-Network`][wicg] header.
+    ///
+    /// ```
+    /// use salvo_cors::Cors;
+    ///
+    /// let cors = Cors::new().allow_private_network(true);
+    /// ```
+    ///
+    /// [wicg]: https://wicg.github.io/private-network-access/
+    #[must_use]
+    pub fn allow_private_network<T>(mut self, allow_private_network: T) -> Self
+    where
+        T: Into<AllowPrivateNetwork>,
+    {
+        self.allow_private_network = allow_private_network.into();
         self
     }
 
@@ -298,6 +408,12 @@ impl Handler for CorsHandler {
                 .to_header(origin, req, depot)
                 .await,
         );
+        headers.extend(
+            self.cors
+                .allow_private_network
+                .to_header(origin, req, depot)
+                .await,
+        );
 
         let mut vary_headers = self.cors.vary.values();
         if let Some(first) = vary_headers.next() {
@@ -318,11 +434,11 @@ impl Handler for CorsHandler {
             // These headers are applied only to preflight requests
             headers.extend(self.cors.allow_methods.to_header(origin, req, depot).await);
             headers.extend(self.cors.allow_headers.to_header(origin, req, depot).await);
-            headers.extend(self.cors.max_age.to_header(origin, req, depot));
+            headers.extend(self.cors.max_age.to_header(origin, req, depot).await);
             res.status_code = Some(StatusCode::NO_CONTENT);
         } else {
             // This header is applied only to non-preflight requests
-            headers.extend(self.cors.expose_headers.to_header(origin, req, depot));
+            headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);
         }
         res.headers_mut().extend(headers);
 
