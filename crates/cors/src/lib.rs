@@ -299,6 +299,7 @@ impl Cors {
     /// ```
     ///
     /// [wicg]: https://wicg.github.io/private-network-access/
+    #[must_use]
     pub fn allow_private_network<T>(mut self, allow_private_network: T) -> Self
     where
         T: Into<AllowPrivateNetwork>,

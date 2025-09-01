@@ -75,7 +75,7 @@ impl AllowPrivateNetwork {
         const TRUE: HeaderValue = HeaderValue::from_static("true");
 
         // Cheapest fallback: allow_private_network hasn't been set
-        if let AllowPrivateNetworkInner::No = &self.0 {
+        if matches!(&self.0, AllowPrivateNetworkInner::No) {
             return None;
         }
 
