@@ -6,10 +6,10 @@ use salvo_core::{Depot, Request};
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Private-Network`][wicg] header.
 ///
-/// See [`CorsLayer::allow_private_network`] for more details.
+/// See [`Cors::allow_private_network`] for more details.
 ///
 /// [wicg]: https://wicg.github.io/private-network-access/
-/// [`CorsLayer::allow_private_network`]: super::CorsLayer::allow_private_network
+/// [`Cors::allow_private_network`]: super::Cors::allow_private_network
 #[derive(Clone, Default)]
 #[must_use]
 pub struct AllowPrivateNetwork(AllowPrivateNetworkInner);
@@ -17,18 +17,18 @@ pub struct AllowPrivateNetwork(AllowPrivateNetworkInner);
 impl AllowPrivateNetwork {
     /// Allow requests via a more private network than the one used to access the origin
     ///
-    /// See [`CorsLayer::allow_private_network`] for more details.
+    /// See [`Cors::allow_private_network`] for more details.
     ///
-    /// [`CorsLayer::allow_private_network`]: super::CorsLayer::allow_private_network
+    /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn yes() -> Self {
         Self(AllowPrivateNetworkInner::Yes)
     }
 
     /// Allow requests via private network for some requests by a closure
     ///
-    /// See [`CorsLayer::allow_private_network`] for more details.
+    /// See [`Cors::allow_private_network`] for more details.
     ///
-    /// [`CorsLayer::allow_private_network`]: super::CorsLayer::allow_private_network
+    /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn dynamic<C>(c: C) -> Self
     where
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
@@ -41,9 +41,9 @@ impl AllowPrivateNetwork {
 
     /// Allow requests via private network for some requests by a async closure
     ///
-    /// See [`CorsLayer::allow_private_network`] for more details.
+    /// See [`Cors::allow_private_network`] for more details.
     ///
-    /// [`CorsLayer::allow_private_network`]: super::CorsLayer::allow_private_network
+    /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn dynamic_async<C, Fut>(c: C) -> Self
     where
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
