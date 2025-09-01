@@ -25,17 +25,29 @@ impl AllowCredentials {
         Self(AllowCredentialsInner::Yes)
     }
 
-    /// Allow credentials for some requests, based on a given predicate
+    /// Allow credentials for some requests by a closure
     ///
     /// See [`Cors::allow_credentials`] for more details.
     ///
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
-    pub fn predicate<P, Fut>(p: P) -> Self
+    pub fn dynamic<P, Fut>(p: P) -> Self
+    where
+        P: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        Self(AllowCredentialsInner::Dynamic(Arc::new(p)))
+    }
+
+    /// Allow credentials for some requests by a async closure
+    ///
+    /// See [`Cors::allow_credentials`] for more details.
+    ///
+    /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
+    pub fn dynamic_sync<P, Fut>(p: P) -> Self
     where
         P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(AllowCredentialsInner::Predicate(Arc::new(
+        Self(AllowCredentialsInner::DynamicSync(Arc::new(
             move |header, req, depot| Box::pin(p(header, req, depot)),
         )))
     }
@@ -53,7 +65,8 @@ impl AllowCredentials {
         let allow_creds = match &self.0 {
             AllowCredentialsInner::Yes => true,
             AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Predicate(p) => p(origin?, req, depot).await,
+            AllowCredentialsInner::Dynamic(p) => p(origin?, req, depot),
+            AllowCredentialsInner::DynamicSync(p) => p(origin?, req, depot).await,
         };
 
         allow_creds.then_some((
@@ -77,7 +90,8 @@ impl Debug for AllowCredentials {
         match self.0 {
             AllowCredentialsInner::Yes => f.debug_tuple("Yes").finish(),
             AllowCredentialsInner::No => f.debug_tuple("No").finish(),
-            AllowCredentialsInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
+            AllowCredentialsInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
+            AllowCredentialsInner::DynamicSync(_) => f.debug_tuple("DynamicSync").finish(),
         }
     }
 }
@@ -87,7 +101,8 @@ enum AllowCredentialsInner {
     Yes,
     #[default]
     No,
-    Predicate(
+    Dynamic(Arc<dyn Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync>),
+    DynamicSync(
         Arc<
             dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
                 + Send

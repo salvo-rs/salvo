@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -17,9 +18,6 @@ use super::{Any, WILDCARD, separated_by_commas};
 #[must_use]
 pub struct ExposeHeaders(ExposeHeadersInner);
 
-type JudgeFn = Arc<
-    dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> HeaderValue + Send + Sync + 'static,
->;
 impl ExposeHeaders {
     /// Expose any / all headers by sending a wildcard (`*`)
     ///
@@ -45,23 +43,41 @@ impl ExposeHeaders {
         }
     }
 
-    /// Allow custom headers based on a given predicate
+    /// Allow custom headers by a closure
     ///
     /// See [`Cors::allow_headers`] for more details.
     ///
     /// [`Cors::allow_headers`]: super::Cors::allow_headers
-    pub fn judge<F>(f: F) -> Self
+    pub fn dynamic<C>(c: C) -> Self
     where
-        F: Fn(&HeaderValue, &Request, &Depot) -> HeaderValue + Send + Sync + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
+            + Send
+            + Sync
+            + 'static,
     {
-        Self(ExposeHeadersInner::Judge(Arc::new(f)))
+        Self(ExposeHeadersInner::Dynamic(Arc::new(c)))
+    }
+
+    /// Allow custom headers by a async closure
+    ///
+    /// See [`Cors::allow_headers`] for more details.
+    ///
+    /// [`Cors::allow_headers`]: super::Cors::allow_headers
+    pub fn dynamic_async<C, Fut>(c: C) -> Self
+    where
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+    {
+        Self(ExposeHeadersInner::DynamicAsync(Arc::new(
+            move |header, req, depot| Box::pin(c(header, req, depot)),
+        )))
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
         matches!(&self.0, ExposeHeadersInner::Exact(v) if v == WILDCARD)
     }
 
-    pub(super) fn to_header(
+    pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
@@ -70,7 +86,8 @@ impl ExposeHeaders {
         let expose_headers = match &self.0 {
             ExposeHeadersInner::None => return None,
             ExposeHeadersInner::Exact(v) => v.clone(),
-            ExposeHeadersInner::Judge(f) => f(origin?, req, depot),
+            ExposeHeadersInner::Dynamic(c) => c(origin, req, depot)?,
+            ExposeHeadersInner::DynamicAsync(c) => c(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_EXPOSE_HEADERS, expose_headers))
@@ -82,7 +99,8 @@ impl Debug for ExposeHeaders {
         match &self.0 {
             ExposeHeadersInner::None => f.debug_tuple("None").finish(),
             ExposeHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            ExposeHeadersInner::Judge(_) => f.debug_tuple("Judge").finish(),
+            ExposeHeadersInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
+            ExposeHeadersInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
         }
     }
 }
@@ -141,5 +159,18 @@ enum ExposeHeadersInner {
     #[default]
     None,
     Exact(HeaderValue),
-    Judge(JudgeFn),
+    Dynamic(
+        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
+    ),
+    DynamicAsync(
+        Arc<
+            dyn Fn(
+                    Option<&HeaderValue>,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
+                + Send
+                + Sync,
+        >,
+    ),
 }

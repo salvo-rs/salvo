@@ -59,18 +59,33 @@ impl AllowOrigin {
         }
     }
 
-    /// Set the allowed origins from a predicate
+    /// Set the allowed origins by a closure
     ///
     /// See [`Cors::allow_origin`] for more details.
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
-    pub fn predicate<P, Fut>(p: P) -> Self
+    pub fn dynamic<C>(c: C) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = bool> + Send + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
+            + Send
+            + Sync
+            + 'static,
     {
-        Self(OriginInner::Predicate(Arc::new(
-            move |header, req, depot| Box::pin(p(header, req, depot)),
+        Self(OriginInner::Dynamic(Arc::new(c)))
+    }
+
+    /// Set the allowed origins by a async closure
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn dynamic_async<C, Fut>(c: C) -> Self
+    where
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+    {
+        Self(OriginInner::DynamicAsync(Arc::new(
+            move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
 
@@ -80,7 +95,7 @@ impl AllowOrigin {
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
     pub fn mirror_request() -> Self {
-        Self::predicate(|_, _, _| async { true })
+        Self::dynamic(|v, _, _| v.cloned())
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
@@ -96,14 +111,8 @@ impl AllowOrigin {
         let allow_origin = match &self.0 {
             OriginInner::Exact(v) => v.clone(),
             OriginInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
-            OriginInner::Predicate(p) => {
-                let origin = origin?;
-                if p(origin, req, depot).await {
-                    origin.to_owned()
-                } else {
-                    return None;
-                }
-            }
+            OriginInner::Dynamic(c) => c(origin, req, depot)?,
+            OriginInner::DynamicAsync(c) => c(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin))
@@ -115,7 +124,8 @@ impl Debug for AllowOrigin {
         match &self.0 {
             OriginInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
             OriginInner::List(inner) => f.debug_tuple("List").field(inner).finish(),
-            OriginInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
+            OriginInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
+            OriginInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
         }
     }
 }
@@ -188,9 +198,16 @@ impl From<&Vec<String>> for AllowOrigin {
 enum OriginInner {
     Exact(HeaderValue),
     List(Vec<HeaderValue>),
-    Predicate(
+    Dynamic(
+        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
+    ),
+    DynamicAsync(
         Arc<
-            dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
+            dyn Fn(
+                    Option<&HeaderValue>,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
                 + Send
                 + Sync,
         >,
