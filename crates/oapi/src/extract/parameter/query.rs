@@ -85,7 +85,7 @@ impl<'ex, T> Extractible<'ex> for QueryParam<T, true>
 where
     T: Deserialize<'ex>,
 {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
@@ -107,7 +107,7 @@ impl<'ex, T> Extractible<'ex> for QueryParam<T, false>
 where
     T: Deserialize<'ex>,
 {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }

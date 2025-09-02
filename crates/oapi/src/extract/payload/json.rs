@@ -61,7 +61,7 @@ impl<'ex, T> Extractible<'ex> for JsonBody<T>
 where
     T: Deserialize<'ex> + Send,
 {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }

@@ -81,7 +81,7 @@ impl FormFile {
 }
 
 impl<'ex> Extractible<'ex> for FormFile {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
@@ -153,7 +153,7 @@ impl DerefMut for FormFiles {
 }
 
 impl<'ex> Extractible<'ex> for FormFiles {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
