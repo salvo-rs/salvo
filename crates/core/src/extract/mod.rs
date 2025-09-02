@@ -109,9 +109,7 @@ where
         T::metadata()
     }
     #[allow(refining_impl_trait)]
-    fn extract(
-        req: &'ex mut Request,
-    ) -> impl Future<Output = Result<Self, ParseError>> + Send + 'ex {
-        async move{ Ok(T::extract(req).boxed().await.ok()) }
+    async fn extract(req: &'ex mut Request) -> Result<Self, ParseError> {
+        Ok(T::extract(req).boxed().await.ok())
     }
 }

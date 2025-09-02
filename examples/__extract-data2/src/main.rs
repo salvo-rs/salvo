@@ -19,6 +19,22 @@ pub struct PageRequest<T> {
 }
 
 // #[derive(Debug, Deserialize, Extractible)]
+// pub enum EnumData<C: Z> {
+//     A1(A<C>),
+//     B1(B<C>)
+// }
+
+// #[derive(Debug, Deserialize, Extractible)]
+// pub struct A<C: Z>(C);
+
+// #[derive(Debug, Deserialize)]
+// pub struct B<C: Z>(C);
+
+// pub trait Z {
+//     type Output;
+// }
+
+// #[derive(Debug, Deserialize, Extractible)]
 // pub struct PageRequest<T> {
 //     /// 页码
 //     #[serde(default)]
