@@ -68,21 +68,6 @@ struct GoodMan<'a> {
     lover: &'a str,
 }
 
-#[derive(Debug, Deserialize, Extractible)]
-pub struct PageRequest<T>  {
-    /// 页码
-    #[serde(default)]
-    pub page: u64,
-
-    /// 每页大小
-    #[serde(default)]
-    pub limit: u64,
-
-    /// 查询条件
-    #[serde(flatten)]
-    pub query: T,
-}
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
