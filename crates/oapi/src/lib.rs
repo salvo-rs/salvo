@@ -429,7 +429,7 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 /// }
 ///
 /// impl<'ex> Extractible<'ex> for PetParams {
-///    fn metadata() -> &'ex Metadata {
+///    fn metadata() -> &'static Metadata {
 ///      static METADATA: Metadata = Metadata::new("");
 ///      &METADATA
 ///    }

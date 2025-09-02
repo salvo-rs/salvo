@@ -65,7 +65,7 @@ impl<'ex, T> Extractible<'ex> for FormBody<T>
 where
     T: Deserialize<'ex> + Send,
 {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }

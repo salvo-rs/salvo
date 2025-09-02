@@ -70,13 +70,15 @@ pub use case::RenameRule;
 
 use std::fmt::Debug;
 
+use futures_util::FutureExt;
+
 use crate::Writer;
-use crate::http::Request;
+use crate::http::{ParseError, Request};
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
 pub trait Extractible<'ex> {
     /// Metadata for Extractible type.
-    fn metadata() -> &'ex Metadata;
+    fn metadata() -> &'static Metadata;
 
     /// Extract data from request.
     ///
@@ -96,5 +98,20 @@ pub trait Extractible<'ex> {
         Self: Sized,
     {
         Self::extract(req)
+    }
+}
+
+impl<'ex, T> Extractible<'ex> for Option<T>
+where
+    T: Extractible<'ex> + ::serde::de::Deserialize<'ex>,
+{
+    fn metadata() -> &'static Metadata {
+        T::metadata()
+    }
+    #[allow(refining_impl_trait)]
+    fn extract(
+        req: &'ex mut Request,
+    ) -> impl Future<Output = Result<Self, ParseError>> + Send + 'ex {
+        async move{ Ok(T::extract(req).boxed().await.ok()) }
     }
 }

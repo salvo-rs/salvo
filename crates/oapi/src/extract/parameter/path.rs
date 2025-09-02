@@ -65,7 +65,7 @@ impl<'ex, T> Extractible<'ex> for PathParam<T>
 where
     T: Deserialize<'ex>,
 {
-    fn metadata() -> &'ex Metadata {
+    fn metadata() -> &'static Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
