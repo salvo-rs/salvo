@@ -241,7 +241,7 @@ impl TryToTokens for ToParameters {
                 }
             }
             impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #where_clause {
-                fn metadata() -> &'__macro_gen_ex #salvo::extract::Metadata {
+                fn metadata() -> &'static #salvo::extract::Metadata {
                     static METADATA: ::std::sync::OnceLock<#salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                     METADATA.get_or_init(||
                         #salvo::extract::Metadata::new(#name)

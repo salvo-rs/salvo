@@ -582,7 +582,7 @@ mod tests {
                     }
                 }
                 impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
-                    fn metadata() -> &'__macro_gen_ex salvo::extract::Metadata {
+                    fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(||
                             salvo::extract::Metadata::new("PetQuery")
