@@ -93,9 +93,11 @@ mod test {
     use bytes::BytesMut;
     use futures_util::stream::StreamExt;
     use mime::Mime;
+    use headers::Header;
 
     use super::*;
-    use crate::http::header::HeaderValue;
+    use crate::http::header::{HeaderValue, IF_NONE_MATCH};
+    use crate::http::{HeaderMap, Request, Response, StatusCode};
 
     #[tokio::test]
     async fn test_chunk_read() {
@@ -138,5 +140,86 @@ mod test {
                 r#"attachment; filename="attach.file""#
             ))
         );
+    }
+
+    #[tokio::test]
+    async fn test_named_file_open() {
+        let file = NamedFile::open("crates/core/test_assets/test.txt").await.unwrap();
+        assert_eq!(file.path(), Path::new("crates/core/test_assets/test.txt"));
+    }
+
+    #[tokio::test]
+    async fn test_named_file_content_disposition_inline() {
+        let mut res = Response::new();
+        let req = Request::new();
+        let file = NamedFile::builder("crates/core/test_assets/test.txt")
+            .content_type(Mime::from_str("text/plain").unwrap())
+            .build()
+            .await
+            .unwrap();
+        file.send(req.headers(), &mut res).await;
+        assert_eq!(
+            res.headers()["content-disposition"],
+            "inline"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_named_file_content_disposition_attachment() {
+        let mut res = Response::new();
+        let req = Request::new();
+        let file = NamedFile::builder("crates/core/test_assets/test.txt")
+            .content_type(Mime::from_str("application/octet-stream").unwrap())
+            .build()
+            .await
+            .unwrap();
+        file.send(req.headers(), &mut res).await;
+        assert_eq!(
+            res.headers()["content-disposition"],
+            r#"attachment; filename="test.txt""#
+        );
+    }
+
+    #[tokio::test]
+    async fn test_named_file_send() {
+        let mut res = Response::new();
+        let req = Request::new();
+        let file = NamedFile::open("crates/core/test_assets/test.txt").await.unwrap();
+        let etag = file.etag().unwrap();
+        file.send(req.headers(), &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert!(res.headers().contains_key("content-type"));
+        assert!(res.headers().contains_key("last-modified"));
+        let mut values = vec![];
+        etag.encode(&mut values);
+        assert_eq!(res.headers()["etag"], values.pop().unwrap());
+        assert_eq!(res.headers()["accept-ranges"], "bytes");
+        assert_eq!(res.headers()["content-length"], "12");
+    }
+
+    #[tokio::test]
+    async fn test_named_file_send_not_modified() {
+        let mut res = Response::new();
+        let mut req = Request::new();
+        let file = NamedFile::open("crates/core/test_assets/test.txt").await.unwrap();
+        let etag = file.etag().unwrap();
+        let mut values = vec![];
+        etag.encode(&mut values);
+        req.headers_mut().insert(IF_NONE_MATCH, values.pop().unwrap());
+        file.send(req.headers(), &mut res).await;
+        assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
+    }
+
+    #[tokio::test]
+    async fn test_named_file_send_range() {
+        let mut res = Response::new();
+        let mut req = Request::new();
+        req.headers_mut().insert("range", "bytes=0-4".parse().unwrap());
+        let file = NamedFile::open("crates/core/test_assets/test.txt").await.unwrap();
+        file.send(req.headers(), &mut res).await;
+        assert_eq!(res.status_code, Some(StatusCode::PARTIAL_CONTENT));
+        assert_eq!(res.headers()["content-length"], "5");
+        assert_eq!(res.headers()["content-range"], "bytes 0-4/12");
     }
 }
