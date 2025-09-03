@@ -173,3 +173,82 @@ impl Handler for RequestId {
             .await;
     }
 }
+#[cfg(test)]
+mod tests {
+    use salvo_core::prelude::*;
+    use salvo_core::test::{TestClient, ResponseExt};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_request_id_added() {
+        let handler = RequestId::new();
+        let router = Router::new().hoop(handler).get(endpoint);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert!(response.headers.contains_key("x-request-id"));
+    }
+
+    #[tokio::test]
+    async fn test_request_id_overwrite() {
+        let handler = RequestId::new().overwrite(true);
+        let router = Router::new().hoop(handler).get(endpoint);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5800/")
+            .add_header("x-request-id", "existing-id", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_ne!(response.headers.get("x-request-id").unwrap(), "existing-id");
+    }
+
+    #[tokio::test]
+    async fn test_request_id_no_overwrite() {
+        let handler = RequestId::new().overwrite(false);
+        let router = Router::new().hoop(handler).get(endpoint);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5800/")
+            .add_header("x-request-id", "existing-id", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.headers.get("x-request-id").unwrap(), "existing-id");
+    }
+
+    #[tokio::test]
+    async fn test_custom_generator() {
+        let handler = RequestId::new().generator(|| "custom-id".to_string());
+        let router = Router::new().hoop(handler).get(endpoint);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.headers.get("x-request-id").unwrap(), "custom-id");
+    }
+
+    #[tokio::test]
+    async fn test_depot_storage() {
+        let handler = RequestId::new();
+        #[handler]
+        async fn depot_checker(depot: &mut Depot, res: &mut Response) {
+            let id = depot.get::<HeaderValue>(REQUEST_ID_KEY).unwrap().clone();
+            res.render(Text::Plain(id.to_str().unwrap().to_string()));
+        }
+        let router = Router::new().hoop(handler).get(depot_checker);
+        let service = Service::new(router);
+
+        let mut response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        let header_id = response.headers.get("x-request-id").unwrap().to_str().unwrap().to_string();
+        let body = response.take_string().await.unwrap();
+        assert_eq!(header_id, body);
+    }
+
+    #[handler]
+    async fn endpoint() {
+    }
+}
