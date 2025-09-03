@@ -110,37 +110,47 @@ impl CsrfStore for CookieStore {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use salvo_core::Depot;
-//     use salvo_core::Request;
-//     use salvo_core::Response;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bcrypt_cipher::BcryptCipher;
+    use salvo_core::test::TestClient;
 
-//     #[tokio::test]
-//     async fn test_cookie_store() {
-//         let cookie_store = CookieStore::new()
-//             .with_name("test_cookie")
-//             .with_ttl(Duration::days(1))
-//             .with_path("/test")
-//             .with_domain("example.com");
+    #[tokio::test]
+    async fn test_cookie_store() {
+        let cipher = BcryptCipher::new();
+        let cookie_store = CookieStore::new()
+            .name("test_cookie")
+            .ttl(Duration::days(1))
+            .path("/test")
+            .domain("example.com");
 
-//         assert_eq!(cookie_store.name(), "test_cookie");
-//         assert_eq!(cookie_store.ttl(), Duration::days(1));
-//         assert_eq!(cookie_store.path(), "/test");
-//         assert_eq!(cookie_store.domain(), Some(&"example.com".to_string()));
+        assert_eq!(cookie_store.name, "test_cookie");
+        assert_eq!(cookie_store.ttl, Duration::days(1));
+        assert_eq!(cookie_store.path, "/test");
+        assert_eq!(cookie_store.domain.as_deref(), Some("example.com"));
 
-//         let mut req = Request::new();
-//         let mut depot = Depot::new();
-//         let mut res = Response::new();
+        let mut req = TestClient::get("https://example.com/test").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
 
-//         let proof = vec![1, 2, 3, 4, 5];
-//         cookie_store
-//             .save_proof(&mut req, &mut depot, &mut res, &proof)
-//             .await
-//             .unwrap();
+        let (token, proof) = cipher.generate();
+        cookie_store
+            .save(&mut req, &mut depot, &mut res, &token, &proof)
+            .await
+            .unwrap();
 
-//         let loaded_proof = cookie_store.load_proof(&mut req, &mut depot).await;
-//         assert_eq!(loaded_proof, Some(proof));
-//     }
-// }
+        let cookie = res.cookies().get("test_cookie").unwrap();
+        assert_eq!(cookie.name(), "test_cookie");
+        assert_eq!(cookie.path(), Some("/test"));
+        assert_eq!(cookie.domain(), Some("example.com"));
+        assert_eq!(cookie.http_only(), Some(true));
+        assert_eq!(cookie.same_site(), Some(SameSite::Strict));
+        assert_eq!(cookie.secure(), Some(true));
+
+        req.cookies_mut().add(cookie.clone());
+
+        let loaded = cookie_store.load(&mut req, &mut depot, &cipher).await;
+        assert_eq!(loaded, Some((token, proof)));
+    }
+}
