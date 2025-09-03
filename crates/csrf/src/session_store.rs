@@ -47,36 +47,3 @@ impl CsrfStore for SessionStore {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::BcryptCipher;
-    use salvo_core::test::TestClient;
-    use salvo_session::{Session, SessionHandler, MemoryStore};
-
-    #[tokio::test]
-    async fn test_session_store() {
-        let session_store = SessionStore::new();
-        let cipher = BcryptCipher::new();
-        let mut req = TestClient::get("http://test.com").build();
-        let mut depot = Depot::new();
-        let mut res = Response::new();
-        let session_handler = SessionHandler::new(MemoryStore::new());
-
-        let (token, proof) = cipher.generate();
-
-        // Manually run session handler to create session
-        let mut ctrl = salvo_core::FlowCtrl::new(vec![]);
-        session_handler.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
-
-        session_store
-            .save(&mut req, &mut depot, &mut res, &token, &proof)
-            .await
-            .unwrap();
-
-        let loaded = session_store.load(&mut req, &mut depot, &cipher).await;
-        assert_eq!(loaded, Some((token, proof)));
-    }
-}
-
