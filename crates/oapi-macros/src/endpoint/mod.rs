@@ -288,3 +288,44 @@ fn handle_fn(
     };
     Ok((hfn, modifiers))
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::{parse_str, Ident, Signature};
+    use quote::quote;
+
+    use super::handle_fn;
+
+    #[test]
+    fn test_handle_fn() {
+        let salvo = Ident::new("salvo", proc_macro2::Span::call_site());
+        let oapi = Ident::new("salvo_oapi", proc_macro2::Span::call_site());
+        let sig: Signature = parse_str("fn hello(name: String)").unwrap();
+        let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig).unwrap();
+        let expected_hfn = quote! {
+            async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
+                let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, "name").await {
+                    Ok(data) => {
+                        data
+                    },
+                    Err(e) => {
+                        e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        // If status code is not set or is not error, set it to 400.
+                        let status_code = __macro_gen_res.status_code.unwrap_or_default();
+                        if !status_code.is_client_error() && !status_code.is_server_error() {
+                            __macro_gen_res.status_code(salvo::http::StatusCode::BAD_REQUEST);
+                        }
+                        return;
+                    }
+                };
+                Self::hello(name)
+            }
+        };
+        assert_eq!(hfn.to_string(), expected_hfn.to_string());
+        assert_eq!(modifiers.len(), 1);
+        let expected_modifier = quote! {
+            <String as salvo_oapi::oapi::EndpointArgRegister>::register(components, operation, "name");
+        };
+        assert_eq!(modifiers[0].to_string(), expected_modifier.to_string());
+    }
+}

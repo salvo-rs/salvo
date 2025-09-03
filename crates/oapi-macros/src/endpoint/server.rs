@@ -360,14 +360,103 @@ mod tests {
   "url": "/api/{version}/{username}",
   "variables": {
       "version": {
-          "enum": ["v1", "v2"],
           "default": "v1",
-          "description": "api version"
+          "description": "api version",
+          "enum": ["v1", "v2"]
       },
       "username": {
           "default": "the_user"
       }
   }
+}"###
+    }
+
+    test_fn! {
+        servers_append:
+        {
+            let mut servers1 = Servers::new().server(Server::new("/api/v1"));
+            let mut servers2 = Servers::new().server(Server::new("/api/v2"));
+            servers1.append(&mut servers2);
+            servers1
+        };
+        r###"[
+  {
+    "url": "/api/v1"
+  },
+  {
+    "url": "/api/v2"
+  }
+]"###
+    }
+
+    test_fn! {
+        servers_extend:
+        {
+            let mut servers = Servers::new().server(Server::new("/api/v1"));
+            servers.extend(vec![Server::new("/api/v2"), Server::new("/api/v3")]);
+            servers
+        };
+        r###"[
+  {
+    "url": "/api/v1"
+  },
+  {
+    "url": "/api/v2"
+  },
+  {
+    "url": "/api/v3"
+  }
+]"###
+    }
+
+    test_fn! {
+        server_variables_append:
+        {
+            let mut variables1 = ServerVariables::new().server_variable("version", ServerVariable::new().default_value("v1"));
+            let mut variables2 = ServerVariables::new().server_variable("username", ServerVariable::new().default_value("the_user"));
+            variables1.append(&mut variables2);
+            variables1
+        };
+        r###"{
+  "username": {
+    "default": "the_user"
+  },
+  "version": {
+    "default": "v1"
+  }
+}"###
+    }
+
+    test_fn! {
+        server_variables_extend:
+        {
+            let mut variables = ServerVariables::new().server_variable("version", ServerVariable::new().default_value("v1"));
+            variables.extend(vec![("username".to_string(), ServerVariable::new().default_value("the_user"))]);
+            variables
+        };
+        r###"{
+  "username": {
+    "default": "the_user"
+  },
+  "version": {
+    "default": "v1"
+  }
+}"###
+    }
+
+    test_fn! {
+        server_variable_builder:
+        ServerVariable::new()
+            .default_value("v1")
+            .description("api version")
+            .enum_values(["v1", "v2"]);
+        r###"{
+  "default": "v1",
+  "description": "api version",
+  "enum": [
+    "v1",
+    "v2"
+  ]
 }"###
     }
 }

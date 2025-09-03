@@ -92,12 +92,10 @@ mod test {
 
     use bytes::BytesMut;
     use futures_util::stream::StreamExt;
-    use headers::Header;
     use mime::Mime;
 
     use super::*;
-    use crate::http::header::{HeaderValue, IF_NONE_MATCH};
-    use crate::http::{HeaderMap, Request, Response, StatusCode};
+    use crate::http::header::{HeaderValue, };
 
     #[tokio::test]
     async fn test_chunk_read() {

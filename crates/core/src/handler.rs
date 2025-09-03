@@ -271,6 +271,8 @@ where
     ) {
         if (self.filter)(req, depot) {
             self.inner.handle(req, depot, res, ctrl).await;
+        } else {
+            ctrl.call_next(req, depot, res).await;
         }
     }
 }
@@ -296,6 +298,15 @@ where
 pub struct HoopedHandler {
     inner: Arc<dyn Handler>,
     hoops: Vec<Arc<dyn Handler>>,
+}
+
+impl Clone for HoopedHandler {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            hoops: self.hoops.clone(),
+        }
+    }
 }
 
 impl Debug for HoopedHandler {
@@ -422,3 +433,34 @@ macro_rules! skipper_tuple_impls {
 
 crate::for_each_tuple!(handler_tuple_impls);
 crate::for_each_tuple!(skipper_tuple_impls);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::StatusCode;
+    use crate::test::{ResponseExt, TestClient};
+    use crate::{Response};
+    use salvo_macros::handler;
+
+    #[tokio::test]
+    async fn test_empty_handler() {
+        let res = TestClient::get("http://127.0.0.1:5800/")
+            .send(empty())
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+    }
+
+    #[tokio::test]
+    async fn test_arc_handler() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.render("hello");
+        }
+        let mut res = TestClient::get("http://127.0.0.1:5800/")
+            .send(hello.arc())
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert_eq!(res.take_string().await.unwrap(), "hello");
+    }
+}
