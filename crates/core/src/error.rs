@@ -237,7 +237,10 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::Other(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "detail message")));
+        let e = Error::Other(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "detail message",
+        )));
         e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
@@ -255,13 +258,18 @@ mod tests {
         let err: Error = StatusError::bad_request().into();
         assert!(matches!(err, Error::HttpStatus(_)));
 
-        let err: Error = serde_json::from_str::<serde_json::Value>("{").unwrap_err().into();
+        let err: Error = serde_json::from_str::<serde_json::Value>("{")
+            .unwrap_err()
+            .into();
         assert!(matches!(err, Error::SerdeJson(_)));
 
         let err: Error = http::Uri::from_str("ht tp://host.com").unwrap_err().into();
         assert!(matches!(err, Error::InvalidUri(_)));
 
-        let err: Error = Error::other(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "custom error")));
+        let err: Error = Error::other(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "custom error",
+        )));
         assert!(matches!(err, Error::Other(_)));
     }
 

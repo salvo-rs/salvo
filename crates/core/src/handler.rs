@@ -437,9 +437,9 @@ crate::for_each_tuple!(skipper_tuple_impls);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Response;
     use crate::http::StatusCode;
     use crate::test::{ResponseExt, TestClient};
-    use crate::{Response};
     use salvo_macros::handler;
 
     #[tokio::test]

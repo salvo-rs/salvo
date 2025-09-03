@@ -95,7 +95,7 @@ mod test {
     use mime::Mime;
 
     use super::*;
-    use crate::http::header::{HeaderValue, };
+    use crate::http::header::HeaderValue;
 
     #[tokio::test]
     async fn test_chunk_read() {

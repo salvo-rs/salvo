@@ -291,8 +291,8 @@ fn handle_fn(
 
 #[cfg(test)]
 mod tests {
-    use syn::{parse_str, Ident, Signature};
     use quote::quote;
+    use syn::{Ident, Signature, parse_str};
 
     use super::handle_fn;
 
