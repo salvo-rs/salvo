@@ -102,7 +102,7 @@ mod tests {
     }
 
     #[handler]
-    async fn hello(depot: &mut Depot) -> &'static str {
+    async fn hello() -> &'static str {
         "Hello"
     }
 

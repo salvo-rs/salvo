@@ -150,3 +150,75 @@ impl Default for MaxAgeInner {
         Self::None
     }
 }
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::{self, HeaderValue};
+    use salvo_core::{Depot, Request};
+    use std::time::Duration;
+
+    use super::{MaxAge, MaxAgeInner};
+
+    #[test]
+    fn test_from_duration() {
+        let max_age: MaxAge = Duration::from_secs(3600).into();
+        assert!(matches!(max_age.0, MaxAgeInner::Exact(ref v) if v == "3600"));
+    }
+
+    #[test]
+    fn test_from_u64() {
+        let max_age: MaxAge = 3600u64.into();
+        assert!(matches!(max_age.0, MaxAgeInner::Exact(ref v) if v == "3600"));
+    }
+
+    #[tokio::test]
+    async fn test_to_header() {
+        let req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        // Test `Exact`
+        let max_age = MaxAge::exact(Duration::from_secs(3600));
+        let header = max_age.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_MAX_AGE,
+                HeaderValue::from_static("3600")
+            ))
+        );
+
+        // Test `Seconds`
+        let max_age = MaxAge::seconds(7200);
+        let header = max_age.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_MAX_AGE,
+                HeaderValue::from_static("7200")
+            ))
+        );
+
+        // Test `Dynamic`
+        let max_age = MaxAge::dynamic(|_, _, _| Some(HeaderValue::from_static("1800")));
+        let header = max_age.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_MAX_AGE,
+                HeaderValue::from_static("1800")
+            ))
+        );
+
+        // Test `DynamicAsync`
+        let max_age =
+            MaxAge::dynamic_async(|_, _, _| async { Some(HeaderValue::from_static("900")) });
+        let header = max_age.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_MAX_AGE,
+                HeaderValue::from_static("900")
+            ))
+        );
+    }
+}

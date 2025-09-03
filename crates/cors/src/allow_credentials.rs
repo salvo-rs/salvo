@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -30,7 +31,7 @@ impl AllowCredentials {
     /// See [`Cors::allow_credentials`] for more details.
     ///
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
-    pub fn dynamic<P, Fut>(p: P) -> Self
+    pub fn dynamic<P>(p: P) -> Self
     where
         P: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
@@ -109,4 +110,17 @@ enum AllowCredentialsInner {
                 + Sync,
         >,
     ),
+}
+#[cfg(test)]
+mod tests {
+    use super::{AllowCredentials, AllowCredentialsInner};
+
+    #[test]
+    fn test_from_bool() {
+        let creds: AllowCredentials = true.into();
+        assert!(matches!(creds.0, AllowCredentialsInner::Yes));
+
+        let creds: AllowCredentials = false.into();
+        assert!(matches!(creds.0, AllowCredentialsInner::No));
+    }
 }

@@ -219,3 +219,30 @@ impl Default for OriginInner {
         Self::List(Vec::new())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::HeaderValue;
+
+    use super::{AllowOrigin, Any, OriginInner, WILDCARD};
+
+    #[test]
+    fn test_from_any() {
+        let origin: AllowOrigin = Any.into();
+        assert!(matches!(origin.0, OriginInner::Exact(ref v) if v == "*"));
+    }
+
+    #[test]
+    fn test_from_list() {
+        let origin: AllowOrigin = vec!["https://example.com"].into();
+        assert!(
+            matches!(origin.0, OriginInner::List(ref v) if v == &vec![HeaderValue::from_static("https://example.com")])
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_list_with_wildcard() {
+        let _: AllowOrigin = vec![WILDCARD.clone()].into();
+    }
+}

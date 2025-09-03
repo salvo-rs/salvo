@@ -7,6 +7,7 @@ use opentelemetry_semantic_conventions::{resource, trace};
 use salvo_core::http::headers::{self, HeaderMap, HeaderMapExt, HeaderName, HeaderValue};
 use salvo_core::prelude::*;
 
+
 /// Middleware for tracing with OpenTelemetry.
 pub struct Tracing<T> {
     tracer: T,
@@ -113,5 +114,26 @@ where
         }
         .with_context(Context::current_with_span(span))
         .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::trace::{TracerProvider, noop::NoopTracerProvider};
+    use salvo_core::{Request, Depot, Response, FlowCtrl};
+    
+
+    #[tokio::test]
+    async fn test_tracing_handler() {
+        let tracer = NoopTracerProvider::new().tracer("test");
+        let handler = Tracing::new(tracer);
+
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut ctrl = FlowCtrl::new(vec![]);
+
+        handler.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
     }
 }

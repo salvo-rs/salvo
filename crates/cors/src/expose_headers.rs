@@ -174,3 +174,77 @@ enum ExposeHeadersInner {
         >,
     ),
 }
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::{self, HeaderValue};
+    use salvo_core::{Depot, Request};
+
+    use super::{Any, ExposeHeaders, ExposeHeadersInner};
+
+    #[test]
+    fn test_from_any() {
+        let headers: ExposeHeaders = Any.into();
+        assert!(matches!(headers.0, ExposeHeadersInner::Exact(ref v) if v == "*"));
+    }
+
+    #[test]
+    fn test_from_list() {
+        let headers: ExposeHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
+        assert!(
+            matches!(headers.0, ExposeHeadersInner::Exact(ref v) if v == "content-type,accept")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_to_header() {
+        let req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        // Test `Any`
+        let headers = ExposeHeaders::any();
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("*")
+            ))
+        );
+
+        // Test `List`
+        let headers: ExposeHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("content-type,accept")
+            ))
+        );
+
+        // Test `Dynamic`
+        let headers = ExposeHeaders::dynamic(|_, _, _| Some(HeaderValue::from_static("x-dynamic")));
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("x-dynamic")
+            ))
+        );
+
+        // Test `DynamicAsync`
+        let headers = ExposeHeaders::dynamic_async(|_, _, _| async {
+            Some(HeaderValue::from_static("x-dynamic-async"))
+        });
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("x-dynamic-async")
+            ))
+        );
+    }
+}
