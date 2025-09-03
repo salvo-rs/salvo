@@ -290,9 +290,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        RenameRule, SerdeContainer, case::RENAME_RULES, parse_container, parse_value,
-    };
+    use super::{RenameRule, SerdeContainer, case::RENAME_RULES, parse_container, parse_value};
     use syn::{Attribute, parse_quote};
 
     #[test]

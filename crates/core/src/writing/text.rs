@@ -240,4 +240,129 @@ mod tests {
             "text/html; charset=utf-8"
         );
     }
+    #[tokio::test]
+    async fn test_write_xml_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Xml("<xml>hello</xml>")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "<xml>hello</xml>");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "application/xml; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_js_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Js("var a = 1;")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "var a = 1;");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/javascript; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_css_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Css("body {color: red;}")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "body {color: red;}");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/css; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_csv_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Csv("a,b,c")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "a,b,c");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/csv; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_atom_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Atom("<feed></feed>")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "<feed></feed>");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "application/atom+xml; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_rss_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Rss("<rss></rss>")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "<rss></rss>");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "application/rss+xml; charset=utf-8"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_rdf_text() {
+        #[handler]
+        async fn test() -> Text<&'static str> {
+            Text::Rdf("<rdf></rdf>")
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+            .send(router)
+            .await;
+        assert_eq!(res.take_string().await.unwrap(), "<rdf></rdf>");
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "application/rdf+xml; charset=utf-8"
+        );
+    }
 }
