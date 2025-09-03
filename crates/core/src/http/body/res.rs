@@ -289,3 +289,50 @@ impl Debug for ResBody {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::VecDeque;
+
+    use bytes::Bytes;
+
+    use super::*;
+
+    #[test]
+    fn test_from_impls() {
+        let _: ResBody = ().into();
+        let _: ResBody = Bytes::from("abc").into();
+        let _: ResBody = String::from("abc").into();
+        let _: ResBody = b"abc".as_ref().into();
+        let _: ResBody = "abc".into();
+        let _: ResBody = vec![1, 2, 3].into();
+        let boxed: Box<ResBody> = Box::new(ResBody::None);
+        let _: ResBody = boxed.into();
+    }
+
+    #[test]
+    fn test_take_and_size() {
+        let mut b = ResBody::Once(Bytes::from("abc"));
+        assert_eq!(b.size(), Some(3));
+        let old = b.take();
+        assert!(matches!(old, ResBody::Once(_)));
+        assert!(b.is_none());
+    }
+
+    #[test]
+    fn test_debug() {
+        let b = ResBody::None;
+        let s = format!("{:?}", b);
+        assert!(s.contains("ResBody::None"));
+    }
+
+    #[test]
+    fn test_is_end_stream() {
+        let b = ResBody::None;
+        assert!(b.is_end_stream());
+        let b = ResBody::Once(Bytes::new());
+        assert!(b.is_end_stream());
+        let b = ResBody::Chunks(VecDeque::new());
+        assert!(b.is_end_stream());
+    }
+}

@@ -91,44 +91,34 @@ impl Handler for Metrics {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use salvo_core::Depot;
-    use salvo_core::http::{Request, Response};
     use salvo_core::prelude::*;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
+    use salvo_core::test::{ResponseExt, TestClient};
 
+    use super::*;
     #[tokio::test]
     async fn test_metrics_default() {
         let metrics = Metrics::default();
         assert_eq!(format!("{:?}", metrics).contains("Metrics"), true);
     }
 
-    #[tokio::test]
-    async fn test_metrics_handle_ok() {
-        let metrics = Metrics::default();
-        let mut req = Request::new(salvo_core::http::Method::GET, "http://localhost/");
-        let mut depot = Depot::new();
-        let mut res = Response::new();
-        let mut ctrl = FlowCtrl::new();
-        metrics
-            .handle(&mut req, &mut depot, &mut res, &mut ctrl)
-            .await;
-        assert!(res.status_code.is_some() || res.status_code.is_none());
+    #[handler]
+    async fn hello(depot: &mut Depot) -> &'static str {
+        "Hello"
     }
 
     #[tokio::test]
-    async fn test_metrics_handle_error() {
+    async fn test_metrics_handle() {
         let metrics = Metrics::default();
-        let mut req = Request::new(salvo_core::http::Method::GET, "http://localhost/");
-        let mut depot = Depot::new();
-        let mut res = Response::new();
-        res.status_code = Some(salvo_core::http::StatusCode::INTERNAL_SERVER_ERROR);
-        res.body = ResBody::Error(Arc::new("error".to_string()));
-        let mut ctrl = FlowCtrl::new();
-        metrics
-            .handle(&mut req, &mut depot, &mut res, &mut ctrl)
-            .await;
-        assert_eq!(res.status_code.unwrap().as_u16(), 500);
+
+        let router = Router::new().hoop(metrics).goal(hello);
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:5800")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content == "Hello");
     }
 }

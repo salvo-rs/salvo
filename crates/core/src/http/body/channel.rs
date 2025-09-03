@@ -170,3 +170,71 @@ impl Debug for BodyReceiver {
         f.debug_struct("BodyReceiver").finish()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Error as IoError;
+
+    use bytes::Bytes;
+    use futures_channel::{mpsc, oneshot};
+    use futures_util::StreamExt;
+    use hyper::HeaderMap;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_send_data_and_is_closed() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let (trailers_tx, _trailers_rx) = oneshot::channel();
+        let mut sender = BodySender {
+            data_tx: tx,
+            trailers_tx: Some(trailers_tx),
+        };
+        assert!(!sender.is_closed());
+        sender.send_data("hello").await.unwrap();
+        let got = rx.next().await.unwrap().unwrap();
+        assert_eq!(got, Bytes::from("hello"));
+        sender.close();
+        assert!(sender.is_closed());
+    }
+
+    #[tokio::test]
+    async fn test_send_trailers() {
+        let (tx, _rx) = mpsc::channel(1);
+        let (trailers_tx, trailers_rx) = oneshot::channel();
+        let mut sender = BodySender {
+            data_tx: tx,
+            trailers_tx: Some(trailers_tx),
+        };
+        let mut map = HeaderMap::new();
+        map.insert("x-test", "1".parse().unwrap());
+        sender.send_trailers(map.clone()).await.unwrap();
+        let got = trailers_rx.await.unwrap();
+        assert_eq!(got["x-test"], "1");
+    }
+
+    #[tokio::test]
+    async fn test_send_error() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let (trailers_tx, _trailers_rx) = oneshot::channel();
+        let mut sender = BodySender {
+            data_tx: tx,
+            trailers_tx: Some(trailers_tx),
+        };
+        sender.send_error(IoError::other("fail"));
+        let got = rx.next().await.unwrap();
+        assert!(got.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disconnect() {
+        let (tx, _rx) = mpsc::channel(1);
+        let (trailers_tx, _trailers_rx) = oneshot::channel();
+        let mut sender = BodySender {
+            data_tx: tx,
+            trailers_tx: Some(trailers_tx),
+        };
+        sender.disconnect();
+        assert!(sender.is_closed());
+    }
+}
