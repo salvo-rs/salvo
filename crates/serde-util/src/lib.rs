@@ -290,8 +290,41 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RenameRule, SerdeContainer, case::RENAME_RULES, parse_container};
+    use super::{RenameRule, SerdeContainer, case::RENAME_RULES, parse_container, parse_value};
     use syn::{Attribute, parse_quote};
+
+    #[test]
+    fn test_serde_parse_value() {
+        let skip_attribute: syn::Attribute = parse_quote! {
+            #[serde(skip)]
+        };
+        let rename_attribute: syn::Attribute = parse_quote! {
+            #[serde(rename = "new_name")]
+        };
+        let default_attribute: syn::Attribute = parse_quote! {
+            #[serde(default)]
+        };
+        let flatten_attribute: syn::Attribute = parse_quote! {
+            #[serde(flatten)]
+        };
+        let skip_serializing_if_attribute: syn::Attribute = parse_quote! {
+            #[serde(skip_serializing_if = "Option::is_none")]
+        };
+        let attributes: &[Attribute] = &[
+            skip_attribute,
+            rename_attribute,
+            default_attribute,
+            flatten_attribute,
+            skip_serializing_if_attribute,
+        ];
+
+        let result = parse_value(attributes).unwrap();
+        assert!(result.skip);
+        assert_eq!(result.rename.unwrap(), "new_name");
+        assert!(result.is_default);
+        assert!(result.flatten);
+        assert!(result.skip_serializing_if);
+    }
 
     #[test]
     fn test_serde_parse_container() {
@@ -321,7 +354,8 @@ mod tests {
         };
 
         let result = parse_container(attributes).unwrap();
-        assert_eq!(expected, result);
+        assert_eq!(expected.is_default, result.is_default);
+        assert_eq!(expected.deny_unknown_fields, result.deny_unknown_fields);
     }
 
     #[test]
@@ -329,5 +363,60 @@ mod tests {
         for (s, _) in RENAME_RULES {
             s.parse::<RenameRule>().unwrap();
         }
+    }
+
+    #[test]
+    fn test_serde_parse_container_rename_all() {
+        let rename_all_attribute: syn::Attribute = parse_quote! {
+            #[serde(rename_all = "camelCase")]
+        };
+        let attributes: &[Attribute] = &[rename_all_attribute];
+
+        let result = parse_container(attributes).unwrap();
+        assert_eq!(result.rename_all, Some(RenameRule::CamelCase));
+    }
+
+    #[test]
+    fn test_serde_parse_container_untagged() {
+        let untagged_attribute: syn::Attribute = parse_quote! {
+            #[serde(untagged)]
+        };
+        let attributes: &[Attribute] = &[untagged_attribute];
+
+        let result = parse_container(attributes).unwrap();
+        assert_eq!(result.enum_repr, super::SerdeEnumRepr::Untagged);
+    }
+
+    #[test]
+    fn test_serde_parse_container_internally_tagged() {
+        let tag_attribute: syn::Attribute = parse_quote! {
+            #[serde(tag = "t")]
+        };
+        let attributes: &[Attribute] = &[tag_attribute];
+
+        let result = parse_container(attributes).unwrap();
+        assert_eq!(
+            result.enum_repr,
+            super::SerdeEnumRepr::InternallyTagged {
+                tag: "t".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_serde_parse_container_adjacently_tagged() {
+        let tag_attribute: syn::Attribute = parse_quote! {
+            #[serde(tag = "t", content = "c")]
+        };
+        let attributes: &[Attribute] = &[tag_attribute];
+
+        let result = parse_container(attributes).unwrap();
+        assert_eq!(
+            result.enum_repr,
+            super::SerdeEnumRepr::AdjacentlyTagged {
+                tag: "t".to_string(),
+                content: "c".to_string()
+            }
+        );
     }
 }

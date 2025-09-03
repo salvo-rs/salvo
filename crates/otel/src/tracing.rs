@@ -115,3 +115,25 @@ where
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::trace::{TracerProvider, noop::NoopTracerProvider};
+    use salvo_core::{Depot, FlowCtrl, Request, Response};
+
+    #[tokio::test]
+    async fn test_tracing_handler() {
+        let tracer = NoopTracerProvider::new().tracer("test");
+        let handler = Tracing::new(tracer);
+
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut ctrl = FlowCtrl::new(vec![]);
+
+        handler
+            .handle(&mut req, &mut depot, &mut res, &mut ctrl)
+            .await;
+    }
+}

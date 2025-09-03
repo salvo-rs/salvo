@@ -232,14 +232,62 @@ impl JwkSetStore {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn validate_headers() {
-        let _input = ["max-age=604800",
-            "no-cache",
-            "max-age=604800, must-revalidate",
-            "no-store",
-            "public, max-age=604800, immutable",
-            "max-age=604800, stale-while-revalidate=86400",
-            "max-age=604800, stale-if-error=86400"];
+    fn test_cache_policy_default() {
+        let policy = CachePolicy::default();
+        assert_eq!(policy.max_age, Duration::from_secs(1));
+        assert_eq!(policy.stale_while_revalidate, Some(Duration::from_secs(1)));
+        assert_eq!(policy.stale_if_error, Some(Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_max_age() {
+        let header_value = HeaderValue::from_static("max-age=3600");
+        let policy = CachePolicy::from_header_val(Some(&header_value));
+        assert_eq!(policy.max_age, Duration::from_secs(3600));
+        assert_eq!(policy.stale_while_revalidate, Some(Duration::from_secs(1)));
+        assert_eq!(policy.stale_if_error, Some(Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_stale_while_revalidate() {
+        let header_value = HeaderValue::from_static("max-age=3600, stale-while-revalidate=60");
+        let policy = CachePolicy::from_header_val(Some(&header_value));
+        assert_eq!(policy.max_age, Duration::from_secs(3600));
+        assert_eq!(policy.stale_while_revalidate, Some(Duration::from_secs(60)));
+        assert_eq!(policy.stale_if_error, Some(Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_stale_if_error() {
+        let header_value = HeaderValue::from_static("max-age=3600, stale-if-error=120");
+        let policy = CachePolicy::from_header_val(Some(&header_value));
+        assert_eq!(policy.max_age, Duration::from_secs(3600));
+        assert_eq!(policy.stale_while_revalidate, Some(Duration::from_secs(1)));
+        assert_eq!(policy.stale_if_error, Some(Duration::from_secs(120)));
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_all() {
+        let header_value = HeaderValue::from_static("max-age=3600, stale-while-revalidate=60, stale-if-error=120");
+        let policy = CachePolicy::from_header_val(Some(&header_value));
+        assert_eq!(policy.max_age, Duration::from_secs(3600));
+        assert_eq!(policy.stale_while_revalidate, Some(Duration::from_secs(60)));
+        assert_eq!(policy.stale_if_error, Some(Duration::from_secs(120)));
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_none() {
+        let policy = CachePolicy::from_header_val(None);
+        assert_eq!(policy, CachePolicy::default());
+    }
+
+    #[test]
+    fn test_cache_policy_from_header_val_invalid() {
+        let header_value = HeaderValue::from_static("invalid-directive");
+        let policy = CachePolicy::from_header_val(Some(&header_value));
+        assert_eq!(policy, CachePolicy::default());
     }
 }

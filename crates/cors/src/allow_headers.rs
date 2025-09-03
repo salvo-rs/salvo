@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -195,5 +196,23 @@ enum AllowHeadersInner {
 impl Default for AllowHeadersInner {
     fn default() -> Self {
         Self::None
+    }
+}
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header;
+
+    use super::{AllowHeaders, AllowHeadersInner, Any};
+
+    #[test]
+    fn test_from_any() {
+        let headers: AllowHeaders = Any.into();
+        assert!(matches!(headers.0, AllowHeadersInner::Exact(ref v) if v == "*"));
+    }
+
+    #[test]
+    fn test_from_list() {
+        let headers: AllowHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
+        assert!(matches!(headers.0, AllowHeadersInner::Exact(ref v) if v == "content-type,accept"));
     }
 }

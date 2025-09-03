@@ -320,7 +320,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::{Router, handler};

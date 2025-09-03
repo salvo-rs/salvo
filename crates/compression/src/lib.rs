@@ -472,4 +472,95 @@ mod tests {
         let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
+
+    #[tokio::test]
+    async fn test_zstd() {
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "zstd", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "zstd");
+        let content = res.take_string().await.unwrap();
+        assert_eq!(content, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_min_length_not_compress() {
+        let comp_handler = Compression::new().min_length(10);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_min_length_should_compress() {
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_some());
+    }
+
+    #[handler]
+    async fn hello_html(res: &mut Response) {
+        res.render(Text::Html("<html><body>hello</body></html>"));
+    }
+    #[tokio::test]
+    async fn test_content_types_should_compress() {
+        let comp_handler = Compression::new()
+            .min_length(1)
+            .content_types(&[mime::TEXT_HTML]);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_html));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_some());
+    }
+
+    #[tokio::test]
+    async fn test_content_types_not_compress() {
+        let comp_handler = Compression::new()
+            .min_length(1)
+            .content_types(&[mime::APPLICATION_JSON]);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_html));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_force_priority() {
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_brotli(CompressionLevel::Default)
+            .enable_gzip(CompressionLevel::Default)
+            .min_length(1)
+            .force_priority(true);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip, br", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+        let content = res.take_string().await.unwrap();
+        assert_eq!(content, "hello");
+    }
 }

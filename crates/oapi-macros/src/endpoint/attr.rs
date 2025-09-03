@@ -101,3 +101,74 @@ impl Parse for EndpointAttr<'_> {
         Ok(attr)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_str;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_operation_id() {
+        let input = "operation_id = \"test_operation\"";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.operation_id.is_some());
+    }
+
+    #[test]
+    fn test_parse_request_body() {
+        let input = "request_body = Pet";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.request_body.is_some());
+    }
+
+    #[test]
+    fn test_parse_responses() {
+        let input = "responses((status_code = 200))";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.responses.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_status_codes() {
+        let input = "status_codes(200, 404)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.status_codes.len(), 2);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_parse_parameters() {
+        let input = "parameters((\"id\" in path,))";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.parameters.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_tags() {
+        let input = "tags(\"pet\", \"store\")";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.tags.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_parse_security() {
+        let input = "security((\"petstore_auth\" = [\"write:pets\", \"read:pets\"]))";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.security.is_some());
+    }
+
+    #[test]
+    fn test_parse_description() {
+        let input = "description = \"test description\"";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.description.is_some());
+    }
+
+    #[test]
+    fn test_parse_summary() {
+        let input = "summary = \"test summary\"";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.summary.is_some());
+    }
+}

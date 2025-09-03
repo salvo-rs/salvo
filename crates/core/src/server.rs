@@ -429,6 +429,7 @@ impl<A: Acceptor + Send> Server<A> {
 #[cfg(test)]
 mod tests {
     use serde::Serialize;
+    use std::future::Future;
 
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
@@ -502,6 +503,47 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("<code>404</code>"));
+    }
+
+    #[cfg(feature = "server-handle")]
+    #[tokio::test]
+    async fn test_server_handle_stop() {
+        use std::time::Duration;
+        use tokio::time::timeout;
+
+        // Test forcible stop
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:5802").bind().await;
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new()));
+
+        // Give server a moment to start
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        handle.stop_forcible();
+
+        let result = timeout(Duration::from_secs(1), server_task).await;
+        assert!(result.is_ok(), "Server should stop forcibly within 1 second.");
+        let server_result = result.unwrap();
+        assert!(server_result.is_ok(), "Server task should not panic.");
+        assert!(server_result.unwrap().is_ok(), "try_serve should return Ok.");
+
+        // Test graceful stop
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:5803").bind().await;
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new()));
+
+        // Give server a moment to start
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        handle.stop_graceful(None);
+
+        let result = timeout(Duration::from_secs(1), server_task).await;
+        assert!(result.is_ok(), "Server should stop gracefully within 1 second.");
+        let server_result = result.unwrap();
+        assert!(server_result.is_ok(), "Server task should not panic.");
+        assert!(server_result.unwrap().is_ok(), "try_serve should return Ok.");
     }
 
     #[test]

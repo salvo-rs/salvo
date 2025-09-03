@@ -184,8 +184,9 @@ fn rewrite_method(
 
 #[cfg(test)]
 mod tests {
-    use super::REGEX_STR;
+    use super::{FnReceiver, REGEX_STR};
     use regex::Regex;
+    use syn::parse_quote;
 
     #[test]
     fn extract_attribute() {
@@ -206,5 +207,38 @@ mod tests {
                 )
             }
         }
+    }
+
+    #[test]
+    fn test_fn_receiver() {
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method(&self) {}
+        };
+        assert_eq!(FnReceiver::from_method(&method).unwrap(), FnReceiver::Ref);
+
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method(self: &Self) {}
+        };
+        assert_eq!(FnReceiver::from_method(&method).unwrap(), FnReceiver::Ref);
+
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method(self: ::std::sync::Arc<Self>) {}
+        };
+        assert_eq!(FnReceiver::from_method(&method).unwrap(), FnReceiver::Arc);
+
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method(self: &::std::sync::Arc<Self>) {}
+        };
+        assert_eq!(FnReceiver::from_method(&method).unwrap(), FnReceiver::Arc);
+
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method() {}
+        };
+        assert_eq!(FnReceiver::from_method(&method).unwrap(), FnReceiver::None);
+
+        let method: syn::ImplItemFn = parse_quote! {
+            fn my_method(self: Box<Self>) {}
+        };
+        assert!(FnReceiver::from_method(&method).is_err());
     }
 }

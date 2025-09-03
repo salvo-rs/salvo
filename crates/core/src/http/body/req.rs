@@ -311,3 +311,33 @@ impl Debug for ReqBody {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+
+    use super::*;
+
+    #[test]
+    fn test_take() {
+        let mut b = ReqBody::Once(Bytes::from("abc"));
+        let old = b.take();
+        assert!(matches!(old, ReqBody::Once(_)));
+        assert!(b.is_none());
+    }
+
+    #[test]
+    fn test_debug() {
+        let b = ReqBody::None;
+        let s = format!("{:?}", b);
+        assert!(s.contains("ReqBody::None"));
+    }
+
+    #[test]
+    fn test_is_end_stream() {
+        let b = ReqBody::None;
+        assert!(b.is_end_stream());
+        let b = ReqBody::Once(Bytes::new());
+        assert!(b.is_end_stream());
+    }
+}

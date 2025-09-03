@@ -45,3 +45,68 @@ impl From<Vec<HeaderName>> for Vary {
         Self::list(vec)
     }
 }
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::{
+        self, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, HeaderName,
+        HeaderValue, ORIGIN,
+    };
+
+    use super::{Vary, preflight_request_headers};
+
+    #[test]
+    fn test_default() {
+        let vary = Vary::default();
+        let headers: Vec<HeaderValue> = vary.values().collect();
+        let expected: Vec<HeaderValue> = preflight_request_headers().map(Into::into).collect();
+        assert_eq!(headers, expected);
+    }
+
+    #[test]
+    fn test_list() {
+        let vary = Vary::list(vec![header::ACCEPT, header::ACCEPT_LANGUAGE]);
+        let headers: Vec<HeaderValue> = vary.values().collect();
+        assert_eq!(
+            headers,
+            vec![
+                HeaderValue::from_static("accept"),
+                HeaderValue::from_static("accept-language")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_from_array() {
+        let vary: Vary = [header::ACCEPT, header::ACCEPT_LANGUAGE].into();
+        let headers: Vec<HeaderValue> = vary.values().collect();
+        assert_eq!(
+            headers,
+            vec![
+                HeaderValue::from_static("accept"),
+                HeaderValue::from_static("accept-language")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_from_vec() {
+        let vary: Vary = vec![header::ACCEPT, header::ACCEPT_LANGUAGE].into();
+        let headers: Vec<HeaderValue> = vary.values().collect();
+        assert_eq!(
+            headers,
+            vec![
+                HeaderValue::from_static("accept"),
+                HeaderValue::from_static("accept-language")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_preflight_request_headers() {
+        let mut headers = preflight_request_headers().map(HeaderName::from);
+        assert_eq!(headers.next(), Some(ORIGIN));
+        assert_eq!(headers.next(), Some(ACCESS_CONTROL_REQUEST_METHOD));
+        assert_eq!(headers.next(), Some(ACCESS_CONTROL_REQUEST_HEADERS));
+        assert_eq!(headers.next(), None);
+    }
+}

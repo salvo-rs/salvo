@@ -205,6 +205,7 @@ cfg_feature! {
 mod tests {
     use crate::http::*;
     use crate::{Depot, Writer};
+    use std::str::FromStr;
 
     use super::*;
 
@@ -236,8 +237,69 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::Other("detail message".into());
+        let e = Error::Other(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "detail message",
+        )));
         e.write(&mut req, &mut depot, &mut res).await;
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+
+    #[test]
+    fn test_error_from() {
+        use std::io;
+
+        let err: Error = io::Error::new(io::ErrorKind::Other, "oh no!").into();
+        assert!(matches!(err, Error::Io(_)));
+
+        let err: Error = ParseError::ParseFromStr.into();
+        assert!(matches!(err, Error::HttpParse(_)));
+
+        let err: Error = StatusError::bad_request().into();
+        assert!(matches!(err, Error::HttpStatus(_)));
+
+        let err: Error = serde_json::from_str::<serde_json::Value>("{")
+            .unwrap_err()
+            .into();
+        assert!(matches!(err, Error::SerdeJson(_)));
+
+        let err: Error = http::Uri::from_str("ht tp://host.com").unwrap_err().into();
+        assert!(matches!(err, Error::InvalidUri(_)));
+
+        let err: Error = Error::other(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "custom error",
+        )));
+        assert!(matches!(err, Error::Other(_)));
+    }
+
+    #[test]
+    fn test_error_display() {
+        use std::io;
+
+        let err: Error = io::Error::new(io::ErrorKind::Other, "io error").into();
+        assert_eq!(format!("{}", err), "io error");
+
+        let err: Error = ParseError::ParseFromStr.into();
+        assert_eq!(format!("{}", err), "Parse error when parse from str.");
+
+        let err: Error = StatusError::bad_request().brief("status error").into();
+        assert!(format!("{}", err).contains("status error"));
+    }
+
+    #[tokio::test]
+    async fn test_error_scribe() {
+        let mut req = Request::default();
+        let mut res = Response::default();
+        let mut depot = Depot::new();
+
+        let e = Error::from(StatusError::bad_request());
+        e.write(&mut req, &mut depot, &mut res).await;
+        assert_eq!(res.status_code, Some(StatusCode::BAD_REQUEST));
+
+        let mut res = Response::default();
+        let e = std::io::Error::new(std::io::ErrorKind::Other, "io error");
+        Error::from(e).write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 }

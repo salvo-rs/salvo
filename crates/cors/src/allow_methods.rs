@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -179,4 +180,22 @@ enum AllowMethodsInner {
                 + Sync,
         >,
     ),
+}
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::Method;
+
+    use super::{AllowMethods, AllowMethodsInner, Any};
+
+    #[test]
+    fn test_from_any() {
+        let methods: AllowMethods = Any.into();
+        assert!(matches!(methods.0, AllowMethodsInner::Exact(ref v) if v == "*"));
+    }
+
+    #[test]
+    fn test_from_list() {
+        let methods: AllowMethods = vec![Method::GET, Method::POST].into();
+        assert!(matches!(methods.0, AllowMethodsInner::Exact(ref v) if v == "GET,POST"));
+    }
 }

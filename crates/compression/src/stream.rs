@@ -143,3 +143,49 @@ impl_stream!(BoxStream<'static, Result<BytesFrame, BoxedError>>);
 impl_stream!(HyperBody);
 impl_stream!(Option<Bytes>);
 impl_stream!(VecDeque<Bytes>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::read::GzDecoder;
+    use futures_util::stream::StreamExt;
+    use std::io::Read;
+
+    #[tokio::test]
+    async fn test_encode_stream_once() {
+        let stream = EncodeStream::new(
+            CompressionAlgo::Gzip,
+            CompressionLevel::Default,
+            Some(Bytes::from("hello")),
+        );
+        let mut compressed = Vec::new();
+        let mut stream = Box::pin(stream);
+        while let Some(chunk) = stream.next().await {
+            compressed.extend_from_slice(&chunk.unwrap());
+        }
+
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = String::new();
+        decoder.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(decompressed, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_encode_stream_empty() {
+        let stream = EncodeStream::new(
+            CompressionAlgo::Gzip,
+            CompressionLevel::Default,
+            Some(Bytes::new()),
+        );
+        let mut compressed = Vec::new();
+        let mut stream = Box::pin(stream);
+        while let Some(chunk) = stream.next().await {
+            compressed.extend_from_slice(&chunk.unwrap());
+        }
+
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = String::new();
+        decoder.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(decompressed, "");
+    }
+}

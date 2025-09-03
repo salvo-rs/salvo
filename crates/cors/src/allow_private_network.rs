@@ -154,7 +154,7 @@ mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
-    use super::AllowPrivateNetwork;
+    use super::{AllowPrivateNetwork, AllowPrivateNetworkInner};
     use crate::Cors;
 
     const REQUEST_PRIVATE_NETWORK: HeaderName =
@@ -166,6 +166,59 @@ mod tests {
     #[handler]
     async fn hello() -> &'static str {
         "hello"
+    }
+
+    #[test]
+    fn test_from_bool() {
+        let p: AllowPrivateNetwork = true.into();
+        assert!(matches!(p.0, AllowPrivateNetworkInner::Yes));
+
+        let p: AllowPrivateNetwork = false.into();
+        assert!(matches!(p.0, AllowPrivateNetworkInner::No));
+    }
+
+    #[tokio::test]
+    async fn test_to_header() {
+        let mut req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        // Test `Yes` without request header
+        let p = AllowPrivateNetwork::yes();
+        let header = p.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(header, None);
+
+        // Test `Yes` with request header
+        req.headers_mut()
+            .insert(REQUEST_PRIVATE_NETWORK, HeaderValue::from_static("true"));
+        let header = p.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((ALLOW_PRIVATE_NETWORK, HeaderValue::from_static("true")))
+        );
+
+        // Test `No`
+        let p: AllowPrivateNetwork = false.into();
+        let header = p.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(header, None);
+
+        // Test `Dynamic`
+        let p = AllowPrivateNetwork::dynamic(|_, _, _| Some(HeaderValue::from_static("true")));
+        let header = p.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((ALLOW_PRIVATE_NETWORK, HeaderValue::from_static("true")))
+        );
+
+        // Test `DynamicAsync`
+        let p = AllowPrivateNetwork::dynamic_async(|_, _, _| async {
+            Some(HeaderValue::from_static("true"))
+        });
+        let header = p.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((ALLOW_PRIVATE_NETWORK, HeaderValue::from_static("true")))
+        );
     }
 
     #[tokio::test]

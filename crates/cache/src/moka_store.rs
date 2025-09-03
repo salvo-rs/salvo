@@ -147,3 +147,96 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use salvo_core::http::{HeaderMap, StatusCode};
+    use crate::{CachedBody, CachedEntry};
+
+    #[tokio::test]
+    async fn test_moka_store() {
+        let store = MokaStore::new(100);
+        let key = "test_key".to_string();
+        let entry = CachedEntry {
+            status: Some(StatusCode::OK),
+            headers: HeaderMap::new(),
+            body: CachedBody::Once("test_body".into()),
+        };
+        store.save_entry(key.clone(), entry.clone()).await.unwrap();
+        let loaded_entry = store.load_entry(&key).await.unwrap();
+        assert_eq!(loaded_entry.status, entry.status);
+        assert_eq!(loaded_entry.body, entry.body);
+    }
+
+    #[tokio::test]
+    async fn test_moka_store_builder() {
+        let store = MokaStore::<String>::builder()
+            .initial_capacity(50)
+            .max_capacity(100)
+            .time_to_live(Duration::from_secs(1))
+            .time_to_idle(Duration::from_secs(1))
+            .build();
+        let key = "test_key".to_string();
+        let entry = CachedEntry {
+            status: Some(StatusCode::OK),
+            headers: HeaderMap::new(),
+            body: CachedBody::Once("test_body".into()),
+        };
+        store.save_entry(key.clone(), entry.clone()).await.unwrap();
+        let loaded_entry = store.load_entry(&key).await.unwrap();
+        assert_eq!(loaded_entry.status, entry.status);
+        assert_eq!(loaded_entry.body, entry.body);
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let loaded_entry = store.load_entry(&key).await;
+        assert!(loaded_entry.is_none());
+    }
+    
+    #[test]
+    fn test_builder_debug() {
+        let builder = MokaStore::<String>::builder();
+        let dbg_str = format!("{:?}", builder);
+        assert_eq!(dbg_str, "Builder");
+    }
+
+    #[test]
+    fn test_moka_store_debug() {
+        let store = MokaStore::<String>::new(100);
+        let dbg_str = format!("{:?}", store);
+        assert_eq!(dbg_str, "MokaStore");
+    }
+    
+    #[tokio::test]
+    async fn test_eviction_listener() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let evicted = Arc::new(AtomicBool::new(false));
+        let evicted_clone = evicted.clone();
+        let store = MokaStore::<String>::builder()
+            .max_capacity(1)
+            .eviction_listener(move |_, _, _| {
+                evicted_clone.store(true, Ordering::SeqCst);
+            })
+            .build();
+        let entry = CachedEntry {
+            status: None,
+            headers: HeaderMap::new(),
+            body: CachedBody::Once("test_body".into()),
+        };
+        store.save_entry("key1".to_string(), entry.clone()).await.unwrap();
+        store.save_entry("key2".to_string(), entry.clone()).await.unwrap();
+        
+        // Try to get the key to give time to the eviction listener to run.
+        for _ in 0..10 {
+            store.load_entry(&"key1".to_string()).await;
+            store.load_entry(&"key2".to_string()).await;
+            if evicted.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        assert!(evicted.load(Ordering::SeqCst));
+    }
+}

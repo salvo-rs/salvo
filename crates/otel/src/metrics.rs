@@ -88,3 +88,37 @@ impl Handler for Metrics {
             .record(elapsed.as_secs_f64() * 1000.0, &labels);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+
+    use super::*;
+    #[tokio::test]
+    async fn test_metrics_default() {
+        let metrics = Metrics::default();
+        assert_eq!(format!("{:?}", metrics).contains("Metrics"), true);
+    }
+
+    #[handler]
+    async fn hello() -> &'static str {
+        "Hello"
+    }
+
+    #[tokio::test]
+    async fn test_metrics_handle() {
+        let metrics = Metrics::default();
+
+        let router = Router::new().hoop(metrics).goal(hello);
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:5800")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content == "Hello");
+    }
+}

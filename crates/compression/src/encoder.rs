@@ -178,3 +178,66 @@ impl Encoder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_gzip_encoder() {
+        use flate2::read::GzDecoder;
+        let mut encoder = Encoder::new(CompressionAlgo::Gzip, CompressionLevel::Default);
+        encoder.write(b"hello").unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = String::new();
+        decoder.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(decompressed, "hello");
+    }
+
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_brotli_encoder() {
+        use brotli::Decompressor;
+        let mut encoder = Encoder::new(CompressionAlgo::Brotli, CompressionLevel::Default);
+        encoder.write(b"hello").unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let mut decompressed = [0; 5];
+        Decompressor::new(&compressed[..], 4096)
+            .read_exact(&mut decompressed)
+            .unwrap();
+        assert_eq!(decompressed, *b"hello");
+    }
+
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn test_deflate_encoder() {
+        use flate2::read::ZlibDecoder;
+        let mut encoder = Encoder::new(CompressionAlgo::Deflate, CompressionLevel::Default);
+        encoder.write(b"hello").unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let mut decoder = ZlibDecoder::new(&compressed[..]);
+        let mut decompressed = String::new();
+        decoder.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(decompressed, "hello");
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_zstd_encoder() {
+        use zstd::stream::read::Decoder as ZstdDecoder;
+        let mut encoder = Encoder::new(CompressionAlgo::Zstd, CompressionLevel::Default);
+        encoder.write(b"hello").unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let mut decoder = ZstdDecoder::new(&compressed[..]).unwrap();
+        let mut decompressed = String::new();
+        decoder.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(decompressed, "hello");
+    }
+}
