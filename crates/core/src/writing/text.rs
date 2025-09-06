@@ -155,7 +155,7 @@ mod tests {
 
         let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
@@ -173,7 +173,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
@@ -192,7 +192,7 @@ mod tests {
 
         let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
@@ -210,7 +210,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), r#"{"hello": "world"}"#);
@@ -228,7 +228,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(
@@ -248,7 +248,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "<xml>hello</xml>");
@@ -266,7 +266,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "var a = 1;");
@@ -284,7 +284,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "body {color: red;}");
@@ -302,7 +302,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "a,b,c");
@@ -320,7 +320,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "<feed></feed>");
@@ -338,7 +338,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "<rss></rss>");
@@ -356,7 +356,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:5800/test")
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
             .send(router)
             .await;
         assert_eq!(res.take_string().await.unwrap(), "<rdf></rdf>");

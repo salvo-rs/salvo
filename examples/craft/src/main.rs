@@ -61,7 +61,7 @@ async fn main() {
         .push(doc.into_router("/api-doc/openapi.json"))
         .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
 
-    // Start server on localhost:5800
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    // Start server on localhost:8698
+    let acceptor = TcpListener::new("127.0.0.1:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

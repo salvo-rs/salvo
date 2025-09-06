@@ -14,7 +14,7 @@ async fn main() {
 }
 
 pub(crate) async fn start_server() {
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(route()).await;
 }
 
@@ -154,13 +154,13 @@ mod tests {
             super::start_server().await;
         });
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let res = TestClient::post("http://0.0.0.0:5800/todos")
+        let res = TestClient::post("http://0.0.0.0:8698/todos")
             .json(&test_todo())
             .send(super::route())
             .await;
 
         assert_eq!(res.status_code.unwrap(), StatusCode::CREATED);
-        let res = TestClient::post("http://0.0.0.0:5800/todos")
+        let res = TestClient::post("http://0.0.0.0:8698/todos")
             .json(&test_todo())
             .send(super::route())
             .await;

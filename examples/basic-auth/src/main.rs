@@ -29,8 +29,8 @@ async fn main() {
     // Initialize logging
     tracing_subscriber::fmt().init();
 
-    // Bind server to port 5800 and start serving
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind server to port 8698 and start serving
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(route()).await;
 }
 
@@ -45,7 +45,7 @@ mod tests {
         let service = Service::new(super::route());
 
         // Test case 1: Verify successful authentication with valid credentials
-        let content = TestClient::get("http://0.0.0.0:5800/")
+        let content = TestClient::get("http://0.0.0.0:8698/")
             .basic_auth("root", Some("pwd")) // Use correct username/password
             .send(&service) // Send the request to the service
             .await
@@ -56,7 +56,7 @@ mod tests {
         assert!(content.contains("Hello"));
 
         // Test case 2: Verify authentication failure with invalid password
-        let content = TestClient::get("http://0.0.0.0:5800/")
+        let content = TestClient::get("http://0.0.0.0:8698/")
             .basic_auth("root", Some("pwd2")) // Use incorrect password
             .send(&service) // Send the request to the service
             .await

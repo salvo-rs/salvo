@@ -1096,7 +1096,7 @@ mod tests {
         struct User {
             name: String,
         }
-        let mut req = TestClient::get("http://127.0.0.1:5800/hello")
+        let mut req = TestClient::get("http://127.0.0.1:8698/hello")
             .json(&User {
                 name: "jobs".into(),
             })
@@ -1125,7 +1125,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_form() {
-        let mut req = TestClient::post("http://127.0.0.1:5800/hello?q=rust")
+        let mut req = TestClient::post("http://127.0.0.1:8698/hello?q=rust")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("lover=dog&money=sh*t&q=firefox")
             .build();
@@ -1133,7 +1133,7 @@ mod tests {
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
         assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
-        let mut req: Request = TestClient::post("http://127.0.0.1:5800/hello?q=rust")
+        let mut req: Request = TestClient::post("http://127.0.0.1:8698/hello?q=rust")
             .add_header(
                 "content-type",
                 "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",

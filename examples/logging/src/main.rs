@@ -18,6 +18,6 @@ async fn main() {
     let router = Router::new().get(hello).push(Router::with_path("error").get(error));
     let service = Service::new(router).hoop(Logger::new());
 
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(service).await;
 }

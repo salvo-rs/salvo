@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let req = {
         let mut req = reqwest::Request::new(
             Method::GET,
-            Url::from_str("http://localhost:5800/api1").unwrap(),
+            Url::from_str("http://localhost:8698/api1").unwrap(),
         );
         global::get_text_map_propagator(|propagator| {
             propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut()));

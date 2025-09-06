@@ -60,7 +60,7 @@ async fn main() {
         // Add an additional route for the path "/hello" with the same handler
         .push(Router::with_path("hello").get(hello));
 
-    // Bind the server to port 5800 and start serving
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind the server to port 8698 and start serving
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

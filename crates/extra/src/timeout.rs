@@ -30,7 +30,7 @@
 //!         .push(Router::with_path("slow").get(slow))
 //!         .push(Router::with_path("fast").get(fast));
 //!
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```

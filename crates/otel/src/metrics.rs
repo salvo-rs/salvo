@@ -113,7 +113,7 @@ mod tests {
         let router = Router::new().hoop(metrics).goal(hello);
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:5800")
+        let content = TestClient::get("http://127.0.0.1:8698")
             .send(&service)
             .await
             .take_string()

@@ -73,6 +73,6 @@ async fn main() {
         .hoop(Metrics::new())
         .hoop(Tracing::new(tracer))
         .push(Router::with_path("api1").get(index));
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

@@ -53,7 +53,7 @@ impl Modify for SecurityAddon {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(route()).await;
 }
 
@@ -268,13 +268,13 @@ mod tests {
     #[tokio::test]
     async fn test_todo_create() {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let res = TestClient::post("http://0.0.0.0:5800/api/todos")
+        let res = TestClient::post("http://0.0.0.0:8698/api/todos")
             .json(&test_todo())
             .send(super::route())
             .await;
 
         assert_eq!(res.status_code.unwrap(), StatusCode::CREATED);
-        let res = TestClient::post("http://0.0.0.0:5800/api/todos")
+        let res = TestClient::post("http://0.0.0.0:8698/api/todos")
             .json(&test_todo())
             .send(super::route())
             .await;

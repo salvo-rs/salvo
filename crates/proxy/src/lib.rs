@@ -7,8 +7,8 @@
 //! # Example
 //!
 //! In this example, requests to different hosts are proxied to different upstream servers:
-//! - Requests to <http://127.0.0.1:5800/> are proxied to <https://www.rust-lang.org>
-//! - Requests to <http://localhost:5800/> are proxied to <https://crates.io>
+//! - Requests to <http://127.0.0.1:8698/> are proxied to <https://www.rust-lang.org>
+//! - Requests to <http://localhost:8698/> are proxied to <https://crates.io>
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
@@ -30,7 +30,7 @@
 //!                 .goal(Proxy::use_hyper_client("https://crates.io")),
 //!         );
 //!
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```

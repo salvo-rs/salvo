@@ -10,4 +10,4 @@
 
 3. Execute `cargo run` to start the server
 
-4. Visit [localhost:5800](http://localhost:5800) in browser after seeing the `server started` line
+4. Visit [localhost:8698](http://localhost:8698) in browser after seeing the `server started` line

@@ -36,6 +36,6 @@ async fn main() {
         .hoop(SessionStore::new().into_handler())
         .push(Router::with_path("get").get(get_flash))
         .push(Router::with_path("set").get(set_flash));
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

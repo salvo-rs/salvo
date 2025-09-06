@@ -16,7 +16,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(route()).await;
 //! }
 //!
@@ -29,7 +29,7 @@
 //!     async fn test_hello() {
 //!         let service = Service::new(super::route());
 //! 
-//!         let content = TestClient::get("http://0.0.0.0:5800/")
+//!         let content = TestClient::get("http://0.0.0.0:8698/")
 //!             .send(&service)
 //!             .await
 //!             .take_string()

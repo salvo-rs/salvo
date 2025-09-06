@@ -23,7 +23,7 @@ docker run -d -p 16686:16686 -p 4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegert
 Build and run the application:
 Access the example endpoint:
 ```bash 
-curl http://localhost:5800/
+curl http://localhost:8698/
 You should see "Hello World" as the response. Traces for requests made to this endpoint will be sent to Jaeger.
 ```
 ## Viewing Traces

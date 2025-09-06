@@ -18,7 +18,7 @@
 //!     let router = Router::with_hoop(add_slash())
 //!         .push(Router::with_path("hello").get(hello))
 //!         .push(Router::with_path("hello.world").get(hello));
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
@@ -39,7 +39,7 @@
 //!     let router = Router::with_hoop(remove_slash().redirect_code(StatusCode::TEMPORARY_REDIRECT))
 //!         .push(Router::with_path("hello").get(hello))
 //!         .push(Router::with_path("hello.world").get(hello));
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
@@ -223,17 +223,17 @@ mod tests {
             .push(Router::with_path("hello").get(hello))
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
-        let res = TestClient::get("http://127.0.0.1:5800/hello")
+        let res = TestClient::get("http://127.0.0.1:8698/hello")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::MOVED_PERMANENTLY);
 
-        let res = TestClient::get("http://127.0.0.1:5800/hello/")
+        let res = TestClient::get("http://127.0.0.1:8698/hello/")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
-        let res = TestClient::get("http://127.0.0.1:5800/hello.world")
+        let res = TestClient::get("http://127.0.0.1:8698/hello.world")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
@@ -245,17 +245,17 @@ mod tests {
                 .push(Router::with_path("hello").get(hello))
                 .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
-        let res = TestClient::get("http://127.0.0.1:5800/hello/")
+        let res = TestClient::get("http://127.0.0.1:8698/hello/")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
-        let res = TestClient::get("http://127.0.0.1:5800/hello.world/")
+        let res = TestClient::get("http://127.0.0.1:8698/hello.world/")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::TEMPORARY_REDIRECT);
 
-        let res = TestClient::get("http://127.0.0.1:5800/hello.world")
+        let res = TestClient::get("http://127.0.0.1:8698/hello.world")
             .send(&service)
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
