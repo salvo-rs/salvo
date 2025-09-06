@@ -26,7 +26,7 @@
 //!     let auth_handler = BasicAuth::new(Validator);
 //!     let router = Router::with_hoop(auth_handler).goal(hello);
 //!
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
@@ -235,7 +235,7 @@ mod tests {
         let router = Router::with_hoop(auth_handler).goal(hello);
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:5800/")
+        let content = TestClient::get("http://127.0.0.1:8698/")
             .basic_auth("root", Some("pwd"))
             .send(&service)
             .await
@@ -244,7 +244,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("Hello"));
 
-        let content = TestClient::get("http://127.0.0.1:5800/")
+        let content = TestClient::get("http://127.0.0.1:8698/")
             .basic_auth("root", Some("pwd2"))
             .send(&service)
             .await

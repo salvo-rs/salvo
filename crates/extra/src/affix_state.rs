@@ -52,7 +52,7 @@
 //!         .get(hello)
 //!         .push(Router::with_path("hello").get(hello));
 //!
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
@@ -182,7 +182,7 @@ mod tests {
         };
         let router =
             Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).goal(hello);
-        let content = TestClient::get("http://127.0.0.1:5800/")
+        let content = TestClient::get("http://127.0.0.1:8698/")
             .send(router)
             .await
             .take_string()

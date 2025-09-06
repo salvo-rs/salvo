@@ -17,7 +17,7 @@ async fn main() {
         .hoop(Compression::new().min_length(0)) // Enable compression for all responses
         .get(hello);
 
-    // Bind server to port 5800 and start serving
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind server to port 8698 and start serving
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

@@ -146,7 +146,7 @@ async fn main() {
         .post(add_user)
         .push(Router::with_path("{username}").get(get_user));
 
-    // Start server on port 5800
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Start server on port 8698
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

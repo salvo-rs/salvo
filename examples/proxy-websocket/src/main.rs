@@ -6,7 +6,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::with_path("{**rest}").goal(Proxy::new(
-        vec!["http://localhost:5800"],
+        vec!["http://localhost:8698"],
         HyperClient::default(),
     ));
     println!("{router:?}");

@@ -9,7 +9,7 @@ async fn hello(req: &mut Request) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     let router = Router::new().hoop(RequestId::new()).get(hello);
     Server::new(acceptor).serve(router).await;
 }

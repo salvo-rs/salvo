@@ -26,7 +26,7 @@ async fn main() {
             ])
             .force_passed(true);
 
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor)
         .serve(Router::with_hoop(auth_handler).goal(index))
         .await;

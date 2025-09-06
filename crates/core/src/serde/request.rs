@@ -492,7 +492,7 @@ mod tests {
             q1: String,
             q2: i64,
         }
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
@@ -519,7 +519,7 @@ mod tests {
             // q2: i64,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
@@ -536,7 +536,7 @@ mod tests {
             q1: &'a str,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("abc", "q1v")
             .build();
         let data: RequestData<'_> = req.extract().await.unwrap();
@@ -553,7 +553,7 @@ mod tests {
             last_name: &'a str,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("FirstName", "chris")
             .query("lastName", "young")
             .build();
@@ -587,7 +587,7 @@ mod tests {
             // body: RequestBody<'a>,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
@@ -622,7 +622,7 @@ mod tests {
             name: String,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .json(&vec![
                 User {
                     id: 1,
@@ -664,7 +664,7 @@ mod tests {
             b: bool,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .json(&true)
             .build();
         req.params.insert("p2", "921".into());
@@ -682,7 +682,7 @@ mod tests {
             s: &'a str,
         }
 
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .json(&"abcd-good")
             .build();
         req.params.insert("p2", "921".into());
@@ -710,7 +710,7 @@ mod tests {
             p2: &'a str,
             user: User<'a>,
         }
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .raw_form(r#"user={"name": "chris", "age": 20}"#)
             .build();
         req.params.insert("p2", "921".into());
@@ -737,7 +737,7 @@ mod tests {
             curr_age: usize,
         }
         let mut req = TestClient::get(
-            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+            "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
         let data: RequestData = req.extract().await.unwrap();
@@ -761,7 +761,7 @@ mod tests {
             curr_age: usize,
         }
         let mut req = TestClient::get(
-            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+            "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
         let data: RequestData = req.extract().await.unwrap();
@@ -785,7 +785,7 @@ mod tests {
             curr_age: usize,
         }
         let mut req = TestClient::get(
-            "http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20",
+            "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
         let data: RequestData = req.extract().await.unwrap();
@@ -806,7 +806,7 @@ mod tests {
             ids: Vec<String>,
         }
         let mut req =
-            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?ids=[3,2,11]").build();
+            TestClient::get("http://127.0.0.1:8698/test/1234/param2v?ids=[3,2,11]").build();
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,
@@ -815,7 +815,7 @@ mod tests {
             }
         );
         let mut req = TestClient::get(
-            r#"http://127.0.0.1:5800/test/1234/param2v?ids=['3',  '2',"11","1,2"]"#,
+            r#"http://127.0.0.1:8698/test/1234/param2v?ids=['3',  '2',"11","1,2"]"#,
         )
         .build();
         let data: RequestData = req.extract().await.unwrap();
@@ -840,7 +840,7 @@ mod tests {
             ids: Vec<i64>,
         }
         let mut req =
-            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?ids=[3,2,11]").build();
+            TestClient::get("http://127.0.0.1:8698/test/1234/param2v?ids=[3,2,11]").build();
         let data: RequestData = req.extract().await.unwrap();
         assert_eq!(
             data,

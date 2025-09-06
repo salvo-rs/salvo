@@ -91,7 +91,7 @@
 //!     let router = Router::new()
 //!         .push(Router::new().path("anyhow").get(handle_anyhow))
 //!         .push(Router::new().path("custom").get(handle_custom));
-//!     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+//!     let acceptor = TcpListener::new("127.0.0.1:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
@@ -444,7 +444,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_handler() {
-        let res = TestClient::get("http://127.0.0.1:5800/")
+        let res = TestClient::get("http://127.0.0.1:8698/")
             .send(empty())
             .await;
         assert_eq!(res.status_code, Some(StatusCode::OK));
@@ -457,7 +457,7 @@ mod tests {
             res.status_code(StatusCode::OK);
             res.render("hello");
         }
-        let mut res = TestClient::get("http://127.0.0.1:5800/")
+        let mut res = TestClient::get("http://127.0.0.1:8698/")
             .send(hello.arc())
             .await;
         assert_eq!(res.status_code, Some(StatusCode::OK));

@@ -18,11 +18,11 @@ async fn backend_server() {
     }
 
     // Configure CORS middleware with specific settings:
-    // - Allow requests from localhost:5800
+    // - Allow requests from localhost:8698
     // - Allow specific HTTP methods
     // - Allow authorization header
     let cors = Cors::new()
-        .allow_origin(["http://127.0.0.1:5800", "http://localhost:5800"])
+        .allow_origin(["http://127.0.0.1:8698", "http://localhost:8698"])
         .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
         .allow_headers("authorization")
         .into_handler();
@@ -45,8 +45,8 @@ async fn frontend_server() {
 
     // Set up frontend router to serve the test page
     let router = Router::new().get(index);
-    // Start frontend server on port 5800
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Start frontend server on port 8698
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }
 

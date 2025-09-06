@@ -17,7 +17,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let limit = RateLimitLayer::new(5, Duration::from_secs(30)).compat();
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     let router = Router::new().hoop(limit).get(hello);
 //!     Server::new(acceptor).serve(router).await;
 //! }
@@ -363,7 +363,7 @@ mod tests {
         }
         let router = Router::new().hoop(MyServiceLayer.compat()).get(hello);
         assert_eq!(
-            TestClient::get("http://127.0.0.1:5800")
+            TestClient::get("http://127.0.0.1:8698")
                 .send(router)
                 .await
                 .take_string()

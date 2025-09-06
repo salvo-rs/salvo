@@ -4,8 +4,8 @@ use tokio::signal;
 
 #[tokio::main]
 async fn main() {
-    // Bind server to port 5800
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    // Bind server to port 8698
+    let acceptor = TcpListener::new("127.0.0.1:8698").bind().await;
     // Create server instance
     let server = Server::new(acceptor);
     // Get server handle for graceful shutdown

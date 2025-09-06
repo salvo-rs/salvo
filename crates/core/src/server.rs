@@ -75,7 +75,7 @@ impl ServerHandle {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    ///     let acceptor = TcpListener::new("127.0.0.1:8698").bind().await;
     ///     let server = Server::new(acceptor);
     ///     let handle = server.handle();
     ///
@@ -129,7 +129,7 @@ impl<A: Acceptor + Send> Server<A> {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    ///     let acceptor = TcpListener::new("127.0.0.1:8698").bind().await;
     ///     Server::new(acceptor);
     /// }
     /// ```
@@ -231,7 +231,7 @@ impl<A: Acceptor + Send> Server<A> {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    ///     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     ///     let router = Router::new().get(hello);
     ///     Server::new(acceptor).serve(router).await;
     /// }
@@ -455,7 +455,7 @@ mod tests {
             .push(Router::with_path("json").get(json));
         let service = Service::new(router);
 
-        let base_url = "http://127.0.0.1:5800";
+        let base_url = "http://127.0.0.1:8698";
         let result = TestClient::get(base_url)
             .send(&service)
             .await

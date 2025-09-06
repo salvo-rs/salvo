@@ -12,7 +12,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let limit = RateLimitLayer::new(5, Duration::from_secs(30)).compat();
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     let router = Router::new().hoop(limit).get(hello);
     Server::new(acceptor).serve(router).await;
 }

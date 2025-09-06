@@ -12,17 +12,17 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     // Configure router with custom host filter
-    // only allow access from http://localhost:5800/, http://0.0.0.0:5800/ will get not found page.
+    // only allow access from http://localhost:8698/, http://0.0.0.0:8698/ will get not found page.
     let router = Router::new()
         .filter_fn(|req, _| {
             // Extract HOST header from request
             let host = req.header::<String>("HOST").unwrap_or_default();
-            // Only allow requests from localhost:5800
-            host == "localhost:5800"
+            // Only allow requests from localhost:8698
+            host == "localhost:8698"
         })
         .get(hello);
 
-    // Start server on port 5800
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Start server on port 8698
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

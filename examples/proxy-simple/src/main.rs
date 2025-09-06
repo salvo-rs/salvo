@@ -4,8 +4,8 @@ use salvo::prelude::*;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    // In this example, if the requested URL begins with <http://127.0.0.1:5800/>, the proxy goes to
-    // <https://www.rust-lang.org>; if the requested URL begins with <http://localhost:5800/>, the proxy
+    // In this example, if the requested URL begins with <http://127.0.0.1:8698/>, the proxy goes to
+    // <https://www.rust-lang.org>; if the requested URL begins with <http://localhost:8698/>, the proxy
     // goes to <https://crates.io>.
     let router = Router::new()
         .push(
@@ -21,6 +21,6 @@ async fn main() {
                 .goal(Proxy::use_hyper_client("https://crates.io")),
         );
 
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

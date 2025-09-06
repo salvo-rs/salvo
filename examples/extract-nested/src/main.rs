@@ -91,7 +91,7 @@ async fn main() {
 
     let router = Router::with_path("{id}").get(show).post(edit);
 
-    println!("Example url: http://0.0.0.0:5800/95");
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    println!("Example url: http://0.0.0.0:8698/95");
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }

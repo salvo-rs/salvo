@@ -523,25 +523,25 @@ mod tests {
             .push(Router::with_path("logout").get(logout));
         let service = Service::new(router);
 
-        let response = TestClient::post("http://127.0.0.1:5800/login")
+        let response = TestClient::post("http://127.0.0.1:8698/login")
             .raw_form("username=salvo")
             .send(&service)
             .await;
         assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
         let cookie = response.headers().get(SET_COOKIE).unwrap();
 
-        let mut response = TestClient::get("http://127.0.0.1:5800/")
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;
         assert_eq!(response.take_string().await.unwrap(), "salvo");
 
-        let response = TestClient::get("http://127.0.0.1:5800/logout")
+        let response = TestClient::get("http://127.0.0.1:8698/logout")
             .send(&service)
             .await;
         assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
 
-        let mut response = TestClient::get("http://127.0.0.1:5800/")
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
         assert_eq!(response.take_string().await.unwrap(), "home");

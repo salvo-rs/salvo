@@ -59,8 +59,8 @@ async fn main() {
         .push(Router::with_path("short").hoop(short_cache).get(short))
         .push(Router::with_path("long").hoop(long_cache).get(long));
 
-    // Bind server to port 5800 and start serving
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind server to port 8698 and start serving
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }
 

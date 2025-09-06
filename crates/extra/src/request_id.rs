@@ -13,7 +13,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+//!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     let router = Router::new().hoop(RequestId::new()).get(hello);
 //!     Server::new(acceptor).serve(router).await;
 //! }
@@ -186,7 +186,7 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert!(response.headers.contains_key("x-request-id"));
     }
@@ -197,7 +197,7 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:5800/")
+        let response = TestClient::get("http://127.0.0.1:8698/")
             .add_header("x-request-id", "existing-id", true)
             .send(&service)
             .await;
@@ -211,7 +211,7 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:5800/")
+        let response = TestClient::get("http://127.0.0.1:8698/")
             .add_header("x-request-id", "existing-id", true)
             .send(&service)
             .await;
@@ -225,7 +225,7 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.headers.get("x-request-id").unwrap(), "custom-id");
     }
@@ -241,7 +241,7 @@ mod tests {
         let router = Router::new().hoop(handler).get(depot_checker);
         let service = Service::new(router);
 
-        let mut response = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         let header_id = response.headers.get("x-request-id").unwrap().to_str().unwrap().to_string();
         let body = response.take_string().await.unwrap();

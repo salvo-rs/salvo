@@ -187,7 +187,7 @@ async fn main() {
 
     // Database and server configuration
     let db_url = "sqlite::memory:";
-    let server_url = "0.0.0.0:5800";
+    let server_url = "0.0.0.0:8698";
 
     // create post table if not exists
     let conn = sea_orm::Database::connect(db_url).await.unwrap();

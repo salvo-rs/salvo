@@ -20,8 +20,8 @@ async fn main() {
     // Initialize logging subsystem
     tracing_subscriber::fmt().init();
 
-    // Bind server to port 5800
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind server to port 8698
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 
     // Create router with single endpoint
     let router = Router::new().get(hello);

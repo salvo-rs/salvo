@@ -25,7 +25,7 @@ async fn main() {
     let router = Router::new()
         .goal(index)
         .push(Router::with_path("chat").goal(user_connected));
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }
 

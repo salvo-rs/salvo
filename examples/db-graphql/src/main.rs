@@ -13,8 +13,8 @@ pub mod schema;
 async fn main() {
     // Create router with GraphQL endpoint
     let router = Router::new().push(Router::with_path("graphql").post(graphql));
-    // Bind server to port 5800
-    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    // Bind server to port 8698
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     // Start the server
     Server::new(acceptor).serve(router).await;
 }
