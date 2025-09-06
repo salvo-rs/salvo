@@ -113,3 +113,30 @@ where
         Ok(T::extract(req).boxed().await.ok())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    use crate::prelude::*;
+    use crate::test::TestClient;
+
+    #[tokio::test]
+    async fn test_generic_struct() {
+        #[derive(Debug, Deserialize, Extractible)]
+        struct Outer<T> {
+            #[salvo(extract(flatten))]
+            inner: T,
+        }
+        #[derive(Debug, Deserialize, Extractible)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct Inner {
+            a: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+            .query("a", "1")
+            .build();
+        let data: Outer<Inner> = req.extract().await.unwrap();
+        assert_eq!(data.inner.a, "1");
+    }
+}
