@@ -33,6 +33,8 @@ pub use salvo_macros::handler;
 pub use salvo_macros as macros;
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_core;
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo;
 
 #[macro_use]
 mod cfg;

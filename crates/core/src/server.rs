@@ -429,7 +429,6 @@ impl<A: Acceptor + Send> Server<A> {
 #[cfg(test)]
 mod tests {
     use serde::Serialize;
-    use std::future::Future;
 
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
