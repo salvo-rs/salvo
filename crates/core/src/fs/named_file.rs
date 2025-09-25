@@ -17,7 +17,7 @@ use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
-use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
+use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError, detect_text_mime};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -172,31 +172,32 @@ impl NamedFileBuilder {
         } = self;
 
         let file = File::open(&path).await?;
-        let content_type = match content_type {
-            None => {
-                let mut ct = mime_infer::from_path(&path).first_or_octet_stream();
-                if let Ok(file) = File::open(&path).await {
+        let content_type = match content_type.or_else(|| mime_infer::from_path(&path).first()) {
+            Some(mime) => {
+                if mime == mime::TEXT_PLAIN {
                     let mut buffer: Vec<u8> = vec![];
-                    let n = file.take(1024).read(&mut buffer).await.unwrap_or(0);
-                    let info = content_inspector::inspect(&buffer);
-                    if info.is_text() {
-                        let mut detector = chardetng::EncodingDetector::new();
-                        detector.feed(&buffer[..n], buffer.len() < 1024);
-
-                        let (encoding, _) = detector.guess_assess(None, true);
-                        if encoding.name().eq_ignore_ascii_case("utf-8") {
-                            ct = mime::TEXT_PLAIN_UTF_8;
-                        } else {
-                            ct = format!("text/plain; charset={}", encoding.name())
-                                .parse::<mime::Mime>()
-                                .unwrap_or(mime::TEXT_PLAIN);
-                        };
+                    let _ = file.take(1024).read(&mut buffer).await;
+                    if let Some(mime) = detect_text_mime(&buffer) {
+                        mime
+                    } else {
+                        mime
                     }
+                } else {
+                    mime
                 }
-                ct
             }
-            Some(ct) => ct,
+            None => {
+                let mut buffer: Vec<u8> = vec![];
+                let _ = file.take(1024).read(&mut buffer).await;
+                if let Some(mime) = detect_text_mime(&buffer) {
+                    mime
+                } else {
+                    mime::APPLICATION_OCTET_STREAM
+                }
+            }
         };
+
+        let file = File::open(&path).await?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
@@ -314,13 +315,13 @@ impl NamedFile {
 
     /// Get content type value.
     #[inline]
-    pub fn content_type(&self) -> &MimeSource {
+    pub fn content_type(&self) -> &mime::Mime {
         &self.content_type
     }
     /// Sets the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
-    pub fn set_content_type(&mut self, content_type: impl Into<MimeSource>) {
+    pub fn set_content_type(&mut self, content_type: mime::Mime) {
         self.content_type = content_type;
     }
 

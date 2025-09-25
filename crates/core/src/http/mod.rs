@@ -63,32 +63,24 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
         .unwrap_or(dmime)
 }
 
-/// Source of MIME type information.
-#[derive(Clone, Debug)]
-pub enum MimeSource {
-    FromPath(String),
-    Certain(Mime),
-    Backup(Mime),
-}
-impl MimeSource {
-    pub fn from_path(path: impl Into<String>) -> Self {
-        Self::FromPath(path.into())
-    }
-    pub fn certain(mime: Mime) -> Self {
-        Self::Certain(mime)
-    }
-    pub fn backup(mime: Mime) -> Self {
-        Self::Backup(mime)
-    }
-}
-impl From<String> for MimeSource {
-    fn from(value: String) -> Self {
-        Self::FromPath(value)
-    }
-}
-impl From<&str> for MimeSource {
-    fn from(value: &str) -> Self {
-        Self::FromPath(value.to_owned())
+#[doc(hidden)]
+#[inline]
+pub fn detect_text_mime(buffer: &[u8]) -> Option<mime::Mime> {
+    let info = content_inspector::inspect(&buffer);
+    if info.is_text() {
+        let mut detector = chardetng::EncodingDetector::new();
+        detector.feed(buffer, buffer.len() < 1024);
+
+        let (encoding, x) = detector.guess_assess(None, true);
+        if encoding.name().eq_ignore_ascii_case("utf-8") {
+            Some(mime::TEXT_PLAIN_UTF_8)
+        } else {
+            format!("text/plain; charset={}", encoding.name())
+                .parse::<mime::Mime>()
+                .ok()
+        }
+    } else {
+        None
     }
 }
 

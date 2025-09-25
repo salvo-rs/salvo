@@ -8,7 +8,9 @@ use salvo_core::http::header::{
     ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
-use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
+use salvo_core::http::{
+    HeaderValue, HttpRange, Mime, Request, Response, StatusCode, detect_text_mime,
+};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
@@ -46,14 +48,13 @@ pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     }
 }
 
-
 /// Render an [`EmbeddedFile`] to the [`Response`].
 #[inline]
 pub fn render_embedded_file(
     file: EmbeddedFile,
     req: &Request,
     res: &mut Response,
-    mime: Option<MimeSource>,
+    mime: Option<Mime>,
 ) {
     let EmbeddedFile { data, metadata } = file;
     render_embedded_data(data, &metadata, req, res, mime);
@@ -64,18 +65,34 @@ fn render_embedded_data(
     metadata: &Metadata,
     req: &Request,
     res: &mut Response,
-    mime: Option<MimeSource>,
+    mime: Option<Mime>,
 ) {
     // Determine Content-Type once
-    let mime = match mime {
-        Some(MimeSource::Certain(m)) => m,
-        Some(MimeSource::Backup(m)) => mime_infer::from_path(req.uri().path()).first(),
-        Some(MimeSource::FromPath(p)) => mime_infer::from_path(p).first_or_octet_stream(),
-    }
-    .unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
+    let content_type = match mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
+        Some(mime) => {
+            if mime == mime::TEXT_PLAIN {
+                if let Some(mime) = detect_text_mime(&data) {
+                    mime
+                } else {
+                    mime
+                }
+            } else {
+                mime
+            }
+        }
+        None => {
+            if let Some(mime) = detect_text_mime(&data) {
+                mime
+            } else {
+                mime::APPLICATION_OCTET_STREAM
+            }
+        }
+    };
+
     res.headers_mut().insert(
         CONTENT_TYPE,
-        mime.as_ref()
+        content_type
+            .as_ref()
             .parse()
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
