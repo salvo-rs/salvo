@@ -68,8 +68,8 @@ fn render_embedded_data(
     mime: Option<Mime>,
 ) {
     // Determine Content-Type once
-    let content_type = match mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
-        Some(mime) => {
+    let content_type =
+        if let Some(mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
             if mime == mime::TEXT_PLAIN {
                 if let Some(mime) = detect_text_mime(&data) {
                     mime
@@ -79,15 +79,11 @@ fn render_embedded_data(
             } else {
                 mime
             }
-        }
-        None => {
-            if let Some(mime) = detect_text_mime(&data) {
-                mime
-            } else {
-                mime::APPLICATION_OCTET_STREAM
-            }
-        }
-    };
+        } else if let Some(mime) = detect_text_mime(&data) {
+            mime
+        } else {
+            mime::APPLICATION_OCTET_STREAM
+        };
 
     res.headers_mut().insert(
         CONTENT_TYPE,

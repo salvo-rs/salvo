@@ -65,13 +65,14 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
 
 #[doc(hidden)]
 #[inline]
+#[must_use]
 pub fn detect_text_mime(buffer: &[u8]) -> Option<mime::Mime> {
-    let info = content_inspector::inspect(&buffer);
+    let info = content_inspector::inspect(buffer);
     if info.is_text() {
         let mut detector = chardetng::EncodingDetector::new();
         detector.feed(buffer, buffer.len() < 1024);
 
-        let (encoding, x) = detector.guess_assess(None, true);
+        let (encoding, _) = detector.guess_assess(None, true);
         if encoding.name().eq_ignore_ascii_case("utf-8") {
             Some(mime::TEXT_PLAIN_UTF_8)
         } else {
