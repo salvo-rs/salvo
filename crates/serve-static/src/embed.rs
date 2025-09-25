@@ -46,13 +46,14 @@ pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     }
 }
 
+
 /// Render an [`EmbeddedFile`] to the [`Response`].
 #[inline]
 pub fn render_embedded_file(
     file: EmbeddedFile,
     req: &Request,
     res: &mut Response,
-    mime: Option<Mime>,
+    mime: Option<MimeSource>,
 ) {
     let EmbeddedFile { data, metadata } = file;
     render_embedded_data(data, &metadata, req, res, mime);
@@ -63,15 +64,18 @@ fn render_embedded_data(
     metadata: &Metadata,
     req: &Request,
     res: &mut Response,
-    mime_override: Option<Mime>,
+    mime: Option<MimeSource>,
 ) {
     // Determine Content-Type once
-    let effective_mime = mime_override
-        .unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
+    let mime = match mime {
+        Some(MimeSource::Certain(m)) => m,
+        Some(MimeSource::Backup(m)) => mime_infer::from_path(req.uri().path()).first(),
+        Some(MimeSource::FromPath(p)) => mime_infer::from_path(p).first_or_octet_stream(),
+    }
+    .unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
     res.headers_mut().insert(
         CONTENT_TYPE,
-        effective_mime
-            .as_ref()
+        mime.as_ref()
             .parse()
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );

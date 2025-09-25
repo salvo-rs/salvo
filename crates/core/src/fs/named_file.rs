@@ -314,13 +314,13 @@ impl NamedFile {
 
     /// Get content type value.
     #[inline]
-    pub fn content_type(&self) -> &mime::Mime {
+    pub fn content_type(&self) -> &MimeSource {
         &self.content_type
     }
     /// Sets the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
-    pub fn set_content_type(&mut self, content_type: mime::Mime) {
+    pub fn set_content_type(&mut self, content_type: impl Into<MimeSource>) {
         self.content_type = content_type;
     }
 

@@ -63,6 +63,35 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
         .unwrap_or(dmime)
 }
 
+/// Source of MIME type information.
+#[derive(Clone, Debug)]
+pub enum MimeSource {
+    FromPath(String),
+    Certain(Mime),
+    Backup(Mime),
+}
+impl MimeSource {
+    pub fn from_path(path: impl Into<String>) -> Self {
+        Self::FromPath(path.into())
+    }
+    pub fn certain(mime: Mime) -> Self {
+        Self::Certain(mime)
+    }
+    pub fn backup(mime: Mime) -> Self {
+        Self::Backup(mime)
+    }
+}
+impl From<String> for MimeSource {
+    fn from(value: String) -> Self {
+        Self::FromPath(value)
+    }
+}
+impl From<&str> for MimeSource {
+    fn from(value: &str) -> Self {
+        Self::FromPath(value.to_owned())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::header::*;
