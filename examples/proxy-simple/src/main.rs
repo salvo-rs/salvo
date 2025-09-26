@@ -12,7 +12,7 @@ async fn main() {
             Router::new()
                 .host("127.0.0.1")
                 .path("{**rest}")
-                .goal(Proxy::use_hyper_client("https://www.rust-lang.org")),
+                .goal(Proxy::use_hyper_client("https://docs.rs")),
         )
         .push(
             Router::new()
