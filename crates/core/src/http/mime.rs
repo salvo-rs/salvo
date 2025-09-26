@@ -77,8 +77,8 @@ pub fn fill_mime_charset_if_need(mime: &mut Mime, buffer: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::http::header::*;
     use super::*;
+    use crate::http::header::*;
 
     #[test]
     fn test_guess_accept_mime() {
