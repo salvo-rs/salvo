@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
-use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -175,7 +174,7 @@ impl NamedFileBuilder {
         let file = File::open(&path).await?;
         let content_type = match content_type {
             None => {
-                let mut ct = mime_infer::from_path(&path).first();
+                let mut ct = mime_infer::from_path(&path).first_or_octet_stream();
                 if let Ok(file) = File::open(&path).await {
                     let mut buffer: Vec<u8> = vec![];
                     let n = file.take(1024).read(&mut buffer).await.unwrap_or(0);
@@ -184,23 +183,17 @@ impl NamedFileBuilder {
                         let mut detector = chardetng::EncodingDetector::new();
                         detector.feed(&buffer[..n], buffer.len() < 1024);
 
-                        let (encoding, confident) = detector.guess_assess(None, true);
-                        let charset = if confident {
-                            format!("; charset={}", enc.name())
+                        let (encoding, _) = detector.guess_assess(None, true);
+                        if encoding.name().eq_ignore_ascii_case("utf-8") {
+                            ct = mime::TEXT_PLAIN_UTF_8;
                         } else {
-                            "".into()
+                            ct = format!("text/plain; charset={}", encoding.name())
+                                .parse::<mime::Mime>()
+                                .unwrap_or(mime::TEXT_PLAIN);
                         };
-                        match ct {
-                            Some(ct) => format!("{ct}{charset}"),
-                            None => format!("text/plain{charset}"),
-                        }
-                    }
-                } else {
-                    match ct {
-                        Some(ct) => ct.to_string(),
-                        None => "application/octet-stream".into(),
                     }
                 }
+                ct
             }
             Some(ct) => ct,
         };
