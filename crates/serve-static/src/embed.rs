@@ -8,9 +8,8 @@ use salvo_core::http::header::{
     ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
-use salvo_core::http::{
-    HeaderValue, HttpRange, Mime, Request, Response, StatusCode, detect_text_mime,
-};
+use salvo_core::http::mime::{fill_mime_charset_if_need, detect_text_mime};
+use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
@@ -71,6 +70,9 @@ fn render_embedded_data(
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
             fill_mime_charset_if_need(&mut mime, &data);
+            mime
+        } else if let Some(mime) = detect_text_mime(&data) {
+            mime
         } else {
             mime::APPLICATION_OCTET_STREAM
         };

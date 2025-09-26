@@ -10,6 +10,7 @@ use std::os::unix::fs::MetadataExt;
 
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
+use mime::Mime;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
@@ -17,10 +18,8 @@ use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
-use crate::http::{
-    HttpRange, Mime, Request, Response, StatusCode, StatusError, fill_mime_charset_if_need,
-    is_charset_required_mime,
-};
+use crate::http::mime::{detect_text_mime, fill_mime_charset_if_need, is_charset_required_mime};
+use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -184,7 +183,13 @@ impl NamedFileBuilder {
                 }
                 mime
             } else {
-                mime::APPLICATION_OCTET_STREAM
+                let mut buffer: Vec<u8> = vec![];
+                let _ = file.take(1024).read(&mut buffer).await;
+                if let Some(mime) = detect_text_mime(&buffer) {
+                    mime
+                } else {
+                    mime::APPLICATION_OCTET_STREAM
+                }
             };
 
         let file = File::open(&path).await?;
