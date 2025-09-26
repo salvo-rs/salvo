@@ -8,7 +8,9 @@ use salvo_core::http::header::{
     ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
-use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
+use salvo_core::http::{
+    HeaderValue, HttpRange, Mime, Request, Response, StatusCode, detect_text_mime,
+};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
 use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
@@ -63,14 +65,29 @@ fn render_embedded_data(
     metadata: &Metadata,
     req: &Request,
     res: &mut Response,
-    mime_override: Option<Mime>,
+    mime: Option<Mime>,
 ) {
     // Determine Content-Type once
-    let effective_mime = mime_override
-        .unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
+    let content_type =
+        if let Some(mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
+            if mime == mime::TEXT_PLAIN {
+                if let Some(mime) = detect_text_mime(&data) {
+                    mime
+                } else {
+                    mime
+                }
+            } else {
+                mime
+            }
+        } else if let Some(mime) = detect_text_mime(&data) {
+            mime
+        } else {
+            mime::APPLICATION_OCTET_STREAM
+        };
+
     res.headers_mut().insert(
         CONTENT_TYPE,
-        effective_mime
+        content_type
             .as_ref()
             .parse()
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),

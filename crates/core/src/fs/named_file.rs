@@ -11,12 +11,13 @@ use std::os::unix::fs::MetadataExt;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
-use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
+use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError, detect_text_mime};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -171,21 +172,30 @@ impl NamedFileBuilder {
         } = self;
 
         let file = File::open(&path).await?;
-        let content_type = content_type.unwrap_or_else(|| {
-            let ct = mime_infer::from_path(&path).first_or_octet_stream();
-            let ftype = ct.type_();
-            let stype = ct.subtype();
-            if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT)
-                && ct.get_param(mime::CHARSET).is_none()
-            {
-                //TODO: auto detect charset
-                format!("{ct}; charset=utf-8")
-                    .parse::<mime::Mime>()
-                    .unwrap_or(ct)
+        let content_type =
+            if let Some(mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
+                if mime == mime::TEXT_PLAIN {
+                    let mut buffer: Vec<u8> = vec![];
+                    let _ = file.take(1024).read(&mut buffer).await;
+                    if let Some(mime) = detect_text_mime(&buffer) {
+                        mime
+                    } else {
+                        mime
+                    }
+                } else {
+                    mime
+                }
             } else {
-                ct
-            }
-        });
+                let mut buffer: Vec<u8> = vec![];
+                let _ = file.take(1024).read(&mut buffer).await;
+                if let Some(mime) = detect_text_mime(&buffer) {
+                    mime
+                } else {
+                    mime::APPLICATION_OCTET_STREAM
+                }
+            };
+
+        let file = File::open(&path).await?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
