@@ -69,18 +69,8 @@ fn render_embedded_data(
 ) {
     // Determine Content-Type once
     let content_type =
-        if let Some(mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
-            if mime.type_() == mime::TEXT {
-                if let Some(mime) = detect_text_mime(&data) {
-                    mime
-                } else {
-                    mime
-                }
-            } else {
-                mime
-            }
-        } else if let Some(mime) = detect_text_mime(&data) {
-            mime
+        if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
+            fill_mime_charset_if_need(&mut mime, &data);
         } else {
             mime::APPLICATION_OCTET_STREAM
         };

@@ -9,6 +9,7 @@ cfg_feature! {
     #![feature = "cookie"]
     pub use cookie;
 }
+
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
 pub use headers;
 pub use http::method::Method;
@@ -66,7 +67,7 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
 #[doc(hidden)]
 #[inline]
 #[must_use]
-pub fn detect_text_mime(buffer: &[u8]) -> Option<mime::Mime> {
+pub fn detect_text_charset(buffer: &[u8]) -> Option<String> {
     let info = content_inspector::inspect(buffer);
     if info.is_text() {
         let mut detector = chardetng::EncodingDetector::new();
@@ -74,14 +75,33 @@ pub fn detect_text_mime(buffer: &[u8]) -> Option<mime::Mime> {
 
         let (encoding, _) = detector.guess_assess(None, true);
         if encoding.name().eq_ignore_ascii_case("utf-8") {
-            Some(mime::TEXT_PLAIN_UTF_8)
+            Some("utf-8".into())
         } else {
-            format!("text/plain; charset={}", encoding.name())
-                .parse::<mime::Mime>()
-                .ok()
+            Some(encoding.name().into())
         }
     } else {
         None
+    }
+}
+
+#[doc(hidden)]
+#[inline]
+#[must_use]
+pub fn is_charset_required_mime(mime: &Mime) -> bool {
+    matches!(mime.subtype(), mime::JAVASCRIPT | mime::XML | mime::JSON)
+        || matches!(mime.type_(), mime::TEXT)
+}
+
+#[doc(hidden)]
+#[inline]
+pub fn fill_mime_charset_if_need(mime: &mut Mime, buffer: &[u8]) {
+    if !is_charset_required_mime(mime) || mime.get_param("charset").is_some() {
+        return;
+    }
+    if let Some(charset) = detect_text_charset(buffer) {
+        if let Ok(new_mime) = format!("{}; charset={}", mime, charset).parse::<Mime>() {
+            *mime = new_mime;
+        }
     }
 }
 
