@@ -116,16 +116,15 @@ mod tests {
     #[tokio::test]
     async fn test_hyper_client() {
         let router = Router::new().push(
-            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://crates.io"], HyperClient::default())),
+            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://salvo.rs"], HyperClient::default())),
         );
 
-        let content = TestClient::get("http://127.0.0.1:5801/crates/salvo")
+        let content = TestClient::get("http://127.0.0.1:5801/rust/guide/index.html")
             .send(router)
             .await
             .take_string()
             .await
             .unwrap();
-        println!("{content}");
         assert!(content.contains("Salvo"));
     }
 

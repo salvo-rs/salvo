@@ -122,10 +122,10 @@ mod tests {
     #[tokio::test]
     async fn test_reqwest_client() {
         let router = Router::new().push(
-            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://crates.io"], ReqwestClient::default())),
+            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://salvo.rs"], ReqwestClient::default())),
         );
 
-        let content = TestClient::get("http://127.0.0.1:5801/crates/salvo")
+        let content = TestClient::get("http://127.0.0.1:5801/rust/guide/index.html")
             .send(router)
             .await
             .take_string()
