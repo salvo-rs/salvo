@@ -44,7 +44,8 @@ use mime::Mime;
 use serde::Serialize;
 
 use crate::handler::{Handler, WhenHoop};
-use crate::http::{Request, ResBody, Response, StatusCode, StatusError, guess_accept_mime, header};
+use crate::http::mime::guess_accept_mime;
+use crate::http::{Request, ResBody, Response, StatusCode, StatusError, header};
 use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> =

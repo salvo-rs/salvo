@@ -10,6 +10,7 @@ use std::os::unix::fs::MetadataExt;
 
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
+use mime::Mime;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
@@ -17,7 +18,8 @@ use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
-use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError, detect_text_mime};
+use crate::http::mime::{detect_text_mime, fill_mime_charset_if_need, is_charset_required_mime};
+use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -173,18 +175,13 @@ impl NamedFileBuilder {
 
         let file = File::open(&path).await?;
         let content_type =
-            if let Some(mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
-                if mime == mime::TEXT_PLAIN {
+            if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
+                if is_charset_required_mime(&mime) {
                     let mut buffer: Vec<u8> = vec![];
                     let _ = file.take(1024).read(&mut buffer).await;
-                    if let Some(mime) = detect_text_mime(&buffer) {
-                        mime
-                    } else {
-                        mime
-                    }
-                } else {
-                    mime
+                    fill_mime_charset_if_need(&mut mime, &buffer);
                 }
+                mime
             } else {
                 let mut buffer: Vec<u8> = vec![];
                 let _ = file.take(1024).read(&mut buffer).await;

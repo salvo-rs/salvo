@@ -122,16 +122,16 @@ mod tests {
     #[tokio::test]
     async fn test_reqwest_client() {
         let router = Router::new().push(
-            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://www.rust-lang.org"], ReqwestClient::default())),
+            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://salvo.rs"], ReqwestClient::default())),
         );
 
-        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
+        let content = TestClient::get("http://127.0.0.1:5801/rust/guide/index.html")
             .send(router)
             .await
             .take_string()
             .await
             .unwrap();
-        assert!(content.contains("Install Rust"));
+        assert!(content.contains("Salvo"));
     }
 
     #[test]
