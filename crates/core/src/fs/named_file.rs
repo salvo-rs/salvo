@@ -174,7 +174,7 @@ impl NamedFileBuilder {
         let file = File::open(&path).await?;
         let content_type =
             if let Some(mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
-                if mime == mime::TEXT_PLAIN {
+                if mime.type_() == mime::TEXT {
                     let mut buffer: Vec<u8> = vec![];
                     let _ = file.take(1024).read(&mut buffer).await;
                     if let Some(mime) = detect_text_mime(&buffer) {

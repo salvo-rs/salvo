@@ -70,7 +70,7 @@ fn render_embedded_data(
     // Determine Content-Type once
     let content_type =
         if let Some(mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
-            if mime == mime::TEXT_PLAIN {
+            if mime.type_() == mime::TEXT {
                 if let Some(mime) = detect_text_mime(&data) {
                     mime
                 } else {
