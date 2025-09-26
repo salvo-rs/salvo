@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
+use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,6 +12,7 @@ use std::os::unix::fs::MetadataExt;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
@@ -171,21 +173,37 @@ impl NamedFileBuilder {
         } = self;
 
         let file = File::open(&path).await?;
-        let content_type = content_type.unwrap_or_else(|| {
-            let ct = mime_infer::from_path(&path).first_or_octet_stream();
-            let ftype = ct.type_();
-            let stype = ct.subtype();
-            if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT)
-                && ct.get_param(mime::CHARSET).is_none()
-            {
-                //TODO: auto detect charset
-                format!("{ct}; charset=utf-8")
-                    .parse::<mime::Mime>()
-                    .unwrap_or(ct)
-            } else {
-                ct
+        let content_type = match content_type {
+            None => {
+                let mut ct = mime_infer::from_path(&path).first();
+                if let Ok(file) = File::open(&path).await {
+                    let mut buffer: Vec<u8> = vec![];
+                    let n = file.take(1024).read(&mut buffer).await.unwrap_or(0);
+                    let info = content_inspector::inspect(&buffer);
+                    if info.is_text() {
+                        let mut detector = chardetng::EncodingDetector::new();
+                        detector.feed(&buffer[..n], buffer.len() < 1024);
+
+                        let (encoding, confident) = detector.guess_assess(None, true);
+                        let charset = if confident {
+                            format!("; charset={}", enc.name())
+                        } else {
+                            "".into()
+                        };
+                        match ct {
+                            Some(ct) => format!("{ct}{charset}"),
+                            None => format!("text/plain{charset}"),
+                        }
+                    }
+                } else {
+                    match ct {
+                        Some(ct) => ct.to_string(),
+                        None => "application/octet-stream".into(),
+                    }
+                }
             }
-        });
+            Some(ct) => ct,
+        };
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
