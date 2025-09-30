@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 const ISSUER_URL: &str = "https://coherent-gopher-0.clerk.accounts.dev";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JwtClaims {
     sid: String,
     sub: String,
