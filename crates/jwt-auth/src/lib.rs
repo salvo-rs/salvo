@@ -23,7 +23,7 @@
 //!
 //! const SECRET_KEY: &str = "YOUR_SECRET_KEY"; // In production, use a secure key management solution
 //!
-//! #[derive(Debug, Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, Clone, Debug)]
 //! pub struct JwtClaims {
 //!     username: String,
 //!     exp: i64,
@@ -372,7 +372,7 @@ where
 #[async_trait]
 impl<C, D> Handler for JwtAuth<C, D>
 where
-    C: DeserializeOwned + Send + Sync + 'static,
+    C: DeserializeOwned + Clone + Send + Sync + 'static,
     D: JwtAuthDecoder + Send + Sync + 'static,
 {
     async fn handle(
@@ -420,7 +420,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, Clone, Debug)]
     struct JwtClaims {
         user: String,
         exp: i64,

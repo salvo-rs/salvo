@@ -10,7 +10,7 @@ pub async fn home(res: &mut Response) {
     <html>
     <head><meta charset="UTF-8"><title>Csrf SessionStore</title></head>
     <body>
-    <h2>Csrf Exampe: SessionStore</h2>
+    <h2>Csrf Example: SessionStore</h2>
     <ul>
         <li><a href="/bcrypt/">Bcrypt</a></li>
         <li><a href="/hmac/">Hmac</a></li>
@@ -119,7 +119,7 @@ fn get_page_html(csrf_token: &str, msg: &str) -> String {
     <html>
     <head><meta charset="UTF-8"><title>Csrf SessionStore</title></head>
     <body>
-    <h2>Csrf Exampe: SessionStore</h2>
+    <h2>Csrf Example: SessionStore</h2>
     <ul>
         <li><a href="/bcrypt/">Bcrypt</a></li>
         <li><a href="/hmac/">Hmac</a></li>

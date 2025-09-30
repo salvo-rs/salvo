@@ -4,7 +4,7 @@ use salvo::prelude::*;
 use salvo::proxy::HyperClient;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JwtClaims {
     sid: String,
     sub: String,

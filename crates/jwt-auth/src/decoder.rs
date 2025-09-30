@@ -39,7 +39,7 @@ pub trait JwtAuthDecoder {
         depot: &mut Depot,
     ) -> impl Future<Output = Result<TokenData<C>, Self::Error>> + Send
     where
-        C: for<'de> Deserialize<'de>;
+        C: for<'de> Deserialize<'de> + Clone;
 }
 
 /// A decoder that uses a constant key for JWT token validation.
@@ -177,7 +177,7 @@ impl JwtAuthDecoder for ConstDecoder {
 
     async fn decode<C>(&self, token: &str, _depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
     where
-        C: for<'de> Deserialize<'de>,
+        C: for<'de> Deserialize<'de> + Clone,
     {
         decode::<C>(token, &self.decoding_key, &self.validation)
     }

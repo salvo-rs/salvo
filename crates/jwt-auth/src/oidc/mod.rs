@@ -55,7 +55,7 @@ impl JwtAuthDecoder for OidcDecoder {
     /// Validates a JWT, Returning the claims serialized into type of T
     async fn decode<C>(&self, token: &str, _depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
     where
-        C: DeserializeOwned,
+        C: DeserializeOwned + Clone,
     {
         // Early return error conditions before acquiring a read lock
         let header = jsonwebtoken::decode_header(token)?;
@@ -356,7 +356,7 @@ impl DecodingInfo {
 
     fn decode<T>(&self, token: &str) -> Result<TokenData<T>, JwtAuthError>
     where
-        T: for<'de> serde::de::Deserialize<'de>,
+        T: for<'de> serde::de::Deserialize<'de> + Clone,
     {
         match jsonwebtoken::decode::<T>(token, &self.key, &self.validation) {
             Ok(data) => Ok(data),
