@@ -372,7 +372,7 @@ where
 #[async_trait]
 impl<C, D> Handler for JwtAuth<C, D>
 where
-    C: DeserializeOwned + Send + Sync + 'static,
+    C: DeserializeOwned + Clone + Send + Sync + 'static,
     D: JwtAuthDecoder + Send + Sync + 'static,
 {
     async fn handle(
