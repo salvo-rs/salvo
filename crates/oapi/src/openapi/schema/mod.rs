@@ -395,7 +395,7 @@ impl FromIterator<BasicType> for SchemaType {
 impl SchemaType {
     /// Instantiate new [`SchemaType`] of given [`BasicType`]
     ///
-    /// Method accepets one argument `type` to create [`SchemaType`] for.
+    /// Method accepts one argument `type` to create [`SchemaType`] for.
     ///
     /// # Examples
     ///
