@@ -420,7 +420,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, Clone, Debug)]
     struct JwtClaims {
         user: String,
         exp: i64,
