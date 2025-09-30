@@ -23,7 +23,7 @@
 //!
 //! const SECRET_KEY: &str = "YOUR_SECRET_KEY"; // In production, use a secure key management solution
 //!
-//! #[derive(Debug, Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, Clone, Debug)]
 //! pub struct JwtClaims {
 //!     username: String,
 //!     exp: i64,
