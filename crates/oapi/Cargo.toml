@@ -25,7 +25,7 @@ full = [
     "redoc",
     "chrono",
     "decimal",
-    "anyhow", # Ignore eyre, no one uses anyhow and eyre at the same time.
+    "anyhow",              # Ignore eyre, no one uses anyhow and eyre at the same time.
     "url",
     "ulid",
     "uuid",

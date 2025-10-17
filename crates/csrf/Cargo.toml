@@ -20,7 +20,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie-store", "bcrypt-cipher"]
-full = ["cookie-store", "session-store", "bcrypt-cipher", "hmac-cipher", "aes-gcm-cipher", "ccp-cipher"]
+full = [
+    "cookie-store",
+    "session-store",
+    "bcrypt-cipher",
+    "hmac-cipher",
+    "aes-gcm-cipher",
+    "ccp-cipher",
+]
 cookie-store = ["salvo_core/cookie", "dep:cookie"]
 session-store = ["dep:salvo-session"]
 bcrypt-cipher = ["dep:bcrypt"]
@@ -34,7 +41,10 @@ aes-gcm = { workspace = true, optional = true }
 base64 = { workspace = true }
 bcrypt = { workspace = true, optional = true }
 chacha20poly1305 = { workspace = true, optional = true }
-cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
+cookie = { workspace = true, features = [
+    "percent-encode",
+    "signed",
+], optional = true }
 hmac = { workspace = true, optional = true }
 rand = { workspace = true }
 tracing = { workspace = true }

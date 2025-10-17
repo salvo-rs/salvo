@@ -18,7 +18,12 @@ documentation = "https://docs.rs/salvo/"
 readme = "./README.md"
 keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
+categories = [
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+    "asynchronous",
+]
 
 [workspace.dependencies]
 anyhow = "1"

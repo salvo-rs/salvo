@@ -1,7 +1,10 @@
 [package]
 name = "salvo_core"
 version = { workspace = true }
-authors = ["Chrislearn Young <chris@acroidea.com>", "driftluo <driftluo@foxmail.com>"]
+authors = [
+    "Chrislearn Young <chris@acroidea.com>",
+    "driftluo <driftluo@foxmail.com>",
+]
 edition = { workspace = true }
 rust-version = { workspace = true }
 description = { workspace = true }
@@ -17,8 +20,35 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["cookie", "fix-http1-request-uri", "server", "server-handle", "http1", "http2", "test", "ring", "matched-path"]
-full = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "http2-cleartext", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "anyhow", "ring", "matched-path", "socket2"]
+default = [
+    "cookie",
+    "fix-http1-request-uri",
+    "server",
+    "server-handle",
+    "http1",
+    "http2",
+    "test",
+    "ring",
+    "matched-path",
+]
+full = [
+    "cookie",
+    "fix-http1-request-uri",
+    "server",
+    "http1",
+    "http2",
+    "http2-cleartext",
+    "quinn",
+    "rustls",
+    "native-tls",
+    "openssl",
+    "unix",
+    "test",
+    "anyhow",
+    "ring",
+    "matched-path",
+    "socket2",
+]
 cookie = ["dep:cookie"]
 fix-http1-request-uri = ["http1"]
 server = []
@@ -31,8 +61,29 @@ rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "ring"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
-test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2", "hyper-util/client-legacy", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+test = [
+    "dep:brotli",
+    "dep:flate2",
+    "dep:zstd",
+    "dep:encoding_rs",
+    "dep:serde_urlencoded",
+    "dep:url",
+    "tokio/macros",
+]
+acme = [
+    "http1",
+    "http2",
+    "hyper-util/http1",
+    "hyper-util/http2",
+    "hyper-util/client-legacy",
+    "dep:hyper-rustls",
+    "dep:rcgen",
+    "dep:ring",
+    "ring",
+    "dep:x509-parser",
+    "dep:tokio-rustls",
+    "dep:rustls-pemfile",
+]
 socket2 = ["dep:socket2"]
 # aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
 ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
@@ -46,7 +97,11 @@ base64 = { workspace = true }
 bytes = { workspace = true }
 chardetng = { workspace = true }
 content_inspector = { workspace = true }
-cookie = { workspace = true, features = ["percent-encode", "private", "signed"], optional = true }
+cookie = { workspace = true, features = [
+    "percent-encode",
+    "private",
+    "signed",
+], optional = true }
 encoding_rs = { workspace = true, optional = true }
 enumflags2 = { workspace = true }
 eyre = { workspace = true, optional = true }
@@ -68,7 +123,11 @@ openssl = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 pin-project = { workspace = true }
 parking_lot = { workspace = true }
-quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "rustls"] }
+quinn = { workspace = true, optional = true, features = [
+    "runtime-tokio",
+    "ring",
+    "rustls",
+] }
 rand = { workspace = true }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
@@ -76,7 +135,11 @@ ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
-hyper-rustls = { workspace = true, optional = true, features = ["native-tokio", "http1", "logging"] }
+hyper-rustls = { workspace = true, optional = true, features = [
+    "native-tokio",
+    "http1",
+    "logging",
+] }
 hyper-util = { workspace = true, features = ["tokio"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
@@ -86,7 +149,13 @@ socket2 = { workspace = true, optional = true }
 sync_wrapper = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
+tokio = { workspace = true, features = [
+    "fs",
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true, features = ["logging"] }

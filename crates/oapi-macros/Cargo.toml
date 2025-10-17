@@ -11,7 +11,10 @@ repository = { workspace = true }
 readme = "./README.md"
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chris@acroidea.com>"]
+authors = [
+    "Juha Kukkonen <juha7kukkonen@gmail.com>",
+    "Chrislearn Young <chris@acroidea.com>",
+]
 
 [lib]
 proc-macro = true
@@ -45,7 +48,7 @@ syn = { workspace = true, features = ["full", "extra-traits"] }
 salvo = { path = "../salvo", features = ["oapi"], default-features = false }
 serde_json = { workspace = true }
 serde = { workspace = true }
-chrono = { workspace = true , features = ["serde"] }
+chrono = { workspace = true, features = ["serde"] }
 assert-json-diff = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable"] }
 serde_with = { workspace = true }
