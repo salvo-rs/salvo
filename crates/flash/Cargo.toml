@@ -33,7 +33,7 @@ serde = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
-salvo_core = {workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true }
 
 [lints]

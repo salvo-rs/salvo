@@ -6,7 +6,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-salvo = { workspace = true, features = ["concurrency-limiter"]}
+salvo = { workspace = true, features = ["concurrency-limiter"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

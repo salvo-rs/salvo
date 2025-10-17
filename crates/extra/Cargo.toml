@@ -18,7 +18,22 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix-state", "basic-auth", "caching-headers", "catch-panic", "force-https", "logging", "sse", "concurrency-limiter", "size-limiter", "trailing-slash", "timeout", "websocket", "request-id", "tower-compat"]
+full = [
+    "affix-state",
+    "basic-auth",
+    "caching-headers",
+    "catch-panic",
+    "force-https",
+    "logging",
+    "sse",
+    "concurrency-limiter",
+    "size-limiter",
+    "trailing-slash",
+    "timeout",
+    "websocket",
+    "request-id",
+    "tower-compat",
+]
 affix-state = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
@@ -27,19 +42,42 @@ force-https = ["dep:tracing", "salvo_core/rustls"]
 logging = ["dep:tracing"]
 concurrency-limiter = ["dep:tracing", "tokio"]
 size-limiter = []
-sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
+sse = [
+    "dep:futures-util",
+    "dep:pin-project",
+    "tokio",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tracing",
+]
 trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
-websocket = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
+websocket = [
+    "dep:futures-util",
+    "dep:hyper",
+    "tokio",
+    "tokio-tungstenite",
+    "dep:tracing",
+]
 request-id = ["dep:ulid", "dep:tracing"]
-tower-compat = ["dep:futures-util", "dep:http-body-util", "dep:tower", "dep:tracing"]
+tower-compat = [
+    "dep:futures-util",
+    "dep:http-body-util",
+    "dep:tower",
+    "dep:tracing",
+]
 
 [dependencies]
 base64 = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 futures-util = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
-hyper = { workspace = true, features = ["server", "http1", "http2", "client"], optional = true }
+hyper = { workspace = true, features = [
+    "server",
+    "http1",
+    "http2",
+    "client",
+], optional = true }
 pin-project = { workspace = true, optional = true }
 salvo_core = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
@@ -47,7 +85,10 @@ serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io"], optional = true }
-tower = { workspace = true, optional = true, default-features = false, features = ["buffer", "util"] }
+tower = { workspace = true, optional = true, default-features = false, features = [
+    "buffer",
+    "util",
+] }
 tracing = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true, features = ["std"] }
 
@@ -55,7 +96,7 @@ ulid = { workspace = true, optional = true, features = ["std"] }
 salvo_core = { workspace = true, features = ["http1", "server", "test"] }
 time = { workspace = true }
 tokio-stream = { workspace = true }
-tower = { workspace = true, features = ["limit"]}
+tower = { workspace = true, features = ["limit"] }
 tracing-test = { workspace = true }
 http-body-util = { workspace = true }
 

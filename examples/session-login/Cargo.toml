@@ -6,7 +6,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-salvo = { workspace = true, features=["session"] }
+salvo = { workspace = true, features = ["session"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true

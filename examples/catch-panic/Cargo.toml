@@ -7,7 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = "1"
-salvo = { workspace = true, features=["catch-panic"] }
+salvo = { workspace = true, features = ["catch-panic"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
