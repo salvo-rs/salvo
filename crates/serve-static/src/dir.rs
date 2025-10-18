@@ -11,12 +11,13 @@ use std::time::SystemTime;
 use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
-use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
+use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError, mime};
 use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::{OffsetDateTime, macros::format_description};
+use tokio::io::AsyncReadExt;
 
 use super::{
     decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,
@@ -413,6 +414,16 @@ impl Handler for StaticDir {
                 .map(|ext| self.is_compressed_ext(ext))
                 .unwrap_or(false);
             let mut content_encoding = None;
+            let mut content_type = mime_infer::from_path(&abs_path).first();
+            if let Some(content_type) = &mut content_type {
+                if mime::is_charset_required_mime(&content_type) {
+                    if let Ok(file) = tokio::fs::File::open(&abs_path).await {
+                        let mut buffer: Vec<u8> = vec![];
+                        let _ = file.take(1024).read(&mut buffer).await;
+                        mime::fill_mime_charset_if_need(content_type, &buffer);
+                    }
+                }
+            }
             let named_path = if !is_compressed_ext {
                 if !self.compressed_variations.is_empty() {
                     let mut new_abs_path = None;
@@ -453,6 +464,9 @@ impl Handler for StaticDir {
                 }
                 if let Some(size) = self.chunk_size {
                     builder = builder.buffer_size(size);
+                }
+                if let Some(content_type) = content_type {
+                    builder = builder.content_type(content_type);
                 }
                 builder
             };
