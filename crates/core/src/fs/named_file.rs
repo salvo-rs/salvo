@@ -174,7 +174,6 @@ impl NamedFileBuilder {
         } = self;
 
         let file = File::open(&path).await?;
-        println!("==================path: {:?}", &path);
         let content_type =
             if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
                 if is_charset_required_mime(&mime) {
