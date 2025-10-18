@@ -8,7 +8,7 @@ use salvo_core::http::header::{
     ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
-use salvo_core::http::mime::{fill_mime_charset_if_need, detect_text_mime};
+use salvo_core::http::mime::{detect_text_mime, fill_mime_charset_if_need};
 use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
@@ -70,8 +70,6 @@ fn render_embedded_data(
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
             fill_mime_charset_if_need(&mut mime, &data);
-            mime
-        } else if let Some(mime) = detect_text_mime(&data) {
             mime
         } else {
             mime::APPLICATION_OCTET_STREAM
@@ -274,8 +272,8 @@ where
 
         match embedded_file {
             Some(file) => {
-                let mime = mime_infer::from_path(&*key_path).first_or_octet_stream();
-                render_embedded_file(file, req, res, Some(mime));
+                let mime = mime_infer::from_path(&*key_path).first();
+                render_embedded_file(file, req, res, mime);
             }
             None => {
                 res.status_code(StatusCode::NOT_FOUND);

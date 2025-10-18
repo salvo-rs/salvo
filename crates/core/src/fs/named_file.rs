@@ -174,6 +174,7 @@ impl NamedFileBuilder {
         } = self;
 
         let file = File::open(&path).await?;
+        println!("==================path: {:?}", &path);
         let content_type =
             if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
                 if is_charset_required_mime(&mime) {
@@ -182,7 +183,7 @@ impl NamedFileBuilder {
                     fill_mime_charset_if_need(&mut mime, &buffer);
                 }
                 mime
-            } else {
+            } else if path.extension().is_none() {
                 let mut buffer: Vec<u8> = vec![];
                 let _ = file.take(1024).read(&mut buffer).await;
                 if let Some(mime) = detect_text_mime(&buffer) {
@@ -190,6 +191,8 @@ impl NamedFileBuilder {
                 } else {
                     mime::APPLICATION_OCTET_STREAM
                 }
+            } else {
+                mime::APPLICATION_OCTET_STREAM
             };
 
         let file = File::open(&path).await?;
