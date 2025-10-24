@@ -37,6 +37,8 @@
 
 Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架。仅仅需要基础 Rust 知识即可开发后端服务。
 
+本项目正在参与 Gitee 2025 开源项目评选，如觉得本项目优秀，请大家为本项目[投票(可投5票)](https://gitee.com/activity/2025opensource?ident=I59QVO): https://gitee.com/activity/2025opensource?ident=I59QVO
+
 > 中国用户可以添加我微信 (chrislearn), 拉微信讨论群或者直接加入 QQ 群：823441777.
 >
 > 中国同步仓库：
