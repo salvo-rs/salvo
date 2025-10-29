@@ -109,7 +109,11 @@ pub trait Upstreams: Send + Sync + 'static {
     type Error: StdError + Send + Sync + 'static;
 
     /// Elect a server to handle the current request.
-    fn elect(&self, req: &Request, depot: &Depot) -> impl Future<Output = Result<&str, Self::Error>> + Send;
+    fn elect(
+        &self,
+        req: &Request,
+        depot: &Depot,
+    ) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }
 impl Upstreams for &'static str {
     type Error = Infallible;
@@ -258,7 +262,11 @@ where
         req: &mut Request,
         depot: &Depot,
     ) -> Result<HyperRequest, Error> {
-        let upstream = self.upstreams.elect(req, depot).await.map_err(Error::other)?;
+        let upstream = self
+            .upstreams
+            .elect(req, depot)
+            .await
+            .map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
