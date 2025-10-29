@@ -109,7 +109,9 @@ mod tests {
     async fn test_upstreams_elect() {
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
         let proxy = Proxy::new(upstreams.clone(), HyperClient::default());
-        let elected_upstream = proxy.upstreams().elect().await.unwrap();
+        let request = Request::new();
+        let depot = Depot::new();
+        let elected_upstream = proxy.upstreams().elect(&request, &depot).await.unwrap();
         assert!(upstreams.contains(&elected_upstream));
     }
 

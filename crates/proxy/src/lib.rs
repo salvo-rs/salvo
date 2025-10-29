@@ -109,25 +109,25 @@ pub trait Upstreams: Send + Sync + 'static {
     type Error: StdError + Send + Sync + 'static;
 
     /// Elect a server to handle the current request.
-    fn elect(&self) -> impl Future<Output = Result<&str, Self::Error>> + Send;
+    fn elect(&self, req: &Request, depot: &Depot) -> impl Future<Output = Result<&str, Self::Error>> + Send;
 }
 impl Upstreams for &'static str {
     type Error = Infallible;
 
-    async fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self, _: &Request, _: &Depot) -> Result<&str, Self::Error> {
         Ok(*self)
     }
 }
 impl Upstreams for String {
     type Error = Infallible;
-    async fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self, _: &Request, _: &Depot) -> Result<&str, Self::Error> {
         Ok(self.as_str())
     }
 }
 
 impl<const N: usize> Upstreams for [&'static str; N] {
     type Error = Error;
-    async fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self, _: &Request, _: &Depot) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -141,7 +141,7 @@ where
     T: AsRef<str> + Send + Sync + 'static,
 {
     type Error = Error;
-    async fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self, _: &Request, _: &Depot) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -258,7 +258,7 @@ where
         req: &mut Request,
         depot: &Depot,
     ) -> Result<HyperRequest, Error> {
-        let upstream = self.upstreams.elect().await.map_err(Error::other)?;
+        let upstream = self.upstreams.elect(req, depot).await.map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
