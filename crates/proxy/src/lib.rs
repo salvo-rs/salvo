@@ -43,11 +43,11 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
-use percent_encoding::{utf8_percent_encode, CONTROLS};
-use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
+use percent_encoding::{CONTROLS, utf8_percent_encode};
+use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
-use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 
 #[macro_use]
 mod cfg;
@@ -158,7 +158,8 @@ where
 pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
 /// Host header getter. You can use this to get the host header for the proxied request.
-pub type HostHeaderGetter = Box<dyn Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static>;
+pub type HostHeaderGetter =
+    Box<dyn Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
 /// Default url path getter.
 ///
@@ -173,7 +174,11 @@ pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String>
 }
 
 /// Default host header getter. This getter will get the host header from request uri
-pub fn default_host_header_getter(forward_uri: &Uri, _req: &Request, _depot: &Depot) -> Option<String> {
+pub fn default_host_header_getter(
+    forward_uri: &Uri,
+    _req: &Request,
+    _depot: &Depot,
+) -> Option<String> {
     if let Some(host) = forward_uri.host() {
         return Some(String::from(host));
     }
@@ -183,7 +188,11 @@ pub fn default_host_header_getter(forward_uri: &Uri, _req: &Request, _depot: &De
 
 /// RFC2616 complieant host header getter. This getter will get the host header from request uri, and add port if
 /// it's not default port. Falls back to default upon any forward URI parse error.
-pub fn rfc2616_host_header_getter(forward_uri: &Uri, req: &Request, _depot: &Depot) -> Option<String> {
+pub fn rfc2616_host_header_getter(
+    forward_uri: &Uri,
+    req: &Request,
+    _depot: &Depot,
+) -> Option<String> {
     let mut parts: Vec<String> = Vec::with_capacity(2);
 
     if let Some(host) = forward_uri.host() {
@@ -207,7 +216,11 @@ pub fn rfc2616_host_header_getter(forward_uri: &Uri, req: &Request, _depot: &Dep
 }
 
 /// Preserve original host header getter. Propagates the original request host header to the proxied request.
-pub fn preserve_original_host_header_getter(forward_uri: &Uri, req: &Request, _depot: &Depot) -> Option<String> {
+pub fn preserve_original_host_header_getter(
+    forward_uri: &Uri,
+    req: &Request,
+    _depot: &Depot,
+) -> Option<String> {
     if let Some(host_header) = req.headers().get(HOST) {
         if let Ok(host) = String::from_utf8(host_header.as_bytes().to_vec()) {
             return Some(host);
@@ -520,13 +533,15 @@ mod tests {
             Some("host.tld".to_string())
         );
 
-        let uri_with_non_https_scheme_and_https_port = Uri::from_str("http://host.tld:443/test").unwrap();
+        let uri_with_non_https_scheme_and_https_port =
+            Uri::from_str("http://host.tld:443/test").unwrap();
         assert_eq!(
             rfc2616_host_header_getter(&uri_with_non_https_scheme_and_https_port, &req, &depot),
             Some("host.tld:443".to_string())
         );
 
-        req.headers_mut().insert(HOST, HeaderValue::from_static("test.host.tld"));
+        req.headers_mut()
+            .insert(HOST, HeaderValue::from_static("test.host.tld"));
         assert_eq!(
             preserve_original_host_header_getter(&uri, &req, &depot),
             Some("test.host.tld".to_string())
