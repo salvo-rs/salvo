@@ -44,10 +44,17 @@ use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{CONTROLS, utf8_percent_encode};
+use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+
+#[cfg(test)]
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+#[cfg(not(test))]
+use local_ip_address::{local_ip, local_ipv6};
 
 #[macro_use]
 mod cfg;
@@ -73,6 +80,8 @@ cfg_feature! {
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
+
+const X_FORWARDER_FOR_HEADER_NAME: &str = "x-forwarded-for";
 
 /// Encode url path. This can be used when build your custom url path getter.
 #[inline]
@@ -247,6 +256,8 @@ where
     pub url_query_getter: UrlPartGetter,
     /// Host header getter
     pub host_header_getter: HostHeaderGetter,
+    /// Flag to enable x-forwarded-for header.
+    pub client_ip_forwarding_enabled: bool,
 }
 
 impl<U, C> Debug for Proxy<U, C>
@@ -274,6 +285,19 @@ where
             url_path_getter: Box::new(default_url_path_getter),
             url_query_getter: Box::new(default_url_query_getter),
             host_header_getter: Box::new(default_host_header_getter),
+            client_ip_forwarding_enabled: false,
+        }
+    }
+
+    /// Create new `Proxy` with upstreams list and enable x-forwarded-for header.
+    pub fn with_client_ip_forwarding(upstreams: U, client: C) -> Self {
+        Self {
+            upstreams,
+            client,
+            url_path_getter: Box::new(default_url_path_getter),
+            url_query_getter: Box::new(default_url_query_getter),
+            host_header_getter: Box::new(default_host_header_getter),
+            client_ip_forwarding_enabled: true,
         }
     }
 
@@ -332,6 +356,13 @@ where
         &mut self.client
     }
 
+    /// Enable x-forwarded-for header prepending.
+    #[inline]
+    pub fn client_ip_forwarding(mut self, enable: bool) -> Self {
+        self.client_ip_forwarding_enabled = enable;
+        self
+    }
+
     async fn build_proxied_request(
         &self,
         req: &mut Request,
@@ -342,6 +373,7 @@ where
             .elect(req, depot)
             .await
             .map_err(Error::other)?;
+
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
@@ -382,24 +414,48 @@ where
                 HeaderValue::from_str(&host).ok().unwrap(),
             );
         }
-        // let x_forwarded_for_header_name = "x-forwarded-for";
-        // // Add forwarding information in the headers
-        // match request.headers_mut().entry(x_forwarded_for_header_name) {
-        //     Ok(header_entry) => {
-        //         match header_entry {
-        //             hyper::header::Entry::Vacant(entry) => {
-        //                 let addr = format!("{}", client_ip);
-        //                 entry.insert(addr.parse().unwrap());
-        //             },
-        //             hyper::header::Entry::Occupied(mut entry) => {
-        //                 let addr = format!("{}, {}", entry.get().to_str().unwrap(), client_ip);
-        //                 entry.insert(addr.parse().unwrap());
-        //             }
-        //         }
-        //     }
-        //     // shouldn't happen...
-        //     Err(_) => panic!("Invalid header name: {}", x_forwarded_for_header_name),
-        // }
+
+        if self.client_ip_forwarding_enabled {
+            let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
+            let current_xff = req.headers().get(&xff_header_name);
+
+            #[cfg(test)]
+            let system_ip_addr = match req.remote_addr() {
+                SocketAddr::IPv6(_) => Some(IpAddr::from(Ipv6Addr::new(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8))),
+                _ => Some(IpAddr::from(Ipv4Addr::new(101, 102, 103, 104))),
+            };
+
+            #[cfg(not(test))]
+            let system_ip_addr = match req.remote_addr() {
+                SocketAddr::IPv6(_) => local_ipv6().ok(),
+                _ => local_ip().ok(),
+            };
+
+            if let Some(system_ip_addr) = system_ip_addr {
+                let forwarded_addr = system_ip_addr.to_string();
+
+                let xff_value = match current_xff {
+                    Some(current_xff) => match current_xff.to_str() {
+                        Ok(current_xff) => format!("{}, {}", forwarded_addr, current_xff),
+                        _ => forwarded_addr.clone(),
+                    },
+                    None => forwarded_addr.clone(),
+                };
+
+                let xff_header_halue = match HeaderValue::from_str(xff_value.as_str()) {
+                    Ok(xff_header_halue) => Some(xff_header_halue),
+                    Err(_) => match HeaderValue::from_str(forwarded_addr.as_str()) {
+                        Ok(xff_header_halue) => Some(xff_header_halue),
+                        Err(_) => None,
+                    }
+                };
+
+                if let Some(xff) = xff_header_halue {
+                    build.headers_mut().unwrap().insert(&xff_header_name, xff);
+                }
+            }
+        }
+
         build.body(req.take_body()).map_err(Error::other)
     }
 }
@@ -486,7 +542,9 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use std::str::FromStr;
+    use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 
     #[test]
     fn test_encode_url_path() {
@@ -546,5 +604,84 @@ mod tests {
             preserve_original_host_header_getter(&uri, &req, &depot),
             Some("test.host.tld".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn test_client_ip_forwarding() {
+        let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
+
+        let mut request = Request::new();
+        let mut depot = Depot::new();
+
+        // Test functionality not broken
+        let proxy_without_forwarding = Proxy::new(
+            vec!["http://example.com"],
+            HyperClient::default(),
+        );
+
+        assert_eq!(proxy_without_forwarding.client_ip_forwarding_enabled, false);
+
+        let proxy_with_forwarding = proxy_without_forwarding.client_ip_forwarding(true);
+
+        assert_eq!(proxy_with_forwarding.client_ip_forwarding_enabled, true);
+
+        let proxy = Proxy::with_client_ip_forwarding(
+            vec!["http://example.com"],
+            HyperClient::default(),
+        );
+        assert_eq!(proxy.client_ip_forwarding_enabled, true);
+
+        match proxy.build_proxied_request(
+            &mut request,
+            &mut depot,
+        ).await {
+            Ok(req) => assert_eq!(
+                req.headers().get(&xff_header_name),
+                Some(&HeaderValue::from_static("101.102.103.104"))
+            ),
+            _ => assert!(false),
+        }
+
+        // Test choosing correct IP version depending on remote address
+        *request.remote_addr_mut() = SocketAddr::from(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 12345, 0, 0));
+
+        match proxy.build_proxied_request(
+            &mut request,
+            &mut depot,
+        ).await {
+            Ok(req) => assert_eq!(
+                req.headers().get(&xff_header_name),
+                Some(&HeaderValue::from_static("1:2:3:4:5:6:7:8"))
+            ),
+            _ => assert!(false),
+        }
+
+        *request.remote_addr_mut() = SocketAddr::Unknown;
+
+        match proxy.build_proxied_request(
+            &mut request,
+            &mut depot,
+        ).await {
+            Ok(req) => assert_eq!(
+                req.headers().get(&xff_header_name),
+                Some(&HeaderValue::from_static("101.102.103.104"))
+            ),
+            _ => assert!(false),
+        }
+
+        // Test IP prepending when XFF header already exists in initial request.
+        request.headers_mut().insert(&xff_header_name, HeaderValue::from_static("10.72.0.1, 127.0.0.1"));
+        *request.remote_addr_mut() = SocketAddr::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 12345));
+
+        match proxy.build_proxied_request(
+            &mut request,
+            &mut depot,
+        ).await {
+            Ok(req) => assert_eq!(
+                req.headers().get(&xff_header_name),
+                Some(&HeaderValue::from_static("101.102.103.104, 10.72.0.1, 127.0.0.1"))
+            ),
+            _ => assert!(false),
+        }
     }
 }
