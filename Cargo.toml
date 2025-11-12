@@ -77,6 +77,7 @@ hyper-util = { version = "0.1", default-features = true }
 indexmap = "2"
 inventory = "0.3"
 jsonwebtoken = "10"
+local-ip-address = "0.6.5"
 mime = "0.3"
 mime-infer = "4"
 moka = "0.12"
