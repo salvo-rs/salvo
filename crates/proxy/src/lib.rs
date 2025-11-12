@@ -421,7 +421,9 @@ where
 
             #[cfg(test)]
             let system_ip_addr = match req.remote_addr() {
-                SocketAddr::IPv6(_) => Some(IpAddr::from(Ipv6Addr::new(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8))),
+                SocketAddr::IPv6(_) => Some(IpAddr::from(Ipv6Addr::new(
+                    0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
+                ))),
                 _ => Some(IpAddr::from(Ipv4Addr::new(101, 102, 103, 104))),
             };
 
@@ -447,7 +449,7 @@ where
                     Err(_) => match HeaderValue::from_str(forwarded_addr.as_str()) {
                         Ok(xff_header_halue) => Some(xff_header_halue),
                         Err(_) => None,
-                    }
+                    },
                 };
 
                 if let Some(xff) = xff_header_halue {
@@ -543,8 +545,8 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 mod tests {
     use super::*;
 
-    use std::str::FromStr;
     use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
+    use std::str::FromStr;
 
     #[test]
     fn test_encode_url_path() {
@@ -614,10 +616,8 @@ mod tests {
         let mut depot = Depot::new();
 
         // Test functionality not broken
-        let proxy_without_forwarding = Proxy::new(
-            vec!["http://example.com"],
-            HyperClient::default(),
-        );
+        let proxy_without_forwarding =
+            Proxy::new(vec!["http://example.com"], HyperClient::default());
 
         assert_eq!(proxy_without_forwarding.client_ip_forwarding_enabled, false);
 
@@ -625,16 +625,11 @@ mod tests {
 
         assert_eq!(proxy_with_forwarding.client_ip_forwarding_enabled, true);
 
-        let proxy = Proxy::with_client_ip_forwarding(
-            vec!["http://example.com"],
-            HyperClient::default(),
-        );
+        let proxy =
+            Proxy::with_client_ip_forwarding(vec!["http://example.com"], HyperClient::default());
         assert_eq!(proxy.client_ip_forwarding_enabled, true);
 
-        match proxy.build_proxied_request(
-            &mut request,
-            &mut depot,
-        ).await {
+        match proxy.build_proxied_request(&mut request, &mut depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("101.102.103.104"))
@@ -643,12 +638,10 @@ mod tests {
         }
 
         // Test choosing correct IP version depending on remote address
-        *request.remote_addr_mut() = SocketAddr::from(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 12345, 0, 0));
+        *request.remote_addr_mut() =
+            SocketAddr::from(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 12345, 0, 0));
 
-        match proxy.build_proxied_request(
-            &mut request,
-            &mut depot,
-        ).await {
+        match proxy.build_proxied_request(&mut request, &mut depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("1:2:3:4:5:6:7:8"))
@@ -658,10 +651,7 @@ mod tests {
 
         *request.remote_addr_mut() = SocketAddr::Unknown;
 
-        match proxy.build_proxied_request(
-            &mut request,
-            &mut depot,
-        ).await {
+        match proxy.build_proxied_request(&mut request, &mut depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("101.102.103.104"))
@@ -670,16 +660,19 @@ mod tests {
         }
 
         // Test IP prepending when XFF header already exists in initial request.
-        request.headers_mut().insert(&xff_header_name, HeaderValue::from_static("10.72.0.1, 127.0.0.1"));
-        *request.remote_addr_mut() = SocketAddr::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 12345));
+        request.headers_mut().insert(
+            &xff_header_name,
+            HeaderValue::from_static("10.72.0.1, 127.0.0.1"),
+        );
+        *request.remote_addr_mut() =
+            SocketAddr::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 12345));
 
-        match proxy.build_proxied_request(
-            &mut request,
-            &mut depot,
-        ).await {
+        match proxy.build_proxied_request(&mut request, &mut depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
-                Some(&HeaderValue::from_static("101.102.103.104, 10.72.0.1, 127.0.0.1"))
+                Some(&HeaderValue::from_static(
+                    "101.102.103.104, 10.72.0.1, 127.0.0.1"
+                ))
             ),
             _ => assert!(false),
         }
