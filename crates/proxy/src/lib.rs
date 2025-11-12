@@ -43,11 +43,11 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
-use percent_encoding::{CONTROLS, utf8_percent_encode};
-use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
+use percent_encoding::{utf8_percent_encode, CONTROLS};
+use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
-use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 
 #[macro_use]
 mod cfg;
@@ -153,6 +153,9 @@ where
 /// Url part getter. You can use this to get the proxied url path or query.
 pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
+/// Host header getter. You can use this to get the host header for the proxied request.
+pub type HostHeaderGetter = Box<dyn Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static>;
+
 /// Default url path getter.
 ///
 /// This getter will get the last param as the rest url path from request.
@@ -163,6 +166,51 @@ pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> 
 /// Default url query getter. This getter just return the query string from request uri.
 pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.uri().query().map(Into::into)
+}
+
+/// Default host header getter. This getter will get the host header from request uri
+pub fn default_host_header_getter(forward_uri: &Uri, _req: &Request, _depot: &Depot) -> Option<String> {
+    if let Some(host) = forward_uri.host() {
+        return Some(String::from(host));
+    }
+
+    None
+}
+
+/// RFC2616 complieant host header getter. This getter will get the host header from request uri, and add port if
+/// it's not default port. Falls back to default upon any forward URI parse error.
+pub fn rfc2616_host_header_getter(forward_uri: &Uri, req: &Request, _depot: &Depot) -> Option<String> {
+    let mut parts: Vec<String> = Vec::with_capacity(2);
+
+    if let Some(host) = forward_uri.host() {
+        parts.push(host.to_string());
+
+        if forward_uri.port_u16().is_some() && forward_uri.scheme_str().is_some() {
+            let scheme = forward_uri.scheme_str().unwrap();
+            let port = forward_uri.port_u16().unwrap();
+
+            if scheme == "http" && port != 80 || scheme == "https" && port != 443 {
+                parts.push(port.to_string());
+            }
+        }
+    }
+
+    if parts.is_empty() {
+        default_host_header_getter(forward_uri, req, _depot)
+    } else {
+        Some(parts.join(":"))
+    }
+}
+
+/// Preserve original host header getter. Propagates the original request host header to the proxied request.
+pub fn preserve_original_host_header_getter(forward_uri: &Uri, req: &Request, _depot: &Depot) -> Option<String> {
+    if let Some(host_header) = req.headers().get(HOST) {
+        if let Ok(host) = String::from_utf8(host_header.as_bytes().to_vec()) {
+            return Some(host);
+        }
+    }
+
+    default_host_header_getter(forward_uri, req, _depot)
 }
 
 /// Handler that can proxy request to other server.
@@ -180,6 +228,8 @@ where
     pub url_path_getter: UrlPartGetter,
     /// Url query getter.
     pub url_query_getter: UrlPartGetter,
+    /// Host header getter
+    pub host_header_getter: HostHeaderGetter,
 }
 
 impl<U, C> Debug for Proxy<U, C>
@@ -206,6 +256,7 @@ where
             client,
             url_path_getter: Box::new(default_url_path_getter),
             url_query_getter: Box::new(default_url_query_getter),
+            host_header_getter: Box::new(default_host_header_getter),
         }
     }
 
@@ -228,6 +279,17 @@ where
         G: Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static,
     {
         self.url_query_getter = Box::new(url_query_getter);
+        self
+    }
+
+    /// Set host header query getter.
+    #[inline]
+    #[must_use]
+    pub fn host_header_getter<G>(mut self, host_header_getter: G) -> Self
+    where
+        G: Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static,
+    {
+        self.host_header_getter = Box::new(host_header_getter);
         self
     }
 
@@ -293,11 +355,11 @@ where
                 build = build.header(key, value);
             }
         }
-        if let Some(host) = forward_url
-            .host()
-            .and_then(|host| HeaderValue::from_str(host).ok())
-        {
-            build = build.header(HeaderName::from_static("host"), host);
+        if let Some(host) = (self.host_header_getter)(&forward_url, req, depot) {
+            build = build.header(
+                HeaderName::from_static("host"),
+                HeaderValue::from_str(&host).ok().unwrap(),
+            );
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";
         // // Add forwarding information in the headers
@@ -403,6 +465,7 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_encode_url_path() {
@@ -418,5 +481,47 @@ mod tests {
         headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
         let upgrade_type = get_upgrade_type(&headers);
         assert_eq!(upgrade_type, Some("websocket"));
+    }
+
+    #[test]
+    fn test_host_header_handling() {
+        let uri = Uri::from_str("http://host.tld/test").unwrap();
+        let mut req = Request::new();
+        let depot = Depot::new();
+
+        assert_eq!(
+            default_host_header_getter(&uri, &req, &depot),
+            Some("host.tld".to_string())
+        );
+
+        let uri_with_port = Uri::from_str("http://host.tld:8080/test").unwrap();
+        assert_eq!(
+            rfc2616_host_header_getter(&uri_with_port, &req, &depot),
+            Some("host.tld:8080".to_string())
+        );
+
+        let uri_with_http_port = Uri::from_str("http://host.tld:80/test").unwrap();
+        assert_eq!(
+            rfc2616_host_header_getter(&uri_with_http_port, &req, &depot),
+            Some("host.tld".to_string())
+        );
+
+        let uri_with_https_port = Uri::from_str("https://host.tld:443/test").unwrap();
+        assert_eq!(
+            rfc2616_host_header_getter(&uri_with_https_port, &req, &depot),
+            Some("host.tld".to_string())
+        );
+
+        let uri_with_non_https_scheme_and_https_port = Uri::from_str("http://host.tld:443/test").unwrap();
+        assert_eq!(
+            rfc2616_host_header_getter(&uri_with_non_https_scheme_and_https_port, &req, &depot),
+            Some("host.tld:443".to_string())
+        );
+
+        req.headers_mut().insert(HOST, HeaderValue::from_static("test.host.tld"));
+        assert_eq!(
+            preserve_original_host_header_getter(&uri, &req, &depot),
+            Some("test.host.tld".to_string())
+        );
     }
 }
