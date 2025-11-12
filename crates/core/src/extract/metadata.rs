@@ -162,7 +162,7 @@ pub struct Field {
     pub flatten: bool,
     /// Field sources.
     pub sources: Vec<Source>,
-    /// Field aliaes.
+    /// Field aliases.
     pub aliases: Vec<&'static str>,
     /// Field rename defined by `#[derive(salvo(extract(rename="")))]`.
     pub rename: Option<&'static str>,
