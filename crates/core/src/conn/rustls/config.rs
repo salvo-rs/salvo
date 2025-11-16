@@ -15,7 +15,7 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 
 pub use tokio_rustls::rustls::server::ServerConfig;
 
-use crate::conn::IntoConfigStream;
+use crate::{IntoVecString, conn::IntoConfigStream};
 
 use super::read_trust_anchor;
 
@@ -162,7 +162,7 @@ pub struct RustlsConfig {
     /// Fallback keycert.
     pub fallback: Option<Keycert>,
     /// Keycerts.
-    pub keycerts: HashMap<String, Keycert>,
+    pub keycerts: HashMap<Vec<String>, Keycert>,
     /// Client auth.
     pub client_auth: TlsClientAuth,
     /// Protocols through ALPN (Application-Layer Protocol Negotiation).
@@ -230,11 +230,21 @@ impl RustlsConfig {
         self
     }
 
-    /// Add a new keycert to be used for the given SNI `name`.
+    /// Add a keycert for the given SNI name(s).
+    ///
+    /// The `name` parameter accepts either a single domain name (`str`) or multiple domain names (`Vec<str>`).
+    ///
+    /// Wildcard domains are supported and must start with `*.` (e.g., `*.example.com`).
+    ///
+    /// # Wildcard Matching
+    ///
+    /// Wildcard domains match only one level of subdomain:
+    /// - `*.example.com` matches `a.example.com` and `b.example.com`
+    /// - `*.example.com` does NOT match `a.b.example.com`
     #[inline]
     #[must_use]
-    pub fn keycert(mut self, name: impl Into<String>, keycert: Keycert) -> Self {
-        self.keycerts.insert(name.into(), keycert);
+    pub fn keycert(mut self, name: impl IntoVecString, keycert: Keycert) -> Self {
+        self.keycerts.insert(name.into_vec_string(), keycert);
         self
     }
 
@@ -265,10 +275,20 @@ impl RustlsConfig {
             .map(|fallback| fallback.build_certified_key())
             .transpose()?
             .map(Arc::new);
-        let mut certified_keys = HashMap::new();
-
+        let mut exact_certified_keys = HashMap::new();
+        let mut wildcards_certified_keys = HashMap::new();
         for (name, keycert) in &mut self.keycerts {
-            certified_keys.insert(name.clone(), Arc::new(keycert.build_certified_key()?));
+            let certified_key = Arc::new(keycert.build_certified_key()?);
+            for domain in name {
+                if domain.starts_with("*.") {
+                    wildcards_certified_keys.insert(
+                        domain.trim_start_matches("*.").to_string(),
+                        certified_key.clone(),
+                    );
+                } else {
+                    exact_certified_keys.insert(domain.clone(), certified_key.clone());
+                }
+            }
         }
 
         let client_auth = match &self.client_auth {
@@ -289,7 +309,8 @@ impl RustlsConfig {
         let mut config = ServerConfig::builder_with_protocol_versions(self.tls_versions)
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
-                certified_keys,
+                exact_certified_keys,
+                wildcards_certified_keys,
                 fallback,
             }));
         config.alpn_protocols = self.alpn_protocols;
@@ -328,14 +349,24 @@ cfg_feature! {
 #[derive(Debug)]
 pub(crate) struct CertResolver {
     fallback: Option<Arc<CertifiedKey>>,
-    certified_keys: HashMap<String, Arc<CertifiedKey>>,
+    exact_certified_keys: HashMap<String, Arc<CertifiedKey>>,
+    wildcards_certified_keys: HashMap<String, Arc<CertifiedKey>>,
 }
 
 impl ResolvesServerCert for CertResolver {
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<CertifiedKey>> {
         client_hello
             .server_name()
-            .and_then(|name| self.certified_keys.get(name).cloned())
+            .and_then(|name| {
+                if let Some(certified_key) = self.exact_certified_keys.get(name) {
+                    Some(Arc::clone(certified_key))
+                } else {
+                    // Check for wildcard match
+                    name.split_once('.')
+                        .map(|(_, rest)| self.wildcards_certified_keys.get(rest).cloned())
+                        .flatten()
+                }
+            })
             .or_else(|| self.fallback.clone())
     }
 }
