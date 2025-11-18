@@ -1,0 +1,20 @@
+use serde::{Deserialize, Serialize};
+pub mod posts;
+pub mod users;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JwtClaims {
+    pub username: String,
+    pub exp: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenResponseModel {
+    pub type_token: String,
+    pub token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponseModel {
+    pub detail: String,
+}

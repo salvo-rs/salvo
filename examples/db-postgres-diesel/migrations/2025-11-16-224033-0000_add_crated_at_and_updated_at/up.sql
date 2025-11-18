@@ -1,0 +1,7 @@
+-- Your SQL goes here
+ALTER TABLE "posts" ADD COLUMN "updated_at" TIMESTAMP NOT NULL;
+ALTER TABLE "posts" ADD COLUMN "created_at" TIMESTAMP NOT NULL;
+
+ALTER TABLE "users" ADD COLUMN "created_at" TIMESTAMP NOT NULL;
+ALTER TABLE "users" ADD COLUMN "updated_at" TIMESTAMP NOT NULL;
+
