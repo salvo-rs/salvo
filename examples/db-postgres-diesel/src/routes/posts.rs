@@ -25,7 +25,7 @@ use uuid::Uuid;
 #[endpoint(
     tags("Posts"),
     summary = "get all posts",
-    description = "the objective of this endpoint is to retreive all create post of given the current user"
+    description = "the objective of this endpoint is to retrieve all create post of given the current user"
 )]
 fn get_all_posts(
     res: &mut Response,
