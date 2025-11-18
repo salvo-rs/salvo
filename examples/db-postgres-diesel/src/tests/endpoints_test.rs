@@ -1,6 +1,5 @@
-
 #[cfg(test)]
-pub mod tests{
+pub mod tests {
 
     use salvo::prelude::*;
     use salvo::test::TestClient;
@@ -11,7 +10,6 @@ pub mod tests{
 
     #[tokio::test]
     async fn test_hello_world() {
-
         let router = Router::new().get(crate::hello_world);
 
         // let service = Service::new(router);
@@ -34,7 +32,9 @@ pub mod tests{
         // let service = Service::new(router);
         // let client = TestClient::new(service);
 
-        let response = TestClient::get("http://localhost/hello?name=Darix").send(router).await;
+        let response = TestClient::get("http://localhost/hello?name=Darix")
+            .send(router)
+            .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
 
         // let body = response.body;
@@ -108,8 +108,9 @@ pub mod tests{
 
         // Attempt GET /users/me without auth header
         let response = TestClient::get("http://localhost/users/me")
-                        .add_header("authentification", "authenfictaion", false)
-                        .send(router).await;
+            .add_header("authentification", "authenfictaion", false)
+            .send(router)
+            .await;
         // println!("Response in test me: {:?}", response);
         assert_eq!(response.status_code, Some(StatusCode::UNAUTHORIZED));
     }
@@ -159,7 +160,6 @@ pub mod tests{
         println!("Response in login : {:?}", response);
         assert!(response.status_code == Some(StatusCode::OK));
     }
-
 
     #[tokio::test]
     async fn test_users_update_failure() {

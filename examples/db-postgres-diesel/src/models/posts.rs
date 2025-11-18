@@ -1,8 +1,8 @@
-use chrono::NaiveDateTime;
-use diesel::{prelude::*};
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 use crate::models::schema::posts;
+use chrono::NaiveDateTime;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = posts)]
@@ -14,7 +14,6 @@ pub struct Posts {
     pub user_id: Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-
 }
 
 #[derive(Insertable, Serialize, Deserialize, Debug)]

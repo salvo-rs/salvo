@@ -1,23 +1,23 @@
+use crate::database::db::DbPool;
 use crate::database::db::establish_connection_pool;
 use crate::routes::posts::get_posts_router;
 use crate::routes::users::get_users_router;
 use salvo::cors::AllowOrigin;
+use salvo::cors::Cors;
 use salvo::http::Method;
 use salvo::prelude::*;
 use salvo_oapi::OpenApi;
 use salvo_oapi::endpoint;
 use salvo_oapi::extract::QueryParam;
 use std::sync::Arc;
-use crate::database::db::DbPool;
-use salvo::cors::Cors;
 
+pub mod auth;
 pub mod database;
 pub mod models;
 pub mod routes;
 pub mod schemas;
-pub mod auth;
-pub mod utils;
 pub mod tests;
+pub mod utils;
 
 #[endpoint(
     tags("Main"),
@@ -46,7 +46,6 @@ pub async fn hello_world(res: &mut Response) -> Result<&'static str, salvo::Erro
 async fn main() {
     tracing_subscriber::fmt().init();
 
-
     let pool = Arc::new(establish_connection_pool());
 
     let cors = Cors::new()
@@ -55,7 +54,6 @@ async fn main() {
         .allow_headers("authorization")
         .allow_headers("authentification")
         .into_handler();
-
 
     let router = Router::new()
         .hoop(affix_state::inject(pool))
@@ -70,7 +68,7 @@ async fn main() {
         .unshift(doc.into_router("/api-doc/openapi.json"))
         .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/docs"));
 
-     let service = Service::new(router).hoop(cors);
+    let service = Service::new(router).hoop(cors);
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
 
