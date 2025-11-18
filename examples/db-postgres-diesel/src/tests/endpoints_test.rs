@@ -108,7 +108,7 @@ pub mod tests {
 
         // Attempt GET /users/me without auth header
         let response = TestClient::get("http://localhost/users/me")
-            .add_header("authentification", "authenfictaion", false)
+            .add_header("authentication", "authenfictaion", false)
             .send(router)
             .await;
         // println!("Response in test me: {:?}", response);
@@ -128,7 +128,7 @@ pub mod tests {
 
         // Attempt GET /users/me without auth header
         let response = TestClient::get("http://localhost/users/me")
-                        .add_header("authentification", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", false)
+                        .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", false)
                         .send(router).await;
         println!("Response in test me: {:?}", response);
         assert_eq!(response.status_code, Some(StatusCode::OK));
@@ -148,7 +148,7 @@ pub mod tests {
 
         // Example POST request to login
         let response = TestClient::put(format!("http://localhost/users/{}", "73195821-51e4-407d-86b5-deadef4d43a5"))
-            .add_header("authentification", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
+            .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
             .json(&serde_json::json!({
                 "fullname": "Darix SAMANI SIEWE"
             }))
@@ -175,7 +175,7 @@ pub mod tests {
 
         // Example POST request to login
         let response = TestClient::put(format!("http://localhost/users/{}", "73195821-51e4-407d-86b5-deadef4d43a5"))
-            .add_header("authentification", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
+            .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
             .json(&serde_json::json!({
                 "username": "samanidarix@gmail.com",
                 "full_name": "Darix SAMANI SIEWE"

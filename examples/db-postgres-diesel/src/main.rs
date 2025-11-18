@@ -52,7 +52,7 @@ async fn main() {
         .allow_origin(AllowOrigin::any())
         .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
         .allow_headers("authorization")
-        .allow_headers("authentification")
+        .allow_headers("authentication")
         .into_handler();
 
     let router = Router::new()

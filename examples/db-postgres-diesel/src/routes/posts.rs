@@ -29,10 +29,10 @@ use uuid::Uuid;
 )]
 fn get_all_posts(
     res: &mut Response,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
     depot: &mut Depot,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
@@ -59,9 +59,9 @@ fn create_posts(
     res: &mut Response,
     post_create: JsonBody<PostCreate>,
     depot: &mut Depot,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -105,9 +105,9 @@ fn update_posts(
     res: &mut Response,
     post_update: JsonBody<PostCreate>,
     depot: &mut Depot,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -177,9 +177,9 @@ fn delete_posts(
     post_id: PathParam<Uuid>,
     res: &mut Response,
     depot: &mut Depot,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -232,9 +232,9 @@ fn get_posts_information(
     post_id: PathParam<Uuid>,
     res: &mut Response,
     depot: &mut Depot,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();

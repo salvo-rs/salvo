@@ -18,7 +18,7 @@ pub fn auth_user(
     res: &mut Response,
     depot: &mut Depot,
     ctrl: &mut FlowCtrl,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
     println!("🔐 Call Authentication");
 
@@ -28,7 +28,7 @@ pub fn auth_user(
 
     // ✅ Decode the JWT
     let decoded = match decode::<JwtClaims>(
-        authentification.clone(),
+        authentication.clone(),
         &DecodingKey::from_secret(SECRET_KEY.as_ref()),
         &Validation::default(),
     ) {

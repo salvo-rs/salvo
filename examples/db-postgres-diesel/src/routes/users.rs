@@ -28,10 +28,10 @@ use uuid::Uuid;
 )]
 fn get_all_users(
     res: &mut Response,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
     depot: &mut Depot,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -130,9 +130,9 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
 pub async fn get_users_information(
     res: &mut Response,
     depot: &mut Depot,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -166,11 +166,11 @@ pub async fn get_users_information(
 fn update_users(
     user_id: PathParam<Uuid>,
     res: &mut Response,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
     depot: &mut Depot,
     user_update: JsonBody<UserUpdate>,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     let user_uuid = user_id.into_inner();
 
@@ -236,10 +236,10 @@ fn update_users(
 fn delete_users(
     user_id: PathParam<Uuid>,
     res: &mut Response,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
     depot: &mut Depot,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
@@ -295,10 +295,10 @@ fn delete_users(
 fn get_posts_by_users(
     user_id: PathParam<Uuid>,
     res: &mut Response,
-    authentification: HeaderParam<String, true>,
+    authentication: HeaderParam<String, true>,
     depot: &mut Depot,
 ) {
-    println!("🪪 Authentication header: {}", authentification.as_str());
+    println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
@@ -354,7 +354,7 @@ fn get_access_token(
         print!("no existing users");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalide username or password"),
+            detail: format!("🚫 Invalid username or password"),
         }));
         return;
     };
@@ -366,7 +366,7 @@ fn get_access_token(
         print!("bad password");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalide user or password"),
+            detail: format!("🚫 Invalid user or password"),
         }));
         return;
     }
