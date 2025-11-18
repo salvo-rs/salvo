@@ -24,7 +24,7 @@ use uuid::Uuid;
 #[endpoint(
     tags("Users"),
     summary = "get all users",
-    description = "the objective of this endpoint is to retreive all the users in database"
+    description = "the objective of this endpoint is to retrieve all the users in database"
 )]
 fn get_all_users(
     res: &mut Response,
@@ -43,7 +43,7 @@ fn get_all_users(
 
     let all_users = users.load::<Users>(&mut conn).expect("Error loading users");
 
-    let all_users_respone: Vec<UserResponseModel> = all_users
+    let all_users_response: Vec<UserResponseModel> = all_users
         .iter()
         .map(|user| UserResponseModel {
             id: user.id,
@@ -54,7 +54,7 @@ fn get_all_users(
         })
         .collect();
 
-    res.render(Json(all_users_respone))
+    res.render(Json(all_users_response))
 }
 
 #[endpoint(
