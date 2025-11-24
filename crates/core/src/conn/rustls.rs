@@ -50,7 +50,7 @@ mod tests {
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("../../../certs/chain.pem");
+            let trust_anchor = include_bytes!("../../certs/chain.pem");
             let client_config = ClientConfig::builder()
                 .with_root_certificates(read_trust_anchor(trust_anchor.as_slice()).unwrap())
                 .with_no_client_auth();
