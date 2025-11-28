@@ -64,7 +64,7 @@ async fn add_user(req: &mut Request, res: &mut Response) {
     };
 
     // Insert user document into MongoDB
-    let result = coll_users.insert_one(user, None).await;
+    let result = coll_users.insert_one(user).await;
     match result {
         Ok(id) => res.render(format!("user added with ID {:?}", id.inserted_id)),
         Err(e) => res.render(format!("error {e:?}")),
@@ -77,7 +77,7 @@ async fn get_users(res: &mut Response) -> AppResult<()> {
     let client = get_mongodb_client();
     let coll_users = client.database(DB_NAME).collection::<User>(COLL_NAME);
     // Find all users and convert cursor to vector
-    let mut cursor = coll_users.find(None, None).await?;
+    let mut cursor = coll_users.find(Document::new()).await?;
     let mut vec_users: Vec<User> = Vec::new();
     while let Some(user) = cursor.try_next().await? {
         vec_users.push(user);
@@ -94,10 +94,7 @@ async fn get_user(req: &mut Request, res: &mut Response) {
 
     let username = req.param::<String>("username").unwrap();
     // Find user by username
-    match coll_users
-        .find_one(doc! { "username": &username }, None)
-        .await
-    {
+    match coll_users.find_one(doc! { "username": &username }).await {
         Ok(Some(user)) => res.render(Json(user)),
         Ok(None) => res.render(format!("No user found with username {username}")),
         Err(e) => res.render(format!("error {e:?}")),
@@ -114,7 +111,7 @@ async fn create_username_index(client: &Client) {
     client
         .database(DB_NAME)
         .collection::<User>(COLL_NAME)
-        .create_index(model, None)
+        .create_index(model)
         .await
         .expect("creating an index should succeed");
 }

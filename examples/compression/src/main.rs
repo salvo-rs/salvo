@@ -9,16 +9,14 @@ async fn main() {
     println!("current_dir: {:?}", std::env::current_dir().unwrap());
 
     // Set up base directory for static files
-    let current_dir = std::env::current_dir()
-        .unwrap();
+    let current_dir = std::env::current_dir().unwrap();
     let base_dir = if !current_dir.to_str().unwrap().ends_with("compression") {
-        current_dir.join("compression/static")
-        .canonicalize()
-        .unwrap()
+        current_dir
+            .join("compression/static")
+            .canonicalize()
+            .unwrap()
     } else {
-        current_dir.join("static")
-        .canonicalize()
-        .unwrap()
+        current_dir.join("static").canonicalize().unwrap()
     };
     println!("Base Dir: {base_dir:?}");
 

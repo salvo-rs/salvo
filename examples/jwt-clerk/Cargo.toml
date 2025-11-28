@@ -6,11 +6,11 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-anyhow = "1"
-dotenv = "0.15.0"
+anyhow = { workspace = true }
+dotenvy = { workspace = true }
 jsonwebtoken.workspace = true
 salvo = { workspace = true, features = ["anyhow", "jwt-auth", "proxy"] }
-serde = "1"
+serde = { workspace = true }
 time.workspace = true
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true

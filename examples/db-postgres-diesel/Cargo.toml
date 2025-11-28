@@ -5,27 +5,39 @@ edition = "2024"
 
 
 [dependencies]
-anyhow = "1.0.100"
-diesel = { version = "2.3.3", features = ["chrono", "postgres", "r2d2", "serde_json", "time", "uuid"] }
-r2d2 = "0.8"
-dotenvy = "0.15.7"
-salvo = { version = "0.84.0", features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
-salvo-oapi = { version = "0.84.0", features = ["swagger-ui"] }
-serde = { version = "1.0.228", features = ["derive"] }
-tokio = { version="1.47.1", features= ["macros"]}
-tracing = "0.1"
-tracing-subscriber = "0.3" 
-jsonwebtoken = "10.2.0"
-time = "0.3.44"
+anyhow = { workspace = true }
+diesel = { workspace = true, features = [
+    "chrono",
+    "postgres",
+    "r2d2",
+    "serde_json",
+    "time",
+    "uuid",
+] }
+r2d2 = { workspace = true }
+dotenvy = { workspace = true }
+salvo = { workspace = true, features = [
+    "oapi",
+    "affix-state",
+    "anyhow",
+    "jwt-auth",
+    "test",
+    "cors",
+] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+jsonwebtoken = { workspace = true }
+time = { workspace = true }
 
-argon2 = "0.5"
-rand_core = "0.6"
-password-hash = "0.5"
-uuid = { version = "1.18.1", features = ["serde", "v4"] }
-serde_json = "1.0.145"
-chrono = { version = "0.4.42", features = ["serde"] }
+argon2 = { workspace = true }
+rand_core = { workspace = true }
+password-hash = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v4"] }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 
 [[bin]]
 name = "salvo_postgres"
 path = "src/main.rs"
-

@@ -1,6 +1,5 @@
 #[cfg(test)]
 pub mod tests {
-
     use salvo::prelude::*;
     use salvo::test::TestClient;
     use std::sync::Arc;

@@ -1,8 +1,9 @@
-use crate::models::schema::posts;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::models::schema::posts;
 
 #[derive(Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = posts)]

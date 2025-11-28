@@ -19,5 +19,5 @@ sea-orm = { workspace = true, features = [
   # "sqlx-postgres",
   # "sqlx-mysql",
 ] }
-async-std = { version = "1.12", features = ["attributes", "tokio1"] }
+async-std = { workspace = true , features = ["attributes", "tokio1"] }
 sea-orm-migration.workspace = true

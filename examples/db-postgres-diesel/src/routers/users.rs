@@ -1,5 +1,16 @@
-use crate::auth::auth::auth_user;
-use crate::database::db::DbPool;
+use std::sync::Arc;
+
+use chrono::Utc;
+use diesel::prelude::*;
+use jsonwebtoken::{EncodingKey, encode};
+use salvo::oapi::endpoint;
+use salvo::oapi::extract::{HeaderParam, JsonBody, PathParam};
+use salvo::prelude::*;
+use time::{Duration, OffsetDateTime};
+use uuid::Uuid;
+
+use crate::auth::auth_user;
+use crate::db::DbPool;
 use crate::models::posts::Posts;
 use crate::models::schema::posts::dsl::posts;
 use crate::models::schema::users::dsl::users;
@@ -9,28 +20,14 @@ use crate::schemas::users::{
     UserCreate, UserCredentiel, UserResponseModel, UserSuccessResponseModel, UserUpdate,
 };
 use crate::schemas::{ErrorResponseModel, JwtClaims, TokenResponseModel};
-use crate::utils::SECRET_KEY;
-use crate::utils::utils::{hash_password, verify_password};
-use chrono::Utc;
-use diesel::prelude::*;
-use jsonwebtoken::{EncodingKey, encode};
-use salvo::prelude::*;
-use salvo_oapi::endpoint;
-use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
-use std::sync::Arc;
-use time::{Duration, OffsetDateTime};
-use uuid::Uuid;
+use crate::utils::{SECRET_KEY, hash_password, verify_password};
 
 #[endpoint(
     tags("Users"),
     summary = "get all users",
     description = "the objective of this endpoint is to retrieve all the users in database"
 )]
-fn get_all_users(
-    res: &mut Response,
-    authentication: HeaderParam<String, true>,
-    depot: &mut Depot,
-) {
+fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
@@ -49,8 +46,8 @@ fn get_all_users(
             id: user.id,
             email: user.username.clone(),
             full_name: user.username.clone(),
-            created_at: user.created_at.clone(),
-            updated_at: user.updated_at.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         })
         .collect();
 
@@ -85,7 +82,7 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
     }
 
     // ✅ Hash the password
-    let hashed = match hash_password(&user_create.password.clone().as_str()) {
+    let hashed = match hash_password(&user_create.password) {
         Ok(h) => h,
         Err(e) => {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -149,8 +146,8 @@ pub async fn get_users_information(
         id: current_user.id,
         email: current_user.username.clone(), // or change field if you have separate email
         full_name: current_user.full_name.clone(),
-        created_at: current_user.created_at.clone(),
-        updated_at: current_user.created_at.clone(),
+        created_at: current_user.created_at,
+        updated_at: current_user.created_at,
     };
 
     // ✅ Send JSON response
@@ -212,8 +209,8 @@ fn update_users(
                     id: current_user.id,
                     email: current_user.username.clone(),
                     full_name: current_user.full_name.clone(),
-                    created_at: current_user.created_at.clone(),
-                    updated_at: current_user.updated_at.clone(),
+                    created_at: current_user.created_at,
+                    updated_at: current_user.updated_at,
                 }));
                 return;
             }
@@ -274,8 +271,8 @@ fn delete_users(
                 id: current_user.id,
                 email: current_user.username.clone(),
                 full_name: current_user.full_name.clone(),
-                created_at: current_user.created_at.clone(),
-                updated_at: current_user.updated_at.clone(),
+                created_at: current_user.created_at,
+                updated_at: current_user.updated_at,
             }));
         }
         Err(err) => {
@@ -354,19 +351,19 @@ fn get_access_token(
         print!("no existing users");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalid username or password"),
+            detail: "🚫 Invalid username or password".to_owned(),
         }));
         return;
     };
 
     if !verify_password(
-        &user_credentiel.password.clone().as_str(),
-        &user.password.clone().as_str(),
+        &user_credentiel.password,
+        &user.password,
     ) {
         print!("bad password");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalid user or password"),
+            detail: "🚫 Invalid user or password".to_owned(),
         }));
         return;
     }
@@ -385,7 +382,7 @@ fn get_access_token(
     res.status_code(StatusCode::OK);
     res.render(Json(TokenResponseModel {
         type_token: String::from("Bearer"),
-        token: String::from(token.unwrap()),
+        token: token.unwrap(),
     }));
 }
 
