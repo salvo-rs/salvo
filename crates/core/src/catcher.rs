@@ -363,7 +363,7 @@ pub fn status_error_bytes(
         prefer_format.clone()
     };
 
-    let env_set = env::var("SALVO_STATUS_ERROR")
+    let env_sets = env::var("SALVO_STATUS_ERROR")
         .unwrap_or_default()
         .split(',')
         .filter_map(|s| {
@@ -379,18 +379,18 @@ pub fn status_error_bytes(
         })
         .collect::<HashSet<_>>();
 
-    let detail = if !env_set.contains("never_detail")
-        && (env_set.contains("force_detail")
-            || (env_set.contains("debug_detail") && cfg!(debug_assertions)))
+    let detail = if !env_sets.contains("never_detail")
+        && (env_sets.contains("force_detail")
+            || (env_sets.contains("debug_detail") && cfg!(debug_assertions)))
     {
         err.detail.as_deref()
     } else {
         None
     };
 
-    let cause = if !env_set.contains("never_cause")
-        && (env_set.contains("force_cause")
-            || (env_set.contains("debug_cause") && cfg!(debug_assertions)))
+    let cause = if !env_sets.contains("never_cause")
+        && (env_sets.contains("force_cause")
+            || (env_sets.contains("debug_cause") && cfg!(debug_assertions)))
     {
         err.cause.as_ref().map(|e| format!("{e:#?}"))
     } else {
