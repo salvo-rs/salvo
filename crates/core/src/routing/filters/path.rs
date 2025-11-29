@@ -992,21 +992,22 @@ impl PathParser {
             .map(|c| &**c)
             .collect::<Vec<_>>();
         if wild_names.len() > 1 {
-            return Err(format!(
+            Err(format!(
                 "many wildcard names: `[{}]` found in url: {}, only one wildcard name is allowed",
                 wild_names.join(", "),
                 self.path.iter().collect::<String>()
-            ));
+            ))
         } else if let Some(wild_name) = wild_names.first()
             && wild_name != all_names.last().expect("all_names should not be empty")
         {
-            return Err(format!(
+            Err(format!(
                 "wildcard name: `{}` should be the last one in url: `{}`",
                 wild_name,
                 self.path.iter().collect::<String>()
-            ));
+            ))
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 }
 

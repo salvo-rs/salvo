@@ -76,9 +76,10 @@ impl CsrfTokenFinder for JsonFinder {
             && let Some(value) = data.get(&self.field_name)
             && let Some(token) = value.as_str()
         {
-            return Some(token.to_owned());
-        }
+             Some(token.to_owned())
+        } else{
         None
+        }
     }
 }
 

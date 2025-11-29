@@ -413,7 +413,7 @@ where
                     build = build.header(HOST, host_value);
                 }
                 Err(e) => {
-                    tracing::error!(error = ?e, "invalid host header value: {}", e);
+                    tracing::error!(error = ?e, "invalid host header value");
                 }
             }
         }

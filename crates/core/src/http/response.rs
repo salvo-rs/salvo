@@ -207,9 +207,10 @@ impl Response {
         if let Some(code) = self.status_code
             && (code.is_client_error() || code.is_server_error() || code.is_redirection())
         {
-            return true;
+            true
+        } else {
+            false
         }
-        false
     }
 
     /// Convert to hyper response.
