@@ -4,8 +4,8 @@ pub mod tests {
     use salvo::test::TestClient;
     use std::sync::Arc;
 
-    use crate::database::db::establish_connection_pool;
-    use crate::routes::users::get_users_router;
+    use crate::db::establish_connection_pool;
+    use crate::routers::users::get_users_router;
 
     #[tokio::test]
     async fn test_hello_world() {
