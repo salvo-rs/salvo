@@ -10,7 +10,7 @@ use salvo::prelude::*;
 use uuid::Uuid;
 
 use crate::models::schema::posts::{id, user_id};
-use crate::schemas::{posts::PostCreate, ErrorResponseModel};
+use crate::schemas::{ErrorResponseModel, posts::PostCreate};
 use crate::{
     auth::auth_user,
     db::DbPool,

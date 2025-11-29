@@ -44,25 +44,27 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
             continue;
         }
         let attr_str = attr.to_token_stream().to_string().trim().to_owned();
-        if let Some(caps) = re.captures(&attr_str) {
-            if let Some(name) = caps.name("name") {
-                let name = name.as_str();
-                let content = caps
-                    .name("content")
-                    .map(|c| c.as_str().to_owned())
-                    .unwrap_or_default();
-                let ts: TokenStream = match name {
-                    "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,
-                    "endpoint" => format!("#[{}::oapi::{name}{content}]", salvo_crate()).parse()?,
-                    _ => {
-                        unreachable!()
-                    }
-                };
-                new_attr = Attribute::parse_outer.parse2(ts)?.into_iter().next();
-                index = Some(idx);
-                continue;
-            }
+
+        if let Some(caps) = re.captures(&attr_str)
+            && let Some(name) = caps.name("name")
+        {
+            let name = name.as_str();
+            let content = caps
+                .name("content")
+                .map(|c| c.as_str().to_owned())
+                .unwrap_or_default();
+            let ts: TokenStream = match name {
+                "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,
+                "endpoint" => format!("#[{}::oapi::{name}{content}]", salvo_crate()).parse()?,
+                _ => {
+                    unreachable!()
+                }
+            };
+            new_attr = Attribute::parse_outer.parse2(ts)?.into_iter().next();
+            index = Some(idx);
+            continue;
         }
+
         return Err(syn::Error::new_spanned(
             item_fn,
             format!(
@@ -144,14 +146,11 @@ fn rewrite_method(
             method.sig.ident = Ident::new("handle", Span::call_site());
             let where_clause = impl_generics.make_where_clause().clone();
             let mut angle_bracketed: Option<AngleBracketedGenericArguments> = None;
-            if let Type::Path(TypePath { path, .. }) = self_ty {
-                if let Some(last_segment) = path.segments.last() {
-                    if let PathArguments::AngleBracketed(_angle_bracketed) = &last_segment.arguments
-                    {
-                        // println!("{}", _angle_bracketed.to_token_stream());
-                        angle_bracketed = Some(_angle_bracketed.clone());
-                    }
-                }
+            if let Type::Path(TypePath { path, .. }) = self_ty
+                && let Some(last_segment) = path.segments.last()
+                && let PathArguments::AngleBracketed(_angle_bracketed) = &last_segment.arguments
+            {
+                angle_bracketed = Some(_angle_bracketed.clone());
             }
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {

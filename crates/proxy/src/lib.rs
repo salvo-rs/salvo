@@ -205,15 +205,13 @@ pub fn rfc2616_host_header_getter(
     let mut parts: Vec<String> = Vec::with_capacity(2);
 
     if let Some(host) = forward_uri.host() {
-        parts.push(host.to_string());
+        parts.push(host.to_owned());
 
-        if forward_uri.port_u16().is_some() && forward_uri.scheme_str().is_some() {
-            let scheme = forward_uri.scheme_str().unwrap();
-            let port = forward_uri.port_u16().unwrap();
-
-            if scheme == "http" && port != 80 || scheme == "https" && port != 443 {
-                parts.push(port.to_string());
-            }
+        if let Some(scheme) = forward_uri.scheme_str()
+            && let Some(port) = forward_uri.port_u16()
+            && (scheme == "http" && port != 80 || scheme == "https" && port != 443)
+        {
+            parts.push(port.to_string());
         }
     }
 
@@ -230,10 +228,10 @@ pub fn preserve_original_host_header_getter(
     req: &Request,
     _depot: &Depot,
 ) -> Option<String> {
-    if let Some(host_header) = req.headers().get(HOST) {
-        if let Ok(host) = String::from_utf8(host_header.as_bytes().to_vec()) {
-            return Some(host);
-        }
+    if let Some(host_header) = req.headers().get(HOST)
+        && let Ok(host) = String::from_utf8(host_header.as_bytes().to_vec())
+    {
+        return Some(host);
     }
 
     default_host_header_getter(forward_uri, req, _depot)
@@ -358,6 +356,7 @@ where
 
     /// Enable x-forwarded-for header prepending.
     #[inline]
+    #[must_use]
     pub fn client_ip_forwarding(mut self, enable: bool) -> Self {
         self.client_ip_forwarding_enabled = enable;
         self
@@ -408,11 +407,15 @@ where
                 build = build.header(key, value);
             }
         }
-        if let Some(host) = (self.host_header_getter)(&forward_url, req, depot) {
-            build = build.header(
-                HeaderName::from_static("host"),
-                HeaderValue::from_str(&host).ok().unwrap(),
-            );
+        if let Some(host_value) = (self.host_header_getter)(&forward_url, req, depot) {
+            match HeaderValue::from_str(&host_value) {
+                Ok(host_value) => {
+                    build = build.header(HOST, host_value);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "invalid host header value");
+                }
+            }
         }
 
         if self.client_ip_forwarding_enabled {
@@ -438,7 +441,7 @@ where
 
                 let xff_value = match current_xff {
                     Some(current_xff) => match current_xff.to_str() {
-                        Ok(current_xff) => format!("{}, {}", forwarded_addr, current_xff),
+                        Ok(current_xff) => format!("{forwarded_addr}, {current_xff}"),
                         _ => forwarded_addr.clone(),
                     },
                     None => forwarded_addr.clone(),
@@ -448,12 +451,17 @@ where
                     Ok(xff_header_halue) => Some(xff_header_halue),
                     Err(_) => match HeaderValue::from_str(forwarded_addr.as_str()) {
                         Ok(xff_header_halue) => Some(xff_header_halue),
-                        Err(_) => None,
+                        Err(e) => {
+                            tracing::error!(error = ?e, "invalid x-forwarded-for header value");
+                            None
+                        }
                     },
                 };
 
-                if let Some(xff) = xff_header_halue {
-                    build.headers_mut().unwrap().insert(&xff_header_name, xff);
+                if let Some(xff) = xff_header_halue
+                    && let Some(headers) = build.headers_mut()
+                {
+                    headers.insert(&xff_header_name, xff);
                 }
             }
         }
@@ -527,14 +535,13 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
                 .any(|e| e.trim() == UPGRADE)
         })
         .unwrap_or(false)
+        && let Some(upgrade_value) = headers.get(&UPGRADE)
     {
-        if let Some(upgrade_value) = headers.get(&UPGRADE) {
-            tracing::debug!(
-                "Found upgrade header with value: {:?}",
-                upgrade_value.to_str()
-            );
-            return upgrade_value.to_str().ok();
-        }
+        tracing::debug!(
+            "found upgrade header with value: {:?}",
+            upgrade_value.to_str()
+        );
+        return upgrade_value.to_str().ok();
     }
 
     None

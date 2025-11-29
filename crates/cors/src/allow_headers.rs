@@ -172,8 +172,9 @@ impl From<&Vec<String>> for AllowHeaders {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 enum AllowHeadersInner {
+    #[default]
     None,
     Exact(HeaderValue),
     MirrorRequest,
@@ -193,11 +194,6 @@ enum AllowHeadersInner {
     ),
 }
 
-impl Default for AllowHeadersInner {
-    fn default() -> Self {
-        Self::None
-    }
-}
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header;

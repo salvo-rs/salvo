@@ -475,68 +475,68 @@ impl OpenApi {
                     .next()
             })
             .collect::<Vec<_>>();
-        if let Some(handler_type_id) = &node.handler_type_id {
-            if let Some(creator) = crate::EndpointRegistry::find(handler_type_id) {
-                let Endpoint {
-                    mut operation,
-                    mut components,
-                } = (creator)();
-                operation.tags.extend(node.metadata.tags.iter().cloned());
-                operation
-                    .securities
-                    .extend(node.metadata.securities.iter().cloned());
-                let methods = if let Some(method) = &node.method {
-                    vec![*method]
-                } else {
-                    vec![
-                        PathItemType::Get,
-                        PathItemType::Post,
-                        PathItemType::Put,
-                        PathItemType::Patch,
-                    ]
-                };
-                let not_exist_parameters = operation
-                    .parameters
-                    .0
-                    .iter()
-                    .filter(|p| {
-                        p.parameter_in == ParameterIn::Path
-                            && !path_parameter_names.contains(&p.name)
-                    })
-                    .map(|p| &p.name)
-                    .collect::<Vec<_>>();
-                if !not_exist_parameters.is_empty() {
-                    tracing::warn!(parameters = ?not_exist_parameters, path, handler_name = node.handler_type_name, "information for not exist parameters");
-                }
-                let meta_not_exist_parameters = path_parameter_names
-                    .iter()
-                    .filter(|name| {
-                        !name.starts_with('*')
-                            && !operation.parameters.0.iter().any(|parameter| {
-                                parameter.name == **name
-                                    && parameter.parameter_in == ParameterIn::Path
-                            })
-                    })
-                    .collect::<Vec<_>>();
-                #[cfg(debug_assertions)]
-                if !meta_not_exist_parameters.is_empty() {
-                    tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
-                }
-                let path_item = self.paths.entry(path.clone()).or_default();
-                for method in methods {
-                    if path_item.operations.contains_key(&method) {
-                        tracing::warn!(
-                            "path `{}` already contains operation for method `{:?}`",
-                            path,
-                            method
-                        );
-                    } else {
-                        path_item.operations.insert(method, operation.clone());
-                    }
-                }
-                self.components.append(&mut components);
+
+        if let Some(handler_type_id) = &node.handler_type_id
+            && let Some(creator) = crate::EndpointRegistry::find(handler_type_id)
+        {
+            let Endpoint {
+                mut operation,
+                mut components,
+            } = (creator)();
+            operation.tags.extend(node.metadata.tags.iter().cloned());
+            operation
+                .securities
+                .extend(node.metadata.securities.iter().cloned());
+            let methods = if let Some(method) = &node.method {
+                vec![*method]
+            } else {
+                vec![
+                    PathItemType::Get,
+                    PathItemType::Post,
+                    PathItemType::Put,
+                    PathItemType::Patch,
+                ]
+            };
+            let not_exist_parameters = operation
+                .parameters
+                .0
+                .iter()
+                .filter(|p| {
+                    p.parameter_in == ParameterIn::Path && !path_parameter_names.contains(&p.name)
+                })
+                .map(|p| &p.name)
+                .collect::<Vec<_>>();
+            if !not_exist_parameters.is_empty() {
+                tracing::warn!(parameters = ?not_exist_parameters, path, handler_name = node.handler_type_name, "information for not exist parameters");
             }
+            let meta_not_exist_parameters = path_parameter_names
+                .iter()
+                .filter(|name| {
+                    !name.starts_with('*')
+                        && !operation.parameters.0.iter().any(|parameter| {
+                            parameter.name == **name && parameter.parameter_in == ParameterIn::Path
+                        })
+                })
+                .collect::<Vec<_>>();
+            #[cfg(debug_assertions)]
+            if !meta_not_exist_parameters.is_empty() {
+                tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
+            }
+            let path_item = self.paths.entry(path.clone()).or_default();
+            for method in methods {
+                if path_item.operations.contains_key(&method) {
+                    tracing::warn!(
+                        "path `{}` already contains operation for method `{:?}`",
+                        path,
+                        method
+                    );
+                } else {
+                    path_item.operations.insert(method, operation.clone());
+                }
+            }
+            self.components.append(&mut components);
         }
+
         for child in &mut node.children {
             self.merge_norm_node(child, &path);
         }

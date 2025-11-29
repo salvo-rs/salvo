@@ -60,10 +60,10 @@ impl RequestBody {
             contents,
             required,
         } = other;
-        if let Some(description) = description {
-            if !description.is_empty() {
-                self.description = Some(description);
-            }
+        if let Some(description) = description
+            && !description.is_empty()
+        {
+            self.description = Some(description);
         }
         self.contents.extend(contents);
         if let Some(required) = required {

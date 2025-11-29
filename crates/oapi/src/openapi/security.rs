@@ -296,10 +296,11 @@ impl Http {
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
 /// Types are maintained at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpAuthScheme {
     /// Basic authentication scheme.
+    #[default]
     Basic,
     /// Bearer authentication scheme.
     Bearer,
@@ -321,12 +322,6 @@ pub enum HttpAuthScheme {
     ScramSha256,
     /// Vapid authentication scheme.
     Vapid,
-}
-
-impl Default for HttpAuthScheme {
-    fn default() -> Self {
-        Self::Basic
-    }
 }
 
 /// Open id connect [`SecurityScheme`]

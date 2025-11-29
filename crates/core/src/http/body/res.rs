@@ -171,10 +171,10 @@ impl Body for ResBody {
                 .map_ok(|frame| frame.0)
                 .map_err(IoError::other),
             Self::Channel(rx) => {
-                if !rx.data_rx.is_terminated() {
-                    if let Some(chunk) = ready!(Pin::new(&mut rx.data_rx).poll_next(cx)?) {
-                        return Poll::Ready(Some(Ok(Frame::data(chunk))));
-                    }
+                if !rx.data_rx.is_terminated()
+                    && let Some(chunk) = ready!(Pin::new(&mut rx.data_rx).poll_next(cx)?)
+                {
+                    return Poll::Ready(Some(Ok(Frame::data(chunk))));
                 }
 
                 // check trailers after data is terminated

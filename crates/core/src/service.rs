@@ -243,10 +243,10 @@ impl HyperHandler {
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
         let mut res = Response::with_cookies(req.cookies.clone());
-        if let Some(alt_svc_h3) = &self.alt_svc_h3 {
-            if !res.headers().contains_key(ALT_SVC) {
-                res.headers_mut().insert(ALT_SVC, alt_svc_h3.clone());
-            }
+        if let Some(alt_svc_h3) = &self.alt_svc_h3
+            && !res.headers().contains_key(ALT_SVC)
+        {
+            res.headers_mut().insert(ALT_SVC, alt_svc_h3.clone());
         }
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
@@ -301,25 +301,26 @@ impl HyperHandler {
                 res.status_code = Some(StatusCode::NOT_FOUND);
                 StatusCode::NOT_FOUND
             };
-            if !allowed_media_types.is_empty() {
-                if let Some(ctype) = res
+
+            if !allowed_media_types.is_empty()
+                && let Some(ctype) = res
                     .headers()
                     .get(CONTENT_TYPE)
                     .and_then(|c| c.to_str().ok())
                     .and_then(|c| c.parse::<Mime>().ok())
-                {
-                    let mut is_allowed = false;
-                    for mime in &*allowed_media_types {
-                        if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
-                            is_allowed = true;
-                            break;
-                        }
-                    }
-                    if !is_allowed {
-                        res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            {
+                let mut is_allowed = false;
+                for mime in &*allowed_media_types {
+                    if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
+                        is_allowed = true;
+                        break;
                     }
                 }
+                if !is_allowed {
+                    res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                }
             }
+
             let has_error = status_code.is_client_error() || status_code.is_server_error();
             if res.body.is_none()
                 && !has_error
@@ -335,6 +336,7 @@ impl HyperHandler {
                     "http response content type header not set"
                 );
             }
+
             if Method::HEAD != *req.method()
                 && (res.body.is_none() || res.body.is_error())
                 && has_error
@@ -345,6 +347,7 @@ impl HyperHandler {
                     write_error_default(&req, &mut res, None);
                 }
             }
+
             #[cfg(debug_assertions)]
             if Method::HEAD == *req.method() && !res.body.is_none() {
                 tracing::warn!(
@@ -402,19 +405,18 @@ where
             .unwrap_or_else(|| self.http_scheme.clone());
         // https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
-        if req.uri().scheme().is_none() {
-            if let Some(host) = req
+        if req.uri().scheme().is_none()
+            && let Some(host) = req
                 .headers()
                 .get(http::header::HOST)
                 .and_then(|host| host.to_str().ok())
                 .and_then(|host| host.parse::<http::uri::Authority>().ok())
-            {
-                let mut uri_parts = std::mem::take(req.uri_mut()).into_parts();
-                uri_parts.scheme = Some(scheme.clone());
-                uri_parts.authority = Some(host);
-                if let Ok(uri) = http::uri::Uri::from_parts(uri_parts) {
-                    *req.uri_mut() = uri;
-                }
+        {
+            let mut uri_parts = std::mem::take(req.uri_mut()).into_parts();
+            uri_parts.scheme = Some(scheme.clone());
+            uri_parts.authority = Some(host);
+            if let Ok(uri) = http::uri::Uri::from_parts(uri_parts) {
+                *req.uri_mut() = uri;
             }
         }
         let mut request = Request::from_hyper(req, scheme);

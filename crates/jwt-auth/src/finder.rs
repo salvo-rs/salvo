@@ -93,10 +93,10 @@ impl JwtTokenFinder for HeaderFinder {
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             for header_name in &self.header_names {
-                if let Some(Ok(auth)) = req.headers().get(header_name).map(|auth| auth.to_str()) {
-                    if auth.starts_with("Bearer") {
-                        return auth.split_once(' ').map(|(_, token)| token.to_owned());
-                    }
+                if let Some(Ok(auth)) = req.headers().get(header_name).map(|auth| auth.to_str())
+                    && auth.starts_with("Bearer")
+                {
+                    return auth.split_once(' ').map(|(_, token)| token.to_owned());
                 }
             }
         }

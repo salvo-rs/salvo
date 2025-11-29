@@ -5,10 +5,10 @@ use syn::{Attribute, Meta, MetaList};
 pub(crate) fn find_nested_list(attr: &Attribute, ident: &str) -> syn::Result<Option<MetaList>> {
     let metas = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
     for meta in metas {
-        if let Meta::List(meta) = meta {
-            if meta.path.is_ident(ident) {
-                return Ok(Some(meta));
-            }
+        if let Meta::List(meta) = meta
+            && meta.path.is_ident(ident)
+        {
+            return Ok(Some(meta));
         }
     }
     Ok(None)

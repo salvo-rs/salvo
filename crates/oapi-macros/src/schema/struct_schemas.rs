@@ -383,52 +383,51 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .map(|value_type| value_type.as_type_tree())
                 .transpose()?;
 
-            if fields_len == 1 {
-                if let Some(ref mut features) = unnamed_struct_features {
-                    let inline = parse_schema_features_with(&first_field.attrs, |input| {
-                        Ok(parse_features!(input as attributes::Inline))
-                    })?
-                    .unwrap_or_default();
+            if fields_len == 1
+                && let Some(ref mut features) = unnamed_struct_features
+            {
+                let inline = parse_schema_features_with(&first_field.attrs, |input| {
+                    Ok(parse_features!(input as attributes::Inline))
+                })?
+                .unwrap_or_default();
 
-                    features.extend(inline);
+                features.extend(inline);
 
-                    if pop_feature!(features => Feature::Default(Default(None))).is_some() {
-                        let struct_ident = format_ident!("{}", &self.struct_name);
-                        let index: syn::Index = 0.into();
-                        features.push(Feature::Default(Default::new_default_trait(
-                            struct_ident,
-                            index.into(),
-                        )));
-                    }
+                if pop_feature!(features => Feature::Default(Default(None))).is_some() {
+                    let struct_ident = format_ident!("{}", &self.struct_name);
+                    let index: syn::Index = 0.into();
+                    features.push(Feature::Default(Default::new_default_trait(
+                        struct_ident,
+                        index.into(),
+                    )));
                 }
             }
 
-            if fields_len > 1 {
-                // The struct has multiple unnamed fields.
-                // Validation related features are only allowed on unnamed structs with a single field (i.e., newtype pattern).
-                if let Some(ref mut features) = unnamed_struct_features {
-                    if let Some((name, span)) = features.iter().find_map(|feature| match feature {
-                        Feature::MultipleOf(attr) => Some(("multiple_of", attr.span())),
-                        Feature::Maximum(attr) => Some(("maximum", attr.span())),
-                        Feature::Minimum(attr) => Some(("minimum", attr.span())),
-                        Feature::ExclusiveMaximum(attr) => Some(("exclusive_maximum", attr.span())),
-                        Feature::ExclusiveMinimum(attr) => Some(("exclusive_minimum", attr.span())),
-                        Feature::MaxLength(attr) => Some(("max_length", attr.span())),
-                        Feature::MinLength(attr) => Some(("min_length", attr.span())),
-                        Feature::Pattern(attr) => Some(("pattern", attr.span())),
-                        Feature::MaxItems(attr) => Some(("max_items", attr.span())),
-                        Feature::MinItems(attr) => Some(("min_items", attr.span())),
-                        _ => None,
-                    }) {
-                        return Err(Diagnostic::spanned(
-                            span,
-                            DiagLevel::Error,
-                            format!(
-                                "{name} attribute is not allowed for unnamed structs with multiple fields",
-                            ),
-                        ));
-                    }
-                }
+            // The struct has multiple unnamed fields.
+            // Validation related features are only allowed on unnamed structs with a single field (i.e., newtype pattern).
+            if fields_len > 1
+                && let Some(ref mut features) = unnamed_struct_features
+                && let Some((name, span)) = features.iter().find_map(|feature| match feature {
+                    Feature::MultipleOf(attr) => Some(("multiple_of", attr.span())),
+                    Feature::Maximum(attr) => Some(("maximum", attr.span())),
+                    Feature::Minimum(attr) => Some(("minimum", attr.span())),
+                    Feature::ExclusiveMaximum(attr) => Some(("exclusive_maximum", attr.span())),
+                    Feature::ExclusiveMinimum(attr) => Some(("exclusive_minimum", attr.span())),
+                    Feature::MaxLength(attr) => Some(("max_length", attr.span())),
+                    Feature::MinLength(attr) => Some(("min_length", attr.span())),
+                    Feature::Pattern(attr) => Some(("pattern", attr.span())),
+                    Feature::MaxItems(attr) => Some(("max_items", attr.span())),
+                    Feature::MinItems(attr) => Some(("min_items", attr.span())),
+                    _ => None,
+                })
+            {
+                return Err(Diagnostic::spanned(
+                    span,
+                    DiagLevel::Error,
+                    format!(
+                        "{name} attribute is not allowed for unnamed structs with multiple fields",
+                    ),
+                ));
             }
 
             let comments = CommentAttributes::from_attributes(self.attributes);

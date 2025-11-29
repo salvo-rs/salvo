@@ -49,10 +49,10 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
         Item::Impl(item_impl) => {
             let mut hmtd = None;
             for item in &item_impl.items {
-                if let ImplItem::Fn(method) = item {
-                    if method.sig.ident == Ident::new("handle", Span::call_site()) {
-                        hmtd = Some(method);
-                    }
+                if let ImplItem::Fn(method) = item
+                    && method.sig.ident == Ident::new("handle", Span::call_site())
+                {
+                    hmtd = Some(method);
                 }
             }
             let Some(hmtd) = hmtd else {

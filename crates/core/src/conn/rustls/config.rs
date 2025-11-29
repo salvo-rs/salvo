@@ -282,7 +282,7 @@ impl RustlsConfig {
             for domain in name {
                 if domain.starts_with("*.") {
                     wildcards_certified_keys.insert(
-                        domain.trim_start_matches("*.").to_string(),
+                        domain.trim_start_matches("*.").to_owned(),
                         certified_key.clone(),
                     );
                 } else {
@@ -363,8 +363,7 @@ impl ResolvesServerCert for CertResolver {
                 } else {
                     // Check for wildcard match
                     name.split_once('.')
-                        .map(|(_, rest)| self.wildcards_certified_keys.get(rest).cloned())
-                        .flatten()
+                        .and_then(|(_, rest)| self.wildcards_certified_keys.get(rest).cloned())
                 }
             })
             .or_else(|| self.fallback.clone())

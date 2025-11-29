@@ -356,10 +356,7 @@ fn get_access_token(
         return;
     };
 
-    if !verify_password(
-        &user_credentiel.password,
-        &user.password,
-    ) {
+    if !verify_password(&user_credentiel.password, &user.password) {
         print!("bad password");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
