@@ -368,15 +368,13 @@ pub fn status_error_bytes(
         .split(',')
         .filter_map(|s| {
             let s = s.trim().to_lowercase();
-            if s.is_empty() {
+            if STATUS_ERROR_SETS.contains(s.as_str()) {
+                Some(s)
+            } else if s.is_empty() {
                 None
             } else {
-                if STATUS_ERROR_SETS.contains(s.as_str()) {
-                    Some(s)
-                } else {
-                    tracing::warn!("unknown SALVO_STATUS_ERROR option: {}", s);
-                    None
-                }
+                tracing::warn!("unknown SALVO_STATUS_ERROR option: {}", s);
+                None
             }
         })
         .collect::<HashSet<_>>();
