@@ -6,9 +6,9 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-parking_lot = "0.12"
+parking_lot = { workspace = true }
 salvo = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-tracing = "^0.1"
-tracing-subscriber = "^0.3"
-juniper = "^0.15.10"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+juniper = { workspace = true }

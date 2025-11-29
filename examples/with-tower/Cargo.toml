@@ -8,6 +8,6 @@ rust-version.workspace = true
 [dependencies]
 salvo = { workspace = true, features = ["tower-compat"] }
 tokio = { workspace = true, features = ["macros"] }
-tower = { version = "0.4", features = ["limit"] }
-tracing.workspace = true
-tracing-subscriber.workspace = true
+tower = { workspace = true , features = ["limit"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -8,7 +8,7 @@ use salvo_core::http::header::{
     ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
-use salvo_core::http::mime::{detect_text_mime, fill_mime_charset_if_need};
+use salvo_core::http::mime::fill_mime_charset_if_need;
 use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 

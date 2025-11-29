@@ -7,10 +7,10 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = "1"
-jsonwebtoken.workspace = true
+jsonwebtoken = { workspace = true }
 salvo = { workspace = true, features = ["anyhow", "jwt-auth"] }
-serde = "1"
-time.workspace = true
+serde = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -1,8 +1,9 @@
-use crate::models::schema::users;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::models::schema::users;
 
 #[derive(Queryable, Serialize, Deserialize, Debug, Selectable)]
 #[diesel(table_name = users)]

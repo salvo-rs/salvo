@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 use salvo::macros::Extractible;
-use salvo_oapi::ToSchema;
+use salvo::oapi::ToSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

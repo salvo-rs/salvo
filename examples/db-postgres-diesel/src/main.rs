@@ -1,20 +1,19 @@
-use crate::database::db::DbPool;
-use crate::database::db::establish_connection_pool;
-use crate::routes::posts::get_posts_router;
-use crate::routes::users::get_users_router;
-use salvo::cors::AllowOrigin;
-use salvo::cors::Cors;
-use salvo::http::Method;
-use salvo::prelude::*;
-use salvo_oapi::OpenApi;
-use salvo_oapi::endpoint;
-use salvo_oapi::extract::QueryParam;
 use std::sync::Arc;
 
+use salvo::cors::{AllowOrigin, Cors};
+use salvo::http::Method;
+use salvo::oapi::extract::QueryParam;
+use salvo::oapi::{OpenApi, endpoint};
+use salvo::prelude::*;
+
+use crate::db::{DbPool, establish_connection_pool};
+use crate::routers::posts::get_posts_router;
+use crate::routers::users::get_users_router;
+
 pub mod auth;
-pub mod database;
+pub mod db;
 pub mod models;
-pub mod routes;
+pub mod routers;
 pub mod schemas;
 pub mod tests;
 pub mod utils;

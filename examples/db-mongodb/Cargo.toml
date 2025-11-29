@@ -13,5 +13,5 @@ tracing-subscriber.workspace = true
 futures.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-mongodb = "2"
-thiserror = "1"
+mongodb = "3.4.1"
+thiserror.workspace = true

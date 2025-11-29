@@ -1,15 +1,15 @@
 use crate::models::schema::users::dsl::users;
 use crate::{
-    database::db::DbPool,
+    db::DbPool,
     models::{schema::users::username, users::Users},
     schemas::{ErrorResponseModel, JwtClaims},
     utils::SECRET_KEY,
 };
 use diesel::prelude::*;
 use jsonwebtoken::{DecodingKey, Validation, decode};
+use salvo::oapi::endpoint;
+use salvo::oapi::extract::HeaderParam;
 use salvo::prelude::*;
-use salvo_oapi::endpoint;
-use salvo_oapi::extract::HeaderParam;
 use std::sync::Arc;
 use time::OffsetDateTime;
 

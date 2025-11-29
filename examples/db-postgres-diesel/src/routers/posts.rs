@@ -1,37 +1,32 @@
-use crate::models::schema::posts::{id, user_id};
-use crate::schemas::posts::PostCreate;
-use crate::{
-    auth::auth::auth_user,
-    database::db::DbPool,
-    models::{posts::Posts, users::Users},
-};
-use crate::{
-    models::{
-        posts::NewPost,
-        schema::posts::{content, dsl::posts, title, updated_at},
-    },
-    schemas::ErrorResponseModel,
-};
+use std::sync::Arc;
+
 use chrono::Utc;
 use diesel::prelude::*;
-use salvo::prelude::*;
-use salvo_oapi::{
+use salvo::oapi::{
     endpoint,
     extract::{HeaderParam, JsonBody, PathParam},
 };
-use std::sync::Arc;
+use salvo::prelude::*;
 use uuid::Uuid;
+
+use crate::models::schema::posts::{id, user_id};
+use crate::schemas::{posts::PostCreate, ErrorResponseModel};
+use crate::{
+    auth::auth_user,
+    db::DbPool,
+    models::{
+        posts::{NewPost, Posts},
+        schema::posts::{content, dsl::posts, title, updated_at},
+        users::Users,
+    },
+};
 
 #[endpoint(
     tags("Posts"),
     summary = "get all posts",
     description = "the objective of this endpoint is to retrieve all create post of given the current user"
 )]
-fn get_all_posts(
-    res: &mut Response,
-    authentication: HeaderParam<String, true>,
-    depot: &mut Depot,
-) {
+fn get_all_posts(res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -78,7 +73,7 @@ fn create_posts(
         id: Uuid::new_v4(),
         content: post_create.content.clone(),
         title: post_create.title.clone(),
-        user_id: current_user.id.clone(),
+        user_id: current_user.id,
         created_at: now,
         updated_at: now,
     };
@@ -137,7 +132,7 @@ fn update_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -210,14 +205,14 @@ fn delete_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
 
     let row_affected = diesel::delete(posts.filter(id.eq(post_uuid)))
         .execute(&mut conn)
-        .expect(format!("Failed to delete posts with id: {}", { post_uuid }).as_str());
+        .unwrap_or_else(|_| panic!("Failed to delete posts with id: {}", post_uuid));
 
     println!("The number of row affected is {}", { row_affected });
     res.render(Json(post));
@@ -263,7 +258,7 @@ fn get_posts_information(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -272,7 +267,7 @@ fn get_posts_information(
 }
 
 pub fn get_posts_router() -> Router {
-    let posts_router = Router::with_path("/posts")
+    Router::with_path("/posts")
         .hoop(auth_user)
         .get(get_all_posts)
         .post(create_posts)
@@ -281,6 +276,5 @@ pub fn get_posts_router() -> Router {
                 .get(get_posts_information)
                 .put(update_posts)
                 .delete(delete_posts),
-        );
-    posts_router
+        )
 }
