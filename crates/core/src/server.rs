@@ -28,9 +28,9 @@ use tokio_util::sync::CancellationToken;
 use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
-use crate::conn::{Accepted, Coupler, Acceptor, Holding, HttpBuilder};
+use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
-use crate::http::{HeaderValue,  Version};
+use crate::http::{HeaderValue, Version};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -269,15 +269,15 @@ impl<A: Acceptor + Send> Server<A> {
             let mut alt_svc_h3 = None;
             for holding in acceptor.holdings() {
                 tracing::info!("listening {}", holding);
-                if holding.http_versions.contains(&Version::HTTP_3) {
-                    if let Some(addr) = holding.local_addr.clone().into_std() {
-                        let port = addr.port();
-                        alt_svc_h3 = Some(
-                            format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
-                                .parse::<HeaderValue>()
-                                .expect("Parse alt-svc header should not failed."),
-                        );
-                    }
+                if holding.http_versions.contains(&Version::HTTP_3)
+                    && let Some(addr) = holding.local_addr.clone().into_std()
+                {
+                    let port = addr.port();
+                    alt_svc_h3 = Some(
+                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                            .parse::<HeaderValue>()
+                            .expect("Parse alt-svc header should not failed."),
+                    );
                 }
             }
 
@@ -522,10 +522,16 @@ mod tests {
         handle.stop_forcible();
 
         let result = timeout(Duration::from_secs(1), server_task).await;
-        assert!(result.is_ok(), "Server should stop forcibly within 1 second.");
+        assert!(
+            result.is_ok(),
+            "Server should stop forcibly within 1 second."
+        );
         let server_result = result.unwrap();
         assert!(server_result.is_ok(), "Server task should not panic.");
-        assert!(server_result.unwrap().is_ok(), "try_serve should return Ok.");
+        assert!(
+            server_result.unwrap().is_ok(),
+            "try_serve should return Ok."
+        );
 
         // Test graceful stop
         let acceptor = crate::conn::TcpListener::new("127.0.0.1:5803").bind().await;
@@ -539,10 +545,16 @@ mod tests {
         handle.stop_graceful(None);
 
         let result = timeout(Duration::from_secs(1), server_task).await;
-        assert!(result.is_ok(), "Server should stop gracefully within 1 second.");
+        assert!(
+            result.is_ok(),
+            "Server should stop gracefully within 1 second."
+        );
         let server_result = result.unwrap();
         assert!(server_result.is_ok(), "Server task should not panic.");
-        assert!(server_result.unwrap().is_ok(), "try_serve should return Ok.");
+        assert!(
+            server_result.unwrap().is_ok(),
+            "try_serve should return Ok."
+        );
     }
 
     #[test]

@@ -8,7 +8,7 @@ use etag::EntityTag;
 use salvo_core::http::header::{ETAG, IF_NONE_MATCH};
 use salvo_core::http::headers::{self, HeaderMapExt};
 use salvo_core::http::{ResBody, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 /// Etag and If-None-Match header handler
 ///
@@ -39,7 +39,8 @@ pub struct ETag {
 
 impl ETag {
     /// constructs a new Etag handler
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 
@@ -47,7 +48,8 @@ impl ETag {
     /// [`etag::EntityTag`](https://docs.rs/etag/3.0.0/etag/struct.EntityTag.html#comparison)
     /// for further documentation on the differences between strong
     /// and weak etag comparison.
-    #[must_use] pub fn strong(mut self) -> Self {
+    #[must_use]
+    pub fn strong(mut self) -> Self {
         self.strong = true;
         self
     }
@@ -55,7 +57,13 @@ impl ETag {
 
 #[async_trait]
 impl Handler for ETag {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
             return;
@@ -131,14 +139,21 @@ pub struct Modified {
 
 impl Modified {
     /// Constructs a new Modified handler
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self { _private: () }
     }
 }
 
 #[async_trait]
 impl Handler for Modified {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
             return;
@@ -147,17 +162,16 @@ impl Handler for Modified {
         if let (Some(if_modified_since), Some(last_modified)) = (
             req.headers().typed_get::<headers::IfModifiedSince>(),
             res.headers().typed_get::<headers::LastModified>(),
-        ) {
-            if !if_modified_since.is_modified(last_modified.into()) {
-                res.body(ResBody::None);
-                res.status_code(StatusCode::NOT_MODIFIED);
-            }
+        ) && !if_modified_since.is_modified(last_modified.into())
+        {
+            res.body(ResBody::None);
+            res.status_code(StatusCode::NOT_MODIFIED);
         }
     }
 }
 
 /// A combined handler that provides both [`ETag`] and [`Modified`] behavior.
-/// 
+///
 /// This handler helps improve performance by preventing unnecessary data transfers
 /// when a client already has the latest version of a resource, as determined by
 /// either ETag or Last-Modified comparisons.
@@ -166,14 +180,21 @@ pub struct CachingHeaders(Modified, ETag);
 
 impl CachingHeaders {
     /// Constructs a new combination modified and etag handler
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 }
 
 #[async_trait]
 impl Handler for CachingHeaders {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         self.0.handle(req, depot, res, ctrl).await;
         if res.status_code != Some(StatusCode::NOT_MODIFIED) {
             self.1.handle(req, depot, res, ctrl).await;

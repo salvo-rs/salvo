@@ -72,12 +72,11 @@ impl JsonFinder {
 impl CsrfTokenFinder for JsonFinder {
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         let data = req.parse_json::<HashMap<String, Value>>().await;
-        if let Ok(data) = data {
-            if let Some(value) = data.get(&self.field_name) {
-                if let Some(token) = value.as_str() {
-                    return Some(token.to_owned());
-                }
-            }
+        if let Ok(data) = data
+            && let Some(value) = data.get(&self.field_name)
+            && let Some(token) = value.as_str()
+        {
+            return Some(token.to_owned());
         }
         None
     }

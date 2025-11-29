@@ -997,14 +997,14 @@ impl PathParser {
                 wild_names.join(", "),
                 self.path.iter().collect::<String>()
             ));
-        } else if let Some(wild_name) = wild_names.first() {
-            if wild_name != all_names.last().expect("all_names should not be empty") {
-                return Err(format!(
-                    "wildcard name: `{}` should be the last one in url: `{}`",
-                    wild_name,
-                    self.path.iter().collect::<String>()
-                ));
-            }
+        } else if let Some(wild_name) = wild_names.first()
+            && wild_name != all_names.last().expect("all_names should not be empty")
+        {
+            return Err(format!(
+                "wildcard name: `{}` should be the last one in url: `{}`",
+                wild_name,
+                self.path.iter().collect::<String>()
+            ));
         }
         Ok(())
     }

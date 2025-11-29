@@ -83,12 +83,13 @@ async fn user_message(my_id: usize, msg: Message) {
 
     // New message from this user, send it to everyone else (except same uid)...
     for (&uid, tx) in ONLINE_USERS.read().await.iter() {
-        if my_id != uid {
-            if let Err(_disconnected) = tx.send(Ok(Message::text(new_msg.clone()))) {
-                // The tx is disconnected, our `user_disconnected` code
-                // should be happening in another task, nothing more to
-                // do here.
-            }
+        if my_id != uid
+            && let Err(_disconnected) = tx.send(Ok(Message::text(new_msg.clone())))
+        {
+            // The tx is disconnected, our `user_disconnected` code
+            // should be happening in another task, nothing more to
+            // do here.
+            tracing::info!("the tx is disconnected, uid={uid}");
         }
     }
 }

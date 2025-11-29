@@ -777,12 +777,13 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        if let Ok(form_data) = self.form_data().await {
-            if form_data.fields.contains_key(key) {
-                return self.try_form(key).await;
-            }
+        if let Ok(form_data) = self.form_data().await
+            && form_data.fields.contains_key(key)
+        {
+            self.try_form(key).await
+        } else {
+            self.try_query(key)
         }
-        self.try_query(key)
     }
 
     /// Get value from query, if key is not found in queries, then get from form.
@@ -988,24 +989,23 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        let ctype = self.content_type();
-        if let Some(ctype) = ctype {
-            if ctype.subtype() == mime::JSON {
-                return self
-                    .payload_with_max_size(max_size)
-                    .await
-                    .and_then(|payload| {
-                        // fix issue https://github.com/salvo-rs/salvo/issues/545
-                        let payload = if payload.is_empty() {
-                            "null".as_bytes()
-                        } else {
-                            payload.as_ref()
-                        };
-                        serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
-                    });
-            }
+        if let Some(ctype) = self.content_type()
+            && ctype.subtype() == mime::JSON
+        {
+            self.payload_with_max_size(max_size)
+                .await
+                .and_then(|payload| {
+                    // fix issue https://github.com/salvo-rs/salvo/issues/545
+                    let payload = if payload.is_empty() {
+                        "null".as_bytes()
+                    } else {
+                        payload.as_ref()
+                    };
+                    serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
+                })
+        } else {
+            Err(ParseError::InvalidContentType)
         }
-        Err(ParseError::InvalidContentType)
     }
 
     /// Parse form body as type `T` from request.
@@ -1014,13 +1014,14 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        if let Some(ctype) = self.content_type() {
-            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                return from_str_multi_map(self.form_data().await?.fields.iter_all())
-                    .map_err(ParseError::Deserialize);
-            }
+        if let Some(ctype) = self.content_type()
+            && (ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA)
+        {
+            from_str_multi_map(self.form_data().await?.fields.iter_all())
+                .map_err(ParseError::Deserialize)
+        } else {
+            Err(ParseError::InvalidContentType)
         }
-        Err(ParseError::InvalidContentType)
     }
 
     /// Parse json body or form body as type `T` from request with default max size.

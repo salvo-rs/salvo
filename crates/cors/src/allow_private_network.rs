@@ -118,9 +118,10 @@ impl fmt::Debug for AllowPrivateNetwork {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 enum AllowPrivateNetworkInner {
     Yes,
+    #[default]
     No,
     Dynamic(
         Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
@@ -136,12 +137,6 @@ enum AllowPrivateNetworkInner {
                 + Sync,
         >,
     ),
-}
-
-impl Default for AllowPrivateNetworkInner {
-    fn default() -> Self {
-        Self::No
-    }
 }
 
 #[cfg(test)]

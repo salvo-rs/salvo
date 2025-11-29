@@ -83,30 +83,28 @@ impl<'de> RequestDeserializer<'de> {
     pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<Self, ParseError> {
         let mut payload = None;
 
-        if metadata.has_body_required() {
-            if let Some(ctype) = request.content_type() {
-                match ctype.subtype() {
-                    mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
-                        payload = request.form_data.get().map(Payload::FormData);
-                    }
-                    mime::JSON => {
-                        if let Some(data) = request.payload.get() {
-                            if !data.is_empty() {
-                                // https://github.com/serde-rs/json/issues/903
-                                payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(
-                                    data,
-                                ) {
-                                    Ok(map) => Some(Payload::JsonMap(map)),
-                                    Err(e) => {
-                                        tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
-                                        Some(Payload::JsonStr(std::str::from_utf8(data)?))
-                                    }
-                                };
-                            }
-                        }
-                    }
-                    _ => {}
+        if metadata.has_body_required()
+            && let Some(ctype) = request.content_type()
+        {
+            match ctype.subtype() {
+                mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
+                    payload = request.form_data.get().map(Payload::FormData);
                 }
+                mime::JSON => {
+                    if let Some(data) = request.payload.get()
+                        && !data.is_empty()
+                    {
+                        // https://github.com/serde-rs/json/issues/903
+                        payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                            Ok(map) => Some(Payload::JsonMap(map)),
+                            Err(e) => {
+                                tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
+                                Some(Payload::JsonStr(std::str::from_utf8(data)?))
+                            }
+                        };
+                    }
+                }
+                _ => {}
             }
         }
         Ok(RequestDeserializer {

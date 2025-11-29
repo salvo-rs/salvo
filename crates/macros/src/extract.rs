@@ -34,18 +34,18 @@ impl TryFrom<&Field> for FieldInfo {
         let mut rename = None;
         let mut flatten = None;
         for attr in attrs {
-            if attr.path().is_ident("salvo") {
-                if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
-                    let info: ExtractFieldInfo = metas.parse_args()?;
-                    sources.extend(info.sources);
-                    aliases.extend(info.aliases);
+            if attr.path().is_ident("salvo")
+                && let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract")
+            {
+                let info: ExtractFieldInfo = metas.parse_args()?;
+                sources.extend(info.sources);
+                aliases.extend(info.aliases);
+                flatten = info.flatten;
+                if info.rename.is_some() {
+                    rename = info.rename;
+                }
+                if info.flatten.is_some() {
                     flatten = info.flatten;
-                    if info.rename.is_some() {
-                        rename = info.rename;
-                    }
-                    if info.flatten.is_some() {
-                        flatten = info.flatten;
-                    }
                 }
             }
         }
@@ -198,27 +198,25 @@ impl ExtractibleArgs {
         let mut default_sources = Vec::new();
         let mut rename_all = None;
         for attr in &attrs {
-            if attr.path().is_ident("salvo") {
-                if let Ok(Some(metas)) = attribute::find_nested_list(attr, "extract") {
-                    let nested =
-                        metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
-                    for meta in nested {
-                        match meta {
-                            Meta::List(meta) => {
-                                if meta.path.is_ident("default_source") {
-                                    default_sources.push(meta.parse_args()?);
-                                }
+            if attr.path().is_ident("salvo")
+                && let Ok(Some(metas)) = attribute::find_nested_list(attr, "extract")
+            {
+                let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
+                for meta in nested {
+                    match meta {
+                        Meta::List(meta) => {
+                            if meta.path.is_ident("default_source") {
+                                default_sources.push(meta.parse_args()?);
                             }
-                            Meta::NameValue(meta) => {
-                                if meta.path.is_ident("rename_all") {
-                                    rename_all = Some(
-                                        parse_path_or_lit_str(&meta.value)?
-                                            .parse::<RenameRule>()?,
-                                    );
-                                }
-                            }
-                            _ => {}
                         }
+                        Meta::NameValue(meta) => {
+                            if meta.path.is_ident("rename_all") {
+                                rename_all = Some(
+                                    parse_path_or_lit_str(&meta.value)?.parse::<RenameRule>()?,
+                                );
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

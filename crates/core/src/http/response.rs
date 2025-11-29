@@ -204,10 +204,10 @@ impl Response {
     /// If returns `true`, it means this response is ready for write back and the reset handlers should be skipped.
     #[inline]
     pub fn is_stamped(&mut self) -> bool {
-        if let Some(code) = self.status_code {
-            if code.is_client_error() || code.is_server_error() || code.is_redirection() {
-                return true;
-            }
+        if let Some(code) = self.status_code
+            && (code.is_client_error() || code.is_server_error() || code.is_redirection())
+        {
+            return true;
         }
         false
     }

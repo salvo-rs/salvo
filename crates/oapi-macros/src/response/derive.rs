@@ -206,14 +206,13 @@ trait Response {
         const ERROR: &str =
             "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
-        if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
-            if let Ok(metas) =
+        if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten()
+            && let Ok(metas) =
                 metas.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            {
-                for meta in metas {
-                    if meta.path().is_ident("name") || meta.path().is_ident("content") {
-                        return (false, ERROR);
-                    }
+        {
+            for meta in metas {
+                if meta.path().is_ident("name") || meta.path().is_ident("content") {
+                    return (false, ERROR);
                 }
             }
         }
@@ -511,21 +510,20 @@ impl<'r> EnumResponse<'r> {
         let contents: Punctuated<Content, Token![,]> = Punctuated::from_iter(variants_content);
 
         let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
-        if let Some(derive_value) = &derive_value {
-            if (!contents.is_empty() && derive_value.example.is_some())
-                || (!contents.is_empty() && derive_value.examples.is_some())
-            {
-                let ident = derive_value
-                    .example
-                    .as_ref()
-                    .map(|(_, ident)| ident)
-                    .or_else(|| derive_value.examples.as_ref().map(|(_, ident)| ident))
-                    .expect("Expected `example` or `examples` to be present");
-                return Err(Diagnostic::spanned(
+        if let Some(derive_value) = &derive_value
+            && ((!contents.is_empty() && derive_value.example.is_some())
+                || (!contents.is_empty() && derive_value.examples.is_some()))
+        {
+            let ident = derive_value
+                .example
+                .as_ref()
+                .map(|(_, ident)| ident)
+                .or_else(|| derive_value.examples.as_ref().map(|(_, ident)| ident))
+                .expect("Expected `example` or `examples` to be present");
+            return Err(Diagnostic::spanned(
                     ident.span(), DiagLevel::Error,
                     "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined"
              ).help(format!("Try defining `{ident}` on the enum variant")));
-            }
         }
 
         let mut response_value: ResponseValue = From::from(DeriveResponsesAttributes {
@@ -557,15 +555,14 @@ impl<'r> EnumResponse<'r> {
         let variant_derive_response_value =
             DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
         // named enum variant should not have field attributes
-        if let Fields::Named(named_fields) = &variant.fields {
-            if let Some(diagnostic) = Self::validate_attributes(
+        if let Fields::Named(named_fields) = &variant.fields
+            && let Some(diagnostic) = Self::validate_attributes(
                 named_fields.named.iter().flat_map(|field| &field.attrs),
                 Self::has_no_field_attributes,
             )
             .next()
-            {
-                return Err(diagnostic);
-            }
+        {
+            return Err(diagnostic);
         };
 
         let field = variant.fields.iter().next();
@@ -573,17 +570,16 @@ impl<'r> EnumResponse<'r> {
         let mut content_type = None;
         if let Some(attrs) = field.map(|f| &f.attrs) {
             for attr in attrs {
-                if attr.path().is_ident("salvo") {
-                    if let Some(metas) = attribute::find_nested_list(attr, "content").ok().flatten()
-                    {
-                        content_type = Some(
-                            metas
-                                .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
-                                .map_err(Diagnostic::from)?
-                                .value(),
-                        );
-                        break;
-                    }
+                if attr.path().is_ident("salvo")
+                    && let Some(metas) = attribute::find_nested_list(attr, "content").ok().flatten()
+                {
+                    content_type = Some(
+                        metas
+                            .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
+                            .map_err(Diagnostic::from)?
+                            .value(),
+                    );
+                    break;
                 }
             }
         }

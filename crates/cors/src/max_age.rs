@@ -125,8 +125,9 @@ impl From<isize> for MaxAge {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 enum MaxAgeInner {
+    #[default]
     None,
     Exact(HeaderValue),
     Dynamic(
@@ -145,11 +146,6 @@ enum MaxAgeInner {
     ),
 }
 
-impl Default for MaxAgeInner {
-    fn default() -> Self {
-        Self::None
-    }
-}
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header::{self, HeaderValue};

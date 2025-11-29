@@ -68,10 +68,10 @@ pub fn fill_mime_charset_if_need(mime: &mut Mime, buffer: &[u8]) {
     if !is_charset_required_mime(mime) || mime.get_param("charset").is_some() {
         return;
     }
-    if let Some(charset) = detect_text_charset(buffer) {
-        if let Ok(new_mime) = format!("{mime}; charset={charset}").parse::<Mime>() {
-            *mime = new_mime;
-        }
+    if let Some(charset) = detect_text_charset(buffer)
+        && let Ok(new_mime) = format!("{mime}; charset={charset}").parse::<Mime>()
+    {
+        *mime = new_mime;
     }
 }
 

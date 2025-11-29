@@ -415,15 +415,16 @@ impl Handler for StaticDir {
                 .unwrap_or(false);
             let mut content_encoding = None;
             let mut content_type = mime_infer::from_path(&abs_path).first();
-            if let Some(content_type) = &mut content_type {
-                if mime::is_charset_required_mime(&content_type) {
-                    if let Ok(file) = tokio::fs::File::open(&abs_path).await {
-                        let mut buffer: Vec<u8> = vec![];
-                        let _ = file.take(1024).read(&mut buffer).await;
-                        mime::fill_mime_charset_if_need(content_type, &buffer);
-                    }
-                }
+
+            if let Some(content_type) = &mut content_type
+                && mime::is_charset_required_mime(content_type)
+                && let Ok(file) = tokio::fs::File::open(&abs_path).await
+            {
+                let mut buffer: Vec<u8> = vec![];
+                let _ = file.take(1024).read(&mut buffer).await;
+                mime::fill_mime_charset_if_need(content_type, &buffer);
             }
+
             let named_path = if !is_compressed_ext {
                 if !self.compressed_variations.is_empty() {
                     let mut new_abs_path = None;

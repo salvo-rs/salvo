@@ -170,17 +170,17 @@ pub fn parse_credentials(
         }
     }
 
-    if authorization.starts_with("Basic") {
-        if let Some((_, auth)) = authorization.split_once(' ') {
-            let auth = general_purpose::STANDARD
-                .decode(auth)
-                .map_err(Error::other)?;
-            let auth = auth.iter().map(|&c| c as char).collect::<String>();
-            if let Some((username, password)) = auth.split_once(':') {
-                return Ok((username.to_owned(), password.to_owned()));
-            } else {
-                return Err(Error::other("`authorization` has bad format"));
-            }
+    if authorization.starts_with("Basic")
+        && let Some((_, auth)) = authorization.split_once(' ')
+    {
+        let auth = general_purpose::STANDARD
+            .decode(auth)
+            .map_err(Error::other)?;
+        let auth = auth.iter().map(|&c| c as char).collect::<String>();
+        if let Some((username, password)) = auth.split_once(':') {
+            return Ok((username.to_owned(), password.to_owned()));
+        } else {
+            return Err(Error::other("`authorization` has bad format"));
         }
     }
     Err(Error::other("parse http header failed"))
@@ -198,12 +198,12 @@ where
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        if let Ok((username, password)) = self.parse_credentials(req) {
-            if self.validator.validate(&username, &password, depot).await {
-                depot.insert(USERNAME_KEY, username);
-                ctrl.call_next(req, depot, res).await;
-                return;
-            }
+        if let Ok((username, password)) = self.parse_credentials(req)
+            && self.validator.validate(&username, &password, depot).await
+        {
+            depot.insert(USERNAME_KEY, username);
+            ctrl.call_next(req, depot, res).await;
+            return;
         }
         self.ask_credentials(res);
         ctrl.skip_rest();

@@ -123,25 +123,25 @@ impl CacheIssuer for RequestIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         let mut key = String::new();
-        if self.use_scheme {
-            if let Some(scheme) = req.uri().scheme_str() {
-                key.push_str(scheme);
-                key.push_str("://");
-            }
+        if self.use_scheme
+            && let Some(scheme) = req.uri().scheme_str()
+        {
+            key.push_str(scheme);
+            key.push_str("://");
         }
-        if self.use_authority {
-            if let Some(authority) = req.uri().authority() {
-                key.push_str(authority.as_str());
-            }
+        if self.use_authority
+            && let Some(authority) = req.uri().authority()
+        {
+            key.push_str(authority.as_str());
         }
         if self.use_path {
             key.push_str(req.uri().path());
         }
-        if self.use_query {
-            if let Some(query) = req.uri().query() {
-                key.push('?');
-                key.push_str(query);
-            }
+        if self.use_query
+            && let Some(query) = req.uri().query()
+        {
+            key.push('?');
+            key.push_str(query);
         }
         if self.use_method {
             key.push('|');

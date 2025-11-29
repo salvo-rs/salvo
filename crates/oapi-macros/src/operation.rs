@@ -130,20 +130,20 @@ impl<'a> Operation<'a> {
             })
         }
 
-        if let Some(summary) = &self.summary {
-            if !summary.is_empty() {
-                modifiers.push(quote! {
-                    operation.summary = Some(#summary.into());
-                })
-            }
+        if let Some(summary) = &self.summary
+            && !summary.is_empty()
+        {
+            modifiers.push(quote! {
+                operation.summary = Some(#summary.into());
+            })
         }
 
-        if let Some(description) = &self.description {
-            if !description.is_empty() {
-                modifiers.push(quote! {
-                    operation.description = Some(#description.into());
-                })
-            }
+        if let Some(description) = &self.description
+            && !description.is_empty()
+        {
+            modifiers.push(quote! {
+                operation.description = Some(#description.into());
+            })
         }
 
         self.parameters
