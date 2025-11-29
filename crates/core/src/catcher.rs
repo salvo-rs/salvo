@@ -35,6 +35,8 @@
 //! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
 
 use std::borrow::Cow;
+use std::collections::HashSet;
+use std::env;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, LazyLock};
 
@@ -50,6 +52,16 @@ use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> =
     LazyLock::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+static STATUS_ERROR_SETS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
+        "force_detail",
+        "debug_detail",
+        "never_detail",
+        "force_cause",
+        "debug_cause",
+        "never_cause",
+    ])
+});
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 /// `Catcher` is used to catch errors.
@@ -317,6 +329,27 @@ fn status_error_xml(
 }
 
 /// Create bytes from `StatusError`.
+///
+/// You can use environment variable `SALVO_STATUS_ERROR` to control whether to
+/// show `detail` and `cause` information in default error page.
+///
+/// force_detail: always show detail information in error page even in release mode.
+/// debug_detail: only show detail information in error page in debug mode.
+/// never_detail: never show detail information in error page.
+///
+/// force_cause: always show cause information in error page even in release mode.
+/// debug_cause: only show cause information in error page in debug mode.
+/// never_cause: never show detail information in error page.
+///
+/// For example:
+///
+/// ```sh
+/// SALVO_STATUS_ERROR=force_cause,force_detail
+/// ```
+/// will always show `detail` and `cause` information in error page even in release mode.
+///
+/// If `SALVO_STATUS_ERROR` is not set, then `detail` and `cause` will only be
+/// shown in error page in debug mode for security reason.
 #[doc(hidden)]
 #[inline]
 pub fn status_error_bytes(
@@ -329,14 +362,43 @@ pub fn status_error_bytes(
     } else {
         prefer_format.clone()
     };
-    #[cfg(debug_assertions)]
-    let cause = err.cause.as_ref().map(|e| format!("{e:#?}"));
-    #[cfg(not(debug_assertions))]
-    let cause: Option<&str> = None;
-    #[cfg(debug_assertions)]
-    let detail = err.detail.as_deref();
-    #[cfg(not(debug_assertions))]
-    let detail: Option<&str> = None;
+
+    let env_set = env::var("SALVO_STATUS_ERROR")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|s| {
+            let s = s.trim().to_lowercase();
+            if s.is_empty() {
+                None
+            } else {
+                if STATUS_ERROR_SETS.contains(s.as_str()) {
+                    Some(s)
+                } else {
+                    tracing::warn!("unknown SALVO_STATUS_ERROR option: {}", s);
+                    None
+                }
+            }
+        })
+        .collect::<HashSet<_>>();
+
+    let detail = if !env_set.contains("never_detail")
+        && (env_set.contains("force_detail")
+            || (env_set.contains("debug_detail") && cfg!(debug_assertions)))
+    {
+        err.detail.as_deref()
+    } else {
+        None
+    };
+
+    let cause = if !env_set.contains("never_cause")
+        && (env_set.contains("force_cause")
+            || (env_set.contains("debug_cause") && cfg!(debug_assertions)))
+    {
+        err.cause.as_ref().map(|e| format!("{e:#?}"))
+    } else {
+        None
+    };
+
     let content = match format.subtype().as_ref() {
         "plain" => status_error_plain(err.code, &err.name, &err.brief, detail, cause.as_deref()),
         "json" => status_error_json(err.code, &err.name, &err.brief, detail, cause.as_deref()),
