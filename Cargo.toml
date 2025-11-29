@@ -27,7 +27,7 @@ salvo-cache = { version = "0.85.0", path = "crates/cache", default-features = fa
 salvo-cors = { version = "0.85.0", path = "crates/cors", default-features = false }
 salvo-csrf = { version = "0.85.0", path = "crates/csrf", default-features = false }
 salvo-flash = { version = "0.85.0", path = "crates/flash", default-features = false }
-salvo-http3 = { version = "0.6.0", default-features = false }
+salvo-http3 = { version = "0.7.0", default-features = false }
 salvo-jwt-auth = { version = "0.85.0", path = "crates/jwt-auth", default-features = false }
 salvo-oapi = { version = "0.85.0", path = "./crates/oapi", default-features = false }
 salvo-oapi-macros = { version = "0.85.0", path = "crates/oapi-macros", default-features = false }
