@@ -398,8 +398,13 @@ where
         } else {
             format!("{upstream}/{rest}")
         };
-        let forward_url = url::Url::parse(&forward_url).map_err(Error::other)?;
-        let forward_url: Uri = forward_url.to_string().parse().map_err(Error::other)?;
+        let forward_url = url::Url::parse(&forward_url).map_err(|e| {
+            Error::other(format!("url::Url::parse failed for '{forward_url}': {e}"))
+        })?;
+        let forward_url: Uri = forward_url
+            .as_str()
+            .parse()
+            .map_err(|e| Error::other(format!("Uri::parse failed for '{forward_url}': {e}")))?;
         let mut build = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
