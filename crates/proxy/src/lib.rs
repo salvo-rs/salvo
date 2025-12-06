@@ -398,7 +398,8 @@ where
         } else {
             format!("{upstream}/{rest}")
         };
-        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
+        let forward_url = url::Url::parse(&forward_url).map_err(Error::other)?;
+        let forward_url: Uri = forward_url.to_string().parse().map_err(Error::other)?;
         let mut build = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
