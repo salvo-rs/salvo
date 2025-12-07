@@ -53,6 +53,7 @@ hyper-util = { workspace = true, optional = true, features = [
 percent-encoding = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["stream"] }
 local-ip-address = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["http1", "server", "test"] }
