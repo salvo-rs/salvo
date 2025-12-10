@@ -275,18 +275,18 @@ impl RustlsConfig {
             .map(|fallback| fallback.build_certified_key())
             .transpose()?
             .map(Arc::new);
-        let mut exact_certified_keys = HashMap::new();
-        let mut wildcards_certified_keys = HashMap::new();
+        let mut literal_certified_keys = HashMap::new();
+        let mut wildcard_certified_keys = HashMap::new();
         for (name, keycert) in &mut self.keycerts {
             let certified_key = Arc::new(keycert.build_certified_key()?);
             for domain in name {
                 if domain.starts_with("*.") {
-                    wildcards_certified_keys.insert(
+                    wildcard_certified_keys.insert(
                         domain.trim_start_matches("*.").to_owned(),
                         certified_key.clone(),
                     );
                 } else {
-                    exact_certified_keys.insert(domain.clone(), certified_key.clone());
+                    literal_certified_keys.insert(domain.clone(), certified_key.clone());
                 }
             }
         }
@@ -309,8 +309,8 @@ impl RustlsConfig {
         let mut config = ServerConfig::builder_with_protocol_versions(self.tls_versions)
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
-                exact_certified_keys,
-                wildcards_certified_keys,
+                literal_certified_keys,
+                wildcard_certified_keys,
                 fallback,
             }));
         config.alpn_protocols = self.alpn_protocols;
@@ -349,8 +349,8 @@ cfg_feature! {
 #[derive(Debug)]
 pub(crate) struct CertResolver {
     fallback: Option<Arc<CertifiedKey>>,
-    exact_certified_keys: HashMap<String, Arc<CertifiedKey>>,
-    wildcards_certified_keys: HashMap<String, Arc<CertifiedKey>>,
+    literal_certified_keys: HashMap<String, Arc<CertifiedKey>>,
+    wildcard_certified_keys: HashMap<String, Arc<CertifiedKey>>,
 }
 
 impl ResolvesServerCert for CertResolver {
@@ -358,12 +358,12 @@ impl ResolvesServerCert for CertResolver {
         client_hello
             .server_name()
             .and_then(|name| {
-                if let Some(certified_key) = self.exact_certified_keys.get(name) {
+                if let Some(certified_key) = self.literal_certified_keys.get(name) {
                     Some(Arc::clone(certified_key))
                 } else {
                     // Check for wildcard match
                     name.split_once('.')
-                        .and_then(|(_, rest)| self.wildcards_certified_keys.get(rest).cloned())
+                        .and_then(|(_, rest)| self.wildcard_certified_keys.get(rest).cloned())
                 }
             })
             .or_else(|| self.fallback.clone())
