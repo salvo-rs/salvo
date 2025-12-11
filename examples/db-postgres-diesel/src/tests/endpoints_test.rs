@@ -246,7 +246,7 @@ pub mod tests{
         
         let service = super::service(super::route());
 
-        let mut token_reponse = TestClient::post("http://localhost/users/login")
+        let mut token_response = TestClient::post("http://localhost/users/login")
                                         .json(&serde_json::json!({
                                                 "username": "samanidarix@gmail.com",
                                                 "password": "Testpassword15$"
@@ -255,7 +255,7 @@ pub mod tests{
                                         .await;
 
         
-        let token: TokenResponseModel = token_reponse
+        let token: TokenResponseModel = token_response
                                                 .take_json()
                                                 .await
                                                 .expect("Failed to parse JSON");
@@ -278,7 +278,7 @@ pub mod tests{
     async fn test_12_test_users_update_success() {
         let service = super::service(super::route());
 
-        let mut token_reponse = TestClient::post("http://localhost/users/login")
+        let mut token_response = TestClient::post("http://localhost/users/login")
                                         .json(&serde_json::json!({
                                                 "username": "samanidarix@gmail.com",
                                                 "password": "Testpassword15$"
@@ -287,7 +287,7 @@ pub mod tests{
                                         .await;
 
         
-        let token: TokenResponseModel = token_reponse
+        let token: TokenResponseModel = token_response
                                                 .take_json()
                                                 .await
                                                 .expect("Failed to parse JSON");
@@ -324,7 +324,7 @@ pub mod tests{
     async fn test_13_test_users_update_failure() {
         let service = super::service(super::route());
 
-        let mut token_reponse = TestClient::post("http://localhost/users/login")
+        let mut token_response = TestClient::post("http://localhost/users/login")
                                         .json(&serde_json::json!({
                                                 "username": "samanidarix@gmail.com",
                                                 "password": "Testpassword15$"
@@ -333,7 +333,7 @@ pub mod tests{
                                         .await;
 
         
-        let token: TokenResponseModel = token_reponse
+        let token: TokenResponseModel = token_response
                                                 .take_json()
                                                 .await
                                                 .expect("Failed to parse JSON");
@@ -363,7 +363,7 @@ pub mod tests{
     async fn test_14_test_users_delete_success() {
         let service = super::service(super::route());
 
-        let mut token_reponse = TestClient::post("http://localhost/users/login")
+        let mut token_response = TestClient::post("http://localhost/users/login")
                                         .json(&serde_json::json!({
                                                 "username": "samanidarix@gmail.com",
                                                 "password": "Testpassword15$"
@@ -372,7 +372,7 @@ pub mod tests{
                                         .await;
 
         
-        let token: TokenResponseModel = token_reponse
+        let token: TokenResponseModel = token_response
                                                 .take_json()
                                                 .await
                                                 .expect("Failed to parse JSON");
