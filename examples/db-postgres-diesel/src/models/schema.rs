@@ -1,6 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    users (id) {
+        id -> Uuid,
+        username -> Varchar,
+        password -> Varchar,
+        full_name -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+
+diesel::table! {
     posts (id) {
         id -> Uuid,
         title -> Varchar,
@@ -11,16 +23,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    users (id) {
-        id -> Uuid,
-        username -> Varchar,
-        password -> Varchar,
-        full_name -> Varchar,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
 
 diesel::joinable!(posts -> users (user_id));
 

@@ -1,190 +1,403 @@
-#[cfg(test)]
-pub mod tests {
-    use salvo::prelude::*;
-    use salvo::test::TestClient;
-    use std::sync::Arc;
+use std::sync::Arc;
+use salvo::cors::{AllowOrigin, Cors};
+use salvo::{Router, Service, affix_state};
+use salvo::http::Method;
+use crate::database::db::establish_connection_pool;
+use crate::{hello, hello_world};
+use crate::routes::users::get_users_router;
 
-    use crate::db::establish_connection_pool;
-    use crate::routers::users::get_users_router;
-
-    #[tokio::test]
-    async fn test_hello_world() {
-        let router = Router::new().get(crate::hello_world);
-
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
-
-        let response = TestClient::get("http://localhost/").send(router).await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-
-        // let body = response.body.to_string();
-        // assert_eq!(body, "Hello world");
-    }
-
-    #[tokio::test]
-    async fn test_hello_with_query() {
-        let pool = Arc::new(establish_connection_pool());
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(Router::with_path("hello").get(crate::hello));
-
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
-
-        let response = TestClient::get("http://localhost/hello?name=Darix")
-            .send(router)
-            .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-
-        // let body = response.body;
-        // assert_eq!(body, "Hello, Darix!");
-    }
-
-    #[tokio::test]
-    async fn test_users_login_route_failure() {
-        // Initialize DB pool
+pub fn route() -> Router {  
+    
         let pool = Arc::new(establish_connection_pool());
 
+        let cors = Cors::new()
+            .allow_origin(AllowOrigin::any())
+            .allow_methods(vec![Method::GET, Method::POST, Method::DELETE, Method::PUT])
+            .allow_headers("authorization")
+            .allow_headers("authentication")
+            .into_handler();
+
+
         let router = Router::new()
+            .hoop(cors)
             .hoop(affix_state::inject(pool))
+            .get(hello_world)
+            .push(Router::with_path("hello").get(hello))
+            .push(get_users_router())
             .push(get_users_router());
 
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
+        router 
+    }
 
-        // Example POST request to login
-        let response = TestClient::post("http://localhost/users/login")
+pub fn service(router: Router) -> Service{
+    Service::new(router)
+}
+
+#[cfg(test)]
+pub mod tests{
+    use salvo::prelude::*;
+    use salvo::test::{ResponseExt, TestClient};
+    use crate::schemas::users::{UserResponseModel, UserSuccessResponseModel};
+    use crate::schemas::{ErrorResponseModel, TokenResponseModel};
+    
+
+    #[tokio::test]
+    async fn test_01_test_hello_world() {
+
+        let service = super::service(super::route());
+
+        let mut response = TestClient::get("http://localhost/")
+                        .send(&service)
+                        .await;
+        assert_eq!(response.status_code.clone(), Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "Hello world")
+
+    }
+
+    #[tokio::test]
+    async fn test_02_test_hello_with_query() {
+        
+        let service = super::service(super::route());
+        let mut response = TestClient::get("http://localhost/hello?name=Darix")
+                .send(&service)
+                .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "Hello, Darix!")
+
+    }
+
+    #[tokio::test]
+    async fn test_03_test_users_login_route_failure() {
+        
+        let service = super::service(super::route());
+
+        let mut response = TestClient::post("http://localhost/users/login")
             .json(&serde_json::json!({
                 "username": "testuser",
                 "password": "testpassword"
             }))
-            .send(router)
+            .send(&service)
             .await;
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        
 
-        // Depending on your auth logic, status might be OK or UNAUTHORIZED
-        // println!("status code {:?}", response.status_code);
-        // println!("Response in login : {:?}", response);
-        assert!(response.status_code == Some(StatusCode::BAD_REQUEST));
+        let error: ErrorResponseModel = response
+            .take_json()
+            .await
+            .expect("Failed to parse JSON response");
+
+        assert_eq!(
+            serde_json::to_value(&error).unwrap(),
+            serde_json::json!({ "detail": "🚫 Invalid username or password" })
+        );
+
     }
 
     #[tokio::test]
-    async fn test_users_login_route_success() {
-        // Initialize DB pool
-        let pool = Arc::new(establish_connection_pool());
+    async fn test_04_test_create_users_route_failure() {
+        let service = super::service(super::route());
 
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(get_users_router());
+        let response=TestClient::post("http://localhost/users")
+            .json(&serde_json::json!({
+                "email": "samanidarix@gmail.com",
+                // "fullname": "Darix SAMANI SIEWE",
+                "password": "Testpassword15$"
+            }))
+            .send(&service)
+            .await;
 
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+    }
 
-        // Example POST request to login
-        let response = TestClient::post("http://localhost/users/login")
+    #[tokio::test]
+    async fn test_05_test_create_users_route_success() {
+        let service = super::service(super::route());
+
+        let mut response=TestClient::post("http://localhost/users")
+            .json(&serde_json::json!({
+                "email": "samanidarix@gmail.com",
+                "fullname": "Darix SAMANI SIEWE",
+                "password": "Testpassword15$"
+            }))
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::CREATED));
+        assert_eq!(response.take_string().await.unwrap(), "✅ User 'samanidarix@gmail.com' created successfully!");
+    }
+
+    #[tokio::test]
+    async fn test_06_test_create_users_route_failure_user_already_exist() {
+        let service = super::service(super::route());
+
+        let mut response=TestClient::post("http://localhost/users")
+            .json(&serde_json::json!({
+                "email": "samanidarix@gmail.com",
+                "fullname": "Darix SAMANI SIEWE",
+                "password": "Testpassword15$"
+            }))
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        
+        let response: ErrorResponseModel = response.take_json()
+                                    .await
+                                    .expect("Failed to parse JSON");
+        assert_eq!(
+            serde_json::to_value(&response).unwrap(), 
+            serde_json::json!({"detail":"🚫 User 'samanidarix@gmail.com' already exists"}))
+    }
+
+
+    #[tokio::test]
+    async fn test_07_test_users_login_route_failure_2() {
+        let service = super::service(super::route());
+
+        let mut response = TestClient::post("http://localhost/users/login")
+            .json(&serde_json::json!({
+                "username": "samanidarix@gmail.com",
+                "password": "wrongpassword"
+            }))
+            .send(&service)
+            .await;
+        assert!(response.status_code == Some(StatusCode::BAD_REQUEST));
+
+        let error: ErrorResponseModel = response
+            .take_json()
+            .await
+            .expect("Failed to parse JSON response");
+
+        assert_eq!(
+            serde_json::to_value(&error).unwrap(),
+            serde_json::json!({ "detail": "🚫 Invalid username or password" })
+        );
+
+    }
+
+    #[tokio::test]
+    async fn test_08_test_users_login_route_success() {
+        let service = super::service(super::route());
+
+        let mut response = TestClient::post("http://localhost/users/login")
             .json(&serde_json::json!({
                 "username": "samanidarix@gmail.com",
                 "password": "Testpassword15$"
             }))
-            .send(router)
+            .send(&service)
             .await;
-
-        // Depending on your auth logic, status might be OK or UNAUTHORIZED
-        // println!("status code {:?}", response.status_code);
-        // println!("Response in login : {:?}", response);
-        assert!(response.status_code == Some(StatusCode::OK));
-    }
-
-    #[tokio::test]
-    async fn test_protected_users_me_failure() {
-        let pool = Arc::new(establish_connection_pool());
-
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(get_users_router());
-
-        // let service = Service::new(router);
-        //let client = TestClient::new(service);
-
-        // Attempt GET /users/me without auth header
-        let response = TestClient::get("http://localhost/users/me")
-            .add_header("authentication", "authenfictaion", false)
-            .send(router)
-            .await;
-        // println!("Response in test me: {:?}", response);
-        assert_eq!(response.status_code, Some(StatusCode::UNAUTHORIZED));
-    }
-
-    #[tokio::test]
-    async fn test_protected_users_me_success() {
-        let pool = Arc::new(establish_connection_pool());
-
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(get_users_router());
-
-        // let service = Service::new(router);
-        //let client = TestClient::new(service);
-
-        // Attempt GET /users/me without auth header
-        let response = TestClient::get("http://localhost/users/me")
-                        .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", false)
-                        .send(router).await;
-        println!("Response in test me: {:?}", response);
+        eprintln!("{:?}", response.body);
         assert_eq!(response.status_code, Some(StatusCode::OK));
+
+        let response: TokenResponseModel = response
+                            .take_json()
+                            .await
+                            .expect("Failed to parse json");
+        assert_eq!(response.token_type, "Bearer");
+        
     }
 
     #[tokio::test]
-    async fn test_users_update_success() {
-        // Initialize DB pool
-        let pool = Arc::new(establish_connection_pool());
+    async fn test_09_test_protected_users_me_failure() {
+        let service = super::service(super::route());
 
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(get_users_router());
+        
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", "authentication", false)
+                        .send(&service)
+                        .await;
 
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
+        let error: ErrorResponseModel = response
+                                .take_json()
+                                .await
+                                .expect("Failed to parse JSON");
 
-        // Example POST request to login
-        let response = TestClient::put(format!("http://localhost/users/{}", "73195821-51e4-407d-86b5-deadef4d43a5"))
-            .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
+        assert_eq!(response.status_code, Some(StatusCode::UNAUTHORIZED));
+        assert_eq!(
+            serde_json::to_value(&error).unwrap(),
+            serde_json::json!({"detail": "Invalid or malformed token"})
+        )
+    }
+
+    #[tokio::test]
+    async fn test_10_test_protected_users_me_failure() {
+        let service = super::service(super::route());
+
+        
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", false)
+                        .send(&service)
+                        .await;
+
+        let error: ErrorResponseModel = response
+                                .take_json()
+                                .await
+                                .expect("Failed to parse JSON");
+
+        assert_eq!(response.status_code, Some(StatusCode::UNAUTHORIZED));
+        assert_eq!(
+            serde_json::to_value(&error).unwrap(),
+            serde_json::json!({"detail": "Invalid or malformed token"})
+        )
+    }
+
+    #[tokio::test]
+    async fn test_11_test_protected_users_me_success() {
+        
+        let service = super::service(super::route());
+
+        let mut token_reponse = TestClient::post("http://localhost/users/login")
+                                        .json(&serde_json::json!({
+                                                "username": "samanidarix@gmail.com",
+                                                "password": "Testpassword15$"
+                                        }))
+                                        .send(&service)
+                                        .await;
+
+        
+        let token: TokenResponseModel = token_reponse
+                                                .take_json()
+                                                .await
+                                                .expect("Failed to parse JSON");
+
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", token.token, false)
+                        .send(&service)
+                        .await;
+        let user_information: UserResponseModel = response
+                                        .take_json()
+                                        .await
+                                        .expect("Failed to parse JSON");
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(user_information.email, "samanidarix@gmail.com");
+        assert_eq!(user_information.full_name, "Darix SAMANI SIEWE");
+
+    }
+
+    #[tokio::test]
+    async fn test_12_test_users_update_success() {
+        let service = super::service(super::route());
+
+        let mut token_reponse = TestClient::post("http://localhost/users/login")
+                                        .json(&serde_json::json!({
+                                                "username": "samanidarix@gmail.com",
+                                                "password": "Testpassword15$"
+                                        }))
+                                        .send(&service)
+                                        .await;
+
+        
+        let token: TokenResponseModel = token_reponse
+                                                .take_json()
+                                                .await
+                                                .expect("Failed to parse JSON");
+
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", token.token.clone(), false)
+                        .send(&service)
+                        .await;
+        let user_information: UserResponseModel = response
+                                        .take_json()
+                                        .await
+                                        .expect("Failed to parse JSON");
+
+        let mut response = TestClient::put(format!("http://localhost/users/{}", user_information.id))
+            .add_header("authentication", token.token, true)
             .json(&serde_json::json!({
-                "fullname": "Darix SAMANI SIEWE"
+                "fullname": "Darix SAMANI"
             }))
-            .send(router)
+            .send(&service)
             .await;
 
-        // Depending on your auth logic, status might be OK or UNAUTHORIZED
-        // println!("status code {:?}", response.status_code);
-        println!("Response in login : {:?}", response);
-        assert!(response.status_code == Some(StatusCode::OK));
+        let user_update: UserSuccessResponseModel = response
+                                    .take_json()
+                                    .await
+                                    .expect("Failed to parse JSON");
+
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(user_update.email, "samanidarix@gmail.com");
+        assert_eq!(user_update.full_name, "Darix SAMANI");
     }
 
+
     #[tokio::test]
-    async fn test_users_update_failure() {
-        // Initialize DB pool
-        let pool = Arc::new(establish_connection_pool());
+    async fn test_13_test_users_update_failure() {
+        let service = super::service(super::route());
 
-        let router = Router::new()
-            .hoop(affix_state::inject(pool))
-            .push(get_users_router());
+        let mut token_reponse = TestClient::post("http://localhost/users/login")
+                                        .json(&serde_json::json!({
+                                                "username": "samanidarix@gmail.com",
+                                                "password": "Testpassword15$"
+                                        }))
+                                        .send(&service)
+                                        .await;
 
-        // let service = Service::new(router);
-        // let client = TestClient::new(service);
+        
+        let token: TokenResponseModel = token_reponse
+                                                .take_json()
+                                                .await
+                                                .expect("Failed to parse JSON");
 
-        // Example POST request to login
-        let response = TestClient::put(format!("http://localhost/users/{}", "73195821-51e4-407d-86b5-deadef4d43a5"))
-            .add_header("authentication", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbWFuaWRhcml4QGdtYWlsLmNvbSIsImV4cCI6MTc2MzM3NjQzNH0.HmV5nmIDnqd10YtyIRJx737-nyiJLmzi7udHwnAwyyE", true)
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", token.token.clone(), false)
+                        .send(&service)
+                        .await;
+        let user_information: UserResponseModel = response
+                                        .take_json()
+                                        .await
+                                        .expect("Failed to parse JSON");
+
+        let response = TestClient::put(format!("http://localhost/users/{}", user_information.id))
+            .add_header("authentication", token.token, true)
             .json(&serde_json::json!({
                 "username": "samanidarix@gmail.com",
                 "full_name": "Darix SAMANI SIEWE"
             }))
-            .send(router)
+            .send(&service)
             .await;
 
-        // Depending on your auth logic, status might be OK or UNAUTHORIZED
-        // println!("status code {:?}", response.status_code);
-        // println!("Response in login : {:?}", response);
         assert!(response.status_code == Some(StatusCode::BAD_REQUEST));
+    }
+
+    #[tokio::test]
+    async fn test_14_test_users_delete_success() {
+        let service = super::service(super::route());
+
+        let mut token_reponse = TestClient::post("http://localhost/users/login")
+                                        .json(&serde_json::json!({
+                                                "username": "samanidarix@gmail.com",
+                                                "password": "Testpassword15$"
+                                        }))
+                                        .send(&service)
+                                        .await;
+
+        
+        let token: TokenResponseModel = token_reponse
+                                                .take_json()
+                                                .await
+                                                .expect("Failed to parse JSON");
+
+        let mut response = TestClient::get("http://localhost/users/me")
+                        .add_header("authentication", token.token.clone(), false)
+                        .send(&service)
+                        .await;
+        let user_information: UserResponseModel = response
+                                        .take_json()
+                                        .await
+                                        .expect("Failed to parse JSON");
+
+        let mut response = TestClient::delete(format!("http://localhost/users/{}", user_information.id))
+            .add_header("authentication", token.token, true)
+            .send(&service)
+            .await;
+
+        let user_delete: UserSuccessResponseModel = response
+                                    .take_json()
+                                    .await
+                                    .expect("Failed to parse JSON");
+
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(user_delete.email, "samanidarix@gmail.com");
+        assert_eq!(user_delete.full_name, "Darix SAMANI");
     }
 }

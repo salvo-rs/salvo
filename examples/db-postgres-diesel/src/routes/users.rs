@@ -1,26 +1,24 @@
-use std::sync::Arc;
-
 use chrono::Utc;
-use diesel::prelude::*;
-use jsonwebtoken::{EncodingKey, encode};
-use salvo::oapi::endpoint;
-use salvo::oapi::extract::{HeaderParam, JsonBody, PathParam};
 use salvo::prelude::*;
-use time::{Duration, OffsetDateTime};
+use salvo_oapi::endpoint;
+use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
+use time::{OffsetDateTime, Duration};
+use jsonwebtoken::{EncodingKey, encode};
 use uuid::Uuid;
-
-use crate::auth::auth_user;
-use crate::db::DbPool;
-use crate::models::posts::Posts;
-use crate::models::schema::posts::dsl::posts;
-use crate::models::schema::users::dsl::users;
+use crate::auth::auth::auth_user;
+use crate::database::db::DbPool;
 use crate::models::schema::users::{full_name, id, updated_at, username};
-use crate::models::users::{NewUser, Users};
-use crate::schemas::users::{
-    UserCreate, UserCredentiel, UserResponseModel, UserSuccessResponseModel, UserUpdate,
-};
 use crate::schemas::{ErrorResponseModel, JwtClaims, TokenResponseModel};
-use crate::utils::{SECRET_KEY, hash_password, verify_password};
+use crate::schemas::users::{UserCreate, UserCredentiel, UserResponseModel, UserSuccessResponseModel, UserUpdate};
+use crate::models::users::{NewUser, Users};
+use crate::models::posts:: {Posts};
+use crate::utils::utils::{hash_password, verify_password};
+use std::sync::Arc;
+use crate::models::schema::users::dsl::users;
+use crate::models::schema::posts::dsl::posts;
+use diesel::prelude::*;
+use crate::utils::SECRET_KEY;
+
 
 #[endpoint(
     tags("Users"),
@@ -28,26 +26,31 @@ use crate::utils::{SECRET_KEY, hash_password, verify_password};
     description = "the objective of this endpoint is to retrieve all the users in database"
 )]
 fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
+    
+    
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
+
     let current_user: &Users = depot.get::<Users>("user").unwrap();
+
 
     println!("👤 Current user: {:?}", current_user);
 
-    let all_users = users.load::<Users>(&mut conn).expect("Error loading users");
+    let all_users = users
+                .load::<Users>(&mut conn)
+                .expect("Error loading users");
 
     let all_users_response: Vec<UserResponseModel> = all_users
         .iter()
-        .map(|user| UserResponseModel {
-            id: user.id,
-            email: user.username.clone(),
-            full_name: user.username.clone(),
-            created_at: user.created_at,
-            updated_at: user.updated_at,
+        .map(|user| UserResponseModel{
+            id: user.id, email: user.username.clone(), 
+            full_name: user.username.clone(), 
+            created_at: user.created_at.clone(),
+            updated_at: user.updated_at.clone(),
         })
         .collect();
 
@@ -59,12 +62,13 @@ fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, 
     summary = "create users",
     description = "the objective of this endpoint is to create the new users"
 )]
-fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<UserCreate>) {
+fn create_users(res: &mut Response,  depot: &mut Depot, user_create: JsonBody<UserCreate>,) {
+
     // ✅ Get DB connection
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
-    println!("📥 Create new user ...");
+   println!("📥 Create new user ...");
 
     // ✅ Check if user already exists
     let existing_user = users
@@ -75,18 +79,18 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
 
     if existing_user.is_some() {
         res.status_code(StatusCode::BAD_REQUEST);
-        res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 User '{}' already exists", user_create.email).to_string(),
+        res.render(Json(ErrorResponseModel{
+            detail: format!("🚫 User '{}' already exists", user_create.email).to_string()
         }));
         return;
     }
 
     // ✅ Hash the password
-    let hashed = match hash_password(&user_create.password) {
+    let hashed = match hash_password(&user_create.password.clone().as_str()) {
         Ok(h) => h,
         Err(e) => {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            res.render(Json(ErrorResponseModel {
+            res.render(Json(ErrorResponseModel{
                 detail: format!("❌ Password hashing error: {}", e).to_string(),
             }));
             return;
@@ -113,10 +117,8 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
 
     // ✅ Respond success
     res.status_code(StatusCode::CREATED);
-    res.render(format!(
-        "✅ User '{}' created successfully!",
-        user_create.email
-    ));
+    res.render(format!("✅ User '{}' created successfully!", user_create.email));
+
 }
 
 #[endpoint(
@@ -124,11 +126,8 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
     summary = "get users information",
     description = "the objective of the endpoints is to get users information"
 )]
-pub async fn get_users_information(
-    res: &mut Response,
-    depot: &mut Depot,
-    authentication: HeaderParam<String, true>,
-) {
+pub async fn get_users_information(res: &mut Response, depot: &mut Depot, authentication: HeaderParam<String, true>) {
+    
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
@@ -138,16 +137,19 @@ pub async fn get_users_information(
     println!("📥 Fetching user information...");
 
     let current_user = depot.get::<Users>("user").unwrap();
-
+    
     println!("👤 Current user: {:?}", current_user);
+
 
     // ✅ Build response model
     let user_response_model = UserResponseModel {
         id: current_user.id,
         email: current_user.username.clone(), // or change field if you have separate email
         full_name: current_user.full_name.clone(),
-        created_at: current_user.created_at,
-        updated_at: current_user.created_at,
+        created_at: current_user.created_at.clone(),
+        updated_at: current_user.created_at.clone(),
+        
+
     };
 
     // ✅ Send JSON response
@@ -160,13 +162,8 @@ pub async fn get_users_information(
     summary = "Update users information",
     description = "the objectve of this endpoints is to update users information"
 )]
-fn update_users(
-    user_id: PathParam<Uuid>,
-    res: &mut Response,
-    authentication: HeaderParam<String, true>,
-    depot: &mut Depot,
-    user_update: JsonBody<UserUpdate>,
-) {
+fn update_users(user_id: PathParam<Uuid>, res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot, user_update: JsonBody<UserUpdate>) {
+    
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     let user_uuid = user_id.into_inner();
@@ -174,13 +171,16 @@ fn update_users(
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
-    let current_user: &Users = depot.get::<Users>("user").unwrap();
+    let current_user: &Users  = depot.get::<Users>("user").unwrap();
 
     // ✅ Check permission (user can only update their own info)
     if current_user.id != user_uuid {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("❌ You cannot update the user with id: {}", user_uuid),
+            detail: format!(
+                "❌ You cannot update the user with id: {}",
+                user_uuid
+            ),
         }));
         return;
     }
@@ -191,9 +191,11 @@ fn update_users(
     let result = diesel::update(users.find(user_uuid))
         .set((
             full_name.eq(&update_data.fullname),
-            updated_at.eq(&Utc::now().naive_utc()),
-        ))
-        .execute(&mut conn);
+            updated_at.eq(&Utc::now().naive_utc())
+            ),
+        )
+        .execute(&mut conn)
+        ;
 
     match result {
         Ok(affected_rows) => {
@@ -202,17 +204,18 @@ fn update_users(
                 res.render(Json(ErrorResponseModel {
                     detail: format!("⚠️ No user found with id {}", user_uuid),
                 }));
-                return;
+                return ;
             } else {
                 res.status_code(StatusCode::OK);
                 res.render(Json(UserSuccessResponseModel {
                     id: current_user.id,
                     email: current_user.username.clone(),
-                    full_name: current_user.full_name.clone(),
-                    created_at: current_user.created_at,
-                    updated_at: current_user.updated_at,
+                    full_name: update_data.fullname.clone(),
+                    created_at: current_user.created_at.clone(),
+                    updated_at: current_user.updated_at.clone()
+
                 }));
-                return;
+                return ;
             }
         }
         Err(e) => {
@@ -220,9 +223,10 @@ fn update_users(
             res.render(Json(ErrorResponseModel {
                 detail: format!("❌ Failed to update user: {}", e),
             }));
-            return;
+            return ;
         }
     }
+
 }
 
 #[endpoint(
@@ -230,18 +234,15 @@ fn update_users(
     summary = "Delete Users Information",
     description = "the objective of this endpoints is to delete users information"
 )]
-fn delete_users(
-    user_id: PathParam<Uuid>,
-    res: &mut Response,
-    authentication: HeaderParam<String, true>,
-    depot: &mut Depot,
-) {
+fn delete_users(user_id: PathParam<Uuid>, res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
+    
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
-    let current_user: &Users = depot.get::<Users>("user").unwrap();
+
+    let current_user: &Users  = depot.get::<Users>("user").unwrap();
 
     let user_uuid = user_id.into_inner();
 
@@ -249,13 +250,17 @@ fn delete_users(
     if current_user.id != user_uuid {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("❌ You cannot delete the user with id: {}", user_uuid),
+            detail: format!(
+                "❌ You cannot delete the user with id: {}",
+                user_uuid
+            ),
         }));
         return;
     }
     println!("👤 Current user: {:?}", current_user);
 
-    let affected = diesel::delete(users.filter(id.eq(user_uuid))).execute(&mut conn);
+    let affected = diesel::delete(users.filter(id.eq(user_uuid)))
+        .execute(&mut conn);
 
     match affected {
         Ok(0) => {
@@ -268,12 +273,13 @@ fn delete_users(
             println!("affected row: {}", affected_row);
             res.status_code(StatusCode::OK);
             res.render(Json(UserSuccessResponseModel {
-                id: current_user.id,
-                email: current_user.username.clone(),
-                full_name: current_user.full_name.clone(),
-                created_at: current_user.created_at,
-                updated_at: current_user.updated_at,
-            }));
+                    id: current_user.id,
+                    email: current_user.username.clone(),
+                    full_name: current_user.full_name.clone(),
+                    created_at: current_user.created_at.clone(),
+                    updated_at: current_user.updated_at.clone(),
+
+                }));
         }
         Err(err) => {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -282,6 +288,7 @@ fn delete_users(
             }));
         }
     }
+
 }
 
 #[endpoint(
@@ -289,18 +296,15 @@ fn delete_users(
     summary = "Get all posts by Users",
     description = "the objective of the endpoints is to get all post given users"
 )]
-fn get_posts_by_users(
-    user_id: PathParam<Uuid>,
-    res: &mut Response,
-    authentication: HeaderParam<String, true>,
-    depot: &mut Depot,
-) {
+fn get_posts_by_users(user_id: PathParam<Uuid>, res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
+    
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
-    let current_user: &Users = depot.get::<Users>("user").unwrap();
+
+    let current_user: &Users  = depot.get::<Users>("user").unwrap();
 
     let user_uuid = user_id.into_inner();
 
@@ -318,9 +322,9 @@ fn get_posts_by_users(
     println!("👤 Current user: {:?}", current_user);
 
     let all_posts = posts
-        .filter(crate::models::schema::posts::user_id.eq(&current_user.id))
-        .load::<Posts>(&mut conn)
-        .expect("Failed to get all posts of the user");
+            .filter(crate::models::schema::posts::user_id.eq(&current_user.id))
+            .load::<Posts>(&mut conn)
+            .expect("Failed to get all posts of the user");
 
     res.status_code(StatusCode::OK);
     res.render(Json(all_posts));
@@ -331,11 +335,8 @@ fn get_posts_by_users(
     summary = "get access token for login",
     description = "The objective of this endpoint is to get access token of the given users"
 )]
-fn get_access_token(
-    res: &mut Response,
-    user_credentiel: JsonBody<UserCredentiel>,
-    depot: &mut Depot,
-) {
+fn get_access_token(res: &mut Response, user_credentiel: JsonBody<UserCredentiel>, depot: &mut Depot) {
+
     let pool = depot.obtain::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
@@ -348,20 +349,24 @@ fn get_access_token(
 
     // ✅ Handle "not found" case
     let Some(user) = existing_user else {
-        print!("no existing users");
+        eprintln!("no existing users");
         res.status_code(StatusCode::BAD_REQUEST);
-        res.render(Json(ErrorResponseModel {
-            detail: "🚫 Invalid username or password".to_owned(),
-        }));
+        res.render(Json(
+            ErrorResponseModel{
+                detail: format!("🚫 Invalid username or password")
+            }
+        ));
         return;
     };
 
-    if !verify_password(&user_credentiel.password, &user.password) {
-        print!("bad password");
+    if !verify_password(&user_credentiel.password.clone().as_str(), &user.password.clone().as_str()){
+        println!("bad password");
         res.status_code(StatusCode::BAD_REQUEST);
-        res.render(Json(ErrorResponseModel {
-            detail: "🚫 Invalid user or password".to_owned(),
-        }));
+        res.render(Json(
+            ErrorResponseModel{
+                detail: format!("🚫 Invalid username or password")
+            }
+        ));
         return;
     }
 
@@ -377,9 +382,9 @@ fn get_access_token(
     );
 
     res.status_code(StatusCode::OK);
-    res.render(Json(TokenResponseModel {
-        type_token: String::from("Bearer"),
-        token: token.unwrap(),
+    res.render(Json(TokenResponseModel{
+        token_type: String::from("Bearer"),
+        token: String::from(token.unwrap())
     }));
 }
 
@@ -388,6 +393,7 @@ pub fn get_users_router() -> Router {
         // 🟢 Public routes
         .push(Router::with_path("login").post(get_access_token))
         .push(Router::with_path("").post(create_users))
+        
         // 🔒 Protected routes
         .push(
             Router::with_path("me")
@@ -399,7 +405,13 @@ pub fn get_users_router() -> Router {
                 .hoop(auth_user) // protect this subtree
                 .put(update_users)
                 .delete(delete_users)
-                .push(Router::with_path("posts").get(get_posts_by_users)),
+                .push(
+                    Router::with_path("posts")
+                        .get(get_posts_by_users),
+                ),
         )
-        .push(Router::with_path("").hoop(auth_user).get(get_all_users))
+        .push(Router::with_path("")
+                .hoop(auth_user)
+                .get(get_all_users)
+    )
 }

@@ -1,7 +1,5 @@
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};
-use password_hash::{PasswordHash, SaltString, rand_core::OsRng};
-
-pub const SECRET_KEY: &str = "YOUR SECRET_KEY";
+use password_hash::{SaltString, rand_core::OsRng, PasswordHash};
 
 /// 🔒 Hash a plaintext password
 pub fn hash_password(password: &str) -> Result<String, String> {

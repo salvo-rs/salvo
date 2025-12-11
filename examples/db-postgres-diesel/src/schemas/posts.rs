@@ -1,4 +1,4 @@
-use salvo::oapi::ToSchema;
+use salvo_oapi::ToSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
