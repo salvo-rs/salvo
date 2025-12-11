@@ -43,7 +43,7 @@ docker run -d \
   --name salvo_postgres \
   -e POSTGRES_USER=darix \
   -e POSTGRES_PASSWORD=6775212952 \
-  -e POSTGRES_DB=salvo_postgres \
+  -e POSTGRES_DB=salvo_postgres_diesel \
   -p 5432:5432 \
   postgres:latest
 ```
