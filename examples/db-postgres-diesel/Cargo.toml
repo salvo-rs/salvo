@@ -9,8 +9,8 @@ anyhow = { workspace = true }
 diesel = { workspace = true, features = ["chrono", "postgres", "r2d2", "serde_json", "time", "uuid"] }
 r2d2 = { workspace = true }
 dotenvy = { workspace = true }
-salvo = { version = "0.84.0", features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
-salvo-oapi = { version = "0.84.0", features = ["swagger-ui"] }
+salvo = { workspace = true, features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
+salvo-oapi = { workspace = true, features = ["swagger-ui"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features= ["macros"]}
 tracing = { workspace = true }
