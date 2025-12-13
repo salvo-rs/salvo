@@ -1,33 +1,20 @@
 [package]
-name = "db-postgres-diesel"
+name = "salvo-postgres-diesel"
 version = "0.1.0"
 edition = "2024"
 
 
 [dependencies]
 anyhow = { workspace = true }
-diesel = { workspace = true, features = [
-    "chrono",
-    "postgres",
-    "r2d2",
-    "serde_json",
-    "time",
-    "uuid",
-] }
+diesel = { workspace = true, features = ["chrono", "postgres", "r2d2", "serde_json", "time", "uuid"] }
 r2d2 = { workspace = true }
 dotenvy = { workspace = true }
-salvo = { workspace = true, features = [
-    "oapi",
-    "affix-state",
-    "anyhow",
-    "jwt-auth",
-    "test",
-    "cors",
-] }
+salvo = { workspace = true, features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
+salvo-oapi = { workspace = true, features = ["swagger-ui"] }
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["macros"] }
+tokio = { workspace = true, features= ["macros"]}
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true } 
 jsonwebtoken = { workspace = true }
 time = { workspace = true }
 
@@ -39,5 +26,6 @@ serde_json = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 
 [[bin]]
-name = "salvo_postgres"
+name = "salvo_postgres_diesel"
 path = "src/main.rs"
+
