@@ -16,7 +16,7 @@ pub struct Router {
     #[doc(hidden)]
     pub id: usize,
     /// The children of current router.
-    pub routers: Vec<Router>,
+    pub routers: Vec<Self>,
     /// The filters of current router.
     pub filters: Vec<Box<dyn Filter>>,
     /// The middlewares of current router.
