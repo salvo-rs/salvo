@@ -423,7 +423,7 @@ impl ComponentSchema {
                             .transpose()?;
                         let schema = if default.is_some() || nullable {
                             quote_spanned! {type_path.span()=>
-                                #oapi::oapi::schema::AllOf::new()
+                                #oapi::oapi::schema::OneOf::new()
                                     #nullable_item
                                     .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 #default
@@ -448,7 +448,7 @@ impl ComponentSchema {
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if default.is_some() || nullable {
                             quote! {
-                                #oapi::oapi::schema::AllOf::new()
+                                #oapi::oapi::schema::OneOf::new()
                                     #nullable_item
                                     .item(#schema)
                                     #default
