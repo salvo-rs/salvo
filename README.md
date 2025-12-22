@@ -277,13 +277,13 @@ async fn main() {
 Salvo CLI is a command-line tool that simplifies the creation of new Salvo projects, supporting templates for web APIs, websites, databases (including SQLite, PostgreSQL, and MySQL via SQLx, SeaORM, Diesel, Rbatis), and basic middleware.
 You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new Salvo project:
 
-#### install
+#### Install
 
 ```bash
 cargo install salvo-cli
 ```
 
-#### create a new Salvo project
+#### Create a new Salvo project
 
 ```bash
 salvo new project_name
@@ -310,11 +310,23 @@ Benchmark testing result can be found from here:
 
 [https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
-## 🩸 Contributors
+## 🎡 Who are using
 
-<a href="https://github.com/salvo-rs/salvo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=salvo-rs/salvo" />
-</a>
+<p align="left">
+  <a href="https://dora.rs">
+    <img alt="dora" width="150" style="margin: 15px;" src="./assets/dora.svg" />
+  </a>
+  <a href="https://rwkv.ai/">
+    <img alt="rwkv" width="150" style="margin: 15px;" src="./assets/rwkv.svg" />
+  </a>
+  <a href="https://www.cirspb.org/">
+    <img alt="cirspb" width="150" style="margin: 15px;" src="./assets/cirspb.svg" />
+  </a>
+  <a href="https://www.tdcare.com/">
+    <img alt="tdcare" width="150" style="margin: 15px;" src="./assets/tdcare.png" />
+  </a>
+</p>
+
 
 ## ☕ Donate
 
