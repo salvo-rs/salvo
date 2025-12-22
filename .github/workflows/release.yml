@@ -17,7 +17,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get releasing version
         working-directory: .
@@ -79,7 +79,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get releasing version
         working-directory: ${{ matrix.package.path }}
