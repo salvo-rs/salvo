@@ -314,11 +314,22 @@ Benchmark 测试结果可以从这里查看：
 
 [https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
-## 🩸 贡献者
+## 🎡 谁在使用
 
-<a href="https://github.com/salvo-rs/salvo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=salvo-rs/salvo" />
-</a>
+<p align="left">
+  <a href="https://dora.rs">
+    <img alt="dora" width="150" style="margin: 15px;" src="./assets/dora.svg" />
+  </a>
+  <a href="https://rwkv.ai/">
+    <img alt="rwkv" width="150" style="margin: 15px;" src="./assets/rwkv.svg" />
+  </a>
+  <a href="https://www.cirspb.org/">
+    <img alt="cirspb" width="150" style="margin: 15px;" src="./assets/cirspb.svg" />
+  </a>
+  <a href="https://www.tdcare.com/">
+    <img alt="tdcare" width="150" style="margin: 15px;" src="./assets/tdcare.png" />
+  </a>
+</p>
 
 ## ☕ 捐助
 
