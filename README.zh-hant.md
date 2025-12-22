@@ -311,20 +311,14 @@ Benchmark 測試結果可以從這裏查看：
 
 ## 🎡 誰在使用
 
-<p align="left">
-  <a href="https://dora.rs">
-    <img alt="dora" width="150" style="margin: 15px;" src="./assets/dora.svg" />
-  </a>
-  <a href="https://rwkv.ai/">
-    <img alt="rwkv" width="150" style="margin: 15px;" src="./assets/rwkv.svg" />
-  </a>
-  <a href="https://www.cirspb.org/">
-    <img alt="cirspb" width="150" style="margin: 15px;" src="./assets/cirspb.svg" />
-  </a>
-  <a href="https://www.tdcare.com/">
-    <img alt="tdcare" width="150" style="margin: 15px;" src="./assets/tdcare.png" />
-  </a>
-</p>
+<table style="border: none; width: 100%;">
+  <tr style="border: none;">
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://dora.rs/"><img alt="dora" width="100" src="./assets/dora.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://rwkv.ai/"><img alt="rwkv" width="100" src="./assets/rwkv.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.cirspb.org/"><img alt="cirspb" width="100" src="./assets/cirspb.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.tdcare.com/"><img alt="tdcare" width="100" src="./assets/tdcare.png" /></a></td>
+  </tr>
+</table>
 
 ## ☕ 捐助
 
