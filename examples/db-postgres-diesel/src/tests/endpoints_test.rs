@@ -34,10 +34,11 @@ pub fn service(router: Router) -> Service {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::schemas::users::{ResUserBody, UserResponseModel};
-    use crate::schemas::{ResErrorBody, ResTokenBody};
     use salvo::prelude::*;
     use salvo::test::{ResponseExt, TestClient};
+
+    use crate::models::users::ResUserBody;
+    use crate::models::{ResErrorBody, ResTokenBody};
 
     #[tokio::test]
     async fn test_01_test_hello_world() {
@@ -239,7 +240,7 @@ pub mod tests {
             .add_header("authentication", token.token, false)
             .send(&service)
             .await;
-        let user_information: UserResponseModel =
+        let user_information: ResUserBody =
             response.take_json().await.expect("Failed to parse JSON");
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(user_information.email, "samanidarix@gmail.com");
@@ -267,7 +268,7 @@ pub mod tests {
             .add_header("authentication", token.token.clone(), false)
             .send(&service)
             .await;
-        let user_information: UserResponseModel =
+        let user_information: ResUserBody =
             response.take_json().await.expect("Failed to parse JSON");
 
         let mut response =
@@ -307,7 +308,7 @@ pub mod tests {
             .add_header("authentication", token.token.clone(), false)
             .send(&service)
             .await;
-        let user_information: UserResponseModel =
+        let user_information: ResUserBody =
             response.take_json().await.expect("Failed to parse JSON");
 
         let response = TestClient::put(format!("http://localhost/users/{}", user_information.id))
@@ -343,7 +344,7 @@ pub mod tests {
             .add_header("authentication", token.token.clone(), false)
             .send(&service)
             .await;
-        let user_information: UserResponseModel =
+        let user_information: ResUserBody =
             response.take_json().await.expect("Failed to parse JSON");
 
         let mut response =
