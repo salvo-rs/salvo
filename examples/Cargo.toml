@@ -78,5 +78,5 @@ async-std = "1.13.2"
 juniper = { version = "0.15.10"}
 tower = "0.5.2"
 
-salvo-core = { path = "../crates/core" }
+salvo_core = { path = "../crates/core" }
 salvo-oapi = { path = "../crates/oapi" }
