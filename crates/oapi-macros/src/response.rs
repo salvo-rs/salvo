@@ -104,7 +104,7 @@ impl<'r> ResponseTuple<'r> {
     fn set_ref_type(&mut self, span: Span, ty: InlineType<'r>) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(Box::new(ty))),
-            Some(ResponseTupleInner::Ref(r)) => *r = Box::new(ty),
+            Some(ResponseTupleInner::Ref(r)) => **r = ty,
             Some(ResponseTupleInner::Value(_)) => {
                 return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG));
             }

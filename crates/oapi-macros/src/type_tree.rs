@@ -13,9 +13,9 @@ enum TypeTreeValue<'t> {
     Path(&'t Path),
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
-    Array(Vec<TypeTreeValue<'t>>, Span),
+    Array(Vec<Self>, Span),
     UnitType,
-    Tuple(Vec<TypeTreeValue<'t>>, Span),
+    Tuple(Vec<Self>, Span),
 }
 
 impl PartialEq for TypeTreeValue<'_> {
@@ -35,7 +35,7 @@ pub(crate) struct TypeTree<'t> {
     pub(crate) path: Option<Cow<'t, Path>>,
     pub(crate) value_type: ValueType,
     pub(crate) generic_type: Option<GenericType>,
-    pub(crate) children: Option<Vec<TypeTree<'t>>>,
+    pub(crate) children: Option<Vec<Self>>,
 }
 
 impl<'t> TypeTree<'t> {

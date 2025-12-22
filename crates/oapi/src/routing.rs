@@ -14,7 +14,7 @@ pub(crate) struct NormNode {
     pub(crate) handler_type_name: Option<&'static str>,
     pub(crate) method: Option<PathItemType>,
     pub(crate) path: Option<String>,
-    pub(crate) children: Vec<NormNode>,
+    pub(crate) children: Vec<Self>,
     pub(crate) metadata: Metadata,
 }
 
