@@ -11,7 +11,6 @@ diesel::table! {
     }
 }
 
-
 diesel::table! {
     posts (id) {
         id -> Uuid,
@@ -22,7 +21,6 @@ diesel::table! {
         created_at -> Timestamp,
     }
 }
-
 
 diesel::joinable!(posts -> users (user_id));
 
