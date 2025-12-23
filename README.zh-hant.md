@@ -313,10 +313,10 @@ Benchmark 測試結果可以從這裏查看：
 
 <table style="border: none; width: 100%;">
   <tr style="border: none;">
-    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://dora.rs/"><img alt="dora" width="100" src="./assets/dora.svg" /></a></td>
-    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://rwkv.ai/"><img alt="rwkv" width="100" src="./assets/rwkv.svg" /></a></td>
-    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.cirspb.org/"><img alt="cirspb" width="100" src="./assets/cirspb.svg" /></a></td>
-    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.tdcare.com/"><img alt="tdcare" width="100" src="./assets/tdcare.png" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://dora-rs.ai"><img alt="dora" width="100" src="./assets/dora.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.rwkvos.com"><img alt="rwkv" width="100" src="./assets/rwkv.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.cirspb.ru"><img alt="cirspb" width="100" src="./assets/cirspb.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a href="https://www.tdcare.cn"><img alt="tdcare" width="100" src="./assets/tdcare.png" /></a></td>
   </tr>
 </table>
 
