@@ -307,7 +307,7 @@ Benchmark 測試結果可以從這裏查看：
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
+[https://www.techempower.com/benchmarks/#section=data-r23](https://www.techempower.com/benchmarks/#section=data-r23)
 
 ## 🎡 誰在使用
 

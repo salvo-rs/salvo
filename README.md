@@ -308,7 +308,7 @@ Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
+[https://www.techempower.com/benchmarks/#section=data-r23](https://www.techempower.com/benchmarks/#section=data-r23)
 
 ## 🎡 Who are using
 
