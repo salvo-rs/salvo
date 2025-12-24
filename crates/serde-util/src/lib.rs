@@ -32,6 +32,8 @@ pub struct SerdeValue {
     pub skip: bool,
     /// Rename field.
     pub rename: Option<String>,
+    /// Aliases of field.
+    pub aliases: Vec<String>,
     /// Is default value.
     pub is_default: bool,
     /// Flatten field.
@@ -64,6 +66,11 @@ impl SerdeValue {
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {
                             value.rename = Some(literal)
+                        };
+                    }
+                    TokenTree::Ident(ident) if ident == "alias" => {
+                        if let Some((literal, _)) = parse_next_lit_str(next) {
+                            value.aliases.push(literal)
                         };
                     }
                     TokenTree::Ident(ident) if ident == "default" => value.is_default = true,
@@ -240,6 +247,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
             if value.rename.is_some() {
                 acc.rename = value.rename;
             }
+            acc.aliases.extend(value.aliases);
             if value.flatten {
                 acc.flatten = value.flatten;
             }
