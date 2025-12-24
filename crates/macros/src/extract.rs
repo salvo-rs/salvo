@@ -21,6 +21,7 @@ struct FieldInfo {
     aliases: Vec<String>,
     rename: Option<String>,
     serde_rename: Option<String>,
+    serde_aliases: Vec<String>,
     flatten: bool,
 }
 impl TryFrom<&Field> for FieldInfo {
@@ -52,13 +53,17 @@ impl TryFrom<&Field> for FieldInfo {
         sources.dedup();
         aliases.dedup();
 
-        let (serde_rename, serde_flatten) = if let Some(SerdeValue {
-            rename, flatten, ..
-        }) = serde_util::parse_value(&field.attrs)
+        let (serde_rename, serde_aliases, serde_flatten) = if let Some(SerdeValue {
+            rename,
+            aliases,
+            flatten,
+            ..
+        }) =
+            serde_util::parse_value(&field.attrs)
         {
-            (rename, flatten)
+            (rename, aliases, flatten)
         } else {
-            (None, false)
+            (None, Vec::new(), false)
         };
         let flatten = flatten.unwrap_or(serde_flatten);
         if flatten {
@@ -83,6 +88,7 @@ impl TryFrom<&Field> for FieldInfo {
             aliases,
             rename,
             serde_rename,
+            serde_aliases,
             flatten,
         })
     }
@@ -370,6 +376,11 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 field = field.serde_rename(#serde_rename);
             }
         });
+        let serde_aliases = field.serde_aliases.iter().map(|alias| {
+            quote! {
+                field = field.add_alias(#alias);
+            }
+        });
         fields.push(quote! {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident);
             #nested_metadata
@@ -377,6 +388,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             #(#aliases)*
             #rename
             #serde_rename
+            #(#serde_aliases)*
             metadata = metadata.add_field(field);
         });
     }
