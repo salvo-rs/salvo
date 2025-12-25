@@ -19,7 +19,6 @@ jsonwebtoken = { workspace = true }
 time = { workspace = true }
 
 argon2 = { workspace = true }
-rand_core = { workspace = true }
 password-hash = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 serde_json = { workspace = true }

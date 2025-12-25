@@ -12,7 +12,7 @@ use salvo_core::http::mime::fill_mime_charset_if_need;
 use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
-use super::{decode_url_path_safely, format_url_path_safely, join_path, redirect_to_dir_url};
+use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url};
 
 /// Handler that serves embedded files using `rust-embed`.
 ///
