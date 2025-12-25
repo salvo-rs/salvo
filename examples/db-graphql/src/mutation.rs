@@ -3,6 +3,7 @@ use juniper::{FieldResult, graphql_object};
 use crate::schema::{DatabaseContext, User, UserInput};
 
 // Root type for all GraphQL mutations
+#[derive(Clone, Copy, Debug)]
 pub struct MutationRoot;
 
 // Implement GraphQL mutation resolvers
