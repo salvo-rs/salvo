@@ -22,7 +22,7 @@ pub(crate) mod status;
 pub(crate) struct Operation<'a> {
     deprecated: &'a Option<bool>,
     operation_id: Option<&'a Expr>,
-    tags: &'a Option<Vec<String>>,
+    tags: &'a Option<Vec<Expr>>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
@@ -124,10 +124,10 @@ impl<'a> Operation<'a> {
         }
 
         if let Some(tags) = self.tags {
-            let tags = tags.iter().collect::<Array<_>>();
+            let tags = tags.iter();
             modifiers.push(quote! {
-                operation.tags.extend(#tags.into_iter().map(|t|t.into()));
-            })
+                #( operation.tags.push((#tags).into()); )*
+            });
         }
 
         if let Some(summary) = &self.summary
