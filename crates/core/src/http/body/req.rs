@@ -228,6 +228,7 @@ cfg_feature! {
 
         use hyper::body::{Body, Frame, SizeHint};
         use salvo_http3::quic::RecvStream;
+        use salvo_http3::error::Code;
 
         use bytes::{Buf, Bytes};
 
@@ -235,10 +236,17 @@ cfg_feature! {
         use crate::http::ReqBody;
 
         /// Http3 request body.
-        pub struct H3ReqBody<S, B> {
+        pub struct H3ReqBody<S, B>
+        where
+            S: RecvStream + Send + Unpin,
+            B: Buf + Send + Unpin,
+        {
             inner: salvo_http3::server::RequestStream<S, B>,
         }
         impl<S, B> Debug for H3ReqBody<S, B>
+        where
+            S: RecvStream + Send + Unpin,
+            B: Buf + Send + Unpin,
         {
             fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
                 f.debug_struct("H3ReqBody").finish()
@@ -278,7 +286,7 @@ cfg_feature! {
             }
 
             fn is_end_stream(&self) -> bool {
-                false
+                false // TODO: check this
             }
 
             fn size_hint(&self) -> SizeHint {
@@ -286,13 +294,26 @@ cfg_feature! {
             }
         }
 
+        impl<S, B> Drop for H3ReqBody<S, B>
+        where
+            S: RecvStream + Send + Unpin,
+            B: Buf + Send + Unpin,
+        {
+            fn drop(&mut self) {
+                self.inner.stop_sending(Code::H3_NO_ERROR);
+            }
+        }
+
         impl<S, B> From<H3ReqBody<S, B>> for ReqBody
         where
-            S: RecvStream + Send + Sync +  Unpin + 'static,
-            B: Buf + Send + Sync +  Unpin + 'static,
+            S: RecvStream + Send + Sync + Unpin + 'static,
+            B: Buf + Send + Sync + Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> Self {
-                Self::Boxed{inner: Box::pin(value), fusewire: None}
+                Self::Boxed {
+                    inner: Box::pin(value),
+                    fusewire: None,
+                }
             }
         }
     }
