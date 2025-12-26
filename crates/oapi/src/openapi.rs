@@ -509,18 +509,22 @@ impl OpenApi {
             if !not_exist_parameters.is_empty() {
                 tracing::warn!(parameters = ?not_exist_parameters, path, handler_name = node.handler_type_name, "information for not exist parameters");
             }
-            let meta_not_exist_parameters = path_parameter_names
-                .iter()
-                .filter(|name| {
-                    !name.starts_with('*')
-                        && !operation.parameters.0.iter().any(|parameter| {
-                            parameter.name == **name && parameter.parameter_in == ParameterIn::Path
-                        })
-                })
-                .collect::<Vec<_>>();
             #[cfg(debug_assertions)]
-            if !meta_not_exist_parameters.is_empty() {
-                tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
+            {
+                let meta_not_exist_parameters = path_parameter_names
+                    .iter()
+                    .filter(|name| {
+                        !name.starts_with('*')
+                            && !operation.parameters.0.iter().any(|parameter| {
+                                parameter.name == **name
+                                    && parameter.parameter_in == ParameterIn::Path
+                            })
+                    })
+                    .collect::<Vec<_>>();
+
+                if !meta_not_exist_parameters.is_empty() {
+                    tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
+                }
             }
             let path_item = self.paths.entry(path.clone()).or_default();
             for method in methods {
