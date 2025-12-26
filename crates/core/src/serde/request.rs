@@ -542,6 +542,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_de_request_with_serde_alias() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct RequestData {
+            #[serde(alias = "alias1", alias = "alias2")]
+            q1: String,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
+            .query("alias1", "q1v")
+            .build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                q1: "q1v".to_owned()
+            }
+        );
+
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
+            .query("alias2", "q2v")
+            .build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                q1: "q2v".to_owned()
+            }
+        );
+    }
+
+    #[tokio::test]
     async fn test_de_request_with_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
         #[salvo(extract(default_source(from = "query"), rename_all = "PascalCase"))]
