@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 
-use bytes::Bytes;
 use salvo_core::async_trait;
-use tokio::{fs, io::{self, AsyncWriteExt}};
-use uuid::Uuid;
+use tokio::{fs, io::{self}};
 
-use crate::{error::{TusError, TusResult}, stores::{ByteStream, DataStore, MetaFile, NewUpload, UploadInfo}};
+use crate::{error::{TusError, TusResult}, stores::DataStore};
 
 #[derive(Clone)]
 pub struct DiskStore {
@@ -14,7 +12,9 @@ pub struct DiskStore {
 
 impl DiskStore {
     pub fn new() -> Self {
-        Self { root: "./tus-data".into() }
+        Self {
+            root: "./tus-data".into(),
+        }
     }
 
     pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
@@ -95,91 +95,91 @@ impl DiskStore {
 
 #[async_trait]
 impl DataStore for DiskStore {
-    async fn create(&self, new: NewUpload) -> TusResult<UploadInfo> {
-        self.ensure_root().await?;
+    // async fn create(&self, new: NewUpload) -> TusResult<UploadInfo> {
+    //     self.ensure_root().await?;
 
-        let id = Uuid::new_v4().to_string();
+    //     let id = Uuid::new_v4().to_string();
 
-        // 1) data file
-        self.create_empty_data_file(&id).await?;
+    //     // 1) data file
+    //     self.create_empty_data_file(&id).await?;
 
-        // 2) meta file
-        let meta = MetaFile {
-            id: id.clone(),
-            length: new.length,
-            offset: 0,
-            metadata: new.metadata,
-        };
-        self.write_meta_atomic(&meta).await?;
+    //     // 2) meta file
+    //     let meta = MetaFile {
+    //         id: id.clone(),
+    //         length: new.length,
+    //         offset: 0,
+    //         metadata: new.metadata,
+    //     };
+    //     self.write_meta_atomic(&meta).await?;
 
-        Ok(meta.into())
-    }
+    //     Ok(meta.into())
+    // }
 
-    async fn get(&self, id: &str) -> TusResult<UploadInfo> {
-        self.ensure_root().await?;
-        let meta = self.read_meta(id).await?;
-        Ok(meta.into())
-    }
+    // async fn get(&self, id: &str) -> TusResult<UploadInfo> {
+    //     self.ensure_root().await?;
+    //     let meta = self.read_meta(id).await?;
+    //     Ok(meta.into())
+    // }
 
-    async fn set_offset(&self, id: &str, offset: u64) -> TusResult<()> {
-        self.ensure_root().await?;
+    // async fn set_offset(&self, id: &str, offset: u64) -> TusResult<()> {
+    //     self.ensure_root().await?;
 
-        let mut meta = self.read_meta(id).await?;
+    //     let mut meta = self.read_meta(id).await?;
 
-        if offset < meta.offset {
-            return Err(TusError::Internal(format!(
-                "offset must be monotonically increasing: {} -> {}",
-                meta.offset, offset
-            )));
-        }
+    //     if offset < meta.offset {
+    //         return Err(TusError::Internal(format!(
+    //             "offset must be monotonically increasing: {} -> {}",
+    //             meta.offset, offset
+    //         )));
+    //     }
 
-        if offset > meta.length {
-            return Err(TusError::PayloadTooLarge);
-        }
+    //     if offset > meta.length {
+    //         return Err(TusError::PayloadTooLarge);
+    //     }
 
-        meta.offset = offset;
-        self.write_meta_atomic(&meta).await?;
-        Ok(())
-    }
+    //     meta.offset = offset;
+    //     self.write_meta_atomic(&meta).await?;
+    //     Ok(())
+    // }
 
-    async fn write(&self, id: &str, offset: u64, mut stream: ByteStream) -> TusResult<u64> {
-        use futures_util::StreamExt;
+    // async fn write(&self, id: &str, offset: u64, mut stream: ByteStream) -> TusResult<u64> {
+    //     use futures_util::StreamExt;
         
-        self.ensure_root().await?;
+    //     self.ensure_root().await?;
 
-        let path = self.data_path(id);
+    //     let path = self.data_path(id);
 
-        // Open with write=true. We need seek, so use tokio::fs::File
-        let mut f = fs::OpenOptions::new()
-            .write(true)
-            .open(path)
-            .await
-            .map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => TusError::NotFound,
-                _ => TusError::Internal(e.to_string()),
-            })?;
+    //     // Open with write=true. We need seek, so use tokio::fs::File
+    //     let mut f = fs::OpenOptions::new()
+    //         .write(true)
+    //         .open(path)
+    //         .await
+    //         .map_err(|e| match e.kind() {
+    //             io::ErrorKind::NotFound => TusError::NotFound,
+    //             _ => TusError::Internal(e.to_string()),
+    //         })?;
 
-        // Seek to offset
-        use tokio::io::AsyncSeekExt;
-        use std::io::SeekFrom;
-        f.seek(SeekFrom::Start(offset))
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))?;
+    //     // Seek to offset
+    //     use tokio::io::AsyncSeekExt;
+    //     use std::io::SeekFrom;
+    //     f.seek(SeekFrom::Start(offset))
+    //         .await
+    //         .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        let mut written: u64 = 0;
+    //     let mut written: u64 = 0;
 
-        while let Some(item) = stream.next().await {
-            let chunk: Bytes = item.map_err(|e| TusError::Internal(e.to_string()))?;
-            f.write_all(&chunk)
-                .await
-                .map_err(|e| TusError::Internal(e.to_string()))?;
-            written += chunk.len() as u64;
-        }
+    //     while let Some(item) = stream.next().await {
+    //         let chunk: Bytes = item.map_err(|e| TusError::Internal(e.to_string()))?;
+    //         f.write_all(&chunk)
+    //             .await
+    //             .map_err(|e| TusError::Internal(e.to_string()))?;
+    //         written += chunk.len() as u64;
+    //     }
 
-        f.flush()
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))?;
+    //     f.flush()
+    //         .await
+    //         .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        Ok(written)
-    }
+    //     Ok(written)
+    // }
 }

@@ -1,9 +1,7 @@
 use salvo_core::async_trait;
 use tokio::sync::OwnedMutexGuard;
 
-mod memory_locker;
-
-pub use memory_locker::*;
+pub mod memory_locker;
 
 use crate::error::TusResult;
 

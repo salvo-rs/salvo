@@ -32,3 +32,4 @@ serde_json    = { workspace = true }
 uuid          = { workspace = true, features = ["v4"]}
 futures-core  = "0.3"
 futures-util = { workspace = true }
+chrono = { workspace = true }

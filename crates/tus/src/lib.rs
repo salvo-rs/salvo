@@ -1,16 +1,22 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use crate::{error::TusResult, lockers::{Locker, MemoryLocker}, stores::{DataStore, DiskStore}};
+use crate::{
+    error::ProtocolError,
+    lockers::Locker,
+    options::{MaxSize, TusOptions},
+    stores::{DataStore, DiskStore},
+    utils::{normalize_path, parse_metadata},
+};
 
 mod error;
 mod stores;
 mod lockers;
 mod handlers;
 
-mod utils;
+pub mod utils;
+pub mod options;
 
-use salvo_core::Router;
-pub use utils::*;
+use salvo_core::{Depot, Router, handler, http::HeaderValue};
 
 pub const TUS_VERSION: &str = "1.0.0";
 pub const H_TUS_RESUMABLE: &str = "tus-resumable";
@@ -25,39 +31,47 @@ pub const H_UPLOAD_METADATA: &str = "upload-metadata";
 pub const H_CONTENT_TYPE: &str = "content-type";
 pub const CT_OFFSET_OCTET_STREAM: &str = "application/offset+octet-stream";
 
+#[derive(Clone, Debug, Default)]
+pub struct Metadata(pub HashMap<String, String>);
+
+#[derive(Clone)]
+struct TusStateHoop {
+    state: Arc<Tus>,
+}
+
+#[handler]
+impl TusStateHoop {
+    async fn handle(&self, depot: &mut Depot) {
+        depot.inject(self.state.clone());
+    }
+}
+
 #[derive(Clone)]
 pub struct Tus {
-    base_path: String,
-    max_size: Option<u64>,
-    relative_location: bool,
-
+    options: TusOptions,
     store: Arc<dyn DataStore>,
-    locker: Arc<dyn Locker>,
 }
 
 impl Tus {
     pub fn new() -> Self {
         Self {
-            base_path: "/tus-files".to_string(),
-            max_size: None,
-            relative_location: true,
+            options: TusOptions::default(),
             store: Arc::new(DiskStore::new()),
-            locker: Arc::new(MemoryLocker::new()),
         }
     }
 
     pub fn path(mut self, path: impl Into<String>) -> Self {
-        self.base_path = path.into();
+        self.options.path = path.into();
         self
     }
 
-    pub fn max_size(mut self, bytes: u64) -> Self {
-        self.max_size = Some(bytes);
+    pub fn max_size(mut self, max_size: MaxSize) -> Self {
+        self.options.max_size = Some(max_size);
         self
     }
 
     pub fn relative_location(mut self, yes: bool) -> Self {
-        self.relative_location = yes;
+        self.options.relative_location = yes;
         self
     }
 
@@ -67,16 +81,18 @@ impl Tus {
     }
 
     pub fn locker(mut self, locker: impl Locker) -> Self {
-        self.locker = Arc::new(locker);
+        self.options.locker = Arc::new(locker);
         self
     }
 }
 
 impl Tus {
     pub fn into_router(self) -> Router {
-        let base_path = normalize_path(&self.base_path);
+        let base_path = normalize_path(&self.options.path);
+        let state = Arc::new(self);
 
         let r = Router::with_path(base_path)
+            .hoop(TusStateHoop { state: state.clone() })
             .options(handlers::options_handler);
 
         r
