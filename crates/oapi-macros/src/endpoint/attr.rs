@@ -1,6 +1,6 @@
 use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, parse::Parse, Expr};
+use syn::{Expr, parenthesized, parse::Parse};
 
 use crate::operation::request_body::RequestBodyAttr;
 use crate::{
