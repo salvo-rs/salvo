@@ -1,7 +1,6 @@
 use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
-use syn::{Expr, LitStr};
-use syn::{parenthesized, parse::Parse};
+use syn::{Expr, parenthesized, parse::Parse};
 
 use crate::operation::request_body::RequestBodyAttr;
 use crate::{
@@ -14,7 +13,7 @@ pub(crate) struct EndpointAttr<'p> {
     pub(crate) responses: Vec<Response<'p>>,
     pub(crate) status_codes: Vec<Expr>,
     pub(crate) operation_id: Option<Expr>,
-    pub(crate) tags: Option<Vec<String>>,
+    pub(crate) tags: Option<Vec<Expr>>,
     pub(crate) parameters: Vec<Parameter<'p>>,
     pub(crate) security: Option<Array<'p, SecurityRequirementsAttr>>,
 
@@ -68,16 +67,9 @@ impl Parse for EndpointAttr<'_> {
                 "tags" => {
                     let tags;
                     parenthesized!(tags in input);
-                    attr.tags = Some(
-                        Punctuated::<LitStr, Token![,]>::parse_terminated(&tags).map(
-                            |punctuated| {
-                                punctuated
-                                    .into_iter()
-                                    .map(|t| t.value())
-                                    .collect::<Vec<_>>()
-                            },
-                        )?,
-                    );
+                    let parsed: Punctuated<Expr, Token![,]> =
+                        Punctuated::<Expr, Token![,]>::parse_terminated(&tags)?;
+                    attr.tags = Some(parsed.into_iter().collect());
                 }
                 "security" => {
                     let security;

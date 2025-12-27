@@ -76,8 +76,7 @@ impl RateGuard for SlidingGuard {
     async fn remaining(&self, quota: &Self::Quota) -> usize {
         quota
             .limit
-            .checked_sub(self.counts.iter().cloned().sum::<usize>())
-            .unwrap_or_default()
+            .saturating_sub(self.counts.iter().cloned().sum::<usize>())
     }
 
     async fn reset(&self, quota: &Self::Quota) -> i64 {
