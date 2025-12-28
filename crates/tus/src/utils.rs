@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use base64::Engine;
+use salvo_core::http::HeaderValue;
 
 use crate::{TUS_VERSION, error::ProtocolError};
 
@@ -17,34 +15,6 @@ pub fn parse_u64(v: Option<&str>, name: &'static str) -> Result<u64, ProtocolErr
     s.parse::<u64>().map_err(|_| ProtocolError::InvalidInt(name))
 }
 
-/// Upload-Metadata: "filename dGVzdC5tcDQ=,foo YmFy"
-pub fn parse_metadata(v: Option<&str>) -> Result<HashMap<String, String>, ProtocolError> {
-    let Some(s) = v else { return Ok(HashMap::new()); };
-    if s.trim().is_empty() { return Ok(HashMap::new()); }
-
-    let mut map = HashMap::new();
-    for item in s.split(',') {
-        let item = item.trim();
-        if item.is_empty() { continue; }
-
-        let mut parts = item.splitn(2, ' ');
-        let key = parts.next().ok_or(ProtocolError::InvalidMetadata)?.trim();
-        let b64 = parts.next().unwrap_or("").trim();
-
-        let val = if b64.is_empty() {
-            "".to_string()
-        } else {
-            let bytes = base64::engine::general_purpose::STANDARD
-                .decode(b64)
-                .map_err(|_| ProtocolError::InvalidMetadata)?;
-            String::from_utf8(bytes).map_err(|_| ProtocolError::InvalidMetadata)?
-        };
-
-        map.insert(key.to_string(), val);
-    }
-    Ok(map)
-}
-
 pub fn normalize_path(p: &str) -> String {
     if p.is_empty() {
         return "/".to_string();
@@ -57,4 +27,17 @@ pub fn normalize_path(p: &str) -> String {
         out = out.trim_end_matches('/').to_string();
     }
     out
+}
+
+pub fn validate_header(name: &'static str, value: Option<&HeaderValue>) -> bool {
+    match value {
+        Some(v) => {
+            if let Ok(s) = v.to_str() {
+                s.trim().eq_ignore_ascii_case(name)
+            } else {
+                false
+            }
+        }
+        None => false,
+    }
 }

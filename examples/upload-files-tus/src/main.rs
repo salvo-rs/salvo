@@ -20,6 +20,15 @@ async fn main() {
     let router = Router::new().get(hello_world)
         .push(Router::with_path("hello").get(hello));
 
+    // let tus = Tus::new().path("/files")
+    //     .relative_location(true)
+    //     .max_size(MaxSize::Fixed(10 * 1024 * 1024))
+    //     .with_upload_id_naming_function(|_req, _metadata| {
+    //         // Here you can implement your own logic to generate unique IDs for uploads.
+    //         // For simplicity, we'll use a fixed ID in this example.
+    //         Ok("unique-upload-id-12345".to_string())
+    //     });
+
     let tus = Tus::new().path("/files")
         .relative_location(true)
         .max_size(MaxSize::Fixed(10 * 1024 * 1024));

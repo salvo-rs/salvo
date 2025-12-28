@@ -1,6 +1,6 @@
 mod disk;
 
-use std::{collections::{HashMap, HashSet}, pin::Pin};
+use std::{collections::HashSet, pin::Pin};
 
 use bytes::Bytes;
 pub use disk::*;
@@ -8,7 +8,7 @@ pub use disk::*;
 use futures_core::Stream;
 use salvo_core::async_trait;
 
-use crate::error::TusResult;
+use crate::{error::TusResult, handlers::Metadata};
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
@@ -23,18 +23,18 @@ pub struct StoreInfo {
 pub struct UploadInfo {
     pub id: String,
     pub size: Option<u64>,
-    pub offset: u64,
-    pub metadata: Option<HashMap<String, String>>,
+    pub offset: Option<u64>,
+    pub metadata: Option<Metadata>,
     pub storage: Option<StoreInfo>,
     pub creation_date: String,
 }
 
 impl UploadInfo {
-    pub fn new(id: String, offset: u64) -> Self {
+    pub fn new(id: String) -> Self {
         Self {
             id,
             size: None,
-            offset,
+            offset: None,
             metadata: None,
             storage: None,
             creation_date: chrono::Utc::now().to_rfc3339(),

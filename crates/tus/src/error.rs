@@ -44,6 +44,9 @@ pub enum TusError {
     #[error("failed to generate upload id")]
     GenerateIdError,
 
+    #[error("failed to generate upload url, check your generate url function")]
+    GenerateUploadURLError,
+
     #[error("internal: {0}")]
     Internal(String),
 }
@@ -65,6 +68,7 @@ impl TusError {
             TusError::OffsetMismatch { .. } => StatusCode::CONFLICT, // 409
             TusError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE, // 413
             TusError::GenerateIdError => StatusCode::INTERNAL_SERVER_ERROR, // 500
+            TusError::GenerateUploadURLError => StatusCode::INTERNAL_SERVER_ERROR, //500
             TusError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

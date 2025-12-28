@@ -3,7 +3,9 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use salvo_core::Request;
 
-use crate::{error::TusError, lockers::{Locker, memory_locker}};
+use crate::{
+    CancellationContext, error::{TusError, TusResult}, handlers::GenerateUrlCtx, lockers::{LockGuard, Locker, memory_locker}
+};
 
 pub type UploadId = Option<String>;
 
@@ -51,9 +53,10 @@ pub struct TusOptions {
     /// Disallow termination for finished uploads
     pub disable_termination_for_finished_uploads: bool,
 
-    pub naming_function: Arc<dyn Fn(&Request, crate::Metadata) -> Result<String, TusError> + Send + Sync>,
+    /// Function to generate upload IDs
+    pub upload_id_naming_function: Arc<dyn Fn(&Request, crate::Metadata) -> Result<String, TusError> + Send + Sync>,
 
-    pub on_incoming_request: Option<Arc<dyn Fn(&Request, &str, &crate::Metadata) -> BoxFuture<'static, Result<(), TusError>> + Send + Sync>>,
+    pub generate_url_function: Option<Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>>,
 }
 
 impl TusOptions {
@@ -65,6 +68,19 @@ impl TusOptions {
                 fut.await
             }
             None => 0,
+        }
+    }
+
+    pub async fn acquire_lock(
+        &self,
+        _req: &Request,
+        upload_id: &str,
+        context: CancellationContext,
+    ) -> TusResult<LockGuard> {
+        let mut signal = context.signal.clone();
+        tokio::select! {
+            lock = self.locker.lock(upload_id) => lock,
+            reason = signal.cancelled() => Err(TusError::Internal(format!("request {reason:?}"))),
         }
     }
 }
@@ -84,12 +100,15 @@ impl Default for TusOptions {
             locker: Arc::new(memory_locker::MemoryLocker::new()),
             lock_drain_timeout: Some(3000),
             disable_termination_for_finished_uploads: false,
-            naming_function: Arc::new(|_req, _metadata| -> Result<String, TusError> {
-                // Default to UUID v4
-                use uuid::Uuid;
-                Ok(Uuid::new_v4().to_string())
+            // Default use uuid.
+            upload_id_naming_function: Arc::new(|_req, _metadata| {
+                    use uuid::Uuid;
+                    Ok(Uuid::new_v4().to_string())
             }),
-            on_incoming_request: None,
+            generate_url_function: None,
+            // on_incoming_request: None,
+            // on_upload_create: None,
+            // on_upload_finish: None,
         }
     }
 }
