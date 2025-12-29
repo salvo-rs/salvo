@@ -136,12 +136,12 @@ impl Tus {
         self
     }
 
-    pub fn store(mut self, store: impl DataStore) -> Self {
+    pub fn with_store(mut self, store: impl DataStore) -> Self {
         self.store = Arc::new(store);
         self
     }
 
-    pub fn locker(mut self, locker: impl Locker) -> Self {
+    pub fn with_locker(mut self, locker: impl Locker) -> Self {
         self.options.locker = Arc::new(locker);
         self
     }
@@ -171,7 +171,9 @@ impl Tus {
         let router = Router::with_path(base_path)
             .hoop(TusStateHoop { state: state.clone() })
             .push(handlers::options_handler())
-            .push(handlers::post_handler());
+            .push(handlers::post_handler())
+            .push(handlers::head_handler())
+            .push(handlers::patch_handler());
 
         router
     }

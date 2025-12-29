@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use futures_core::future::BoxFuture;
+use regex::Regex;
 use salvo_core::Request;
 
 use crate::{
@@ -8,6 +9,14 @@ use crate::{
 };
 
 pub type UploadId = Option<String>;
+
+static RE_FILE_ID: OnceLock<Regex> = OnceLock::new();
+pub fn get_file_id_regex() -> &'static Regex {
+    RE_FILE_ID.get_or_init(|| {
+        Regex::new(r"([^/]+)/?$").expect("Invalid regex pattern")
+    })
+}
+
 
 #[derive(Clone)]
 pub enum MaxSize {
@@ -56,7 +65,13 @@ pub struct TusOptions {
     /// Function to generate upload IDs
     pub upload_id_naming_function: Arc<dyn Fn(&Request, crate::Metadata) -> Result<String, TusError> + Send + Sync>,
 
+    /// Function to generate file uel
     pub generate_url_function: Option<Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>>,
+
+    // get_file_id_from_request: None
+    // on_incoming_request: None,
+    // on_upload_create: None,
+    // on_upload_finish: None,
 }
 
 impl TusOptions {
@@ -83,6 +98,18 @@ impl TusOptions {
             reason = signal.cancelled() => Err(TusError::Internal(format!("request {reason:?}"))),
         }
     }
+
+    pub fn get_file_id_from_request(&self, req: &Request) -> TusResult<String> {
+        let path = req.uri().path();
+        let re = get_file_id_regex();
+
+        re.captures(path)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str().to_string())
+            .ok_or_else(|| {
+                TusError::FileIdError
+            })
+    }
 }
 
 impl Default for TusOptions {
@@ -106,9 +133,6 @@ impl Default for TusOptions {
                     Ok(Uuid::new_v4().to_string())
             }),
             generate_url_function: None,
-            // on_incoming_request: None,
-            // on_upload_create: None,
-            // on_upload_finish: None,
         }
     }
 }

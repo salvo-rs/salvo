@@ -47,6 +47,9 @@ pub enum TusError {
     #[error("failed to generate upload url, check your generate url function")]
     GenerateUploadURLError,
 
+    #[error("failed to get file id")]
+    FileIdError,
+
     #[error("internal: {0}")]
     Internal(String),
 }
@@ -62,8 +65,9 @@ impl TusError {
             TusError::Protocol(ProtocolError::InvalidLength) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::InvalidMetadata) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, // 413
-
             TusError::Protocol(_) => StatusCode::BAD_REQUEST, // 400
+
+            TusError::FileIdError => StatusCode::BAD_REQUEST, // 400
             TusError::NotFound => StatusCode::NOT_FOUND,
             TusError::OffsetMismatch { .. } => StatusCode::CONFLICT, // 409
             TusError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE, // 413

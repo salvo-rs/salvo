@@ -5,7 +5,7 @@ use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, 
 use crate::{
     Tus,
     error::{ProtocolError, TusError},
-    handlers::Metadata,
+    handlers::{Metadata, apply_common_headers},
     stores::{Extension, UploadInfo}
 };
 
@@ -17,6 +17,8 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
+
+    apply_common_headers(res);
 
     let upload_length = req.headers().get("upload-length");
     let upload_defer_length = req.headers().get("upload-defer-length");
@@ -92,7 +94,6 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     if res.status_code == Some(StatusCode::CREATED) || res.status_code.unwrap().is_redirection() {
         res.headers.insert("Location", HeaderValue::from_str(&url).unwrap());
     }
-    res.headers.insert("Tus-Resumable", HeaderValue::from_str("1.0.0").unwrap());
 
 }
 
