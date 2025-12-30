@@ -102,7 +102,7 @@ quote = "1"
 rand = "0.9"
 rcgen = "0.14"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "http2", "macos-system-configuration"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-tls", "charset", "http2", "macos-system-configuration"] }
 ring = "0.17"
 rust_decimal = "1"
 rustls = "0.23"
