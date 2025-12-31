@@ -71,6 +71,8 @@ jobs:
             path: crates/craft-macros
           - crate: salvo-craft
             path: crates/craft
+          - crate: salvo-acme
+            path: crates/acme
           - crate: salvo
             path: crates/salvo
     steps:

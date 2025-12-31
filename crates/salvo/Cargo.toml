@@ -134,7 +134,7 @@ tls12 = ["salvo_core/tls12"]
 [dependencies]
 salvo_core = { workspace = true }
 salvo_extra = { workspace = true, features = ["full"], optional = true }
-salvo-acme = { workspace = true, optional = true }
+salvo-acme = { workspace = true, features = ["full"], optional = true }
 salvo-compression = { workspace = true, features = ["full"], optional = true }
 salvo-jwt-auth = { workspace = true, features = ["full"], optional = true }
 salvo-cache = { workspace = true, features = ["full"], optional = true }

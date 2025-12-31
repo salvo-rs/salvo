@@ -1,5 +1,11 @@
 use std::io::{Error as IoError, Result as IoResult};
 
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+use aws_lc_rs::{
+    rand::SystemRandom,
+    signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair as _, Signature},
+};
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use ring::{
     rand::SystemRandom,
     signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair as _, Signature},
@@ -10,13 +16,18 @@ pub(crate) struct KeyPair(EcdsaKeyPair);
 impl KeyPair {
     #[inline]
     pub(crate) fn from_pkcs8(pkcs8: impl AsRef<[u8]>) -> IoResult<Self> {
-        EcdsaKeyPair::from_pkcs8(
+        #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+        return EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref())
+            .map(KeyPair)
+            .map_err(|_| IoError::other("failed to load key pair"));
+        #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+        return EcdsaKeyPair::from_pkcs8(
             &ECDSA_P256_SHA256_FIXED_SIGNING,
             pkcs8.as_ref(),
             &SystemRandom::new(),
         )
         .map(KeyPair)
-        .map_err(|_| IoError::other("failed to load key pair"))
+        .map_err(|_| IoError::other("failed to load key pair"));
     }
 
     #[inline]

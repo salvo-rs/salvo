@@ -86,6 +86,8 @@ cfg_feature! {
     #![feature = "quinn"]
     pub use listener::AcmeQuinnListener;
 }
+#[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
 
 /// Letsencrypt production directory url
 pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";

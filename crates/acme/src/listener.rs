@@ -6,6 +6,9 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_ecdsa_type;
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
@@ -27,7 +30,7 @@ use super::{AcmeCache, AcmeClient, ChallengeType, Http01Handler, WELL_KNOWN_PATH
 cfg_feature! {
     #![feature = "quinn"]
     use salvo_core::conn::quinn::QuinnAcceptor;
-    use salvo_core::conn::joined::JoinedAcceptor;
+    use salvo_core::conn::JoinedAcceptor;
     use salvo_core::conn::quinn::QuinnListener;
     use futures_util::stream::BoxStream;
 }
@@ -304,7 +307,7 @@ cfg_feature! {
         <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         A: std::net::ToSocketAddrs + Send + 'static,
     {
-        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
+        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, salvo_core::conn::quinn::ServerConfig>, salvo_core::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
         async fn try_bind(self) -> CoreResult<Self::Acceptor>{
             let Self { acme, local_addr } = self;
@@ -312,8 +315,8 @@ cfg_feature! {
 
             let mut crypto = a.server_config.as_ref().clone();
             crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
-            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(crate::Error::other)?;
-            let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(salvo_core::Error::other)?;
+            let config = salvo_core::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
             Ok(JoinedAcceptor::new(a, b))
         }
