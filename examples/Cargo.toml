@@ -1,7 +1,6 @@
 [workspace]
 members = ["*"]
 exclude = ["todos-utoipa", "target", "temp"]
-resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
