@@ -1,10 +1,7 @@
 [package]
 name = "salvo_core"
 version = { workspace = true }
-authors = [
-    "chrislearn <chris@acroidea.com>",
-    "driftluo <driftluo@foxmail.com>",
-]
+authors = ["chrislearn <chris@acroidea.com>", "driftluo <driftluo@foxmail.com>"]
 edition = { workspace = true }
 rust-version = { workspace = true }
 description = { workspace = true }
@@ -57,7 +54,7 @@ http1 = []
 http2 = ["hyper/http2"]
 http2-cleartext = ["http2"]
 quinn = ["dep:salvo-http3", "dep:quinn", "dep:h3-datagram", "rustls"]
-rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "ring"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
@@ -70,29 +67,10 @@ test = [
     "dep:url",
     "tokio/macros",
 ]
-acme = [
-    "http1",
-    "http2",
-    "hyper-util/http1",
-    "hyper-util/http2",
-    "hyper-util/client-legacy",
-    "dep:hyper-rustls",
-    "dep:rcgen",
-    "dep:ring",
-    "ring",
-    "dep:x509-parser",
-    "dep:tokio-rustls",
-    "dep:rustls-pemfile",
-]
 socket2 = ["dep:socket2"]
-aws-lc-rs = [
-    "dep:aws-lc-rs",
-    "hyper-rustls?/aws-lc-rs",
-    "tokio-rustls?/aws-lc-rs",
-]
-ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
+aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
 matched-path = []
-tls12 = ["hyper-rustls?/tls12", "tokio-rustls?/tls12"]
+tls12 = ["tokio-rustls?/tls12"]
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
@@ -130,21 +108,13 @@ pin-project = { workspace = true }
 parking_lot = { workspace = true }
 quinn = { workspace = true, optional = true, features = [
     "runtime-tokio",
-    "ring",
     "rustls",
 ] }
 rand = { workspace = true }
-rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
-ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
-hyper-rustls = { workspace = true, optional = true, features = [
-    "native-tokio",
-    "http1",
-    "logging",
-] }
 hyper-util = { workspace = true, features = ["tokio"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
@@ -167,7 +137,6 @@ tokio-rustls = { workspace = true, optional = true, features = ["logging"] }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
 url = { workspace = true, optional = true }
-x509-parser = { workspace = true, optional = true }
 
 brotli = { workspace = true, optional = true, features = ["default"] }
 flate2 = { workspace = true, optional = true, features = ["default"] }

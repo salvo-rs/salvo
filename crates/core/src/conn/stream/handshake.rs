@@ -31,7 +31,8 @@ where
 }
 
 impl<S> HandshakeStream<S> {
-    pub(crate) fn new<F>(handshake: F, fusewire: Option<ArcFusewire>) -> Self
+    #[doc(hidden)]
+    pub fn new<F>(handshake: F, fusewire: Option<ArcFusewire>) -> Self
     where
         F: Future<Output = Result<S>> + Send + 'static,
     {

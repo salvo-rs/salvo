@@ -89,12 +89,12 @@ server-handle = ["salvo_core/server-handle"]
 http1 = ["salvo_core/http1"]
 http2 = ["salvo_core/http2"]
 http2-cleartext = ["salvo_core/http2-cleartext"]
-quinn = ["salvo_core/quinn"]
+quinn = ["salvo_core/quinn", "salvo-acme?/quinn"]
 rustls = ["salvo_core/rustls"]
 native-tls = ["salvo_core/native-tls"]
 openssl = ["salvo_core/openssl"]
 unix = ["salvo_core/unix"]
-acme = ["salvo_core/acme"]
+acme = ["salvo-acme"]
 socket2 = ["salvo_core/socket2"]
 anyhow = ["salvo_core/anyhow", "salvo-oapi?/anyhow"]
 eyre = ["salvo_core/eyre", "salvo-oapi?/eyre"]
@@ -127,13 +127,14 @@ serve-static = ["dep:salvo-serve-static"]
 otel = ["dep:salvo-otel"]
 oapi = ["dep:salvo-oapi"]
 aws-lc-rs = ["salvo_core/aws-lc-rs", "salvo-proxy?/aws-lc-rs"]
-ring = ["salvo_core/ring", "salvo-proxy?/ring"]
+ring = ["salvo-acme?/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path"]
 tls12 = ["salvo_core/tls12"]
 
 [dependencies]
 salvo_core = { workspace = true }
 salvo_extra = { workspace = true, features = ["full"], optional = true }
+salvo-acme = { workspace = true, optional = true }
 salvo-compression = { workspace = true, features = ["full"], optional = true }
 salvo-jwt-auth = { workspace = true, features = ["full"], optional = true }
 salvo-cache = { workspace = true, features = ["full"], optional = true }

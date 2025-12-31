@@ -1,0 +1,62 @@
+[package]
+name = "salvo-acme"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = """
+Acme for Salvo web server framework.
+"""
+homepage = { workspace = true }
+repository = { workspace = true }
+readme = "./README.md"
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["ring"]
+full = ["dep:aws-lc-rs"]
+aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls/aws-lc-rs", "hyper-rustls/aws-lc-rs"]
+ring = ["dep:ring", "tokio-rustls/ring", "hyper-rustls/ring"]
+quinn = ["dep:futures-util"]
+
+[dependencies]
+aws-lc-rs = { workspace = true, optional = true}
+base64 = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true, features = ["io"], optional = true }
+hyper = { workspace = true, features = ["server", "http1", "http2"] }
+hyper-rustls = { workspace = true, features = [
+    "native-tokio",
+    "http1",
+    "rustls-native-certs",
+    "tls12",
+    "logging",
+] }
+rcgen = { workspace = true }
+ring = { workspace = true, optional = true }
+salvo_core = { workspace = true, features = ["http1", "http2"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+http = { workspace = true }
+http-body-util = { workspace = true }
+hyper-util = { workspace = true, features = ["http1", "http2", "client-legacy", "tokio"] }
+parking_lot = { workspace = true }
+rustls-pemfile = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true, features = ["logging"] }
+tracing = { workspace = true }
+x509-parser = { workspace = true }
+
+[dev-dependencies]
+salvo_core = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+time = { workspace = true }
+
+[lints]
+workspace = true

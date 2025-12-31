@@ -7,13 +7,11 @@ use hyper::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{Client, connect::HttpConnector};
 use hyper_util::rt::TokioExecutor;
+use salvo_core::{Error as CoreError, Result as CoreResult};
 use serde::{Deserialize, Serialize};
 
-use super::{Challenge, Problem};
-use super::{ChallengeType, jose, key_pair::KeyPair};
-use super::{Directory, Identifier};
-
-use crate::Error;
+use super::key_pair::KeyPair;
+use super::{Challenge, ChallengeType, Directory, Identifier, Problem, jose};
 
 pub(super) type HyperClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>;
 
@@ -36,11 +34,11 @@ pub(crate) struct FetchAuthorizationResponse {
 }
 
 impl FetchAuthorizationResponse {
-    pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> crate::Result<&Challenge> {
+    pub(crate) fn find_challenge(&self, ctype: ChallengeType) -> CoreResult<&Challenge> {
         self.challenges
             .iter()
             .find(|c| c.kind == ctype.to_string())
-            .ok_or_else(|| Error::other(format!("unable to find `{ctype}` challenge")))
+            .ok_or_else(|| CoreError::other(format!("unable to find `{ctype}` challenge")))
     }
 }
 
@@ -57,7 +55,7 @@ impl AcmeClient {
         directory_url: &str,
         key_pair: Arc<KeyPair>,
         contacts: Vec<String>,
-    ) -> crate::Result<Self> {
+    ) -> CoreResult<Self> {
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
             .expect("no native root CA certificates found")
@@ -75,10 +73,7 @@ impl AcmeClient {
         })
     }
 
-    pub(crate) async fn new_order(
-        &mut self,
-        domains: &[String],
-    ) -> crate::Result<NewOrderResponse> {
+    pub(crate) async fn new_order(&mut self, domains: &[String]) -> CoreResult<NewOrderResponse> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct NewOrderRequest {
@@ -127,7 +122,7 @@ impl AcmeClient {
     pub(crate) async fn fetch_authorization(
         &self,
         auth_url: &str,
-    ) -> crate::Result<FetchAuthorizationResponse> {
+    ) -> CoreResult<FetchAuthorizationResponse> {
         tracing::debug!(auth_url, "fetch authorization");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
@@ -155,7 +150,7 @@ impl AcmeClient {
         domain: &str,
         challenge_type: ChallengeType,
         url: &str,
-    ) -> crate::Result<()> {
+    ) -> CoreResult<()> {
         tracing::debug!(
             auth_uri = %url,
             domain = domain,
@@ -177,7 +172,7 @@ impl AcmeClient {
         Ok(())
     }
 
-    pub(crate) async fn send_csr(&self, url: &str, csr: &[u8]) -> crate::Result<NewOrderResponse> {
+    pub(crate) async fn send_csr(&self, url: &str, csr: &[u8]) -> CoreResult<NewOrderResponse> {
         tracing::debug!(url, "send certificate request");
 
         #[derive(Debug, Serialize)]
@@ -200,7 +195,7 @@ impl AcmeClient {
         .await
     }
 
-    pub(crate) async fn obtain_certificate(&self, url: &str) -> crate::Result<Bytes> {
+    pub(crate) async fn obtain_certificate(&self, url: &str) -> CoreResult<Bytes> {
         tracing::debug!(url, "send certificate request");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
@@ -217,18 +212,18 @@ impl AcmeClient {
     }
 }
 
-async fn get_directory(client: &HyperClient, directory_url: &str) -> crate::Result<Directory> {
+async fn get_directory(client: &HyperClient, directory_url: &str) -> CoreResult<Directory> {
     tracing::debug!("loading directory");
     let directory_url = directory_url
         .parse::<Uri>()
-        .map_err(|e| Error::other(format!("failed to parse directory dir: {e}")))?;
+        .map_err(|e| CoreError::other(format!("failed to parse directory dir: {e}")))?;
     let res = client
         .get(directory_url)
         .await
-        .map_err(|e| Error::other(format!("failed to load directory: {e}")))?;
+        .map_err(|e| CoreError::other(format!("failed to load directory: {e}")))?;
 
     if !res.status().is_success() {
-        return Err(Error::other(format!(
+        return Err(CoreError::other(format!(
             "failed to load directory: status = {}",
             res.status()
         )));
@@ -238,10 +233,10 @@ async fn get_directory(client: &HyperClient, directory_url: &str) -> crate::Resu
         .into_body()
         .collect()
         .await
-        .map_err(|e| Error::other(format!("failed to load body: {e}")))?
+        .map_err(|e| CoreError::other(format!("failed to load body: {e}")))?
         .to_bytes();
     let directory = serde_json::from_slice::<Directory>(&data)
-        .map_err(|e| Error::other(format!("failed to load directory: {e}")))?;
+        .map_err(|e| CoreError::other(format!("failed to load directory: {e}")))?;
 
     tracing::debug!(
         new_nonce = ?directory.new_nonce,
@@ -252,16 +247,16 @@ async fn get_directory(client: &HyperClient, directory_url: &str) -> crate::Resu
     Ok(directory)
 }
 
-async fn get_nonce(client: &HyperClient, nonce_url: &str) -> crate::Result<String> {
+async fn get_nonce(client: &HyperClient, nonce_url: &str) -> CoreResult<String> {
     tracing::debug!("creating nonce");
 
     let res = client
         .get(nonce_url.parse::<Uri>()?)
         .await
-        .map_err(|e| Error::other(format!("failed to get nonce: {e}")))?;
+        .map_err(|e| CoreError::other(format!("failed to get nonce: {e}")))?;
 
     if !res.status().is_success() {
-        return Err(Error::other(format!(
+        return Err(CoreError::other(format!(
             "failed to load directory: status = {}",
             res.status()
         )));
@@ -283,7 +278,7 @@ async fn create_acme_account(
     directory: &Directory,
     key_pair: &KeyPair,
     contacts: Vec<String>,
-) -> crate::Result<String> {
+) -> CoreResult<String> {
     tracing::debug!("creating acme account");
 
     #[derive(Serialize)]
@@ -311,10 +306,10 @@ async fn create_acme_account(
     let kid = res
         .headers()
         .get("location")
-        .ok_or_else(|| Error::other("unable to get account id"))?
+        .ok_or_else(|| CoreError::other("unable to get account id"))?
         .to_str()
         .map(|s| s.to_owned())
-        .map_err(|_| Error::other("unable to get account id"));
+        .map_err(|_| CoreError::other("unable to get account id"));
 
     tracing::debug!(?kid, "account created");
     kid

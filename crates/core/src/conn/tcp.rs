@@ -30,9 +30,6 @@ use crate::conn::native_tls::NativeTlsListener;
 #[cfg(feature = "openssl")]
 use crate::conn::openssl::OpensslListener;
 
-#[cfg(feature = "acme")]
-use crate::conn::acme::AcmeListener;
-
 /// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {
     local_addr: T,
@@ -112,16 +109,6 @@ impl<T: ToSocketAddrs + Send + 'static> TcpListener<T> {
             E: std::error::Error + Send + 'static
         {
             OpensslListener::new(config_stream, self)
-        }
-    }
-    cfg_feature! {
-        #![feature = "acme"]
-
-        /// Creates a new `AcmeListener` from current `TcpListener`.
-        #[inline]
-        pub fn acme(self) -> AcmeListener<Self>
-        {
-            AcmeListener::new(self)
         }
     }
 

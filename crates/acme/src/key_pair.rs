@@ -2,7 +2,7 @@ use std::io::{Error as IoError, Result as IoResult};
 
 use ring::{
     rand::SystemRandom,
-    signature::{EcdsaKeyPair, KeyPair as _, Signature, ECDSA_P256_SHA256_FIXED_SIGNING},
+    signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair as _, Signature},
 };
 
 pub(crate) struct KeyPair(EcdsaKeyPair);
@@ -10,9 +10,13 @@ pub(crate) struct KeyPair(EcdsaKeyPair);
 impl KeyPair {
     #[inline]
     pub(crate) fn from_pkcs8(pkcs8: impl AsRef<[u8]>) -> IoResult<Self> {
-        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(), &SystemRandom::new())
-            .map(KeyPair)
-            .map_err(|_| IoError::other("failed to load key pair"))
+        EcdsaKeyPair::from_pkcs8(
+            &ECDSA_P256_SHA256_FIXED_SIGNING,
+            pkcs8.as_ref(),
+            &SystemRandom::new(),
+        )
+        .map(KeyPair)
+        .map_err(|_| IoError::other("failed to load key pair"))
     }
 
     #[inline]

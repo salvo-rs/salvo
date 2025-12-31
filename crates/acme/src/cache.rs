@@ -4,15 +4,14 @@
 //!
 //! **Note**: The files contain private keys.
 
-
 use std::error::Error as StdError;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::engine::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::digest::{Context, SHA256};
-use tokio::fs::{create_dir_all, read, OpenOptions};
+use tokio::fs::{OpenOptions, create_dir_all, read};
 use tokio::io::AsyncWriteExt;
 
 /// An error that can be returned from an [`AcmeCache`].
@@ -107,7 +106,11 @@ where
 {
     type Error = IoError;
 
-    async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
+    async fn read_key(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+    ) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
             "{}{}-{}",
@@ -123,7 +126,12 @@ where
             },
         }
     }
-    async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
+    async fn write_key(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+        data: &[u8],
+    ) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
@@ -135,7 +143,11 @@ where
         write_data(path, data).await
     }
 
-    async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
+    async fn read_cert(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+    ) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
             "{}{}-{}",
@@ -151,7 +163,12 @@ where
             },
         }
     }
-    async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
+    async fn write_cert(
+        &self,
+        directory_name: &str,
+        domains: &[String],
+        data: &[u8],
+    ) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
@@ -163,7 +180,10 @@ where
         write_data(path, data).await
     }
 }
-async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> IoResult<()> {
+async fn write_data(
+    file_path: impl AsRef<Path> + Send,
+    data: impl AsRef<[u8]> + Send,
+) -> IoResult<()> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
     #[cfg(unix)]

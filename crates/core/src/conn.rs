@@ -24,11 +24,6 @@ mod stream;
 pub use stream::*;
 
 cfg_feature! {
-    #![feature = "acme"]
-    pub mod acme;
-    pub use acme::AcmeListener;
-}
-cfg_feature! {
     #![feature = "native-tls"]
     pub mod native_tls;
     pub use self::native_tls::NativeTlsListener;
@@ -88,7 +83,6 @@ pub trait IntoConfigStream<C> {
 ///
 /// The `Accepted` struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
-#[non_exhaustive]
 pub struct Accepted<C, S>
 where
     C: Coupler<Stream = S>,
@@ -184,7 +178,6 @@ pub trait Acceptor: Send {
 
 /// Holding information.
 #[derive(Clone, Debug)]
-#[non_exhaustive]
 pub struct Holding {
     /// Local address.
     pub local_addr: SocketAddr,

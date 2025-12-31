@@ -1,15 +1,14 @@
 use std::io::{Error as IoError, Result as IoResult};
 
-use super::client::HyperClient;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http_body_util::{BodyExt, Full};
 use hyper::{Method, body::Incoming as HyperBody};
-
+use salvo_core::{Error as CoreError, Result as CoreResult};
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::Error;
-use crate::conn::acme::key_pair::KeyPair;
+use super::client::HyperClient;
+use crate::key_pair::KeyPair;
 
 #[derive(Serialize)]
 struct Protected<'a> {
@@ -90,20 +89,23 @@ impl Jwk {
 
 #[inline]
 fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
-    if cfg!(feature = "aws-lc-rs") {
-        aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
+    #[cfg(feature = "aws-lc-rs")]
+    {
+        return aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
             .as_ref()
-            .to_vec()
-    } else if cfg!(feature = "ring") {
-        ring::digest::digest(&ring::digest::SHA256, data.as_ref())
+            .to_vec();
+    }
+
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    {
+        return ring::digest::digest(&ring::digest::SHA256, data.as_ref())
             .as_ref()
-            .to_vec()
-    } else if cfg!(feature = "openssl") {
-        openssl::sha::sha256(data.as_ref()).to_vec()
-    } else {
-        compile_error!(
-            "one of feature \"ring\", \"aws-lc-rs\", or \"openssl\" must be enabled for sha256 function"
-        )
+            .to_vec();
+    }
+
+    #[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+    {
+        compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
     }
 }
 
@@ -168,7 +170,7 @@ pub(crate) async fn request_json<T, R>(
     nonce: &str,
     url: &str,
     payload: Option<T>,
-) -> crate::Result<R>
+) -> CoreResult<R>
 where
     T: Serialize + Send,
     R: DeserializeOwned,
@@ -177,7 +179,7 @@ where
 
     let data = res.into_body().collect().await?.to_bytes();
     serde_json::from_slice(&data)
-        .map_err(|e| Error::other(format!("response is not a valid json: {e}")))
+        .map_err(|e| CoreError::other(format!("response is not a valid json: {e}")))
 }
 
 #[inline]
