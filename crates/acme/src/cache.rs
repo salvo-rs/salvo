@@ -193,32 +193,25 @@ async fn write_data(
     buffer.write_all(data).await?;
     Ok(())
 }
-
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 fn file_hash_part(data: &[String]) -> String {
-    #[cfg(feature = "aws-lc-rs")]
-    {
-        use aws_lc_rs::digest::{Context, SHA256};
-        let mut ctx = Context::new(&SHA256);
-        for el in data {
-            ctx.update(el.as_ref());
-            ctx.update(&[0])
-        }
-        return URL_SAFE_NO_PAD.encode(ctx.finish());
+    use aws_lc_rs::digest::{Context, SHA256};
+    let mut ctx = Context::new(&SHA256);
+    for el in data {
+        ctx.update(el.as_ref());
+        ctx.update(&[0])
     }
-    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-    {
-        use ring::digest::{Context, SHA256};
-        let mut ctx = Context::new(&SHA256);
-        for el in data {
-            ctx.update(el.as_ref());
-            ctx.update(&[0])
-        }
-        return URL_SAFE_NO_PAD.encode(ctx.finish());
+    URL_SAFE_NO_PAD.encode(ctx.finish())
+}
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+fn file_hash_part(data: &[String]) -> String {
+    use ring::digest::{Context, SHA256};
+    let mut ctx = Context::new(&SHA256);
+    for el in data {
+        ctx.update(el.as_ref());
+        ctx.update(&[0])
     }
-    #[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
-    {
-        compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
-    }
+    URL_SAFE_NO_PAD.encode(ctx.finish())
 }
 
 // #[cfg(test)]

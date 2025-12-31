@@ -48,6 +48,8 @@ full = [
 ]
 cookie = ["dep:cookie"]
 fix-http1-request-uri = ["http1"]
+aws-lc-rs = ["tokio-rustls?/aws-lc-rs"]
+ring = ["tokio-rustls?/ring"]
 server = []
 server-handle = []
 http1 = []
@@ -68,14 +70,12 @@ test = [
     "tokio/macros",
 ]
 socket2 = ["dep:socket2"]
-aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
 matched-path = []
 tls12 = ["tokio-rustls?/tls12"]
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true }
-aws-lc-rs = { workspace = true, optional = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chardetng = { workspace = true }
