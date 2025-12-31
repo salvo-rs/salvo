@@ -6,7 +6,6 @@ use std::task::{Context, Poll};
 use futures_util::{FutureExt, future::BoxFuture};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-
 use crate::fuse::{ArcFusewire, FuseEvent};
 
 enum State<S> {

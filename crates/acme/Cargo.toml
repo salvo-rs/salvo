@@ -23,7 +23,7 @@ default = ["aws-lc-rs"]
 full = ["aws-lc-rs", "quinn"]
 aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls/aws-lc-rs", "hyper-rustls/aws-lc-rs"]
 ring = ["dep:ring", "tokio-rustls/ring", "hyper-rustls/ring"]
-quinn = ["dep:futures-util", "dep:quinn"]
+quinn = ["salvo_core/quinn","dep:futures-util", "dep:quinn"]
 
 [dependencies]
 aws-lc-rs = { workspace = true, optional = true}

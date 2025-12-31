@@ -579,8 +579,7 @@ mod tests {
 
     #[test]
     fn test_host_header_handling() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider()
-            .install_default();
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         let uri = Uri::from_str("http://host.tld/test").unwrap();
         let mut req = Request::new();
         let depot = Depot::new();
