@@ -159,24 +159,21 @@ impl Handler for RequestId {
         let _ = req.add_header(self.header_name.clone(), &request_id, false);
 
         let span = tracing::info_span!("request", ?request_id);
-
         res.headers_mut()
             .insert(self.header_name.clone(), request_id.clone());
-
         depot.insert(REQUEST_ID_KEY, request_id);
-
 
         async move {
             ctrl.call_next(req, depot, res).await;
         }
-            .instrument(span)
-            .await;
+        .instrument(span)
+        .await;
     }
 }
 #[cfg(test)]
 mod tests {
     use salvo_core::prelude::*;
-    use salvo_core::test::{TestClient, ResponseExt};
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -186,7 +183,9 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert!(response.headers.contains_key("x-request-id"));
     }
@@ -225,7 +224,9 @@ mod tests {
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
-        let response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.headers.get("x-request-id").unwrap(), "custom-id");
     }
@@ -241,14 +242,21 @@ mod tests {
         let router = Router::new().hoop(handler).get(depot_checker);
         let service = Service::new(router);
 
-        let mut response = TestClient::get("http://127.0.0.1:8698/").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
-        let header_id = response.headers.get("x-request-id").unwrap().to_str().unwrap().to_string();
+        let header_id = response
+            .headers
+            .get("x-request-id")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         let body = response.take_string().await.unwrap();
         assert_eq!(header_id, body);
     }
 
     #[handler]
-    async fn endpoint() {
-    }
+    async fn endpoint() {}
 }
