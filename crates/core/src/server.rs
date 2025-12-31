@@ -559,15 +559,6 @@ mod tests {
 
     #[test]
     fn test_regression_209() {
-        #[cfg(feature = "acme")]
-        let _: &dyn Send = &async {
-            let acceptor = TcpListener::new("127.0.0.1:0")
-                .acme()
-                .add_domain("test.salvo.rs")
-                .bind()
-                .await;
-            Server::new(acceptor).serve(Router::new()).await;
-        };
         #[cfg(feature = "native-tls")]
         let _: &dyn Send = &async {
             use crate::conn::native_tls::NativeTlsConfig;

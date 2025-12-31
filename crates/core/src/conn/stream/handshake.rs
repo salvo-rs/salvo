@@ -6,7 +6,6 @@ use std::task::{Context, Poll};
 use futures_util::{FutureExt, future::BoxFuture};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-
 use crate::fuse::{ArcFusewire, FuseEvent};
 
 enum State<S> {
@@ -31,7 +30,8 @@ where
 }
 
 impl<S> HandshakeStream<S> {
-    pub(crate) fn new<F>(handshake: F, fusewire: Option<ArcFusewire>) -> Self
+    #[doc(hidden)]
+    pub fn new<F>(handshake: F, fusewire: Option<ArcFusewire>) -> Self
     where
         F: Future<Output = Result<S>> + Send + 'static,
     {

@@ -11,7 +11,7 @@ repository = { workspace = true }
 readme = { workspace = true }
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Chrislearn Young <chris@acroidea.com>"]
+authors = ["chrislearn <chris@acroidea.com>"]
 
 [dependencies]
 proc-macro2 = { workspace = true }

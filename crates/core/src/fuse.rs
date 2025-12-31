@@ -50,8 +50,10 @@ pub enum FuseEvent {
     GainFrame,
 }
 
-pub(crate) type ArcFuseFactory = Arc<dyn FuseFactory + Sync + Send + 'static>;
-pub(crate) type ArcFusewire = Arc<dyn Fusewire + Sync + Send + 'static>;
+#[doc(hidden)]
+pub type ArcFuseFactory = Arc<dyn FuseFactory + Sync + Send + 'static>;
+#[doc(hidden)]
+pub type ArcFusewire = Arc<dyn Fusewire + Sync + Send + 'static>;
 
 /// A fuse info.
 #[derive(Clone, Debug)]

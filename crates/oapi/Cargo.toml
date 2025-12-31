@@ -13,7 +13,7 @@ keywords = ["http", "async", "salvo", "openapi", "swagger-ui"]
 categories = ["network-programming", "asynchronous"]
 authors = [
     "Juha Kukkonen <juha7kukkonen@gmail.com>",
-    "Chrislearn Young <chris@acroidea.com>",
+    "chrislearn <chris@acroidea.com>",
 ]
 
 [features]

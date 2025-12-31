@@ -9,6 +9,7 @@
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_acme::ListenerAcmeExt;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {
@@ -35,6 +36,7 @@
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_acme::ListenerAcmeExt;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {
@@ -54,6 +56,9 @@
 //! }
 //! ```
 
+#[macro_use]
+mod cfg;
+
 pub mod cache;
 mod client;
 mod config;
@@ -71,15 +76,20 @@ use client::AcmeClient;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::http::StatusError;
-use crate::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 pub use listener::{AcmeAcceptor, AcmeListener};
+use salvo_core::conn::tcp::TcpListener;
+use salvo_core::http::StatusError;
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
+use tokio::net::ToSocketAddrs;
+
 cfg_feature! {
     #![feature = "quinn"]
     pub use listener::AcmeQuinnListener;
 }
+#[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
 
 /// Letsencrypt production directory url
 pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";
@@ -172,5 +182,20 @@ impl Handler for Http01Handler {
         } else {
             res.render(StatusError::not_found().brief("Token is not provide."));
         }
+    }
+}
+
+/// Extension trait for Listener to support ACME.
+pub trait ListenerAcmeExt<T> {
+    /// Enable ACME support for the listener.
+    fn acme(self) -> AcmeListener<T>;
+}
+
+impl<T> ListenerAcmeExt<TcpListener<T>> for TcpListener<T>
+where
+    T: ToSocketAddrs + Send + 'static,
+{
+    fn acme(self) -> AcmeListener<TcpListener<T>> {
+        AcmeListener::new(self)
     }
 }

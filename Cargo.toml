@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.86.0"
-authors = ["Chrislearn Young <chris@acroidea.com>"]
+authors = ["chrislearn <chris@acroidea.com>"]
 edition = "2024"
 rust-version = "1.89"
 description = """
@@ -16,12 +16,18 @@ documentation = "https://docs.rs/salvo/"
 readme = "./README.md"
 keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
+categories = [
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+    "asynchronous",
+]
 
 [workspace.dependencies]
 salvo_macros = { version = "0.86.0", path = "crates/macros", default-features = false }
 salvo_core = { version = "0.86.0", path = "crates/core", default-features = false }
 salvo_extra = { version = "0.86.0", path = "crates/extra", default-features = false }
+salvo-acme = { version = "0.86.0", path = "crates/acme", default-features = false }
 salvo-compression = { version = "0.86.0", path = "crates/compression", default-features = false }
 salvo-cache = { version = "0.86.0", path = "crates/cache", default-features = false }
 salvo-cors = { version = "0.86.0", path = "crates/cors", default-features = false }
@@ -102,10 +108,11 @@ quote = "1"
 rand = "0.9"
 rcgen = "0.14"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "http2", "macos-system-configuration"] }
+reqwest = { version = "0.13", default-features = true }
+aws-lc-rs = { version = "1", default-features = true }
 ring = "0.17"
 rust_decimal = "1"
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false }
 rustls-pemfile = "2"
 rust-embed = { version = ">= 6, <= 9" }
 serde = "1"

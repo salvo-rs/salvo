@@ -8,7 +8,10 @@ use std::sync::Arc;
 
 use futures_util::stream::{Once, Stream, once};
 use tokio_rustls::rustls::SupportedProtocolVersion;
-use tokio_rustls::rustls::crypto::ring::sign::any_supported_type;
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_supported_type;
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_supported_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
 use tokio_rustls::rustls::sign::CertifiedKey;

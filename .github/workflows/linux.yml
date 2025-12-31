@@ -116,4 +116,4 @@ jobs:
         run: cargo install cargo-hack
 
       - name: check --feature-powerset
-        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps --exclude-features server --exclude-no-default-features
+        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps --exclude-features server --at-least-one-of aws-lc-rs,ring --exclude-no-default-features

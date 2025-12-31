@@ -120,6 +120,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_upstreams_elect() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider()
+            .install_default();
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
         let proxy = Proxy::new(upstreams.clone(), HyperClient::default());
         let request = Request::new();
@@ -130,6 +132,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_hyper_client() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider()
+            .install_default();
         let router = Router::new().push(
             Router::with_path("rust/{**rest}")
                 .goal(Proxy::new(vec!["https://salvo.rs"], HyperClient::default())),
@@ -146,6 +150,8 @@ mod tests {
 
     #[test]
     fn test_others() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider()
+            .install_default();
         let mut handler = Proxy::new(["https://www.bing.com"], HyperClient::default());
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
