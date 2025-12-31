@@ -38,7 +38,7 @@ affix-state = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
 catch-panic = ["dep:futures-util", "dep:tracing"]
-force-https = ["dep:tracing", "salvo_core/rustls"]
+force-https = ["dep:tracing"]
 logging = ["dep:tracing"]
 concurrency-limiter = ["dep:tracing", "tokio"]
 size-limiter = []
@@ -93,7 +93,7 @@ tracing = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true, features = ["std"] }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["http1", "server", "test"] }
+salvo_core = { workspace = true, features = ["http1", "server", "test", "rustls"] }
 time = { workspace = true }
 tokio-stream = { workspace = true }
 tower = { workspace = true, features = ["limit"] }

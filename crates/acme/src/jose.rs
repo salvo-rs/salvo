@@ -87,26 +87,20 @@ impl Jwk {
     }
 }
 
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 #[inline]
 fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
-    #[cfg(feature = "aws-lc-rs")]
-    {
-        return aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
-            .as_ref()
-            .to_vec();
-    }
+    aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
+        .as_ref()
+        .to_vec()
+}
 
-    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-    {
-        return ring::digest::digest(&ring::digest::SHA256, data.as_ref())
-            .as_ref()
-            .to_vec();
-    }
-
-    #[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
-    {
-        compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
-    }
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+#[inline]
+fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
+    ring::digest::digest(&ring::digest::SHA256, data.as_ref())
+        .as_ref()
+        .to_vec()
 }
 
 #[derive(Serialize)]
