@@ -1,5 +1,5 @@
 //! `RustlsListener` and utils.
-use std::io::{Error as IoError,  Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 
 use tokio_rustls::rustls::RootCertStore;
 
@@ -32,6 +32,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_rustls_listener() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider()
+            .install_default();
         let mut acceptor = TcpListener::new("127.0.0.1:0")
             .rustls(RustlsConfig::new(
                 Keycert::new()

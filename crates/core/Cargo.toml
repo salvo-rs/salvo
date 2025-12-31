@@ -147,6 +147,7 @@ nix = { workspace = true, features = ["fs", "user"] }
 
 [dev-dependencies]
 fastrand = { workspace = true }
+rustls = { workspace = true, features = ["aws-lc-rs"] }
 
 [lints]
 workspace = true

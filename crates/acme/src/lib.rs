@@ -9,6 +9,7 @@
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_acme::ListenerAcmeExt;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {
@@ -35,6 +36,7 @@
 //!
 //! ```no_run
 //! use salvo_core::prelude::*;
+//! use salvo_acme::ListenerAcmeExt;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {

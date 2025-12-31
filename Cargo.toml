@@ -16,7 +16,12 @@ documentation = "https://docs.rs/salvo/"
 readme = "./README.md"
 keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
+categories = [
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+    "asynchronous",
+]
 
 [workspace.dependencies]
 salvo_macros = { version = "0.86.0", path = "crates/macros", default-features = false }
@@ -107,7 +112,7 @@ reqwest = { version = "0.13", default-features = true }
 aws-lc-rs = { version = "1", default-features = true }
 ring = "0.17"
 rust_decimal = "1"
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false }
 rustls-pemfile = "2"
 rust-embed = { version = ">= 6, <= 9" }
 serde = "1"
