@@ -2,7 +2,7 @@
 name = "salvo_core"
 version = { workspace = true }
 authors = [
-    "Chrislearn Young <chris@acroidea.com>",
+    "chrislearn <chris@acroidea.com>",
     "driftluo <driftluo@foxmail.com>",
 ]
 edition = { workspace = true }
@@ -28,7 +28,7 @@ default = [
     "http1",
     "http2",
     "test",
-    "ring",
+    "aws-lc-rs",
     "matched-path",
 ]
 full = [
@@ -45,7 +45,7 @@ full = [
     "unix",
     "test",
     "anyhow",
-    "ring",
+    "aws-lc-rs",
     "matched-path",
     "socket2",
 ]
@@ -85,7 +85,11 @@ acme = [
     "dep:rustls-pemfile",
 ]
 socket2 = ["dep:socket2"]
-# aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "tokio-rustls?/aws-lc-rs"]
+aws-lc-rs = [
+    "dep:aws-lc-rs",
+    "hyper-rustls?/aws-lc-rs",
+    "tokio-rustls?/aws-lc-rs",
+]
 ring = ["hyper-rustls?/ring", "tokio-rustls?/ring"]
 matched-path = []
 tls12 = ["hyper-rustls?/tls12", "tokio-rustls?/tls12"]
@@ -93,6 +97,7 @@ tls12 = ["hyper-rustls?/tls12", "tokio-rustls?/tls12"]
 [dependencies]
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true }
+aws-lc-rs = { workspace = true, optional = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chardetng = { workspace = true }

@@ -5,7 +5,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http_body_util::{BodyExt, Full};
 use hyper::{Method, body::Incoming as HyperBody};
-use ring::digest::{Digest, SHA256, digest};
+
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::Error;
@@ -89,8 +89,22 @@ impl Jwk {
 }
 
 #[inline]
-fn sha256(data: impl AsRef<[u8]>) -> Digest {
-    digest(&SHA256, data.as_ref())
+fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
+    if cfg!(feature = "aws-lc-rs") {
+        aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
+            .as_ref()
+            .to_vec()
+    } else if cfg!(feature = "ring") {
+        ring::digest::digest(&ring::digest::SHA256, data.as_ref())
+            .as_ref()
+            .to_vec()
+    } else if cfg!(feature = "openssl") {
+        openssl::sha::sha256(data.as_ref()).to_vec()
+    } else {
+        compile_error!(
+            "one of feature \"ring\", \"aws-lc-rs\", or \"openssl\" must be enabled for sha256 function"
+        )
+    }
 }
 
 #[derive(Serialize)]
@@ -173,6 +187,7 @@ pub(crate) fn key_authorization(key: &KeyPair, token: &str) -> IoResult<String> 
     Ok(key_authorization)
 }
 
+#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
 #[inline]
 pub(crate) fn key_authorization_sha256(key: &KeyPair, token: &str) -> IoResult<impl AsRef<[u8]>> {
     Ok(sha256(key_authorization(key, token)?.as_bytes()))

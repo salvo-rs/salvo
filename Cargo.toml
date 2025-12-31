@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.86.0"
-authors = ["Chrislearn Young <chris@acroidea.com>"]
+authors = ["chrislearn <chris@acroidea.com>"]
 edition = "2024"
 rust-version = "1.89"
 description = """
@@ -102,7 +102,8 @@ quote = "1"
 rand = "0.9"
 rcgen = "0.14"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "http2", "macos-system-configuration"] }
+reqwest = { version = "0.13", default-features = true }
+aws-lc-rs = { version = "1", default-features = false }
 ring = "0.17"
 rust_decimal = "1"
 rustls = "0.23"
