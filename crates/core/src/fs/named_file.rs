@@ -484,7 +484,7 @@ impl NamedFile {
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
-        if let Some(etag) = self.etag() {
+        if let Some(etag) = etag {
             res.headers_mut().typed_insert(etag);
         }
         res.headers_mut().typed_insert(AcceptRanges::bytes());
