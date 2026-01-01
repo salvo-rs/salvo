@@ -1,5 +1,6 @@
 [workspace]
 members = ["*"]
+resolver = "3"
 exclude = ["todos-utoipa", "target", "temp"]
 
 [workspace.package]

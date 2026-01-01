@@ -1,5 +1,6 @@
 [workspace]
 members = ["crates/*"]
+resolver = "3"
 
 [workspace.package]
 version = "0.87.1"
