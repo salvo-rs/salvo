@@ -3,10 +3,7 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    Tus,
-    error::{ProtocolError, TusError},
-    handlers::{Metadata, apply_common_headers},
-    stores::{Extension, UploadInfo}
+    H_UPLOAD_CONCAT, Tus, error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo}
 };
 
 /// HTTP/1.1 201 Created
@@ -19,6 +16,11 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let opts = &state.options;
 
     apply_common_headers(res);
+
+    if req.headers().get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatentation) {
+        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
+        return;
+    }
 
     let upload_length = req.headers().get("upload-length");
     let upload_defer_length = req.headers().get("upload-defer-length");
@@ -48,7 +50,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    let upload_id = match (opts.upload_id_naming_function)(req, metadata.clone()) {
+    let upload_id = match (opts.upload_id_naming_function)(req, metadata.clone()).await {
         Ok(id) => id,
         Err(err) => {
             res.status_code = Some(err.status());
@@ -56,10 +58,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-
-    println!("Generated upload ID: {}", &upload_id);
-
-    let max_file_size = opts.get_configured_max_size(req, &upload_id).await;
+    let max_file_size = opts.get_configured_max_size(req, Some(upload_id.to_string())).await;
 
     if upload_length.is_some() &&
         max_file_size > 0 &&
@@ -69,17 +68,31 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
+    if let Some(on_incoming_request) = &opts.on_incoming_request {
+        on_incoming_request(req, upload_id.clone()).await;
+    }
 
     let mut upload = UploadInfo::new(upload_id.clone());
     upload.metadata = Some(metadata);
     upload.size = upload_length.and_then(|hv| hv.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
     upload.offset = Some(0);
 
+
+    // if let Some(on_upload_create) = &opts.on_upload_create {
+    //     if let Err(e) = on_upload_create(req, &mut upload).await {
+    //         res.status_code = Some(e.status());
+    //         return;
+    //     }
+    // }
+
     res.status_code = Some(StatusCode::CREATED);
 
+    if let Err(e) = store.create(upload.clone()).await {
+        res.status_code = Some(e.status());
+        return;
+    };
 
-    let _ = store.create(upload.clone()).await;
-    let url = match state.generate_upload_url(req, &upload_id) {
+    let url = match opts.generate_upload_url(req, &upload_id) {
         Ok(url) => url,
         Err(_) => {
             res.status_code = Some(TusError::GenerateUploadURLError.status());
@@ -87,7 +100,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    println!("generate url: {}", url);
+    tracing::info!("Generated file url: {}", &url);
 
     // let is_final = upload.size == Some(0) && !upload.get_size_is_deferred();
 

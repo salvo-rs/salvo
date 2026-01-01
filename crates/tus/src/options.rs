@@ -1,11 +1,11 @@
-use std::sync::{Arc, OnceLock};
+use std::{pin::Pin, sync::{Arc, OnceLock}};
 
 use futures_core::future::BoxFuture;
 use regex::Regex;
-use salvo_core::Request;
+use salvo_core::{Request, http::{HeaderMap, header}};
 
 use crate::{
-    CancellationContext, error::{TusError, TusResult}, handlers::GenerateUrlCtx, lockers::{LockGuard, Locker, memory_locker}
+    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata}, lockers::{LockGuard, Locker, memory_locker}, stores::UploadInfo
 };
 
 pub type UploadId = Option<String>;
@@ -23,6 +23,10 @@ pub enum MaxSize {
     Fixed(u64),
     Dynamic(Arc<dyn Fn(&Request, UploadId) -> BoxFuture<'static, u64> + Send + Sync>),
 }
+
+pub type NamingFunction = Arc<dyn Fn(&Request, Metadata)-> Pin<Box<dyn Future<Output = Result<String, TusError>> + Send>> + Send + Sync>;
+pub type GenerateUrlFunction = Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>;
+pub type OnIncomingRequest = Arc<dyn Fn(&Request, String) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 #[derive(Clone)]
 pub struct TusOptions {
@@ -63,29 +67,21 @@ pub struct TusOptions {
     pub disable_termination_for_finished_uploads: bool,
 
     /// Function to generate upload IDs
-    pub upload_id_naming_function: Arc<dyn Fn(&Request, crate::Metadata) -> Result<String, TusError> + Send + Sync>,
+    pub upload_id_naming_function: NamingFunction,
 
     /// Function to generate file uel
-    pub generate_url_function: Option<Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>>,
+    pub generate_url_function: Option<GenerateUrlFunction>,
+
+    pub on_incoming_request: Option<OnIncomingRequest>,
+
+    // pub on_upload_create: Option<OnUploadCreate>,
 
     // get_file_id_from_request: None
-    // on_incoming_request: None,
     // on_upload_create: None,
     // on_upload_finish: None,
 }
 
 impl TusOptions {
-    pub async fn get_configured_max_size(&self, req: &Request, upload_id: &str) -> u64 {
-        match &self.max_size {
-            Some(MaxSize::Fixed(size)) => *size,
-            Some(MaxSize::Dynamic(func)) => {
-                let fut = func(req, Some(upload_id.to_string()));
-                fut.await
-            }
-            None => 0,
-        }
-    }
-
     pub async fn acquire_lock(
         &self,
         _req: &Request,
@@ -110,13 +106,120 @@ impl TusOptions {
                 TusError::FileIdError
             })
     }
+
+    pub async fn get_configured_max_size(&self, req: &Request, upload_id: Option<String>) -> u64 {
+        match &self.max_size {
+            Some(MaxSize::Fixed(size)) => *size,
+            Some(MaxSize::Dynamic(func)) => {
+                let fut = func(req, upload_id);
+                fut.await
+            }
+            None => 0,
+        }
+    }
+
+    pub fn generate_upload_url(&self, req: &mut Request, upload_id: &str) -> Result<String, TusError> {
+        let path = if self.path == "/" {
+            ""
+        } else {
+            self.path.as_str()
+        };
+
+         let HostProto { proto, host } =
+                Self::extract_host_and_proto(req.headers(), self.respect_forwarded_headers);
+
+        if let Some(callback) = &self.generate_url_function {
+            match callback(&req, GenerateUrlCtx {
+                proto,
+                host,
+                path,
+                id: upload_id,
+            }) {
+                Ok(url) => return Ok(url),
+                Err(e) => return Err(e),
+            };
+        }
+
+
+        // Default implementation
+        if self.relative_location {
+            // NOTE: TS version returns `${path}/${id}` — even if path = "" it yields "/id"
+            // This matches that behavior.
+            return Ok(format!("{}/{}", path, upload_id));
+        }
+
+        Ok(format!("{}://{}{}{}", proto, host, path, format!("/{}", upload_id)))
+    }
+
+    /// Rust version of BaseHandler.extractHostAndProto(...)
+    fn extract_host_and_proto<'a>(
+        headers: &'a HeaderMap,
+        respect_forwarded_headers: bool,
+    ) -> HostProto<'a> {
+        // defaults
+        let mut proto: &'a str = "http";
+        let mut host: &'a str = "localhost";
+
+        // 1) determine host
+        if respect_forwarded_headers {
+            // Prefer Forwarded: proto=...;host=...
+            if let Some(v) = headers.get("forwarded").and_then(|v| v.to_str().ok()) {
+                if let Some(h) = parse_forwarded_param(v, "host") {
+                    host = h;
+                }
+                if let Some(p) = parse_forwarded_param(v, "proto") {
+                    proto = p;
+                }
+            }
+
+            // Fallback: X-Forwarded-Host
+            if host == "localhost" {
+                if let Some(v) = headers
+                    .get("x-forwarded-host")
+                    .and_then(|v| v.to_str().ok())
+                {
+                    // x-forwarded-host may contain comma-separated list; use the first one
+                    host = v.split(',').next().unwrap_or(v).trim();
+                }
+            }
+
+            // 2) determine proto (X-Forwarded-Proto)
+            if proto == "http" {
+                if let Some(v) = headers
+                    .get("x-forwarded-proto")
+                    .and_then(|v| v.to_str().ok())
+                {
+                    proto = v.split(',').next().unwrap_or(v).trim();
+                }
+            }
+        }
+
+        // If we still haven't got a host, use Host header
+        if host == "localhost" {
+            if let Some(v) = headers.get(header::HOST).and_then(|v| v.to_str().ok()) {
+                host = v.trim();
+            }
+        }
+
+        // If we still haven't got proto, infer from scheme-ish headers
+        // (optional fallback)
+        if proto == "http" {
+            if let Some(v) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok()) {
+                if v.eq_ignore_ascii_case("on") {
+                    proto = "https";
+                }
+            }
+        }
+
+        HostProto { proto, host }
+    }
 }
 
 impl Default for TusOptions {
     fn default() -> Self {
         TusOptions {
             path: "/tus-files".to_string(),
-            max_size: None,
+            max_size: Some(MaxSize::Fixed(2 * 1024 * 1024 * 1024)), // Default max size 2GiB
             relative_location: true,
             respect_forwarded_headers: false,
             allowed_headers: vec![],
@@ -124,15 +227,39 @@ impl Default for TusOptions {
             allowed_credentials: false,
             allowed_origins: vec![],
             post_receive_interval: Some(1000),
-            locker: Arc::new(memory_locker::MemoryLocker::new()),
+            locker: Arc::new(memory_locker::MemoryLocker::new()), // Default use memory locker.
             lock_drain_timeout: Some(3000),
             disable_termination_for_finished_uploads: false,
-            // Default use uuid.
             upload_id_naming_function: Arc::new(|_req, _metadata| {
-                    use uuid::Uuid;
-                    Ok(Uuid::new_v4().to_string())
-            }),
+                Box::pin(async move {
+                    Ok(uuid::Uuid::new_v4().to_string())
+                })
+            }), // Default use uuid.
             generate_url_function: None,
+            on_incoming_request: None,
         }
     }
+}
+
+
+/// Parse a param in "Forwarded" header.
+/// Example:
+/// Forwarded: for=192.0.2.43; proto=https; host=example.com
+fn parse_forwarded_param<'a>(forwarded: &'a str, key: &str) -> Option<&'a str> {
+    // Forwarded header can contain multiple entries separated by comma:
+    // Forwarded: for=...;proto=https;host=a, for=...;proto=http;host=b
+    // We choose the first entry for simplicity, consistent with common behavior.
+    let first = forwarded.split(',').next()?.trim();
+
+    for part in first.split(';') {
+        let part = part.trim();
+        let (k, v) = part.split_once('=')?;
+        if k.trim().eq_ignore_ascii_case(key) {
+            let v = v.trim().trim_matches('"'); // Forwarded allows quoted-string
+            if !v.is_empty() {
+                return Some(v);
+            }
+        }
+    }
+    None
 }

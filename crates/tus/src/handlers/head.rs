@@ -13,7 +13,6 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     apply_common_headers(res);
 
     let id = opts.get_file_id_from_request(req);
-    println!("id: {:?}", id);
     match id {
         Ok(id) => {
             // handle _on_incoming_request

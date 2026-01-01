@@ -6,7 +6,7 @@ use bytes::Bytes;
 pub use disk::*;
 
 use futures_core::Stream;
-use salvo_core::async_trait;
+use salvo_core::{async_trait, http::HeaderValue};
 
 use crate::{error::TusResult, handlers::Metadata};
 
@@ -48,10 +48,42 @@ impl UploadInfo {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Extension {
+    Creation,
     Expiration,
     CreationDeferLength,
     Concatentation,
 }
+
+impl Extension {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Extension::Creation => "creation",
+            Extension::Expiration => "expiration",
+            Extension::CreationDeferLength => "creation-defer-length",
+            Extension::Concatentation => "concatentation"
+        }
+    }
+
+    pub fn to_header_value(extensions: &HashSet<Extension>) -> Option<HeaderValue> {
+        if extensions.is_empty() {
+            return None;
+        }
+
+        let value = extensions
+            .iter()
+            .map(|e| e.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+
+        HeaderValue::from_str(&value).ok()
+    }
+}
+
+/// Extension:
+/// Default extensions is empty.
+/// Clients and Servers are encouraged to implement as many of the extensions as possible.
+/// Feature detection SHOULD be achieved by the Client sending an OPTIONS request and the Server responding with the Tus-Extension header.
+/// See more details: https://tus.io/protocols/resumable-upload#protocol-extensions
 #[async_trait]
 pub trait DataStore: Send + Sync + 'static {
     fn extensions(&self) -> HashSet<Extension> {

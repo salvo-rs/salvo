@@ -1,23 +1,20 @@
 [package]
-name = "salvo-tus"
-version = { workspace = true }
-edition = "2024"
-rust-version = { workspace = true }
-description = "TUS support for Salvo web framework"
-readme = "./README.md"
-license = { workspace = true }
+name          = "salvo-tus"
+version       = { workspace = true }
+edition       = { workspace = true }
+rust-version  = { workspace = true }
+description   = "TUS support for Salvo web framework"
+readme        = "./README.md"
+license       = { workspace = true }
 documentation = "https://docs.rs/salvo-tus/"
-homepage = { workspace = true }
-repository = { workspace = true }
-keywords = ["tus", "files-upload", "salvo"]
-categories = ["network-programming", "asynchronous"]
-authors = [
-    "Tyrese Luo <tyreseluo@outlook.com>",
-    "Salvo Maintainers"
-]
+homepage      = { workspace = true }
+repository    = { workspace = true }
+keywords      = ["tus", "files-upload", "salvo", "big-files-upload"]
+categories    = ["network-programming", "asynchronous", "salvo"]
+authors       = ["Tyrese Luo <tyreseluo@outlook.com>", "Salvo Maintainers"]
 
 [features]
-default = []
+default    = []
 # Store
 file-store = []
 
@@ -32,5 +29,6 @@ serde_json    = { workspace = true }
 uuid          = { workspace = true, features = ["v4"]}
 regex         = { workspace = true }
 futures-core  = "0.3"
-futures-util = { workspace = true }
-chrono = { workspace = true }
+futures-util  = { workspace = true }
+chrono        = { workspace = true }
+tracing       = { workspace = true }

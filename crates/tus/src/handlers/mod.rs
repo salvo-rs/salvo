@@ -109,8 +109,6 @@ pub struct GenerateUrlCtx<'a> {
     pub id: &'a str,
 }
 
-
-
 #[derive(Clone, Copy, Debug)]
 pub struct HostProto<'a> {
     pub proto: &'a str,

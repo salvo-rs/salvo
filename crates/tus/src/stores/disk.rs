@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::{HashMap, HashSet}, path::PathBuf};
 
 use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
@@ -10,82 +10,8 @@ use tokio::{
 use crate::{
     error::{TusError, TusResult},
     handlers::Metadata,
-    stores::{ByteStream, DataStore, StoreInfo, UploadInfo},
+    stores::{ByteStream, DataStore, Extension, StoreInfo, UploadInfo},
 };
-
-#[derive(Clone)]
-pub struct DiskStore {
-    root: PathBuf,
-}
-
-impl DiskStore {
-    pub fn new() -> Self {
-        Self {
-            root: "./tus-data".into(),
-        }
-    }
-
-    pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
-        self.root = root.into();
-        self
-    }
-
-    async fn ensure_root(&self) -> TusResult<()> {
-        fs::create_dir_all(&self.root)
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))
-    }
-
-    fn data_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.bin"))
-    }
-
-    fn meta_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.json"))
-    }
-
-    fn meta_tmp_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.json.tmp"))
-    }
-
-    async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
-        let path = self.meta_path(id);
-        let bytes = fs::read(path).await.map_err(map_io_error)?;
-        serde_json::from_slice::<MetaUpload>(&bytes)
-            .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))
-    }
-
-    async fn write_meta_atomic(&self, meta: &MetaUpload) -> TusResult<()> {
-        let id = &meta.id;
-        let tmp = self.meta_tmp_path(id);
-        let final_path = self.meta_path(id);
-
-        let json = serde_json::to_vec(meta)
-            .map_err(|e| TusError::Internal(format!("serialize meta json: {e}")))?;
-
-        fs::write(&tmp, json)
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))?;
-
-        #[cfg(windows)]
-        {
-            let _ = fs::remove_file(&final_path).await;
-        }
-
-        fs::rename(&tmp, &final_path)
-            .await
-            .map_err(|e| TusError::Internal(format!("rename meta tmp: {e}")))?;
-
-        Ok(())
-    }
-}
-
-fn map_io_error(e: io::Error) -> TusError {
-    match e.kind() {
-        io::ErrorKind::NotFound => TusError::NotFound,
-        _ => TusError::Internal(e.to_string()),
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetaStoreInfo {
@@ -150,8 +76,91 @@ impl From<MetaUpload> for UploadInfo {
     }
 }
 
+#[derive(Clone)]
+pub struct DiskStore {
+    root: PathBuf,
+}
+
+impl DiskStore {
+    pub fn new() -> Self {
+        Self {
+            root: "./tus-data".into(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
+        self.root = root.into();
+        self
+    }
+
+    async fn ensure_root(&self) -> TusResult<()> {
+        fs::create_dir_all(&self.root)
+            .await
+            .map_err(|e| TusError::Internal(e.to_string()))
+    }
+
+    fn data_path(&self, id: &str) -> PathBuf {
+        self.root.join(format!("{id}.bin"))
+    }
+
+    fn meta_path(&self, id: &str) -> PathBuf {
+        self.root.join(format!("{id}.json"))
+    }
+
+    fn meta_tmp_path(&self, id: &str) -> PathBuf {
+        self.root.join(format!("{id}.json.tmp"))
+    }
+
+    async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
+        let path = self.meta_path(id);
+        let bytes = fs::read(path).await.map_err(map_io_error)?;
+        serde_json::from_slice::<MetaUpload>(&bytes)
+            .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))
+    }
+
+    async fn write_meta_atomic(&self, meta: &MetaUpload) -> TusResult<()> {
+        let id = &meta.id;
+        let tmp = self.meta_tmp_path(id);
+        let final_path = self.meta_path(id);
+
+        let json = serde_json::to_vec(meta)
+            .map_err(|e| TusError::Internal(format!("serialize meta json: {e}")))?;
+
+        fs::write(&tmp, json)
+            .await
+            .map_err(|e| TusError::Internal(e.to_string()))?;
+
+        #[cfg(windows)]
+        {
+            let _ = fs::remove_file(&final_path).await;
+        }
+
+        fs::rename(&tmp, &final_path)
+            .await
+            .map_err(|e| TusError::Internal(format!("rename meta tmp: {e}")))?;
+
+        Ok(())
+    }
+}
+
+fn map_io_error(e: io::Error) -> TusError {
+    match e.kind() {
+        io::ErrorKind::NotFound => TusError::NotFound,
+        _ => TusError::Internal(e.to_string()),
+    }
+}
+
 #[async_trait]
 impl DataStore for DiskStore {
+    /// The DiskStore support extensions.
+    /// Extension::Creation
+    fn extensions(&self) -> HashSet<Extension> {
+        let mut support_extensions = HashSet::new();
+        support_extensions.insert(Extension::Creation);
+        support_extensions
+    }
+
     async fn create(&self, file: UploadInfo) -> TusResult<UploadInfo> {
         self.ensure_root().await?;
 

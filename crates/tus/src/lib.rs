@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use tokio::sync::watch;
 
 use crate::{
-    error::TusError, handlers::{GenerateUrlCtx, HostProto, Metadata}, lockers::Locker, options::{MaxSize, TusOptions}, stores::{DataStore, DiskStore}, utils::normalize_path
+    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker, options::{MaxSize, TusOptions}, stores::{DataStore, DiskStore, UploadInfo}, utils::normalize_path
 };
 
 mod error;
@@ -14,7 +14,7 @@ mod handlers;
 pub mod utils;
 pub mod options;
 
-use salvo_core::{Depot, Request, Router, handler, http::{HeaderMap, header}};
+use salvo_core::{Depot, Request, Router, handler};
 
 pub const TUS_VERSION: &str = "1.0.0";
 pub const H_TUS_RESUMABLE: &str = "tus-resumable";
@@ -22,9 +22,15 @@ pub const H_TUS_VERSION: &str = "tus-version";
 pub const H_TUS_EXTENSION: &str = "tus-extension";
 pub const H_TUS_MAX_SIZE: &str = "tus-max-size";
 
+pub const H_ACCESS_CONTROL_ALLOW_METHODS: &str = "access-control-allow-methods";
+pub const H_ACCESS_CONTROL_ALLOW_HEADERS: &str = "access-control-allow-headers";
+pub const H_ACCESS_CONTROL_REQUEST_HEADERS: &str = "access-control-request-headers";
+pub const H_ACCESS_CONTROL_MAX_AGE: &str = "access-control-max-age";
+
 pub const H_UPLOAD_LENGTH: &str = "upload-length";
 pub const H_UPLOAD_OFFSET: &str = "upload-offset";
 pub const H_UPLOAD_METADATA: &str = "upload-metadata";
+pub const H_UPLOAD_CONCAT: &str = "upload-concat";
 
 pub const H_CONTENT_TYPE: &str = "content-type";
 pub const CT_OFFSET_OCTET_STREAM: &str = "application/offset+octet-stream";
@@ -146,11 +152,39 @@ impl Tus {
         self
     }
 
-    pub fn with_upload_id_naming_function<F>(mut self, f: F) -> Self
+    pub fn with_on_incoming_request<F, Fut>(mut self, f: F) -> Self
     where
-        F: Fn(&Request, Metadata) -> Result<String, crate::error::TusError> + Send + Sync + 'static,
+        F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
     {
-        self.options.upload_id_naming_function = Arc::new(f);
+        self.options.on_incoming_request = Some(Arc::new(move |req, id| {
+            Box::pin(f(req, id))
+        }));
+        self
+    }
+
+    // pub fn with_on_upload_create<F>(mut self, f: F) -> Self
+    // where
+    //     F: for<'a> Fn(
+    //             &'a Request,
+    //             &'a mut UploadInfo,
+    //         ) -> Pin<Box<dyn Future<Output = Result<(), TusError>> + Send + 'a>>
+    //         + Send
+    //         + Sync
+    //         + 'static,
+    // {
+    //     self.options.on_upload_create = Some(Arc::new(f));
+    //     self
+    // }
+    
+    pub fn with_upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, Metadata) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<String, TusError>> + Send + 'static,
+    {
+        self.options.upload_id_naming_function = Arc::new(move |req, meta| {
+            Box::pin(f(req, meta))
+        });
         self
     }
 
@@ -161,9 +195,7 @@ impl Tus {
         self.options.generate_url_function = Some(Arc::new(f));
         self
     }
-}
 
-impl Tus {
     pub fn into_router(self) -> Router {
         let base_path = normalize_path(&self.options.path);
         let state = Arc::new(self);
@@ -177,123 +209,4 @@ impl Tus {
 
         router
     }
-
-    pub fn generate_upload_url(&self, req: &mut Request, upload_id: &str) -> Result<String, TusError> {
-        let path = if self.options.path == "/" {
-            ""
-        } else {
-            self.options.path.as_str()
-        };
-
-         let HostProto { proto, host } =
-                Self::extract_host_and_proto(req.headers(), self.options.respect_forwarded_headers);
-
-        if let Some(callback) = &self.options.generate_url_function {
-            match callback(&req, GenerateUrlCtx {
-                proto,
-                host,
-                path,
-                id: upload_id,
-            }) {
-                Ok(url) => return Ok(url),
-                Err(e) => return Err(e),
-            };
-        }
-
-
-        // Default implementation
-        if self.options.relative_location {
-            // NOTE: TS version returns `${path}/${id}` — even if path = "" it yields "/id"
-            // This matches that behavior.
-            return Ok(format!("{}/{}", path, upload_id));
-        }
-
-        Ok(format!("{}://{}{}{}", proto, host, path, format!("/{}", upload_id)))
-    }
-
-    /// Rust version of BaseHandler.extractHostAndProto(...)
-    pub fn extract_host_and_proto<'a>(
-        headers: &'a HeaderMap,
-        respect_forwarded_headers: bool,
-    ) -> HostProto<'a> {
-        // defaults
-        let mut proto: &'a str = "http";
-        let mut host: &'a str = "localhost";
-
-        // 1) determine host
-        if respect_forwarded_headers {
-            // Prefer Forwarded: proto=...;host=...
-            if let Some(v) = headers.get("forwarded").and_then(|v| v.to_str().ok()) {
-                if let Some(h) = parse_forwarded_param(v, "host") {
-                    host = h;
-                }
-                if let Some(p) = parse_forwarded_param(v, "proto") {
-                    proto = p;
-                }
-            }
-
-            // Fallback: X-Forwarded-Host
-            if host == "localhost" {
-                if let Some(v) = headers
-                    .get("x-forwarded-host")
-                    .and_then(|v| v.to_str().ok())
-                {
-                    // x-forwarded-host may contain comma-separated list; use the first one
-                    host = v.split(',').next().unwrap_or(v).trim();
-                }
-            }
-
-            // 2) determine proto (X-Forwarded-Proto)
-            if proto == "http" {
-                if let Some(v) = headers
-                    .get("x-forwarded-proto")
-                    .and_then(|v| v.to_str().ok())
-                {
-                    proto = v.split(',').next().unwrap_or(v).trim();
-                }
-            }
-        }
-
-        // If we still haven't got a host, use Host header
-        if host == "localhost" {
-            if let Some(v) = headers.get(header::HOST).and_then(|v| v.to_str().ok()) {
-                host = v.trim();
-            }
-        }
-
-        // If we still haven't got proto, infer from scheme-ish headers
-        // (optional fallback)
-        if proto == "http" {
-            if let Some(v) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok()) {
-                if v.eq_ignore_ascii_case("on") {
-                    proto = "https";
-                }
-            }
-        }
-
-        HostProto { proto, host }
-    }
-}
-
-
-/// Parse a param in "Forwarded" header.
-/// Example:
-/// Forwarded: for=192.0.2.43; proto=https; host=example.com
-fn parse_forwarded_param<'a>(forwarded: &'a str, key: &str) -> Option<&'a str> {
-    // Forwarded header can contain multiple entries separated by comma:
-    // Forwarded: for=...;proto=https;host=a, for=...;proto=http;host=b
-    // We choose the first entry for simplicity, consistent with common behavior.
-    let first = forwarded.split(',').next()?.trim();
-
-    for part in first.split(';') {
-        let part = part.trim();
-        let (k, v) = part.split_once('=')?;
-        if k.trim().eq_ignore_ascii_case(key) {
-            let v = v.trim().trim_matches('"'); // Forwarded allows quoted-string
-            if !v.is_empty() {
-                return Some(v);
-            }
-        }
-    }
-    None
 }

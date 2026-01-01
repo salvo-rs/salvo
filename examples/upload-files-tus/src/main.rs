@@ -31,7 +31,23 @@ async fn main() {
 
     let tus = Tus::new().path("/files")
         .relative_location(true)
-        .max_size(MaxSize::Fixed(10 * 1024 * 1024));
+        .max_size(MaxSize::Fixed(10 * 1024 * 1024))
+        .with_on_incoming_request(|_req, id| async move {
+            println!("Generated ID: {}", id);
+        });
+        // .with_on_upload_create(|_req, upload_info| async move {
+        //     let metadata = &upload_info.metadata;
+        //     println!("before: {:?}", metadata);
+
+        //     if let Some(meta) = upload_info.metadata.as_mut() {
+        //         meta.insert("foo".into(), "bar".into());
+        //     }
+
+        //     println!("after: {:?}", upload_info.metadata);
+
+        //     Ok(())
+        // });
+
     let router = tus.into_router();
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
