@@ -1,0 +1,12 @@
+[package]
+name = "example-upload-files-tus"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+salvo = { workspace = true, features = ["oapi", "tus"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
