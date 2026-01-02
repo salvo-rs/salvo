@@ -2,7 +2,7 @@
 # Salvo Session Support
 
 Salvo's session middleware is built on top of
-[`async-session`](https://github.com/http-rs/async-session).
+[`saysion`](https://github.com/salvo-rs/saysion).
 
 See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
 
@@ -14,7 +14,7 @@ Session data is typically retained only for the duration of a browser session.
 
 It is highly recommended to use an external-datastore-backed session storage
 for production Salvo applications. For a list of currently available session
-stores, see [the documentation for async-session](https://github.com/http-rs/async-session).
+stores, see [the documentation for saysion](https://github.com/salvo-rs/saysion).
 
 ## Security
 
@@ -64,17 +64,17 @@ Read more: <https://salvo.rs>
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
+pub use saysion::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::fmt::{self, Formatter};
 use std::time::Duration;
 
-use async_session::base64;
-use async_session::hmac::{Hmac, Mac, NewMac};
-use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use saysion::base64;
+use saysion::hmac::{Hmac, Mac, NewMac};
+use saysion::sha2::Sha256;
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";
