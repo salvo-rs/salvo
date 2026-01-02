@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use rustls_pki_types::CertificateDer;
-use rustls_pki_types::pem::PemObject;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
 #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_ecdsa_type;
 #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
@@ -181,7 +181,7 @@ impl<T> AcmeListener<T> {
                 .await?;
             if let Some(key_data) = key_data {
                 tracing::debug!("load private key from cache");
-                match rustls_pki_types::PrivateKeyDer::from_pem_slice(&key_data) {
+                match PrivateKeyDer::from_pem_slice(&key_data) {
                     Ok(key) => {
                         cached_key = Some(key);
                     }
@@ -195,7 +195,7 @@ impl<T> AcmeListener<T> {
                 .await?;
             if let Some(cert_data) = cert_data {
                 tracing::debug!("load certificate from cache");
-                match rustls_pki_types::CertificateDer::pem_slice_iter(&cert_data).collect::<Result<Vec<_>, _>>() {
+                match CertificateDer::pem_slice_iter(&cert_data).collect::<Result<Vec<_>, _>>() {
                     Ok(certs) => {
                         if !certs.is_empty() {
                             cached_certs = Some(certs);
@@ -218,8 +218,7 @@ impl<T> AcmeListener<T> {
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
-                any_ecdsa_type(&cached_key)
-                    .expect("parse private key failed"),
+                any_ecdsa_type(&cached_key).expect("parse private key failed"),
             )));
         }
 

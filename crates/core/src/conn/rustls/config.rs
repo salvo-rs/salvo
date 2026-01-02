@@ -7,12 +7,13 @@ use std::path::Path;
 use std::sync::Arc;
 
 use futures_util::stream::{Once, Stream, once};
-use rustls_pki_types::pem::PemObject;
 use tokio_rustls::rustls::SupportedProtocolVersion;
 #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_supported_type;
 #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_supported_type;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
 use tokio_rustls::rustls::sign::CertifiedKey;
 
@@ -92,16 +93,16 @@ impl Keycert {
 
     fn build_certified_key(&self) -> IoResult<CertifiedKey> {
         // Parse certificates using rustls_pki_types
-        let cert = rustls_pki_types::CertificateDer::pem_slice_iter(&self.cert)
+        let cert = CertificateDer::pem_slice_iter(&self.cert)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| IoError::other(format!("failed to parse certificate PEM: {}", e)))?;
-        
+
         if cert.is_empty() {
             return Err(IoError::other("no certificates found in PEM data"));
         }
 
         // Parse private key using rustls_pki_types
-        let key = rustls_pki_types::PrivateKeyDer::from_pem_slice(&self.key)
+        let key = PrivateKeyDer::from_pem_slice(&self.key)
             .map_err(|e| IoError::other(format!("failed to parse private key PEM: {}", e)))?;
 
         let key = any_supported_type(&key).map_err(|_| IoError::other("invalid private key"))?;

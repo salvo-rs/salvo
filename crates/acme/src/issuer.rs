@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rcgen::{CertificateParams, CustomExtension, DistinguishedName, KeyPair};
-use rustls_pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use rustls_pki_types::pem::PemObject;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::pki_types::pem::PemObject;
 use salvo_core::{Error as CoreError, Result as CoreResult};
 #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 use tokio_rustls::rustls::{crypto::aws_lc_rs::sign::any_ecdsa_type, sign::CertifiedKey};
@@ -127,7 +127,7 @@ pub(crate) async fn issue_cert(
         .as_ref()
         .to_vec();
     let key_pem = key_pair.serialize_pem();
-    let cert_chain = rustls_pki_types::CertificateDer::pem_slice_iter(&cert_pem)
+    let cert_chain = CertificateDer::pem_slice_iter(&cert_pem)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| CoreError::other(format!("failed to parse certificate PEM: {}", e)))?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
