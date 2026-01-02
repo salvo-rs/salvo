@@ -2,7 +2,7 @@
 # Salvo Session Support
 
 Salvo's session middleware is built on top of
-[`async-session`](https://github.com/http-rs/async-session).
+[`saysion`](https://github.com/salvo-rs/saysion).
 
 See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
 
@@ -14,7 +14,7 @@ Session data is typically retained only for the duration of a browser session.
 
 It is highly recommended to use an external-datastore-backed session storage
 for production Salvo applications. For a list of currently available session
-stores, see [the documentation for async-session](https://github.com/http-rs/async-session).
+stores, see [the documentation for saysion](https://github.com/salvo-rs/saysion).
 
 ## Security
 
@@ -64,17 +64,17 @@ Read more: <https://salvo.rs>
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
+pub use saysion::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::fmt::{self, Formatter};
 use std::time::Duration;
 
-use async_session::base64;
-use async_session::hmac::{Hmac, Mac, NewMac};
-use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use saysion::base64::{Engine as _, engine::general_purpose};
+use saysion::hmac::{Hmac, Mac};
+use saysion::sha2::Sha256;
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";
@@ -124,7 +124,10 @@ pub struct HandlerBuilder<S> {
     key: Key,
     fallback_keys: Vec<Key>,
 }
-impl<S: SessionStore> fmt::Debug for HandlerBuilder<S> {
+impl<S> fmt::Debug for HandlerBuilder<S>
+where
+    S: SessionStore + fmt::Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandlerBuilder")
             .field("store", &self.store)
@@ -291,7 +294,10 @@ pub struct SessionHandler<S> {
     hmac: Hmac<Sha256>,
     fallback_hmacs: Vec<Hmac<Sha256>>,
 }
-impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
+impl<S> fmt::Debug for SessionHandler<S>
+where
+    S: SessionStore + fmt::Debug,
+{
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionHandler")
@@ -310,7 +316,7 @@ impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
 #[async_trait]
 impl<S> Handler for SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     async fn handle(
         &self,
@@ -360,7 +366,7 @@ where
 
 impl<S> SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     /// Create new `HandlerBuilder`
     pub fn builder(store: S, secret: &[u8]) -> HandlerBuilder<S> {
@@ -391,19 +397,20 @@ where
 
         // Split [MAC | original-value] into its two parts.
         let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
-        let digest =
-            base64::decode(digest_str).map_err(|_| Error::Other("bad base64 digest".into()))?;
+        let digest = general_purpose::STANDARD
+            .decode(digest_str)
+            .map_err(|_| Error::Other("bad base64 digest".into()))?;
 
         // Perform the verification.
         let mut hmac = self.hmac.clone();
         hmac.update(value.as_bytes());
-        if hmac.verify(&digest).is_ok() {
+        if hmac.verify_slice(&digest).is_ok() {
             return Ok(value.to_owned());
         }
         for hmac in &self.fallback_hmacs {
             let mut hmac = hmac.clone();
             hmac.update(value.as_bytes());
-            if hmac.verify(&digest).is_ok() {
+            if hmac.verify_slice(&digest).is_ok() {
                 return Ok(value.to_owned());
             }
         }
@@ -438,7 +445,7 @@ where
         mac.update(cookie.value().as_bytes());
 
         // Cookie's new value is [MAC | original-value].
-        let mut new_value = base64::encode(mac.finalize().into_bytes());
+        let mut new_value = general_purpose::STANDARD.encode(mac.finalize().into_bytes());
         new_value.push_str(cookie.value());
         cookie.set_value(new_value);
     }
@@ -456,7 +463,7 @@ mod tests {
     #[test]
     fn test_session_data() {
         let builder = SessionHandler::builder(
-            async_session::CookieStore,
+            saysion::CookieStore,
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         )
         .cookie_domain("test.domain")
