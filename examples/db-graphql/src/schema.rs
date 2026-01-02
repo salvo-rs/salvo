@@ -2,7 +2,9 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::default::Default;
 
-use juniper::{Context as JuniperContext, EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode};
+use juniper::{
+    Context as JuniperContext, EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode,
+};
 
 use crate::{mutation::MutationRoot, query::QueryRoot};
 

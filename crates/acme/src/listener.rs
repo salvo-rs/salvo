@@ -393,12 +393,11 @@ where
         .await?;
         tokio::spawn(async move {
             while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
-                if cert_resolver.will_expired(config.before_expired) {
-                    if let Err(e) =
+                if cert_resolver.will_expired(config.before_expired)
+                    && let Err(e) =
                         super::issuer::issue_cert(&mut client, &config, &cert_resolver).await
-                    {
-                        tracing::error!(error = ?e, "issue certificate failed");
-                    }
+                {
+                    tracing::error!(error = ?e, "issue certificate failed");
                 }
                 tokio::time::sleep(check_duration).await;
             }

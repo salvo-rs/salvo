@@ -191,11 +191,11 @@ pub trait ListenerAcmeExt<T> {
     fn acme(self) -> AcmeListener<T>;
 }
 
-impl<T> ListenerAcmeExt<TcpListener<T>> for TcpListener<T>
+impl<T> ListenerAcmeExt<Self> for TcpListener<T>
 where
     T: ToSocketAddrs + Send + 'static,
 {
-    fn acme(self) -> AcmeListener<TcpListener<T>> {
+    fn acme(self) -> AcmeListener<Self> {
         AcmeListener::new(self)
     }
 }
