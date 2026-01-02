@@ -112,7 +112,6 @@ aws-lc-rs = { version = "1", default-features = true }
 ring = "0.17"
 rust_decimal = "1"
 rustls = { version = "0.23", default-features = false }
-rustls-pemfile = "2"
 rust-embed = { version = ">= 6, <= 9" }
 saysion = "0.1"
 serde = "1"
