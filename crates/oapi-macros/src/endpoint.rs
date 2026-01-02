@@ -219,7 +219,7 @@ fn handle_fn(
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
                             Ok(data) => {
                                 data
                             },
@@ -304,7 +304,7 @@ mod tests {
         let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig).unwrap();
         let expected_hfn = quote! {
             async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
-                let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, "name").await {
+                let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
                     Ok(data) => {
                         data
                     },

@@ -72,6 +72,7 @@ use std::fmt::Debug;
 
 use futures_util::FutureExt;
 
+use crate::Depot;
 use crate::Writer;
 use crate::http::{ParseError, Request};
 
@@ -85,6 +86,7 @@ pub trait Extractible<'ex> {
     /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
     fn extract(
         req: &'ex mut Request,
+        depot: &'ex mut Depot,
     ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
     where
         Self: Sized;
@@ -92,12 +94,13 @@ pub trait Extractible<'ex> {
     /// Extract data from request with a argument. This function used in macros internal.
     fn extract_with_arg(
         req: &'ex mut Request,
+        depot: &'ex mut Depot,
         _arg: &str,
     ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
     where
         Self: Sized,
     {
-        Self::extract(req)
+        Self::extract(req, depot)
     }
 }
 
@@ -109,8 +112,8 @@ where
         T::metadata()
     }
     #[allow(refining_impl_trait)]
-    async fn extract(req: &'ex mut Request) -> Result<Self, ParseError> {
-        Ok(T::extract(req).boxed().await.ok())
+    async fn extract(req: &'ex mut Request, depot: &'ex mut Depot) -> Result<Self, ParseError> {
+        Ok(T::extract(req, depot).boxed().await.ok())
     }
 }
 
@@ -136,7 +139,8 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
             .query("a", "1")
             .build();
-        let data: Outer<Inner> = req.extract().await.unwrap();
+        let mut depot = crate::Depot::new();
+        let data: Outer<Inner> = req.extract(&mut depot).await.unwrap();
         assert_eq!(data.inner.a, "1");
     }
 }

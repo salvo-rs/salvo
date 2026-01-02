@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::{Request, Writer};
+use salvo_core::{Depot, Request, Writer};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
@@ -67,14 +67,16 @@ where
     }
     async fn extract(
         req: &'ex mut Request,
+        _depot: &'ex mut Depot,
     ) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
         req.parse_json().await
     }
     async fn extract_with_arg(
         req: &'ex mut Request,
+        depot: &'ex mut Depot,
         _arg: &str,
     ) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
-        Self::extract(req).await
+        Self::extract(req, depot).await
     }
 }
 
@@ -172,7 +174,9 @@ mod tests {
         let mut req = TestClient::post("http://127.0.0.1:8698/")
             .json(&map)
             .build();
-        let result = JsonBody::<BTreeMap<&str, &str>>::extract_with_arg(&mut req, "key").await;
+        let mut depot = Depot::new();
+        let result =
+            JsonBody::<BTreeMap<&str, &str>>::extract_with_arg(&mut req, &mut depot, "key").await;
         assert_eq!("value", result.unwrap().0["key"]);
     }
 

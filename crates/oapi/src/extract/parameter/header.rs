@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
+use salvo_core::Depot;
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::{ParseError, Request};
 use serde::{Deserialize, Deserializer};
@@ -103,11 +104,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         unimplemented!("header parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         let value = req.header(arg).ok_or_else(|| {
             ParseError::other(format!(
                 "header parameter {arg} not found or convert to type failed"
@@ -126,11 +131,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         unimplemented!("header parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         Ok(Self(req.header(arg)))
     }
 }
@@ -222,7 +231,8 @@ mod tests {
     #[should_panic]
     async fn test_required_header_prarm_extract() {
         let mut req = Request::new();
-        let _ = HeaderParam::<String, true>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = HeaderParam::<String, true>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -232,7 +242,9 @@ mod tests {
             .append("param", HeaderValue::from_static("param"));
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = HeaderParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            HeaderParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -242,7 +254,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = HeaderParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            HeaderParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -256,7 +270,8 @@ mod tests {
     #[should_panic]
     async fn test_header_prarm_extract() {
         let mut req = Request::new();
-        let _ = HeaderParam::<String, false>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = HeaderParam::<String, false>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -266,7 +281,9 @@ mod tests {
             .append("param", HeaderValue::from_static("param"));
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = HeaderParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            HeaderParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -276,7 +293,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = HeaderParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            HeaderParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
