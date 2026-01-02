@@ -2,7 +2,7 @@ use salvo_core::http::HeaderValue;
 
 use crate::{TUS_VERSION, error::ProtocolError};
 
-pub fn require_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
+pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
     let v = v.ok_or(ProtocolError::MissingTusResumable)?;
     if v != TUS_VERSION {
         return Err(ProtocolError::UnsupportedTusVersion(v.to_string()));

@@ -5,7 +5,7 @@ use regex::Regex;
 use salvo_core::{Request, http::{HeaderMap, header}};
 
 use crate::{
-    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata}, lockers::{LockGuard, Locker, memory_locker}, stores::UploadInfo
+    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata}, lockers::{LockGuard, Locker, memory_locker}
 };
 
 pub type UploadId = Option<String>;
@@ -213,6 +213,10 @@ impl TusOptions {
 
         HostProto { proto, host }
     }
+
+    // pub async fn calculate_max_body_size(&self, req: &Request, file: UploadInfo, configured_max_size: Option<u64>) -> u64 {
+    //     todo!()
+    // }
 }
 
 impl Default for TusOptions {

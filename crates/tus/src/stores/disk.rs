@@ -114,7 +114,12 @@ impl DiskStore {
 
     async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
         let path = self.meta_path(id);
-        let bytes = fs::read(path).await.map_err(map_io_error)?;
+        let bytes = fs::read(path).await.map_err(|e| {
+            match e.kind() {
+                io::ErrorKind::NotFound => TusError::NotFound,
+                _ => TusError::Internal(e.to_string()),
+            }
+        })?;
         serde_json::from_slice::<MetaUpload>(&bytes)
             .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))
     }
@@ -144,13 +149,6 @@ impl DiskStore {
     }
 }
 
-fn map_io_error(e: io::Error) -> TusError {
-    match e.kind() {
-        io::ErrorKind::NotFound => TusError::NotFound,
-        _ => TusError::Internal(e.to_string()),
-    }
-}
-
 #[async_trait]
 impl DataStore for DiskStore {
     /// The DiskStore support extensions.
@@ -158,6 +156,7 @@ impl DataStore for DiskStore {
     fn extensions(&self) -> HashSet<Extension> {
         let mut support_extensions = HashSet::new();
         support_extensions.insert(Extension::Creation);
+        support_extensions.insert(Extension::CreationDeferLength);
         support_extensions
     }
 
@@ -235,7 +234,12 @@ impl DataStore for DiskStore {
             .write(true)
             .open(path)
             .await
-            .map_err(map_io_error)?;
+            .map_err(|e| {
+                match e.kind() {
+                    io::ErrorKind::NotFound => TusError::NotFound,
+                    _ => TusError::Internal(e.to_string()),
+                }
+            })?;
 
         file.seek(SeekFrom::Start(offset))
             .await
@@ -261,7 +265,7 @@ impl DataStore for DiskStore {
         Ok(written)
     }
 
-    async fn get_upload(&self, id: &str) -> TusResult<UploadInfo> {
+    async fn get_upload_file_info(&self, id: &str) -> TusResult<UploadInfo> {
         self.ensure_root().await?;
         let meta = self.read_meta(id).await?;
         Ok(meta.into())

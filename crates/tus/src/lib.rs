@@ -1,9 +1,9 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use tokio::sync::watch;
 
 use crate::{
-    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker, options::{MaxSize, TusOptions}, stores::{DataStore, DiskStore, UploadInfo}, utils::normalize_path
+    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker, options::{MaxSize, TusOptions}, stores::{DataStore, DiskStore}, utils::normalize_path
 };
 
 mod error;
@@ -33,6 +33,7 @@ pub const H_UPLOAD_METADATA: &str = "upload-metadata";
 pub const H_UPLOAD_CONCAT: &str = "upload-concat";
 
 pub const H_CONTENT_TYPE: &str = "content-type";
+pub const H_CONTENT_LENGTH: &str = "content-length";
 pub const CT_OFFSET_OCTET_STREAM: &str = "application/offset+octet-stream";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -163,20 +164,6 @@ impl Tus {
         self
     }
 
-    // pub fn with_on_upload_create<F>(mut self, f: F) -> Self
-    // where
-    //     F: for<'a> Fn(
-    //             &'a Request,
-    //             &'a mut UploadInfo,
-    //         ) -> Pin<Box<dyn Future<Output = Result<(), TusError>> + Send + 'a>>
-    //         + Send
-    //         + Sync
-    //         + 'static,
-    // {
-    //     self.options.on_upload_create = Some(Arc::new(f));
-    //     self
-    // }
-    
     pub fn with_upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, Metadata) -> Fut + Send + Sync + 'static,

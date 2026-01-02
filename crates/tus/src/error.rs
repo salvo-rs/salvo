@@ -14,7 +14,7 @@ pub enum ProtocolError {
     InvalidInt(&'static str),
     #[error("invalid content-type")]
     InvalidContentType,
-
+    
     #[error("Concatenation extension is not (yet) supported. Disable parallel uploads in the tus client.")]
     UnsupportedConcatenationExtension,
     #[error("creation-defer-length extension is not (yet) supported.")]
@@ -35,6 +35,9 @@ pub enum TusError {
     #[error("upload not found")]
     NotFound,
 
+    #[error("Upload-Offset conflict")]
+    InvalidOffset,
+
     #[error("offset mismatch: expected {expected}, got {got}")]
     OffsetMismatch { expected: u64, got: u64 },
 
@@ -49,6 +52,9 @@ pub enum TusError {
 
     #[error("failed to get file id")]
     FileIdError,
+
+    #[error("file no longer exists")]
+    FileNoLongerExists,
 
     #[error("internal: {0}")]
     Internal(String),
@@ -67,9 +73,11 @@ impl TusError {
             TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, // 413
             TusError::Protocol(_) => StatusCode::BAD_REQUEST, // 400
 
+            TusError::FileNoLongerExists => StatusCode::GONE, // 410
             TusError::FileIdError => StatusCode::BAD_REQUEST, // 400
             TusError::NotFound => StatusCode::NOT_FOUND,
             TusError::OffsetMismatch { .. } => StatusCode::CONFLICT, // 409
+            TusError::InvalidOffset => StatusCode::CONFLICT, //409
             TusError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE, // 413
             TusError::GenerateIdError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             TusError::GenerateUploadURLError => StatusCode::INTERNAL_SERVER_ERROR, //500

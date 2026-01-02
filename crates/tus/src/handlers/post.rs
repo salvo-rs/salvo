@@ -14,17 +14,16 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
+    let headers = apply_common_headers(&mut res.headers);
 
-    apply_common_headers(res);
-
-    if req.headers().get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatentation) {
+    if headers.get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatentation) {
         res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
         return;
     }
 
-    let upload_length = req.headers().get("upload-length");
-    let upload_defer_length = req.headers().get("upload-defer-length");
-    let upload_metadata = req.headers().get("upload-metadata");
+    let upload_length = headers.get("upload-length");
+    let upload_defer_length = headers.get("upload-defer-length");
+    let upload_metadata = headers.get("upload-metadata");
 
     if upload_defer_length.is_some() && !store.has_extension(Extension::CreationDeferLength) {
         res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status());

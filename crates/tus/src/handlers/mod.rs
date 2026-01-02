@@ -9,7 +9,7 @@ mod post;
 use std::{collections::{HashMap, HashSet}, ops::{Deref, DerefMut}};
 
 use base64::Engine;
-use salvo_core::{Response, http::HeaderValue};
+use salvo_core::{http::{HeaderMap, HeaderValue}};
 pub use options::options_handler;
 pub use post::post_handler;
 pub use head::head_handler;
@@ -19,12 +19,13 @@ use crate::{H_TUS_RESUMABLE, TUS_VERSION, error::ProtocolError};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
 
-pub(crate) fn apply_common_headers(res: &mut Response) {
-    res.headers_mut().insert(H_TUS_RESUMABLE, HeaderValue::from_static(TUS_VERSION));
-    res.headers_mut().insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    res.headers_mut().insert("access-control-expose-headers", HeaderValue::from_static(EXPOSE_HEADERS));
-    res.headers_mut()
-        .insert("cache-control", HeaderValue::from_static("no-store"));
+pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
+    headers.insert(H_TUS_RESUMABLE, HeaderValue::from_static(TUS_VERSION));
+    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    headers.insert("access-control-expose-headers", HeaderValue::from_static(EXPOSE_HEADERS));
+    headers.insert("cache-control", HeaderValue::from_static("no-store"));
+
+    headers
 }
 
 #[derive(Clone, Debug, Default)]

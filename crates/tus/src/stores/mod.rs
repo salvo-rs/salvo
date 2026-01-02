@@ -13,6 +13,12 @@ use crate::{error::TusResult, handlers::Metadata};
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
 
+
+// #[derive(Debug, Clone)]
+// pub enum StoreType {
+//     Disk,
+// }
+
 #[derive(Debug, Clone)]
 pub struct StoreInfo {
     pub type_name: String,
@@ -97,7 +103,7 @@ pub trait DataStore: Send + Sync + 'static {
     async fn create(&self, file: UploadInfo) -> TusResult<UploadInfo>;
     async fn remove(&self, id: &str) -> TusResult<()>;
     async fn write(&self, id: &str, offset: u64, stream: ByteStream) -> TusResult<u64>;
-    async fn get_upload(&self, id: &str) -> TusResult<UploadInfo>;
+    async fn get_upload_file_info(&self, id: &str) -> TusResult<UploadInfo>;
     async fn declare_upload_length(&self, id: &str, length: u64) -> TusResult<()>;
 
     async fn delete_expired(&self) -> TusResult<u32> {

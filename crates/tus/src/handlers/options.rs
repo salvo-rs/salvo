@@ -11,10 +11,8 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let store = &state.store;
     let opts = &state.options;
     let max_size = opts.get_configured_max_size(req, None).await;
-
-    apply_common_headers(res);
-
-    let headers = res.headers_mut();
+    let headers = apply_common_headers(&mut res.headers);
+    
 
     headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
     if let Some(ext_header) = Extension::to_header_value(&store.extensions()) {
