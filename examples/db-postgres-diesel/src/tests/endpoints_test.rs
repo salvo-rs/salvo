@@ -17,15 +17,13 @@ pub fn route() -> Router {
         .allow_headers("authentication")
         .into_handler();
 
-    let router = Router::new()
+    Router::new()
         .hoop(cors)
         .hoop(affix_state::inject(pool))
         .get(hello_world)
         .push(Router::with_path("hello").get(hello))
         .push(get_users_router())
-        .push(get_users_router());
-
-    router
+        .push(get_users_router())
 }
 
 pub fn service(router: Router) -> Service {

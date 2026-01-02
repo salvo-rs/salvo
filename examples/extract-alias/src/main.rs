@@ -27,16 +27,16 @@ async fn main() {
     println!("Example URL: http://0.0.0.0:8698/?page=1&name=france");
     println!("Example URL: http://0.0.0.0:8698/?page=2&location=italy");
     println!("Example URL: http://0.0.0.0:8698/?page=3&country=spain");
-    
+
     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
     Server::new(acceptor).serve(router).await;
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use salvo::prelude::*;
     use salvo::test::{ResponseExt, TestClient};
-    use super::*;
 
     #[tokio::test]
     async fn test_extract_alias() {
