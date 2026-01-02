@@ -34,9 +34,10 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo::prelude::*;
     use salvo::test::{ResponseExt, TestClient};
+
+    use super::*;
 
     #[tokio::test]
     async fn test_extract_alias() {
