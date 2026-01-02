@@ -1,6 +1,7 @@
 //! `RustlsListener` and utils.
 use std::io::{Error as IoError, Result as IoResult};
 
+use rustls_pki_types::pem::PemObject;
 use tokio_rustls::rustls::RootCertStore;
 
 pub(crate) mod config;
@@ -9,8 +10,11 @@ pub use config::{Keycert, RustlsConfig, ServerConfig};
 mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
 
-pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertStore> {
-    let certs = rustls_pemfile::certs(&mut trust_anchor).collect::<IoResult<Vec<_>>>()?;
+pub(crate) fn read_trust_anchor(trust_anchor: &[u8]) -> IoResult<RootCertStore> {
+    let certs = rustls_pki_types::CertificateDer::pem_slice_iter(trust_anchor)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| IoError::other(format!("failed to parse PEM: {}", e)))?;
+    
     let mut store = RootCertStore::empty();
     for cert in certs {
         store.add(cert).map_err(IoError::other)?;
@@ -25,7 +29,8 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
     use tokio_rustls::TlsConnector;
-    use tokio_rustls::rustls::{ClientConfig, pki_types::ServerName};
+    use tokio_rustls::rustls::ClientConfig;
+    use rustls_pki_types::ServerName;
 
     use super::*;
     use crate::conn::{Accepted, Acceptor, Listener, TcpListener};

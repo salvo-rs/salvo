@@ -56,7 +56,7 @@ http1 = []
 http2 = ["hyper/http2"]
 http2-cleartext = ["http2"]
 quinn = ["dep:salvo-http3", "dep:quinn", "dep:h3-datagram", "rustls"]
-rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pki-types"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
@@ -112,7 +112,7 @@ quinn = { workspace = true, optional = true, features = [
 ] }
 rand = { workspace = true }
 regex = { workspace = true }
-rustls-pemfile = { workspace = true, optional = true }
+rustls-pki-types = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
