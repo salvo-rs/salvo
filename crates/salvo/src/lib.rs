@@ -174,6 +174,11 @@ cfg_feature! {
     pub use salvo_otel as otel;
 }
 cfg_feature! {
+    #![feature ="acme"]
+    #[doc(no_inline)]
+    pub use salvo_acme as acme;
+}
+cfg_feature! {
     #![feature ="oapi"]
     #[doc(no_inline)]
     pub use salvo_oapi as oapi;
@@ -271,6 +276,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="serve-static"]
         pub use salvo_serve_static::{StaticFile, StaticDir};
+    }
+    cfg_feature! {
+        #![feature ="acme"]
+        pub use salvo_acme::ListenerAcmeExt;
     }
     cfg_feature! {
         #![feature ="oapi"]

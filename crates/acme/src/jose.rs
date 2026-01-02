@@ -1,15 +1,14 @@
 use std::io::{Error as IoError, Result as IoResult};
 
-use super::client::HyperClient;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http_body_util::{BodyExt, Full};
 use hyper::{Method, body::Incoming as HyperBody};
-use ring::digest::{Digest, SHA256, digest};
+use salvo_core::{Error as CoreError, Result as CoreResult};
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::Error;
-use crate::conn::acme::key_pair::KeyPair;
+use super::client::HyperClient;
+use crate::key_pair::KeyPair;
 
 #[derive(Serialize)]
 struct Protected<'a> {
@@ -88,9 +87,20 @@ impl Jwk {
     }
 }
 
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
 #[inline]
-fn sha256(data: impl AsRef<[u8]>) -> Digest {
-    digest(&SHA256, data.as_ref())
+fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
+    aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, data.as_ref())
+        .as_ref()
+        .to_vec()
+}
+
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+#[inline]
+fn sha256(data: impl AsRef<[u8]>) -> Vec<u8> {
+    ring::digest::digest(&ring::digest::SHA256, data.as_ref())
+        .as_ref()
+        .to_vec()
 }
 
 #[derive(Serialize)]
@@ -154,7 +164,7 @@ pub(crate) async fn request_json<T, R>(
     nonce: &str,
     url: &str,
     payload: Option<T>,
-) -> crate::Result<R>
+) -> CoreResult<R>
 where
     T: Serialize + Send,
     R: DeserializeOwned,
@@ -163,7 +173,7 @@ where
 
     let data = res.into_body().collect().await?.to_bytes();
     serde_json::from_slice(&data)
-        .map_err(|e| Error::other(format!("response is not a valid json: {e}")))
+        .map_err(|e| CoreError::other(format!("response is not a valid json: {e}")))
 }
 
 #[inline]
@@ -173,6 +183,7 @@ pub(crate) fn key_authorization(key: &KeyPair, token: &str) -> IoResult<String> 
     Ok(key_authorization)
 }
 
+#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
 #[inline]
 pub(crate) fn key_authorization_sha256(key: &KeyPair, token: &str) -> IoResult<impl AsRef<[u8]>> {
     Ok(sha256(key_authorization(key, token)?.as_bytes()))

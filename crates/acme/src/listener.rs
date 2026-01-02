@@ -6,19 +6,22 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
+#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_ecdsa_type;
+#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 
-use crate::Router;
-use crate::conn::HandshakeStream;
-use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{Accepted, Acceptor, Holding, Listener};
-use crate::fuse::ArcFuseFactory;
-use crate::http::Version;
-use crate::http::uri::Scheme;
+use salvo_core::conn::HandshakeStream;
+use salvo_core::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
+use salvo_core::conn::{Accepted, Acceptor, Holding, Listener};
+use salvo_core::fuse::ArcFuseFactory;
+use salvo_core::http::Version;
+use salvo_core::http::uri::Scheme;
+use salvo_core::{Result as CoreResult, Router};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
@@ -26,9 +29,9 @@ use super::{AcmeCache, AcmeClient, ChallengeType, Http01Handler, WELL_KNOWN_PATH
 
 cfg_feature! {
     #![feature = "quinn"]
-    use crate::conn::quinn::QuinnAcceptor;
-    use crate::conn::joined::JoinedAcceptor;
-    use crate::conn::quinn::QuinnListener;
+    use salvo_core::conn::quinn::QuinnAcceptor;
+    use salvo_core::conn::JoinedAcceptor;
+    use salvo_core::conn::quinn::QuinnListener;
     use futures_util::stream::BoxStream;
 }
 /// A wrapper around an underlying listener which implements the ACME.
@@ -55,7 +58,7 @@ impl<T> AcmeListener<T> {
     /// Create `AcmeListener`
     #[inline]
     #[must_use]
-    pub fn new(inner: T) -> Self{
+    pub fn new(inner: T) -> Self {
         Self {
             inner,
             config_builder: AcmeConfig::builder(),
@@ -168,7 +171,7 @@ impl<T> AcmeListener<T> {
     }
     async fn build_server_config(
         acme_config: &AcmeConfig,
-    ) -> crate::Result<(ServerConfig, Arc<ResolveServerCert>)> {
+    ) -> CoreResult<(ServerConfig, Arc<ResolveServerCert>)> {
         let mut cached_key = None;
         let mut cached_certs = None;
         if let Some(cache_path) = &acme_config.cache_path {
@@ -244,7 +247,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+    async fn try_bind(self) -> CoreResult<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -304,16 +307,16 @@ cfg_feature! {
         <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         A: std::net::ToSocketAddrs + Send + 'static,
     {
-        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
+        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, salvo_core::conn::quinn::ServerConfig>, salvo_core::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-        async fn try_bind(self) -> crate::Result<Self::Acceptor>{
+        async fn try_bind(self) -> CoreResult<Self::Acceptor>{
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
             let mut crypto = a.server_config.as_ref().clone();
             crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
-            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(crate::Error::other)?;
-            let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(salvo_core::Error::other)?;
+            let config = salvo_core::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
             Ok(JoinedAcceptor::new(a, b))
         }
@@ -350,7 +353,7 @@ where
         inner: T,
         tls_acceptor: TlsAcceptor,
         check_duration: Duration,
-    ) -> crate::Result<Self>
+    ) -> CoreResult<Self>
     where
         T: Send,
     {
@@ -359,11 +362,9 @@ where
             .iter()
             .map(|h| {
                 let mut versions = h.http_versions.clone();
-                #[cfg(feature = "http1")]
                 if !versions.contains(&Version::HTTP_11) {
                     versions.push(Version::HTTP_11);
                 }
-                #[cfg(feature = "http2")]
                 if !versions.contains(&Version::HTTP_2) {
                     versions.push(Version::HTTP_2);
                 }

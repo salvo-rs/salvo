@@ -156,7 +156,10 @@ impl AcmeConfigBuilder {
     #[inline]
     #[must_use]
     pub fn before_expired(self, before_expired: Duration) -> Self {
-        Self { before_expired, ..self }
+        Self {
+            before_expired,
+            ..self
+        }
     }
 
     /// Consumes this builder and returns a [`AcmeConfig`] object.
@@ -216,7 +219,13 @@ mod tests {
         assert_eq!(acme_config.domains, domains);
         assert_eq!(acme_config.contacts, contacts);
         assert_eq!(acme_config.challenge_type, ChallengeType::Http01);
-        assert_eq!(acme_config.cache_path, Some(PathBuf::from("test_cache_path")));
-        assert_eq!(acme_config.before_expired, Duration::from_secs(24 * 60 * 60));
+        assert_eq!(
+            acme_config.cache_path,
+            Some(PathBuf::from("test_cache_path"))
+        );
+        assert_eq!(
+            acme_config.before_expired,
+            Duration::from_secs(24 * 60 * 60)
+        );
     }
 }

@@ -39,6 +39,7 @@ http-body-util = { workspace = true, optional = true }
 hyper-rustls = { workspace = true, optional = true, features = [
     "native-tokio",
     "http1",
+    "rustls-native-certs",
     "tls12",
     "logging",
 ] }

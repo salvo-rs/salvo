@@ -2,12 +2,12 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::default::Default;
 
-use juniper::{EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode};
+use juniper::{Context as JuniperContext, EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode};
 
 use crate::{mutation::MutationRoot, query::QueryRoot};
 
 // Define the GraphQL schema type with Query and Mutation roots
-pub type Schema = RootNode<'static, QueryRoot, MutationRoot, EmptySubscription<DatabaseContext>>;
+pub type Schema = RootNode<QueryRoot, MutationRoot, EmptySubscription<DatabaseContext>>;
 
 // Create and initialize the GraphQL schema
 pub fn create_schema() -> Schema {
@@ -39,6 +39,8 @@ pub struct Database {
 
 // Database context wrapper with thread-safe read/write access
 pub struct DatabaseContext(pub RwLock<Database>);
+
+impl JuniperContext for DatabaseContext {}
 
 // Default implementation for DatabaseContext
 impl Default for DatabaseContext {
