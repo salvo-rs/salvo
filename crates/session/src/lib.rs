@@ -463,7 +463,7 @@ mod tests {
     #[test]
     fn test_session_data() {
         let builder = SessionHandler::builder(
-            async_session::CookieStore,
+            saysion::CookieStore,
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         )
         .cookie_domain("test.domain")
