@@ -366,7 +366,7 @@ where
 
 impl<S> SessionHandler<S>
 where
-    S: SessionStore + Send + Sync,
+    S: SessionStore + Send + Sync + 'static,
 {
     /// Create new `HandlerBuilder`
     pub fn builder(store: S, secret: &[u8]) -> HandlerBuilder<S> {
