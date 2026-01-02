@@ -92,18 +92,16 @@ impl Keycert {
     }
 
     fn build_certified_key(&self) -> IoResult<CertifiedKey> {
-        // Parse certificates using rustls_pki_types
         let cert = CertificateDer::pem_slice_iter(&self.cert)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| IoError::other(format!("failed to parse certificate PEM: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to parse certificate pem: {}", e)))?;
 
         if cert.is_empty() {
-            return Err(IoError::other("no certificates found in PEM data"));
+            return Err(IoError::other("no certificates found in pem data"));
         }
 
-        // Parse private key using rustls_pki_types
         let key = PrivateKeyDer::from_pem_slice(&self.key)
-            .map_err(|e| IoError::other(format!("failed to parse private key PEM: {}", e)))?;
+            .map_err(|e| IoError::other(format!("failed to parse private key pem: {}", e)))?;
 
         let key = any_supported_type(&key).map_err(|_| IoError::other("invalid private key"))?;
 
