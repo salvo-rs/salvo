@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5800:5800"
+    
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://darix:6775212952@db:8001/salvo_postgres
+
+  db:
+    image: postgres:latest
+    
+    ports:
+      - "8001:5432"
+    
+    environment:
+      - POSTGRES_USER=darix
+      - POSTGRES_PASSWORD=6775212952
+      - POSTGRES_DB=salvo_postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_SERVER=db
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U darix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  pgadmin4:
+    image: dpage/pgadmin4
+    ports:
+      - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
