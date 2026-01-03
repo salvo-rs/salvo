@@ -133,7 +133,7 @@ mod tests {
         struct Inner {
             a: String,
         }
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("a", "1")
             .build();
         let data: Outer<Inner> = req.extract().await.unwrap();

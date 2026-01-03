@@ -26,6 +26,6 @@ COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin/diesel
 
 COPY --from=builder . /app/
 
-EXPOSE 5800
+EXPOSE 8698
 
 CMD ["/app/salvo_postgres"]
