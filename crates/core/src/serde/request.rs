@@ -488,9 +488,9 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
 mod tests {
     use serde::{Deserialize, Serialize};
 
+    use crate::Depot;
     use crate::macros::Extractible;
     use crate::test::TestClient;
-    use crate::Depot;
 
     #[tokio::test]
     async fn test_de_request_from_query() {

@@ -72,8 +72,8 @@ use std::fmt::Debug;
 
 use futures_util::FutureExt;
 
-use crate::{Depot, Writer};
 use crate::http::{ParseError, Request};
+use crate::{Depot, Writer};
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
 pub trait Extractible<'ex> {
