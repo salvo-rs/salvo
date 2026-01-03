@@ -13,8 +13,8 @@ struct Page {
 }
 
 #[handler]
-async fn index(req: &mut Request) -> String {
-    let page: Page = req.extract().await.unwrap();
+async fn index(req: &mut Request, depot: &mut Depot) -> String {
+    let page: Page = req.extract(depot).await.unwrap();
     format!("{page:?}")
 }
 
