@@ -1,0 +1,12 @@
+[package]
+name = "__test"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+salvo = { workspace = true, features = ["proxy"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

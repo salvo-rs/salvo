@@ -1,19 +1,19 @@
 use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
 use reqwest::Client as InnerClient;
+use salvo_core::Error;
 use salvo_core::http::{ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
-use salvo_core::Error;
 use tokio::io::copy_bidirectional;
 
-use crate::{Client, HyperRequest, BoxedError, Proxy, Upstreams, HyperResponse};
+use crate::{BoxedError, Client, HyperRequest, HyperResponse, Proxy, Upstreams};
 
 /// A [`Client`] implementation based on [`reqwest::Client`].
-/// 
+///
 /// This client provides proxy capabilities using the Reqwest HTTP client.
 /// It supports all features of Reqwest including automatic redirect handling,
 /// connection pooling, and other HTTP client features.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ReqwestClient {
     inner: InnerClient,
 }
@@ -24,10 +24,18 @@ where
     U::Error: Into<BoxedError>,
 {
     /// Create a new `Proxy` using the default Reqwest client.
-    /// 
+    ///
     /// This is a convenient way to create a proxy with standard configuration.
     pub fn use_reqwest_client(upstreams: U) -> Self {
         Self::new(upstreams, ReqwestClient::default())
+    }
+}
+
+impl Default for ReqwestClient {
+    fn default() -> Self {
+        #[cfg(feature = "ring")]
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        Self::new(InnerClient::builder().build().expect("failed to build reqwest client"))
     }
 }
 
@@ -47,10 +55,11 @@ impl Client for ReqwestClient {
         proxied_request: HyperRequest,
         request_upgraded: Option<OnUpgrade>,
     ) -> Result<HyperResponse, Self::Error> {
-        let request_upgrade_type = crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
+        let request_upgrade_type =
+            crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request =
-            proxied_request.map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
+        let proxied_request = proxied_request
+            .map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
         let response = self
             .inner
             .execute(proxied_request.try_into().map_err(Error::other)?)
@@ -66,16 +75,19 @@ impl Client for ReqwestClient {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
 
             if request_upgrade_type == response_upgrade_type.map(|s| s.to_lowercase()) {
-                let mut response_upgraded = response
-                    .upgrade()
-                    .await
-                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {e}")))?;
+                let mut response_upgraded = response.upgrade().await.map_err(|e| {
+                    Error::other(format!("response does not have an upgrade extension. {e}"))
+                })?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
                             Ok(request_upgraded) => {
                                 let mut request_upgraded = TokioIo::new(request_upgraded);
-                                if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
+                                if let Err(e) = copy_bidirectional(
+                                    &mut response_upgraded,
+                                    &mut request_upgraded,
+                                )
+                                .await
                                 {
                                     tracing::error!(error = ?e, "coping between upgraded connections failed");
                                 }
@@ -109,7 +121,7 @@ mod tests {
     use salvo_core::test::*;
 
     use super::*;
-    use crate::{Upstreams, Proxy};
+    use crate::{Proxy, Upstreams};
 
     #[tokio::test]
     async fn test_upstreams_elect() {
@@ -123,9 +135,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_reqwest_client() {
-        let router = Router::new().push(
-            Router::with_path("rust/{**rest}").goal(Proxy::new(vec!["https://salvo.rs"], ReqwestClient::default())),
-        );
+        let router = Router::new().push(Router::with_path("rust/{**rest}").goal(Proxy::new(
+            vec!["https://salvo.rs"],
+            ReqwestClient::default(),
+        )));
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/guide/index.html")
             .send(router)
