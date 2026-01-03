@@ -20,20 +20,18 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["ring", "hyper-client", "unix-sock-client"]
-full = ["ring", "hyper-client", "reqwest-client", "unix-sock-client"]
-aws-lc-rs = ["hyper-rustls?/aws-lc-rs"]
-ring = ["hyper-rustls?/ring"]
+default = ["aws-lc-rs", "hyper-client", "unix-sock-client"]
+full = ["aws-lc-rs", "hyper-client", "reqwest-client"]
+aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "reqwest?/rustls"]
+ring = ["hyper-rustls?/ring", "reqwest?/rustls-no-provider", "rustls", "rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
 reqwest-client = ["dep:reqwest"]
 unix-sock-client = []
+system-proxy = ["reqwest?/system-proxy", "hyper-util?/client-proxy-system"]
 
 [dependencies]
-futures-util = { workspace = true, default-features = false }
-salvo_core = { workspace = true, default-features = false }
-tracing = { workspace = true }
-tokio = { workspace = true }
 fastrand = { workspace = true }
+futures-util = { workspace = true, default-features = false }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
 hyper-rustls = { workspace = true, optional = true, features = [
     "native-tokio",
@@ -49,9 +47,13 @@ hyper-util = { workspace = true, optional = true, features = [
     "http2",
     "client-legacy",
 ] }
-percent-encoding = { workspace = true }
-reqwest = { workspace = true, optional = true, features = ["stream"] }
 local-ip-address = { workspace = true }
+percent-encoding = { workspace = true }
+reqwest = { workspace = true, optional = true, features = ["charset", "http2", "stream"] }
+salvo_core = { workspace = true, default-features = false }
+rustls = { workspace = true, optional = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]

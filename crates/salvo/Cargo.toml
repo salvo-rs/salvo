@@ -33,7 +33,7 @@ default = [
     "http1",
     "http2",
     "test",
-    "ring",
+    "aws-lc-rs",
     "matched-path",
 ]
 full = [
@@ -79,7 +79,7 @@ full = [
     "serve-static",
     "otel",
     "oapi",
-    "ring",
+    "aws-lc-rs",
     "matched-path",
 ]
 cookie = ["salvo_core/cookie"]
