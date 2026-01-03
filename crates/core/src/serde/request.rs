@@ -8,16 +8,13 @@ use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 
-use crate::Request;
-use crate::extract::Metadata;
-use crate::extract::metadata::{Field, Source, SourceFrom, SourceParser};
+use crate::extract::metadata::{Field, Metadata, Source, SourceFrom, SourceParser};
 use crate::http::ParseError;
 use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
+use crate::{Depot, Request};
 
 use super::{CowValue, FlatValue, VecValue};
-
-use crate::Depot;
 
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
@@ -493,6 +490,7 @@ mod tests {
 
     use crate::macros::Extractible;
     use crate::test::TestClient;
+    use crate::Depot;
 
     #[tokio::test]
     async fn test_de_request_from_query() {
@@ -506,7 +504,7 @@ mod tests {
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -534,7 +532,7 @@ mod tests {
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData<'_> = req.extract(&mut depot).await.unwrap();
         assert_eq!(data, RequestData { q1: "q1v" });
     }
@@ -551,7 +549,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("abc", "q1v")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData<'_> = req.extract(&mut depot).await.unwrap();
         assert_eq!(data, RequestData { q1: "q1v" });
     }
@@ -568,7 +566,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("alias1", "q1v")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -580,7 +578,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("alias2", "q2v")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -604,7 +602,7 @@ mod tests {
             .query("FirstName", "chris")
             .query("lastName", "young")
             .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData<'_> = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -642,7 +640,7 @@ mod tests {
         req.params.insert("param1", "param1v".into());
         req.params.insert("p2", "921".into());
         req.params.insert("p3", "89785".into());
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -684,7 +682,7 @@ mod tests {
             ])
             .build();
         req.params.insert("p2", "921".into());
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -718,7 +716,7 @@ mod tests {
             .json(&true)
             .build();
         req.params.insert("p2", "921".into());
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(data, RequestData { p2: "921", b: true });
     }
@@ -737,7 +735,7 @@ mod tests {
             .json(&"abcd-good")
             .build();
         req.params.insert("p2", "921".into());
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -766,7 +764,7 @@ mod tests {
             .raw_form(r#"user={"name": "chris", "age": 20}"#)
             .build();
         req.params.insert("p2", "921".into());
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -793,7 +791,7 @@ mod tests {
             "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -818,7 +816,7 @@ mod tests {
             "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -843,7 +841,7 @@ mod tests {
             "http://127.0.0.1:8698/test/1234/param2v?full-name=chris+young&currAge=20",
         )
         .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -863,7 +861,7 @@ mod tests {
         }
         let mut req =
             TestClient::get("http://127.0.0.1:8698/test/1234/param2v?ids=[3,2,11]").build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -875,7 +873,7 @@ mod tests {
             r#"http://127.0.0.1:8698/test/1234/param2v?ids=['3',  '2',"11","1,2"]"#,
         )
         .build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
@@ -899,7 +897,7 @@ mod tests {
         }
         let mut req =
             TestClient::get("http://127.0.0.1:8698/test/1234/param2v?ids=[3,2,11]").build();
-        let mut depot = crate::Depot::new();
+        let mut depot = Depot::new();
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,

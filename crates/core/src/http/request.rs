@@ -907,7 +907,7 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract<'de, T>(&'de mut self, depot: &'de mut crate::Depot) -> ParseResult<T>
+    pub async fn extract<'de, T>(&'de mut self, depot: &'de mut Depot) -> ParseResult<T>
     where
         T: Extractible<'de> + Deserialize<'de> + Send,
     {
@@ -918,7 +918,7 @@ impl Request {
     #[inline]
     pub async fn extract_with_metadata<'de, T>(
         &'de mut self,
-        depot: &'de mut crate::Depot,
+        depot: &'de mut Depot,
         metadata: &'de Metadata,
     ) -> ParseResult<T>
     where
