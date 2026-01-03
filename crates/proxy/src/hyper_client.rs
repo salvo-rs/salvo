@@ -21,6 +21,8 @@ pub struct HyperClient<C> {
 
 impl Default for HyperClient<HttpsConnector<HttpConnector>> {
     fn default() -> Self {
+        #[cfg(feature = "ring")]
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
             .expect("no native root CA certificates found")

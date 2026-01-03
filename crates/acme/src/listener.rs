@@ -10,6 +10,7 @@ use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_ecdsa_type;
 #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::CertifiedKey;
@@ -180,19 +181,13 @@ impl<T> AcmeListener<T> {
                 .await?;
             if let Some(key_data) = key_data {
                 tracing::debug!("load private key from cache");
-                if let Some(key) =
-                    rustls_pemfile::pkcs8_private_keys(&mut key_data.as_slice()).next()
-                {
-                    match key {
-                        Ok(key) => {
-                            cached_key = Some(key);
-                        }
-                        Err(e) => {
-                            tracing::warn!(error = ?e, "parse cached private key failed");
-                        }
+                match PrivateKeyDer::from_pem_slice(&key_data) {
+                    Ok(key) => {
+                        cached_key = Some(key);
                     }
-                } else {
-                    tracing::warn!("parse cached private key failed");
+                    Err(e) => {
+                        tracing::warn!(error = ?e, "parse cached private key failed");
+                    }
                 }
             }
             let cert_data = cache_path
@@ -200,14 +195,18 @@ impl<T> AcmeListener<T> {
                 .await?;
             if let Some(cert_data) = cert_data {
                 tracing::debug!("load certificate from cache");
-                let certs = rustls_pemfile::certs(&mut cert_data.as_slice())
-                    .filter_map(|i| i.ok())
-                    .collect::<Vec<_>>();
-                if !certs.is_empty() {
-                    cached_certs = Some(certs);
-                } else {
-                    tracing::warn!("parse cached tls certificates failed")
-                };
+                match CertificateDer::pem_slice_iter(&cert_data).collect::<Result<Vec<_>, _>>() {
+                    Ok(certs) => {
+                        if !certs.is_empty() {
+                            cached_certs = Some(certs);
+                        } else {
+                            tracing::warn!("parse cached tls certificates failed")
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = ?e, "parse cached tls certificates failed");
+                    }
+                }
             }
         };
 
@@ -219,8 +218,7 @@ impl<T> AcmeListener<T> {
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
-                any_ecdsa_type(&PrivateKeyDer::Pkcs8(cached_key))
-                    .expect("parse private key failed"),
+                any_ecdsa_type(&cached_key).expect("parse private key failed"),
             )));
         }
 
@@ -393,12 +391,11 @@ where
         .await?;
         tokio::spawn(async move {
             while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
-                if cert_resolver.will_expired(config.before_expired) {
-                    if let Err(e) =
+                if cert_resolver.will_expired(config.before_expired)
+                    && let Err(e) =
                         super::issuer::issue_cert(&mut client, &config, &cert_resolver).await
-                    {
-                        tracing::error!(error = ?e, "issue certificate failed");
-                    }
+                {
+                    tracing::error!(error = ?e, "issue certificate failed");
                 }
                 tokio::time::sleep(check_duration).await;
             }

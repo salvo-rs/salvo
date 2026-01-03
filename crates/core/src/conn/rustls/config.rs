@@ -12,6 +12,7 @@ use tokio_rustls::rustls::SupportedProtocolVersion;
 use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_supported_type;
 #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
 use tokio_rustls::rustls::crypto::ring::sign::any_supported_type;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
 use tokio_rustls::rustls::sign::CertifiedKey;
@@ -91,35 +92,16 @@ impl Keycert {
     }
 
     fn build_certified_key(&self) -> IoResult<CertifiedKey> {
-        let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
-            .flat_map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
-            .collect::<Vec<_>>();
+        let cert = CertificateDer::pem_slice_iter(&self.cert)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| IoError::other(format!("failed to parse certificate pem: {}", e)))?;
 
-        let key = {
-            let mut ec = rustls_pemfile::ec_private_keys(&mut self.key.as_ref())
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|_| IoError::other("failed to parse tls private keys"))?;
-            if !ec.is_empty() {
-                PrivateKeyDer::Sec1(ec.remove(0))
-            } else {
-                let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|_| IoError::other("failed to parse tls private keys"))?;
-                if !pkcs8.is_empty() {
-                    PrivateKeyDer::Pkcs8(pkcs8.remove(0))
-                } else {
-                    let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
-                        .collect::<Result<Vec<_>, _>>()
-                        .map_err(|_| IoError::other("failed to parse tls private keys"))?;
+        if cert.is_empty() {
+            return Err(IoError::other("no certificates found in pem data"));
+        }
 
-                    if !rsa.is_empty() {
-                        PrivateKeyDer::Pkcs1(rsa.remove(0))
-                    } else {
-                        return Err(IoError::other("failed to parse tls private keys"));
-                    }
-                }
-            }
-        };
+        let key = PrivateKeyDer::from_pem_slice(&self.key)
+            .map_err(|e| IoError::other(format!("failed to parse private key pem: {}", e)))?;
 
         let key = any_supported_type(&key).map_err(|_| IoError::other("invalid private key"))?;
 

@@ -19,7 +19,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-session = { workspace = true }
+saysion = { workspace = true }
 cookie = { workspace = true, features = ["percent-encode", "signed"] }
 salvo_core = { workspace = true, features = ["cookie"] }
 tracing = { workspace = true }

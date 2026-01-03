@@ -43,8 +43,8 @@ fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, 
             id: user.id,
             email: user.username.clone(),
             full_name: user.username.clone(),
-            created_at: user.created_at.clone(),
-            updated_at: user.updated_at.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         })
         .collect();
 
@@ -79,7 +79,7 @@ fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<Use
     }
 
     // ✅ Hash the password
-    let hashed = match hash_password(&user_create.password.clone().as_str()) {
+    let hashed = match hash_password(user_create.password.clone().as_str()) {
         Ok(h) => h,
         Err(e) => {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -143,8 +143,8 @@ pub async fn get_users_information(
         id: current_user.id,
         email: current_user.username.clone(), // or change field if you have separate email
         full_name: current_user.full_name.clone(),
-        created_at: current_user.created_at.clone(),
-        updated_at: current_user.created_at.clone(),
+        created_at: current_user.created_at,
+        updated_at: current_user.updated_at,
     };
 
     // ✅ Send JSON response
@@ -206,8 +206,8 @@ fn update_users(
                     id: current_user.id,
                     email: current_user.username.clone(),
                     full_name: update_data.fullname.clone(),
-                    created_at: current_user.created_at.clone(),
-                    updated_at: current_user.updated_at.clone(),
+                    created_at: current_user.created_at,
+                    updated_at: current_user.updated_at,
                 }));
                 return;
             }
@@ -258,7 +258,7 @@ fn delete_users(
         Ok(0) => {
             res.status_code(StatusCode::NOT_FOUND);
             res.render(Json(ResErrorBody {
-                detail: "❌ User not found".to_string(),
+                detail: "❌ User not found".to_owned(),
             }));
         }
         Ok(affected_row) => {
@@ -268,8 +268,8 @@ fn delete_users(
                 id: current_user.id,
                 email: current_user.username.clone(),
                 full_name: current_user.full_name.clone(),
-                created_at: current_user.created_at.clone(),
-                updated_at: current_user.updated_at.clone(),
+                created_at: current_user.created_at,
+                updated_at: current_user.updated_at,
             }));
         }
         Err(err) => {
@@ -348,19 +348,19 @@ fn get_access_token(
         eprintln!("no existing users");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ResErrorBody {
-            detail: format!("🚫 Invalid username or password"),
+            detail: "🚫 Invalid username or password".to_owned(),
         }));
         return;
     };
 
     if !verify_password(
-        &user_credentiel.password.clone().as_str(),
-        &user.password.clone().as_str(),
+        user_credentiel.password.clone().as_str(),
+        user.password.clone().as_str(),
     ) {
         println!("bad password");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ResErrorBody {
-            detail: format!("🚫 Invalid username or password"),
+            detail: "🚫 Invalid username or password".to_owned(),
         }));
         return;
     }
@@ -374,12 +374,12 @@ fn get_access_token(
         &jsonwebtoken::Header::default(),
         &claim,
         &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
-    );
+    ).expect("failed to encode jwt token");
 
     res.status_code(StatusCode::OK);
     res.render(Json(ResTokenBody {
-        token_type: String::from("Bearer"),
-        token: String::from(token.unwrap()),
+        token_type: "Bearer".to_owned(),
+        token,
     }));
 }
 

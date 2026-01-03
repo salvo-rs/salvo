@@ -51,7 +51,6 @@ http = { workspace = true }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["http1", "http2", "client-legacy", "tokio"] }
 parking_lot = { workspace = true }
-rustls-pemfile = { workspace = true }
 tokio = { workspace = true }
 tokio-rustls = { workspace = true, features = ["logging"] }
 tracing = { workspace = true }
