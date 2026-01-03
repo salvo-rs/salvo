@@ -423,10 +423,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 #metadata
 
                 #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> Result<Self, #salvo::http::ParseError>
                 where
                     Self: Sized {
-                    #salvo::serde::from_request(req, Self::metadata()).await
+                    #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
             }
         }
@@ -440,10 +440,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 #metadata
 
                 #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> Result<Self, #salvo::http::ParseError>
                 where
                     Self: Sized {
-                    #salvo::serde::from_request(req, Self::metadata()).await
+                    #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
             }
         }

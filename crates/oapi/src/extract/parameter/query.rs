@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
+use salvo_core::Depot;
 use salvo_core::Request;
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
@@ -90,11 +91,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         let value = req.query(arg).ok_or_else(|| {
             ParseError::other(format!(
                 "query parameter {arg} not found or convert to type failed"
@@ -112,11 +117,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         Ok(Self(req.query(arg)))
     }
 }
@@ -207,7 +216,8 @@ mod tests {
     #[should_panic]
     async fn test_required_query_prarm_extract() {
         let mut req = Request::new();
-        let _ = QueryParam::<String, true>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = QueryParam::<String, true>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -217,7 +227,9 @@ mod tests {
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut()
             .insert("param".to_owned(), "param".to_owned());
-        let result = QueryParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            QueryParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -227,7 +239,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = QueryParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            QueryParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -241,7 +255,8 @@ mod tests {
     #[should_panic]
     async fn test_query_prarm_extract() {
         let mut req = Request::new();
-        let _ = QueryParam::<String, false>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = QueryParam::<String, false>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -251,7 +266,9 @@ mod tests {
         let mut req = Request::from_hyper(req, schema);
         req.queries_mut()
             .insert("param".to_owned(), "param".to_owned());
-        let result = QueryParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            QueryParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -261,7 +278,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = QueryParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            QueryParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 

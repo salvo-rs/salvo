@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
+use salvo_core::Depot;
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::{ParseError, Request};
 use salvo_core::serde::from_str_val;
@@ -91,11 +92,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request");
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         let value = req
             .cookies()
             .get(arg)
@@ -118,11 +123,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         let value = req
             .cookies()
             .get(arg)
@@ -218,7 +227,8 @@ mod tests {
     #[should_panic]
     async fn test_required_cookie_prarm_extract() {
         let mut req = Request::new();
-        let _ = CookieParam::<String, true>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = CookieParam::<String, true>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -228,7 +238,9 @@ mod tests {
             .append("cookie", HeaderValue::from_static("param=param"));
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            CookieParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -238,7 +250,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            CookieParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -252,7 +266,8 @@ mod tests {
     #[should_panic]
     async fn test_cookie_prarm_extract() {
         let mut req = Request::new();
-        let _ = CookieParam::<String, false>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = CookieParam::<String, false>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -262,7 +277,9 @@ mod tests {
             .append("cookie", HeaderValue::from_static("param=param"));
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            CookieParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 
@@ -272,7 +289,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result =
+            CookieParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
     }
 

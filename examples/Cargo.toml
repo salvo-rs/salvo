@@ -73,7 +73,6 @@ rust-embed = "8.9.0"
 time = "0.3.44"
 uuid = "1.19.0"
 
-async-std = "1.13.2"
 juniper = { version = "0.17.0" }
 tower = "0.5.2"
 
