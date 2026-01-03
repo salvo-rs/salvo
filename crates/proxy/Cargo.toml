@@ -27,6 +27,7 @@ ring = ["hyper-rustls?/ring", "reqwest?/rustls-no-provider", "rustls", "rustls/r
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
 reqwest-client = ["dep:reqwest"]
 unix-sock-client = []
+system-proxy = ["reqwest?/system-proxy", "hyper-util?/client-proxy-system"]
 
 [dependencies]
 fastrand = { workspace = true }
@@ -48,7 +49,7 @@ hyper-util = { workspace = true, optional = true, features = [
 ] }
 local-ip-address = { workspace = true }
 percent-encoding = { workspace = true }
-reqwest = { workspace = true, optional = true, features = ["charset", "http2", "system-proxy", "stream"] }
+reqwest = { workspace = true, optional = true, features = ["charset", "http2", "stream"] }
 salvo_core = { workspace = true, default-features = false }
 rustls = { workspace = true, optional = true }
 tokio = { workspace = true }
