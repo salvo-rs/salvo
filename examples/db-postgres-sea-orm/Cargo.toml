@@ -3,10 +3,6 @@ name = "salvo-postgres-seaorm"
 version = "0.1.0"
 edition = "2024"
 
-
-[workspace]
-members = [".", "migration"]
-
 [dependencies]
 migration = { path = "migration" }
 anyhow = "1.0.100"
