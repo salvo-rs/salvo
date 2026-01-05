@@ -34,7 +34,7 @@ rbdc = "4.6.2"
 rbdc-mysql = "4.6.2"
 rbs = "4.5"
 async-trait = "0.1.89"
-sea-orm = "1.1.19"
+sea-orm = "2.0.0-rc"
 sea-orm-migration = "1.1.19"
 eyre = "0.6.12"
 tera = "1.20.1"
@@ -79,3 +79,5 @@ tower = "0.5.2"
 
 salvo_core = { path = "../crates/core" }
 salvo-oapi = { path = "../crates/oapi" }
+
+rand_core = "0.9.3"
