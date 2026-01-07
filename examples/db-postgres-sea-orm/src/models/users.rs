@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 use chrono::NaiveDateTime;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub struct Model {
     pub full_name: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    
+
     #[sea_orm(has_many)]
     pub posts: HasMany<super::posts::Entity>,
 }

@@ -1,27 +1,35 @@
-use salvo::prelude::*;
-use salvo_oapi::extract::HeaderParam;
-use salvo_oapi::endpoint;
-use jsonwebtoken::{decode, DecodingKey, Validation};
-use sea_orm::{EntityTrait, QueryFilter};
-use crate::{
-    database::db::DbPool, models::users, schemas::{ErrorResponseModel, JwtClaims}, utils::SECRET_KEY
-};
 use std::sync::Arc;
-use time::OffsetDateTime;
-use crate::models::users::Entity as Users;
-use crate::models::users::Column as UsersColumn;
-use sea_orm::ColumnTrait;
 
+use jsonwebtoken::{DecodingKey, Validation, decode};
+use salvo::prelude::*;
+use salvo_oapi::endpoint;
+use salvo_oapi::extract::HeaderParam;
+use sea_orm::ColumnTrait;
+use sea_orm::{EntityTrait, QueryFilter};
+use time::OffsetDateTime;
+
+use crate::models::users::Column as UsersColumn;
+use crate::models::users::Entity as Users;
+use crate::{
+    db::DbPool,
+    models::users,
+    schemas::{ErrorResponseModel, JwtClaims},
+    utils::SECRET_KEY,
+};
 
 #[endpoint]
-pub async fn auth_user(res: &mut Response, depot: &mut Depot, ctrl: &mut FlowCtrl, authentication: HeaderParam<String, true>,) {
+pub async fn auth_user(
+    res: &mut Response,
+    depot: &mut Depot,
+    ctrl: &mut FlowCtrl,
+    authentication: HeaderParam<String, true>,
+) {
     println!("🔐 Call Authentication");
 
     // ✅ Get DB connection
     let connection = depot.obtain::<Arc<DbPool>>().unwrap();
 
     let db = &**connection;
-
 
     // ✅ Decode the JWT
     let decoded = match decode::<JwtClaims>(
@@ -46,8 +54,7 @@ pub async fn auth_user(res: &mut Response, depot: &mut Depot, ctrl: &mut FlowCtr
     if decoded.claims.exp < current_timestamp {
         println!("⏰ Token expired at {}", decoded.claims.exp);
         res.status_code(StatusCode::UNAUTHORIZED);
-        res.render(Json(
-            ErrorResponseModel {
+        res.render(Json(ErrorResponseModel {
             detail: String::from("Invalid or expired token"),
         }));
         ctrl.skip_rest();
@@ -65,19 +72,15 @@ pub async fn auth_user(res: &mut Response, depot: &mut Depot, ctrl: &mut FlowCtr
         .await
         .expect("Error loading users");
 
-
     if let Some(user) = existing_user {
-            println!("👤 User found: {:?}", user);
-            depot.insert("user", user);
-        
+        println!("👤 User found: {:?}", user);
+        depot.insert("user", user);
     } else {
         res.status_code(StatusCode::UNAUTHORIZED);
-            res.render(Json(
-                ErrorResponseModel {
-                detail: format!("🚫 User '{}' not found", claims.username),
-            }));
-            ctrl.skip_rest();
-            return;
-
+        res.render(Json(ErrorResponseModel {
+            detail: format!("🚫 User '{}' not found", claims.username),
+        }));
+        ctrl.skip_rest();
+        return;
     }
 }

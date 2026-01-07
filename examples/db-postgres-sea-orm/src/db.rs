@@ -1,13 +1,13 @@
-use dotenvy::dotenv;
-use sea_orm::DatabaseConnection;
-use sea_orm::Database;
-use sea_orm::DbErr;
 use std::env;
+
+use dotenvy::dotenv;
+use sea_orm::Database;
+use sea_orm::DatabaseConnection;
+use sea_orm::DbErr;
 
 pub type DbPool = DatabaseConnection;
 
 pub async fn establish_connection_pool() -> DatabaseConnection {
-    
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -26,4 +26,3 @@ pub async fn check(db: DatabaseConnection) {
     // Should now fail
     assert!(matches!(db.ping().await, Err(DbErr::ConnectionAcquire(_))));
 }
-
