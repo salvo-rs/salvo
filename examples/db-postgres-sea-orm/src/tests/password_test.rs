@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod test {
-    use crate::utils::utils::{hash_password, verify_password};
+    use crate::utils::{hash_password, verify_password};
 
     #[test]
     fn test_hash_password_success() {
