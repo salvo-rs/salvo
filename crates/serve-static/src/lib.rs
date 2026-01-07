@@ -13,7 +13,7 @@
 pub mod dir;
 mod file;
 
-use percent_encoding::{CONTROLS, utf8_percent_encode};
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use salvo_core::Response;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::writing::Redirect;
@@ -47,7 +47,7 @@ cfg_feature! {
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
     path.split('/')
-        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
         .collect::<Vec<_>>()
         .join("/")
 }

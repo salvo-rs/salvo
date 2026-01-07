@@ -339,6 +339,11 @@ impl Handler for StaticDir {
         } else {
             &*decode_url_path_safely(req_path)
         };
+        // Check if rel_path contains any invalid path characters
+        if rel_path.chars().any(|c| matches!(c, '\0' | '<' | '>' | ':' | '"' | '|' | '?' | '*')) {
+            res.render(StatusError::not_found());
+            return;
+        }
         let rel_path = format_url_path_safely(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
@@ -577,12 +582,14 @@ fn list_html(current: &CurrentInfo) -> String {
             .trim_start_matches('/')
             .trim_end_matches('/')
             .split('/');
+        println!("segments: {:?}", segments);
         let mut link = "".to_owned();
         format!(
             r#"<a href="/">{}</a>{}"#,
             HOME_ICON,
             segments
                 .map(|seg| {
+                    println!("seg: {}", seg);
                     link = format!("{link}/{}", encode_url_path(seg));
                     format!("/<a href=\"{link}\">{seg}</a>")
                 })
