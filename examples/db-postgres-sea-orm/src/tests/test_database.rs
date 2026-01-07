@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::database::db::*;
+    use crate::db::*;
     use tokio;
 
     #[tokio::test]
