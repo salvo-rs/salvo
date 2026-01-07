@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod test{
+pub mod test {
     use crate::utils::utils::{hash_password, verify_password};
 
     #[test]
@@ -31,6 +31,4 @@ pub mod test{
         assert!(verify_password(password, &hash));
         assert!(!verify_password("wrong_password", &hash));
     }
-
-
 }

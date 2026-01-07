@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 use sea_orm::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[sea_orm::model]
@@ -17,6 +17,5 @@ pub struct Model {
     pub updated_at: NaiveDateTime,
     #[sea_orm(belongs_to, from = "user_id", to = "id")]
     pub user: Option<super::users::Entity>,
-
 }
 impl ActiveModelBehavior for ActiveModel {}

@@ -1,4 +1,5 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
 pub mod posts;
 pub mod users;
 
@@ -9,12 +10,12 @@ pub struct JwtClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TokenResponseModel{
+pub struct TokenResponseModel {
     pub token_type: String,
-    pub token: String
+    pub token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponseModel {
-    pub detail: String
+    pub detail: String,
 }
