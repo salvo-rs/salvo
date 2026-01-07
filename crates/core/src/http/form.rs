@@ -166,7 +166,12 @@ impl FilePart {
                 .expect("Runtime spawn blocking poll error")?
                 .keep();
         let temp_dir = Some(path.clone());
-        let name = field.file_name().map(|s| s.to_owned());
+        let name = field.file_name().map(|s| {
+            // Sanitize filename by removing invalid characters
+            s.chars()
+                .filter(|c| !matches!(c, '/' | '\\' | '\0' | '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+                .collect::<String>()
+        });
         path.push(format!(
             "{}.{}",
             text_nonce(),
