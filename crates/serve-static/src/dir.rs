@@ -572,7 +572,7 @@ fn human_size(bytes: u64) -> String {
     format!("{} {}", bytes, units[index])
 }
 fn list_html(current: &CurrentInfo) -> String {
-    fn header_links(path: &str) -> String {
+    fn header_link(path: &str) -> String {
         let segments = path
             .trim_start_matches('/')
             .trim_end_matches('/')
@@ -583,7 +583,7 @@ fn list_html(current: &CurrentInfo) -> String {
             HOME_ICON,
             segments
                 .map(|seg| {
-                    link = format!("{link}/{seg}");
+                    link = format!("{link}/{}", encode_url_path(seg));
                     format!("/<a href=\"{link}\">{seg}</a>")
                 })
                 .collect::<Vec<_>>()
@@ -596,9 +596,9 @@ fn list_html(current: &CurrentInfo) -> String {
         <meta name="viewport" content="width=device-width">
         <title>{}</title>
         <style>{}</style></head><body><header><h3>Index of: {}</h3></header><hr/>"#,
-        current.path,
+        encode_url_path(&current.path),
         HTML_STYLE,
-        header_links(&current.path)
+        header_link(&current.path)
     );
     if current.dirs.is_empty() && current.files.is_empty() {
         let _ = write!(ftxt, "<p>No files</p>");
