@@ -766,7 +766,7 @@ pub(crate) struct Alias {
 //                         _ => Ok(vec![arg]),
 //                     })
 //                     .flat_map(|args| args.into_iter().filter(|generic_arg| matches!(generic_arg,
-// syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),                     
+// syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),
 // ),                 _ => Err(Diagnostic::spanned(ty.span(),DiagLevel::Error, "AliasSchema
 // `get_lifetimes` only supports syn::TypePath types"))             }
 //         }
