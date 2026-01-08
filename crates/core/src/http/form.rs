@@ -169,7 +169,12 @@ impl FilePart {
         let name = field.file_name().map(|s| {
             // Sanitize filename by removing invalid characters
             s.chars()
-                .filter(|c| !matches!(c, '/' | '\\' | '\0' | '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+                .filter(|c| {
+                    !matches!(
+                        c,
+                        '/' | '\\' | '\0' | '<' | '>' | ':' | '"' | '|' | '?' | '*'
+                    )
+                })
                 .collect::<String>()
         });
         path.push(format!(

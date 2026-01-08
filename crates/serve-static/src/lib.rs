@@ -13,7 +13,7 @@
 pub mod dir;
 mod file;
 
-use percent_encoding::{CONTROLS, AsciiSet,  utf8_percent_encode};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::Response;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::writing::Redirect;
@@ -21,7 +21,13 @@ use salvo_core::writing::Redirect;
 pub use dir::StaticDir;
 pub use file::StaticFile;
 
-const HTML_ENCODE_SET: &AsciiSet = &CONTROLS.add(b'\'').add(b'"').add(b'`').add(b'<').add(b'>').add(b'&');
+const HTML_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b'\'')
+    .add(b'"')
+    .add(b'`')
+    .add(b'<')
+    .add(b'>')
+    .add(b'&');
 
 #[macro_use]
 mod cfg;
