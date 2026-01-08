@@ -98,8 +98,7 @@ impl Tag {
 
 #[cfg(test)]
 mod tests {
-    use super::ExternalDocs;
-    use super::Tag;
+    use super::{ExternalDocs, Tag};
 
     #[test]
     fn tag_new() {

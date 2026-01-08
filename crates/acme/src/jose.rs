@@ -3,9 +3,11 @@ use std::io::{Error as IoError, Result as IoResult};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http_body_util::{BodyExt, Full};
-use hyper::{Method, body::Incoming as HyperBody};
+use hyper::Method;
+use hyper::body::Incoming as HyperBody;
 use salvo_core::{Error as CoreError, Result as CoreResult};
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use super::client::HyperClient;
 use crate::key_pair::KeyPair;

@@ -6,8 +6,8 @@
 //! [`Server`] can be used to alter connection url for _**path operations**_. It can be a
 //! relative path e.g `/api/v1` or valid http url e.g. `http://alternative.api.com/api/v1`.
 //!
-//! Relative path will append to the **sever address** so the connection url for _**path operations**_
-//! will become `server address + relative path`.
+//! Relative path will append to the **sever address** so the connection url for _**path
+//! operations**_ will become `server address + relative path`.
 //!
 //! Optionally it also supports parameter substitution with `{variable}` syntax.
 //!
@@ -29,11 +29,13 @@
 //! ```rust
 //! # use salvo_oapi::server::{Server, ServerVariable};
 //! Server::new("/api/{version}/{username}")
-//!     .add_variable("version", ServerVariable::new()
-//!         .enum_values(["v1", "v2"])
-//!         .default_value("v1"))
-//!     .add_variable("username", ServerVariable::new()
-//!         .default_value("the_user"));
+//!     .add_variable(
+//!         "version",
+//!         ServerVariable::new()
+//!             .enum_values(["v1", "v2"])
+//!             .default_value("v1"),
+//!     )
+//!     .add_variable("username", ServerVariable::new().default_value("the_user"));
 //! ```
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
@@ -132,8 +134,8 @@ impl Servers {
 /// Represents target server object. It can be used to alter server connection for
 /// _**path operations**_.
 ///
-/// By default OpenAPI will implicitly implement [`Server`] with `url = "/"` if no servers is provided to
-/// the [`OpenApi`][openapi].
+/// By default OpenAPI will implicitly implement [`Server`] with `url = "/"` if no servers is
+/// provided to the [`OpenApi`][openapi].
 ///
 /// [openapi]: ../struct.OpenApi.html
 #[non_exhaustive]
@@ -146,7 +148,8 @@ pub struct Server {
     /// then can be configured with [`Server::variables`] map.
     pub url: String,
 
-    /// Optional description describing the target server url. Description supports markdown syntax.
+    /// Optional description describing the target server url. Description supports markdown
+    /// syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
@@ -167,12 +170,14 @@ impl PartialOrd for Server {
 }
 
 impl Server {
-    /// Construct a new [`Server`] with given url. Url can be valid http url or context path of the url.
+    /// Construct a new [`Server`] with given url. Url can be valid http url or context path of the
+    /// url.
     ///
-    /// If url is valid http url then all path operation request's will be forwarded to the selected [`Server`].
+    /// If url is valid http url then all path operation request's will be forwarded to the selected
+    /// [`Server`].
     ///
-    /// If url is path of url e.g. `/api/v1` then the url will be appended to the servers address and the
-    /// operations will be forwarded to location `server address + url`.
+    /// If url is path of url e.g. `/api/v1` then the url will be appended to the servers address
+    /// and the operations will be forwarded to location `server address + url`.
     ///
     ///
     /// # Examples
@@ -180,13 +185,13 @@ impl Server {
     /// Create new server with url path.
     /// ```
     /// # use salvo_oapi::server::Server;
-    ///  Server::new("/api/v1");
+    /// Server::new("/api/v1");
     /// ```
     ///
     /// Create new server with alternative server.
     /// ```
     /// # use salvo_oapi::server::Server;
-    ///  Server::new("https://alternative.pet-api.test/api/v1");
+    /// Server::new("https://alternative.pet-api.test/api/v1");
     /// ```
     #[must_use]
     pub fn new<S: Into<String>>(url: S) -> Self {
@@ -209,12 +214,13 @@ impl Server {
         self
     }
 
-    /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`] and returns `Self`.
+    /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`] and
+    /// returns `Self`.
     ///
     /// * `name` Defines name of the parameter which is being substituted within the url. If url has
     ///   `{username}` substitution then the name should be `username`.
-    /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
-    ///   within the url.
+    /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted within
+    ///   the url.
     #[must_use]
     pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(
         mut self,
@@ -242,7 +248,8 @@ impl DerefMut for ServerVariables {
     }
 }
 impl ServerVariables {
-    /// Construct a new empty [`ServerVariables`]. This is effectively same as calling [`ServerVariables::default`].
+    /// Construct a new empty [`ServerVariables`]. This is effectively same as calling
+    /// [`ServerVariables::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -298,7 +305,8 @@ impl ServerVariables {
     }
 }
 
-/// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in [`Server::url`].
+/// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in
+/// [`Server::url`].
 ///
 /// [server_variable]: https://spec.openapis.org/oas/latest.html#server-variable-object
 #[non_exhaustive]
@@ -319,7 +327,8 @@ pub struct ServerVariable {
 }
 
 impl ServerVariable {
-    /// Construct a new empty [`ServerVariable`]. This is effectively same as calling [`ServerVariable::default`].
+    /// Construct a new empty [`ServerVariable`]. This is effectively same as calling
+    /// [`ServerVariable::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -357,7 +366,7 @@ mod tests {
     use super::*;
 
     macro_rules! test_fn {
-        ($name:ident: $schema:expr; $expected:literal) => {
+        ($name:ident : $schema:expr; $expected:literal) => {
             #[test]
             fn $name() {
                 let value = serde_json::to_value($schema).unwrap();

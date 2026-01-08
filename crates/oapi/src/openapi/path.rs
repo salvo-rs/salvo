@@ -167,8 +167,8 @@ impl PathItem {
         self
     }
 
-    /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`] overriding
-    /// the global server array.
+    /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`]
+    /// overriding the global server array.
     #[must_use]
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
         self.servers = Servers(servers.into_iter().collect());

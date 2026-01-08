@@ -18,8 +18,8 @@ use crate::{Depot, Request, Response, async_trait};
 /// `Writer` is used to write data to [`Response`].
 ///
 /// `Writer` requires the use of [`Depot`] and Request, which allows for greater flexibility.
-/// For scenarios that do not require this flexibility, [`Scribe`] can be used, for example [`Text`], [`Json`] are
-/// implemented from [`Scribe`].
+/// For scenarios that do not require this flexibility, [`Scribe`] can be used, for example
+/// [`Text`], [`Json`] are implemented from [`Scribe`].
 #[async_trait]
 pub trait Writer {
     /// Write data to [`Response`].
@@ -29,7 +29,8 @@ pub trait Writer {
 
 /// `Scribe` is used to write data to [`Response`].
 ///
-/// `Scribe` is simpler than [`Writer`] and it implements [`Writer`]. It does not require the use of Depot and Request.
+/// `Scribe` is simpler than [`Writer`] and it implements [`Writer`]. It does not require the use of
+/// Depot and Request.
 ///
 /// There are several built-in implementations of the `Scribe` trait.
 pub trait Scribe {
@@ -167,7 +168,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]

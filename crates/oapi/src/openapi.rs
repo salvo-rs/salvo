@@ -28,28 +28,27 @@ use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};
 use serde::de::{Error, Expected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub use self::{
-    components::Components,
-    content::Content,
-    example::Example,
-    external_docs::ExternalDocs,
-    header::Header,
-    info::{Contact, Info, License},
-    operation::{Operation, Operations},
-    parameter::{Parameter, ParameterIn, ParameterStyle, Parameters},
-    path::{PathItem, PathItemType, Paths},
-    request_body::RequestBody,
-    response::{Response, Responses},
-    schema::{
-        Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat,
-        SchemaType, Schemas,
-    },
-    security::{SecurityRequirement, SecurityScheme},
-    server::{Server, ServerVariable, ServerVariables, Servers},
-    tag::Tag,
-    xml::Xml,
+pub use self::components::Components;
+pub use self::content::Content;
+pub use self::example::Example;
+pub use self::external_docs::ExternalDocs;
+pub use self::header::Header;
+pub use self::info::{Contact, Info, License};
+pub use self::operation::{Operation, Operations};
+pub use self::parameter::{Parameter, ParameterIn, ParameterStyle, Parameters};
+pub use self::path::{PathItem, PathItemType, Paths};
+pub use self::request_body::RequestBody;
+pub use self::response::{Response, Responses};
+pub use self::schema::{
+    Array, BasicType, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType,
+    Schemas,
 };
-use crate::{Endpoint, routing::NormNode};
+pub use self::security::{SecurityRequirement, SecurityScheme};
+pub use self::server::{Server, ServerVariable, ServerVariables, Servers};
+pub use self::tag::Tag;
+pub use self::xml::Xml;
+use crate::Endpoint;
+use crate::routing::NormNode;
 
 static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
@@ -109,9 +108,9 @@ pub struct OpenApi {
     #[serde(skip_serializing_if = "Components::is_empty")]
     pub components: Components,
 
-    /// Declaration of global security mechanisms that can be used across the API. The individual operations
-    /// can override the declarations. You can use `SecurityRequirement::default()` if you wish to make security
-    /// optional by adding it to the list of securities.
+    /// Declaration of global security mechanisms that can be used across the API. The individual
+    /// operations can override the declarations. You can use `SecurityRequirement::default()`
+    /// if you wish to make security optional by adding it to the list of securities.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#security-requirement-object>.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -176,12 +175,14 @@ impl OpenApi {
         }
     }
 
-    /// Converts this [`OpenApi`] to JSON String. This method essentially calls [`serde_json::to_string`] method.
+    /// Converts this [`OpenApi`] to JSON String. This method essentially calls
+    /// [`serde_json::to_string`] method.
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
 
-    /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls [`serde_json::to_string_pretty`] method.
+    /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls
+    /// [`serde_json::to_string_pretty`] method.
     pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
@@ -274,7 +275,8 @@ impl OpenApi {
     /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
+    /// [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
@@ -293,7 +295,8 @@ impl OpenApi {
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
+    /// [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
@@ -335,11 +338,8 @@ impl OpenApi {
     ///     "Pet",
     ///     Schema::from(
     ///         Object::new()
-    ///             .property(
-    ///                 "name",
-    ///                 Object::new().schema_type(BasicType::String),
-    ///             )
-    ///             .required("name")
+    ///             .property("name", Object::new().schema_type(BasicType::String))
+    ///             .required("name"),
     ///     ),
     /// )]);
     /// ```
@@ -753,17 +753,16 @@ mod tests {
     use std::str::FromStr;
 
     use bytes::Bytes;
+    use salvo_core::http::ResBody;
+    use salvo_core::prelude::*;
     use serde_json::{Value, json};
 
-    use super::{response::Response, *};
-    use crate::{
-        ToSchema,
-        extract::*,
-        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme},
-        server::Server,
-    };
-
-    use salvo_core::{http::ResBody, prelude::*};
+    use super::response::Response;
+    use super::*;
+    use crate::ToSchema;
+    use crate::extract::*;
+    use crate::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme};
+    use crate::server::Server;
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {

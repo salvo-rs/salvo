@@ -8,14 +8,13 @@ mod array;
 mod object;
 mod one_of;
 
+use std::ops::{Deref, DerefMut};
+
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
 pub use array::Array;
 pub use object::Object;
 pub use one_of::OneOf;
-
-use std::ops::{Deref, DerefMut};
-
 use serde::{Deserialize, Serialize};
 
 use crate::{PropMap, RefOr};
@@ -140,8 +139,8 @@ pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
-    /// or can be a field within the [`Object`].
+    /// Defines object schema. Object is either `object` holding **properties** which are other
+    /// [`Schema`]s or can be a field within the [`Object`].
     Object(Box<Object>),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
@@ -327,8 +326,9 @@ impl Ref {
         self
     }
 
-    /// Add or change short summary which by default should override that of the referenced component. If
-    /// referenced component does not support summary field this does not have effect.
+    /// Add or change short summary which by default should override that of the referenced
+    /// component. If referenced component does not support summary field this does not have
+    /// effect.
     #[must_use]
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = summary.into();
@@ -410,7 +410,6 @@ impl SchemaType {
     }
 
     //// Instantiate new [`SchemaType::AnyValue`].
-    ///
     /// This is same as calling [`SchemaType::AnyValue`] but in a function form `() -> SchemaType`
     /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
     #[must_use]
@@ -429,9 +428,9 @@ impl SchemaType {
 /// Represents data type fragment of [`Schema`].
 ///
 /// [`BasicType`] is used to create a [`SchemaType`] that defines the type of the [`Schema`].
-/// [`SchemaType`] can be created from a single [`BasicType`] or multiple [`BasicType`]s according to the
-/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definition of
-/// the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
+/// [`SchemaType`] can be created from a single [`BasicType`] or multiple [`BasicType`]s according
+/// to the OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the
+/// definition of the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
 ///
 /// # Examples
 /// _**Create nullable string [`SchemaType`]**_

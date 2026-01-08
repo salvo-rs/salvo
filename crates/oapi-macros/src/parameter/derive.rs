@@ -2,11 +2,10 @@ use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
+use syn::parse::Parse;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{
-    Attribute, Data, Field, GenericParam, Generics, Ident, Lifetime, LifetimeParam, Token,
-    parse::Parse, punctuated::Punctuated,
-};
+use syn::{Attribute, Data, Field, GenericParam, Generics, Ident, Lifetime, LifetimeParam, Token};
 
 use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;

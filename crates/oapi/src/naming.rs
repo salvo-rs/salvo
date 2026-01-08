@@ -32,7 +32,11 @@ static NAME_TYPES: LazyLock<RwLock<BTreeMap<String, (TypeId, &'static str)>>> =
 /// # use salvo_core::prelude::*;
 /// # #[tokio::main]
 /// # async fn main() {
-///     salvo_oapi::naming::set_namer(salvo_oapi::naming::FlexNamer::new().short_mode(true).generic_delimiter('_', '_'));
+/// salvo_oapi::naming::set_namer(
+///     salvo_oapi::naming::FlexNamer::new()
+///         .short_mode(true)
+///         .generic_delimiter('_', '_'),
+/// );
 /// # }
 /// ```
 pub fn set_namer(namer: impl Namer) {

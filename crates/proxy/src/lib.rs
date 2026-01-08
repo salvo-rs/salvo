@@ -41,20 +41,18 @@
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
+#[cfg(test)]
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use hyper::upgrade::OnUpgrade;
+#[cfg(not(test))]
+use local_ip_address::{local_ip, local_ipv6};
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
-
-#[cfg(test)]
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-
-#[cfg(not(test))]
-use local_ip_address::{local_ip, local_ipv6};
 
 #[macro_use]
 mod cfg;
@@ -209,8 +207,8 @@ pub fn default_host_header_getter(
     None
 }
 
-/// RFC2616 complieant host header getter. This getter will get the host header from request uri, and add port if
-/// it's not default port. Falls back to default upon any forward URI parse error.
+/// RFC2616 complieant host header getter. This getter will get the host header from request uri,
+/// and add port if it's not default port. Falls back to default upon any forward URI parse error.
 pub fn rfc2616_host_header_getter(
     forward_uri: &Uri,
     req: &Request,
@@ -236,7 +234,8 @@ pub fn rfc2616_host_header_getter(
     }
 }
 
-/// Preserve original host header getter. Propagates the original request host header to the proxied request.
+/// Preserve original host header getter. Propagates the original request host header to the proxied
+/// request.
 pub fn preserve_original_host_header_getter(
     forward_uri: &Uri,
     req: &Request,
@@ -567,10 +566,10 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
     use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn test_encode_url_path() {

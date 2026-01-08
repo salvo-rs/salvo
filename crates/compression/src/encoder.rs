@@ -181,8 +181,9 @@ impl Encoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::io::Read;
+
+    use super::*;
 
     #[cfg(feature = "gzip")]
     #[test]

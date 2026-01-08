@@ -2,9 +2,15 @@ use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Field, Generics, Token, punctuated::Punctuated, spanned::Spanned};
+use syn::{Attribute, Field, Generics, Token};
 
+use super::feature::{FromAttributes, NamedFieldFeatures, parse_schema_features_with};
+use super::{
+    ComponentSchema, FieldRename, FlattenedMapSchema, Property, is_flatten, is_not_skipped,
+};
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
@@ -19,12 +25,6 @@ use crate::type_tree::TypeTree;
 use crate::{
     Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
     TryToTokens, serde_util,
-};
-
-use super::{
-    ComponentSchema, FieldRename, FlattenedMapSchema, Property,
-    feature::{FromAttributes, NamedFieldFeatures, parse_schema_features_with},
-    is_flatten, is_not_skipped,
 };
 
 #[derive(Debug)]
@@ -404,7 +404,8 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             }
 
             // The struct has multiple unnamed fields.
-            // Validation related features are only allowed on unnamed structs with a single field (i.e., newtype pattern).
+            // Validation related features are only allowed on unnamed structs with a single field
+            // (i.e., newtype pattern).
             if fields_len > 1
                 && let Some(ref mut features) = unnamed_struct_features
                 && let Some((name, span)) = features.iter().find_map(|feature| match feature {

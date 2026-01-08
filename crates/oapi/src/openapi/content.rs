@@ -1,11 +1,10 @@
 //! Implements content object for request body and response.
 use serde::{Deserialize, Serialize};
-
 use serde_json::Value;
 
-use super::PropMap;
+use super::encoding::Encoding;
 use super::example::Example;
-use super::{RefOr, Schema, encoding::Encoding};
+use super::{PropMap, RefOr, Schema};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]

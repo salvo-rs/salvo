@@ -158,7 +158,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 })
             }
         }
-        ReturnType::Type(_, _) => {
+        ReturnType::Type(..) => {
             if sig.asyncness.is_none() {
                 Ok(quote! {
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {

@@ -6,10 +6,10 @@ use std::ops::{Deref, DerefMut};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{PropMap, Ref, RefOr};
-
+use super::Content;
+use super::header::Header;
 use super::link::Link;
-use super::{Content, header::Header};
+use crate::{PropMap, Ref, RefOr};
 
 /// Implements [OpenAPI Responses Object][responses].
 ///
@@ -73,7 +73,8 @@ impl IntoIterator for Responses {
 }
 
 impl Responses {
-    /// Construct a new empty [`Responses`]. This is effectively same as calling [`Responses::default`].
+    /// Construct a new empty [`Responses`]. This is effectively same as calling
+    /// [`Responses::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -151,7 +152,8 @@ pub struct Response {
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub headers: PropMap<String, Header>,
 
-    /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
+    /// Map of response [`Content`] objects identified by response body content type e.g
+    /// `application/json`.
     ///
     /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
     /// will create and show default example according to the first entry in `content` map.
@@ -188,7 +190,8 @@ impl Response {
         self
     }
 
-    /// Add [`Content`] of the [`Response`] with content type e.g `application/json` and returns `Self`.
+    /// Add [`Content`] of the [`Response`] with content type e.g `application/json` and returns
+    /// `Self`.
     #[must_use]
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, key: S, content: C) -> Self {
         self.contents.insert(key.into(), content.into());
@@ -225,9 +228,10 @@ impl From<Ref> for RefOr<Response> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Content, Header, PropMap, Ref, RefOr, Response, Responses};
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
+
+    use super::{Content, Header, PropMap, Ref, RefOr, Response, Responses};
 
     #[test]
     fn responses_new() {

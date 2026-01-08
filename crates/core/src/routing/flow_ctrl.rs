@@ -7,13 +7,14 @@ use crate::{Depot, Handler};
 /// Control the flow of execute handlers.
 ///
 /// When a request is coming, [`Router`] will detect it and get the matched router.
-/// And then salvo will collect all handlers (including added as middlewares) from the matched router tree.
-/// All handlers in this list will executed one by one.
+/// And then salvo will collect all handlers (including added as middlewares) from the matched
+/// router tree. All handlers in this list will executed one by one.
 ///
-/// Each handler can use `FlowCtrl` to control execute flow, let the flow call next handler or skip all rest handlers.
+/// Each handler can use `FlowCtrl` to control execute flow, let the flow call next handler or skip
+/// all rest handlers.
 ///
-/// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`] is returns false,
-/// all remaining handlers will be skipped.
+/// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`]
+/// is returns false, all remaining handlers will be skipped.
 ///
 /// [`Router`]: crate::routing::Router
 #[derive(Default)]
@@ -53,9 +54,11 @@ impl FlowCtrl {
         self.cursor < self.handlers.len() // && !self.handlers.is_empty()
     }
 
-    /// Call next handler. If get next handler and executed, returns `true``, otherwise returns `false`.
+    /// Call next handler. If get next handler and executed, returns `true``, otherwise returns
+    /// `false`.
     ///
-    /// **NOTE**: If response status code is error or is redirection, all reset handlers will be skipped.
+    /// **NOTE**: If response status code is error or is redirection, all reset handlers will be
+    /// skipped.
     #[inline]
     pub async fn call_next(
         &mut self,
@@ -96,8 +99,8 @@ impl FlowCtrl {
 
     /// Check is `FlowCtrl` ceased.
     ///
-    /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow ceased.
-    /// If `is_ceased` returns `true`, the handler should skip the following logic.
+    /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow
+    /// ceased. If `is_ceased` returns `true`, the handler should skip the following logic.
     #[inline]
     #[must_use]
     pub fn is_ceased(&self) -> bool {
@@ -105,8 +108,9 @@ impl FlowCtrl {
     }
     /// Cease all following logic.
     ///
-    /// **NOTE**: This function will mark is_ceased as `true`, but whether the subsequent logic can be skipped
-    /// depends on whether the middleware correctly checks is_ceased and skips the subsequent logic.
+    /// **NOTE**: This function will mark is_ceased as `true`, but whether the subsequent logic can
+    /// be skipped depends on whether the middleware correctly checks is_ceased and skips the
+    /// subsequent logic.
     #[inline]
     pub fn cease(&mut self) {
         self.skip_rest();

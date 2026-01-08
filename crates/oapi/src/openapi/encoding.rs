@@ -83,9 +83,10 @@ impl Encoding {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_encoding_default() {

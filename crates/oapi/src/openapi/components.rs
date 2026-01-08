@@ -39,7 +39,8 @@ pub struct Components {
 }
 
 impl Components {
-    /// Construct a new empty [`Components`]. This is effectively same as calling [`Components::default`].
+    /// Construct a new empty [`Components`]. This is effectively same as calling
+    /// [`Components::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -48,7 +49,8 @@ impl Components {
     /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
+    /// [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
@@ -66,7 +68,8 @@ impl Components {
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
+    /// [`SecurityScheme`].
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
@@ -108,11 +111,8 @@ impl Components {
     ///     "Pet",
     ///     Schema::from(
     ///         Object::new()
-    ///             .property(
-    ///                 "name",
-    ///                 Object::new().schema_type(BasicType::String),
-    ///             )
-    ///             .required("name")
+    ///             .property("name", Object::new().schema_type(BasicType::String))
+    ///             .required("name"),
     ///     ),
     /// )]);
     /// ```

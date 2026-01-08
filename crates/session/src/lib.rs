@@ -1,70 +1,66 @@
-/*!
-# Salvo Session Support
-
-Salvo's session middleware is built on top of
-[`saysion`](https://github.com/salvo-rs/saysion).
-
-See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
-
-Sessions allow Salvo applications to securely attach data to browser sessions,
-enabling retrieval and modification of this data on subsequent visits.
-Session data is typically retained only for the duration of a browser session.
-
-## Stores
-
-It is highly recommended to use an external-datastore-backed session storage
-for production Salvo applications. For a list of currently available session
-stores, see [the documentation for saysion](https://github.com/salvo-rs/saysion).
-
-## Security
-
-While each session store may have different security implications,
-Salvo's session system works as follows:
-
-On each request, Salvo checks for the cookie specified by `cookie_name`
-in the handler configuration.
-
-### When no cookie is found:
-
-1. A cryptographically random cookie value is generated
-2. A cookie is set on the outbound response and signed with an HKDF key
-   derived from the `secret` provided when creating the SessionHandler
-3. The session store uses a SHA256 digest of the cookie value to store
-   the session along with an optional expiry time
-
-### When a cookie is found:
-
-1. The HKDF-derived signing key verifies the cookie value's signature
-2. If verification succeeds, the value is passed to the session store to
-   retrieve the associated Session
-3. For most session stores, this involves taking a SHA256 digest of the
-   cookie value and retrieving a serialized Session from an external datastore
-
-### Expiry Handling
-
-Sessions include expiry information in both the cookie and the serialization format.
-Even if an adversary tampers with a cookie's expiry, Salvo validates
-the expiry on the contained session before using it.
-
-### Error Handling
-
-If any failures occur during session retrieval, a new empty session
-is generated for the request, which proceeds through the application normally.
-
-## Stale/Expired Session Cleanup
-
-Any session store (except the cookie store) will accumulate stale sessions over time.
-Although Salvo ensures expired sessions won't be used, it remains the
-application's responsibility to periodically call cleanup on the session
-store if required.
-
-Read more: <https://salvo.rs>
-*/
+//! # Salvo Session Support
+//!
+//! Salvo's session middleware is built on top of
+//! [`saysion`](https://github.com/salvo-rs/saysion).
+//!
+//! See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
+//!
+//! Sessions allow Salvo applications to securely attach data to browser sessions,
+//! enabling retrieval and modification of this data on subsequent visits.
+//! Session data is typically retained only for the duration of a browser session.
+//!
+//! ## Stores
+//!
+//! It is highly recommended to use an external-datastore-backed session storage
+//! for production Salvo applications. For a list of currently available session
+//! stores, see [the documentation for saysion](https://github.com/salvo-rs/saysion).
+//!
+//! ## Security
+//!
+//! While each session store may have different security implications,
+//! Salvo's session system works as follows:
+//!
+//! On each request, Salvo checks for the cookie specified by `cookie_name`
+//! in the handler configuration.
+//!
+//! ### When no cookie is found:
+//!
+//! 1. A cryptographically random cookie value is generated
+//! 2. A cookie is set on the outbound response and signed with an HKDF key
+//! derived from the `secret` provided when creating the SessionHandler
+//! 3. The session store uses a SHA256 digest of the cookie value to store
+//! the session along with an optional expiry time
+//!
+//! ### When a cookie is found:
+//!
+//! 1. The HKDF-derived signing key verifies the cookie value's signature
+//! 2. If verification succeeds, the value is passed to the session store to
+//! retrieve the associated Session
+//! 3. For most session stores, this involves taking a SHA256 digest of the
+//! cookie value and retrieving a serialized Session from an external datastore
+//!
+//! ### Expiry Handling
+//!
+//! Sessions include expiry information in both the cookie and the serialization format.
+//! Even if an adversary tampers with a cookie's expiry, Salvo validates
+//! the expiry on the contained session before using it.
+//!
+//! ### Error Handling
+//!
+//! If any failures occur during session retrieval, a new empty session
+//! is generated for the request, which proceeds through the application normally.
+//!
+//! ## Stale/Expired Session Cleanup
+//!
+//! Any session store (except the cookie store) will accumulate stale sessions over time.
+//! Although Salvo ensures expired sessions won't be used, it remains the
+//! application's responsibility to periodically call cleanup on the session
+//! store if required.
+//!
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-pub use saysion::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::fmt::{self, Formatter};
 use std::time::Duration;
@@ -72,9 +68,11 @@ use std::time::Duration;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
-use saysion::base64::{Engine as _, engine::general_purpose};
+use saysion::base64::Engine as _;
+use saysion::base64::engine::general_purpose;
 use saysion::hmac::{Hmac, Mac};
 use saysion::sha2::Sha256;
+pub use saysion::{CookieStore, MemoryStore, Session, SessionStore};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";

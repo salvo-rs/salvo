@@ -203,11 +203,11 @@ cfg_feature! {
 
 #[cfg(test)]
 mod tests {
-    use crate::http::*;
-    use crate::{Depot, Writer};
     use std::str::FromStr;
 
     use super::*;
+    use crate::http::*;
+    use crate::{Depot, Writer};
 
     #[tokio::test]
     #[cfg(feature = "anyhow")]

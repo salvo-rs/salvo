@@ -27,10 +27,8 @@
 
 /// Re-export `async_trait`.
 pub use async_trait::async_trait;
-pub use hyper;
 pub use salvo_macros::handler;
-
-pub use salvo_macros as macros;
+pub use {hyper, salvo_macros as macros};
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_core;
 // https://github.com/bkchr/proc-macro-crate/issues/10

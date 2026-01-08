@@ -12,13 +12,14 @@ use crate::PropMap;
 
 /// OpenAPI [security requirement][security] object.
 ///
-/// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
-/// to execute the operation. They can be defined in [`#[salvo_oapi::endpoint(...)]`][endpoint].
+/// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes*
+/// required to execute the operation. They can be defined in
+/// [`#[salvo_oapi::endpoint(...)]`][endpoint].
 ///
 /// Applying the security requirement to [`OpenApi`][openapi] will make it globally
-/// available to all operations. When applied to specific [`#[salvo_oapi::endpoint(...)]`][endpoint] will only
-/// make the security requirements available for that operation. Only one of the requirements must be
-/// satisfied.
+/// available to all operations. When applied to specific [`#[salvo_oapi::endpoint(...)]`][endpoint]
+/// will only make the security requirements available for that operation. Only one of the
+/// requirements must be satisfied.
 ///
 /// [security]: https://spec.openapis.org/oas/latest.html#security-requirement-object
 /// [endpoint]: ../../attr.endpoint.html
@@ -32,9 +33,10 @@ pub struct SecurityRequirement {
 impl SecurityRequirement {
     /// Construct a new [`SecurityRequirement`]
     ///
-    /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
-    /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
-    /// Scopes must match to the ones defined in [`SecurityScheme`].
+    /// Accepts name for the security requirement which must match to the name of available
+    /// [`SecurityScheme`]. Second parameter is [`IntoIterator`] of [`Into<String>`] scopes
+    /// needed by the [`SecurityRequirement`]. Scopes must match to the ones defined in
+    /// [`SecurityScheme`].
     ///
     /// # Examples
     ///
@@ -75,9 +77,10 @@ impl SecurityRequirement {
 
     /// Allows to add multiple names to security requirement.
     ///
-    /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
-    /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
-    /// Scopes must match to the ones defined in [`SecurityScheme`].
+    /// Accepts name for the security requirement which must match to the name of available
+    /// [`SecurityScheme`]. Second parameter is [`IntoIterator`] of [`Into<String>`] scopes
+    /// needed by the [`SecurityRequirement`]. Scopes must match to the ones defined in
+    /// [`SecurityScheme`].
     #[must_use]
     pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         mut self,
@@ -102,25 +105,22 @@ impl SecurityRequirement {
 /// Create implicit oauth2 flow security schema for path operations.
 /// ```
 /// # use salvo_oapi::security::{SecurityScheme, OAuth2, Implicit, Flow, Scopes};
-/// SecurityScheme::OAuth2(
-///     OAuth2::with_description([Flow::Implicit(
-///         Implicit::new(
-///             "https://localhost/auth/dialog",
-///             Scopes::from_iter([
-///                 ("edit:items", "edit my items"),
-///                 ("read:items", "read my items")
-///             ]),
-///         ),
-///     )], "my oauth2 flow")
-/// );
+/// SecurityScheme::OAuth2(OAuth2::with_description(
+///     [Flow::Implicit(Implicit::new(
+///         "https://localhost/auth/dialog",
+///         Scopes::from_iter([
+///             ("edit:items", "edit my items"),
+///             ("read:items", "read my items"),
+///         ]),
+///     ))],
+///     "my oauth2 flow",
+/// ));
 /// ```
 ///
 /// Create JWT header authentication.
 /// ```
 /// # use salvo_oapi::security::{SecurityScheme, HttpAuthScheme, Http};
-/// SecurityScheme::Http(
-///     Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")
-/// );
+/// SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT"));
 /// ```
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -228,7 +228,8 @@ pub struct Http {
     /// Http authorization scheme in HTTP `Authorization` header value.
     pub scheme: HttpAuthScheme,
 
-    /// Optional hint to client how the bearer token is formatted. Valid only with [`HttpAuthScheme::Bearer`].
+    /// Optional hint to client how the bearer token is formatted. Valid only with
+    /// [`HttpAuthScheme::Bearer`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bearer_format: Option<String>,
 
@@ -389,31 +390,31 @@ pub struct OAuth2 {
 impl OAuth2 {
     /// Construct a new OAuth2 security schema configuration object.
     ///
-    /// Oauth flow accepts slice of [`Flow`] configuration objects and can be optionally provided with description.
+    /// Oauth flow accepts slice of [`Flow`] configuration objects and can be optionally provided
+    /// with description.
     ///
     /// # Examples
     ///
     /// Create new OAuth2 flow with multiple authentication flows.
     /// ```
     /// # use salvo_oapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
-    /// OAuth2::new([Flow::Password(
-    ///     Password::with_refresh_url(
+    /// OAuth2::new([
+    ///     Flow::Password(Password::with_refresh_url(
     ///         "https://localhost/oauth/token",
     ///         Scopes::from_iter([
     ///             ("edit:items", "edit my items"),
-    ///             ("read:items", "read my items")
+    ///             ("read:items", "read my items"),
     ///         ]),
-    ///         "https://localhost/refresh/token"
+    ///         "https://localhost/refresh/token",
     ///     )),
-    ///     Flow::AuthorizationCode(
-    ///         AuthorizationCode::new(
+    ///     Flow::AuthorizationCode(AuthorizationCode::new(
     ///         "https://localhost/authorization/token",
     ///         "https://localhost/token/url",
     ///         Scopes::from_iter([
     ///             ("edit:items", "edit my items"),
-    ///             ("read:items", "read my items")
-    ///         ])),
-    ///    ),
+    ///             ("read:items", "read my items"),
+    ///         ]),
+    ///     )),
     /// ]);
     /// ```
     pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
@@ -435,26 +436,27 @@ impl OAuth2 {
     /// Create new OAuth2 flow with multiple authentication flows with description.
     /// ```
     /// # use salvo_oapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
-    /// OAuth2::with_description([Flow::Password(
-    ///     Password::with_refresh_url(
-    ///         "https://localhost/oauth/token",
-    ///         Scopes::from_iter([
-    ///             ("edit:items", "edit my items"),
-    ///             ("read:items", "read my items")
-    ///         ]),
-    ///         "https://localhost/refresh/token"
-    ///     )),
-    ///     Flow::AuthorizationCode(
-    ///         AuthorizationCode::new(
-    ///         "https://localhost/authorization/token",
-    ///         "https://localhost/token/url",
-    ///         Scopes::from_iter([
-    ///             ("edit:items", "edit my items"),
-    ///             ("read:items", "read my items")
-    ///         ])
-    ///      ),
-    ///    ),
-    /// ], "my oauth2 flow");
+    /// OAuth2::with_description(
+    ///     [
+    ///         Flow::Password(Password::with_refresh_url(
+    ///             "https://localhost/oauth/token",
+    ///             Scopes::from_iter([
+    ///                 ("edit:items", "edit my items"),
+    ///                 ("read:items", "read my items"),
+    ///             ]),
+    ///             "https://localhost/refresh/token",
+    ///         )),
+    ///         Flow::AuthorizationCode(AuthorizationCode::new(
+    ///             "https://localhost/authorization/token",
+    ///             "https://localhost/token/url",
+    ///             Scopes::from_iter([
+    ///                 ("edit:items", "edit my items"),
+    ///                 ("read:items", "read my items"),
+    ///             ]),
+    ///         )),
+    ///     ],
+    ///     "my oauth2 flow",
+    /// );
     /// ```
     pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(
         flows: I,
@@ -534,7 +536,7 @@ impl Implicit {
     ///     "https://localhost/auth/dialog",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
     /// );
     /// ```
@@ -542,10 +544,7 @@ impl Implicit {
     /// Create new implicit flow without any scopes.
     /// ```
     /// # use salvo_oapi::security::{Implicit, Scopes};
-    /// Implicit::new(
-    ///     "https://localhost/auth/dialog",
-    ///     Scopes::new(),
-    /// );
+    /// Implicit::new("https://localhost/auth/dialog", Scopes::new());
     /// ```
     pub fn new<S: Into<String>>(authorization_url: S, scopes: Scopes) -> Self {
         Self {
@@ -557,8 +556,8 @@ impl Implicit {
 
     /// Construct a new implicit oauth2 flow with refresh url for getting refresh tokens.
     ///
-    /// This is essentially same as [`Implicit::new`] but allows defining `refresh_url` for the [`Implicit`]
-    /// oauth2 flow.
+    /// This is essentially same as [`Implicit::new`] but allows defining `refresh_url` for the
+    /// [`Implicit`] oauth2 flow.
     ///
     /// # Examples
     ///
@@ -568,7 +567,7 @@ impl Implicit {
     /// Implicit::with_refresh_url(
     ///     "https://localhost/auth/dialog",
     ///     Scopes::new(),
-    ///     "https://localhost/refresh-token"
+    ///     "https://localhost/refresh-token",
     /// );
     /// ```
     pub fn with_refresh_url<S: Into<String>>(
@@ -619,7 +618,7 @@ impl AuthorizationCode {
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
     /// );
     /// ```
@@ -648,8 +647,8 @@ impl AuthorizationCode {
 
     /// Construct a new  [`AuthorizationCode`] OAuth2 flow with additional refresh token url.
     ///
-    /// This is essentially same as [`AuthorizationCode::new`] but allows defining extra parameter `refresh_url`
-    /// for fetching refresh token.
+    /// This is essentially same as [`AuthorizationCode::new`] but allows defining extra parameter
+    /// `refresh_url` for fetching refresh token.
     ///
     /// # Examples
     ///
@@ -660,7 +659,7 @@ impl AuthorizationCode {
     ///     "https://localhost/auth/dialog",
     ///     "https://localhost/token",
     ///     Scopes::new(),
-    ///     "https://localhost/refresh-token"
+    ///     "https://localhost/refresh-token",
     /// );
     /// ```
     pub fn with_refresh_url<S: Into<String>>(
@@ -710,7 +709,7 @@ impl Password {
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
     /// );
     /// ```
@@ -718,10 +717,7 @@ impl Password {
     /// Create new password flow without any scopes.
     /// ```
     /// # use salvo_oapi::security::{Password, Scopes};
-    /// Password::new(
-    ///     "https://localhost/token",
-    ///     Scopes::new(),
-    /// );
+    /// Password::new("https://localhost/token", Scopes::new());
     /// ```
     pub fn new<S: Into<String>>(token_url: S, scopes: Scopes) -> Self {
         Self {
@@ -733,8 +729,8 @@ impl Password {
 
     /// Construct a new password oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`Password::new`] but allows defining third parameter for `refresh_url`
-    /// for fetching refresh tokens.
+    /// This is essentially same as [`Password::new`] but allows defining third parameter for
+    /// `refresh_url` for fetching refresh tokens.
     ///
     /// # Examples
     ///
@@ -745,9 +741,9 @@ impl Password {
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
-    ///     "https://localhost/refres-token"
+    ///     "https://localhost/refres-token",
     /// );
     /// ```
     pub fn with_refresh_url<S: Into<String>>(token_url: S, scopes: Scopes, refresh_url: S) -> Self {
@@ -791,7 +787,7 @@ impl ClientCredentials {
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
     /// );
     /// ```
@@ -799,10 +795,7 @@ impl ClientCredentials {
     /// Create new client credentials flow without any scopes.
     /// ```
     /// # use salvo_oapi::security::{ClientCredentials, Scopes};
-    /// ClientCredentials::new(
-    ///     "https://localhost/token",
-    ///     Scopes::new(),
-    /// );
+    /// ClientCredentials::new("https://localhost/token", Scopes::new());
     /// ```
     pub fn new<S: Into<String>>(token_url: S, scopes: Scopes) -> Self {
         Self {
@@ -814,8 +807,8 @@ impl ClientCredentials {
 
     /// Construct a new client credentials oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`ClientCredentials::new`] but allows defining third parameter for
-    /// `refresh_url`.
+    /// This is essentially same as [`ClientCredentials::new`] but allows defining third parameter
+    /// for `refresh_url`.
     ///
     /// # Examples
     ///
@@ -826,9 +819,9 @@ impl ClientCredentials {
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
     ///         ("edit:items", "edit my items"),
-    ///         ("read:items", "read my items")
+    ///         ("read:items", "read my items"),
     ///     ]),
-    ///     "https://localhost/refresh-url"
+    ///     "https://localhost/refresh-url",
     /// );
     /// ```
     pub fn with_refresh_url<S: Into<String>>(token_url: S, scopes: Scopes, refresh_url: S) -> Self {
@@ -868,7 +861,7 @@ impl ClientCredentials {
 /// # use salvo_oapi::security::Scopes;
 /// let scopes = Scopes::from_iter([
 ///     ("edit:items", "edit my items"),
-///     ("read:items", "read my items")
+///     ("read:items", "read my items"),
 /// ]);
 /// ```
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
@@ -877,8 +870,8 @@ pub struct Scopes {
 }
 
 impl Scopes {
-    /// Construct new [`Scopes`] with empty map of scopes. This is useful if oauth flow does not need
-    /// any permission scopes.
+    /// Construct new [`Scopes`] with empty map of scopes. This is useful if oauth flow does not
+    /// need any permission scopes.
     ///
     /// # Examples
     ///
@@ -931,7 +924,7 @@ mod tests {
     use super::*;
 
     macro_rules! test_fn {
-        ($name:ident: $schema:expr; $expected:literal) => {
+        ($name:ident : $schema:expr; $expected:literal) => {
             #[test]
             fn $name() {
                 let value = serde_json::to_value($schema).unwrap();

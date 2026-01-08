@@ -44,7 +44,7 @@ where
     ) {
         let remote_addr = req.remote_addr().to_string();
 
-        //TODO: Will remove after opentelemetry_http updated
+        // TODO: Will remove after opentelemetry_http updated
         let mut headers = HeaderMap::with_capacity(req.headers().len());
         headers.extend(req.headers().into_iter().map(|(name, value)| {
             let name = HeaderName::from_bytes(name.as_ref()).expect("Invalid header name");
@@ -118,9 +118,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use opentelemetry::trace::{TracerProvider, noop::NoopTracerProvider};
+    use opentelemetry::trace::TracerProvider;
+    use opentelemetry::trace::noop::NoopTracerProvider;
     use salvo_core::{Depot, FlowCtrl, Request, Response};
+
+    use super::*;
 
     #[tokio::test]
     async fn test_tracing_handler() {

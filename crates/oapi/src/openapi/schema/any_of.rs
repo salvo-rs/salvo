@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::SchemaType;
-use crate::{Array, Discriminator, PropMap, RefOr, Schema};
+use crate::{Array, Discriminator, PropMap, RefOr, Schema, SchemaType};
 
 /// AnyOf [Composite Object][allof] component holds
 /// multiple components together where API endpoint will return a combination of all of them.
@@ -44,8 +43,8 @@ pub struct AnyOf {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub examples: Vec<Value>,
 
-    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
-    /// specific schema.
+    /// Optional discriminator field can be used to aid deserialization, serialization and
+    /// validation of a specific schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discriminator: Option<Discriminator>,
 
@@ -126,7 +125,8 @@ impl AnyOf {
         self
     }
 
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    /// Add or change default value for the object which is provided when user has not provided the
+    /// input in Swagger UI.
     #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);
