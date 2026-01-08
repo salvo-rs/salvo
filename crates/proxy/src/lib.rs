@@ -43,7 +43,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
-use percent_encoding::{CONTROLS, utf8_percent_encode};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
@@ -83,11 +83,25 @@ type HyperResponse = hyper::Response<ResBody>;
 
 const X_FORWARDER_FOR_HEADER_NAME: &str = "x-forwarded-for";
 
+const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'`');
+const PATH_ENCODE_SET: &AsciiSet = &QUERY_ENCODE_SET
+    .add(b'?')
+    .add(b'^')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}');
+
 /// Encode url path. This can be used when build your custom url path getter.
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
     path.split('/')
-        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .map(|s| utf8_percent_encode(s, PATH_ENCODE_SET).to_string())
         .collect::<Vec<_>>()
         .join("/")
 }
@@ -382,9 +396,12 @@ where
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if query.starts_with('?') {
-                format!("{path}{query}")
+                format!(
+                    "{path}?{}",
+                    utf8_percent_encode(&query[1..], QUERY_ENCODE_SET)
+                )
             } else {
-                format!("{path}?{query}")
+                format!("{path}?{}", utf8_percent_encode(&query, QUERY_ENCODE_SET))
             }
         } else {
             path
@@ -398,13 +415,7 @@ where
         } else {
             format!("{upstream}/{rest}")
         };
-        let forward_url = url::Url::parse(&forward_url).map_err(|e| {
-            Error::other(format!("url::Url::parse failed for '{forward_url}': {e}"))
-        })?;
-        let forward_url: Uri = forward_url
-            .as_str()
-            .parse()
-            .map_err(|e| Error::other(format!("Uri::parse failed for '{forward_url}': {e}")))?;
+        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
         let mut build = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
