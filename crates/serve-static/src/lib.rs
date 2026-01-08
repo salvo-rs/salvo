@@ -13,13 +13,15 @@
 pub mod dir;
 mod file;
 
-use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+use percent_encoding::{CONTROLS, AsciiSet,  utf8_percent_encode};
 use salvo_core::Response;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::writing::Redirect;
 
 pub use dir::StaticDir;
 pub use file::StaticFile;
+
+const HTML_ENCODE_SET: &AsciiSet = &CONTROLS.add(b'\'').add(b'"').add(b'`').add(b'<').add(b'>').add(b'&');
 
 #[macro_use]
 mod cfg;
@@ -47,7 +49,7 @@ cfg_feature! {
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
     path.split('/')
-        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
+        .map(|s| utf8_percent_encode(s, HTML_ENCODE_SET).to_string())
         .collect::<Vec<_>>()
         .join("/")
 }
