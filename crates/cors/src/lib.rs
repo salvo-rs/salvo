@@ -22,11 +22,14 @@ mod expose_headers;
 mod max_age;
 mod vary;
 
-pub use self::{
-    allow_credentials::AllowCredentials, allow_headers::AllowHeaders, allow_methods::AllowMethods,
-    allow_origin::AllowOrigin, allow_private_network::AllowPrivateNetwork,
-    expose_headers::ExposeHeaders, max_age::MaxAge, vary::Vary,
-};
+pub use self::allow_credentials::AllowCredentials;
+pub use self::allow_headers::AllowHeaders;
+pub use self::allow_methods::AllowMethods;
+pub use self::allow_origin::AllowOrigin;
+pub use self::allow_private_network::AllowPrivateNetwork;
+pub use self::expose_headers::ExposeHeaders;
+pub use self::max_age::MaxAge;
+pub use self::vary::Vary;
 
 static WILDCARD: HeaderValue = HeaderValue::from_static("*");
 
@@ -111,11 +114,10 @@ impl Cors {
     /// A very permissive configuration:
     ///
     /// - **Credentials allowed.**
-    /// - The method received in `Access-Control-Request-Method` is sent back
-    ///   as an allowed method.
+    /// - The method received in `Access-Control-Request-Method` is sent back as an allowed method.
     /// - The origin of the preflight request is sent back as an allowed origin.
-    /// - The header names received in `Access-Control-Request-Headers` are sent
-    ///   back as allowed headers.
+    /// - The header names received in `Access-Control-Request-Headers` are sent back as allowed
+    ///   headers.
     /// - No headers are currently exposed, but this may change in the future.
     #[must_use]
     pub fn very_permissive() -> Self {
@@ -136,7 +138,8 @@ impl Cors {
 
     /// Adds multiple headers to the list of allowed request headers.
     ///
-    /// **Note**: These should match the values the browser sends via `Access-Control-Request-Headers`, e.g.`content-type`.
+    /// **Note**: These should match the values the browser sends via
+    /// `Access-Control-Request-Headers`, e.g.`content-type`.
     ///
     /// # Panics
     ///
@@ -154,6 +157,7 @@ impl Cors {
     ///
     /// ```
     /// use std::time::Duration;
+    ///
     /// use salvo_core::prelude::*;
     /// use salvo_cors::Cors;
     ///
@@ -187,9 +191,7 @@ impl Cors {
     /// use salvo_core::http::HeaderValue;
     /// use salvo_cors::Cors;
     ///
-    /// let cors = Cors::new().allow_origin(
-    ///     "http://example.com".parse::<HeaderValue>().unwrap(),
-    /// );
+    /// let cors = Cors::new().allow_origin("http://example.com".parse::<HeaderValue>().unwrap());
     /// ```
     ///
     /// Multiple origins can be allowed with
@@ -213,9 +215,9 @@ impl Cors {
     /// You can also use a closure
     ///
     /// ```
-    /// use salvo_cors::{Cors, AllowOrigin};
     /// use salvo_core::http::HeaderValue;
     /// use salvo_core::{Depot, Request};
+    /// use salvo_cors::{AllowOrigin, Cors};
     ///
     /// let cors = Cors::new().allow_origin(AllowOrigin::dynamic(
     ///     |origin: Option<&HeaderValue>, _req: &Request, _depot: &Depot| {
@@ -245,10 +247,9 @@ impl Cors {
     /// #         vec![HeaderValue::from_static("http://example.com")]
     /// #     }
     /// # }
-    /// use salvo_cors::{Cors, AllowOrigin};
     /// use salvo_core::http::header::HeaderValue;
     /// use salvo_core::{Depot, Request};
-    ///
+    /// use salvo_cors::{AllowOrigin, Cors};
     ///
     /// let cors = Cors::new().allow_origin(AllowOrigin::dynamic_async(
     ///     |origin: Option<&HeaderValue>, _req: &Request, _depot: &Depot| {

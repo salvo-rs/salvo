@@ -20,7 +20,10 @@ use std::fmt::{self, Debug, Formatter};
 /// }
 /// #[handler]
 /// async fn hello(depot: &mut Depot) -> String {
-///     format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
+///     format!(
+///         "Hello {}",
+///         depot.get::<&str>("user").copied().unwrap_or_default()
+///     )
 /// }
 ///
 /// #[tokio::main]
@@ -44,7 +47,8 @@ fn type_key<T: 'static>() -> String {
 impl Depot {
     /// Creates an empty `Depot`.
     ///
-    /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
+    /// The depot is initially created with a capacity of 0, so it will not allocate until it is
+    /// first inserted into.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -62,7 +66,8 @@ impl Depot {
 
     /// Creates an empty `Depot` with the specified capacity.
     ///
-    /// The depot will be able to hold at least capacity elements without reallocating. If capacity is 0, the depot will not allocate.
+    /// The depot will be able to hold at least capacity elements without reallocating. If capacity
+    /// is 0, the depot will not allocate.
     #[inline]
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -87,7 +92,8 @@ impl Depot {
     /// Obtain a reference to a value previous inject to the depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// failed.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         self.get(&type_key::<T>())
@@ -96,7 +102,8 @@ impl Depot {
     /// Obtain a mutable reference to a value previous inject to the depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// failed.
     #[inline]
     pub fn obtain_mut<T: Any + Send + Sync>(
         &mut self,
@@ -133,7 +140,8 @@ impl Depot {
     /// Immutably borrows value from depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// failed.
     #[inline]
     pub fn get<V: Any + Send + Sync>(
         &self,
@@ -149,7 +157,8 @@ impl Depot {
     /// Mutably borrows value from depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting failed.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// failed.
     pub fn get_mut<V: Any + Send + Sync>(
         &mut self,
         key: &str,
@@ -167,7 +176,8 @@ impl Depot {
         }
     }
 
-    /// Remove value from depot and returning the value at the key if the key was previously in the depot.
+    /// Remove value from depot and returning the value at the key if the key was previously in the
+    /// depot.
     #[inline]
     pub fn remove<V: Any + Send + Sync>(
         &mut self,
@@ -205,10 +215,9 @@ impl Debug for Depot {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
-
-    use super::*;
 
     #[test]
     fn test_depot() {

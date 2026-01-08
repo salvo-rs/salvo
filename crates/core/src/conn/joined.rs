@@ -10,11 +10,10 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
+use super::{Accepted, Acceptor, Listener};
 use crate::conn::{Coupler, Holding, HttpBuilder};
 use crate::fuse::ArcFuseFactory;
 use crate::service::HyperHandler;
-
-use super::{Accepted, Acceptor, Listener};
 
 /// An Coupler for JoinedListener.
 pub enum JoinedCoupler<A, B> {

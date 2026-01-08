@@ -3,10 +3,9 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use bytes::Bytes;
 use futures_util::stream::Stream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
-
-use bytes::Bytes;
 
 use crate::BoxedError;
 use crate::fuse::{ArcFusewire, FuseEvent};

@@ -6,10 +6,9 @@ use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
-use tokio::task::{JoinHandle, spawn_blocking};
-
 use salvo_core::BoxedError;
 use salvo_core::http::body::{Body, BytesFrame, HyperBody};
+use tokio::task::{JoinHandle, spawn_blocking};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
 
@@ -75,7 +74,7 @@ impl EncodeStream<VecDeque<Bytes>> {
 }
 
 macro_rules! impl_stream {
-    ($name: ty) => {
+    ($name:ty) => {
         impl Stream for EncodeStream<$name> {
             type Item = IoResult<Bytes>;
             fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -146,10 +145,12 @@ impl_stream!(VecDeque<Bytes>);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::io::Read;
+
     use flate2::read::GzDecoder;
     use futures_util::stream::StreamExt;
-    use std::io::Read;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_encode_stream_once() {

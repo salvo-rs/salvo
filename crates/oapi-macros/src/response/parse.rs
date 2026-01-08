@@ -3,10 +3,9 @@ use syn::punctuated::Punctuated;
 use syn::token::{Bracket, Comma};
 use syn::{Result, Token, bracketed, parenthesized};
 
+use super::Header;
 use crate::operation::example::Example;
 use crate::{AnyValue, parse_utils};
-
-use super::Header;
 
 #[inline]
 pub(super) fn description(input: ParseStream) -> Result<parse_utils::LitStrOrExpr> {

@@ -46,7 +46,8 @@ pub struct Link {
     #[serde(skip_serializing_if = "PropMap::is_empty")]
     pub parameters: PropMap<String, serde_json::Value>,
 
-    /// A literal value or an [expression][expression] to be used as request body when operation is called.
+    /// A literal value or an [expression][expression] to be used as request body when operation is
+    /// called.
     ///
     /// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -97,7 +98,8 @@ impl Link {
         self
     }
 
-    /// Set a literal value or an [expression][expression] to be used as request body when operation is called.
+    /// Set a literal value or an [expression][expression] to be used as request body when operation
+    /// is called.
     ///
     /// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
     pub fn request_body<B: Into<serde_json::Value>>(mut self, request_body: Option<B>) -> Self {

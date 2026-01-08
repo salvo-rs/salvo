@@ -1,11 +1,10 @@
 use proc_macro2::TokenStream;
 
+use super::attributes::ParameterIn;
 use crate::feature::Feature;
 use crate::feature::attributes::{Rename, RenameAll, Style, ValueType};
 use crate::type_tree::TypeTree;
 use crate::{DiagResult, TryToTokens};
-
-use super::attributes::ParameterIn;
 
 pub(crate) trait TryToTokensExt {
     fn try_to_token_stream(&self) -> DiagResult<TokenStream>;
@@ -38,7 +37,8 @@ pub(crate) trait FeaturesExt {
     /// Pop [`RenameAll`] feature if exists in [`Vec<Feature>`] list.
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
 
-    /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type [`GenericType::Vec`]
+    /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type
+    /// [`GenericType::Vec`]
     fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 

@@ -33,19 +33,18 @@ mod server;
 mod shared;
 mod type_tree;
 
-pub(crate) use self::{
-    component::{ComponentSchema, ComponentSchemaProps},
-    endpoint::EndpointAttr,
-    feature::Feature,
-    operation::Operation,
-    parameter::Parameter,
-    response::Response,
-    server::Server,
-    shared::*,
-    type_tree::TypeTree,
-};
 pub(crate) use proc_macro2_diagnostics::{Diagnostic, Level as DiagLevel};
 pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
+
+pub(crate) use self::component::{ComponentSchema, ComponentSchemaProps};
+pub(crate) use self::endpoint::EndpointAttr;
+pub(crate) use self::feature::Feature;
+pub(crate) use self::operation::Operation;
+pub(crate) use self::parameter::Parameter;
+pub(crate) use self::response::Response;
+pub(crate) use self::server::Server;
+pub(crate) use self::shared::*;
+pub(crate) use self::type_tree::TypeTree;
 
 /// Enhanced of [handler][handler] for generate OpenAPI documentation, [Read more][more].
 ///

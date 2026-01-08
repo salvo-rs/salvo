@@ -1,9 +1,10 @@
 #![allow(missing_docs)]
 
+use std::sync::Arc;
+
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
 use salvo_craft_macros::craft;
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Opts {

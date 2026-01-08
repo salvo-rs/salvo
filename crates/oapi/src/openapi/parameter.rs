@@ -21,7 +21,8 @@ impl IntoIterator for Parameters {
 }
 
 impl Parameters {
-    /// Construct a new empty [`Parameters`]. This is effectively same as calling [`Parameters::default`].
+    /// Construct a new empty [`Parameters`]. This is effectively same as calling
+    /// [`Parameters::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -111,22 +112,22 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub schema: Option<RefOr<Schema>>,
 
-    /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
-    /// Default value is based on [`ParameterIn`].
+    /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of
+    /// a content). Default value is based on [`ParameterIn`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<ParameterStyle>,
 
-    /// When _`true`_ it will generate separate parameter value for each parameter with _`array`_ and _`object`_ type.
-    /// This is also _`true`_ by default for [`ParameterStyle::Form`].
+    /// When _`true`_ it will generate separate parameter value for each parameter with _`array`_
+    /// and _`object`_ type. This is also _`true`_ by default for [`ParameterStyle::Form`].
     ///
     /// With explode _`false`_:
     /// ```text
-    ///color=blue,black,brown
+    /// color=blue,black,brown
     /// ```
     ///
     /// With explode _`true`_:
     /// ```text
-    ///color=blue&color=black&color=brown
+    /// color=blue&color=black&color=brown
     /// ```
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explode: Option<bool>,
@@ -174,7 +175,8 @@ impl Parameter {
         self
     }
 
-    /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
+    /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not
+    /// set.
     pub fn merge(&mut self, other: Self) -> bool {
         let Self {
             name,
@@ -336,9 +338,8 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::Object;
-
     use super::*;
+    use crate::Object;
 
     #[test]
     fn test_build_parameter() {

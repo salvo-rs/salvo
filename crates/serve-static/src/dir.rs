@@ -16,7 +16,8 @@ use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::{OffsetDateTime, macros::format_description};
+use time::OffsetDateTime;
+use time::macros::format_description;
 use tokio::io::AsyncReadExt;
 
 use super::{
@@ -134,11 +135,13 @@ where
 /// use salvo_core::prelude::*;
 /// use salvo_serve_static::StaticDir;
 ///
-/// let router = Router::new()
-///     .push(Router::with_path("static/<**>")
-///         .get(StaticDir::new(["assets", "static"])
+/// let router = Router::new().push(
+///     Router::with_path("static/<**>").get(
+///         StaticDir::new(["assets", "static"])
 ///             .defaults("index.html")
-///             .auto_list(true)));
+///             .auto_list(true),
+///     ),
+/// );
 /// ```
 #[non_exhaustive]
 pub struct StaticDir {
@@ -351,7 +354,8 @@ impl Handler for StaticDir {
         if self.include_dot_files || !is_dot_file {
             for root in &self.roots {
                 let raw_path = join_path!(root, &rel_path);
-                // Security check to ensure that the accessed path is a subpath of the current root path.
+                // Security check to ensure that the accessed path is a subpath of the current root
+                // path.
                 if !Path::new(&raw_path).starts_with(root) {
                     continue;
                 }

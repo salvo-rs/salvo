@@ -18,8 +18,9 @@ use shared::*;
 
 /// `handler` is a macro to help create `Handler` from function or impl block easily.
 ///
-/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`,
-/// after use `handler`, you don't need to care arguments' order, omit unused arguments.
+/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and
+/// then implement `Handler`, after use `handler`, you don't need to care arguments' order, omit
+/// unused arguments.
 ///
 /// View `salvo_core::handler` for more details.
 #[proc_macro_attribute]

@@ -2,7 +2,6 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display, Formatter, Write};
 
 use crate::http::{ResBody, StatusCode};
-
 use crate::{Response, Scribe};
 
 /// Result type with `StatusError` has it's error type.

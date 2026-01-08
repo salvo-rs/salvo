@@ -8,8 +8,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use salvo_core::prelude::*;
 //! use salvo_acme::ListenerAcmeExt;
+//! use salvo_core::prelude::*;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {
@@ -35,8 +35,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use salvo_core::prelude::*;
 //! use salvo_acme::ListenerAcmeExt;
+//! use salvo_core::prelude::*;
 //!
 //! #[handler]
 //! async fn hello() -> &'static str {
@@ -72,16 +72,15 @@ use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 
-use client::AcmeClient;
-use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
-
 use cache::AcmeCache;
+use client::AcmeClient;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 pub use listener::{AcmeAcceptor, AcmeListener};
+use parking_lot::RwLock;
 use salvo_core::conn::tcp::TcpListener;
 use salvo_core::http::StatusError;
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
+use serde::{Deserialize, Serialize};
 use tokio::net::ToSocketAddrs;
 
 cfg_feature! {

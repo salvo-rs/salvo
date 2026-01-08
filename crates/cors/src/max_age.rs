@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 use std::pin::Pin;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
@@ -148,9 +149,10 @@ enum MaxAgeInner {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use salvo_core::http::header::{self, HeaderValue};
     use salvo_core::{Depot, Request};
-    use std::time::Duration;
 
     use super::{MaxAge, MaxAgeInner};
 

@@ -9,14 +9,14 @@ mod path;
 
 use std::fmt::{self, Debug, Formatter};
 
+pub use others::*;
+pub use path::*;
+
 use self::opts::*;
 use crate::async_trait;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
-
-pub use others::*;
-pub use path::*;
 
 /// Trait for filter request.
 ///

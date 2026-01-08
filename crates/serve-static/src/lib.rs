@@ -13,13 +13,12 @@
 pub mod dir;
 mod file;
 
+pub use dir::StaticDir;
+pub use file::StaticFile;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::Response;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::writing::Redirect;
-
-pub use dir::StaticDir;
-pub use file::StaticFile;
 
 const HTML_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b'\'')

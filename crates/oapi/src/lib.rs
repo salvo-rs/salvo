@@ -35,6 +35,12 @@ cfg_feature! {
     pub mod redoc;
 }
 
+use std::collections::{BTreeMap, HashMap, LinkedList};
+use std::marker::PhantomData;
+
+use salvo_core::extract::Extractible;
+use salvo_core::http::StatusError;
+use salvo_core::writing;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
 pub use salvo_oapi_macros::ToParameters;
 #[doc = include_str!("../docs/derive_to_response.md")]
@@ -46,12 +52,6 @@ pub use salvo_oapi_macros::ToSchema;
 #[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
 pub(crate) use salvo_oapi_macros::schema;
-
-use std::collections::{BTreeMap, HashMap, LinkedList};
-use std::marker::PhantomData;
-
-use salvo_core::http::StatusError;
-use salvo_core::{extract::Extractible, writing};
 
 use crate::oapi::openapi::schema::OneOf;
 
@@ -130,8 +130,8 @@ pub trait ToSchema {
 
     // /// Optional set of alias schemas for the [`ToSchema::schema`].
     // ///
-    // /// Typically there is no need to manually implement this method but it is instead implemented
-    // /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    // /// Typically there is no need to manually implement this method but it is instead
+    // implemented /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
     // fn aliases() -> Vec<schema::Schema> {
     //     Vec::new()
     // }
@@ -181,8 +181,7 @@ pub mod oapi {
 
 #[doc(hidden)]
 pub mod __private {
-    pub use inventory;
-    pub use serde_json;
+    pub use {inventory, serde_json};
 }
 
 #[rustfmt::skip]
@@ -368,18 +367,19 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
-/// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
-/// For more details of `#[derive(ToParameters)]` refer to [derive documentation][derive].
+/// This trait is [derivable][derive] for structs which are used to describe `path` or `query`
+/// parameters. For more details of `#[derive(ToParameters)]` refer to [derive
+/// documentation][derive].
 ///
 /// # Examples
 ///
-/// Derive [`ToParameters`] implementation. This example will fail to compile because [`ToParameters`] cannot
-/// be used alone and it need to be used together with endpoint using the params as well. See
-/// [derive documentation][derive] for more details.
+/// Derive [`ToParameters`] implementation. This example will fail to compile because
+/// [`ToParameters`] cannot be used alone and it need to be used together with endpoint using the
+/// params as well. See [derive documentation][derive] for more details.
 /// ```
-/// use serde::Deserialize;
-/// use salvo_oapi::{ToParameters, EndpointArgRegister, Components, Operation};
 /// use salvo_core::prelude::*;
+/// use salvo_oapi::{Components, EndpointArgRegister, Operation, ToParameters};
+/// use serde::Deserialize;
 ///
 /// #[derive(Deserialize, ToParameters)]
 /// struct PetParams {
@@ -405,54 +405,63 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 /// # }
 /// impl<'de> salvo_oapi::ToParameters<'de> for PetParams {
 ///     fn to_parameters(_components: &mut Components) -> salvo_oapi::Parameters {
-///         salvo_oapi::Parameters::new().parameter(
-///             salvo_oapi::Parameter::new("id")
-///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in(salvo_oapi::ParameterIn::Path)
-///                 .description("Id of pet")
-///                 .schema(
-///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::schema::BasicType::Integer)
-///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::schema::KnownFormat::Int64)),
-///                 ),
-///         ).parameter(
-///             salvo_oapi::Parameter::new("name")
-///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in(salvo_oapi::ParameterIn::Query)
-///                 .description("Name of pet")
-///                 .schema(
-///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::schema::BasicType::String),
-///                 ),
-///         )
+///         salvo_oapi::Parameters::new()
+///             .parameter(
+///                 salvo_oapi::Parameter::new("id")
+///                     .required(salvo_oapi::Required::True)
+///                     .parameter_in(salvo_oapi::ParameterIn::Path)
+///                     .description("Id of pet")
+///                     .schema(
+///                         salvo_oapi::Object::new()
+///                             .schema_type(salvo_oapi::schema::BasicType::Integer)
+///                             .format(salvo_oapi::SchemaFormat::KnownFormat(
+///                                 salvo_oapi::schema::KnownFormat::Int64,
+///                             )),
+///                     ),
+///             )
+///             .parameter(
+///                 salvo_oapi::Parameter::new("name")
+///                     .required(salvo_oapi::Required::True)
+///                     .parameter_in(salvo_oapi::ParameterIn::Query)
+///                     .description("Name of pet")
+///                     .schema(
+///                         salvo_oapi::Object::new()
+///                             .schema_type(salvo_oapi::schema::BasicType::String),
+///                     ),
+///             )
 ///     }
 /// }
 ///
 /// impl<'ex> Extractible<'ex> for PetParams {
-///    fn metadata() -> &'static Metadata {
-///      static METADATA: Metadata = Metadata::new("");
-///      &METADATA
-///    }
-///    #[allow(refining_impl_trait)]
-///    async fn extract(req: &'ex mut Request) -> Result<Self, salvo_core::http::ParseError> {
-///        salvo_core::serde::from_request(req, Self::metadata()).await
-///    }
-///    #[allow(refining_impl_trait)]
-///    async fn extract_with_arg(req: &'ex mut Request, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
-///        Self::extract(req).await
-///    }
+///     fn metadata() -> &'static Metadata {
+///         static METADATA: Metadata = Metadata::new("");
+///         &METADATA
+///     }
+///     #[allow(refining_impl_trait)]
+///     async fn extract(req: &'ex mut Request) -> Result<Self, salvo_core::http::ParseError> {
+///         salvo_core::serde::from_request(req, Self::metadata()).await
+///     }
+///     #[allow(refining_impl_trait)]
+///     async fn extract_with_arg(
+///         req: &'ex mut Request,
+///         _arg: &str,
+///     ) -> Result<Self, salvo_core::http::ParseError> {
+///         Self::extract(req).await
+///     }
 /// }
 ///
 /// impl EndpointArgRegister for PetParams {
 ///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
-///         operation.parameters.append(&mut PetParams::to_parameters(components));
+///         operation
+///             .parameters
+///             .append(&mut PetParams::to_parameters(components));
 ///     }
 /// }
 /// ```
 /// [derive]: derive.ToParameters.html
 pub trait ToParameters<'de>: Extractible<'de> {
-    /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
-    /// provide OpenAPI parameter information for the endpoint using the parameters.
+    /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros`
+    /// library to provide OpenAPI parameter information for the endpoint using the parameters.
     fn to_parameters(components: &mut Components) -> Parameters;
 }
 
@@ -469,8 +478,11 @@ pub trait ToParameter {
 ///
 /// ```
 /// use std::collections::BTreeMap;
+///
+/// use salvo_oapi::{
+///     Components, Content, EndpointArgRegister, Operation, RequestBody, ToRequestBody, ToSchema,
+/// };
 /// use serde::Deserialize;
-/// use salvo_oapi::{ToRequestBody, ToSchema, Components, Content, EndpointArgRegister, Operation, RequestBody };
 ///
 /// #[derive(ToSchema, Deserialize, Debug)]
 /// struct MyPayload {
@@ -479,8 +491,10 @@ pub trait ToParameter {
 ///
 /// impl ToRequestBody for MyPayload {
 ///     fn to_request_body(components: &mut Components) -> RequestBody {
-///         RequestBody::new()
-///             .add_content("application/json", Content::new(MyPayload::to_schema(components)))
+///         RequestBody::new().add_content(
+///             "application/json",
+///             Content::new(MyPayload::to_schema(components)),
+///         )
 ///     }
 /// }
 /// impl EndpointArgRegister for MyPayload {
@@ -501,7 +515,8 @@ pub trait ToRequestBody {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Components, Response, Responses, RefOr, ToResponses };
+///
+/// use salvo_oapi::{Components, RefOr, Response, Responses, ToResponses};
 ///
 /// enum MyResponse {
 ///     Ok,
@@ -604,7 +619,7 @@ impl ToResponses for salvo_core::Error {
 /// # Examples
 ///
 /// ```
-/// use salvo_oapi::{RefOr, Response, Components, ToResponse};
+/// use salvo_oapi::{Components, RefOr, Response, ToResponse};
 ///
 /// struct MyResponse;
 /// impl ToResponse for MyResponse {

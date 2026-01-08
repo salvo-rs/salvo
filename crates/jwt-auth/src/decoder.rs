@@ -2,9 +2,8 @@ use std::fmt::{self, Debug, Formatter};
 
 use jsonwebtoken::errors::Error as JwtError;
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
-use serde::Deserialize;
-
 use salvo_core::Depot;
+use serde::Deserialize;
 
 /// Trait for JWT token decoding and validation.
 ///

@@ -5,11 +5,9 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
-    request_body::RequestBody,
-    response::{Response, Responses},
-};
+use super::request_body::RequestBody;
+use super::response::{Response, Responses};
+use super::{Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server};
 use crate::{Parameter, Parameters, PathItemType, PropMap, Servers};
 
 /// Collection for save [`Operation`]s.
@@ -36,7 +34,8 @@ impl IntoIterator for Operations {
     }
 }
 impl Operations {
-    /// Construct a new empty [`Operations`]. This is effectively same as calling [`Operations::default`].
+    /// Construct a new empty [`Operations`]. This is effectively same as calling
+    /// [`Operations::default`].
     #[must_use]
     pub fn new() -> Self {
         Default::default()
@@ -94,10 +93,10 @@ impl Operations {
 pub struct Operation {
     /// List of tags used for grouping operations.
     ///
-    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the default
-    /// value used will be resolved from handler path provided in `#[openapi(paths(...))]` with
-    /// [`#[derive(OpenApi)]`][derive_openapi] macro. If path resolves to `None` value `crate` will
-    /// be used by default.
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the
+    /// default value used will be resolved from handler path provided in
+    /// `#[openapi(paths(...))]` with [`#[derive(OpenApi)]`][derive_openapi] macro. If path
+    /// resolves to `None` value `crate` will be used by default.
     ///
     /// [derive_path]: ../../attr.path.html
     /// [derive_openapi]: ../../derive.OpenApi.html
@@ -106,8 +105,8 @@ pub struct Operation {
 
     /// Short summary what [`Operation`] does.
     ///
-    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the value
-    /// is taken from **first line** of doc comment.
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the
+    /// value is taken from **first line** of doc comment.
     ///
     /// [derive_path]: ../../attr.path.html
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -122,10 +121,11 @@ pub struct Operation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    /// Unique identifier for the API [`Operation`]. Most typically this is mapped to handler function name.
+    /// Unique identifier for the API [`Operation`]. Most typically this is mapped to handler
+    /// function name.
     ///
-    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the handler function
-    /// name will be used by default.
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the
+    /// handler function name will be used by default.
     ///
     /// [derive_path]: ../../attr.path.html
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -313,10 +313,9 @@ mod tests {
     use serde_json::json;
 
     use super::{Operation, Operations};
-    use crate::{
-        Deprecated, Parameter, PathItemType, RequestBody, Responses, security::SecurityRequirement,
-        server::Server,
-    };
+    use crate::security::SecurityRequirement;
+    use crate::server::Server;
+    use crate::{Deprecated, Parameter, PathItemType, RequestBody, Responses};
 
     #[test]
     fn operation_new() {

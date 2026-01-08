@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+
 use syn::Token;
 use syn::punctuated::{Pair, Punctuated};
 
