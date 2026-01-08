@@ -577,14 +577,12 @@ fn list_html(current: &CurrentInfo) -> String {
             .trim_start_matches('/')
             .trim_end_matches('/')
             .split('/');
-        println!("path: {:?}", path);
         let mut link = "".to_owned();
         format!(
             r#"<a href="/">{}</a>{}"#,
             HOME_ICON,
             segments
                 .map(|seg| {
-                    println!("seg: {}", seg);
                     link = format!("{link}/{}", encode_url_path(seg));
                     format!("/<a href=\"{link}\">{}</a>", encode_url_path(seg))
                 })
