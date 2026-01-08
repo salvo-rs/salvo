@@ -315,8 +315,11 @@ Benchmark 測試結果可以從這裏查看：
   <tr style="border: none;">
     <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://dora-rs.ai"><img alt="dora" width="100" src="https://salvo.rs/images/dora.svg" /></a></td>
     <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://www.rwkvos.com"><img alt="rwkv" width="100" src="https://salvo.rs/images/rwkv.svg" /></a></td>
+    <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://www.rwkvos.com"><img alt="rwkv" width="100" src="https://salvo.rs/images/shuttle.png" /></a></td>
     <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://cryptape.com"><img alt="cryptape" width="100" src="https://salvo.rs/images/cryptape.png" /></a></td>
     <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://www.cirspb.ru"><img alt="cirspb" width="100" src="https://salvo.rs/images/cirspb.svg" /></a></td>
+  </tr>
+  <tr style="border: none;">
     <td style="border: none; text-align: center; min-width: 150px;"><a target="_blank" href="https://www.tdcare.cn"><img alt="tdcare" width="100" src="https://salvo.rs/images/tdcare.png" /></a></td>
   </tr>
 </table>
