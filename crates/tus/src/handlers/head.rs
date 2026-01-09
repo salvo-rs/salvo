@@ -37,7 +37,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // be used if the Server is keeping track of expired uploads.
 
     // 404: deleted
-    // 410: experiation
+    // 410: expiration
 
     // TODO: Time handle
 

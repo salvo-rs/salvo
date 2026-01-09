@@ -3,7 +3,7 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    H_UPLOAD_CONCAT, Tus, error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo}
+    H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_LENGTH, H_UPLOAD_METADATA, Tus, error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo}
 };
 
 /// HTTP/1.1 201 Created
@@ -14,16 +14,17 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
-    let headers = apply_common_headers(&mut res.headers);
+    apply_common_headers(&mut res.headers);
+    let req_headers = req.headers();
 
-    if headers.get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatentation) {
+    if req_headers.get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatenation) {
         res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
         return;
     }
 
-    let upload_length = headers.get("upload-length");
-    let upload_defer_length = headers.get("upload-defer-length");
-    let upload_metadata = headers.get("upload-metadata");
+    let upload_length = req_headers.get(H_UPLOAD_LENGTH);
+    let upload_defer_length = req_headers.get(H_UPLOAD_DEFER_LENGTH);
+    let upload_metadata = req_headers.get(H_UPLOAD_METADATA);
 
     if upload_defer_length.is_some() && !store.has_extension(Extension::CreationDeferLength) {
         res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status());
@@ -38,11 +39,15 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     // Retrieve and parse metadata
     let metadata = match upload_metadata
-        .ok_or(ProtocolError::InvalidMetadata)
-        .and_then(|v| v.to_str().map_err(|_| ProtocolError::InvalidMetadata))
-        .and_then(Metadata::parse_metadata)
+        .map(|v| {
+            v.to_str()
+                .map_err(|_| ProtocolError::InvalidMetadata)
+                .and_then(Metadata::parse_metadata)
+        })
+        .transpose()
     {
-        Ok(m) => m,
+        Ok(Some(m)) => m,
+        Ok(None) => Metadata::default(),
         Err(e) => {
             res.status_code = Some(TusError::Protocol(e).status());
             return;

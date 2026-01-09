@@ -31,6 +31,7 @@ pub const H_UPLOAD_LENGTH: &str = "upload-length";
 pub const H_UPLOAD_OFFSET: &str = "upload-offset";
 pub const H_UPLOAD_METADATA: &str = "upload-metadata";
 pub const H_UPLOAD_CONCAT: &str = "upload-concat";
+pub const H_UPLOAD_DEFER_LENGTH: &str = "upload-defer-length";
 
 pub const H_CONTENT_TYPE: &str = "content-type";
 pub const H_CONTENT_LENGTH: &str = "content-length";

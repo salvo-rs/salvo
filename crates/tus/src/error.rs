@@ -71,6 +71,7 @@ impl TusError {
             TusError::Protocol(ProtocolError::InvalidLength) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::InvalidMetadata) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, // 413
+            TusError::Protocol(ProtocolError::InvalidContentType) => StatusCode::UNSUPPORTED_MEDIA_TYPE, // 415
             TusError::Protocol(_) => StatusCode::BAD_REQUEST, // 400
 
             TusError::FileNoLongerExists => StatusCode::GONE, // 410

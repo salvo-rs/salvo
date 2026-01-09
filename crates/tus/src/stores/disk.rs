@@ -84,7 +84,7 @@ pub struct DiskStore {
 impl DiskStore {
     pub fn new() -> Self {
         Self {
-            root: "./tus-data".into(),
+            root: "./tus-upload-files".into(),
         }
     }
 
