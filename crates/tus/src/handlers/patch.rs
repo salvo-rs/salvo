@@ -4,7 +4,9 @@ use futures_util::StreamExt;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    CT_OFFSET_OCTET_STREAM, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET, Tus, error::{ProtocolError, TusError}, handlers::apply_common_headers, stores::Extension, utils::{check_tus_version, parse_u64}
+    CT_OFFSET_OCTET_STREAM, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_LENGTH,
+    H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
+    handlers::apply_common_headers, stores::Extension, utils::{check_tus_version, parse_u64}
 };
 
 #[handler]
@@ -28,6 +30,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .get(H_TUS_RESUMABLE)
             .and_then(|v| v.to_str().ok()),
     ) {
+        if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
+            res.headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
+        }
         res.status_code = Some(TusError::Protocol(e).status());
         return;
     }

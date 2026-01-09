@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
-use crate::{Tus, error::TusError, handlers::{Metadata, apply_common_headers}};
+use crate::{
+    H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus, error::{ProtocolError, TusError},
+    handlers::{Metadata, apply_common_headers}, utils::check_tus_version
+};
 
 #[handler]
 async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
@@ -10,6 +13,18 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let opts = &state.options;
     let store = &state.store;
     let headers = apply_common_headers(&mut res.headers);
+
+    if let Err(e) = check_tus_version(
+        req.headers()
+            .get(H_TUS_RESUMABLE)
+            .and_then(|v| v.to_str().ok()),
+    ) {
+        if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
+            headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
+        }
+        res.status_code(TusError::Protocol(e).status());
+        return;
+    }
 
     let id = match opts.get_file_id_from_request(req) {
         Ok(id) => id,

@@ -3,7 +3,10 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_LENGTH, H_UPLOAD_METADATA, Tus, error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo}
+    H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_LENGTH,
+    H_UPLOAD_METADATA, TUS_VERSION, Tus, error::{ProtocolError, TusError},
+    handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo},
+    utils::check_tus_version
 };
 
 /// HTTP/1.1 201 Created
@@ -16,6 +19,18 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let opts = &state.options;
     apply_common_headers(&mut res.headers);
     let req_headers = req.headers();
+
+    if let Err(e) = check_tus_version(
+        req_headers
+            .get(H_TUS_RESUMABLE)
+            .and_then(|v| v.to_str().ok()),
+    ) {
+        if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
+            res.headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
+        }
+        res.status_code = Some(TusError::Protocol(e).status());
+        return;
+    }
 
     if req_headers.get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatenation) {
         res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
