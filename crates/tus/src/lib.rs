@@ -194,7 +194,8 @@ impl Tus {
             .push(handlers::post_handler())
             .push(handlers::head_handler())
             .push(handlers::patch_handler())
-            .push(handlers::delete_handler());
+            .push(handlers::delete_handler())
+            .push(handlers::get_handler());
 
         router
     }
