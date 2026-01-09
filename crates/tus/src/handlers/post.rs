@@ -6,7 +6,7 @@ use crate::{
     H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_LENGTH,
     H_UPLOAD_METADATA, TUS_VERSION, Tus, error::{ProtocolError, TusError},
     handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo},
-    utils::check_tus_version
+    utils::{check_tus_version, parse_u64}
 };
 
 /// HTTP/1.1 201 Created
@@ -46,6 +46,16 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
+    if let Some(value) = upload_defer_length {
+        match value.to_str() {
+            Ok(v) if v == "1" => {}
+            _ => {
+                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+                return;
+            }
+        }
+    }
+
     // Must provide either Upload-Length or Upload-Defer-Length, but not both or neither
     if upload_length.is_none() == upload_defer_length.is_none() {
         res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
@@ -77,14 +87,30 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
+    let upload_length_value = match upload_length {
+        Some(value) => match value.to_str() {
+            Ok(v) => match parse_u64(Some(v), H_UPLOAD_LENGTH) {
+                Ok(size) => Some(size),
+                Err(e) => {
+                    res.status_code = Some(TusError::Protocol(e).status());
+                    return;
+                }
+            },
+            Err(_) => {
+                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+                return;
+            }
+        },
+        None => None,
+    };
+
     let max_file_size = opts.get_configured_max_size(req, Some(upload_id.to_string())).await;
 
-    if upload_length.is_some() &&
-        max_file_size > 0 &&
-        upload_length.and_then(|hv| hv.to_str().ok()).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0) > max_file_size
-    {
-        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-        return;
+    if let Some(size) = upload_length_value {
+        if max_file_size > 0 && size > max_file_size {
+            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            return;
+        }
     }
 
     if let Some(on_incoming_request) = &opts.on_incoming_request {
@@ -93,7 +119,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     let mut upload = UploadInfo::new(upload_id.clone());
     upload.metadata = Some(metadata);
-    upload.size = upload_length.and_then(|hv| hv.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
+    upload.size = upload_length_value;
     upload.offset = Some(0);
 
 

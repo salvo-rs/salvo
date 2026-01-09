@@ -193,7 +193,8 @@ impl Tus {
             .push(handlers::options_handler())
             .push(handlers::post_handler())
             .push(handlers::head_handler())
-            .push(handlers::patch_handler());
+            .push(handlers::patch_handler())
+            .push(handlers::delete_handler());
 
         router
     }

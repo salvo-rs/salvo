@@ -4,8 +4,8 @@ use futures_util::StreamExt;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    CT_OFFSET_OCTET_STREAM, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_LENGTH,
-    H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
+    CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_TUS_VERSION,
+    H_UPLOAD_LENGTH, H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
     handlers::apply_common_headers, stores::Extension, utils::{check_tus_version, parse_u64}
 };
 
@@ -132,6 +132,37 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         // Update
         let _ = store.declare_upload_length(&id, size).await;
         already_uploaded_info.size = Some(size);
+    }
+
+    let content_length = match req.headers().get(H_CONTENT_LENGTH) {
+        Some(value) => match value.to_str() {
+            Ok(v) => match parse_u64(Some(v), H_CONTENT_LENGTH) {
+                Ok(size) => Some(size),
+                Err(e) => {
+                    res.status_code = Some(TusError::Protocol(e).status());
+                    return;
+                }
+            },
+            Err(_) => {
+                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                return;
+            }
+        },
+        None => None,
+    };
+
+    let max_allowed = match (already_uploaded_info.size, max_file_size) {
+        (Some(size), max) if max > 0 => Some(size.min(max)),
+        (Some(size), _) => Some(size),
+        (None, max) if max > 0 => Some(max),
+        _ => None,
+    };
+
+    if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
+        if offset + incoming > max_allowed {
+            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            return;
+        }
     }
 
     // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info, max_file_size).await;

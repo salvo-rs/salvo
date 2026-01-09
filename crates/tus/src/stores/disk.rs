@@ -157,6 +157,7 @@ impl DataStore for DiskStore {
         let mut support_extensions = HashSet::new();
         support_extensions.insert(Extension::Creation);
         support_extensions.insert(Extension::CreationDeferLength);
+        support_extensions.insert(Extension::Termination);
         support_extensions
     }
 

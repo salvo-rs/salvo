@@ -58,6 +58,7 @@ pub enum Extension {
     Expiration,
     CreationDeferLength,
     Concatenation,
+    Termination,
 }
 
 impl Extension {
@@ -66,7 +67,8 @@ impl Extension {
             Extension::Creation => "creation",
             Extension::Expiration => "expiration",
             Extension::CreationDeferLength => "creation-defer-length",
-            Extension::Concatenation => "concatenation"
+            Extension::Concatenation => "concatenation",
+            Extension::Termination => "termination",
         }
     }
 

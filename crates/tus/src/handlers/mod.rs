@@ -14,6 +14,7 @@ pub use options::options_handler;
 pub use post::post_handler;
 pub use head::head_handler;
 pub use patch::patch_handler;
+pub use delete::delete_handler;
 
 use crate::{H_TUS_RESUMABLE, TUS_VERSION, error::ProtocolError};
 

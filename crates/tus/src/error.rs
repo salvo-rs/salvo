@@ -19,6 +19,8 @@ pub enum ProtocolError {
     UnsupportedConcatenationExtension,
     #[error("creation-defer-length extension is not (yet) supported.")]
     UnsupportedCreationDeferLengthExtension,
+    #[error("termination extension is not (yet) supported.")]
+    UnsupportedTerminationExtension,
     #[error("Upload-Length or Upload-Defer-Length header required.")]
     InvalidLength,
     #[error("Upload-Metadata is invalid. It MUST consist of one or more comma-separated key-value pairs. The key and value MUST be separated by a space. The key MUST NOT contain spaces and commas and MUST NOT be empty. The key SHOULD be ASCII encoded and the value MUST be Base64 encoded. All keys MUST be unique")]
@@ -68,6 +70,7 @@ impl TusError {
 
             TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
             TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension) => StatusCode::NOT_IMPLEMENTED, // 501
+            TusError::Protocol(ProtocolError::UnsupportedTerminationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
             TusError::Protocol(ProtocolError::InvalidLength) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::InvalidMetadata) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, // 413
