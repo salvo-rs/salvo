@@ -7,6 +7,15 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, Fields, Generics, Token, Variant};
 
+use super::enum_variant::{
+    self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
+    UntaggedEnum,
+};
+use super::feature::{
+    self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
+    EnumUnnamedFieldVariantFeatures, FromAttributes,
+};
+use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
@@ -20,16 +29,6 @@ use crate::schema::{Description, Inline, VariantRename};
 use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
 use crate::type_tree::{TypeTree, ValueType};
 use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
-
-use super::enum_variant::{
-    self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
-    UntaggedEnum,
-};
-use super::feature::{
-    self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
-    EnumUnnamedFieldVariantFeatures, FromAttributes,
-};
-use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
 
 #[derive(Debug)]
 pub(crate) struct EnumSchema<'a> {

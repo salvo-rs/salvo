@@ -3,7 +3,8 @@ use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
-use syn::{LitFloat, LitInt, parse::ParseStream};
+use syn::parse::ParseStream;
+use syn::{LitFloat, LitInt};
 
 mod ext;
 pub(crate) use ext::*;

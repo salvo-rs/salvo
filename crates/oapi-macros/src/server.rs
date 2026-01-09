@@ -1,13 +1,9 @@
-use proc_macro2::Ident;
-use syn::{
-    Error, LitStr, Token, parenthesized,
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    token::Comma,
-};
-
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::{Error, LitStr, Token, parenthesized};
 
 use crate::{Array, parse_utils};
 

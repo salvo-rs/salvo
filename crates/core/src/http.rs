@@ -19,10 +19,9 @@ pub use range::HttpRange;
 pub use request::Request;
 pub mod body;
 pub use body::{Body, ReqBody, ResBody};
+pub use http::version::Version;
 pub use mime::Mime;
 pub use response::Response;
-
-pub use http::version::Version;
 
 #[doc(hidden)]
 #[must_use]

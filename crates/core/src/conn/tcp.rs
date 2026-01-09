@@ -10,25 +10,20 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
+use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
+#[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+use crate::conn::IntoConfigStream;
+#[cfg(feature = "native-tls")]
+use crate::conn::native_tls::NativeTlsListener;
+#[cfg(feature = "openssl")]
+use crate::conn::openssl::OpensslListener;
+#[cfg(feature = "rustls")]
+use crate::conn::rustls::RustlsListener;
 use crate::conn::{Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
-
-use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
-
-#[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
-use crate::conn::IntoConfigStream;
-
-#[cfg(feature = "rustls")]
-use crate::conn::rustls::RustlsListener;
-
-#[cfg(feature = "native-tls")]
-use crate::conn::native_tls::NativeTlsListener;
-
-#[cfg(feature = "openssl")]
-use crate::conn::openssl::OpensslListener;
 
 /// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {

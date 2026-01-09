@@ -1,0 +1,31 @@
+[package]
+name = "salvo-postgres-seaorm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+migration = { path = "migration" }
+anyhow.workspace = true
+sea-orm = { version = "2.0.0-rc", features = ["with-chrono", "sqlx-postgres", "macros", "with-uuid", "with-time", "runtime-tokio", "runtime-tokio-native-tls", "runtime-tokio-rustls", "schema-sync", "entity-registry"] }
+dotenvy.workspace = true
+salvo = { workspace = true, features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
+salvo-oapi = { workspace = true, features = ["swagger-ui"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features= ["macros"]}
+tracing.workspace = true
+tracing-subscriber.workspace = true 
+jsonwebtoken.workspace = true
+time.workspace = true
+
+argon2.workspace = true
+rand_core.workspace = true
+password-hash.workspace = true
+uuid = { workspace = true, features = ["serde", "v4"] }
+serde_json.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+
+[[bin]]
+name = "salvo_postgres_seaorm"
+path = "src/main.rs"
+
+

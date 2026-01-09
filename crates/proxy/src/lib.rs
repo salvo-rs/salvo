@@ -41,20 +41,18 @@
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
+#[cfg(test)]
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use hyper::upgrade::OnUpgrade;
-use percent_encoding::{CONTROLS, utf8_percent_encode};
+#[cfg(not(test))]
+use local_ip_address::{local_ip, local_ipv6};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
-
-#[cfg(test)]
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-
-#[cfg(not(test))]
-use local_ip_address::{local_ip, local_ipv6};
 
 #[macro_use]
 mod cfg;
@@ -83,11 +81,25 @@ type HyperResponse = hyper::Response<ResBody>;
 
 const X_FORWARDER_FOR_HEADER_NAME: &str = "x-forwarded-for";
 
+const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'`');
+const PATH_ENCODE_SET: &AsciiSet = &QUERY_ENCODE_SET
+    .add(b'?')
+    .add(b'^')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}');
+
 /// Encode url path. This can be used when build your custom url path getter.
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
     path.split('/')
-        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .map(|s| utf8_percent_encode(s, PATH_ENCODE_SET).to_string())
         .collect::<Vec<_>>()
         .join("/")
 }
@@ -195,8 +207,8 @@ pub fn default_host_header_getter(
     None
 }
 
-/// RFC2616 complieant host header getter. This getter will get the host header from request uri, and add port if
-/// it's not default port. Falls back to default upon any forward URI parse error.
+/// RFC2616 complieant host header getter. This getter will get the host header from request uri,
+/// and add port if it's not default port. Falls back to default upon any forward URI parse error.
 pub fn rfc2616_host_header_getter(
     forward_uri: &Uri,
     req: &Request,
@@ -222,7 +234,8 @@ pub fn rfc2616_host_header_getter(
     }
 }
 
-/// Preserve original host header getter. Propagates the original request host header to the proxied request.
+/// Preserve original host header getter. Propagates the original request host header to the proxied
+/// request.
 pub fn preserve_original_host_header_getter(
     forward_uri: &Uri,
     req: &Request,
@@ -382,9 +395,12 @@ where
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if query.starts_with('?') {
-                format!("{path}{query}")
+                format!(
+                    "{path}?{}",
+                    utf8_percent_encode(&query[1..], QUERY_ENCODE_SET)
+                )
             } else {
-                format!("{path}?{query}")
+                format!("{path}?{}", utf8_percent_encode(&query, QUERY_ENCODE_SET))
             }
         } else {
             path
@@ -398,13 +414,7 @@ where
         } else {
             format!("{upstream}/{rest}")
         };
-        let forward_url = url::Url::parse(&forward_url).map_err(|e| {
-            Error::other(format!("url::Url::parse failed for '{forward_url}': {e}"))
-        })?;
-        let forward_url: Uri = forward_url
-            .as_str()
-            .parse()
-            .map_err(|e| Error::other(format!("Uri::parse failed for '{forward_url}': {e}")))?;
+        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
         let mut build = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
@@ -556,10 +566,10 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
     use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn test_encode_url_path() {

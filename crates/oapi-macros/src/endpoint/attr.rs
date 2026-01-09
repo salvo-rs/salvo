@@ -1,11 +1,11 @@
 use proc_macro2::Ident;
+use syn::parse::Parse;
 use syn::punctuated::Punctuated;
-use syn::{Expr, parenthesized, parse::Parse};
+use syn::{Expr, parenthesized};
 
 use crate::operation::request_body::RequestBodyAttr;
-use crate::{
-    Array, Parameter, Response, Token, parse_utils, security_requirement::SecurityRequirementsAttr,
-};
+use crate::security_requirement::SecurityRequirementsAttr;
+use crate::{Array, Parameter, Response, Token, parse_utils};
 
 #[derive(Default, Debug)]
 pub(crate) struct EndpointAttr<'p> {

@@ -1,4 +1,3 @@
-use crate::utils::salvo_crate;
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
 use regex::Regex;
@@ -7,6 +6,8 @@ use syn::{
     AngleBracketedGenericArguments, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item,
     PathArguments, Token, Type, TypePath, parse_quote,
 };
+
+use crate::utils::salvo_crate;
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     match input {
@@ -183,9 +184,10 @@ fn rewrite_method(
 
 #[cfg(test)]
 mod tests {
-    use super::{FnReceiver, REGEX_STR};
     use regex::Regex;
     use syn::parse_quote;
+
+    use super::{FnReceiver, REGEX_STR};
 
     #[test]
     fn extract_attribute() {

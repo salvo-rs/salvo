@@ -155,7 +155,8 @@ impl ComponentSchema {
         Ok(Self { tokens })
     }
 
-    /// Create `.schema_type(...)` override token stream if nullable is true from given [`SchemaTypeInner`].
+    /// Create `.schema_type(...)` override token stream if nullable is true from given
+    /// [`SchemaTypeInner`].
     fn get_schema_type_override(
         nullable: Option<Nullable>,
         schema_type_inner: SchemaTypeInner,

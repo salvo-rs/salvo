@@ -79,3 +79,5 @@ tower = "0.5.2"
 
 salvo_core = { path = "../crates/core" }
 salvo-oapi = { path = "../crates/oapi" }
+
+rand_core = "0.9.3"

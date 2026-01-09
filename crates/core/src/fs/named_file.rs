@@ -2,11 +2,10 @@ use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
-
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
@@ -35,8 +34,9 @@ pub(crate) enum Flag {
 
 /// A file with an associated name.
 ///
-/// This struct represents a file with an associated name. It provides methods for opening and sending the file,
-/// as well as setting various headers such as `Content-Type` and `Content-Disposition`.
+/// This struct represents a file with an associated name. It provides methods for opening and
+/// sending the file, as well as setting various headers such as `Content-Type` and
+/// `Content-Disposition`.
 ///
 /// # Examples
 ///
@@ -45,7 +45,6 @@ pub(crate) enum Flag {
 /// async fn open() {
 ///     let file = NamedFile::open("foo.txt").await;
 /// }
-///
 #[derive(Debug)]
 pub struct NamedFile {
     path: PathBuf,
@@ -121,7 +120,7 @@ impl NamedFileBuilder {
         self
     }
 
-    ///Specifies whether to use ETag or not.
+    /// Specifies whether to use ETag or not.
     ///
     /// Default is true.
     #[inline]
@@ -135,9 +134,9 @@ impl NamedFileBuilder {
         self
     }
 
-    ///Specifies whether to use Last-Modified or not.
+    /// Specifies whether to use Last-Modified or not.
     ///
-    ///Default is true.
+    /// Default is true.
     #[inline]
     #[must_use]
     pub fn use_last_modified(mut self, value: bool) -> Self {
@@ -395,9 +394,9 @@ impl NamedFile {
             }
         })
     }
-    ///Specifies whether to use ETag or not.
+    /// Specifies whether to use ETag or not.
     ///
-    ///Default is true.
+    /// Default is true.
     #[inline]
     pub fn use_etag(&mut self, value: bool) {
         if value {
@@ -412,9 +411,9 @@ impl NamedFile {
     pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
     }
-    ///Specifies whether to use Last-Modified or not.
+    /// Specifies whether to use Last-Modified or not.
     ///
-    ///Default is true.
+    /// Default is true.
     #[inline]
     pub fn use_last_modified(&mut self, value: bool) {
         if value {
@@ -423,7 +422,7 @@ impl NamedFile {
             self.flags.remove(Flag::LastModified);
         }
     }
-    ///Consume self and send content to [`Response`].
+    /// Consume self and send content to [`Response`].
     pub async fn send(mut self, req_headers: &HeaderMap, res: &mut Response) {
         let etag = if self.flags.contains(Flag::Etag) {
             self.etag()

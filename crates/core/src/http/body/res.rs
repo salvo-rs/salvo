@@ -4,12 +4,11 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll, ready};
 
+use bytes::Bytes;
 use futures_channel::{mpsc, oneshot};
 use futures_util::stream::{BoxStream, FusedStream, Stream, TryStreamExt};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 use sync_wrapper::SyncWrapper;
-
-use bytes::Bytes;
 
 use crate::error::BoxedError;
 use crate::http::body::{BodyReceiver, BodySender, BytesFrame};

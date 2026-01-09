@@ -1,5 +1,4 @@
 //! Http protocol supports.
-//!
 cfg_feature! {
     #![feature = "quinn"]
 

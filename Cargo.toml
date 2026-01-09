@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.package]
-version = "0.87.1"
+version = "0.88.1"
 authors = ["chrislearn <chris@acroidea.com>"]
 edition = "2024"
 rust-version = "1.89"
@@ -24,33 +24,32 @@ categories = [
 ]
 
 [workspace.dependencies]
-salvo_macros = { version = "0.87.1", path = "crates/macros", default-features = false }
-salvo_core = { version = "0.87.1", path = "crates/core", default-features = false }
-salvo_extra = { version = "0.87.1", path = "crates/extra", default-features = false }
-salvo-acme = { version = "0.87.1", path = "crates/acme", default-features = false }
-salvo-compression = { version = "0.87.1", path = "crates/compression", default-features = false }
-salvo-cache = { version = "0.87.1", path = "crates/cache", default-features = false }
-salvo-cors = { version = "0.87.1", path = "crates/cors", default-features = false }
-salvo-csrf = { version = "0.87.1", path = "crates/csrf", default-features = false }
-salvo-flash = { version = "0.87.1", path = "crates/flash", default-features = false }
+salvo_macros = { version = "0.88.1", path = "crates/macros", default-features = false }
+salvo_core = { version = "0.88.1", path = "crates/core", default-features = false }
+salvo_extra = { version = "0.88.1", path = "crates/extra", default-features = false }
+salvo-acme = { version = "0.88.1", path = "crates/acme", default-features = false }
+salvo-compression = { version = "0.88.1", path = "crates/compression", default-features = false }
+salvo-cache = { version = "0.88.1", path = "crates/cache", default-features = false }
+salvo-cors = { version = "0.88.1", path = "crates/cors", default-features = false }
+salvo-csrf = { version = "0.88.1", path = "crates/csrf", default-features = false }
+salvo-flash = { version = "0.88.1", path = "crates/flash", default-features = false }
 salvo-http3 = { version = "0.7.0", default-features = false }
-salvo-jwt-auth = { version = "0.87.1", path = "crates/jwt-auth", default-features = false }
-salvo-oapi = { version = "0.87.1", path = "./crates/oapi", default-features = false }
-salvo-oapi-macros = { version = "0.87.1", path = "crates/oapi-macros", default-features = false }
-salvo-otel = { version = "0.87.1", path = "crates/otel", default-features = false }
-salvo-proxy = { version = "0.87.1", path = "crates/proxy", default-features = false }
-salvo-rate-limiter = { version = "0.87.1", path = "crates/rate-limiter", default-features = false }
-salvo-serde-util = { version = "0.87.1", path = "crates/serde-util", default-features = true }
-salvo-serve-static = { version = "0.87.1", path = "crates/serve-static", default-features = false }
-salvo-session = { version = "0.87.1", path = "crates/session", default-features = false }
-salvo-craft = { version = "0.87.1", path = "crates/craft", default-features = false }
-salvo-craft-macros = { version = "0.87.1", path = "crates/craft-macros", default-features = false }
+salvo-jwt-auth = { version = "0.88.1", path = "crates/jwt-auth", default-features = false }
+salvo-oapi = { version = "0.88.1", path = "./crates/oapi", default-features = false }
+salvo-oapi-macros = { version = "0.88.1", path = "crates/oapi-macros", default-features = false }
+salvo-otel = { version = "0.88.1", path = "crates/otel", default-features = false }
+salvo-proxy = { version = "0.88.1", path = "crates/proxy", default-features = false }
+salvo-rate-limiter = { version = "0.88.1", path = "crates/rate-limiter", default-features = false }
+salvo-serde-util = { version = "0.88.1", path = "crates/serde-util", default-features = true }
+salvo-serve-static = { version = "0.88.1", path = "crates/serve-static", default-features = false }
+salvo-session = { version = "0.88.1", path = "crates/session", default-features = false }
+salvo-craft = { version = "0.88.1", path = "crates/craft", default-features = false }
+salvo-craft-macros = { version = "0.88.1", path = "crates/craft-macros", default-features = false }
 salvo-tus = { version = "0.87.1", path = "crates/tus", default-features = false }
 
 aead = "0.5"
 aes-gcm = "0.10"
 anyhow = "1"
-async-session = "3"
 async-trait = "0.1"
 assert-json-diff = "2"
 base64 = "0.22"
@@ -109,13 +108,13 @@ quote = "1"
 rand = "0.9"
 rcgen = "0.14"
 regex = "1"
-reqwest = { version = "0.13", default-features = true }
+reqwest = { version = "0.13", default-features = false }
 aws-lc-rs = { version = "1", default-features = true }
 ring = "0.17"
 rust_decimal = "1"
 rustls = { version = "0.23", default-features = false }
-rustls-pemfile = "2"
 rust-embed = { version = ">= 6, <= 9" }
+saysion = "0.1"
 serde = "1"
 serde_json = "1"
 serde-xml-rs = "0.8"

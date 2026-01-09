@@ -1,80 +1,78 @@
-/*!
-# Salvo Session Support
-
-Salvo's session middleware is built on top of
-[`async-session`](https://github.com/http-rs/async-session).
-
-See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
-
-Sessions allow Salvo applications to securely attach data to browser sessions,
-enabling retrieval and modification of this data on subsequent visits.
-Session data is typically retained only for the duration of a browser session.
-
-## Stores
-
-It is highly recommended to use an external-datastore-backed session storage
-for production Salvo applications. For a list of currently available session
-stores, see [the documentation for async-session](https://github.com/http-rs/async-session).
-
-## Security
-
-While each session store may have different security implications,
-Salvo's session system works as follows:
-
-On each request, Salvo checks for the cookie specified by `cookie_name`
-in the handler configuration.
-
-### When no cookie is found:
-
-1. A cryptographically random cookie value is generated
-2. A cookie is set on the outbound response and signed with an HKDF key
-   derived from the `secret` provided when creating the SessionHandler
-3. The session store uses a SHA256 digest of the cookie value to store
-   the session along with an optional expiry time
-
-### When a cookie is found:
-
-1. The HKDF-derived signing key verifies the cookie value's signature
-2. If verification succeeds, the value is passed to the session store to
-   retrieve the associated Session
-3. For most session stores, this involves taking a SHA256 digest of the
-   cookie value and retrieving a serialized Session from an external datastore
-
-### Expiry Handling
-
-Sessions include expiry information in both the cookie and the serialization format.
-Even if an adversary tampers with a cookie's expiry, Salvo validates
-the expiry on the contained session before using it.
-
-### Error Handling
-
-If any failures occur during session retrieval, a new empty session
-is generated for the request, which proceeds through the application normally.
-
-## Stale/Expired Session Cleanup
-
-Any session store (except the cookie store) will accumulate stale sessions over time.
-Although Salvo ensures expired sessions won't be used, it remains the
-application's responsibility to periodically call cleanup on the session
-store if required.
-
-Read more: <https://salvo.rs>
-*/
+//! # Salvo Session Support
+//!
+//! Salvo's session middleware is built on top of
+//! [`saysion`](https://github.com/salvo-rs/saysion).
+//!
+//! See a complete example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
+//!
+//! Sessions allow Salvo applications to securely attach data to browser sessions,
+//! enabling retrieval and modification of this data on subsequent visits.
+//! Session data is typically retained only for the duration of a browser session.
+//!
+//! ## Stores
+//!
+//! It is highly recommended to use an external-datastore-backed session storage
+//! for production Salvo applications. For a list of currently available session
+//! stores, see [the documentation for saysion](https://github.com/salvo-rs/saysion).
+//!
+//! ## Security
+//!
+//! While each session store may have different security implications,
+//! Salvo's session system works as follows:
+//!
+//! On each request, Salvo checks for the cookie specified by `cookie_name`
+//! in the handler configuration.
+//!
+//! ### When no cookie is found:
+//!
+//! 1. A cryptographically random cookie value is generated
+//! 2. A cookie is set on the outbound response and signed with an HKDF key
+//! derived from the `secret` provided when creating the SessionHandler
+//! 3. The session store uses a SHA256 digest of the cookie value to store
+//! the session along with an optional expiry time
+//!
+//! ### When a cookie is found:
+//!
+//! 1. The HKDF-derived signing key verifies the cookie value's signature
+//! 2. If verification succeeds, the value is passed to the session store to
+//! retrieve the associated Session
+//! 3. For most session stores, this involves taking a SHA256 digest of the
+//! cookie value and retrieving a serialized Session from an external datastore
+//!
+//! ### Expiry Handling
+//!
+//! Sessions include expiry information in both the cookie and the serialization format.
+//! Even if an adversary tampers with a cookie's expiry, Salvo validates
+//! the expiry on the contained session before using it.
+//!
+//! ### Error Handling
+//!
+//! If any failures occur during session retrieval, a new empty session
+//! is generated for the request, which proceeds through the application normally.
+//!
+//! ## Stale/Expired Session Cleanup
+//!
+//! Any session store (except the cookie store) will accumulate stale sessions over time.
+//! Although Salvo ensures expired sessions won't be used, it remains the
+//! application's responsibility to periodically call cleanup on the session
+//! store if required.
+//!
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
-
 use std::fmt::{self, Formatter};
 use std::time::Duration;
 
-use async_session::base64;
-use async_session::hmac::{Hmac, Mac, NewMac};
-use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use saysion::base64::Engine as _;
+use saysion::base64::engine::general_purpose;
+use saysion::hmac::{Hmac, Mac};
+use saysion::sha2::Sha256;
+pub use saysion::{CookieStore, MemoryStore, Session, SessionStore};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";
@@ -124,7 +122,10 @@ pub struct HandlerBuilder<S> {
     key: Key,
     fallback_keys: Vec<Key>,
 }
-impl<S: SessionStore> fmt::Debug for HandlerBuilder<S> {
+impl<S> fmt::Debug for HandlerBuilder<S>
+where
+    S: SessionStore + fmt::Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandlerBuilder")
             .field("store", &self.store)
@@ -291,7 +292,10 @@ pub struct SessionHandler<S> {
     hmac: Hmac<Sha256>,
     fallback_hmacs: Vec<Hmac<Sha256>>,
 }
-impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
+impl<S> fmt::Debug for SessionHandler<S>
+where
+    S: SessionStore + fmt::Debug,
+{
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionHandler")
@@ -310,7 +314,7 @@ impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
 #[async_trait]
 impl<S> Handler for SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     async fn handle(
         &self,
@@ -360,7 +364,7 @@ where
 
 impl<S> SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     /// Create new `HandlerBuilder`
     pub fn builder(store: S, secret: &[u8]) -> HandlerBuilder<S> {
@@ -391,19 +395,20 @@ where
 
         // Split [MAC | original-value] into its two parts.
         let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
-        let digest =
-            base64::decode(digest_str).map_err(|_| Error::Other("bad base64 digest".into()))?;
+        let digest = general_purpose::STANDARD
+            .decode(digest_str)
+            .map_err(|_| Error::Other("bad base64 digest".into()))?;
 
         // Perform the verification.
         let mut hmac = self.hmac.clone();
         hmac.update(value.as_bytes());
-        if hmac.verify(&digest).is_ok() {
+        if hmac.verify_slice(&digest).is_ok() {
             return Ok(value.to_owned());
         }
         for hmac in &self.fallback_hmacs {
             let mut hmac = hmac.clone();
             hmac.update(value.as_bytes());
-            if hmac.verify(&digest).is_ok() {
+            if hmac.verify_slice(&digest).is_ok() {
                 return Ok(value.to_owned());
             }
         }
@@ -438,7 +443,7 @@ where
         mac.update(cookie.value().as_bytes());
 
         // Cookie's new value is [MAC | original-value].
-        let mut new_value = base64::encode(mac.finalize().into_bytes());
+        let mut new_value = general_purpose::STANDARD.encode(mac.finalize().into_bytes());
         new_value.push_str(cookie.value());
         cookie.set_value(new_value);
     }
@@ -456,7 +461,7 @@ mod tests {
     #[test]
     fn test_session_data() {
         let builder = SessionHandler::builder(
-            async_session::CookieStore,
+            saysion::CookieStore,
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         )
         .cookie_domain("test.domain")

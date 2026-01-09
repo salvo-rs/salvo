@@ -287,7 +287,7 @@ impl<A: Acceptor + Send> Server<A> {
                 tokio::select! {
                     accepted = acceptor.accept(fuse_factory.clone()) => {
                         match accepted {
-                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme, ..}) => {
+                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();

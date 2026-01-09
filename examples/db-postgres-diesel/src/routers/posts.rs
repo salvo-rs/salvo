@@ -8,10 +8,10 @@ use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
 use uuid::Uuid;
 
 use crate::auth::auth_user;
+use crate::models::ResErrorBody;
 use crate::models::posts::{NewPost, Post, PostCreate};
 use crate::models::users::User;
-use crate::models::ResErrorBody;
-use crate::{schema::*, DbPool};
+use crate::{DbPool, schema::*};
 
 #[endpoint(
     tags("Posts"),
@@ -65,7 +65,7 @@ fn create_posts(
         id: Uuid::new_v4(),
         content: post_create.content.clone(),
         title: post_create.title.clone(),
-        user_id: current_user.id.clone(),
+        user_id: current_user.id,
         created_at: now,
         updated_at: now,
     };
@@ -124,7 +124,7 @@ fn update_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ResErrorBody {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -197,14 +197,14 @@ fn delete_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ResErrorBody {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
 
     let row_affected = diesel::delete(posts::table.filter(posts::id.eq(post_uuid)))
         .execute(&mut conn)
-        .expect(format!("Failed to delete posts with id: {}", { post_uuid }).as_str());
+        .unwrap_or_else(|_| panic!("Failed to delete posts with id: {}", { post_uuid }));
 
     println!("The number of row affected is {}", { row_affected });
     res.render(Json(post));
@@ -250,7 +250,7 @@ fn get_posts_information(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ResErrorBody {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -259,7 +259,7 @@ fn get_posts_information(
 }
 
 pub fn get_posts_router() -> Router {
-    let posts_router = Router::with_path("/posts")
+    Router::with_path("/posts")
         .hoop(auth_user)
         .get(get_all_posts)
         .post(create_posts)
@@ -268,6 +268,5 @@ pub fn get_posts_router() -> Router {
                 .get(get_posts_information)
                 .put(update_posts)
                 .delete(delete_posts),
-        );
-    posts_router
+        )
 }

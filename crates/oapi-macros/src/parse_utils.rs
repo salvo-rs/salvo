@@ -2,11 +2,9 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
-use syn::{
-    Expr, LitBool, LitStr, Path, Token, parenthesized,
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{Expr, LitBool, LitStr, Path, Token, parenthesized};
 
 #[derive(Clone, Debug)]
 pub(crate) enum LitStrOrExpr {

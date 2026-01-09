@@ -3,9 +3,8 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
-use syn::parenthesized;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
-use syn::{DeriveInput, Error, ExprPath, LitStr, Token};
+use syn::{DeriveInput, Error, ExprPath, LitStr, Token, parenthesized};
 
 mod derive;
 use derive::ToParameters;
@@ -20,8 +19,8 @@ use crate::feature::validation::{
     MultipleOf, Pattern,
 };
 use crate::feature::{Feature, TryToTokensExt, parse_features};
-use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
-use crate::{Required, operation::InlineType, parse_utils};
+use crate::operation::InlineType;
+use crate::{DiagLevel, DiagResult, Diagnostic, Required, TryToTokens, parse_utils};
 
 pub(crate) fn to_parameters(input: DeriveInput) -> DiagResult<TokenStream> {
     let DeriveInput {

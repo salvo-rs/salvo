@@ -1,7 +1,7 @@
 //! Extract is a feature to let you deserialize request to custom type.
 //!
-//! You can easily get data from multiple different data sources and assemble it into the type you want.
-//! You can define a custom type first, then in `Handler` you can get the data like this:
+//! You can easily get data from multiple different data sources and assemble it into the type you
+//! want. You can define a custom type first, then in `Handler` you can get the data like this:
 //!
 //! ```
 //! # use salvo_core::prelude::*;
@@ -25,7 +25,8 @@
 //! }
 //! ```
 //!
-//! There is considerable flexibility in the definition of data types, and can even be resolved into nested structures as needed:
+//! There is considerable flexibility in the definition of data types, and can even be resolved into
+//! nested structures as needed:
 //!
 //! ```
 //! # use salvo_core::prelude::*;
@@ -66,16 +67,16 @@
 pub mod metadata;
 pub use metadata::Metadata;
 mod case;
-pub use case::RenameRule;
-
 use std::fmt::Debug;
 
+pub use case::RenameRule;
 use futures_util::FutureExt;
 
 use crate::Writer;
 use crate::http::{ParseError, Request};
 
-/// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
+/// If a type implements this trait, it will give a metadata, this will help request to extracts
+/// data to this type.
 pub trait Extractible<'ex> {
     /// Metadata for Extractible type.
     fn metadata() -> &'static Metadata;
@@ -133,7 +134,7 @@ mod tests {
         struct Inner {
             a: String,
         }
-        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+        let mut req = TestClient::get("http://127.0.0.1:8698/test/1234/param2v")
             .query("a", "1")
             .build();
         let data: Outer<Inner> = req.extract().await.unwrap();

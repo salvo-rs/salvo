@@ -10,15 +10,14 @@ use syn::{
     Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Token, Type, TypePath, Variant,
 };
 
-use crate::doc_comment::CommentAttributes;
-use crate::operation::{InlineType, PathType};
-use crate::schema::{EnumSchema, NamedStructSchema};
-use crate::{Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
-
 use super::{
     Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue,
     DeriveToResponsesValue, ResponseTuple, ResponseValue,
 };
+use crate::doc_comment::CommentAttributes;
+use crate::operation::{InlineType, PathType};
+use crate::schema::{EnumSchema, NamedStructSchema};
+use crate::{Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
 
 pub(crate) struct ToResponse<'a> {
     ident: &'a Ident,
@@ -75,7 +74,7 @@ impl TryToTokens for ToResponse<'_> {
         let name = ident.to_string();
         let response = self.response.try_to_token_stream()?;
 
-        let (impl_generics, _, _) = self.generics.split_for_impl();
+        let (impl_generics, ..) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {

@@ -6,7 +6,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use proc_macro2::{Ident, Span, TokenTree};
-use syn::{Attribute, Error, buffer::Cursor};
+use syn::buffer::Cursor;
+use syn::{Attribute, Error};
 
 pub(crate) mod case;
 pub use case::RenameRule;
@@ -109,8 +110,8 @@ pub enum SerdeEnumRepr {
     /// Untagged
     Untagged,
     /// This is a variant that can never happen because `serde` will not accept it.
-    /// With the current implementation it is necessary to have it as an intermediate state when parsing the
-    /// attributes
+    /// With the current implementation it is necessary to have it as an intermediate state when
+    /// parsing the attributes
     UnfinishedAdjacentlyTagged {
         /// content.
         content: String,
@@ -298,8 +299,10 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RenameRule, SerdeContainer, case::RENAME_RULES, parse_container, parse_value};
     use syn::{Attribute, parse_quote};
+
+    use super::case::RENAME_RULES;
+    use super::{RenameRule, SerdeContainer, parse_container, parse_value};
 
     #[test]
     fn test_serde_parse_value() {

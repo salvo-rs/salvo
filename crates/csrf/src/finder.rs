@@ -85,8 +85,9 @@ impl CsrfTokenFinder for JsonFinder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo_core::test::TestClient;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_header_finder() {

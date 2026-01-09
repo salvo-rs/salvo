@@ -25,7 +25,7 @@ cookie-store = ["salvo_core/cookie", "dep:serde_json"]
 session-store = ["dep:salvo-session"]
 
 [dependencies]
-async-session = { workspace = true, optional = true }
+saysion = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 salvo-session = { workspace = true, optional = true }
 tracing = { workspace = true }

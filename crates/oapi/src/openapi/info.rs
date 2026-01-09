@@ -16,10 +16,8 @@ use crate::PropMap;
 /// Create [`Info`]].
 /// ```
 /// # use salvo_oapi::{Info, Contact};
-/// let info = Info::new("My api", "1.0.0").contact(Contact::new()
-///     .name("Admin Admin")
-///     .email("amdin@petapi.com")
-/// );
+/// let info = Info::new("My api", "1.0.0")
+///     .contact(Contact::new().name("Admin Admin").email("amdin@petapi.com"));
 /// ```
 /// OpenAPI [Info][info] object represents metadata of the API.
 ///
@@ -222,9 +220,8 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::License;
-
     use super::Contact;
+    use crate::License;
 
     #[test]
     fn build_contact() {

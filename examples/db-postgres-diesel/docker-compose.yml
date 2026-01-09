@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "5800:5800"
+      - "8698:8698"
     
     depends_on:
       - db

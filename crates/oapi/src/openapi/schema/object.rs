@@ -8,15 +8,16 @@ use crate::{Array, Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType,
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
 ///
-/// This is a generic OpenAPI schema object which can used to present `object`, `field` or an `enum`.
+/// This is a generic OpenAPI schema object which can used to present `object`, `field` or an
+/// `enum`.
 ///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    /// Type of [`Object`] e.g. [`BasicType::Object`][crate::BasicType] for `object` and [`BasicType::String`][crate::BasicType] for
-    /// `string` types.
+    /// Type of [`Object`] e.g. [`BasicType::Object`][crate::BasicType] for `object` and
+    /// [`BasicType::String`][crate::BasicType] for `string` types.
     #[serde(rename = "type", skip_serializing_if = "SchemaType::is_any_value")]
     pub schema_type: SchemaType,
 
@@ -104,7 +105,8 @@ pub struct Object {
     pub exclusive_minimum: Option<f64>,
 
     /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
-    /// value. Value is considered valid if content length is equal or less than the _`max_length`_.
+    /// value. Value is considered valid if content length is equal or less than the
+    /// _`max_length`_.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<usize>,
 
@@ -132,12 +134,12 @@ pub struct Object {
     #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
 
-    /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
-    /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+    /// The `content_encoding` keyword specifies the encoding used to store the contents, as
+    /// specified in [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
     ///
     /// Typically this is either unset for _`string`_ content types which then uses the content
-    /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an image or an audio
-    /// set it to `base64` to encode it as _`Base64`_.
+    /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an
+    /// image or an audio set it to `base64` to encode it as _`Base64`_.
     ///
     /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
     #[serde(skip_serializing_if = "String::is_empty", default)]
@@ -235,7 +237,8 @@ impl Object {
         self
     }
 
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    /// Add or change default value for the object which is provided when user has not provided the
+    /// input in Swagger UI.
     #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);

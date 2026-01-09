@@ -8,14 +8,13 @@ use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 
+use super::{CowValue, FlatValue, VecValue};
 use crate::Request;
 use crate::extract::Metadata;
 use crate::extract::metadata::{Field, Source, SourceFrom, SourceParser};
 use crate::http::ParseError;
 use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
-
-use super::{CowValue, FlatValue, VecValue};
 
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
@@ -178,7 +177,8 @@ impl<'de> RequestDeserializer<'de> {
 
             let parser = self.real_parser(source);
             if source.from == SourceFrom::Body && parser == SourceParser::Json {
-                // panic because this indicates a bug in the program rather than an expected failure.
+                // panic because this indicates a bug in the program rather than an expected
+                // failure.
                 let value = self
                     .field_str_value
                     .expect("MapAccess::next_value called before next_key");

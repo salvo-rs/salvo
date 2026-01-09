@@ -3,21 +3,21 @@ use std::collections::VecDeque;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
 
+use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::Stream;
+use http::Extensions;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
-use http::{Extensions, version::Version};
+use http::version::Version;
 use mime::Mime;
 
 use crate::fs::NamedFile;
 use crate::fuse::TransProto;
+pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
-use bytes::Bytes;
-
-pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 
 /// Represents an HTTP response.
 #[non_exhaustive]
@@ -135,8 +135,9 @@ impl Response {
 
     /// Modify a header for this response.
     ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
-    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be
+    /// replaced. When `overwrite` is set to `false`, The new header is always appended to the
+    /// request, even if the header already exists.
     pub fn add_header<N, V>(
         &mut self,
         name: N,
@@ -201,7 +202,8 @@ impl Response {
         self.replace_body(ResBody::None)
     }
 
-    /// If returns `true`, it means this response is ready for write back and the reset handlers should be skipped.
+    /// If returns `true`, it means this response is ready for write back and the reset handlers
+    /// should be skipped.
     #[inline]
     pub fn is_stamped(&mut self) -> bool {
         if let Some(code) = self.status_code
@@ -351,7 +353,6 @@ impl Response {
     /// assert_eq!(None, res.content_type());
     /// res.headers_mut().insert("content-type", "text/plain".parse().unwrap());
     /// assert_eq!(Some(mime::TEXT_PLAIN), res.content_type());
-    ///
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         self.headers
@@ -406,7 +407,8 @@ impl Response {
 
     /// Attempts to send a file. If file not exists, not found error will occur.
     ///
-    /// If you want more settings, you can use `NamedFile::builder` to create a new [`NamedFileBuilder`](crate::fs::NamedFileBuilder).
+    /// If you want more settings, you can use `NamedFile::builder` to create a new
+    /// [`NamedFileBuilder`](crate::fs::NamedFileBuilder).
     pub async fn send_file<P>(&mut self, path: P, req_headers: &HeaderMap)
     where
         P: Into<PathBuf> + Send,
@@ -530,9 +532,10 @@ impl Display for Response {
 
 #[cfg(test)]
 mod test {
+    use std::error::Error;
+
     use bytes::BytesMut;
     use futures_util::stream::{StreamExt, iter};
-    use std::error::Error;
 
     use super::*;
 

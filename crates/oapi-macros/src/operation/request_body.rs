@@ -1,27 +1,29 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
+use syn::parse::Parse;
 use syn::punctuated::Punctuated;
-use syn::{Error, Token, parenthesized, parse::Parse, token::Paren};
-
-use crate::component::ComponentSchema;
-use crate::feature::attributes::Inline;
-use crate::{AnyValue, Array, DiagResult, Required, TryToTokens, parse_utils};
+use syn::token::Paren;
+use syn::{Error, Token, parenthesized};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};
+use crate::component::ComponentSchema;
+use crate::feature::attributes::Inline;
+use crate::{AnyValue, Array, DiagResult, Required, TryToTokens, parse_utils};
 
 /// Parsed information related to request body of path.
 ///
 /// Supported configuration options:
 ///   * **content** Request body content object type. Can also be array e.g. `content = [String]`.
-///   * **content_type** Defines the actual content mime type of a request body such as `application/json`.
-///     If not provided really rough guess logic is used. Basically all primitive types are treated as `text/plain`
-///     and Object types are expected to be `application/json` by default.
+///   * **content_type** Defines the actual content mime type of a request body such as
+///     `application/json`. If not provided really rough guess logic is used. Basically all
+///     primitive types are treated as `text/plain` and Object types are expected to be
+///     `application/json` by default.
 ///   * **description** Additional description for request body content type.
 /// # Examples
 ///
-/// Request body in path with all supported info. Where content type is treated as a String and expected
-/// to be xml.
+/// Request body in path with all supported info. Where content type is treated as a String and
+/// expected to be xml.
 /// ```text
 /// #[salvo_oapi::endpoint(
 ///    request_body = (content = String, description = "foobar", content_type = "text/xml"),
@@ -33,14 +35,14 @@ use super::{PathType, PathTypeTree};
 ///    request_body = Foo,
 /// )]
 /// ```
-///
+/// 
 /// Or the request body content can also be an array as well by surrounding it with brackets `[..]`.
 /// ```text
 /// #[salvo_oapi::endpoint(
 ///    request_body = [Foo],
 /// )]
 /// ```
-///
+/// 
 /// To define optional request body just wrap the type in `Option<type>`.
 /// ```text
 /// #[salvo_oapi::endpoint(
@@ -197,7 +199,7 @@ impl TryToTokens for RequestBodyAttr<'_> {
                             .required(#required)
                     });
                 }
-                PathType::InlineSchema(_, _) => {
+                PathType::InlineSchema(..) => {
                     unreachable!(
                         "`PathType::InlineSchema` is not implemented for `RequestBodyAttr`"
                     );

@@ -96,7 +96,7 @@ If you prefer running the application directly with Docker, update the environme
 
 docker build -t salvo_postgres_app .
 
-docker run -d -p 5800:5800 \
+docker run -d -p 8698:8698 \
   -e DATABASE_URL="postgres://darix:6775212952@localhost:5432/salvo_postgres" \
   --name salvo_postgres_app \
   salvo_postgres_app
@@ -121,7 +121,7 @@ docker compose up -d --build
 
 Open the OpenAPI Salvo interactive docs at:
 
-👉 [http://0.0.0.0:5800/docs](http://0.0.0.0:5800/docs)
+👉 [http://0.0.0.0:8698/docs](http://0.0.0.0:8698/docs)
 
 ---
 

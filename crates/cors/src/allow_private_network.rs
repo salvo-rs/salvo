@@ -1,5 +1,6 @@
+use std::fmt;
 use std::pin::Pin;
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
 use salvo_core::http::header::{HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
@@ -145,7 +146,8 @@ mod tests {
         clippy::declare_interior_mutable_const,
         clippy::borrow_interior_mutable_const
     )]
-    use salvo_core::http::{HeaderName, HeaderValue, Request, header::ORIGIN};
+    use salvo_core::http::header::ORIGIN;
+    use salvo_core::http::{HeaderName, HeaderValue, Request};
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
