@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
@@ -6,6 +9,7 @@ use tokio::{
     fs,
     io::{self, AsyncSeekExt, AsyncWriteExt},
 };
+use tracing::warn;
 
 use crate::{
     error::{TusError, TusResult},
@@ -112,6 +116,118 @@ impl DiskStore {
         self.root.join(format!("{id}.json.tmp"))
     }
 
+    fn resolve_data_path(&self, id: &str, storage: &Option<MetaStoreInfo>) -> PathBuf {
+        storage
+            .as_ref()
+            .map(|info| PathBuf::from(&info.path))
+            .unwrap_or_else(|| self.data_path(id))
+    }
+
+    fn metadata_value(meta: &MetaUpload, key: &str) -> Option<String> {
+        meta.metadata
+            .as_ref()
+            .and_then(|m| m.get(key))
+            .and_then(|v| v.as_ref())
+            .map(|v| v.to_string())
+    }
+
+    fn sanitize_filename(name: &str) -> Option<String> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let file_name = Path::new(trimmed)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())?;
+        if file_name == "." || file_name == ".." {
+            return None;
+        }
+        Some(file_name)
+    }
+
+    fn filename_from_meta(meta: &MetaUpload) -> Option<String> {
+        Self::metadata_value(meta, "filename").and_then(|name| Self::sanitize_filename(&name))
+    }
+
+    fn extension_from_filetype(meta: &MetaUpload) -> Option<String> {
+        let filetype = Self::metadata_value(meta, "filetype")?;
+        let subtype = filetype.split('/').nth(1)?.trim();
+        if subtype.is_empty() {
+            return None;
+        }
+        Some(subtype.to_string())
+    }
+
+    fn desired_filename(meta: &MetaUpload) -> Option<String> {
+        if let Some(mut name) = Self::filename_from_meta(meta) {
+            if Path::new(&name).extension().is_none() {
+                if let Some(ext) = Self::extension_from_filetype(meta) {
+                    name = format!("{name}.{ext}");
+                }
+            }
+            return Some(name);
+        }
+        Self::extension_from_filetype(meta).map(|ext| format!("{}.{}", meta.id, ext))
+    }
+
+    fn with_id_suffix(name: &str, id: &str) -> String {
+        let path = Path::new(name);
+        match (path.file_stem(), path.extension()) {
+            (Some(stem), Some(ext)) => {
+                format!(
+                    "{}-{}.{}",
+                    stem.to_string_lossy(),
+                    id,
+                    ext.to_string_lossy()
+                )
+            }
+            (Some(stem), None) => format!("{}-{}", stem.to_string_lossy(), id),
+            _ => format!("{}-{}", name, id),
+        }
+    }
+
+    async fn try_finalize_if_complete(&self, meta: &mut MetaUpload) {
+        let Some(size) = meta.size else {
+            return;
+        };
+        if meta.offset != size {
+            return;
+        }
+        let Some(file_name) = Self::desired_filename(meta) else {
+            return;
+        };
+
+        let current_path = self.resolve_data_path(&meta.id, &meta.storage);
+        let dir = current_path.parent().unwrap_or(self.root.as_path());
+        let mut target_path = dir.join(&file_name);
+        if target_path == current_path {
+            return;
+        }
+
+        if fs::metadata(&target_path).await.is_ok() {
+            let fallback = Self::with_id_suffix(&file_name, &meta.id);
+            target_path = dir.join(fallback);
+            if fs::metadata(&target_path).await.is_ok() {
+                return;
+            }
+        }
+
+        if let Err(err) = fs::rename(&current_path, &target_path).await {
+            warn!(
+                "finalize upload rename failed: id={}, error={}",
+                meta.id, err
+            );
+            return;
+        }
+
+        let storage = meta.storage.get_or_insert_with(|| MetaStoreInfo {
+            type_name: "file".to_string(),
+            path: target_path.to_string_lossy().to_string(),
+            bucket: None,
+        });
+        storage.path = target_path.to_string_lossy().to_string();
+    }
+
     async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
         let path = self.meta_path(id);
         let bytes = fs::read(path).await.map_err(|e| {
@@ -182,7 +298,8 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        let meta = MetaUpload::from(file.clone());
+        let mut meta = MetaUpload::from(file.clone());
+        self.try_finalize_if_complete(&mut meta).await;
         if let Err(err) = self.write_meta_atomic(&meta).await {
             let _ = fs::remove_file(&data_path).await;
             return Err(err);
@@ -194,7 +311,11 @@ impl DataStore for DiskStore {
     async fn remove(&self, id: &str) -> TusResult<()> {
         self.ensure_root().await?;
 
-        let data_path = self.data_path(id);
+        let meta = self.read_meta(id).await.ok();
+        let data_path = match &meta {
+            Some(meta) => self.resolve_data_path(id, &meta.storage),
+            None => self.data_path(id),
+        };
         let meta_path = self.meta_path(id);
         let mut removed = false;
 
@@ -231,7 +352,7 @@ impl DataStore for DiskStore {
             });
         }
 
-        let path = self.data_path(id);
+        let path = self.resolve_data_path(id, &meta.storage);
         let mut file = fs::OpenOptions::new()
             .write(true)
             .open(path)
@@ -269,6 +390,7 @@ impl DataStore for DiskStore {
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
         meta.offset = original_offset + written;
+        self.try_finalize_if_complete(&mut meta).await;
         self.write_meta_atomic(&meta).await?;
 
         Ok(written)
