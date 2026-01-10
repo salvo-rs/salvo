@@ -45,6 +45,7 @@ impl UploadInfo {
 pub enum Extension {
     Creation,
     Expiration,
+    CreationWithUpload,
     CreationDeferLength,
     Concatenation,
     Termination,
@@ -55,6 +56,7 @@ impl Extension {
         match self {
             Extension::Creation => "creation",
             Extension::Expiration => "expiration",
+            Extension::CreationWithUpload => "creation-with-upload",
             Extension::CreationDeferLength => "creation-defer-length",
             Extension::Concatenation => "concatenation",
             Extension::Termination => "termination",

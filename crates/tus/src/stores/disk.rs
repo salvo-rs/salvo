@@ -157,6 +157,7 @@ impl DataStore for DiskStore {
         let mut support_extensions = HashSet::new();
         support_extensions.insert(Extension::Creation);
         support_extensions.insert(Extension::CreationDeferLength);
+        support_extensions.insert(Extension::CreationWithUpload);
         support_extensions.insert(Extension::Termination);
         support_extensions
     }
@@ -246,10 +247,17 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
+        let original_offset = offset;
         let mut written: u64 = 0;
         let mut stream = stream;
         while let Some(item) = stream.next().await {
             let chunk = item.map_err(|e| TusError::Internal(e.to_string()))?;
+            if let Some(size) = meta.size {
+                if original_offset + written + chunk.len() as u64 > size {
+                    let _ = file.set_len(original_offset).await;
+                    return Err(TusError::PayloadTooLarge);
+                }
+            }
             file.write_all(&chunk)
                 .await
                 .map_err(|e| TusError::Internal(e.to_string()))?;
@@ -260,7 +268,7 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        meta.offset = offset + written;
+        meta.offset = original_offset + written;
         self.write_meta_atomic(&meta).await?;
 
         Ok(written)

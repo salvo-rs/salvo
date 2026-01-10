@@ -70,6 +70,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
         None => false,
     };
+    if creation_with_upload && !store.has_extension(Extension::CreationWithUpload) {
+        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension).status());
+        return;
+    }
 
     // Retrieve and parse metadata
     let metadata = match upload_metadata
@@ -264,7 +268,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                     if let Some(headers) = patch.headers {
                         for (key, value) in headers {
                             if let Some(key) = key {
-                                res.headers.insert(key, value);
+                                if !res.headers.contains_key(&key) {
+                                    res.headers.insert(key, value);
+                                }
                             }
                         }
                     }
@@ -282,6 +288,18 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     if res.status_code == Some(StatusCode::CREATED) || res.status_code.unwrap().is_redirection() {
         res.headers.insert("Location", HeaderValue::from_str(&url).unwrap());
+    }
+
+    if res.body.is_none() {
+        let status = res.status_code.unwrap_or(StatusCode::OK);
+        if !status.is_client_error()
+            && !status.is_server_error()
+            && !status.is_redirection()
+            && status != StatusCode::NO_CONTENT
+            && status != StatusCode::SWITCHING_PROTOCOLS
+        {
+            res.render("");
+        }
     }
 
 }

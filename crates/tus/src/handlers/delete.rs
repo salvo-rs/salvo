@@ -39,6 +39,10 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
+    if let Some(on_incoming_request) = &opts.on_incoming_request {
+        on_incoming_request(req, id.clone()).await;
+    }
+
     if opts.disable_termination_for_finished_uploads {
         if let Ok(info) = store.get_upload_file_info(&id).await {
             if let (Some(size), Some(offset)) = (info.size, info.offset) {

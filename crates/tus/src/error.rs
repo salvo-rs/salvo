@@ -19,6 +19,8 @@ pub enum ProtocolError {
     UnsupportedConcatenationExtension,
     #[error("creation-defer-length extension is not (yet) supported.")]
     UnsupportedCreationDeferLengthExtension,
+    #[error("creation-with-upload extension is not (yet) supported.")]
+    UnsupportedCreationWithUploadExtension,
     #[error("termination extension is not (yet) supported.")]
     UnsupportedTerminationExtension,
     #[error("Upload-Length or Upload-Defer-Length header required.")]
@@ -70,6 +72,7 @@ impl TusError {
 
             TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
             TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension) => StatusCode::NOT_IMPLEMENTED, // 501
+            TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension) => StatusCode::NOT_IMPLEMENTED, // 501
             TusError::Protocol(ProtocolError::UnsupportedTerminationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
             TusError::Protocol(ProtocolError::InvalidLength) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::InvalidMetadata) => StatusCode::BAD_REQUEST, // 400

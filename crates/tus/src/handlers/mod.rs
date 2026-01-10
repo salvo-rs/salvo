@@ -30,6 +30,14 @@ pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
     headers
 }
 
+pub(crate) fn apply_options_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
+    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    headers.insert("access-control-expose-headers", HeaderValue::from_static(EXPOSE_HEADERS));
+    headers.insert("cache-control", HeaderValue::from_static("no-store"));
+
+    headers
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Metadata(pub HashMap<String, Option<String>>);
 

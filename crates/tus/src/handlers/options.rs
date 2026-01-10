@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
-use crate::{H_ACCESS_CONTROL_ALLOW_HEADERS, H_ACCESS_CONTROL_ALLOW_METHODS, H_ACCESS_CONTROL_MAX_AGE, H_ACCESS_CONTROL_REQUEST_HEADERS, H_TUS_EXTENSION, H_TUS_MAX_SIZE, H_TUS_VERSION, TUS_VERSION, Tus, handlers::apply_common_headers, stores::Extension};
+use crate::{H_ACCESS_CONTROL_ALLOW_HEADERS, H_ACCESS_CONTROL_ALLOW_METHODS, H_ACCESS_CONTROL_MAX_AGE, H_ACCESS_CONTROL_REQUEST_HEADERS, H_TUS_EXTENSION, H_TUS_MAX_SIZE, H_TUS_VERSION, TUS_VERSION, Tus, handlers::apply_options_headers, stores::Extension};
 
 #[handler]
 /// https://tus.io/protocols/resumable-upload#options
@@ -11,7 +11,7 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let store = &state.store;
     let opts = &state.options;
     let max_size = opts.get_configured_max_size(req, None).await;
-    let headers = apply_common_headers(&mut res.headers);
+    let headers = apply_options_headers(&mut res.headers);
     
 
     headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));

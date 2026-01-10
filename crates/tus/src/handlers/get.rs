@@ -34,6 +34,10 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
+    if let Some(on_incoming_request) = &opts.on_incoming_request {
+        on_incoming_request(req, id.clone()).await;
+    }
+
     let info = match store.get_upload_file_info(&id).await {
         Ok(info) => info,
         Err(e) => {

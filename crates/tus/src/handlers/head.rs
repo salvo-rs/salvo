@@ -35,7 +35,9 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    // TODO: handle _on_incoming_request(req, id);
+    if let Some(on_incoming_request) = &opts.on_incoming_request {
+        on_incoming_request(req, id.clone()).await;
+    }
     // TODO: let lock = opts.acquire_lock(req, &id, context);
 
     let upload_info = match store.get_upload_file_info(&id).await {
@@ -57,6 +59,24 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     // TODO: Time handle
 
+    let mut expires_at = None;
+    if store.has_extension(Extension::Expiration) {
+        if let Some(expiration) = store.get_expiration() {
+            if expiration > std::time::Duration::from_secs(0) && !upload_info.creation_date.is_empty() {
+                if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date) {
+                    if let Ok(delta) = chrono::Duration::from_std(expiration) {
+                        let expires = created_at.with_timezone(&chrono::Utc) + delta;
+                        if chrono::Utc::now() > expires {
+                            res.status_code = Some(TusError::FileNoLongerExists.status());
+                            return;
+                        }
+                        expires_at = Some(expires);
+                    }
+                }
+            }
+        }
+    }
+
     res.status_code = Some(StatusCode::OK);
 
     let Some(offset) = &upload_info.offset else {
@@ -77,27 +97,17 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         headers.insert("Upload-Metadata", HeaderValue::from_str(&Metadata::stringify(metadata)).unwrap());
     }
 
-    if store.has_extension(Extension::Expiration) {
-        if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0) && !upload_info.creation_date.is_empty() {
-                let is_finished = match (upload_info.offset, upload_info.size) {
-                    (Some(offset), Some(size)) => offset == size,
-                    _ => false,
-                };
-
-                if !is_finished {
-                    if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date) {
-                        if let Ok(delta) = chrono::Duration::from_std(expiration) {
-                            let expires = created_at.with_timezone(&chrono::Utc) + delta;
-                            let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
-                            headers.insert(
-                                H_UPLOAD_EXPIRES,
-                                HeaderValue::from_str(&expires_value).unwrap(),
-                            );
-                        }
-                    }
-                }
-            }
+    if let Some(expires_at) = expires_at {
+        let is_finished = match (upload_info.offset, upload_info.size) {
+            (Some(offset), Some(size)) => offset == size,
+            _ => false,
+        };
+        if !is_finished {
+            let expires_value = expires_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+            headers.insert(
+                H_UPLOAD_EXPIRES,
+                HeaderValue::from_str(&expires_value).unwrap(),
+            );
         }
     }
 }
