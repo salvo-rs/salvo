@@ -26,6 +26,7 @@ async fn main() {
             info!("On Incoming Request: {}", id);
         })
         .with_upload_id_naming_function(|_req, _metadata| async {
+            // Use nanoid
             let id = nanoid!();
             Ok(id)
         })
@@ -33,7 +34,9 @@ async fn main() {
             info!("Current File ID: {}", id);
         });
 
-    let router = tus.into_router();
+    let router = Router::new().get(hello_world)
+        .push(Router::with_path("hello").get(hello))
+        .push(tus.into_router());
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
 
