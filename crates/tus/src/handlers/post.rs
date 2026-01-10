@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
-use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
+use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::{Depot, Request, Response, Router, handler};
 
+use crate::error::{ProtocolError, TusError};
+use crate::handlers::{Metadata, apply_common_headers};
+use crate::stores::{Extension, UploadInfo};
+use crate::utils::{check_tus_version, parse_u64};
 use crate::{
-    CancellationContext, CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
+    CT_OFFSET_OCTET_STREAM, CancellationContext, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
     H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH,
-    H_UPLOAD_METADATA, H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
-    handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo},
-    utils::{check_tus_version, parse_u64}
+    H_UPLOAD_METADATA, H_UPLOAD_OFFSET, TUS_VERSION, Tus,
 };
 
 /// HTTP/1.1 201 Created
@@ -26,14 +29,18 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .and_then(|v| v.to_str().ok()),
     ) {
         if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
-            res.headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
+            res.headers
+                .insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
         }
         res.status_code = Some(TusError::Protocol(e).status());
         return;
     }
 
-    if req.headers().get(H_UPLOAD_CONCAT).is_some() && !store.has_extension(Extension::Concatenation) {
-        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
+    if req.headers().get(H_UPLOAD_CONCAT).is_some()
+        && !store.has_extension(Extension::Concatenation)
+    {
+        res.status_code =
+            Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
         return;
     }
 
@@ -42,7 +49,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let upload_metadata = req.headers().get(H_UPLOAD_METADATA);
 
     if upload_defer_length.is_some() && !store.has_extension(Extension::CreationDeferLength) {
-        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status());
+        res.status_code = Some(
+            TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status(),
+        );
         return;
     }
 
@@ -62,7 +71,11 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    let creation_with_upload = match req.headers().get(H_CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
+    let creation_with_upload = match req
+        .headers()
+        .get(H_CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+    {
         Some(value) if value == CT_OFFSET_OCTET_STREAM => true,
         Some(_) => {
             res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
@@ -71,7 +84,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         None => false,
     };
     if creation_with_upload && !store.has_extension(Extension::CreationWithUpload) {
-        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension).status());
+        res.status_code = Some(
+            TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension).status(),
+        );
         return;
     }
 
@@ -110,14 +125,17 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 }
             },
             Err(_) => {
-                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+                res.status_code =
+                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
                 return;
             }
         },
         None => None,
     };
 
-    let max_file_size = opts.get_configured_max_size(req, Some(upload_id.to_string())).await;
+    let max_file_size = opts
+        .get_configured_max_size(req, Some(upload_id.to_string()))
+        .await;
 
     if let Some(size) = upload_length_value {
         if max_file_size > 0 && size > max_file_size {
@@ -156,7 +174,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.status_code = Some(StatusCode::CREATED);
 
     let is_final = {
-        let _lock = match opts.acquire_write_lock(req, &upload_id, CancellationContext::new()).await {
+        let _lock = match opts
+            .acquire_write_lock(req, &upload_id, CancellationContext::new())
+            .await
+        {
             Ok(lock) => lock,
             Err(e) => {
                 res.status_code = Some(e.status());
@@ -180,7 +201,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                         }
                     },
                     Err(_) => {
-                        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                        res.status_code = Some(
+                            TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH))
+                                .status(),
+                        );
                         return;
                     }
                 },
@@ -196,7 +220,8 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
             if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
                 if incoming > max_allowed {
-                    res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+                    res.status_code =
+                        Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
                     return;
                 }
             }
@@ -212,8 +237,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             };
 
             upload.offset = Some(written);
-            res.headers
-                .insert(H_UPLOAD_OFFSET, HeaderValue::from_str(&written.to_string()).unwrap());
+            res.headers.insert(
+                H_UPLOAD_OFFSET,
+                HeaderValue::from_str(&written.to_string()).unwrap(),
+            );
         }
 
         upload.size.is_some_and(|x| x == 0) && !upload.get_size_is_deferred()
@@ -224,7 +251,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         Ok(url) => url,
         Err(_) => {
             res.status_code = Some(TusError::GenerateUploadURLError.status());
-            return ;
+            return;
         }
     };
 
@@ -239,10 +266,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 };
 
                 if !is_finished {
-                    if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload.creation_date) {
+                    if let Ok(created_at) =
+                        chrono::DateTime::parse_from_rfc3339(&upload.creation_date)
+                    {
                         if let Ok(delta) = chrono::Duration::from_std(expiration) {
                             let expires = created_at.with_timezone(&chrono::Utc) + delta;
-                            let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+                            let expires_value =
+                                expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
                             res.headers.insert(
                                 H_UPLOAD_EXPIRES,
                                 HeaderValue::from_str(&expires_value).unwrap(),
@@ -263,7 +293,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                     }
                     if let Some(body) = patch.body {
                         if res.write_body(body).is_err() {
-                            res.status_code = Some(TusError::Internal("failed to write response body".into()).status());
+                            res.status_code = Some(
+                                TusError::Internal("failed to write response body".into()).status(),
+                            );
                             return;
                         }
                     }
@@ -285,11 +317,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    // The Upload-Expires response header indicates the time after which the unfinished upload expires.
-    // If expiration is known at creation time, Upload-Expires header MUST be included in the response
+    // The Upload-Expires response header indicates the time after which the unfinished upload
+    // expires. If expiration is known at creation time, Upload-Expires header MUST be included
+    // in the response
 
     if res.status_code == Some(StatusCode::CREATED) || res.status_code.unwrap().is_redirection() {
-        res.headers.insert("Location", HeaderValue::from_str(&url).unwrap());
+        res.headers
+            .insert("Location", HeaderValue::from_str(&url).unwrap());
     }
 
     if res.body.is_none() {
@@ -303,11 +337,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             res.render("");
         }
     }
-
 }
 
 pub fn post_handler() -> Router {
-    let post_router = Router::new()
-        .post(create);
+    let post_router = Router::new().post(create);
     post_router
 }

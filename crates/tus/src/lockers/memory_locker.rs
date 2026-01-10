@@ -1,9 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use salvo_core::async_trait;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{error::TusResult, lockers::{LockGuard, Locker}};
+use crate::error::TusResult;
+use crate::lockers::{LockGuard, Locker};
 
 #[derive(Clone)]
 pub struct MemoryLocker {
@@ -12,7 +14,9 @@ pub struct MemoryLocker {
 
 impl MemoryLocker {
     pub fn new() -> Self {
-        Self { inner: Arc::new(Mutex::new(HashMap::new())) }
+        Self {
+            inner: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     async fn get_lock(&self, id: &str) -> Arc<RwLock<()>> {

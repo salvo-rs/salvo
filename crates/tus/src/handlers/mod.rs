@@ -6,25 +6,30 @@ mod options;
 mod patch;
 mod post;
 
-use std::{collections::{HashMap, HashSet}, ops::{Deref, DerefMut}};
+use std::collections::{HashMap, HashSet};
+use std::ops::{Deref, DerefMut};
 
 use base64::Engine;
-use salvo_core::{http::{HeaderMap, HeaderValue}};
-pub use options::options_handler;
-pub use post::post_handler;
-pub use head::head_handler;
-pub use patch::patch_handler;
 pub use delete::delete_handler;
 pub use get::get_handler;
+pub use head::head_handler;
+pub use options::options_handler;
+pub use patch::patch_handler;
+pub use post::post_handler;
+use salvo_core::http::{HeaderMap, HeaderValue};
 
-use crate::{H_TUS_RESUMABLE, TUS_VERSION, error::ProtocolError};
+use crate::error::ProtocolError;
+use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
 
 pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
     headers.insert(H_TUS_RESUMABLE, HeaderValue::from_static(TUS_VERSION));
     headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert("access-control-expose-headers", HeaderValue::from_static(EXPOSE_HEADERS));
+    headers.insert(
+        "access-control-expose-headers",
+        HeaderValue::from_static(EXPOSE_HEADERS),
+    );
     headers.insert("cache-control", HeaderValue::from_static("no-store"));
 
     headers
@@ -32,7 +37,10 @@ pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
 
 pub(crate) fn apply_options_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
     headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert("access-control-expose-headers", HeaderValue::from_static(EXPOSE_HEADERS));
+    headers.insert(
+        "access-control-expose-headers",
+        HeaderValue::from_static(EXPOSE_HEADERS),
+    );
     headers.insert("cache-control", HeaderValue::from_static("no-store"));
 
     headers
@@ -86,14 +94,13 @@ impl Metadata {
         metadata
             .0
             .iter()
-            .map(|(key, value)| {
-                match value {
-                    Some(value) => {
-                        let encoded = base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
-                        format!("{} {}", key, encoded)
-                    }
-                    None => key.to_string(),
+            .map(|(key, value)| match value {
+                Some(value) => {
+                    let encoded =
+                        base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
+                    format!("{} {}", key, encoded)
                 }
+                None => key.to_string(),
             })
             .collect::<Vec<_>>()
             .join(", ")

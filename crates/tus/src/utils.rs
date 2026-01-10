@@ -1,6 +1,7 @@
 use salvo_core::http::HeaderValue;
 
-use crate::{TUS_VERSION, error::ProtocolError};
+use crate::TUS_VERSION;
+use crate::error::ProtocolError;
 
 pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
     let v = v.ok_or(ProtocolError::MissingTusResumable)?;
@@ -12,7 +13,8 @@ pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
 
 pub fn parse_u64(v: Option<&str>, name: &'static str) -> Result<u64, ProtocolError> {
     let s = v.ok_or(ProtocolError::MissingHeader(name))?;
-    s.parse::<u64>().map_err(|_| ProtocolError::InvalidInt(name))
+    s.parse::<u64>()
+        .map_err(|_| ProtocolError::InvalidInt(name))
 }
 
 pub fn normalize_path(p: &str) -> String {

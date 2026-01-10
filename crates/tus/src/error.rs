@@ -14,8 +14,10 @@ pub enum ProtocolError {
     InvalidInt(&'static str),
     #[error("invalid content-type")]
     InvalidContentType,
-    
-    #[error("Concatenation extension is not (yet) supported. Disable parallel uploads in the tus client.")]
+
+    #[error(
+        "Concatenation extension is not (yet) supported. Disable parallel uploads in the tus client."
+    )]
     UnsupportedConcatenationExtension,
     #[error("creation-defer-length extension is not (yet) supported.")]
     UnsupportedCreationDeferLengthExtension,
@@ -25,7 +27,9 @@ pub enum ProtocolError {
     UnsupportedTerminationExtension,
     #[error("Upload-Length or Upload-Defer-Length header required.")]
     InvalidLength,
-    #[error("Upload-Metadata is invalid. It MUST consist of one or more comma-separated key-value pairs. The key and value MUST be separated by a space. The key MUST NOT contain spaces and commas and MUST NOT be empty. The key SHOULD be ASCII encoded and the value MUST be Base64 encoded. All keys MUST be unique")]
+    #[error(
+        "Upload-Metadata is invalid. It MUST consist of one or more comma-separated key-value pairs. The key and value MUST be separated by a space. The key MUST NOT contain spaces and commas and MUST NOT be empty. The key SHOULD be ASCII encoded and the value MUST be Base64 encoded. All keys MUST be unique"
+    )]
     InvalidMetadata,
     #[error("Maximum size exceeded")]
     ErrMaxSizeExceeded,
@@ -67,27 +71,41 @@ pub enum TusError {
 impl TusError {
     pub fn status(&self) -> StatusCode {
         match self {
-            TusError::Protocol(ProtocolError::MissingTusResumable) => StatusCode::PRECONDITION_FAILED, // 412
-            TusError::Protocol(ProtocolError::UnsupportedTusVersion(_)) => StatusCode::PRECONDITION_FAILED, // 412
+            TusError::Protocol(ProtocolError::MissingTusResumable) => {
+                StatusCode::PRECONDITION_FAILED
+            } // 412
+            TusError::Protocol(ProtocolError::UnsupportedTusVersion(_)) => {
+                StatusCode::PRECONDITION_FAILED
+            } // 412
 
-            TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
-            TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension) => StatusCode::NOT_IMPLEMENTED, // 501
-            TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension) => StatusCode::NOT_IMPLEMENTED, // 501
-            TusError::Protocol(ProtocolError::UnsupportedTerminationExtension) => StatusCode::NOT_IMPLEMENTED, // 501
+            TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension) => {
+                StatusCode::NOT_IMPLEMENTED
+            } // 501
+            TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension) => {
+                StatusCode::NOT_IMPLEMENTED
+            } // 501
+            TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension) => {
+                StatusCode::NOT_IMPLEMENTED
+            } // 501
+            TusError::Protocol(ProtocolError::UnsupportedTerminationExtension) => {
+                StatusCode::NOT_IMPLEMENTED
+            } // 501
             TusError::Protocol(ProtocolError::InvalidLength) => StatusCode::BAD_REQUEST, // 400
             TusError::Protocol(ProtocolError::InvalidMetadata) => StatusCode::BAD_REQUEST, // 400
-            TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, // 413
-            TusError::Protocol(ProtocolError::InvalidContentType) => StatusCode::UNSUPPORTED_MEDIA_TYPE, // 415
+            TusError::Protocol(ProtocolError::ErrMaxSizeExceeded) => StatusCode::PAYLOAD_TOO_LARGE, /* 413 */
+            TusError::Protocol(ProtocolError::InvalidContentType) => {
+                StatusCode::UNSUPPORTED_MEDIA_TYPE
+            } /* 415 */
             TusError::Protocol(_) => StatusCode::BAD_REQUEST, // 400
 
             TusError::FileNoLongerExists => StatusCode::GONE, // 410
             TusError::FileIdError => StatusCode::BAD_REQUEST, // 400
             TusError::NotFound => StatusCode::NOT_FOUND,
             TusError::OffsetMismatch { .. } => StatusCode::CONFLICT, // 409
-            TusError::InvalidOffset => StatusCode::CONFLICT, //409
+            TusError::InvalidOffset => StatusCode::CONFLICT,         // 409
             TusError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE, // 413
             TusError::GenerateIdError => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            TusError::GenerateUploadURLError => StatusCode::INTERNAL_SERVER_ERROR, //500
+            TusError::GenerateUploadURLError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             TusError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

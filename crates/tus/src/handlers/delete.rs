@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
+use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::{Depot, Request, Response, Router, handler};
 
-use crate::{
-    CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus,
-    error::{ProtocolError, TusError}, handlers::apply_common_headers,
-    stores::Extension, utils::check_tus_version
-};
+use crate::error::{ProtocolError, TusError};
+use crate::handlers::apply_common_headers;
+use crate::stores::Extension;
+use crate::utils::check_tus_version;
+use crate::{CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus};
 
 #[handler]
 async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
@@ -28,7 +29,8 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     if !store.has_extension(Extension::Termination) {
-        res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedTerminationExtension).status());
+        res.status_code =
+            Some(TusError::Protocol(ProtocolError::UnsupportedTerminationExtension).status());
         return;
     }
 
@@ -44,7 +46,10 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
 
-    let _lock = match opts.acquire_write_lock(req, &id, CancellationContext::new()).await {
+    let _lock = match opts
+        .acquire_write_lock(req, &id, CancellationContext::new())
+        .await
+    {
         Ok(lock) => lock,
         Err(e) => {
             res.status_code = Some(e.status());

@@ -1,18 +1,18 @@
 mod disk;
 
-use std::{collections::HashSet, pin::Pin};
+use std::collections::HashSet;
+use std::pin::Pin;
 
 use bytes::Bytes;
 pub use disk::*;
-
 use futures_core::Stream;
-use salvo_core::{async_trait, http::HeaderValue};
+use salvo_core::async_trait;
+use salvo_core::http::HeaderValue;
 
-use crate::{error::TusResult, handlers::Metadata};
+use crate::error::TusResult;
+use crate::handlers::Metadata;
 
-pub type ByteStream =
-    Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
-
+pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
 
 // #[derive(Debug, Clone)]
 // pub enum StoreType {
@@ -81,8 +81,8 @@ impl Extension {
 /// Extension:
 /// Default extensions is empty.
 /// Clients and Servers are encouraged to implement as many of the extensions as possible.
-/// Feature detection SHOULD be achieved by the Client sending an OPTIONS request and the Server responding with the Tus-Extension header.
-/// See more details: https://tus.io/protocols/resumable-upload#protocol-extensions
+/// Feature detection SHOULD be achieved by the Client sending an OPTIONS request and the Server
+/// responding with the Tus-Extension header. See more details: https://tus.io/protocols/resumable-upload#protocol-extensions
 #[async_trait]
 pub trait DataStore: Send + Sync + 'static {
     fn extensions(&self) -> HashSet<Extension> {

@@ -1,21 +1,15 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-};
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::{
-    fs,
-    io::{self, AsyncSeekExt, AsyncWriteExt},
-};
+use tokio::fs;
+use tokio::io::{self, AsyncSeekExt, AsyncWriteExt};
 use tracing::warn;
 
-use crate::{
-    error::{TusError, TusResult},
-    handlers::Metadata,
-    stores::{ByteStream, DataStore, Extension, StoreInfo, UploadInfo},
-};
+use crate::error::{TusError, TusResult};
+use crate::handlers::Metadata;
+use crate::stores::{ByteStream, DataStore, Extension, StoreInfo, UploadInfo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetaStoreInfo {
@@ -230,11 +224,9 @@ impl DiskStore {
 
     async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
         let path = self.meta_path(id);
-        let bytes = fs::read(path).await.map_err(|e| {
-            match e.kind() {
-                io::ErrorKind::NotFound => TusError::NotFound,
-                _ => TusError::Internal(e.to_string()),
-            }
+        let bytes = fs::read(path).await.map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => TusError::NotFound,
+            _ => TusError::Internal(e.to_string()),
         })?;
         serde_json::from_slice::<MetaUpload>(&bytes)
             .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))
@@ -340,6 +332,7 @@ impl DataStore for DiskStore {
 
     async fn write(&self, id: &str, offset: u64, stream: ByteStream) -> TusResult<u64> {
         use std::io::SeekFrom;
+
         use futures_util::StreamExt;
 
         self.ensure_root().await?;
@@ -357,11 +350,9 @@ impl DataStore for DiskStore {
             .write(true)
             .open(path)
             .await
-            .map_err(|e| {
-                match e.kind() {
-                    io::ErrorKind::NotFound => TusError::NotFound,
-                    _ => TusError::Internal(e.to_string()),
-                }
+            .map_err(|e| match e.kind() {
+                io::ErrorKind::NotFound => TusError::NotFound,
+                _ => TusError::Internal(e.to_string()),
             })?;
 
         file.seek(SeekFrom::Start(offset))

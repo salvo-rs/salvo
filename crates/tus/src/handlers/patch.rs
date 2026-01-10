@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
-use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
+use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::{Depot, Request, Response, Router, handler};
 
+use crate::error::{ProtocolError, TusError};
+use crate::handlers::apply_common_headers;
+use crate::stores::Extension;
+use crate::utils::{check_tus_version, parse_u64};
 use crate::{
-    CancellationContext, CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE,
-    H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET,
-    TUS_VERSION, Tus, error::{ProtocolError, TusError}, handlers::apply_common_headers,
-    stores::Extension, utils::{check_tus_version, parse_u64}
+    CT_OFFSET_OCTET_STREAM, CancellationContext, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
+    H_TUS_VERSION, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET, TUS_VERSION, Tus,
 };
 
 #[handler]
@@ -32,14 +35,18 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .and_then(|v| v.to_str().ok()),
     ) {
         if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
-            res.headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
+            res.headers
+                .insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
         }
         res.status_code = Some(TusError::Protocol(e).status());
         return;
     }
 
     // 2. Check Content Type. The request MUST include a Content-Type header
-    let content_type = req.headers().get(H_CONTENT_TYPE).and_then(|v| v.to_str().ok());
+    let content_type = req
+        .headers()
+        .get(H_CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok());
     if content_type != Some(CT_OFFSET_OCTET_STREAM) {
         res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
         return;
@@ -47,7 +54,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     // 3. Check Upload-Offset. The request MUST include a Upload-Offset header
     let offset = match parse_u64(
-        req.headers().get(H_UPLOAD_OFFSET).and_then(|v| v.to_str().ok()),
+        req.headers()
+            .get(H_UPLOAD_OFFSET)
+            .and_then(|v| v.to_str().ok()),
         H_UPLOAD_OFFSET,
     ) {
         Ok(offset) => offset,
@@ -61,8 +70,13 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
 
-    let max_file_size = opts.get_configured_max_size(req, Some(id.to_string())).await;
-    let _lock = match opts.acquire_write_lock(req, &id, CancellationContext::new()).await {
+    let max_file_size = opts
+        .get_configured_max_size(req, Some(id.to_string()))
+        .await;
+    let _lock = match opts
+        .acquire_write_lock(req, &id, CancellationContext::new())
+        .await
+    {
         Ok(lock) => lock,
         Err(e) => {
             res.status_code = Some(e.status());
@@ -81,8 +95,12 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let mut expires_at = None;
     if store.has_extension(Extension::Expiration) {
         if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0) && !already_uploaded_info.creation_date.is_empty() {
-                if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&already_uploaded_info.creation_date) {
+            if expiration > std::time::Duration::from_secs(0)
+                && !already_uploaded_info.creation_date.is_empty()
+            {
+                if let Ok(created_at) =
+                    chrono::DateTime::parse_from_rfc3339(&already_uploaded_info.creation_date)
+                {
                     if let Ok(delta) = chrono::Duration::from_std(expiration) {
                         let expires = created_at.with_timezone(&chrono::Utc) + delta;
                         if chrono::Utc::now() > expires {
@@ -131,13 +149,16 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 }
             },
             Err(_) => {
-                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+                res.status_code =
+                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
                 return;
             }
         };
 
         if !store.has_extension(Extension::CreationDeferLength) {
-            res.status_code = Some(TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status());
+            res.status_code = Some(
+                TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status(),
+            );
             return;
         }
         // Return if upload-length is already set.
@@ -171,7 +192,8 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 }
             },
             Err(_) => {
-                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                res.status_code =
+                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
                 return;
             }
         },
@@ -192,8 +214,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info, max_file_size).await;
-    // let new_offset = store.write(req.body, already_uploaded_info, max_body_size, context);
+    // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info,
+    // max_file_size).await; let new_offset = store.write(req.body, already_uploaded_info,
+    // max_body_size, context);
 
     let body = req.take_body();
     let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
@@ -224,14 +247,16 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     // The Server MUST acknowledge successful PATCH requests with the 204 No Content status.
     // It MUST include the Upload-Offset header containing the new offset.
-    // The new offset MUST be the sum of the offset before the PATCH request and the number of bytes received and processed or stored during the current PATCH request.
+    // The new offset MUST be the sum of the offset before the PATCH request and the number of bytes
+    // received and processed or stored during the current PATCH request.
     res.status_code = Some(StatusCode::NO_CONTENT);
-    res.headers
-        .insert(H_UPLOAD_OFFSET, HeaderValue::from_str(&new_offset.to_string()).unwrap());
+    res.headers.insert(
+        H_UPLOAD_OFFSET,
+        HeaderValue::from_str(&new_offset.to_string()).unwrap(),
+    );
 }
 
 pub fn patch_handler() -> Router {
-    let patch_router = Router::with_path("{id}")
-        .patch(patch);
+    let patch_router = Router::with_path("{id}").patch(patch);
     patch_router
 }

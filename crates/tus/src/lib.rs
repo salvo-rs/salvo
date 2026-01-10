@@ -2,20 +2,20 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::{
-    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker,
-    options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch},
-    stores::{DataStore, DiskStore, UploadInfo},
-    utils::normalize_path
-};
+use crate::error::TusError;
+use crate::handlers::{GenerateUrlCtx, Metadata};
+use crate::lockers::Locker;
+use crate::options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch};
+use crate::stores::{DataStore, DiskStore, UploadInfo};
+use crate::utils::normalize_path;
 
 mod error;
-mod stores;
-mod lockers;
 mod handlers;
+mod lockers;
+mod stores;
 
-pub mod utils;
 pub mod options;
+pub mod utils;
 
 use salvo_core::{Depot, Request, Router, handler};
 
@@ -164,7 +164,9 @@ impl Tus {
         let state = Arc::new(self);
 
         let router = Router::with_path(base_path)
-            .hoop(TusStateHoop { state: state.clone() })
+            .hoop(TusStateHoop {
+                state: state.clone(),
+            })
             .push(handlers::options_handler())
             .push(handlers::post_handler())
             .push(handlers::head_handler())
@@ -183,9 +185,7 @@ impl Tus {
         F: Fn(&Request, Option<Metadata>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<String, TusError>> + Send + 'static,
     {
-        self.options.upload_id_naming_function = Arc::new(move |req, meta| {
-            Box::pin(f(req, meta))
-        });
+        self.options.upload_id_naming_function = Arc::new(move |req, meta| Box::pin(f(req, meta)));
         self
     }
 
@@ -205,9 +205,7 @@ impl Tus {
         F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
-        self.options.on_incoming_request = Some(Arc::new(move |req, id| {
-            Box::pin(f(req, id))
-        }));
+        self.options.on_incoming_request = Some(Arc::new(move |req, id| Box::pin(f(req, id))));
         self
     }
 
@@ -227,9 +225,7 @@ impl Tus {
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<UploadPatch, TusError>> + Send + 'static,
     {
-        self.options.on_upload_create = Some(Arc::new(move |req, upload| {
-            Box::pin(f(req, upload))
-        }));
+        self.options.on_upload_create = Some(Arc::new(move |req, upload| Box::pin(f(req, upload))));
         self
     }
 
@@ -238,9 +234,7 @@ impl Tus {
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<UploadFinishPatch, TusError>> + Send + 'static,
     {
-        self.options.on_upload_finish = Some(Arc::new(move |req, upload| {
-            Box::pin(f(req, upload))
-        }));
+        self.options.on_upload_finish = Some(Arc::new(move |req, upload| Box::pin(f(req, upload))));
         self
     }
 }

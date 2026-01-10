@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use salvo_core::{Depot, Request, Response, Router, handler, http::HeaderValue};
+use salvo_core::http::HeaderValue;
+use salvo_core::{Depot, Request, Response, Router, handler};
 
-use crate::{
-    CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus,
-    error::{ProtocolError, TusError}, handlers::apply_common_headers,
-    utils::check_tus_version
-};
+use crate::error::{ProtocolError, TusError};
+use crate::handlers::apply_common_headers;
+use crate::utils::check_tus_version;
+use crate::{CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus};
 
 #[handler]
 async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
@@ -40,7 +40,10 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     let storage = {
-        let _lock = match opts.acquire_read_lock(req, &id, CancellationContext::new()).await {
+        let _lock = match opts
+            .acquire_read_lock(req, &id, CancellationContext::new())
+            .await
+        {
             Ok(lock) => lock,
             Err(e) => {
                 res.status_code = Some(e.status());
@@ -59,13 +62,17 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let storage = match info.storage {
             Some(storage) => storage,
             None => {
-                res.status_code = Some(TusError::Internal("upload storage info missing".into()).status());
+                res.status_code =
+                    Some(TusError::Internal("upload storage info missing".into()).status());
                 return;
             }
         };
 
         if storage.type_name != "file" {
-            res.status_code = Some(TusError::Internal(format!("unsupported storage type: {}", storage.type_name)).status());
+            res.status_code = Some(
+                TusError::Internal(format!("unsupported storage type: {}", storage.type_name))
+                    .status(),
+            );
             return;
         }
 

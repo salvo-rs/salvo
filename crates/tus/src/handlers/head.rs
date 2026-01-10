@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
+use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::{Depot, Request, Response, Router, handler};
 
+use crate::error::{ProtocolError, TusError};
+use crate::handlers::{Metadata, apply_common_headers};
+use crate::stores::Extension;
+use crate::utils::check_tus_version;
 use crate::{
     CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, TUS_VERSION, Tus,
-    error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers},
-    stores::Extension, utils::check_tus_version
 };
 
 #[handler]
@@ -39,7 +42,10 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
     let upload_info = {
-        let _lock = match opts.acquire_read_lock(req, &id, CancellationContext::new()).await {
+        let _lock = match opts
+            .acquire_read_lock(req, &id, CancellationContext::new())
+            .await
+        {
             Ok(lock) => lock,
             Err(e) => {
                 res.status_code = Some(e.status());
@@ -69,8 +75,12 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let mut expires_at = None;
     if store.has_extension(Extension::Expiration) {
         if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0) && !upload_info.creation_date.is_empty() {
-                if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date) {
+            if expiration > std::time::Duration::from_secs(0)
+                && !upload_info.creation_date.is_empty()
+            {
+                if let Ok(created_at) =
+                    chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date)
+                {
                     if let Ok(delta) = chrono::Duration::from_std(expiration) {
                         let expires = created_at.with_timezone(&chrono::Utc) + delta;
                         if chrono::Utc::now() > expires {
@@ -87,21 +97,31 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.status_code = Some(StatusCode::OK);
 
     let Some(offset) = &upload_info.offset else {
-        res.status_code = Some(TusError::Internal("Upload file's offset value not found!".into()).status());
+        res.status_code =
+            Some(TusError::Internal("Upload file's offset value not found!".into()).status());
         return;
     };
-    headers.insert("Upload-Offset", HeaderValue::from_str(&offset.to_string()).unwrap());
+    headers.insert(
+        "Upload-Offset",
+        HeaderValue::from_str(&offset.to_string()).unwrap(),
+    );
 
     if upload_info.get_size_is_deferred() {
         headers.insert("Upload-Defer-Length", HeaderValue::from_static("1"));
     } else {
         if let Some(size) = &upload_info.size {
-            headers.insert("Upload-Length", HeaderValue::from_str(&size.to_string()).unwrap());
+            headers.insert(
+                "Upload-Length",
+                HeaderValue::from_str(&size.to_string()).unwrap(),
+            );
         };
     }
 
     if let Some(metadata) = upload_info.metadata {
-        headers.insert("Upload-Metadata", HeaderValue::from_str(&Metadata::stringify(metadata)).unwrap());
+        headers.insert(
+            "Upload-Metadata",
+            HeaderValue::from_str(&Metadata::stringify(metadata)).unwrap(),
+        );
     }
 
     if let Some(expires_at) = expires_at {
@@ -119,9 +139,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 }
 
-
 pub fn head_handler() -> Router {
-    let head_router = Router::with_path("{id}")
-        .head(head);
+    let head_router = Router::with_path("{id}").head(head);
     head_router
 }

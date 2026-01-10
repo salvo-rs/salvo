@@ -1,23 +1,23 @@
-use std::{pin::Pin, sync::{Arc, OnceLock}};
+use std::pin::Pin;
+use std::sync::{Arc, OnceLock};
 
 use futures_core::future::BoxFuture;
 use regex::Regex;
-use salvo_core::{Request, http::{HeaderMap, StatusCode, header}};
+use salvo_core::Request;
+use salvo_core::http::{HeaderMap, StatusCode, header};
 
-use crate::{
-    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata},
-    lockers::{LockGuard, Locker, memory_locker}, stores::UploadInfo
-};
+use crate::CancellationContext;
+use crate::error::{TusError, TusResult};
+use crate::handlers::{GenerateUrlCtx, HostProto, Metadata};
+use crate::lockers::{LockGuard, Locker, memory_locker};
+use crate::stores::UploadInfo;
 
 pub type UploadId = Option<String>;
 
 static RE_FILE_ID: OnceLock<Regex> = OnceLock::new();
 pub fn get_file_id_regex() -> &'static Regex {
-    RE_FILE_ID.get_or_init(|| {
-        Regex::new(r"([^/]+)/?$").expect("Invalid regex pattern")
-    })
+    RE_FILE_ID.get_or_init(|| Regex::new(r"([^/]+)/?$").expect("Invalid regex pattern"))
 }
-
 
 #[derive(Clone)]
 pub enum MaxSize {
@@ -25,12 +25,35 @@ pub enum MaxSize {
     Dynamic(Arc<dyn Fn(&Request, UploadId) -> BoxFuture<'static, u64> + Send + Sync>),
 }
 
-pub type NamingFunction = Arc<dyn Fn(&Request, Option<Metadata>)-> Pin<Box<dyn Future<Output = Result<String, TusError>> + Send>> + Send + Sync>;
-pub type GenerateUrlFunction = Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>;
+pub type NamingFunction = Arc<
+    dyn Fn(
+            &Request,
+            Option<Metadata>,
+        ) -> Pin<Box<dyn Future<Output = Result<String, TusError>> + Send>>
+        + Send
+        + Sync,
+>;
+pub type GenerateUrlFunction =
+    Arc<dyn Fn(&Request, GenerateUrlCtx) -> Result<String, TusError> + Send + Sync>;
 
-pub type OnIncomingRequest = Arc<dyn Fn(&Request, String) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
-pub type OnUploadCreate = Arc<dyn Fn(&Request, UploadInfo) -> Pin<Box<dyn Future<Output = Result<UploadPatch, TusError>> + Send>> + Send + Sync>;
-pub type OnUploadFinish = Arc<dyn Fn(&Request, UploadInfo) -> Pin<Box<dyn Future<Output = Result<UploadFinishPatch, TusError>> + Send>> + Send + Sync>;
+pub type OnIncomingRequest =
+    Arc<dyn Fn(&Request, String) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+pub type OnUploadCreate = Arc<
+    dyn Fn(
+            &Request,
+            UploadInfo,
+        ) -> Pin<Box<dyn Future<Output = Result<UploadPatch, TusError>> + Send>>
+        + Send
+        + Sync,
+>;
+pub type OnUploadFinish = Arc<
+    dyn Fn(
+            &Request,
+            UploadInfo,
+        ) -> Pin<Box<dyn Future<Output = Result<UploadFinishPatch, TusError>> + Send>>
+        + Send
+        + Sync,
+>;
 
 #[derive(Clone, Debug, Default)]
 pub struct UploadPatch {
@@ -135,9 +158,7 @@ impl TusOptions {
         re.captures(path)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string())
-            .ok_or_else(|| {
-                TusError::FileIdError
-            })
+            .ok_or_else(|| TusError::FileIdError)
     }
 
     pub async fn get_configured_max_size(&self, req: &Request, upload_id: Option<String>) -> u64 {
@@ -151,28 +172,34 @@ impl TusOptions {
         }
     }
 
-    pub fn generate_upload_url(&self, req: &mut Request, upload_id: &str) -> Result<String, TusError> {
+    pub fn generate_upload_url(
+        &self,
+        req: &mut Request,
+        upload_id: &str,
+    ) -> Result<String, TusError> {
         let path = if self.path == "/" {
             ""
         } else {
             self.path.as_str()
         };
 
-         let HostProto { proto, host } =
-                Self::extract_host_and_proto(req.headers(), self.respect_forwarded_headers);
+        let HostProto { proto, host } =
+            Self::extract_host_and_proto(req.headers(), self.respect_forwarded_headers);
 
         if let Some(callback) = &self.generate_url_function {
-            match callback(&req, GenerateUrlCtx {
-                proto,
-                host,
-                path,
-                id: upload_id,
-            }) {
+            match callback(
+                &req,
+                GenerateUrlCtx {
+                    proto,
+                    host,
+                    path,
+                    id: upload_id,
+                },
+            ) {
                 Ok(url) => return Ok(url),
                 Err(e) => return Err(e),
             };
         }
-
 
         // Default implementation
         if self.relative_location {
@@ -181,7 +208,13 @@ impl TusOptions {
             return Ok(format!("{}/{}", path, upload_id));
         }
 
-        Ok(format!("{}://{}{}{}", proto, host, path, format!("/{}", upload_id)))
+        Ok(format!(
+            "{}://{}{}{}",
+            proto,
+            host,
+            path,
+            format!("/{}", upload_id)
+        ))
     }
 
     /// Rust version of BaseHandler.extractHostAndProto(...)
@@ -247,8 +280,8 @@ impl TusOptions {
         HostProto { proto, host }
     }
 
-    // pub async fn calculate_max_body_size(&self, req: &Request, file: UploadInfo, configured_max_size: Option<u64>) -> u64 {
-    //     todo!()
+    // pub async fn calculate_max_body_size(&self, req: &Request, file: UploadInfo,
+    // configured_max_size: Option<u64>) -> u64 {     todo!()
     // }
 }
 
@@ -268,9 +301,7 @@ impl Default for TusOptions {
             lock_drain_timeout: Some(3000),
             disable_termination_for_finished_uploads: false,
             upload_id_naming_function: Arc::new(|_req, _metadata| {
-                Box::pin(async move {
-                    Ok(uuid::Uuid::new_v4().to_string())
-                })
+                Box::pin(async move { Ok(uuid::Uuid::new_v4().to_string()) })
             }), // Default use uuid.
             generate_url_function: None,
             on_incoming_request: None,
