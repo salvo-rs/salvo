@@ -85,10 +85,36 @@ function startUpload() {
       console.log(bytesUploaded, bytesTotal, `${percentage}%`)
     },
     onSuccess() {
+      const downloadUrl = upload.url
+      const downloadName = upload.file?.name || 'download'
       const anchor = document.createElement('a')
       anchor.textContent = `Download ${upload.file.name} (${upload.file.size} bytes)`
-      anchor.href = upload.url
+      anchor.href = downloadUrl
       anchor.className = 'btn btn-success'
+      anchor.addEventListener('click', async (event) => {
+        event.preventDefault()
+        try {
+          const response = await fetch(downloadUrl, {
+            headers: {
+              'Tus-Resumable': '1.0.0',
+            },
+          })
+          if (!response.ok) {
+            throw new Error(`Download failed: ${response.status}`)
+          }
+          const blob = await response.blob()
+          const url = URL.createObjectURL(blob)
+          const tmp = document.createElement('a')
+          tmp.href = url
+          tmp.download = downloadName
+          document.body.appendChild(tmp)
+          tmp.click()
+          tmp.remove()
+          URL.revokeObjectURL(url)
+        } catch (error) {
+          window.alert(`Download failed: ${error}`)
+        }
+      })
       uploadList.appendChild(anchor)
 
       reset()
