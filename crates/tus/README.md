@@ -50,3 +50,9 @@ salvo = { version = "*", features = ["tus"] }
 ## Feature
 
 - Supported TUS protocol version: 1.0.0
+- Built-in handlers: OPTIONS, POST, HEAD, PATCH, DELETE, GET
+- Default store: DiskStore (file-based, metadata in JSON)
+- Extensions advertised by DiskStore: creation, creation-with-upload, creation-defer-length, termination
+- Expiration flow implemented when a store provides the expiration extension
+- Hooks: on_incoming_request, on_upload_create, on_upload_finish
+- Per-upload read/write locks (in-memory) to serialize writes and allow concurrent reads

@@ -4,9 +4,9 @@ use futures_util::StreamExt;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_TUS_VERSION,
-    H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_METADATA,
-    H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
+    CancellationContext, CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
+    H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH,
+    H_UPLOAD_METADATA, H_UPLOAD_OFFSET, TUS_VERSION, Tus, error::{ProtocolError, TusError},
     handlers::{Metadata, apply_common_headers}, stores::{Extension, UploadInfo},
     utils::{check_tus_version, parse_u64}
 };
@@ -155,9 +155,69 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     res.status_code = Some(StatusCode::CREATED);
 
-    if let Err(e) = store.create(upload.clone()).await {
-        res.status_code = Some(e.status());
-        return;
+    let is_final = {
+        let _lock = match opts.acquire_write_lock(req, &upload_id, CancellationContext::new()).await {
+            Ok(lock) => lock,
+            Err(e) => {
+                res.status_code = Some(e.status());
+                return;
+            }
+        };
+
+        if let Err(e) = store.create(upload.clone()).await {
+            res.status_code = Some(e.status());
+            return;
+        };
+
+        if creation_with_upload {
+            let content_length = match req.headers().get(H_CONTENT_LENGTH) {
+                Some(value) => match value.to_str() {
+                    Ok(v) => match parse_u64(Some(v), H_CONTENT_LENGTH) {
+                        Ok(size) => Some(size),
+                        Err(e) => {
+                            res.status_code = Some(TusError::Protocol(e).status());
+                            return;
+                        }
+                    },
+                    Err(_) => {
+                        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                        return;
+                    }
+                },
+                None => None,
+            };
+
+            let max_allowed = match (upload.size, max_file_size) {
+                (Some(size), max) if max > 0 => Some(size.min(max)),
+                (Some(size), _) => Some(size),
+                (None, max) if max > 0 => Some(max),
+                _ => None,
+            };
+
+            if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
+                if incoming > max_allowed {
+                    res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+                    return;
+                }
+            }
+
+            let body = req.take_body();
+            let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
+            let written = match store.write(&upload_id, 0, Box::pin(stream)).await {
+                Ok(written) => written,
+                Err(e) => {
+                    res.status_code = Some(e.status());
+                    return;
+                }
+            };
+
+            upload.offset = Some(written);
+            res.headers
+                .insert(H_UPLOAD_OFFSET, HeaderValue::from_str(&written.to_string()).unwrap());
+        }
+
+        upload.size.is_some_and(|x| x == 0) && !upload.get_size_is_deferred()
+            || creation_with_upload && upload.size.is_some_and(|x| x == upload.offset.unwrap_or(0))
     };
 
     let url = match opts.generate_upload_url(req, &upload_id) {
@@ -170,65 +230,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     tracing::info!("Generated file url: {}", &url);
 
-    if creation_with_upload {
-        let content_length = match req.headers().get(H_CONTENT_LENGTH) {
-            Some(value) => match value.to_str() {
-                Ok(v) => match parse_u64(Some(v), H_CONTENT_LENGTH) {
-                    Ok(size) => Some(size),
-                    Err(e) => {
-                        res.status_code = Some(TusError::Protocol(e).status());
-                        return;
-                    }
-                },
-                Err(_) => {
-                    res.status_code = Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
-                    return;
-                }
-            },
-            None => None,
-        };
-
-        let max_allowed = match (upload.size, max_file_size) {
-            (Some(size), max) if max > 0 => Some(size.min(max)),
-            (Some(size), _) => Some(size),
-            (None, max) if max > 0 => Some(max),
-            _ => None,
-        };
-
-        if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
-            if incoming > max_allowed {
-                res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-                return;
-            }
-        }
-
-        let body = req.take_body();
-        let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
-        let written = match store.write(&upload_id, 0, Box::pin(stream)).await {
-            Ok(written) => written,
-            Err(e) => {
-                res.status_code = Some(e.status());
-                return;
-            }
-        };
-
-        upload.offset = Some(written);
-        res.headers
-            .insert(H_UPLOAD_OFFSET, HeaderValue::from_str(&written.to_string()).unwrap());
-    }
-
     if store.has_extension(Extension::Expiration) {
         if let Some(expiration) = store.get_expiration() {
             if expiration > std::time::Duration::from_secs(0) && !upload.creation_date.is_empty() {
-                let created_info = match store.get_upload_file_info(&upload_id).await {
-                    Ok(info) => info,
-                    Err(e) => {
-                        res.status_code = Some(e.status());
-                        return;
-                    }
-                };
-
-                let is_finished = match (created_info.offset, upload.size) {
+                let is_finished = match (upload.offset, upload.size) {
                     (Some(offset), Some(size)) => offset == size,
                     _ => false,
                 };
@@ -248,9 +253,6 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             }
         }
     }
-
-    let is_final = upload.size.is_some_and(|x| x == 0) && !upload.get_size_is_deferred()
-        || creation_with_upload && upload.size.is_some_and(|x| x == upload.offset.unwrap_or(0));
 
     if is_final {
         if let Some(on_upload_finish) = &opts.on_upload_finish {

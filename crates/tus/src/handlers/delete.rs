@@ -3,8 +3,9 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus, error::{ProtocolError, TusError},
-    handlers::apply_common_headers, stores::Extension, utils::check_tus_version
+    CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus,
+    error::{ProtocolError, TusError}, handlers::apply_common_headers,
+    stores::Extension, utils::check_tus_version
 };
 
 #[handler]
@@ -42,6 +43,14 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     if let Some(on_incoming_request) = &opts.on_incoming_request {
         on_incoming_request(req, id.clone()).await;
     }
+
+    let _lock = match opts.acquire_write_lock(req, &id, CancellationContext::new()).await {
+        Ok(lock) => lock,
+        Err(e) => {
+            res.status_code = Some(e.status());
+            return;
+        }
+    };
 
     if opts.disable_termination_for_finished_uploads {
         if let Ok(info) = store.get_upload_file_info(&id).await {

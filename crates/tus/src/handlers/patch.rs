@@ -4,10 +4,10 @@ use futures_util::StreamExt;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE, H_TUS_VERSION,
-    H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET, TUS_VERSION, Tus,
-    error::{ProtocolError, TusError}, handlers::apply_common_headers, stores::Extension,
-    utils::{check_tus_version, parse_u64}
+    CancellationContext, CT_OFFSET_OCTET_STREAM, H_CONTENT_LENGTH, H_CONTENT_TYPE,
+    H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET,
+    TUS_VERSION, Tus, error::{ProtocolError, TusError}, handlers::apply_common_headers,
+    stores::Extension, utils::{check_tus_version, parse_u64}
 };
 
 #[handler]
@@ -62,7 +62,13 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     let max_file_size = opts.get_configured_max_size(req, Some(id.to_string())).await;
-    // TODO: let lock = opts.acquire_lock(req, &id, context);
+    let _lock = match opts.acquire_write_lock(req, &id, CancellationContext::new()).await {
+        Ok(lock) => lock,
+        Err(e) => {
+            res.status_code = Some(e.status());
+            return;
+        }
+    };
 
     let mut already_uploaded_info = match store.get_upload_file_info(&id).await {
         Ok(info) => info,

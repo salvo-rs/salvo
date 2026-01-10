@@ -3,7 +3,7 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, TUS_VERSION, Tus,
+    CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, TUS_VERSION, Tus,
     error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers},
     stores::Extension, utils::check_tus_version
 };
@@ -38,14 +38,21 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     if let Some(on_incoming_request) = &opts.on_incoming_request {
         on_incoming_request(req, id.clone()).await;
     }
-    // TODO: let lock = opts.acquire_lock(req, &id, context);
+    let upload_info = {
+        let _lock = match opts.acquire_read_lock(req, &id, CancellationContext::new()).await {
+            Ok(lock) => lock,
+            Err(e) => {
+                res.status_code = Some(e.status());
+                return;
+            }
+        };
 
-    let upload_info = match store.get_upload_file_info(&id).await {
-        Ok(info) => info,
-        Err(e) => {
-            // lock.unlock()
-            res.status_code(e.status());
-            return;
+        match store.get_upload_file_info(&id).await {
+            Ok(info) => info,
+            Err(e) => {
+                res.status_code(e.status());
+                return;
+            }
         }
     };
 

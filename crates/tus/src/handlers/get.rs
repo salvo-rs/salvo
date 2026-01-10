@@ -3,8 +3,9 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::HeaderValue};
 
 use crate::{
-    H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus, error::{ProtocolError, TusError},
-    handlers::apply_common_headers, utils::check_tus_version
+    CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus,
+    error::{ProtocolError, TusError}, handlers::apply_common_headers,
+    utils::check_tus_version
 };
 
 #[handler]
@@ -38,26 +39,38 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
 
-    let info = match store.get_upload_file_info(&id).await {
-        Ok(info) => info,
-        Err(e) => {
-            res.status_code(e.status());
+    let storage = {
+        let _lock = match opts.acquire_read_lock(req, &id, CancellationContext::new()).await {
+            Ok(lock) => lock,
+            Err(e) => {
+                res.status_code = Some(e.status());
+                return;
+            }
+        };
+
+        let info = match store.get_upload_file_info(&id).await {
+            Ok(info) => info,
+            Err(e) => {
+                res.status_code(e.status());
+                return;
+            }
+        };
+
+        let storage = match info.storage {
+            Some(storage) => storage,
+            None => {
+                res.status_code = Some(TusError::Internal("upload storage info missing".into()).status());
+                return;
+            }
+        };
+
+        if storage.type_name != "file" {
+            res.status_code = Some(TusError::Internal(format!("unsupported storage type: {}", storage.type_name)).status());
             return;
         }
-    };
 
-    let storage = match info.storage {
-        Some(storage) => storage,
-        None => {
-            res.status_code = Some(TusError::Internal("upload storage info missing".into()).status());
-            return;
-        }
+        storage
     };
-
-    if storage.type_name != "file" {
-        res.status_code = Some(TusError::Internal(format!("unsupported storage type: {}", storage.type_name)).status());
-        return;
-    }
 
     res.send_file(storage.path, req.headers()).await;
 }

@@ -99,9 +99,31 @@ impl TusOptions {
         upload_id: &str,
         context: CancellationContext,
     ) -> TusResult<LockGuard> {
+        self.acquire_write_lock(_req, upload_id, context).await
+    }
+
+    pub async fn acquire_read_lock(
+        &self,
+        _req: &Request,
+        upload_id: &str,
+        context: CancellationContext,
+    ) -> TusResult<LockGuard> {
         let mut signal = context.signal.clone();
         tokio::select! {
-            lock = self.locker.lock(upload_id) => lock,
+            lock = self.locker.read_lock(upload_id) => lock,
+            reason = signal.cancelled() => Err(TusError::Internal(format!("request {reason:?}"))),
+        }
+    }
+
+    pub async fn acquire_write_lock(
+        &self,
+        _req: &Request,
+        upload_id: &str,
+        context: CancellationContext,
+    ) -> TusResult<LockGuard> {
+        let mut signal = context.signal.clone();
+        tokio::select! {
+            lock = self.locker.write_lock(upload_id) => lock,
             reason = signal.cancelled() => Err(TusError::Internal(format!("request {reason:?}"))),
         }
     }
