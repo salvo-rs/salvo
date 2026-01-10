@@ -10,3 +10,4 @@ salvo = { workspace = true, features = ["oapi", "tus"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+nanoid = "0.4.0"

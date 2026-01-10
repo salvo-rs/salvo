@@ -3,7 +3,10 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use crate::{
-    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker, options::{MaxSize, TusOptions}, stores::{DataStore, DiskStore}, utils::normalize_path
+    error::TusError, handlers::{GenerateUrlCtx, Metadata}, lockers::Locker,
+    options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch},
+    stores::{DataStore, DiskStore, UploadInfo},
+    utils::normalize_path
 };
 
 mod error;
@@ -32,6 +35,7 @@ pub const H_UPLOAD_OFFSET: &str = "upload-offset";
 pub const H_UPLOAD_METADATA: &str = "upload-metadata";
 pub const H_UPLOAD_CONCAT: &str = "upload-concat";
 pub const H_UPLOAD_DEFER_LENGTH: &str = "upload-defer-length";
+pub const H_UPLOAD_EXPIRES: &str = "upload-expires";
 
 pub const H_CONTENT_TYPE: &str = "content-type";
 pub const H_CONTENT_LENGTH: &str = "content-length";
@@ -121,6 +125,7 @@ pub struct Tus {
     store: Arc<dyn DataStore>,
 }
 
+// Tus service Configuration
 impl Tus {
     pub fn new() -> Self {
         Self {
@@ -154,36 +159,6 @@ impl Tus {
         self
     }
 
-    pub fn with_on_incoming_request<F, Fut>(mut self, f: F) -> Self
-    where
-        F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = ()> + Send + 'static,
-    {
-        self.options.on_incoming_request = Some(Arc::new(move |req, id| {
-            Box::pin(f(req, id))
-        }));
-        self
-    }
-
-    pub fn with_upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
-    where
-        F: Fn(&Request, Metadata) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<String, TusError>> + Send + 'static,
-    {
-        self.options.upload_id_naming_function = Arc::new(move |req, meta| {
-            Box::pin(f(req, meta))
-        });
-        self
-    }
-
-    pub fn with_generate_url_function<F>(mut self, f: F) -> Self
-    where
-        F: Fn(&Request, GenerateUrlCtx) -> Result<String, crate::error::TusError> + Send + Sync + 'static,
-    {
-        self.options.generate_url_function = Some(Arc::new(f));
-        self
-    }
-
     pub fn into_router(self) -> Router {
         let base_path = normalize_path(&self.options.path);
         let state = Arc::new(self);
@@ -198,5 +173,74 @@ impl Tus {
             .push(handlers::get_handler());
 
         router
+    }
+}
+
+// Hooks
+impl Tus {
+    pub fn with_upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, Option<Metadata>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<String, TusError>> + Send + 'static,
+    {
+        self.options.upload_id_naming_function = Arc::new(move |req, meta| {
+            Box::pin(f(req, meta))
+        });
+        self
+    }
+
+    pub fn with_generate_url_function<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, GenerateUrlCtx) -> Result<String, TusError> + Send + Sync + 'static,
+    {
+        self.options.generate_url_function = Some(Arc::new(f));
+        self
+    }
+}
+
+// Lifecycle
+impl Tus {
+    pub fn with_on_incoming_request<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        self.options.on_incoming_request = Some(Arc::new(move |req, id| {
+            Box::pin(f(req, id))
+        }));
+        self
+    }
+
+    pub fn with_on_incoming_request_sync<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, String) + Send + Sync + 'static,
+    {
+        self.options.on_incoming_request = Some(Arc::new(move |req, id| {
+            f(req, id);
+            Box::pin(async move {})
+        }));
+        self
+    }
+
+    pub fn with_on_upload_create<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<UploadPatch, TusError>> + Send + 'static,
+    {
+        self.options.on_upload_create = Some(Arc::new(move |req, upload| {
+            Box::pin(f(req, upload))
+        }));
+        self
+    }
+
+    pub fn with_on_upload_finish<F, Fut>(mut self, f: F) -> Self
+    where
+        F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<UploadFinishPatch, TusError>> + Send + 'static,
+    {
+        self.options.on_upload_finish = Some(Arc::new(move |req, upload| {
+            Box::pin(f(req, upload))
+        }));
+        self
     }
 }

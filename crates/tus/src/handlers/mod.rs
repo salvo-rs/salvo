@@ -19,7 +19,7 @@ pub use get::get_handler;
 
 use crate::{H_TUS_RESUMABLE, TUS_VERSION, error::ProtocolError};
 
-pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
+pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
 
 pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
     headers.insert(H_TUS_RESUMABLE, HeaderValue::from_static(TUS_VERSION));
@@ -31,12 +31,11 @@ pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Metadata(pub HashMap<String, String>);
+pub struct Metadata(pub HashMap<String, Option<String>>);
 
 impl Metadata {
     pub fn parse_metadata(raw: &str) -> Result<Metadata, ProtocolError> {
-        let raw = raw.trim();
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(ProtocolError::InvalidMetadata);
         }
 
@@ -44,34 +43,32 @@ impl Metadata {
         let mut seen = HashSet::new();
 
         for item in raw.split(',') {
-            let item = item.trim();
-            if item.is_empty() {
+            let tokens: Vec<&str> = item.split(' ').collect();
+            if tokens.is_empty() || tokens.len() > 2 {
                 return Err(ProtocolError::InvalidMetadata);
             }
 
-            let (key, b64) = match item.split_once(' ') {
-                Some((k, v)) => (k.trim(), v.trim()),
-                None => (item, ""),
-            };
-
-            if key.is_empty() || key.contains(' ') || key.contains(',') {
+            let key = tokens[0];
+            if !validate_key(key) || !seen.insert(key.to_string()) {
                 return Err(ProtocolError::InvalidMetadata);
             }
 
-            if !seen.insert(key.to_string()) {
+            if tokens.len() == 1 {
+                map.insert(key.to_string(), None);
+                continue;
+            }
+
+            let value = tokens[1];
+            if !validate_value(value) {
                 return Err(ProtocolError::InvalidMetadata);
             }
 
             let decoded = base64::engine::general_purpose::STANDARD
-                .decode(b64)
+                .decode(value)
                 .map_err(|_| ProtocolError::InvalidMetadata)?;
+            let decoded_value = String::from_utf8_lossy(&decoded).to_string();
 
-            let value = match String::from_utf8(decoded) {
-                Ok(s) => s,
-                Err(_) => b64.to_string(),
-            };
-
-            map.insert(key.to_string(), value);
+            map.insert(key.to_string(), Some(decoded_value));
         }
 
         Ok(Metadata(map))
@@ -82,16 +79,34 @@ impl Metadata {
             .0
             .iter()
             .map(|(key, value)| {
-                let encoded = base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
-                format!("{} {}", key, encoded)
+                match value {
+                    Some(value) => {
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
+                        format!("{} {}", key, encoded)
+                    }
+                    None => key.to_string(),
+                }
             })
             .collect::<Vec<_>>()
             .join(", ")
     }
 }
 
+fn validate_key(key: &str) -> bool {
+    !key.is_empty() && !key.contains(' ') && !key.contains(',')
+}
+
+fn validate_value(value: &str) -> bool {
+    if value.is_empty() {
+        return false;
+    }
+    base64::engine::general_purpose::STANDARD
+        .decode(value)
+        .is_ok()
+}
+
 impl Deref for Metadata {
-    type Target = HashMap<String, String>;
+    type Target = HashMap<String, Option<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

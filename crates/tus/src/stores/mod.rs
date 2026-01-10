@@ -36,17 +36,6 @@ pub struct UploadInfo {
 }
 
 impl UploadInfo {
-    pub fn new(id: String) -> Self {
-        Self {
-            id,
-            size: None,
-            offset: None,
-            metadata: None,
-            storage: None,
-            creation_date: chrono::Utc::now().to_rfc3339(),
-        }
-    }
-
     pub fn get_size_is_deferred(&self) -> bool {
         self.size.is_none()
     }

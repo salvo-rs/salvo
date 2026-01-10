@@ -45,7 +45,7 @@ struct MetaUpload {
     id: String,
     size: Option<u64>,
     offset: u64,
-    metadata: Option<HashMap<String, String>>,
+    metadata: Option<HashMap<String, Option<String>>>,
     storage: Option<MetaStoreInfo>,
     creation_date: String,
 }

@@ -1,6 +1,8 @@
+use nanoid::nanoid;
 use salvo::prelude::*;
 use salvo::tus::{Tus, options::MaxSize};
 use salvo::oapi::extract::*;
+use tracing::info;
 
 #[endpoint(tags("main"), summary = "hello", description = "description  of the  main endpoint")]
 async fn hello(name: QueryParam<String, false>, res: &mut Response){
@@ -17,36 +19,16 @@ async fn hello_world() -> Result<&'static str, salvo::Error>{
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().get(hello_world)
-        .push(Router::with_path("hello").get(hello));
-
-    // let tus = Tus::new().path("/files")
-    //     .relative_location(true)
-    //     .max_size(MaxSize::Fixed(10 * 1024 * 1024))
-    //     .with_upload_id_naming_function(|_req, _metadata| {
-    //         // Here you can implement your own logic to generate unique IDs for uploads.
-    //         // For simplicity, we'll use a fixed ID in this example.
-    //         Ok("unique-upload-id-12345".to_string())
-    //     });
-
     let tus = Tus::new().path("/files")
         .relative_location(true)
         .max_size(MaxSize::Fixed(10 * 1024 * 1024))
-        .with_on_incoming_request(|_req, id| async move {
-            println!("Generated ID: {}", id);
+        .with_upload_id_naming_function(|_req, _metadata| async {
+            let id = nanoid!();
+            Ok(id)
+        })
+        .with_on_incoming_request_sync(|_req, id| {
+            info!("Current File ID: {}", id);
         });
-        // .with_on_upload_create(|_req, upload_info| async move {
-        //     let metadata = &upload_info.metadata;
-        //     println!("before: {:?}", metadata);
-
-        //     if let Some(meta) = upload_info.metadata.as_mut() {
-        //         meta.insert("foo".into(), "bar".into());
-        //     }
-
-        //     println!("after: {:?}", upload_info.metadata);
-
-        //     Ok(())
-        // });
 
     let router = tus.into_router();
 

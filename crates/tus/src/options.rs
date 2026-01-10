@@ -2,10 +2,11 @@ use std::{pin::Pin, sync::{Arc, OnceLock}};
 
 use futures_core::future::BoxFuture;
 use regex::Regex;
-use salvo_core::{Request, http::{HeaderMap, header}};
+use salvo_core::{Request, http::{HeaderMap, StatusCode, header}};
 
 use crate::{
-    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata}, lockers::{LockGuard, Locker, memory_locker}
+    CancellationContext, error::{TusError, TusResult}, handlers::{GenerateUrlCtx, HostProto, Metadata},
+    lockers::{LockGuard, Locker, memory_locker}, stores::UploadInfo
 };
 
 pub type UploadId = Option<String>;
@@ -24,10 +25,24 @@ pub enum MaxSize {
     Dynamic(Arc<dyn Fn(&Request, UploadId) -> BoxFuture<'static, u64> + Send + Sync>),
 }
 
-pub type NamingFunction = Arc<dyn Fn(&Request, Metadata)-> Pin<Box<dyn Future<Output = Result<String, TusError>> + Send>> + Send + Sync>;
+pub type NamingFunction = Arc<dyn Fn(&Request, Option<Metadata>)-> Pin<Box<dyn Future<Output = Result<String, TusError>> + Send>> + Send + Sync>;
 pub type GenerateUrlFunction = Arc<dyn Fn(&Request, GenerateUrlCtx)-> Result<String, TusError> + Send + Sync>;
-pub type OnIncomingRequest = Arc<dyn Fn(&Request, String) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
+pub type OnIncomingRequest = Arc<dyn Fn(&Request, String) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+pub type OnUploadCreate = Arc<dyn Fn(&Request, UploadInfo) -> Pin<Box<dyn Future<Output = Result<UploadPatch, TusError>> + Send>> + Send + Sync>;
+pub type OnUploadFinish = Arc<dyn Fn(&Request, UploadInfo) -> Pin<Box<dyn Future<Output = Result<UploadFinishPatch, TusError>> + Send>> + Send + Sync>;
+
+#[derive(Clone, Debug, Default)]
+pub struct UploadPatch {
+    pub metadata: Option<Metadata>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct UploadFinishPatch {
+    pub status_code: Option<StatusCode>,
+    pub headers: Option<HeaderMap>,
+    pub body: Option<Vec<u8>>,
+}
 #[derive(Clone)]
 pub struct TusOptions {
     /// The route to accept requests.
@@ -73,12 +88,8 @@ pub struct TusOptions {
     pub generate_url_function: Option<GenerateUrlFunction>,
 
     pub on_incoming_request: Option<OnIncomingRequest>,
-
-    // pub on_upload_create: Option<OnUploadCreate>,
-
-    // get_file_id_from_request: None
-    // on_upload_create: None,
-    // on_upload_finish: None,
+    pub on_upload_create: Option<OnUploadCreate>,
+    pub on_upload_finish: Option<OnUploadFinish>,
 }
 
 impl TusOptions {
@@ -241,10 +252,11 @@ impl Default for TusOptions {
             }), // Default use uuid.
             generate_url_function: None,
             on_incoming_request: None,
+            on_upload_create: None,
+            on_upload_finish: None,
         }
     }
 }
-
 
 /// Parse a param in "Forwarded" header.
 /// Example:

@@ -3,8 +3,9 @@ use std::sync::Arc;
 use salvo_core::{Depot, Request, Response, Router, handler, http::{HeaderValue, StatusCode}};
 
 use crate::{
-    H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus, error::{ProtocolError, TusError},
-    handlers::{Metadata, apply_common_headers}, utils::check_tus_version
+    H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, TUS_VERSION, Tus,
+    error::{ProtocolError, TusError}, handlers::{Metadata, apply_common_headers},
+    stores::Extension, utils::check_tus_version
 };
 
 #[handler]
@@ -74,6 +75,30 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     if let Some(metadata) = upload_info.metadata {
         headers.insert("Upload-Metadata", HeaderValue::from_str(&Metadata::stringify(metadata)).unwrap());
+    }
+
+    if store.has_extension(Extension::Expiration) {
+        if let Some(expiration) = store.get_expiration() {
+            if expiration > std::time::Duration::from_secs(0) && !upload_info.creation_date.is_empty() {
+                let is_finished = match (upload_info.offset, upload_info.size) {
+                    (Some(offset), Some(size)) => offset == size,
+                    _ => false,
+                };
+
+                if !is_finished {
+                    if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date) {
+                        if let Ok(delta) = chrono::Duration::from_std(expiration) {
+                            let expires = created_at.with_timezone(&chrono::Utc) + delta;
+                            let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+                            headers.insert(
+                                H_UPLOAD_EXPIRES,
+                                HeaderValue::from_str(&expires_value).unwrap(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
