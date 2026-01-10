@@ -183,6 +183,11 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_oapi as oapi;
 }
+cfg_feature! {
+    #![feature = "tus"]
+    #[doc(no_inline)]
+    pub use salvo_tus as tus;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {

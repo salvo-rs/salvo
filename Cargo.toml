@@ -45,6 +45,7 @@ salvo-serve-static = { version = "0.88.1", path = "crates/serve-static", default
 salvo-session = { version = "0.88.1", path = "crates/session", default-features = false }
 salvo-craft = { version = "0.88.1", path = "crates/craft", default-features = false }
 salvo-craft-macros = { version = "0.88.1", path = "crates/craft-macros", default-features = false }
+salvo-tus = { version = "0.88.1", path = "crates/tus", default-features = false }
 
 aead = "0.5"
 aes-gcm = "0.10"
