@@ -43,6 +43,16 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     where
         V: Visitor<'de>,
     {
+        let use_seq = match self.0.len() {
+            0 => false,
+            1 => self.0.first().is_some_and(|item| {
+                item.0.starts_with('[') && item.0.ends_with(']')
+            }),
+            _ => true,
+        };
+        if use_seq {
+            return self.deserialize_seq(visitor);
+        }
         if let Some(item) = self.0.into_iter().next() {
             item.deserialize_any(visitor)
         } else {
@@ -56,6 +66,30 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
         V: Visitor<'de>,
     {
         visitor.visit_some(self)
+    }
+
+    #[inline]
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            item.deserialize_str(visitor)
+        } else {
+            Err(DeError::custom("expected url query not empty"))
+        }
+    }
+
+    #[inline]
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            item.deserialize_string(visitor)
+        } else {
+            Err(DeError::custom("expected url query not empty"))
+        }
     }
 
     #[inline]
@@ -131,8 +165,6 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
 
     forward_to_deserialize_any! {
         char
-        str
-        string
         unit
         bytes
         byte_buf
