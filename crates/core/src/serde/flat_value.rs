@@ -45,9 +45,10 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let use_seq = match self.0.len() {
             0 => false,
-            1 => self.0.first().is_some_and(|item| {
-                item.0.starts_with('[') && item.0.ends_with(']')
-            }),
+            1 => self
+                .0
+                .first()
+                .is_some_and(|item| item.0.starts_with('[') && item.0.ends_with(']')),
             _ => true,
         };
         if use_seq {
