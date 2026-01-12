@@ -68,6 +68,32 @@ impl SocketAddr {
         matches!(*self, Self::IPv6(_))
     }
 
+    /// Returns the IP address associated with this socket address.
+    ///
+    /// Returns `None` if this address is not an IP-based socket address.
+    #[inline]
+    #[must_use]
+    pub fn ip(&self) -> Option<std::net::IpAddr> {
+        match self {
+            SocketAddr::IPv4(a) => Some(std::net::IpAddr::V4(*a.ip())),
+            SocketAddr::IPv6(a) => Some(std::net::IpAddr::V6(*a.ip())),
+            _ => None,
+        }
+    }
+
+    /// Returns the port number associated with this socket address.
+    ///
+    /// Returns `None` if this address is not an IP-based socket address.
+    #[must_use]
+    #[inline]
+    pub fn port(&self) -> Option<u16> {
+        match self {
+            SocketAddr::IPv4(a) => Some(a.port()),
+            SocketAddr::IPv6(a) => Some(a.port()),
+            _ => None,
+        }
+    }
+
     /// Convert to [`std::net::SocketAddr`].
     #[inline]
     #[must_use]
