@@ -66,7 +66,14 @@ where
     where
         V: Visitor<'de>,
     {
-        visitor.visit_some(self)
+        let mut iter = self.0.into_iter();
+        let Some(first) = iter.next() else {
+            return visitor.visit_none();
+        };
+        let mut items = Vec::with_capacity(2);
+        items.push(first);
+        items.extend(iter);
+        visitor.visit_some(VecValue(items.into_iter()))
     }
 
     #[inline]

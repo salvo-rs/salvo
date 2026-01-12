@@ -25,6 +25,21 @@ macro_rules! forward_url_query_parsed_value {
     }
 }
 
+fn looks_like_list(value: &CowValue<'_>) -> bool {
+    let raw = value.0.as_ref().trim();
+    if !(raw.starts_with('[') && raw.ends_with(']')) {
+        return false;
+    }
+    let inner = raw[1..raw.len() - 1].trim();
+    if inner.is_empty() {
+        return false;
+    }
+    if inner.contains(',') || inner.contains('"') || inner.contains('\'') {
+        return true;
+    }
+    serde_json::from_str::<serde_json::Value>(inner).is_ok()
+}
+
 pub(super) struct FlatValue<'de>(pub(super) Vec<CowValue<'de>>);
 impl<'de> IntoDeserializer<'de> for FlatValue<'de> {
     type Deserializer = Self;
@@ -45,10 +60,7 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let use_seq = match self.0.len() {
             0 => false,
-            1 => self
-                .0
-                .first()
-                .is_some_and(|item| item.0.starts_with('[') && item.0.ends_with(']')),
+            1 => self.0.first().is_some_and(looks_like_list),
             _ => true,
         };
         if use_seq {
@@ -66,7 +78,11 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_some(self)
+        if self.0.is_empty() {
+            visitor.visit_none()
+        } else {
+            visitor.visit_some(self)
+        }
     }
 
     #[inline]
@@ -148,11 +164,7 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let mut items = std::mem::take(&mut self.0);
         let single_mode = if items.len() == 1 {
-            if let Some(item) = items.first() {
-                item.0.starts_with('[') && item.0.ends_with(']')
-            } else {
-                false
-            }
+            items.first().is_some_and(looks_like_list)
         } else {
             false
         };
