@@ -505,6 +505,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_de_request_from_query_untagged_multi() {
+        #[derive(Clone, Copy, Deserialize, Eq, PartialEq, Debug)]
+        enum DBState {
+            #[serde(alias = "open")]
+            Open,
+            #[serde(alias = "closed_cooperative")]
+            ClosedCooperative,
+        }
+
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        #[serde(untagged)]
+        enum State {
+            Single(DBState),
+            Multiple(Vec<DBState>),
+        }
+
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct ByStateParams {
+            state: State,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:8698/test")
+            .query("state", "open")
+            .query("state", "closed_cooperative")
+            .build();
+        let data: ByStateParams = req.extract().await.unwrap();
+        assert_eq!(
+            data.state,
+            State::Multiple(vec![DBState::Open, DBState::ClosedCooperative])
+        );
+    }
+
+    #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
         #[salvo(extract(default_source(from = "query")))]

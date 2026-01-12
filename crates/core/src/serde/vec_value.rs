@@ -47,11 +47,18 @@ where
     where
         V: Visitor<'de>,
     {
-        if let Some(item) = self.0.into_iter().next() {
-            item.deserialize_any(visitor)
-        } else {
-            Err(DeError::custom("expected vec not empty"))
+        let mut iter = self.0.into_iter();
+        let Some(first) = iter.next() else {
+            return Err(DeError::custom("expected vec not empty"));
+        };
+        if let Some(second) = iter.next() {
+            let mut items = Vec::with_capacity(2);
+            items.push(first);
+            items.push(second);
+            items.extend(iter);
+            return visitor.visit_seq(SeqDeserializer::new(items.into_iter()));
         }
+        first.deserialize_any(visitor)
     }
 
     #[inline]
@@ -59,7 +66,38 @@ where
     where
         V: Visitor<'de>,
     {
-        visitor.visit_some(self)
+        let mut iter = self.0.into_iter();
+        let Some(first) = iter.next() else {
+            return visitor.visit_none();
+        };
+        let mut items = Vec::with_capacity(2);
+        items.push(first);
+        items.extend(iter);
+        visitor.visit_some(VecValue(items.into_iter()))
+    }
+
+    #[inline]
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            item.deserialize_str(visitor)
+        } else {
+            Err(DeError::custom("expected vec not empty"))
+        }
+    }
+
+    #[inline]
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            item.deserialize_string(visitor)
+        } else {
+            Err(DeError::custom("expected vec not empty"))
+        }
     }
 
     #[inline]
@@ -120,8 +158,6 @@ where
 
     forward_to_deserialize_any! {
         char
-        str
-        string
         unit
         bytes
         byte_buf
