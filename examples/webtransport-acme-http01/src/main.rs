@@ -48,7 +48,8 @@ async fn connect(req: &mut Request) -> Result<(), salvo::Error> {
     let session = req.web_transport_mut().await.unwrap();
     let session_id = session.session_id();
 
-    // This will open a bidirectional stream and send a message to the client right after connecting!
+    // This will open a bidirectional stream and send a message to the client right after
+    // connecting!
     let stream = session.open_bi(session_id).await?;
     let mut datagram_reader = session.datagram_reader();
     let mut datagram_sender = session.datagram_sender();

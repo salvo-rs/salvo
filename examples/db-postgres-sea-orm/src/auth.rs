@@ -4,18 +4,14 @@ use jsonwebtoken::{DecodingKey, Validation, decode};
 use salvo::prelude::*;
 use salvo_oapi::endpoint;
 use salvo_oapi::extract::HeaderParam;
-use sea_orm::ColumnTrait;
-use sea_orm::{EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use time::OffsetDateTime;
 
-use crate::models::users::Column as UsersColumn;
-use crate::models::users::Entity as Users;
-use crate::{
-    db::DbPool,
-    models::users,
-    schemas::{ErrorResponseModel, JwtClaims},
-    utils::SECRET_KEY,
-};
+use crate::db::DbPool;
+use crate::models::users;
+use crate::models::users::{Column as UsersColumn, Entity as Users};
+use crate::schemas::{ErrorResponseModel, JwtClaims};
+use crate::utils::SECRET_KEY;
 
 #[endpoint]
 pub async fn auth_user(

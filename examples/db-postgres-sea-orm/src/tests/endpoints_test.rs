@@ -53,10 +53,11 @@ pub fn service(router: Router) -> Service {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::schemas::users::{UserResponseModel, UserSuccessResponseModel};
-    use crate::schemas::{ErrorResponseModel, TokenResponseModel};
     use salvo::prelude::*;
     use salvo::test::{ResponseExt, TestClient};
+
+    use crate::schemas::users::{UserResponseModel, UserSuccessResponseModel};
+    use crate::schemas::{ErrorResponseModel, TokenResponseModel};
 
     #[tokio::test]
     async fn test_01_test_hello_world() {
@@ -305,7 +306,7 @@ pub mod tests {
         println!("debug: {:?}", user_update);
 
         assert_eq!(response.status_code, Some(StatusCode::OK));
-        //assert_eq!(user_update.email, "samanidarix@gmail.com");
+        // assert_eq!(user_update.email, "samanidarix@gmail.com");
         assert_eq!(user_update.full_name, "Darix SAMANI");
     }
 

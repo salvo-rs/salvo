@@ -6,24 +6,20 @@ use salvo::prelude::*;
 use salvo_oapi::endpoint;
 use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
 use sea_orm::ActiveValue::Set;
-use sea_orm::ColumnTrait;
-use sea_orm::{ActiveModelTrait, EntityTrait, ModelTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::auth_user;
 use crate::db::DbPool;
 use crate::models::posts;
-use crate::models::posts::Column as PostColumn;
-use crate::models::posts::Entity as Posts;
-use crate::models::users::Column as UserColumn;
-use crate::models::users::{self, Entity as Users};
+use crate::models::posts::{Column as PostColumn, Entity as Posts};
+use crate::models::users::{self, Column as UserColumn, Entity as Users};
 use crate::schemas::users::{
     UserCreate, UserCredentiel, UserResponseModel, UserSuccessResponseModel, UserUpdate,
 };
 use crate::schemas::{ErrorResponseModel, JwtClaims, TokenResponseModel};
-use crate::utils::SECRET_KEY;
-use crate::utils::{hash_password, verify_password};
+use crate::utils::{SECRET_KEY, hash_password, verify_password};
 
 #[endpoint(
     tags("Users"),

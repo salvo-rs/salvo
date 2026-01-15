@@ -1,6 +1,5 @@
 use salvo::conn::native_tls::NativeTlsConfig;
 use salvo::prelude::*;
-
 use tracing::Level;
 
 #[handler]

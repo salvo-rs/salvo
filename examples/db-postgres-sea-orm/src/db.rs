@@ -1,9 +1,7 @@
 use std::env;
 
 use dotenvy::dotenv;
-use sea_orm::Database;
-use sea_orm::DatabaseConnection;
-use sea_orm::DbErr;
+use sea_orm::{Database, DatabaseConnection, DbErr};
 
 pub type DbPool = DatabaseConnection;
 
