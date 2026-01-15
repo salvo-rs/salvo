@@ -5,7 +5,9 @@ use migration::{Migrator, MigratorTrait};
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
 use salvo::writing::Text;
-use sea_orm::{DatabaseConnection, entity::*, query::*};
+use sea_orm::DatabaseConnection;
+use sea_orm::entity::*;
+use sea_orm::query::*;
 use tera::Tera;
 
 mod entity;

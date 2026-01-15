@@ -2,20 +2,18 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use salvo::prelude::*;
-use salvo_oapi::{
-    endpoint,
-    extract::{HeaderParam, JsonBody, PathParam},
-};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, ModelTrait, QueryFilter,
-};
+use salvo_oapi::endpoint;
+use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
+use sea_orm::ActiveValue::Set;
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter};
 use uuid::Uuid;
 
-use crate::models::posts::Column as PostColumn;
-use crate::models::posts::{self, Entity as Posts};
+use crate::auth::auth_user;
+use crate::db::DbPool;
+use crate::models::posts::{self, Column as PostColumn, Entity as Posts};
 use crate::models::users::{self};
+use crate::schemas::ErrorResponseModel;
 use crate::schemas::posts::PostCreate;
-use crate::{auth::auth_user, db::DbPool, schemas::ErrorResponseModel};
 
 #[endpoint(
     tags("Posts"),
@@ -89,7 +87,7 @@ async fn create_posts(
     println!("The last inserted id is: {}", post.last_insert_id);
 
     res.status_code(StatusCode::OK);
-    //res.render(Json(new_post));
+    // res.render(Json(new_post));
     res.render(format!(
         "✅ Post '{}' created successfully!",
         post.last_insert_id

@@ -1,12 +1,13 @@
-use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::default::Default;
 
 use juniper::{
     Context as JuniperContext, EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode,
 };
+use parking_lot::RwLock;
 
-use crate::{mutation::MutationRoot, query::QueryRoot};
+use crate::mutation::MutationRoot;
+use crate::query::QueryRoot;
 
 // Define the GraphQL schema type with Query and Mutation roots
 pub type Schema = RootNode<QueryRoot, MutationRoot, EmptySubscription<DatabaseContext>>;

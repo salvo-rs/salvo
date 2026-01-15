@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::db::*;
     use tokio;
+
+    use crate::db::*;
 
     #[tokio::test]
     async fn test_database_connection() {

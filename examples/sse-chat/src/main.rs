@@ -9,11 +9,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures_util::StreamExt;
 use parking_lot::Mutex;
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
-
 use salvo::prelude::*;
 use salvo::sse::{SseEvent, SseKeepAlive};
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;
 

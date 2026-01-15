@@ -7,11 +7,12 @@ use salvo_oapi::endpoint;
 use salvo_oapi::extract::{HeaderParam, JsonBody, PathParam};
 use uuid::Uuid;
 
+use crate::DbPool;
 use crate::auth::auth_user;
 use crate::models::ResErrorBody;
 use crate::models::posts::{NewPost, Post, PostCreate};
 use crate::models::users::User;
-use crate::{DbPool, schema::*};
+use crate::schema::*;
 
 #[endpoint(
     tags("Posts"),
