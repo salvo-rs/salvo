@@ -21,8 +21,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["aws-lc-rs"]
 full = ["aws-lc-rs", "quinn"]
-aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls/aws-lc-rs", "hyper-rustls/aws-lc-rs"]
-ring = ["dep:ring", "tokio-rustls/ring", "hyper-rustls/ring"]
+aws-lc-rs = ["dep:aws-lc-rs", "tokio-rustls/aws-lc-rs", "hyper-rustls/aws-lc-rs", "quinn?/rustls-aws-lc-rs"]
+ring = ["dep:ring", "tokio-rustls/ring", "hyper-rustls/ring", "quinn?/rustls-ring"]
 quinn = ["salvo_core/quinn","dep:futures-util", "dep:quinn"]
 
 [dependencies]
@@ -40,9 +40,8 @@ hyper-rustls = { workspace = true, features = [
 ] }
 rcgen = { workspace = true }
 ring = { workspace = true, optional = true }
-quinn = { workspace = true, optional = true, features = [
+quinn = { workspace = true, optional = true, default-features = false, features = [
     "runtime-tokio",
-    "rustls",
 ] }
 salvo_core = { workspace = true, features = ["http1", "http2"] }
 serde = { workspace = true, features = ["derive"] }
