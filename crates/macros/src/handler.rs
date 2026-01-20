@@ -117,7 +117,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     let idv = idv.trim_start_matches('_');
 
                     extract_ts.push(quote!{
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
                                 e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;

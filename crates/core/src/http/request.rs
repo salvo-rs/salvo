@@ -908,23 +908,24 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract<'de, T>(&'de mut self) -> ParseResult<T>
+    pub async fn extract<'de, T>(&'de mut self, depot: &'de mut Depot) -> ParseResult<T>
     where
         T: Extractible<'de> + Deserialize<'de> + Send,
     {
-        self.extract_with_metadata(T::metadata()).await
+        self.extract_with_metadata(depot, T::metadata()).await
     }
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
     pub async fn extract_with_metadata<'de, T>(
         &'de mut self,
+        depot: &'de mut Depot,
         metadata: &'de Metadata,
     ) -> ParseResult<T>
     where
         T: Deserialize<'de> + Send,
     {
-        from_request(self, metadata).await
+        from_request(self, depot, metadata).await
     }
 
     /// Parse url params as type `T` from request.

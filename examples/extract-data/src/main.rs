@@ -29,10 +29,10 @@ async fn show(req: &mut Request, res: &mut Response) {
     res.render(Text::Html(content));
 }
 #[handler]
-async fn edit(req: &mut Request) -> String {
-    let bad_man: BadMan = req.extract().await.unwrap();
+async fn edit(req: &mut Request, depot: &mut Depot) -> String {
+    let bad_man: BadMan = req.extract(depot).await.unwrap();
     let bad_man = format!("Bad Man: {bad_man:#?}");
-    let good_man: GoodMan = req.extract().await.unwrap();
+    let good_man: GoodMan = req.extract(depot).await.unwrap();
     let good_man = format!("Good Man: {good_man:#?}");
     format!("{bad_man}\r\n\r\n\r\n{good_man}")
 }

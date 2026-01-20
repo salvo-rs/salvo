@@ -129,7 +129,7 @@ pub(crate) async fn issue_cert(
     let key_pem = key_pair.serialize_pem();
     let cert_chain = CertificateDer::pem_slice_iter(&cert_pem)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| CoreError::other(format!("failed to parse certificate PEM: {}", e)))?;
+        .map_err(|e| CoreError::other(format!("failed to parse certificate PEM: {e}")))?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
     *resolver.cert.write() = Some(Arc::new(cert_key));
     tracing::debug!("certificate obtained");

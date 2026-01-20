@@ -5,7 +5,7 @@ use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::form::FilePart;
 use salvo_core::http::header::CONTENT_TYPE;
 use salvo_core::http::{HeaderMap, Mime, ParseError};
-use salvo_core::{Request, async_trait};
+use salvo_core::{Depot, Request, async_trait};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{
@@ -86,11 +86,15 @@ impl<'ex> Extractible<'ex> for FormFile {
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         req.file(arg)
             .await
             .map(Self::new)
@@ -158,11 +162,15 @@ impl<'ex> Extractible<'ex> for FormFiles {
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         Ok(Self(
             req.files(arg)
                 .await

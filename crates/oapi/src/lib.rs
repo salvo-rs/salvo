@@ -433,21 +433,18 @@ impl ToSchema for serde_json::Map<String, serde_json::Value> {
 /// }
 ///
 /// impl<'ex> Extractible<'ex> for PetParams {
-///     fn metadata() -> &'static Metadata {
-///         static METADATA: Metadata = Metadata::new("");
-///         &METADATA
-///     }
-///     #[allow(refining_impl_trait)]
-///     async fn extract(req: &'ex mut Request) -> Result<Self, salvo_core::http::ParseError> {
-///         salvo_core::serde::from_request(req, Self::metadata()).await
-///     }
-///     #[allow(refining_impl_trait)]
-///     async fn extract_with_arg(
-///         req: &'ex mut Request,
-///         _arg: &str,
-///     ) -> Result<Self, salvo_core::http::ParseError> {
-///         Self::extract(req).await
-///     }
+///    fn metadata() -> &'static Metadata {
+///      static METADATA: Metadata = Metadata::new("");
+///      &METADATA
+///    }
+///    #[allow(refining_impl_trait)]
+///    async fn extract(req: &'ex mut Request, depot: &'ex mut Depot) -> Result<Self, salvo_core::http::ParseError> {
+///        salvo_core::serde::from_request(req, depot, Self::metadata()).await
+///    }
+///    #[allow(refining_impl_trait)]
+///    async fn extract_with_arg(req: &'ex mut Request, depot: &'ex mut Depot, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
+///        Self::extract(req, depot).await
+///    }
 /// }
 ///
 /// impl EndpointArgRegister for PetParams {

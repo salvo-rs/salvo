@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
+use salvo_core::Depot;
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::{ParseError, Request};
 use serde::{Deserialize, Deserializer};
@@ -70,11 +71,15 @@ where
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
         unimplemented!("path parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _depot: &'ex mut Depot,
+        arg: &str,
+    ) -> Result<Self, ParseError> {
         let value = req.param(arg).ok_or_else(|| {
             ParseError::other(format!(
                 "path parameter {arg} not found or convert to type failed"
@@ -152,7 +157,8 @@ mod tests {
     #[should_panic]
     async fn test_path_prarm_extract() {
         let mut req = Request::new();
-        let _ = PathParam::<String>::extract(&mut req).await;
+        let mut depot = Depot::new();
+        let _ = PathParam::<String>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
@@ -160,8 +166,9 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
+        let mut depot = Depot::new();
         req.params_mut().insert("param", "param".to_owned());
-        let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
+        let result = PathParam::<String>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0, "param");
     }
 
@@ -171,7 +178,8 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
+        let mut depot = Depot::new();
+        let result = PathParam::<String>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0, "param");
     }
 
