@@ -8,11 +8,10 @@ use std::sync::LazyLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures_util::{FutureExt, StreamExt};
-use tokio::sync::{RwLock, mpsc};
-use tokio_stream::wrappers::UnboundedReceiverStream;
-
 use salvo::prelude::*;
 use salvo::websocket::{Message, WebSocket, WebSocketUpgrade};
+use tokio::sync::{RwLock, mpsc};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
 

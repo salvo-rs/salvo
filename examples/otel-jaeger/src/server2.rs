@@ -1,7 +1,8 @@
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::{Resource, propagation::TraceContextPropagator};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 

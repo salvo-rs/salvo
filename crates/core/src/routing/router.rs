@@ -127,14 +127,16 @@ impl Router {
         .await
     }
 
-    /// Insert a router at the beginning of current router, shifting all routers after it to the right.
+    /// Insert a router at the beginning of current router, shifting all routers after it to the
+    /// right.
     #[inline]
     #[must_use]
     pub fn unshift(mut self, router: Self) -> Self {
         self.routers.insert(0, router);
         self
     }
-    /// Insert a router at position `index` within current router, shifting all routers after it to the right.
+    /// Insert a router at position `index` within current router, shifting all routers after it to
+    /// the right.
     #[inline]
     #[must_use]
     pub fn insert(mut self, index: usize, router: Self) -> Self {
@@ -321,7 +323,8 @@ impl Router {
         Self::with_filter(filters::port(port))
     }
 
-    /// Creates a new child router with [`MethodFilter`] to filter GET method and set this child router's handler.
+    /// Creates a new child router with [`MethodFilter`] to filter GET method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -330,7 +333,8 @@ impl Router {
         self.push(Self::with_filter(filters::get()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter post method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -339,7 +343,8 @@ impl Router {
         self.push(Self::with_filter(filters::post()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter put method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -348,7 +353,8 @@ impl Router {
         self.push(Self::with_filter(filters::put()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter delete method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -357,7 +363,8 @@ impl Router {
         self.push(Self::with_filter(filters::delete()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter patch method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -366,7 +373,8 @@ impl Router {
         self.push(Self::with_filter(filters::patch()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter head method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -375,7 +383,8 @@ impl Router {
         self.push(Self::with_filter(filters::head()).goal(goal))
     }
 
-    /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter options method and set this child
+    /// router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -447,9 +456,8 @@ impl Debug for Router {
 #[cfg(test)]
 mod tests {
     use super::{PathState, Router};
-    use crate::Response;
-    use crate::handler;
     use crate::test::TestClient;
+    use crate::{Response, handler};
 
     #[handler]
     async fn fake_handler(_res: &mut Response) {}

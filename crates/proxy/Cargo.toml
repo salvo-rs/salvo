@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["aws-lc-rs", "hyper-client", "unix-sock-client"]
-full = ["aws-lc-rs", "hyper-client", "reqwest-client"]
+full = ["aws-lc-rs", "hyper-client", "reqwest-client", "unix-sock-client"]
 aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "reqwest?/rustls"]
 ring = ["hyper-rustls?/ring", "reqwest?/rustls-no-provider", "rustls", "rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
@@ -54,7 +54,6 @@ salvo_core = { workspace = true, default-features = false }
 rustls = { workspace = true, optional = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-url = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["http1", "server", "test"] }

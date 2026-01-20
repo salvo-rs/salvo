@@ -1,8 +1,8 @@
 //! Provides JWT (JSON Web Token) authentication support for the Salvo web framework.
 //!
 //! This crate helps you implement JWT-based authentication in your Salvo web applications.
-//! It offers flexible token extraction from various sources (headers, query parameters, cookies, etc.)
-//! and multiple decoding strategies.
+//! It offers flexible token extraction from various sources (headers, query parameters, cookies,
+//! etc.) and multiple decoding strategies.
 //!
 //! # Features
 //!
@@ -123,11 +123,10 @@ use std::marker::PhantomData;
 pub use jsonwebtoken::{
     Algorithm, DecodingKey, TokenData, Validation, decode, errors::Error as JwtError,
 };
-use serde::de::DeserializeOwned;
-use thiserror::Error;
-
 use salvo_core::http::{Method, Request, Response, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
+use serde::de::DeserializeOwned;
+use thiserror::Error;
 
 mod finder;
 pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFinder};
@@ -198,8 +197,8 @@ pub enum JwtAuthError {
     /// Issuer URL invalid
     #[error("Issuer URL invalid")]
     IssuerParseError,
-    /// Failure of validating the token. See [jsonwebtoken::errors::ErrorKind] for possible reasons this value could be returned
-    /// Would typically result in a 401 HTTP Status code
+    /// Failure of validating the token. See [jsonwebtoken::errors::ErrorKind] for possible reasons
+    /// this value could be returned Would typically result in a 401 HTTP Status code
     #[error("JWT Is Invalid")]
     ValidationFailed(#[from] jsonwebtoken::errors::Error),
     /// Failure to re-validate the JWKS.
@@ -238,7 +237,8 @@ pub trait JwtAuthDepotExt {
 
     /// Gets the decoded JWT claims data from the depot.
     ///
-    /// The generic parameter `C` should be the same type used when configuring the `JwtAuth` middleware.
+    /// The generic parameter `C` should be the same type used when configuring the `JwtAuth`
+    /// middleware.
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Send + Sync + 'static;

@@ -3,7 +3,8 @@
 //! CSRF middleware for Salvo that provides CSRF (Cross-Site Request Forgery) protection.
 //!
 //! Data can be saved in Cookies via [`CookieStore`](struct.CookieStore.html) or in session
-//! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need to work with `salvo-session` crate.
+//! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need
+//! to work with `salvo-session` crate.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -16,7 +17,6 @@ use std::fmt::{self, Debug, Formatter};
 mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
-
 use rand::Rng;
 use rand::distr::StandardUniform;
 use salvo_core::handler::Skipper;
@@ -330,9 +330,10 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
+
+    use super::*;
 
     #[handler]
     async fn get_index(depot: &mut Depot) -> String {

@@ -1,7 +1,5 @@
 //! Filesystem module
 mod named_file;
-pub use named_file::*;
-
 use std::cmp;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
@@ -10,6 +8,7 @@ use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::Stream;
+pub use named_file::*;
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),

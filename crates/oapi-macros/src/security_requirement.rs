@@ -1,11 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use syn::{
-    LitStr, Token, bracketed,
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    token::Comma,
-};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::{LitStr, Token, bracketed};
 
 use crate::Array;
 

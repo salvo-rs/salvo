@@ -8,14 +8,11 @@ use syn::token::Comma;
 use syn::{LitStr, Token, Type, TypePath, WherePredicate, parenthesized, token};
 
 use super::{Feature, Parse, impl_get_name};
-use crate::{
-    AnyValue, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens,
-    parameter::{self, ParameterStyle},
-    parse_utils, schema,
-    schema_type::SchemaFormat,
-    serde_util::RenameRule,
-    type_tree::{GenericType, TypeTree},
-};
+use crate::parameter::{self, ParameterStyle};
+use crate::schema_type::SchemaFormat;
+use crate::serde_util::RenameRule;
+use crate::type_tree::{GenericType, TypeTree};
+use crate::{AnyValue, Array, DiagLevel, DiagResult, Diagnostic, TryToTokens, parse_utils, schema};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Example(AnyValue);
@@ -748,9 +745,9 @@ pub(crate) struct Alias {
 }
 
 // impl Alias {
-//     pub(crate) fn get_lifetimes(&self) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostic> {
-//         fn lifetimes_from_type(ty: &Type) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostic> {
-//             match ty {
+//     pub(crate) fn get_lifetimes(&self) -> Result<impl Iterator<Item = &GenericArgument>,
+// Diagnostic> {         fn lifetimes_from_type(ty: &Type) -> Result<impl Iterator<Item =
+// &GenericArgument>, Diagnostic> {             match ty {
 //                 Type::Path(type_path) => Ok(type_path
 //                     .path
 //                     .segments
@@ -764,14 +761,14 @@ pub(crate) struct Alias {
 //                     .flatten()
 //                     .flat_map(|arg| match arg {
 //                         GenericArgument::Type(type_argument) => {
-//                             lifetimes_from_type(type_argument).map(|iter| iter.collect::<Vec<_>>())
-//                         }
+//                             lifetimes_from_type(type_argument).map(|iter|
+// iter.collect::<Vec<_>>())                         }
 //                         _ => Ok(vec![arg]),
 //                     })
-//                     .flat_map(|args| args.into_iter().filter(|generic_arg| matches!(generic_arg, syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),
-//                     ),
-//                 _ => Err(Diagnostic::spanned(ty.span(),DiagLevel::Error, "AliasSchema `get_lifetimes` only supports syn::TypePath types"))
-//             }
+//                     .flat_map(|args| args.into_iter().filter(|generic_arg| matches!(generic_arg,
+// syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),
+// ),                 _ => Err(Diagnostic::spanned(ty.span(),DiagLevel::Error, "AliasSchema
+// `get_lifetimes` only supports syn::TypePath types"))             }
 //         }
 
 //         lifetimes_from_type(&self.ty)
@@ -790,8 +787,8 @@ impl syn::parse::Parse for Alias {
     }
 }
 
-// pub(super) fn parse_aliases(attributes: &[Attribute]) -> DiagResult<Option<Punctuated<Alias, Comma>>> {
-//     attributes
+// pub(super) fn parse_aliases(attributes: &[Attribute]) -> DiagResult<Option<Punctuated<Alias,
+// Comma>>> {     attributes
 //         .iter()
 //         .find(|attribute| attribute.path().is_ident("aliases"))
 //         .map(|aliases| aliases.parse_args_with(Punctuated::<Alias, Comma>::parse_terminated))

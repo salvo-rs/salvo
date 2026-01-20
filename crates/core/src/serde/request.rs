@@ -14,8 +14,6 @@ use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
 use crate::{Depot, Request};
 
-use super::{CowValue, FlatValue, VecValue};
-
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
     depot: &'de mut Depot,
@@ -187,7 +185,8 @@ impl<'de> RequestDeserializer<'de> {
 
             let parser = self.real_parser(source);
             if source.from == SourceFrom::Body && parser == SourceParser::Json {
-                // panic because this indicates a bug in the program rather than an expected failure.
+                // panic because this indicates a bug in the program rather than an expected
+                // failure.
                 let value = self
                     .field_str_value
                     .expect("MapAccess::next_value called before next_key");
@@ -512,6 +511,40 @@ mod tests {
                 q1: "q1v".to_owned(),
                 q2: 23
             }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_query_untagged_multi() {
+        #[derive(Clone, Copy, Deserialize, Eq, PartialEq, Debug)]
+        enum DBState {
+            #[serde(alias = "open")]
+            Open,
+            #[serde(alias = "closed_cooperative")]
+            ClosedCooperative,
+        }
+
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        #[serde(untagged)]
+        enum State {
+            Single(DBState),
+            Multiple(Vec<DBState>),
+        }
+
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "query")))]
+        struct ByStateParams {
+            state: State,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:8698/test")
+            .query("state", "open")
+            .query("state", "closed_cooperative")
+            .build();
+        let data: ByStateParams = req.extract().await.unwrap();
+        assert_eq!(
+            data.state,
+            State::Multiple(vec![DBState::Open, DBState::ClosedCooperative])
         );
     }
 

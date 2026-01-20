@@ -29,15 +29,14 @@ pub trait JwtTokenFinder: Send + Sync {
 /// # Example
 ///
 /// ```
-/// use salvo::jwt_auth::HeaderFinder;
 /// use salvo::http::Method;
+/// use salvo::jwt_auth::HeaderFinder;
 ///
 /// // Default configuration
 /// let finder = HeaderFinder::new();
 ///
 /// // Custom configuration for specific methods
-/// let get_only = HeaderFinder::new()
-///     .cared_methods(vec![Method::GET]);
+/// let get_only = HeaderFinder::new().cared_methods(vec![Method::GET]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
@@ -111,15 +110,14 @@ impl JwtTokenFinder for HeaderFinder {
 /// # Example
 ///
 /// ```
-/// use salvo::jwt_auth::FormFinder;
 /// use salvo::http::Method;
+/// use salvo::jwt_auth::FormFinder;
 ///
 /// // Create finder that looks for a form field named "access_token"
 /// let finder = FormFinder::new("access_token");
 ///
 /// // Limit to POST requests only
-/// let post_only = FormFinder::new("access_token")
-///     .cared_methods(vec![Method::POST]);
+/// let post_only = FormFinder::new("access_token").cared_methods(vec![Method::POST]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
@@ -171,15 +169,14 @@ impl JwtTokenFinder for FormFinder {
 /// # Example
 ///
 /// ```
-/// use salvo::jwt_auth::QueryFinder;
 /// use salvo::http::Method;
+/// use salvo::jwt_auth::QueryFinder;
 ///
 /// // Create finder that looks for query parameter "token"
 /// let finder = QueryFinder::new("token");
 ///
 /// // Limit to GET requests only
-/// let get_only = QueryFinder::new("token")
-///     .cared_methods(vec![Method::GET]);
+/// let get_only = QueryFinder::new("token").cared_methods(vec![Method::GET]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
@@ -232,15 +229,14 @@ impl JwtTokenFinder for QueryFinder {
 /// # Example
 ///
 /// ```
-/// use salvo::jwt_auth::CookieFinder;
 /// use salvo::http::Method;
+/// use salvo::jwt_auth::CookieFinder;
 ///
 /// // Create finder that looks for cookie named "jwt"
 /// let finder = CookieFinder::new("jwt");
 ///
 /// // Limit to specific methods
-/// let restricted = CookieFinder::new("jwt")
-///     .cared_methods(vec![Method::GET, Method::POST]);
+/// let restricted = CookieFinder::new("jwt").cared_methods(vec![Method::GET, Method::POST]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]

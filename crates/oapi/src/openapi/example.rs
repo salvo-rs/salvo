@@ -1,5 +1,5 @@
-//! Implements [OpenAPI Example Object][example] can be used to define examples for [`Response`][response]s and
-//! [`RequestBody`][request_body]s.
+//! Implements [OpenAPI Example Object][example] can be used to define examples for
+//! [`Response`][response]s and [`RequestBody`][request_body]s.
 //!
 //! [example]: https://spec.openapis.org/oas/latest.html#example-object
 //! [response]: response/struct.Response.html
@@ -61,8 +61,8 @@ impl Example {
         self
     }
 
-    /// Add or change embedded literal example value. [`Example::value`] and [`Example::external_value`]
-    /// are mutually exclusive.
+    /// Add or change embedded literal example value. [`Example::value`] and
+    /// [`Example::external_value`] are mutually exclusive.
     #[must_use]
     pub fn value(mut self, value: serde_json::Value) -> Self {
         self.value = Some(value);

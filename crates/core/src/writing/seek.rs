@@ -10,7 +10,8 @@ use crate::http::header::{IF_NONE_MATCH, RANGE};
 use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Writer, async_trait};
 
-/// `ReadSeeker` is used to write data to [`Response`] from a reader which implements [`AsyncRead`] and [`AsyncSeek`].
+/// `ReadSeeker` is used to write data to [`Response`] from a reader which implements [`AsyncRead`]
+/// and [`AsyncSeek`].
 ///
 /// # Example
 /// ```
@@ -61,7 +62,7 @@ where
         self
     }
 
-    ///Consume self and send content to [`Response`].
+    /// Consume self and send content to [`Response`].
     pub async fn send(mut self, req_headers: &HeaderMap, res: &mut Response) {
         // check preconditions
         let precondition_failed = if !any_match(self.etag.as_ref(), req_headers) {

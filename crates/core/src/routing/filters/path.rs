@@ -827,7 +827,7 @@ impl PathParser {
                     .curr()
                     .ok_or_else(|| "current position is out of index".to_owned())?;
                 if ch == ':' {
-                    //start to scan fn part
+                    // start to scan fn part
                     self.next(false);
                     let sign = self.scan_ident()?;
                     self.skip_blanks();

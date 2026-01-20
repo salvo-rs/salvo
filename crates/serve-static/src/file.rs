@@ -14,12 +14,12 @@ use salvo_core::{Depot, FlowCtrl, Handler, Writer, async_trait};
 ///
 /// #[handler]
 /// async fn hello() -> &'static str {
-///    "Hello World"
+///     "Hello World"
 /// }
 ///
 /// let router = Router::new()
-///    .get(hello)
-///    .push(Router::with_path("favicon.ico").get(StaticFile::new("assets/favicon.ico")));
+///     .get(hello)
+///     .push(Router::with_path("favicon.ico").get(StaticFile::new("assets/favicon.ico")));
 /// ```
 #[derive(Clone, Debug)]
 pub struct StaticFile(NamedFileBuilder);

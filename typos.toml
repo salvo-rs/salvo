@@ -13,4 +13,4 @@ AttributeIDSupressMenu = "AttributeIDSupressMenu"
 teh = "teh"
 
 [files]
-extend-exclude = ["**/*.js", "**/*.css", "examples/*/static/**/*.*"]
+extend-exclude = ["**/*.js", "**/*.css", "**/*.html", "examples/*/static/**/*.*"]

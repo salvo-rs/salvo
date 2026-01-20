@@ -10,11 +10,10 @@ mod res;
 pub use hyper::body::Incoming as HyperBody;
 pub use res::ResBody;
 mod channel;
-pub use channel::{BodyReceiver, BodySender};
-
 use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
+pub use channel::{BodyReceiver, BodySender};
 
 use crate::http::HeaderMap;
 

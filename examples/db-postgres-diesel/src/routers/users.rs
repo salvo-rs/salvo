@@ -374,7 +374,8 @@ fn get_access_token(
         &jsonwebtoken::Header::default(),
         &claim,
         &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
-    ).expect("failed to encode jwt token");
+    )
+    .expect("failed to encode jwt token");
 
     res.status_code(StatusCode::OK);
     res.render(Json(ResTokenBody {

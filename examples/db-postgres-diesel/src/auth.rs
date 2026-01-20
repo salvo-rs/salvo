@@ -7,12 +7,11 @@ use salvo_oapi::endpoint;
 use salvo_oapi::extract::HeaderParam;
 use time::OffsetDateTime;
 
-use crate::{
-    db::DbPool,
-    models::{JwtClaims, ResErrorBody, users::User},
-    schema::*,
-    utils::SECRET_KEY,
-};
+use crate::db::DbPool;
+use crate::models::users::User;
+use crate::models::{JwtClaims, ResErrorBody};
+use crate::schema::*;
+use crate::utils::SECRET_KEY;
 
 #[endpoint]
 pub fn auth_user(

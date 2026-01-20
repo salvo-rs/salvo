@@ -33,7 +33,11 @@ use syn::{Item, parse_macro_input};
 ///     /// doc line 3
 ///     /// doc line 4
 ///     #[craft(handler)]
-///     pub(crate) fn add2( self: ::std::sync::Arc<Self>, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
+///     pub(crate) fn add2(
+///         self: ::std::sync::Arc<Self>,
+///         left: QueryParam<i64>,
+///         right: QueryParam<i64>,
+///     ) -> String {
 ///         (self.state + *left + *right).to_string()
 ///     }
 ///     /// doc line 5
@@ -44,7 +48,8 @@ use syn::{Item, parse_macro_input};
 ///     }
 /// }
 /// ```
-/// Note: `#[craft(handler)]` can be replaced with `#[craft(endpoint(...))]` for more configuration options.
+/// Note: `#[craft(handler)]` can be replaced with `#[craft(endpoint(...))]` for more configuration
+/// options.
 ///
 /// When using `&self` as the method receiver, the containing type must implement the `Clone` trait.
 #[proc_macro_attribute]

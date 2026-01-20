@@ -1,10 +1,8 @@
 use std::error::Error;
 use std::str::FromStr;
 
-use opentelemetry::{
-    Context, KeyValue, global,
-    trace::{FutureExt, TraceContextExt, Tracer as _},
-};
+use opentelemetry::trace::{FutureExt, TraceContextExt, Tracer as _};
+use opentelemetry::{Context, KeyValue, global};
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::propagation::TraceContextPropagator;

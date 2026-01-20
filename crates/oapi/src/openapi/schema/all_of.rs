@@ -43,8 +43,8 @@ pub struct AllOf {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub examples: Vec<Value>,
 
-    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
-    /// specific schema.
+    /// Optional discriminator field can be used to aid deserialization, serialization and
+    /// validation of a specific schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discriminator: Option<Discriminator>,
 
@@ -126,7 +126,8 @@ impl AllOf {
         self
     }
 
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    /// Add or change default value for the object which is provided when user has not provided the
+    /// input in Swagger UI.
     #[must_use]
     pub fn default_value(mut self, default: Value) -> Self {
         self.default_value = Some(default);

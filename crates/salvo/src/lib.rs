@@ -22,7 +22,7 @@
 //! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
-//! | `affix-state` | Middleware for adding prefix and suffix to the request path | ❌ |
+//! | `affix-state` | Middleware for adding shared application state to the request context | ❌ |
 //! | `craft` | Generate handlers or endpoints with shared data | ❌ |
 //! | `basic-auth` | Middleware for basic authentication | ❌ |
 //! | `caching-headers` | Middleware for setting caching headers | ❌ |
@@ -182,6 +182,11 @@ cfg_feature! {
     #![feature ="oapi"]
     #[doc(no_inline)]
     pub use salvo_oapi as oapi;
+}
+cfg_feature! {
+    #![feature = "tus"]
+    #[doc(no_inline)]
+    pub use salvo_tus as tus;
 }
 
 /// A list of things that automatically imports into application use salvo.

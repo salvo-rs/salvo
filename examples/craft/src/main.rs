@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
-use std::sync::Arc;
 
 // Options struct holding a state value for calculations
 #[derive(Clone)]

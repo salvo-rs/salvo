@@ -16,14 +16,13 @@ use syn::{
     parse_quote,
 };
 
-pub(crate) use self::{
-    enum_schemas::*,
-    feature::{FromAttributes, NamedFieldStructFeatures, UnnamedFieldStructFeatures},
-    flattened_map_schema::*,
-    struct_schemas::*,
-    xml::XmlAttr,
+pub(crate) use self::enum_schemas::*;
+pub(crate) use self::feature::{
+    FromAttributes, NamedFieldStructFeatures, UnnamedFieldStructFeatures,
 };
-
+pub(crate) use self::flattened_map_schema::*;
+pub(crate) use self::struct_schemas::*;
+pub(crate) use self::xml::XmlAttr;
 use super::{ComponentSchema, FieldRename, VariantRename};
 use crate::feature::attributes::{Alias, Bound, Description, Inline, Name, SkipBound};
 use crate::feature::{Feature, FeaturesExt, pop_feature, pop_feature_as_inner};
@@ -48,7 +47,7 @@ pub(crate) struct ToSchema<'a> {
     generics: &'a Generics,
     data: &'a Data,
     // aliases: Option<Punctuated<AliasSchema, Comma>>,
-    //vis: &'a Visibility,
+    // vis: &'a Visibility,
 }
 
 impl<'a> ToSchema<'a> {

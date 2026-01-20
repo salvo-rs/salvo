@@ -172,8 +172,8 @@ pub trait CacheStore: Send + Sync + 'static {
 
 /// `CachedBody` is used to save the response body to `CacheStore`.
 ///
-/// [`ResBody`] has a Stream type, which is not `Send + Sync`, so we need to convert it to `CachedBody`.
-/// If the response's body is [`ResBody::Stream`], it will not be cached.
+/// [`ResBody`] has a Stream type, which is not `Send + Sync`, so we need to convert it to
+/// `CachedBody`. If the response's body is [`ResBody::Stream`], it will not be cached.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum CachedBody {
@@ -253,11 +253,13 @@ impl CachedEntry {
 /// ```
 /// use std::time::Duration;
 ///
-/// use salvo_core::Router;
 /// use salvo_cache::{Cache, MokaStore, RequestIssuer};
+/// use salvo_core::Router;
 ///
 /// let cache = Cache::new(
-///     MokaStore::builder().time_to_live(Duration::from_secs(60)).build(),
+///     MokaStore::builder()
+///         .time_to_live(Duration::from_secs(60))
+///         .build(),
 ///     RequestIssuer::default(),
 /// );
 /// let router = Router::new().hoop(cache);
@@ -357,10 +359,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use time::OffsetDateTime;
+
+    use super::*;
 
     #[handler]
     async fn cached() -> String {

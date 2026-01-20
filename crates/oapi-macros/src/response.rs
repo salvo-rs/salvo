@@ -12,16 +12,15 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Error, ExprPath, LitInt, LitStr, Token, parenthesized};
 
-use crate::component::ComponentSchema;
-use crate::feature::attributes::Inline;
-use crate::operation::{
-    InlineType, PathType, PathTypeTree, example::Example, status::STATUS_CODES,
-};
-use crate::type_tree::TypeTree;
-use crate::{AnyValue, Array, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
-
 use self::derive::{ToResponse, ToResponses};
 use self::link::LinkTuple;
+use crate::component::ComponentSchema;
+use crate::feature::attributes::Inline;
+use crate::operation::example::Example;
+use crate::operation::status::STATUS_CODES;
+use crate::operation::{InlineType, PathType, PathTypeTree};
+use crate::type_tree::TypeTree;
+use crate::{AnyValue, Array, DiagResult, Diagnostic, TryToTokens, attribute, parse_utils};
 
 pub(crate) fn to_response(input: DeriveInput) -> DiagResult<TokenStream> {
     let DeriveInput {
@@ -100,7 +99,8 @@ impl<'r> ResponseTuple<'r> {
         }
     }
 
-    // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
+    // Use with the `response` attribute, this will fail if an incompatible attribute has already
+    // been set
     fn set_ref_type(&mut self, span: Span, ty: InlineType<'r>) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(Box::new(ty))),
@@ -769,8 +769,8 @@ impl Parse for Content<'_> {
 //                         Response::ToResponses(path) => {
 //                             let span = path.span();
 //                             acc.extend(quote_spanned! {span =>
-//                                 .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components))
-//                             })
+//                                 .append(&mut <#path as
+// #oapi::oapi::ToResponses>::to_responses(components))                             })
 //                         }
 //                         Response::Tuple(response) => {
 //                             let code = &response.status_code;
@@ -786,12 +786,12 @@ impl Parse for Content<'_> {
 
 /// Parsed representation of response header defined in `#[salvo_oapi::endpoint(..)]` attribute.
 ///
-/// Supported configuration format is `("x-my-header-name" = type, description = "optional description of header")`.
-/// The `= type` and the `description = ".."` are optional configurations thus so the same configuration
-/// could be written as follows: `("x-my-header-name")`.
+/// Supported configuration format is `("x-my-header-name" = type, description = "optional
+/// description of header")`. The `= type` and the `description = ".."` are optional configurations
+/// thus so the same configuration could be written as follows: `("x-my-header-name")`.
 ///
-/// The `type` can be any typical type supported as a header argument such as `String, i32, u64, bool` etc.
-/// and if not provided it will default to `String`.
+/// The `type` can be any typical type supported as a header argument such as `String, i32, u64,
+/// bool` etc. and if not provided it will default to `String`.
 ///
 /// # Examples
 ///

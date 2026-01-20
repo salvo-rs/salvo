@@ -2,7 +2,8 @@ use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::http::StatusCode;
-use salvo_core::{prelude::StatusError, writing};
+use salvo_core::prelude::StatusError;
+use salvo_core::writing;
 
 use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
@@ -30,12 +31,14 @@ impl Endpoint {
 
 /// A trait for endpoint argument register.
 pub trait EndpointArgRegister {
-    /// Modify the OpenApi components section or current operation information with given argument. This function is called by macros internal.
+    /// Modify the OpenApi components section or current operation information with given argument.
+    /// This function is called by macros internal.
     fn register(components: &mut Components, operation: &mut Operation, arg: &str);
 }
 /// A trait for endpoint return type register.
 pub trait EndpointOutRegister {
-    /// Modify the OpenApi components section or current operation information with given argument. This function is called by macros internal.
+    /// Modify the OpenApi components section or current operation information with given argument.
+    /// This function is called by macros internal.
     fn register(components: &mut Components, operation: &mut Operation);
 }
 

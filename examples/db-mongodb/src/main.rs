@@ -1,10 +1,10 @@
 use std::sync::OnceLock;
 
 use futures::stream::TryStreamExt;
-use mongodb::{
-    Client, Collection, IndexModel, bson::Document, bson::doc, bson::oid::ObjectId,
-    options::IndexOptions,
-};
+use mongodb::bson::oid::ObjectId;
+use mongodb::bson::{Document, doc};
+use mongodb::options::IndexOptions;
+use mongodb::{Client, Collection, IndexModel};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 

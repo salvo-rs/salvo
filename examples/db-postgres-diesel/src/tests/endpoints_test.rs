@@ -1,7 +1,8 @@
+use std::sync::Arc;
+
 use salvo::cors::{AllowOrigin, Cors};
 use salvo::http::Method;
 use salvo::{Router, Service, affix_state};
-use std::sync::Arc;
 
 use crate::db::establish_connection_pool;
 use crate::routers::users::get_users_router;

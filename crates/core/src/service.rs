@@ -63,17 +63,23 @@ impl Service {
         self.router.clone()
     }
 
-    /// When the response code is 400-600 and the body is empty, capture and set the error page content.
-    /// If catchers is not set, the default error page will be used.
+    /// When the response code is 400-600 and the body is empty, capture and set the error page
+    /// content. If catchers is not set, the default error page will be used.
     ///
     /// # Example
     ///
     /// ```
-    /// use salvo_core::prelude::*;
     /// use salvo_core::catcher::Catcher;
+    /// use salvo_core::prelude::*;
     ///
     /// #[handler]
-    /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    /// async fn handle404(
+    ///     &self,
+    ///     _req: &Request,
+    ///     _depot: &Depot,
+    ///     res: &mut Response,
+    ///     ctrl: &mut FlowCtrl,
+    /// ) {
     ///     if let Some(StatusCode::NOT_FOUND) = res.status_code {
     ///         res.render("Custom 404 Error Page");
     ///         ctrl.skip_rest();
@@ -356,8 +362,9 @@ impl HyperHandler {
             }
             #[cfg(feature = "quinn")]
             {
-                use bytes::Bytes;
                 use std::sync::Mutex;
+
+                use bytes::Bytes;
                 if let Some(session) =
                     req.extensions.remove::<Arc<
                         crate::proto::WebTransportSession<salvo_http3::quinn::Connection, Bytes>,

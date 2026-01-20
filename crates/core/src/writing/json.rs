@@ -19,11 +19,13 @@ use crate::http::{Response, StatusError};
 ///
 /// #[derive(Serialize)]
 /// struct User {
-///    name: String,
+///     name: String,
 /// }
 /// #[handler]
 /// async fn hello(res: &mut Response) -> Json<User> {
-///     Json(User { name: "jobs".into() })
+///     Json(User {
+///         name: "jobs".into(),
+///     })
 /// }
 /// ```
 pub struct Json<T>(pub T);
@@ -63,9 +65,8 @@ impl<T: Display> Display for Json<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
-
     use super::*;
+    use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]

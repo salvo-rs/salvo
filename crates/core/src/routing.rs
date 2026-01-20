@@ -4,12 +4,13 @@
 //!
 //! Router can route HTTP requests to different handlers. This is a basic and key feature in salvo.
 //!
-//! The interior of [`Router`] is actually composed of a series of filters. When a request comes, the route will
-//! test itself and its descendants in order to see if they can match the request in the order they were added, and
-//! then execute the middleware on the entire chain formed by the route and its descendants in sequence. If the
-//! status of [`Response`](crate::http::Response) is set to error (4XX, 5XX) or jump (3XX) during processing, the subsequent middleware and
-//! [`Handler`] will be skipped. You can also manually adjust `ctrl.skip_rest()` to skip subsequent middleware and
-//! [`Handler`].
+//! The interior of [`Router`] is actually composed of a series of filters. When a request comes,
+//! the route will test itself and its descendants in order to see if they can match the request in
+//! the order they were added, and then execute the middleware on the entire chain formed by the
+//! route and its descendants in sequence. If the status of [`Response`](crate::http::Response) is
+//! set to error (4XX, 5XX) or jump (3XX) during processing, the subsequent middleware and
+//! [`Handler`] will be skipped. You can also manually adjust `ctrl.skip_rest()` to skip subsequent
+//! middleware and [`Handler`].
 //!
 //! # Write in flat way
 //!
@@ -36,8 +37,13 @@
 //! # #[handler]
 //! # async fn list_writer_articles(res: &mut Response) {
 //! # }
-//! Router::with_path("writers").get(list_writers).post(create_writer);
-//! Router::with_path("writers/{id}").get(show_writer).patch(edit_writer).delete(delete_writer);
+//! Router::with_path("writers")
+//!     .get(list_writers)
+//!     .post(create_writer);
+//! Router::with_path("writers/{id}")
+//!     .get(show_writer)
+//!     .patch(edit_writer)
+//!     .delete(delete_writer);
 //! Router::with_path("writers/{id}/articles").get(list_writer_articles);
 //! ```
 //!
@@ -80,9 +86,9 @@
 //!
 //! This form of definition can make the definition of router clear and simple for complex projects.
 //!
-//! There are many methods in `Router` that will return to `Self` after being called, so as to write code in a chain.
-//! Sometimes, you need to decide how to route according to certain conditions, and the `Router` also provides `then`
-//! function, which is also easy to use:
+//! There are many methods in `Router` that will return to `Self` after being called, so as to write
+//! code in a chain. Sometimes, you need to decide how to route according to certain conditions, and
+//! the `Router` also provides `then` function, which is also easy to use:
 //!
 //! ```rust
 //! # use salvo_core::prelude::*;
@@ -102,30 +108,34 @@
 //! # #[handler]
 //! # async fn delete_writer(res: &mut Response) {
 //! # }
-//! fn admin_mode() -> bool { true };
-//! Router::new()
-//!     .push(
-//!         Router::with_path("articles")
-//!             .get(list_articles)
-//!             .push(Router::with_path("{id}").get(show_article))
-//!             .then(|router|{
-//!                 if admin_mode() {
-//!                     router.post(create_article).push(
-//!                         Router::with_path("{id}").patch(update_article).delete(delete_writer)
-//!                     )
-//!                 } else {
-//!                     router
-//!                 }
-//!             }),
-//!     );
+//! fn admin_mode() -> bool {
+//!     true
+//! };
+//! Router::new().push(
+//!     Router::with_path("articles")
+//!         .get(list_articles)
+//!         .push(Router::with_path("{id}").get(show_article))
+//!         .then(|router| {
+//!             if admin_mode() {
+//!                 router.post(create_article).push(
+//!                     Router::with_path("{id}")
+//!                         .patch(update_article)
+//!                         .delete(delete_writer),
+//!                 )
+//!             } else {
+//!                 router
+//!             }
+//!         }),
+//! );
 //! ```
 //!
-//! This example represents that only when the server is in `admin_mode`, routers such as creating articles, editing
-//! and deleting articles will be added.
+//! This example represents that only when the server is in `admin_mode`, routers such as creating
+//! articles, editing and deleting articles will be added.
 //!
 //! # Get param in routers
 //!
-//! In the previous source code, `{id}` is a param definition. We can access its value via Request instance:
+//! In the previous source code, `{id}` is a param definition. We can access its value via Request
+//! instance:
 //!
 //! ```rust
 //! use salvo_core::prelude::*;
@@ -136,14 +146,14 @@
 //! }
 //! ```
 //!
-//! `{id}` matches a fragment in the path, under normal circumstances, the article `id` is just a number, which we can
-//! use regular expressions to restrict `id` matching rules, `r"{id|\d+}"`.
+//! `{id}` matches a fragment in the path, under normal circumstances, the article `id` is just a
+//! number, which we can use regular expressions to restrict `id` matching rules, `r"{id|\d+}"`.
 //!
 //! For numeric characters there is an easier way to use `{id:num}`, the specific writing is:
 //!
 //! - `{id:num}`, matches any number of numeric characters;
-//! - `{id:num[10]}`, only matches a certain number of numeric characters, where 10 means that the match only matches
-//!   10 numeric characters;
+//! - `{id:num[10]}`, only matches a certain number of numeric characters, where 10 means that the
+//!   match only matches 10 numeric characters;
 //! - `{id:num(..10)}` means matching 1 to 9 numeric characters;
 //! - `{id:num(3..10)}` means matching 3 to 9 numeric characters;
 //! - `{id:num(..=10)}` means matching 1 to 10 numeric characters;
@@ -151,8 +161,8 @@
 //! - `{id:num(10..)}` means to match at least 10 numeric characters.
 //!
 //! You can also use `{**}`, `{*+*}` or `{*?}` to match all remaining path fragments.
-//! In order to make the code more readable, you can also add appropriate name to make the path semantics more clear,
-//! for example: `{**file_path}`.
+//! In order to make the code more readable, you can also add appropriate name to make the path
+//! semantics more clear, for example: `{**file_path}`.
 //!
 //! It is allowed to combine multiple expressions to match the same path segment,
 //! such as `/articles/article_{id:num}/`, `/images/{name}.{ext}`.
@@ -185,11 +195,11 @@
 //!     );
 //! ```
 //!
-//! In this example, the root router has a middleware to check current user is authenticated. This middleware will
-//! affect the root router and its descendants.
+//! In this example, the root router has a middleware to check current user is authenticated. This
+//! middleware will affect the root router and its descendants.
 //!
-//! If we don't want to check user is authed when current user view writer information and articles. We can write
-//! router like this:
+//! If we don't want to check user is authed when current user view writer information and articles.
+//! We can write router like this:
 //!
 //! ```rust
 //! # use salvo_core::prelude::*;
@@ -207,7 +217,11 @@
 //!             .hoop(check_authed)
 //!             .path("writers")
 //!             .post(create_writer)
-//!             .push(Router::with_path("{id}").patch(edit_writer).delete(delete_writer)),
+//!             .push(
+//!                 Router::with_path("{id}")
+//!                     .patch(edit_writer)
+//!                     .delete(delete_writer),
+//!             ),
 //!     )
 //!     .push(
 //!         Router::new().path("writers").get(list_writers).push(
@@ -218,24 +232,27 @@
 //!     );
 //! ```
 //!
-//! Although there are two routers have the same `path("writers")`, they can still be added to the same parent route
-//! at the same time.
+//! Although there are two routers have the same `path("writers")`, they can still be added to the
+//! same parent route at the same time.
 //!
 //! # Filters
 //!
-//! Many methods in `Router` return to themselves in order to easily implement chain writing. Sometimes, in some cases,
-//! you need to judge based on conditions before you can add routing. Routing also provides some convenience Method,
-//! simplify code writing.
+//! Many methods in `Router` return to themselves in order to easily implement chain writing.
+//! Sometimes, in some cases, you need to judge based on conditions before you can add routing.
+//! Routing also provides some convenience Method, simplify code writing.
 //!
-//! `Router` uses the filter to determine whether the route matches. The filter supports logical operations and or.
-//! Multiple filters can be added to a route. When all the added filters match, the route is matched successfully.
+//! `Router` uses the filter to determine whether the route matches. The filter supports logical
+//! operations and or. Multiple filters can be added to a route. When all the added filters match,
+//! the route is matched successfully.
 //!
-//! It should be noted that the URL collection of the website is a tree structure, and this structure is not equivalent
-//! to the tree structure of `Router`. A node of the URL may correspond to multiple `Router`. For example, some paths
-//! under the `articles/` path require login, and some paths do not require login. Therefore, we can put the same login
-//! requirements under a `Router`, and on top of them Add authentication middleware on `Router`.
+//! It should be noted that the URL collection of the website is a tree structure, and this
+//! structure is not equivalent to the tree structure of `Router`. A node of the URL may correspond
+//! to multiple `Router`. For example, some paths under the `articles/` path require login, and some
+//! paths do not require login. Therefore, we can put the same login requirements under a `Router`,
+//! and on top of them Add authentication middleware on `Router`.
 //!
-//! In addition, you can access it without logging in and put it under another route without authentication middleware:
+//! In addition, you can access it without logging in and put it under another route without
+//! authentication middleware:
 //!
 //! ```rust
 //! # use salvo_core::prelude::*;
@@ -257,14 +274,20 @@
 //!             .path("articles")
 //!             .hoop(auth_check)
 //!             .post(list_articles)
-//!             .push(Router::new().path("{id}").patch(edit_article).delete(delete_article)),
+//!             .push(
+//!                 Router::new()
+//!                     .path("{id}")
+//!                     .patch(edit_article)
+//!                     .delete(delete_article),
+//!             ),
 //!     );
 //! ```
 //!
-//! Router is used to filter requests, and then send the requests to different Handlers for processing.
+//! Router is used to filter requests, and then send the requests to different Handlers for
+//! processing.
 //!
-//! The most commonly used filtering is `path` and `method`. `path` matches path information; `method` matches
-//! the requested Method.
+//! The most commonly used filtering is `path` and `method`. `path` matches path information;
+//! `method` matches the requested Method.
 //!
 //! We can use `and`, `or` to connect between filter conditions, for example:
 //!
@@ -277,8 +300,8 @@
 //!
 //! ## Path filter
 //!
-//! The filter is based on the request path is the most frequently used. Parameters can be defined in the path
-//! filter, such as:
+//! The filter is based on the request path is the most frequently used. Parameters can be defined
+//! in the path filter, such as:
 //!
 //! ```rust
 //! use salvo_core::prelude::*;
@@ -315,7 +338,10 @@
 //! # #[handler] fn show_article() {}
 //! # #[handler] fn update_article() {}
 //! # #[handler] fn delete_article() {}
-//! Router::new().get(show_article).patch(update_article).delete(delete_article);
+//! Router::new()
+//!     .get(show_article)
+//!     .patch(update_article)
+//!     .delete(delete_article);
 //! ```
 //!
 //! Here `get`, `patch`, `delete` are all Method filters. It is actually equivalent to:
@@ -330,14 +356,18 @@
 //! let show_router = Router::with_filter(filters::get()).goal(show_article);
 //! let update_router = Router::with_filter(filters::patch()).goal(update_article);
 //! let delete_router = Router::with_filter(filters::get()).goal(delete_article);
-//! Router::new().push(show_router).push(update_router).push(delete_router);
+//! Router::new()
+//!     .push(show_router)
+//!     .push(update_router)
+//!     .push(delete_router);
 //! ```
 //!
 //! ## Custom Wisp
 //!
 //! For some frequently-occurring matching expressions, we can name a short name by
-//! `PathFilter::register_wisp_regex` or `PathFilter::register_wisp_builder`. For example, GUID format is often used
-//! in paths appears, normally written like this every time a match is required:
+//! `PathFilter::register_wisp_regex` or `PathFilter::register_wisp_builder`. For example, GUID
+//! format is often used in paths appears, normally written like this every time a match is
+//! required:
 //!
 //! ```rust
 //! use salvo_core::prelude::*;
@@ -346,8 +376,8 @@
 //! Router::with_path("/users/{id|[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}}");
 //! ```
 //!
-//! However, writing this complex regular expression every time is prone to errors and hard-coding the regex is not
-//! ideal. We could separate the regex into its own Regex variable like so:
+//! However, writing this complex regular expression every time is prone to errors and hard-coding
+//! the regex is not ideal. We could separate the regex into its own Regex variable like so:
 //!
 //! ```rust
 //! use salvo_core::prelude::*;
@@ -366,8 +396,8 @@
 //! }
 //! ```
 //!
-//! You only need to register once, and then you can directly match the GUID through the simple writing method as
-//! `{id:guid}`, which simplifies the writing of the code.
+//! You only need to register once, and then you can directly match the GUID through the simple
+//! writing method as `{id:guid}`, which simplifies the writing of the code.
 
 pub mod filters;
 pub use filters::*;
@@ -379,10 +409,10 @@ pub use path_params::PathParams;
 mod path_state;
 pub use path_state::PathState;
 mod flow_ctrl;
-pub use flow_ctrl::FlowCtrl;
-
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
+
+pub use flow_ctrl::FlowCtrl;
 
 use crate::Handler;
 

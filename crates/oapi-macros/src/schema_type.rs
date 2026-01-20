@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
+use syn::parse::Parse;
 use syn::spanned::Spanned;
-use syn::{Error, Ident, LitStr, Path, parse::Parse};
+use syn::{Error, Ident, LitStr, Path};
 
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
 

@@ -27,8 +27,8 @@ pub struct FormData {
     /// Name-value pairs for plain text fields. Technically, these are form data parts with no
     /// filename specified in the part's `Content-Disposition`.
     pub fields: MultiMap<String, String>,
-    /// Name-value pairs for temporary files. Technically, these are form data parts with a filename
-    /// specified in the part's `Content-Disposition`.
+    /// Name-value pairs for temporary files. Technically, these are form data parts with a
+    /// filename specified in the part's `Content-Disposition`.
     pub files: MultiMap<String, FilePart>,
 }
 
@@ -166,7 +166,17 @@ impl FilePart {
                 .expect("Runtime spawn blocking poll error")?
                 .keep();
         let temp_dir = Some(path.clone());
-        let name = field.file_name().map(|s| s.to_owned());
+        let name = field.file_name().map(|s| {
+            // Sanitize filename by removing invalid characters
+            s.chars()
+                .filter(|c| {
+                    !matches!(
+                        c,
+                        '/' | '\\' | '\0' | '<' | '>' | ':' | '"' | '|' | '?' | '*'
+                    )
+                })
+                .collect::<String>()
+        });
         path.push(format!(
             "{}.{}",
             text_nonce(),

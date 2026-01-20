@@ -81,6 +81,7 @@ full = [
     "oapi",
     "aws-lc-rs",
     "matched-path",
+    "tus",
 ]
 cookie = ["salvo_core/cookie"]
 fix-http1-request-uri = ["salvo_core/fix-http1-request-uri"]
@@ -130,6 +131,7 @@ aws-lc-rs = ["salvo_core/aws-lc-rs", "salvo-acme?/aws-lc-rs", "salvo-proxy?/aws-
 ring = ["salvo_core/ring", "salvo-acme?/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path"]
 tls12 = ["salvo_core/tls12"]
+tus = ["dep:salvo-tus"]
 
 [dependencies]
 salvo_core = { workspace = true }
@@ -148,6 +150,7 @@ salvo-proxy = { workspace = true, features = ["full"], optional = true }
 salvo-otel = { workspace = true, optional = true }
 salvo-oapi = { workspace = true, features = ["full"], optional = true }
 salvo-craft = { workspace = true, optional = true }
+salvo-tus = { workspace = true, optional = true }
 
 [lints]
 workspace = true

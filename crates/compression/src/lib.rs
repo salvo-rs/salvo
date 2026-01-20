@@ -8,7 +8,6 @@ use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 use indexmap::IndexMap;
-
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
     ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,

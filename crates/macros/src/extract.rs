@@ -1,7 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::parse::Parse;
-use syn::parse::ParseStream;
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
@@ -9,10 +8,8 @@ use syn::{
     Type,
 };
 
-use crate::{
-    attribute, omit_type_path_lifetimes, salvo_crate,
-    serde_util::{self, RenameRule, SerdeValue},
-};
+use crate::serde_util::{self, RenameRule, SerdeValue};
+use crate::{attribute, omit_type_path_lifetimes, salvo_crate};
 
 struct FieldInfo {
     ident: Option<Ident>,

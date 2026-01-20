@@ -101,8 +101,8 @@ impl HostFilter {
 impl Filter for HostFilter {
     #[inline]
     async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        // Http1, if `fix-http1-request-uri` feature is disabled, host is lack. so use header host instead.
-        // https://github.com/hyperium/hyper/issues/1310
+        // Http1, if `fix-http1-request-uri` feature is disabled, host is lack. so use header host
+        // instead. https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
@@ -159,8 +159,8 @@ impl PortFilter {
 impl Filter for PortFilter {
     #[inline]
     async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        // Http1, if `fix-http1-request-uri` feature is disabled, port is lack. so use header host instead.
-        // https://github.com/hyperium/hyper/issues/1310
+        // Http1, if `fix-http1-request-uri` feature is disabled, port is lack. so use header host
+        // instead. https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]

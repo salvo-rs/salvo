@@ -1,6 +1,5 @@
-use salvo::prelude::*;
-
 use juniper::http::GraphQLRequest;
+use salvo::prelude::*;
 use schema::create_schema;
 
 use crate::schema::DatabaseContext;

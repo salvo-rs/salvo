@@ -7,7 +7,6 @@ use std::pin::Pin;
 use std::task::{self, Context, Poll, ready};
 
 use bytes::{Buf, Bytes};
-
 use http::{Request, Response, Version};
 use hyper::service::Service;
 use pin_project::pin_project;
@@ -21,8 +20,6 @@ use crate::rt::tokio::TokioIo;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-#[cfg(feature = "http2")]
-use crate::rt::tokio::TokioExecutor;
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
@@ -30,6 +27,8 @@ use hyper::server::conn::http2;
 
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
+#[cfg(feature = "http2")]
+use crate::rt::tokio::TokioExecutor;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 

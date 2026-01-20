@@ -11,10 +11,8 @@ use cookie::{Cookie, CookieJar};
 use http::Extensions;
 use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
-use http::uri::{Scheme, Uri};
-
 pub use http::request::Parts;
-
+use http::uri::{Scheme, Uri};
 use http_body_util::{BodyExt, Limited};
 use multimap::MultiMap;
 use parking_lot::RwLock;
@@ -299,13 +297,14 @@ impl Request {
 
     /// Returns a mutable reference to the associated URI.
     ///
-    /// *Notice: If you using this mutable reference to change the uri, you should change the `params` and `queries` manually.*
+    /// *Notice: If you using this mutable reference to change the uri, you should change the
+    /// `params` and `queries` manually.*
     ///
     /// # Examples
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let mut req: Request= Request::default();
+    /// let mut req: Request = Request::default();
     /// *req.uri_mut() = "/hello".parse().unwrap();
     /// assert_eq!(*req.uri(), *"/hello");
     /// ```
@@ -433,7 +432,8 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut req: Request = Request::default();
-    /// req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// req.headers_mut()
+    ///     .insert(HOST, HeaderValue::from_static("world"));
     /// assert!(!req.headers().is_empty());
     /// ```
     #[inline]
@@ -469,8 +469,9 @@ impl Request {
 
     /// Modify a header for this request.
     ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
-    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be
+    /// replaced. When `overwrite` is set to `false`, The new header is always appended to the
+    /// request, even if the header already exists.
     pub fn add_header<N, V>(
         &mut self,
         name: N,

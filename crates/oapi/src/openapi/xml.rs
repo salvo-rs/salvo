@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 /// Implements [OpenAPI Xml Object][xml_object].
 ///
-/// Can be used to modify xml output format of specific [OpenAPI Schema Object][schema_object] which are
-/// implemented in [`schema`][schema] module.
+/// Can be used to modify xml output format of specific [OpenAPI Schema Object][schema_object] which
+/// are implemented in [`schema`][schema] module.
 ///
 /// [xml_object]: https://spec.openapis.org/oas/latest.html#xml-object
 /// [schema_object]: https://spec.openapis.org/oas/latest.html#schema-object
@@ -34,8 +34,8 @@ pub struct Xml {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribute: Option<bool>,
 
-    /// Flag only usable with array definition. If set to true the output xml will wrap the array of items
-    /// `<pets><pet></pet></pets>` instead of unwrapped `<pet></pet>`.
+    /// Flag only usable with array definition. If set to true the output xml will wrap the array
+    /// of items `<pets><pet></pet></pets>` instead of unwrapped `<pet></pet>`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrapped: Option<bool>,
 }

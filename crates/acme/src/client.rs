@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
-use base64::engine::{Engine, general_purpose::URL_SAFE_NO_PAD};
+use base64::engine::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::legacy::{Client, connect::HttpConnector};
+use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use salvo_core::{Error as CoreError, Result as CoreResult};
 use serde::{Deserialize, Serialize};

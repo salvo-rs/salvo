@@ -274,8 +274,8 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s [`syn::TypePath`]
-    /// is a given type as [`str`].
+    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s
+    /// [`syn::TypePath`] is a given type as [`str`].
     pub(crate) fn is(&self, s: &str) -> bool {
         let mut is = self
             .path
@@ -308,12 +308,12 @@ impl<'t> TypeTree<'t> {
     //     } else {
     //         self.children
     //             .as_mut()
-    //             .and_then(|children| children.iter_mut().find_map(|child| Self::find_mut(child, type_tree)))
-    //     }
+    //             .and_then(|children| children.iter_mut().find_map(|child| Self::find_mut(child,
+    // type_tree)))     }
     // }
 
-    /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
-    /// with `value_type` attribute to hinder the actual type.
+    /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically
+    /// used with `value_type` attribute to hinder the actual type.
     pub(crate) fn is_object(&self) -> bool {
         self.is("Object")
     }

@@ -4,7 +4,7 @@ use crate::feature::validation::*;
 use crate::feature::{Feature, Validatable};
 
 macro_rules! impl_get_name {
-    ( $ident:ident = $name:literal ) => {
+    ($ident:ident = $name:literal) => {
         impl crate::feature::GetName for $ident {
             fn get_name() -> &'static str {
                 $name

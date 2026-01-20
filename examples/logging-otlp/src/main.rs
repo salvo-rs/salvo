@@ -5,9 +5,11 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use salvo::logging::Logger;
 use salvo::prelude::*;
-use tracing::{instrument, level_filters::LevelFilter};
+use tracing::instrument;
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::Layer;
-use tracing_subscriber::fmt::{self, format::FmtSpan};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::fmt::{self};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 

@@ -41,7 +41,8 @@ impl FromStr for SourceFrom {
 /// Parser for a source.
 ///
 /// This parser is used to parse field data, not the request mime type.
-/// For example, if request is posted as form, but the field is string as json format, it can be parsed as json.
+/// For example, if request is posted as form, but the field is string as json format, it can be
+/// parsed as json.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum SourceParser {

@@ -141,9 +141,8 @@ impl<C: Display> Display for Text<C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
-
     use super::*;
+    use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]

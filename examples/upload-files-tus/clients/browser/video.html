@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>tus-js-client demo - Stream Video</title>
+    <link
+      href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css"
+      rel="stylesheet"
+    />
+    <link href="./demo.css" rel="stylesheet" media="screen" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>tus-js-client demo - Stream Video</h1>
+
+      <p>
+        This demo shows tus' support for uploading streams while the data is still arriving. Using
+        the controls below you can start recording a video from your webcam which is directly
+        uploaded to the specified tus endpoint. This is different from regular file uploads since
+        the entire video size is not known in advance. tus' support for
+        <a href="https://tus.io/protocols/resumable-upload.html#upload-defer-length"
+          >deferring the upload length</a
+        >
+        makes this possible.
+      </p>
+
+      <div class="alert alert-warining hidden" id="support-alert">
+        <b>Warning!</b> Your browser does not seem to support the features necessary to run
+        tus-js-client. The buttons below may work but probably will fail silently.
+      </div>
+
+      <br />
+
+      <table>
+        <tr>
+          <td>
+            <label for="endpoint"> Upload endpoint: </label>
+          </td>
+          <td>
+            <input type="text" id="endpoint" name="endpoint" value="http://localhost:5800/files/" />
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label for="chunksize"> Chunk size (bytes): </label>
+          </td>
+          <td>
+            <input type="number" id="chunksize" name="chunksize" value="1000000" />
+          </td>
+        </tr>
+      </table>
+
+      <p id="progress-note"></p>
+
+      <button class="btn" id="record-btn">Start Recording</button>
+
+      <hr />
+
+      <h3>Uploads</h3>
+      <p>Successful uploads will be listed here. Try one!</p>
+      <ul id="upload-list"></ul>
+    </div>
+  </body>
+
+  <script src="./dist/tus.js"></script>
+  <script src="./video.js"></script>
+</html>

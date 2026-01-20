@@ -237,8 +237,8 @@ fn file_hash_part(data: &[String]) -> String {
 //         assert_eq!(result.unwrap().unwrap(), key_data);
 
 //         // Test write_cert
-//         let result = AcmeCache::write_cert(&cache_path, directory_name, &domains, cert_data).await;
-//         assert!(result.is_ok());
+//         let result = AcmeCache::write_cert(&cache_path, directory_name, &domains,
+// cert_data).await;         assert!(result.is_ok());
 
 //         // Test read_cert
 //         let result = AcmeCache::read_cert(&cache_path, directory_name, &domains).await;

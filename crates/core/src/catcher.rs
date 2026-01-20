@@ -1,7 +1,7 @@
 //! Catch and handle errors.
 //!
-//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then salvo
-//! will try to use `Catcher` to catch the error and display a friendly error page.
+//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then
+//! salvo will try to use `Catcher` to catch the error and display a friendly error page.
 //!
 //! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to
 //! [`Service`](crate::Service):
@@ -9,8 +9,8 @@
 //! # Example
 //!
 //! ```
-//! use salvo_core::prelude::*;
 //! use salvo_core::catcher::Catcher;
+//! use salvo_core::prelude::*;
 //!
 //! #[handler]
 //! async fn handle404(&self, res: &mut Response, ctrl: &mut FlowCtrl) {
@@ -31,8 +31,9 @@
 //! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`.
 //! The error handler is still [`Handler`].
 //!
-//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error
-//! handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers and return early.
+//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`].
+//! The custom error handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers
+//! and return early.
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -435,10 +436,9 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
-
-    use super::*;
 
     struct CustomError;
     #[async_trait]
