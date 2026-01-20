@@ -251,11 +251,11 @@ impl TryToTokens for ToParameters {
                             #serde_rename_all
                     )
                 }
-                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
-                    #salvo::serde::from_request(req, Self::metadata()).await
+                async fn extract(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
+                    #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
-                    Self::extract(req).await
+                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
+                    Self::extract(req, depot).await
                 }
             }
         });
