@@ -12,6 +12,7 @@ use crate::extract::metadata::{Field, Metadata, Source, SourceFrom, SourceParser
 use crate::http::ParseError;
 use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
+use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
 
 pub async fn from_request<'de, T>(
@@ -541,7 +542,8 @@ mod tests {
             .query("state", "open")
             .query("state", "closed_cooperative")
             .build();
-        let data: ByStateParams = req.extract().await.unwrap();
+        let mut depot = Depot::new();
+        let data: ByStateParams = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data.state,
             State::Multiple(vec![DBState::Open, DBState::ClosedCooperative])
