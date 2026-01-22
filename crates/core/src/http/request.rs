@@ -894,10 +894,20 @@ impl Request {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
                 let body = self.take_body();
-                let headers = self.headers();
-                self.form_data
-                    .get_or_try_init(|| async { FormData::read(headers, body).await })
-                    .await
+                if body.is_none() {
+                    let bytes = self.payload().await?.to_owned();
+                    let headers = self.headers();
+                    self.form_data
+                        .get_or_try_init(|| async {
+                            FormData::read(headers, ReqBody::Once(bytes)).await
+                        })
+                        .await
+                } else {
+                    let headers = self.headers();
+                    self.form_data
+                        .get_or_try_init(|| async { FormData::read(headers, body).await })
+                        .await
+                }
             } else {
                 Err(ParseError::NotFormData)
             }
@@ -1158,5 +1168,51 @@ file content\r\n\
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
+    }
+
+    #[tokio::test]
+    async fn test_form_data_after_payload() {
+        // Test URL-encoded form: access payload first, then form_data should still work
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+
+        // Access payload first (simulates middleware or other code reading the body)
+        let payload = req.payload().await.unwrap();
+        assert!(!payload.is_empty());
+
+        // Now form_data should still work
+        let form_data = req.form_data().await.unwrap();
+        assert_eq!(form_data.fields.get("username").unwrap(), "test_user");
+        assert_eq!(form_data.fields.get("password").unwrap(), "secret123");
+
+        // Test multipart form: access payload first, then form_data should still work
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+
+        // Access payload first
+        let payload = req.payload().await.unwrap();
+        assert!(!payload.is_empty());
+
+        // form_data should still work after payload was accessed
+        let form_data = req.form_data().await.unwrap();
+        assert_eq!(form_data.fields.get("title").unwrap(), "My Document");
+        let file = form_data.files.get("file").unwrap();
+        assert_eq!(file.name().unwrap(), "test.txt");
     }
 }

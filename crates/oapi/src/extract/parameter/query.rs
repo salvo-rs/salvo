@@ -1,10 +1,9 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use salvo_core::Depot;
-use salvo_core::Request;
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
+use salvo_core::{Depot, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
