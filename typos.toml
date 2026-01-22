@@ -11,7 +11,7 @@ AttributeIDSupressMenu = "AttributeIDSupressMenu"
 [default.extend-words]
 # Don't correct the surname "Teh"
 teh = "teh"
-HashiCorp = "HashiCorp"
+Hashi = "Hashi"
 
 [files]
 extend-exclude = ["**/*.js", "**/*.css", "**/*.html", "examples/*/static/**/*.*"]
