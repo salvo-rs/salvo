@@ -1,12 +1,13 @@
 //! Form parse module.
+use std::error::Error as StdError;
 use std::ffi::OsStr;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Error as IoError, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use bytes::{Bytes, BytesMut};
 use futures_util::StreamExt;
-use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
@@ -18,7 +19,96 @@ use tokio::io::AsyncWriteExt;
 
 use crate::http::ParseError;
 use crate::http::body::ReqBody;
-use crate::http::header::{CONTENT_TYPE, HeaderMap};
+use crate::http::header::{CONTENT_LENGTH, CONTENT_TYPE, HeaderMap};
+
+#[derive(Debug)]
+struct PayloadTooLargeError {
+    max_size: usize,
+}
+
+impl std::fmt::Display for PayloadTooLargeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "payload too large (limit: {} bytes)", self.max_size)
+    }
+}
+
+impl StdError for PayloadTooLargeError {}
+
+fn payload_too_large_io(max_size: usize) -> IoError {
+    IoError::new(ErrorKind::Other, PayloadTooLargeError { max_size })
+}
+
+fn is_payload_too_large_error(error: &multer::Error) -> bool {
+    let mut source = error.source();
+    while let Some(err) = source {
+        if err.downcast_ref::<PayloadTooLargeError>().is_some() {
+            return true;
+        }
+        if let Some(io_err) = err.downcast_ref::<IoError>() {
+            if let Some(inner) = io_err.get_ref() {
+                if inner.downcast_ref::<PayloadTooLargeError>().is_some() {
+                    return true;
+                }
+            }
+        }
+        source = err.source();
+    }
+    false
+}
+
+fn map_multer_error(error: multer::Error, max_size: usize) -> ParseError {
+    if is_payload_too_large_error(&error) {
+        ParseError::PayloadTooLarge { max_size }
+    } else {
+        ParseError::Multer(error)
+    }
+}
+
+fn content_length_exceeds(headers: &HeaderMap, max_size: usize) -> bool {
+    let Some(value) = headers.get(CONTENT_LENGTH) else {
+        return false;
+    };
+    let Ok(value) = value.to_str() else {
+        return false;
+    };
+    let Ok(length) = value.parse::<u64>() else {
+        return false;
+    };
+    length as u128 > max_size as u128
+}
+
+async fn collect_with_max_size(mut body: ReqBody, max_size: usize) -> Result<Bytes, ParseError> {
+    let mut buf = BytesMut::new();
+    let mut total = 0usize;
+    while let Some(frame) = body.next().await {
+        let frame = frame.map_err(ParseError::Io)?;
+        let data = frame.into_data().unwrap_or_default();
+        total = total.saturating_add(data.len());
+        if total > max_size {
+            return Err(ParseError::PayloadTooLarge { max_size });
+        }
+        buf.extend_from_slice(&data);
+    }
+    Ok(buf.freeze())
+}
+
+fn limit_stream(
+    body: ReqBody,
+    max_size: usize,
+) -> impl futures_util::Stream<Item = Result<Bytes, IoError>> {
+    let mut remaining = max_size;
+    body.map(move |frame_result| {
+        frame_result.and_then(|frame| {
+            let data = frame.into_data().unwrap_or_default();
+            let len = data.len();
+            if len > remaining {
+                return Err(payload_too_large_io(max_size));
+            }
+            remaining -= len;
+            Ok(data)
+        })
+    })
+}
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 #[derive(Debug)]
@@ -43,18 +133,22 @@ impl FormData {
         }
     }
 
-    /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<Self, ParseError> {
+    /// Parse MIME `multipart/*` information from a stream as a `FormData` with size limit.
+    pub(crate) async fn read_with_max_size(
+        headers: &HeaderMap,
+        body: ReqBody,
+        max_size: usize,
+    ) -> Result<Self, ParseError> {
+        if content_length_exceeds(headers, max_size) {
+            return Err(ParseError::PayloadTooLarge { max_size });
+        }
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok());
         match ctype {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
-                let data = BodyExt::collect(body)
-                    .await
-                    .map_err(ParseError::other)?
-                    .to_bytes();
+                let data = collect_with_max_size(body, max_size).await?;
                 let mut form_data = Self::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
@@ -66,17 +160,23 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
-                    let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
+                    let body = limit_stream(body, max_size);
                     let mut multipart = Multipart::new(body, boundary);
-                    while let Some(mut field) = multipart.next_field().await? {
-                        if let Some(name) = field.name().map(|s| s.to_owned()) {
-                            if field.headers().get(CONTENT_TYPE).is_some() {
-                                form_data
-                                    .files
-                                    .insert(name, FilePart::create(&mut field).await?);
-                            } else {
-                                form_data.fields.insert(name, field.text().await?);
+                    loop {
+                        match multipart.next_field().await {
+                            Ok(Some(mut field)) => {
+                                if let Some(name) = field.name().map(|s| s.to_owned()) {
+                                    if field.headers().get(CONTENT_TYPE).is_some() {
+                                        form_data
+                                            .files
+                                            .insert(name, FilePart::create(&mut field).await?);
+                                    } else {
+                                        form_data.fields.insert(name, field.text().await?);
+                                    }
+                                }
                             }
+                            Ok(None) => break,
+                            Err(error) => return Err(map_multer_error(error, max_size)),
                         }
                     }
                 }

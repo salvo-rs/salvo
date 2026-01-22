@@ -15,6 +15,12 @@ pub type ParseResult<T> = Result<T, ParseError>;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum ParseError {
+    /// Request payload exceeds the configured maximum size.
+    #[error("payload too large (limit: {max_size} bytes)")]
+    PayloadTooLarge {
+        /// Maximum allowed payload size in bytes.
+        max_size: usize,
+    },
     /// The Hyper request did not have a valid Content-Type header.
     #[error("the request did not have a valid Content-Type header")]
     InvalidContentType,
@@ -108,11 +114,11 @@ impl ParseError {
 #[async_trait]
 impl Writer for ParseError {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render(
-            StatusError::bad_request()
-                .brief("parse http data failed.")
-                .cause(self),
-        );
+        let status = match &self {
+            ParseError::PayloadTooLarge { .. } => StatusError::payload_too_large(),
+            _ => StatusError::bad_request().brief("parse http data failed."),
+        };
+        res.render(status.cause(self));
     }
 }
 
