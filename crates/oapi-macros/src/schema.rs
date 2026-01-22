@@ -134,6 +134,20 @@ impl TryToTokens for ToSchema<'_> {
             Some(quote! { #oapi::oapi::naming::NameRule::Auto })
         };
         let variant = variant.try_to_token_stream()?;
+
+        // Generate code to ensure generic type parameters are registered before assign_name
+        // This ensures that resolve_generic_names can find their custom names
+        let generic_type_registrations: TokenStream = self
+            .generics
+            .type_params()
+            .map(|tp| {
+                let ty = &tp.ident;
+                quote! {
+                    let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
+                }
+            })
+            .collect();
+
         let body = match name_rule {
             None => {
                 quote! {
@@ -149,6 +163,9 @@ impl TryToTokens for ToSchema<'_> {
                     }
                 } else {
                     quote! {
+                        // First, ensure all generic type parameters are registered
+                        // so their custom names can be resolved
+                        #generic_type_registrations
                         let name = #oapi::oapi::naming::assign_name::<#ident #ty_generics>(#name_rule);
                     }
                 };
