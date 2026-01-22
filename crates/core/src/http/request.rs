@@ -899,7 +899,7 @@ impl Request {
                     let headers = self.headers();
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read_from_bytes(headers, bytes).await
+                            FormData::read(headers, ReqBody::Once(bytes)).await
                         })
                         .await
                 } else {
