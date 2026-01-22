@@ -48,7 +48,7 @@ fn test_derive_to_schema_generics() {
     assert_json_eq!(
         schemas,
         json!({
-            "MyObject_String_": {
+            "MyStr_String_": {
                 "type": "object",
                 "required": [
                     "value"
@@ -59,7 +59,7 @@ fn test_derive_to_schema_generics() {
                     }
                 }
             },
-            "MyObject_i32_": {
+            "MyI32_i32_": {
                 "type": "object",
                 "required": [
                     "value"
@@ -99,7 +99,7 @@ fn test_derive_to_schema_generics() {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MyObject_i32_"
+                                    "$ref": "#/components/schemas/MyI32_i32_"
                                 }
                             }
                         }
@@ -127,7 +127,7 @@ fn test_derive_to_schema_generics() {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MyObject_String_"
+                                    "$ref": "#/components/schemas/MyStr_String_"
                                 }
                             }
                         }
