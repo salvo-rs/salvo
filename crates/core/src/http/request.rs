@@ -1184,14 +1184,8 @@ file content\r\n\
 
         // Now form_data should still work
         let form_data = req.form_data().await.unwrap();
-        assert_eq!(
-            form_data.fields.get("username").unwrap(),
-            "test_user"
-        );
-        assert_eq!(
-            form_data.fields.get("password").unwrap(),
-            "secret123"
-        );
+        assert_eq!(form_data.fields.get("username").unwrap(), "test_user");
+        assert_eq!(form_data.fields.get("password").unwrap(), "secret123");
 
         // Test multipart form: access payload first, then form_data should still work
         let mut req = TestClient::post("http://127.0.0.1:8698/upload")
