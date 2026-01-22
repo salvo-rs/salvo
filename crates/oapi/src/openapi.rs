@@ -1479,7 +1479,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "uint16",
+                                    "format": "int32",
                                     "minimum": 0.0
                                 },
                                 "detail": {

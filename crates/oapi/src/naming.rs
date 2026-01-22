@@ -119,7 +119,9 @@ fn resolve_generic_part(generic_part: &str) -> String {
                 // Recursively resolve nested generics
                 resolve_generic_names(param)
             } else {
-                param.to_string()
+                // Use short name for unregistered types (like primitive types)
+                // e.g., "alloc::string::String" -> "String"
+                short_type_name(param).to_string()
             }
         })
         .collect();
@@ -151,6 +153,20 @@ fn split_generic_params(s: &str) -> Vec<&str> {
     }
 
     result
+}
+
+/// Extract the short name from a fully qualified type path.
+///
+/// For example:
+/// - `alloc::string::String` -> `String`
+/// - `std::collections::HashMap` -> `HashMap`
+/// - `my_crate::module::MyType` -> `MyType`
+fn short_type_name(type_name: &str) -> &str {
+    // Find the last `::` and return everything after it
+    type_name
+        .rfind("::")
+        .map(|pos| &type_name[pos + 2..])
+        .unwrap_or(type_name)
 }
 
 /// Set type info by name.
@@ -345,17 +361,53 @@ mod tests {
             city_type_name,
         );
 
-        // Test resolve_generic_names
+        // Test resolve_generic_names with registered type
         let resolved = resolve_generic_names("Response<test_module::CityDTO>");
         assert_eq!(resolved, "Response<City>");
 
-        // Test nested generics
+        // Test nested generics - unregistered types get short names
         let resolved = resolve_generic_names("Vec<HashMap<String, test_module::CityDTO>>");
         assert_eq!(resolved, "Vec<HashMap<String, City>>");
 
         // Test multiple generic parameters
         let resolved = resolve_generic_names("Tuple<test_module::CityDTO, test_module::CityDTO>");
         assert_eq!(resolved, "Tuple<City, City>");
+    }
+
+    #[test]
+    fn test_resolve_primitive_types() {
+        use super::*;
+
+        // Clear registry for this test
+        NAME_TYPES.write().clear();
+
+        // Test with primitive types (not registered, should use short names in generic params)
+        let resolved = resolve_generic_names("Response<alloc::string::String>");
+        assert_eq!(resolved, "Response<String>");
+
+        // Note: The base type (Vec) keeps its path, only generic params are shortened
+        // FlexNamer::assign_name handles the full path transformation later
+        let resolved = resolve_generic_names("Vec<alloc::vec::Vec<alloc::string::String>>");
+        assert_eq!(resolved, "Vec<alloc::vec::Vec<String>>");
+
+        // Test HashMap with primitive types
+        let resolved =
+            resolve_generic_names("std::collections::HashMap<alloc::string::String, i32>");
+        assert_eq!(resolved, "std::collections::HashMap<String, i32>");
+
+        // Test that nested generic base types are also shortened in their generics
+        let resolved = resolve_generic_names("Option<Vec<alloc::string::String>>");
+        assert_eq!(resolved, "Option<Vec<String>>");
+    }
+
+    #[test]
+    fn test_short_type_name() {
+        use super::*;
+
+        assert_eq!(short_type_name("alloc::string::String"), "String");
+        assert_eq!(short_type_name("std::collections::HashMap"), "HashMap");
+        assert_eq!(short_type_name("MyType"), "MyType");
+        assert_eq!(short_type_name("my_crate::module::submodule::Type"), "Type");
     }
 
     #[test]
@@ -403,6 +455,33 @@ mod tests {
             wrapper_name.contains("<City>"),
             "Expected wrapper name to contain '<City>', got: {}",
             wrapper_name
+        );
+    }
+
+    #[test]
+    fn test_assign_name_with_primitive_generics() {
+        use super::*;
+
+        // Reset namer to default state
+        set_namer(FlexNamer::new());
+
+        mod test_primitive_generics {
+            pub(super) struct Response<T>(std::marker::PhantomData<T>);
+        }
+        use test_primitive_generics::*;
+
+        // Test Response<String> with Force("Response")
+        // String is not registered, but should be shortened to "String"
+        let response_name = assign_name::<Response<String>>(NameRule::Force("Response"));
+        assert_eq!(response_name, "Response<String>");
+
+        // Test Response<Vec<String>> - nested generics with primitives
+        let response_vec_name =
+            assign_name::<Response<Vec<String>>>(NameRule::Force("ResponseVec"));
+        assert!(
+            response_vec_name.contains("<String>"),
+            "Expected name to contain '<String>', got: {}",
+            response_vec_name
         );
     }
 }
