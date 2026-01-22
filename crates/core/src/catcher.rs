@@ -1,12 +1,30 @@
-//! Catch and handle errors.
+//! Error catching and custom error page handling.
 //!
-//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then
-//! salvo will try to use `Catcher` to catch the error and display a friendly error page.
+//! When a [`Response`] has an error status code (4xx or 5xx) and an empty body,
+//! Salvo uses a `Catcher` to generate a user-friendly error page.
 //!
-//! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to
-//! [`Service`](crate::Service):
+//! # Overview
 //!
-//! # Example
+//! The catcher system provides:
+//!
+//! - **Default error pages** in multiple formats (HTML, JSON, XML, Plain text)
+//! - **Custom error handlers** for specific status codes or error types
+//! - **Middleware-style chaining** of error handlers
+//! - **Content negotiation** based on the `Accept` header
+//!
+//! # Basic Usage
+//!
+//! Add a default catcher to your service:
+//!
+//! ```ignore
+//! use salvo_core::prelude::*;
+//!
+//! let service = Service::new(router).catcher(Catcher::default());
+//! ```
+//!
+//! # Custom Error Handlers
+//!
+//! Create custom handlers for specific errors:
 //!
 //! ```
 //! use salvo_core::catcher::Catcher;
@@ -16,7 +34,7 @@
 //! async fn handle404(&self, res: &mut Response, ctrl: &mut FlowCtrl) {
 //!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
 //!         res.render("Custom 404 Error Page");
-//!         ctrl.skip_rest();
+//!         ctrl.skip_rest(); // Skip remaining handlers
 //!     }
 //! }
 //!
@@ -26,14 +44,49 @@
 //! }
 //! ```
 //!
-//! The default [`Catcher`] supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+//! # Multiple Error Handlers
 //!
-//! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`.
-//! The error handler is still [`Handler`].
+//! Chain multiple handlers for different error types:
 //!
-//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`].
-//! The custom error handler can call [`FlowCtrl::skip_rest()`] method to skip next error handlers
-//! and return early.
+//! ```ignore
+//! let catcher = Catcher::default()
+//!     .hoop(handle404)
+//!     .hoop(handle500)
+//!     .hoop(handle_api_errors);
+//! ```
+//!
+//! Handlers are called in order. Use [`FlowCtrl::skip_rest()`] to stop processing.
+//!
+//! # Response Formats
+//!
+//! The default [`Catcher`] supports sending error pages in multiple formats
+//! based on the request's `Accept` header:
+//!
+//! | Accept Header | Response Format |
+//! |---------------|-----------------|
+//! | `text/html` | HTML page with styling |
+//! | `application/json` | JSON object |
+//! | `application/xml` | XML document |
+//! | `text/plain` | Plain text |
+//!
+//! # Environment Variables
+//!
+//! Control error detail visibility with `SALVO_STATUS_ERROR`:
+//!
+//! ```sh
+//! # Show full details (not recommended for production)
+//! SALVO_STATUS_ERROR=force_detail,force_cause
+//!
+//! # Show details only in debug builds
+//! SALVO_STATUS_ERROR=debug_detail,debug_cause
+//!
+//! # Never show details (secure default)
+//! SALVO_STATUS_ERROR=never_detail,never_cause
+//! ```
+//!
+//! Options:
+//! - `force_detail` / `debug_detail` / `never_detail`: Control error detail visibility
+//! - `force_cause` / `debug_cause` / `never_cause`: Control error cause visibility
 
 use std::borrow::Cow;
 use std::collections::HashSet;

@@ -1,4 +1,46 @@
-//! Filesystem module
+//! Filesystem utilities for serving files in HTTP responses.
+//!
+//! This module provides types for efficiently reading and serving files,
+//! with support for chunked transfer and range requests.
+//!
+//! # Key Types
+//!
+//! - [`NamedFile`]: Represents a file with metadata for HTTP serving
+//! - [`ChunkedFile`]: A streaming reader that reads files in configurable chunks
+//!
+//! # Example
+//!
+//! Using `NamedFile` to serve a file:
+//!
+//! ```ignore
+//! use salvo_core::fs::NamedFile;
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn serve_file(res: &mut Response) {
+//!     let file = NamedFile::open("./static/document.pdf").await.unwrap();
+//!     res.send_file(file);
+//! }
+//! ```
+//!
+//! Using the builder pattern for more control:
+//!
+//! ```ignore
+//! use salvo_core::fs::NamedFile;
+//!
+//! let file = NamedFile::builder("./downloads/report.pdf")
+//!     .attached_name("monthly-report.pdf")
+//!     .buffer_size(65536)
+//!     .build()
+//!     .await
+//!     .unwrap();
+//! ```
+//!
+//! # Chunked Reading
+//!
+//! Large files are read in chunks to avoid loading the entire file into memory.
+//! The [`ChunkedFile`] struct implements [`Stream`](futures_util::stream::Stream),
+//! yielding [`Bytes`](bytes::Bytes) chunks as they are read.
 mod named_file;
 use std::cmp;
 use std::fmt::{self, Debug, Formatter};
@@ -10,15 +52,49 @@ use bytes::Bytes;
 use futures_util::stream::Stream;
 pub use named_file::*;
 
+/// Internal state machine for [`ChunkedFile`].
 pub(crate) enum ChunkedState<T> {
+    /// Holding the file, ready to start the next read operation.
     File(Option<T>),
+    /// Waiting for a blocking read operation to complete.
     Future(tokio::task::JoinHandle<IoResult<(T, Bytes)>>),
 }
 
-/// A stream of bytes that reads a file in chunks.
+/// A streaming file reader that yields data in configurable chunks.
 ///
-/// This struct is used to read a file in chunks, where each chunk is a `Bytes` object.
-/// It implements the `Stream` trait from the `futures_util` crate.
+/// `ChunkedFile` implements [`Stream`](futures_util::stream::Stream), yielding
+/// [`Bytes`] chunks as the file is read. This allows large files to be served
+/// without loading the entire content into memory.
+///
+/// # How It Works
+///
+/// 1. Reading is performed in a blocking thread pool via `spawn_blocking`
+/// 2. Each read operation yields a chunk of up to `buffer_size` bytes
+/// 3. The stream completes when `total_size` bytes have been read
+///
+/// # Type Parameter
+///
+/// - `T`: The file type, which must implement [`Read`], [`Seek`], [`Unpin`], and [`Send`]
+///
+/// # Example
+///
+/// ```ignore
+/// use salvo_core::fs::ChunkedFile;
+/// use futures_util::StreamExt;
+/// use std::fs::File;
+///
+/// let file = File::open("large_file.bin").unwrap();
+/// let metadata = file.metadata().unwrap();
+///
+/// let mut stream = ChunkedFile::new(file, metadata.len(), 65536);
+///
+/// while let Some(chunk) = stream.next().await {
+///     match chunk {
+///         Ok(bytes) => println!("Read {} bytes", bytes.len()),
+///         Err(e) => eprintln!("Error: {}", e),
+///     }
+/// }
+/// ```
 pub struct ChunkedFile<T> {
     total_size: u64,
     read_size: u64,

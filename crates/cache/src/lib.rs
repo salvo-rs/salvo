@@ -1,15 +1,79 @@
-//! Cache middleware for the Salvo web framework.
+//! Response caching middleware for the Salvo web framework.
 //!
-//! Cache middleware for Salvo designed to intercept responses and cache them.
-//! This middleware will cache the response's StatusCode, Headers, and Body.
+//! This middleware intercepts HTTP responses and caches them for subsequent
+//! requests, reducing server load and improving response times for cacheable
+//! content.
 //!
-//! You can define your custom [`CacheIssuer`] to determine which responses should be cached,
-//! or you can use the default [`RequestIssuer`].
+//! # What Gets Cached
 //!
-//! The default cache store is [`MokaStore`], which is a wrapper of [`moka`].
-//! You can define your own cache store by implementing [`CacheStore`].
+//! The cache stores the complete response including:
+//! - HTTP status code
+//! - Response headers
+//! - Response body (except for streaming responses)
 //!
-//! Example: [cache-simple](https://github.com/salvo-rs/salvo/tree/main/examples/cache-simple)
+//! # Key Components
+//!
+//! - [`CacheIssuer`]: Determines the cache key for each request
+//! - [`CacheStore`]: Backend storage for cached responses
+//! - [`Cache`]: The middleware handler
+//!
+//! # Default Implementations
+//!
+//! - [`RequestIssuer`]: Generates cache keys from the request URI and method
+//! - [`MokaStore`]: High-performance concurrent cache backed by [`moka`]
+//!
+//! # Example
+//!
+//! ```ignore
+//! use std::time::Duration;
+//! use salvo_cache::{Cache, MokaStore, RequestIssuer};
+//! use salvo_core::prelude::*;
+//!
+//! let cache = Cache::new(
+//!     MokaStore::builder()
+//!         .time_to_live(Duration::from_secs(300))  // Cache for 5 minutes
+//!         .build(),
+//!     RequestIssuer::default(),
+//! );
+//!
+//! let router = Router::new()
+//!     .hoop(cache)
+//!     .get(my_expensive_handler);
+//! ```
+//!
+//! # Custom Cache Keys
+//!
+//! Implement [`CacheIssuer`] to customize cache key generation:
+//!
+//! ```ignore
+//! use salvo_cache::CacheIssuer;
+//!
+//! struct UserBasedIssuer;
+//! impl CacheIssuer for UserBasedIssuer {
+//!     type Key = String;
+//!
+//!     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+//!         // Cache per user + path
+//!         let user_id = depot.get::<String>("user_id").ok()?;
+//!         Some(format!("{}:{}", user_id, req.uri().path()))
+//!     }
+//! }
+//! ```
+//!
+//! # Skipping Cache
+//!
+//! By default, only GET requests are cached. Use the `skipper` method to customize:
+//!
+//! ```ignore
+//! let cache = Cache::new(store, issuer)
+//!     .skipper(|req, _depot| req.uri().path().starts_with("/api/"));
+//! ```
+//!
+//! # Limitations
+//!
+//! - Streaming responses ([`ResBody::Stream`]) cannot be cached
+//! - Error responses are not cached
+//!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
