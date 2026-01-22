@@ -621,9 +621,8 @@ impl Request {
     ///
     /// # Note
     ///
-    /// This limit only applies to methods that read the body into memory
-    /// (like [`payload()`](Request::payload)). File uploads are written to
-    /// temporary files and are not affected.
+    /// This limit applies to request body reads and form parsing, including
+    /// multipart file uploads. Increase the limit if you need to accept large uploads.
     pub fn set_secure_max_size(&mut self, size: usize) {
         self.secure_max_size = Some(size);
     }
