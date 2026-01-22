@@ -1,14 +1,88 @@
-//! Rate limiter middleware for Salvo.
+//! Rate limiting middleware for Salvo.
 //!
-//! Rate Limiter middleware is used to limiting the amount of requests to the server
-//! from a particular IP or id within a time period.
+//! This middleware protects your server from abuse by limiting the number of
+//! requests a client can make within a specified time period. It's essential
+//! for preventing denial-of-service attacks and ensuring fair resource usage.
 //!
-//! [`RateIssuer`] is used to issue a key to request, your can define your custom `RateIssuer`.
-//! If you want just identify user by IP address, you can use [`RemoteIpIssuer`].
+//! # Key Components
 //!
-//! [`QuotaGetter`] is used to get quota for every key.
+//! | Component | Purpose |
+//! |-----------|---------|
+//! | [`RateIssuer`] | Identifies clients (by IP, user ID, API key, etc.) |
+//! | [`QuotaGetter`] | Defines rate limits for each client |
+//! | [`RateGuard`] | Implements the limiting algorithm |
+//! | [`RateStore`] | Stores rate limit state |
 //!
-//! [`RateGuard`] is strategy to verify is the request exceeded quota.
+//! # Built-in Implementations
+//!
+//! ## Issuers
+//! - [`RemoteIpIssuer`]: Identifies clients by IP address
+//!
+//! ## Guards (Algorithms)
+//! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)
+//! - `SlidingGuard`: Sliding window algorithm (requires `sliding-guard` feature)
+//!
+//! ## Stores
+//! - [`MokaStore`]: In-memory store backed by moka (requires `moka-store` feature)
+//!
+//! # Example
+//!
+//! Basic rate limiting by IP address:
+//!
+//! ```ignore
+//! use salvo_rate_limiter::{RateLimiter, RemoteIpIssuer, BasicQuota, FixedGuard, MokaStore};
+//! use salvo_core::prelude::*;
+//!
+//! let limiter = RateLimiter::new(
+//!     FixedGuard::default(),
+//!     MokaStore::default(),
+//!     RemoteIpIssuer,
+//!     BasicQuota::per_minute(100),  // 100 requests per minute
+//! );
+//!
+//! let router = Router::new()
+//!     .hoop(limiter)
+//!     .get(my_handler);
+//! ```
+//!
+//! # Custom Quotas Per User
+//!
+//! Different users can have different rate limits:
+//!
+//! ```ignore
+//! use salvo_rate_limiter::{QuotaGetter, BasicQuota};
+//!
+//! struct TieredQuota;
+//! impl QuotaGetter<String> for TieredQuota {
+//!     type Quota = BasicQuota;
+//!     type Error = salvo_core::Error;
+//!
+//!     async fn get<Q>(&self, user_id: &Q) -> Result<Self::Quota, Self::Error>
+//!     where
+//!         String: std::borrow::Borrow<Q>,
+//!         Q: std::hash::Hash + Eq + Sync,
+//!     {
+//!         // Premium users get higher limits
+//!         if is_premium_user(user_id) {
+//!             Ok(BasicQuota::per_minute(1000))
+//!         } else {
+//!             Ok(BasicQuota::per_minute(60))
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! # Response Headers
+//!
+//! Enable rate limit headers in responses with `.add_headers(true)`:
+//!
+//! - `X-RateLimit-Limit`: Maximum requests allowed
+//! - `X-RateLimit-Remaining`: Requests remaining in current window
+//! - `X-RateLimit-Reset`: Unix timestamp when the limit resets
+//!
+//! # HTTP Status
+//!
+//! When the limit is exceeded, returns `429 Too Many Requests`.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

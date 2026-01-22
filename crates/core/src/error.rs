@@ -1,3 +1,50 @@
+//! Error types and handling for Salvo.
+//!
+//! This module provides the core error type [`Error`] used throughout Salvo,
+//! along with conversions from common error types and rendering support.
+//!
+//! # Error Type
+//!
+//! The [`Error`] enum wraps various error types that can occur during request
+//! handling:
+//!
+//! - HTTP parsing errors
+//! - I/O errors
+//! - JSON serialization errors
+//! - HTTP status errors
+//! - Custom errors via [`BoxedError`]
+//!
+//! # Error Handling in Handlers
+//!
+//! Handlers can return `Result<T, Error>` or `Result<T, impl Writer>`:
+//!
+//! ```ignore
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn example() -> Result<&'static str, salvo_core::Error> {
+//!     // Errors are automatically converted and rendered
+//!     Ok("Success")
+//! }
+//! ```
+//!
+//! # Custom Error Types
+//!
+//! Custom error types can be converted to [`Error`] using the [`other`](Error::other)
+//! method or by implementing `From`:
+//!
+//! ```ignore
+//! use salvo_core::Error;
+//!
+//! let custom_error = Error::other(MyCustomError::new("something failed"));
+//! ```
+//!
+//! # Integration with anyhow and eyre
+//!
+//! With the `anyhow` or `eyre` features enabled, errors from those crates
+//! are automatically convertible to [`Error`] and will render as 500 Internal
+//! Server Error responses.
+
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -6,51 +53,122 @@ use std::io::Error as IoError;
 use crate::http::{ParseError, StatusError};
 use crate::{Response, Scribe};
 
-/// `BoxedError` is a boxed error type that can be used as a trait object.
+/// A boxed error type for dynamic error handling.
+///
+/// This type alias provides a convenient way to work with any error type
+/// that implements `std::error::Error + Send + Sync`.
 pub type BoxedError = Box<dyn StdError + Send + Sync>;
 
-/// Errors that can happen inside salvo.
+/// The main error type used throughout Salvo.
+///
+/// This enum encompasses all error types that can occur during request processing,
+/// from low-level I/O errors to HTTP-specific errors.
+///
+/// # Rendering
+///
+/// `Error` implements [`Scribe`], which means it can be rendered directly to a
+/// response. Most error variants render as a 500 Internal Server Error, except
+/// for `HttpStatus` which uses the status code from the contained [`StatusError`].
+///
+/// # Error Conversion
+///
+/// Common error types automatically convert to `Error`:
+///
+/// ```ignore
+/// use salvo_core::Error;
+///
+/// // I/O errors
+/// let io_err: Error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found").into();
+///
+/// // JSON errors
+/// let json_err: Error = serde_json::from_str::<()>("invalid").unwrap_err().into();
+///
+/// // Custom errors
+/// let custom: Error = Error::other(MyError);
+/// ```
+///
+/// # Feature-Gated Variants
+///
+/// Some variants are only available with specific features:
+/// - `quinn`: HTTP/3 error variants
+/// - `anyhow`: `anyhow::Error` support
+/// - `eyre`: `eyre::Report` support
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    /// Error occurred in hyper.
+    /// Error from the hyper HTTP library.
+    ///
+    /// These errors typically occur during low-level HTTP processing.
     Hyper(hyper::Error),
-    /// Error happened when parse http.
+    /// HTTP parsing error.
+    ///
+    /// Occurs when request data cannot be parsed correctly.
     HttpParse(ParseError),
-    /// Error from http response error status.
+    /// HTTP status error with an associated status code.
+    ///
+    /// Unlike other variants, this error uses its contained status code
+    /// when rendering to a response.
     HttpStatus(StatusError),
-    /// Std I/O error.
+    /// Standard I/O error.
+    ///
+    /// Common for file operations and network issues.
     Io(IoError),
-    /// SerdeJson error.
+    /// JSON serialization/deserialization error.
     SerdeJson(serde_json::Error),
     /// Invalid URI error.
+    ///
+    /// Occurs when a URI cannot be parsed.
     InvalidUri(http::uri::InvalidUri),
+    /// HTTP/3 connection error (requires `quinn` feature).
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
-    /// H3 ConnectionError.
     H3Connection(salvo_http3::error::ConnectionError),
+    /// HTTP/3 stream error (requires `quinn` feature).
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
-    /// H3 StreamError.
     H3Stream(salvo_http3::error::StreamError),
+    /// HTTP/3 datagram send error (requires `quinn` feature).
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
-    /// H3 SendDatagramError.
     H3SendDatagram(h3_datagram::datagram_handler::SendDatagramError),
-    /// Anyhow error.
+    /// Error from the anyhow crate (requires `anyhow` feature).
     #[cfg(feature = "anyhow")]
     #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
     Anyhow(anyhow::Error),
-    /// Anyhow error.
+    /// Error from the eyre crate (requires `eyre` feature).
     #[cfg(feature = "eyre")]
     #[cfg_attr(docsrs, doc(cfg(feature = "eyre")))]
     Eyre(eyre::Report),
-    /// Custom error that does not fall under any other error kind.
+    /// Any other error type wrapped as a boxed trait object.
+    ///
+    /// Use [`Error::other`] to create this variant from any error type.
     Other(BoxedError),
 }
 
 impl Error {
-    /// Create a custom error.
+    /// Creates an `Error` from any error type.
+    ///
+    /// This is useful for wrapping custom error types that don't have
+    /// a dedicated variant in the `Error` enum.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use salvo_core::Error;
+    ///
+    /// #[derive(Debug)]
+    /// struct MyError(String);
+    ///
+    /// impl std::fmt::Display for MyError {
+    ///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    ///         write!(f, "{}", self.0)
+    ///     }
+    /// }
+    ///
+    /// impl std::error::Error for MyError {}
+    ///
+    /// let error = Error::other(MyError("something went wrong".into()));
+    /// ```
     #[inline]
     pub fn other(error: impl Into<BoxedError>) -> Self {
         Self::Other(error.into())

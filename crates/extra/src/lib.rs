@@ -1,28 +1,90 @@
-//! Extra features for Salvo web framework.
+//! Extra middleware and utilities for the Salvo web framework.
 //!
-//! This library provides some common web features.
+//! This crate provides a collection of commonly-needed web features as middleware
+//! and utilities that complement Salvo's core functionality. All features are
+//! opt-in through feature flags, allowing you to include only what you need.
 //!
-//! `salvo_extra` uses a set of [feature flags] to reduce the amount of compiled and
-//! optional dependencies.
+//! # Quick Start
 //!
-//! # Feature flags
+//! Add `salvo_extra` to your `Cargo.toml` with the features you need:
+//!
+//! ```toml
+//! [dependencies]
+//! salvo_extra = { version = "0.88", features = ["basic-auth", "websocket"] }
+//! ```
+//!
+//! Or use the `salvo` umbrella crate which re-exports these features:
+//!
+//! ```toml
+//! [dependencies]
+//! salvo = { version = "0.88", features = ["basic-auth", "websocket"] }
+//! ```
+//!
+//! # Feature Categories
+//!
+//! ## Authentication & Security
 //!
 //! | Feature | Description |
-//! | --- | --- |
-//! | [`affix-state`](affix_state) | Middleware for adding shared application state to the request context |
-//! | [`basic-auth`](basic_auth) | Middleware for basic authentication |
-//! | [`caching-headers`](caching_headers) | Middleware for setting caching headers |
-//! | [`catch-panic`](catch_panic) | Middleware for catching panics |
-//! | [`concurrency-limiter`](concurrency_limiter) | Middleware for limiting concurrency |
-//! | [`force-https`](force_https) | Middleware for forcing HTTPS |
-//! | [`logging`] | Middleware for logging requests and responses |
-//! | [`request-id`](request_id) | Middleware for setting a request ID |
-//! | [`size-limiter`](size_limiter) | Middleware for limiting request size |
-//! | [`sse`] | Server-Sent Events (SSE) middleware |
-//! | [`timeout`] | Middleware for setting a timeout |
-//! | [`trailing-slash`](trailing_slash) | Middleware for handling trailing slashes |
-//! | [`tower-compat`](tower_compat) | Adapters for `tower::Layer` and `tower::Service` |
-//! | [`websocket`] | WebSocket implementation |
+//! |---------|-------------|
+//! | [`basic-auth`](basic_auth) | HTTP Basic Authentication (RFC 7617) |
+//! | [`force-https`](force_https) | Redirect HTTP requests to HTTPS |
+//!
+//! ## Request/Response Processing
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | [`caching-headers`](caching_headers) | Add cache control headers |
+//! | [`size-limiter`](size_limiter) | Limit request body size |
+//! | [`timeout`] | Set request processing timeout |
+//! | [`trailing-slash`](trailing_slash) | Normalize URL trailing slashes |
+//!
+//! ## Concurrency & Resource Management
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | [`concurrency-limiter`](concurrency_limiter) | Limit concurrent requests |
+//! | [`affix-state`](affix_state) | Attach shared state to requests |
+//!
+//! ## Observability
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | [`logging`] | Request/response logging |
+//! | [`request-id`](request_id) | Unique request ID generation |
+//!
+//! ## Real-time Communication
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | [`sse`] | Server-Sent Events for streaming updates |
+//! | [`websocket`] | Full-duplex WebSocket connections |
+//!
+//! ## Error Handling & Integration
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | [`catch-panic`](catch_panic) | Convert panics to error responses |
+//! | [`tower-compat`](tower_compat) | Use Tower middleware with Salvo |
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use salvo::prelude::*;
+//! use salvo_extra::basic_auth::{BasicAuth, BasicAuthValidator};
+//! use salvo_extra::logging::Logger;
+//! use salvo_extra::timeout::Timeout;
+//! use std::time::Duration;
+//!
+//! // Apply multiple middleware
+//! let router = Router::new()
+//!     .hoop(Logger::new())
+//!     .hoop(Timeout::new(Duration::from_secs(30)))
+//!     .push(
+//!         Router::with_path("api")
+//!             .hoop(BasicAuth::new(MyValidator))
+//!             .get(my_handler)
+//!     );
+//! ```
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

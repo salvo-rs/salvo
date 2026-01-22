@@ -1,4 +1,46 @@
-//! HTTP body.
+//! HTTP request and response body types.
+//!
+//! This module provides the body types used for HTTP requests and responses:
+//!
+//! # Key Types
+//!
+//! - [`ReqBody`]: Request body type, supports streaming and buffering
+//! - [`ResBody`]: Response body type with multiple representations
+//! - [`BodySender`] / [`BodyReceiver`]: Channel for streaming responses
+//! - [`BytesFrame`]: A single frame of body data
+//!
+//! # Request Bodies
+//!
+//! Request bodies are read through [`ReqBody`], which supports:
+//! - Streaming reads via the `Body` trait
+//! - Buffered reads into `Bytes`
+//! - Automatic content-type handling
+//!
+//! # Response Bodies
+//!
+//! Response bodies can be:
+//! - Empty (`ResBody::None`)
+//! - Single chunk (`ResBody::Once`)
+//! - Multiple chunks (`ResBody::Chunks`)
+//! - Streaming (`ResBody::Stream`)
+//! - Error bodies (`ResBody::Error`)
+//!
+//! # Streaming Responses
+//!
+//! Use [`BodySender`] and [`BodyReceiver`] for streaming:
+//!
+//! ```ignore
+//! use salvo_core::http::body::{BodySender, ResBody};
+//!
+//! let (sender, body) = BodySender::new();
+//! res.body(ResBody::from(body));
+//!
+//! // Send data asynchronously
+//! tokio::spawn(async move {
+//!     sender.send_data(Bytes::from("chunk 1")).await;
+//!     sender.send_data(Bytes::from("chunk 2")).await;
+//! });
+//! ```
 
 pub use hyper::body::{Body, Frame, SizeHint};
 
