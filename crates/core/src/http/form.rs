@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use futures_util::StreamExt;
+use bytes::Bytes;
+use futures_util::{StreamExt, stream};
 use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
@@ -43,6 +44,46 @@ impl FormData {
         }
     }
 
+    pub(crate) async fn read_from_bytes(
+        headers: &HeaderMap,
+        data: Bytes,
+    ) -> Result<Self, ParseError> {
+        let ctype: Option<Mime> = headers
+            .get(CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok());
+        match ctype {
+            Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
+                let mut form_data = Self::new();
+                form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
+                Ok(form_data)
+            }
+            Some(ctype) if ctype.type_() == mime::MULTIPART => {
+                let mut form_data = Self::new();
+                if let Some(boundary) = headers
+                    .get(CONTENT_TYPE)
+                    .and_then(|ct| ct.to_str().ok())
+                    .and_then(|ct| multer::parse_boundary(ct).ok())
+                {
+                    let data_stream = stream::once(async move { Ok::<_, std::io::Error>(data) });
+                    let mut multipart = Multipart::new(data_stream, boundary);
+                    while let Some(mut field) = multipart.next_field().await? {
+                        if let Some(name) = field.name().map(|s| s.to_owned()) {
+                            if field.headers().get(CONTENT_TYPE).is_some() {
+                                form_data
+                                    .files
+                                    .insert(name, FilePart::create(&mut field).await?);
+                            } else {
+                                form_data.fields.insert(name, field.text().await?);
+                            }
+                        }
+                    }
+                }
+                Ok(form_data)
+            }
+            _ => Err(ParseError::InvalidContentType),
+        }
+    }
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<Self, ParseError> {
         let ctype: Option<Mime> = headers

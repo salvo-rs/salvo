@@ -894,10 +894,20 @@ impl Request {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
                 let body = self.take_body();
-                let headers = self.headers();
-                self.form_data
-                    .get_or_try_init(|| async { FormData::read(headers, body).await })
-                    .await
+                if !body.is_none() {
+                    let bytes = self.payload().await?.to_owned();
+                    let headers = self.headers();
+                    self.form_data
+                        .get_or_try_init(|| async {
+                            FormData::read_from_bytes(headers, bytes).await
+                        })
+                        .await
+                } else {
+                    let headers = self.headers();
+                    self.form_data
+                        .get_or_try_init(|| async { FormData::read(headers, body).await })
+                        .await
+                }
             } else {
                 Err(ParseError::NotFormData)
             }
