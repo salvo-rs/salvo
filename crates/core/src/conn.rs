@@ -20,8 +20,8 @@
 //! # Basic Usage
 //!
 //! ```no_run
-//! use salvo_core::prelude::*;
 //! use salvo_core::conn::TcpListener;
+//! use salvo_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -295,8 +295,8 @@ pub trait Acceptor: Send {
     ///
     /// # Parameters
     ///
-    /// - `fuse_factory`: Optional factory for creating fusewires to protect against
-    ///   slow HTTP attacks and other malicious patterns
+    /// - `fuse_factory`: Optional factory for creating fusewires to protect against slow HTTP
+    ///   attacks and other malicious patterns
     ///
     /// # Errors
     ///
@@ -396,7 +396,7 @@ pub trait Coupler: Send {
 /// # Basic Usage
 ///
 /// ```no_run
-/// use salvo_core::conn::{TcpListener, Listener};
+/// use salvo_core::conn::{Listener, TcpListener};
 ///
 /// # async fn example() {
 /// let acceptor = TcpListener::new("127.0.0.1:8080").bind().await;
@@ -409,7 +409,7 @@ pub trait Coupler: Send {
 /// when you need to handle binding errors gracefully:
 ///
 /// ```no_run
-/// use salvo_core::conn::{TcpListener, Listener};
+/// use salvo_core::conn::{Listener, TcpListener};
 ///
 /// # async fn example() -> salvo_core::Result<()> {
 /// let acceptor = TcpListener::new("127.0.0.1:8080").try_bind().await?;

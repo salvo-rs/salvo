@@ -34,7 +34,7 @@
 //! async fn handle404(&self, res: &mut Response, ctrl: &mut FlowCtrl) {
 //!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
 //!         res.render("Custom 404 Error Page");
-//!         ctrl.skip_rest();  // Skip remaining handlers
+//!         ctrl.skip_rest(); // Skip remaining handlers
 //!     }
 //! }
 //!

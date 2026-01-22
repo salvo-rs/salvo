@@ -91,10 +91,11 @@ impl Handler for SecureMaxSize {
 /// The request body can only be read once from the underlying stream. However, Salvo
 /// provides automatic caching mechanisms to allow multiple accesses:
 ///
-/// - [`payload()`](Request::payload) and [`payload_with_max_size()`](Request::payload_with_max_size)
-///   read the body and cache it internally. Subsequent calls return the cached bytes.
-/// - [`form_data()`](Request::form_data) parses form data and caches the result. If the body
-///   has already been consumed by `payload()`, it will use the cached bytes to parse the form.
+/// - [`payload()`](Request::payload) and
+///   [`payload_with_max_size()`](Request::payload_with_max_size) read the body and cache it
+///   internally. Subsequent calls return the cached bytes.
+/// - [`form_data()`](Request::form_data) parses form data and caches the result. If the body has
+///   already been consumed by `payload()`, it will use the cached bytes to parse the form.
 ///
 /// # Size Limits
 ///
@@ -632,8 +633,9 @@ impl Request {
 
     /// Returns the maximum allowed body size for this request.
     ///
-    /// Returns the request-specific limit if set via [`set_secure_max_size()`](Request::set_secure_max_size)
-    /// or [`SecureMaxSize`] middleware, otherwise returns the global default (64KB).
+    /// Returns the request-specific limit if set via
+    /// [`set_secure_max_size()`](Request::set_secure_max_size) or [`SecureMaxSize`] middleware,
+    /// otherwise returns the global default (64KB).
     pub fn secure_max_size(&self) -> usize {
         self.secure_max_size.unwrap_or_else(global_secure_max_size)
     }
@@ -1099,8 +1101,8 @@ impl Request {
     ///
     /// # Arguments
     ///
-    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this
-    ///   limit, an error is returned.
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit, an error
+    ///   is returned.
     ///
     /// # Caching Behavior
     ///
@@ -1138,8 +1140,8 @@ impl Request {
     /// This method intelligently handles body consumption:
     ///
     /// - If the body hasn't been consumed yet, it reads directly from the body stream.
-    /// - If the body was already consumed by [`payload()`](Request::payload), it reuses
-    ///   the cached payload bytes to parse the form data.
+    /// - If the body was already consumed by [`payload()`](Request::payload), it reuses the cached
+    ///   payload bytes to parse the form data.
     /// - The parsed [`FormData`] is cached, so subsequent calls return the cached result.
     ///
     /// This allows middleware to read the raw body via `payload()` while still allowing

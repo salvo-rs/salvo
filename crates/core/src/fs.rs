@@ -74,8 +74,7 @@ pub(crate) enum ChunkedState<T> {
 ///
 /// # Type Parameter
 ///
-/// - `T`: The file type, which must implement [`Read`], [`Seek`], [`Unpin`],
-///   and [`Send`]
+/// - `T`: The file type, which must implement [`Read`], [`Seek`], [`Unpin`], and [`Send`]
 ///
 /// # Example
 ///

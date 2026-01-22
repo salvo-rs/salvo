@@ -129,14 +129,14 @@ pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
 ///
 /// # Timeout Behavior
 ///
-/// - **TCP Idle Timeout**: Connection is terminated if no activity occurs within
-///   the idle timeout period. Any event resets this timer.
+/// - **TCP Idle Timeout**: Connection is terminated if no activity occurs within the idle timeout
+///   period. Any event resets this timer.
 ///
-/// - **TCP Frame Timeout**: After a `WaitFrame` event, the connection is terminated
-///   if a complete frame is not received within the frame timeout period.
+/// - **TCP Frame Timeout**: After a `WaitFrame` event, the connection is terminated if a complete
+///   frame is not received within the frame timeout period.
 ///
-/// - **TLS Handshake Timeout**: During TLS negotiation, the connection is terminated
-///   if the handshake does not complete within the handshake timeout period.
+/// - **TLS Handshake Timeout**: During TLS negotiation, the connection is terminated if the
+///   handshake does not complete within the handshake timeout period.
 ///
 /// # Guards
 ///
