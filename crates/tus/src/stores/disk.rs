@@ -154,10 +154,10 @@ impl DiskStore {
 
     fn desired_filename(meta: &MetaUpload) -> Option<String> {
         if let Some(mut name) = Self::filename_from_meta(meta) {
-            if Path::new(&name).extension().is_none() {
-                if let Some(ext) = Self::extension_from_filetype(meta) {
-                    name = format!("{name}.{ext}");
-                }
+            if Path::new(&name).extension().is_none()
+                && let Some(ext) = Self::extension_from_filetype(meta)
+            {
+                name = format!("{name}.{ext}");
             }
             return Some(name);
         }
@@ -364,11 +364,11 @@ impl DataStore for DiskStore {
         let mut stream = stream;
         while let Some(item) = stream.next().await {
             let chunk = item.map_err(|e| TusError::Internal(e.to_string()))?;
-            if let Some(size) = meta.size {
-                if original_offset + written + chunk.len() as u64 > size {
-                    let _ = file.set_len(original_offset).await;
-                    return Err(TusError::PayloadTooLarge);
-                }
+            if let Some(size) = meta.size
+                && original_offset + written + chunk.len() as u64 > size
+            {
+                let _ = file.set_len(original_offset).await;
+                return Err(TusError::PayloadTooLarge);
             }
             file.write_all(&chunk)
                 .await

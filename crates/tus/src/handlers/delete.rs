@@ -57,15 +57,13 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    if opts.disable_termination_for_finished_uploads {
-        if let Ok(info) = store.get_upload_file_info(&id).await {
-            if let (Some(size), Some(offset)) = (info.size, info.offset) {
-                if size == offset {
-                    res.status_code = Some(StatusCode::FORBIDDEN);
-                    return;
-                }
-            }
-        }
+    if opts.disable_termination_for_finished_uploads
+        && let Ok(info) = store.get_upload_file_info(&id).await
+        && let (Some(size), Some(offset)) = (info.size, info.offset)
+        && size == offset
+    {
+        res.status_code = Some(StatusCode::FORBIDDEN);
+        return;
     }
 
     match store.remove(&id).await {

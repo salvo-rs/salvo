@@ -57,7 +57,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     if let Some(value) = upload_defer_length {
         match value.to_str() {
-            Ok(v) if v == "1" => {}
+            Ok("1") => {}
             _ => {
                 res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
                 return;
@@ -137,11 +137,12 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         .get_configured_max_size(req, Some(upload_id.to_string()))
         .await;
 
-    if let Some(size) = upload_length_value {
-        if max_file_size > 0 && size > max_file_size {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-            return;
-        }
+    if let Some(size) = upload_length_value
+        && max_file_size > 0
+        && size > max_file_size
+    {
+        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+        return;
     }
 
     if let Some(on_incoming_request) = &opts.on_incoming_request {
@@ -218,12 +219,12 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 _ => None,
             };
 
-            if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
-                if incoming > max_allowed {
-                    res.status_code =
-                        Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-                    return;
-                }
+            if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed)
+                && incoming > max_allowed
+            {
+                res.status_code =
+                    Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+                return;
             }
 
             let body = req.take_body();
@@ -257,62 +258,55 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     tracing::info!("Generated file url: {}", &url);
 
-    if store.has_extension(Extension::Expiration) {
-        if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0) && !upload.creation_date.is_empty() {
-                let is_finished = match (upload.offset, upload.size) {
-                    (Some(offset), Some(size)) => offset == size,
-                    _ => false,
-                };
+    if store.has_extension(Extension::Expiration)
+        && let Some(expiration) = store.get_expiration()
+        && expiration > std::time::Duration::from_secs(0)
+        && !upload.creation_date.is_empty()
+    {
+        let is_finished = match (upload.offset, upload.size) {
+            (Some(offset), Some(size)) => offset == size,
+            _ => false,
+        };
 
-                if !is_finished {
-                    if let Ok(created_at) =
-                        chrono::DateTime::parse_from_rfc3339(&upload.creation_date)
-                    {
-                        if let Ok(delta) = chrono::Duration::from_std(expiration) {
-                            let expires = created_at.with_timezone(&chrono::Utc) + delta;
-                            let expires_value =
-                                expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
-                            res.headers.insert(
-                                H_UPLOAD_EXPIRES,
-                                HeaderValue::from_str(&expires_value).unwrap(),
-                            );
+        if !is_finished
+            && let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload.creation_date)
+            && let Ok(delta) = chrono::Duration::from_std(expiration)
+        {
+            let expires = created_at.with_timezone(&chrono::Utc) + delta;
+            let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+            res.headers.insert(
+                H_UPLOAD_EXPIRES,
+                HeaderValue::from_str(&expires_value).unwrap(),
+            );
+        }
+    }
+
+    if is_final && let Some(on_upload_finish) = &opts.on_upload_finish {
+        match on_upload_finish(req, upload.clone()).await {
+            Ok(patch) => {
+                if let Some(status) = patch.status_code {
+                    res.status_code = Some(status);
+                }
+                if let Some(body) = patch.body
+                    && res.write_body(body).is_err()
+                {
+                    res.status_code =
+                        Some(TusError::Internal("failed to write response body".into()).status());
+                    return;
+                }
+                if let Some(headers) = patch.headers {
+                    for (key, value) in headers {
+                        if let Some(key) = key
+                            && !res.headers.contains_key(&key)
+                        {
+                            res.headers.insert(key, value);
                         }
                     }
                 }
             }
-        }
-    }
-
-    if is_final {
-        if let Some(on_upload_finish) = &opts.on_upload_finish {
-            match on_upload_finish(req, upload.clone()).await {
-                Ok(patch) => {
-                    if let Some(status) = patch.status_code {
-                        res.status_code = Some(status);
-                    }
-                    if let Some(body) = patch.body {
-                        if res.write_body(body).is_err() {
-                            res.status_code = Some(
-                                TusError::Internal("failed to write response body".into()).status(),
-                            );
-                            return;
-                        }
-                    }
-                    if let Some(headers) = patch.headers {
-                        for (key, value) in headers {
-                            if let Some(key) = key {
-                                if !res.headers.contains_key(&key) {
-                                    res.headers.insert(key, value);
-                                }
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    res.status_code = Some(e.status());
-                    return;
-                }
+            Err(e) => {
+                res.status_code = Some(e.status());
+                return;
             }
         }
     }
@@ -340,6 +334,5 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub fn post_handler() -> Router {
-    let post_router = Router::new().post(create);
-    post_router
+    Router::new().post(create)
 }
