@@ -27,17 +27,17 @@
 //!
 //! 1. A cryptographically random cookie value is generated
 //! 2. A cookie is set on the outbound response and signed with an HKDF key
-//!  derived from the `secret` provided when creating the SessionHandler
+//!    derived from the `secret` provided when creating the SessionHandler
 //! 3. The session store uses a SHA256 digest of the cookie value to store
-//!  the session along with an optional expiry time
+//!    the session along with an optional expiry time
 //!
 //! ### When a cookie is found:
 //!
 //! 1. The HKDF-derived signing key verifies the cookie value's signature
 //! 2. If verification succeeds, the value is passed to the session store to
-//!   retrieve the associated Session
+//!    retrieve the associated Session
 //! 3. For most session stores, this involves taking a SHA256 digest of the
-//!   cookie value and retrieving a serialized Session from an external datastore
+//!    cookie value and retrieving a serialized Session from an external datastore
 //!
 //! ### Expiry Handling
 //!
