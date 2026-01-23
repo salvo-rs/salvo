@@ -5,9 +5,10 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
+use futures_util::StreamExt;
 use http::Extensions;
 use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
@@ -34,9 +35,8 @@ static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
 /// Get global secure maximum size, default value is 64KB.
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn global_secure_max_size() -> usize {
     *GLOBAL_SECURE_MAX_SIZE.read()
 }
@@ -46,9 +46,8 @@ pub fn global_secure_max_size() -> usize {
 /// It is recommended to use the [`SecureMaxSize`] middleware to have finer-grained
 /// control over [`Request`].
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn set_global_secure_max_size(size: usize) {
     let mut lock = GLOBAL_SECURE_MAX_SIZE.write();
     *lock = size;
@@ -56,9 +55,8 @@ pub fn set_global_secure_max_size(size: usize) {
 
 /// Middleware for set the secure maximum size of request body.
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 #[derive(Debug, Clone, Copy)]
 pub struct SecureMaxSize(pub usize);
 impl SecureMaxSize {
@@ -106,8 +104,8 @@ impl Handler for SecureMaxSize {
 /// - [`SecureMaxSize`] middleware - Set per-route limits
 /// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request limits
 ///
-/// **Note**: Size limits only apply when reading body data directly. File uploads are
-/// written to temporary files and are not affected by these limits.
+/// **Note**: Size limits apply to request body reads and form parsing, including
+/// multipart file uploads. Increase the limit if you need to accept large uploads.
 ///
 /// # Examples
 ///
@@ -624,9 +622,8 @@ impl Request {
     ///
     /// # Note
     ///
-    /// This limit only applies to methods that read the body into memory
-    /// (like [`payload()`](Request::payload)). File uploads are written to
-    /// temporary files and are not affected.
+    /// This limit applies to request body reads and form parsing, including
+    /// multipart file uploads. Increase the limit if you need to accept large uploads.
     pub fn set_secure_max_size(&mut self, size: usize) {
         self.secure_max_size = Some(size);
     }
@@ -1124,7 +1121,7 @@ impl Request {
                 Ok(Limited::new(body, max_size)
                     .collect()
                     .await
-                    .map_err(ParseError::other)?
+                    .map_err(|_| ParseError::PayloadTooLarge { max_size })?
                     .to_bytes())
             })
             .await
@@ -1135,8 +1132,9 @@ impl Request {
     /// Parses the request body as form data (either `application/x-www-form-urlencoded`
     /// or `multipart/form-data`) and caches the result for subsequent calls.
     ///
-    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size) (64KB by default).
-    /// For a custom size limit, use [`form_data_max_size()`](Request::form_data_max_size).
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size) (64KB by
+    /// default). For a custom size limit, use
+    /// [`form_data_max_size()`](Request::form_data_max_size).
     ///
     /// # Body Handling
     ///
@@ -1158,8 +1156,8 @@ impl Request {
     ///
     /// # Note
     ///
-    /// For multipart form data, file uploads are written to temporary files and are
-    /// not subject to the secure max size limit.
+    /// For multipart form data, file uploads are written to temporary files but the
+    /// overall request size is still subject to the secure max size limit.
     ///
     /// # Examples
     ///
@@ -1183,8 +1181,8 @@ impl Request {
     ///
     /// # Arguments
     ///
-    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit,
-    ///   an error is returned.
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit, an error
+    ///   is returned.
     ///
     /// # Caching Behavior
     ///
@@ -1203,9 +1201,9 @@ impl Request {
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
-                let body = self.take_body();
+                let mut body = self.take_body();
                 if body.is_none() {
-                    let bytes = self.payload().await?.to_owned();
+                    let bytes = self.payload_with_max_size(max_size).await?.to_owned();
                     let headers = self.headers();
                     self.form_data
                         .get_or_try_init(|| async {
@@ -1216,7 +1214,9 @@ impl Request {
                     let headers = self.headers();
                     let limited = Limited::new(body, max_size);
                     self.form_data
-                        .get_or_try_init(|| async { FormData::read(headers, limited.into_data_stream()).await })
+                        .get_or_try_init(|| async {
+                            FormData::read(headers, ReqBody::Once(bytes)).await
+                        })
                         .await
                 }
             } else {
@@ -1428,8 +1428,10 @@ impl Request {
     {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                return from_str_multi_map(self.form_data().await?.fields.iter_all())
-                    .map_err(ParseError::Deserialize);
+                return from_str_multi_map(
+                    self.form_data_max_size(max_size).await?.fields.iter_all(),
+                )
+                .map_err(ParseError::Deserialize);
             } else if ctype.subtype() == mime::JSON {
                 return self.payload_with_max_size(max_size).await.and_then(|body| {
                     serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson)
@@ -1605,5 +1607,69 @@ Hello World\r\n\
         let file = form_data.files.get("file").unwrap();
         assert_eq!(file.name().unwrap(), "test.txt");
         assert_eq!(file.content_type().unwrap(), "text/plain");
+    }
+
+    #[tokio::test]
+    async fn test_form_data_payload_too_large_urlencoded() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        req.set_secure_max_size(10);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+    }
+
+    #[tokio::test]
+    async fn test_form_data_payload_too_large_multipart() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(16);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 16 }));
+    }
+
+    #[tokio::test]
+    async fn test_form_data_content_length_too_large() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .add_header("content-length", "9999", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        req.set_secure_max_size(10);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+    }
+
+    #[tokio::test]
+    async fn test_parse_body_with_max_size_form() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct LoginForm {
+            username: String,
+            password: String,
+        }
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        let err = req
+            .parse_body_with_max_size::<LoginForm>(10)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
     }
 }

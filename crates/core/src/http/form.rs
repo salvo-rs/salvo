@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use bytes::{Bytes, BytesMut};
-use futures_util::stream::{Stream, TryStreamExt};
+use futures_util::StreamExt;
+use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
@@ -17,6 +17,7 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 use crate::http::ParseError;
+use crate::http::body::ReqBody;
 use crate::http::header::{CONTENT_TYPE, HeaderMap};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -43,23 +44,17 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read<S, O, E>(headers: &HeaderMap, body: S) -> Result<Self, ParseError>
-    where
-        S: Stream<Item = Result<O, E>> + Send,
-        O: Into<Bytes> + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>>,
-    {
+    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<Self, ParseError> {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok());
         match ctype {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
-                futures_util::pin_mut!(body);
-                let mut data = BytesMut::new();
-                while let Some(chunk) = body.try_next().await.map_err(|e| ParseError::other(e))? {
-                    data.extend_from_slice(&chunk.into());
-                }
+                let data = BodyExt::collect(body)
+                    .await
+                    .map_err(ParseError::other)?
+                    .to_bytes();
                 let mut form_data = Self::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
@@ -71,16 +66,23 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
+                    let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
                     let mut multipart = Multipart::new(body, boundary);
-                    while let Some(mut field) = multipart.next_field().await? {
-                        if let Some(name) = field.name().map(|s| s.to_owned()) {
-                            if field.headers().get(CONTENT_TYPE).is_some() {
-                                form_data
-                                    .files
-                                    .insert(name, FilePart::create(&mut field).await?);
-                            } else {
-                                form_data.fields.insert(name, field.text().await?);
+                    loop {
+                        match multipart.next_field().await {
+                            Ok(Some(mut field)) => {
+                                if let Some(name) = field.name().map(|s| s.to_owned()) {
+                                    if field.headers().get(CONTENT_TYPE).is_some() {
+                                        form_data
+                                            .files
+                                            .insert(name, FilePart::create(&mut field).await?);
+                                    } else {
+                                        form_data.fields.insert(name, field.text().await?);
+                                    }
+                                }
                             }
+                            Ok(None) => break,
+                            Err(error) => return Err(ParseError::Multer(error)),
                         }
                     }
                 }
