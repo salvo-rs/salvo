@@ -45,7 +45,7 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read<S, O, E, B>(headers: &HeaderMap, body: B) -> Result<Self, ParseError>
+    pub(crate) async fn read<S, O, E, B>(headers: &HeaderMap, body: S) -> Result<Self, ParseError>
     where
         S: Stream<Item = Result<O, E>> + Send,
         O: Into<Bytes> + 'static,
