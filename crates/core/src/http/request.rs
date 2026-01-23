@@ -1689,6 +1689,10 @@ Hello World\r\n\
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=test_user&password=secret123")
             .build();
-        assert!(req.parse_body_with_max_size::<LoginForm>(1000).await.is_ok());
+        assert!(
+            req.parse_body_with_max_size::<LoginForm>(1000)
+                .await
+                .is_ok()
+        );
     }
 }

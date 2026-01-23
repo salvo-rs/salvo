@@ -93,7 +93,7 @@ pub fn resolve_generic_names(type_name: &str) -> String {
     // Find the position of the first '<' to separate base type from generic params
     let Some(generic_start) = type_name.find('<') else {
         // No generics, return as-is
-        return type_name.to_string();
+        return type_name.to_owned();
     };
 
     // Extract base type and generic part
@@ -109,7 +109,7 @@ pub fn resolve_generic_names(type_name: &str) -> String {
 /// Parse generic part like `<A, B<C, D>, E>` and resolve each type parameter.
 fn resolve_generic_part(generic_part: &str) -> String {
     if !generic_part.starts_with('<') || !generic_part.ends_with('>') {
-        return generic_part.to_string();
+        return generic_part.to_owned();
     }
 
     // Remove outer < and >
@@ -309,9 +309,9 @@ impl Namer for FlexNamer {
 
                 let mut base = if self.short_mode {
                     // In short mode with Force, use the forced name + resolved generics
-                    format!("{}{}", force_name, resolved_generic)
+                    format!("{force_name}{resolved_generic}")
                 } else {
-                    format!("{}{}", force_name, resolved_generic)
+                    format!("{force_name}{resolved_generic}")
                 };
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
