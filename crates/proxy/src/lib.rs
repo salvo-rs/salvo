@@ -395,10 +395,7 @@ where
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if let Some(stripped) = query.strip_prefix('?') {
-                format!(
-                    "{path}?{}",
-                    utf8_percent_encode(stripped, QUERY_ENCODE_SET)
-                )
+                format!("{path}?{}", utf8_percent_encode(stripped, QUERY_ENCODE_SET))
             } else {
                 format!("{path}?{}", utf8_percent_encode(&query, QUERY_ENCODE_SET))
             }
