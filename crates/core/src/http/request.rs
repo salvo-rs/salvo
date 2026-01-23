@@ -1132,17 +1132,11 @@ impl Request {
 
     /// Get [`FormData`] reference from request with the default size limit.
     ///
-    /// This is a convenience method that calls [`form_data_max_size()`](Request::form_data_max_size)
-    /// with the default [`secure_max_size()`](Request::secure_max_size).
-    #[inline]
-    pub async fn form_data(&mut self) -> ParseResult<&FormData> {
-        self.form_data_max_size(self.secure_max_size()).await
-    }
-
-    /// Get [`FormData`] reference from request.
-    ///
     /// Parses the request body as form data (either `application/x-www-form-urlencoded`
     /// or `multipart/form-data`) and caches the result for subsequent calls.
+    ///
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size) (64KB by default).
+    /// For a custom size limit, use [`form_data_max_size()`](Request::form_data_max_size).
     ///
     /// # Body Handling
     ///
@@ -1176,6 +1170,34 @@ impl Request {
     ///
     /// // Access uploaded files
     /// let file = form_data.files.get("avatar");
+    /// ```
+    #[inline]
+    pub async fn form_data(&mut self) -> ParseResult<&FormData> {
+        self.form_data_max_size(self.secure_max_size()).await
+    }
+
+    /// Get [`FormData`] reference from request with a custom size limit.
+    ///
+    /// Similar to [`form_data()`](Request::form_data), but allows specifying a custom
+    /// maximum size limit instead of using the default.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit,
+    ///   an error is returned.
+    ///
+    /// # Caching Behavior
+    ///
+    /// The form data is cached after the first successful parse. Once cached, the
+    /// `max_size` parameter is ignored on subsequent calls since the data is
+    /// already in memory.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Allow up to 1MB form data
+    /// let form_data = req.form_data_max_size(1024 * 1024).await?;
+    /// let username = form_data.fields.get("username");
     /// ```
     #[inline]
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
