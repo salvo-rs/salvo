@@ -84,6 +84,7 @@ pub fn name_by_type_name(type_name: &str) -> Option<String> {
 /// For example, if `CityDTO` is registered as `City`, then:
 /// - `Response<CityDTO>` becomes `Response<City>`
 /// - `Vec<HashMap<String, CityDTO>>` becomes `Vec<HashMap<String, City>>`
+#[must_use]
 pub fn resolve_generic_names(type_name: &str) -> String {
     // First check if the entire type (without generics) has a registered name
     if let Some(registered_name) = name_by_type_name(type_name) {
@@ -131,7 +132,7 @@ fn resolve_generic_part(generic_part: &str) -> String {
             } else {
                 // Use short name for unregistered types (like primitive types)
                 // e.g., "alloc::string::String" -> "String"
-                short_type_name(param).to_string()
+                short_type_name(param).to_owned()
             }
         })
         .collect();
