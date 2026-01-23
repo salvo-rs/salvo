@@ -313,6 +313,22 @@ impl<'de> RequestDeserializer<'de> {
                         return true;
                     }
                 }
+                SourceFrom::Depot => {
+                    let mut value = self.depot.get::<String>(field_name).ok();
+                    if value.is_none() {
+                        for alias in &field.aliases {
+                            value = self.depot.get::<String>(*alias).ok();
+                            if value.is_some() {
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(value) = value {
+                        self.field_str_value = Some(value);
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
                 SourceFrom::Body => {
                     let parser = self.real_parser(source);
                     match parser {
@@ -938,6 +954,70 @@ mod tests {
             data,
             RequestData {
                 ids: vec![3, 2, 11]
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            user_id: String,
+            username: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", "12345".to_string());
+        depot.insert("username", "alice".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                username: "alice".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_alias() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            #[salvo(extract(alias = "uid"))]
+            user_id: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("uid", "12345".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_and_query() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        struct RequestData {
+            #[salvo(extract(source(from = "depot")))]
+            user_id: String,
+            #[salvo(extract(source(from = "query")))]
+            page: i64,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test?page=5").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", "12345".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                page: 5
             }
         );
     }

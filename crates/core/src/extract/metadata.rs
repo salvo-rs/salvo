@@ -18,6 +18,8 @@ pub enum SourceFrom {
     Cookie,
     /// The field will extracted from http payload.
     Body,
+    /// The field will extracted from depot.
+    Depot,
 }
 
 impl FromStr for SourceFrom {
@@ -31,6 +33,7 @@ impl FromStr for SourceFrom {
             #[cfg(feature = "cookie")]
             "cookie" => Ok(Self::Cookie),
             "body" => Ok(Self::Body),
+            "depot" => Ok(Self::Depot),
             _ => Err(crate::Error::Other(
                 format!("invalid source from `{input}`").into(),
             )),
@@ -278,6 +281,7 @@ mod tests {
             #[cfg(feature = "cookie")]
             ("cookie", SourceFrom::Cookie),
             ("body", SourceFrom::Body),
+            ("depot", SourceFrom::Depot),
         ] {
             assert_eq!(key.parse::<SourceFrom>().unwrap(), value);
         }
