@@ -5,10 +5,9 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use futures_util::StreamExt;
 use http::Extensions;
 use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
@@ -1201,7 +1200,7 @@ impl Request {
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
-                let mut body = self.take_body();
+                let body = self.take_body();
                 if body.is_none() {
                     let bytes = self.payload_with_max_size(max_size).await?.to_owned();
                     let headers = self.headers();
@@ -1639,6 +1638,25 @@ Hello World\r\n\
             .build();
         req.set_secure_max_size(16);
         assert!(req.form_data().await.is_err());
+
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(1600);
+        assert!(req.form_data().await.is_ok());
     }
 
     #[tokio::test]
@@ -1659,11 +1677,18 @@ Hello World\r\n\
             username: String,
             password: String,
         }
+        // Test that small max_size triggers error
         let mut req = TestClient::post("http://127.0.0.1:8698/form")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=test_user&password=secret123")
             .build();
         assert!(req.parse_body_with_max_size::<LoginForm>(10).await.is_err());
+
+        // Test that sufficient max_size succeeds (need new request since body was consumed)
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
         assert!(req.parse_body_with_max_size::<LoginForm>(1000).await.is_ok());
     }
 }
