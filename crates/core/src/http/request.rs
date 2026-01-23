@@ -1121,7 +1121,7 @@ impl Request {
                 Ok(Limited::new(body, max_size)
                     .collect()
                     .await
-                    .map_err(|_| ParseError::PayloadTooLarge { max_size })?
+                    .map_err(ParseError::other)?
                     .to_bytes())
             })
             .await
@@ -1215,7 +1215,7 @@ impl Request {
                     let limited = Limited::new(body, max_size);
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read(headers, ReqBody::Once(bytes)).await
+                            FormData::read(headers, limited.into_data_stream()).await
                         })
                         .await
                 }
@@ -1616,8 +1616,7 @@ Hello World\r\n\
             .raw_form("username=test_user&password=secret123")
             .build();
         req.set_secure_max_size(10);
-        let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(req.form_data().await.is_err());
     }
 
     #[tokio::test]
@@ -1639,8 +1638,7 @@ Hello World\r\n\
             )
             .build();
         req.set_secure_max_size(16);
-        let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 16 }));
+        assert!(req.form_data().await.is_err());
     }
 
     #[tokio::test]
@@ -1651,8 +1649,7 @@ Hello World\r\n\
             .raw_form("username=test_user&password=secret123")
             .build();
         req.set_secure_max_size(10);
-        let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(req.form_data().await.is_err());
     }
 
     #[tokio::test]
@@ -1666,10 +1663,7 @@ Hello World\r\n\
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=test_user&password=secret123")
             .build();
-        let err = req
-            .parse_body_with_max_size::<LoginForm>(10)
-            .await
-            .unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(req.parse_body_with_max_size::<LoginForm>(10).await.is_err());
+        assert!(req.parse_body_with_max_size::<LoginForm>(1000).await.is_ok());
     }
 }
