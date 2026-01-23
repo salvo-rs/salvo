@@ -5,9 +5,8 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures_util::stream::{Stream, TryStreamExt};
-use http_body_util::{BodyDataStream, BodyExt};
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
@@ -18,7 +17,6 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 use crate::http::ParseError;
-use crate::http::body::Body;
 use crate::http::header::{CONTENT_TYPE, HeaderMap};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -45,12 +43,11 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read<S, O, E, B>(headers: &HeaderMap, body: S) -> Result<Self, ParseError>
+    pub(crate) async fn read<S, O, E>(headers: &HeaderMap, body: S) -> Result<Self, ParseError>
     where
         S: Stream<Item = Result<O, E>> + Send,
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
-        B: Into<String>,
     {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
@@ -58,10 +55,11 @@ impl FormData {
             .and_then(|v| v.parse().ok());
         match ctype {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
-                let data = BodyExt::collect(body)
-                    .await
-                    .map_err(|_| ParseError::other("read body bytes failed"))?
-                    .to_bytes();
+                futures_util::pin_mut!(body);
+                let mut data = BytesMut::new();
+                while let Some(chunk) = body.try_next().await.map_err(|e| ParseError::other(e))? {
+                    data.extend_from_slice(&chunk.into());
+                }
                 let mut form_data = Self::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)

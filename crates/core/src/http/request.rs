@@ -1130,7 +1130,10 @@ impl Request {
             .await
     }
 
-    
+    /// Get [`FormData`] reference from request with the default size limit.
+    ///
+    /// This is a convenience method that calls [`form_data_max_size()`](Request::form_data_max_size)
+    /// with the default [`secure_max_size()`](Request::secure_max_size).
     #[inline]
     pub async fn form_data(&mut self) -> ParseResult<&FormData> {
         self.form_data_max_size(self.secure_max_size()).await
@@ -1184,14 +1187,14 @@ impl Request {
                     let headers = self.headers();
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read(headers, ReqBody::Once(bytes)).await
+                            FormData::read(headers, ReqBody::Once(bytes).into_data_stream()).await
                         })
                         .await
                 } else {
                     let headers = self.headers();
                     let limited = Limited::new(body, max_size);
                     self.form_data
-                        .get_or_try_init(|| async { FormData::read(headers, limited).await })
+                        .get_or_try_init(|| async { FormData::read(headers, limited.into_data_stream()).await })
                         .await
                 }
             } else {
