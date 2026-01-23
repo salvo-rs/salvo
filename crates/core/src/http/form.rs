@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use bytes::Bytes;
 use futures_util::stream::{Stream, TryStreamExt};
 use http_body_util::{BodyDataStream, BodyExt};
 use mime::Mime;
@@ -46,9 +47,9 @@ impl FormData {
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
     pub(crate) async fn read<S, O, E, B>(headers: &HeaderMap, body: B) -> Result<Self, ParseError>
     where
-        S: Stream<Item = Result<O, E>> + Send + 'r,
+        S: Stream<Item = Result<O, E>> + Send,
         O: Into<Bytes> + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'r,
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
         B: Into<String>,
     {
         let ctype: Option<Mime> = headers
