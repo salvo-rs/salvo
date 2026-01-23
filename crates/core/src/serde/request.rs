@@ -15,6 +15,69 @@ use crate::http::header::HeaderMap;
 use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
 
+/// Helper function to extract a value from Depot and convert it to a Cow<str>.
+/// Supports String, &str, and common primitive types (integers, floats, bool).
+fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
+    // Try String first (most common case)
+    if let Ok(v) = depot.get::<String>(key) {
+        return Some(Cow::Borrowed(v.as_str()));
+    }
+    // Try &'static str
+    if let Ok(v) = depot.get::<&'static str>(key) {
+        return Some(Cow::Borrowed(*v));
+    }
+    // Try common integer types
+    if let Ok(v) = depot.get::<i8>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<i16>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<i32>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<i64>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<i128>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<isize>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    // Try unsigned integer types
+    if let Ok(v) = depot.get::<u8>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<u16>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<u32>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<u64>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<u128>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<usize>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    // Try floating point types
+    if let Ok(v) = depot.get::<f32>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    if let Ok(v) = depot.get::<f64>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    // Try bool
+    if let Ok(v) = depot.get::<bool>(key) {
+        return Some(Cow::Owned(v.to_string()));
+    }
+    None
+}
+
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
     depot: &'de mut Depot,
@@ -76,7 +139,7 @@ pub(crate) struct RequestDeserializer<'de> {
     field_index: isize,
     field_flatten: bool,
     field_source: Option<Source>,
-    field_str_value: Option<&'de str>,
+    field_str_value: Option<Cow<'de, str>>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
 }
 
@@ -186,17 +249,22 @@ impl<'de> RequestDeserializer<'de> {
 
             let parser = self.real_parser(source);
             if source.from == SourceFrom::Body && parser == SourceParser::Json {
+                // For JSON body parsing, value is always borrowed from the request payload.
                 // panic because this indicates a bug in the program rather than an expected
                 // failure.
                 let value = self
                     .field_str_value
+                    .take()
                     .expect("MapAccess::next_value called before next_key");
-                let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-
-                seed.deserialize(&mut value)
+                // Body JSON values are always borrowed from the request payload
+                let Cow::Borrowed(s) = value else {
+                    return Err(ValError::custom("JSON body value must be borrowed"));
+                };
+                let mut de = serde_json::Deserializer::new(serde_json::de::StrRead::new(s));
+                seed.deserialize(&mut de)
                     .map_err(|_| ValError::custom("parse value error"))
             } else if let Some(value) = self.field_str_value.take() {
-                seed.deserialize(CowValue(value.into()))
+                seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
                 if source.from == SourceFrom::Query || source.from == SourceFrom::Header {
                     seed.deserialize(FlatValue(value))
@@ -249,7 +317,7 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     }
                     if let Some(value) = value {
-                        self.field_str_value = Some(value);
+                        self.field_str_value = Some(Cow::Borrowed(value));
                         self.field_source = Some(source);
                         return true;
                     }
@@ -308,16 +376,16 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     };
                     if let Some(value) = value {
-                        self.field_str_value = Some(value);
+                        self.field_str_value = Some(Cow::Borrowed(value));
                         self.field_source = Some(source);
                         return true;
                     }
                 }
                 SourceFrom::Depot => {
-                    let mut value = self.depot.get::<String>(field_name).ok();
+                    let mut value = get_depot_value(self.depot, field_name);
                     if value.is_none() {
                         for alias in &field.aliases {
-                            value = self.depot.get::<String>(*alias).ok();
+                            value = get_depot_value(self.depot, alias);
                             if value.is_some() {
                                 break;
                             }
@@ -346,7 +414,7 @@ impl<'de> RequestDeserializer<'de> {
                                             }
                                         }
                                         if let Some(value) = value {
-                                            self.field_str_value = Some(value);
+                                            self.field_str_value = Some(Cow::Borrowed(value));
                                             self.field_source = Some(source);
                                             return true;
                                         }
@@ -363,14 +431,14 @@ impl<'de> RequestDeserializer<'de> {
                                             }
                                         }
                                         if let Some(value) = value {
-                                            self.field_str_value = Some(value.get());
+                                            self.field_str_value = Some(Cow::Borrowed(value.get()));
                                             self.field_source = Some(source);
                                             return true;
                                         }
                                         return false;
                                     }
                                     Payload::JsonStr(value) => {
-                                        self.field_str_value = Some(*value);
+                                        self.field_str_value = Some(Cow::Borrowed(*value));
                                         self.field_source = Some(source);
                                         return true;
                                     }
@@ -1018,6 +1086,53 @@ mod tests {
             RequestData {
                 user_id: "12345".to_string(),
                 page: 5
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_primitives() {
+        #[derive(Deserialize, Extractible, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            int_val: i64,
+            uint_val: u32,
+            float_val: f64,
+            bool_val: bool,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("int_val", -42i64);
+        depot.insert("uint_val", 100u32);
+        depot.insert("float_val", 3.14f64);
+        depot.insert("bool_val", true);
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                int_val: -42,
+                uint_val: 100,
+                float_val: 3.14,
+                bool_val: true
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_static_str() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            message: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("message", "hello world");
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                message: "hello world".to_string()
             }
         );
     }
