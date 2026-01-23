@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use futures_util::StreamExt;
-use http_body_util::BodyExt;
+use futures_util::stream::{Stream, TryStreamExt};
+use http_body_util::{BodyDataStream, BodyExt};
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
@@ -44,9 +44,12 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read<B: Body>(headers: &HeaderMap, body: B) -> Result<Self, ParseError>
+    pub(crate) async fn read<S, O, E, B>(headers: &HeaderMap, body: B) -> Result<Self, ParseError>
     where
-        B: Body + Sync + Send,
+        S: Stream<Item = Result<O, E>> + Send + 'r,
+        O: Into<Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'r,
+        B: Into<String>,
     {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
@@ -69,7 +72,6 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
-                    // let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
                     let mut multipart = Multipart::new(body, boundary);
                     while let Some(mut field) = multipart.next_field().await? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {
