@@ -1130,6 +1130,12 @@ impl Request {
             .await
     }
 
+    
+    #[inline]
+    pub async fn form_data(&mut self) -> ParseResult<&FormData> {
+        self.form_data_max_size(self.secure_max_size()).await
+    }
+
     /// Get [`FormData`] reference from request.
     ///
     /// Parses the request body as form data (either `application/x-www-form-urlencoded`
@@ -1169,7 +1175,7 @@ impl Request {
     /// let file = form_data.files.get("avatar");
     /// ```
     #[inline]
-    pub async fn form_data(&mut self) -> ParseResult<&FormData> {
+    pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
                 let body = self.take_body();
@@ -1183,8 +1189,9 @@ impl Request {
                         .await
                 } else {
                     let headers = self.headers();
+                    let limited = Limited::new(body, max_size);
                     self.form_data
-                        .get_or_try_init(|| async { FormData::read(headers, body).await })
+                        .get_or_try_init(|| async { FormData::read(headers, limited).await })
                         .await
                 }
             } else {

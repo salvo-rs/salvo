@@ -17,7 +17,7 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 use crate::http::ParseError;
-use crate::http::body::ReqBody;
+use crate::http::body::Body;
 use crate::http::header::{CONTENT_TYPE, HeaderMap};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -44,7 +44,10 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<Self, ParseError> {
+    pub(crate) async fn read<B: Body>(headers: &HeaderMap, body: B) -> Result<Self, ParseError>
+    where
+        B: Body + Sync + Send,
+    {
         let ctype: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
@@ -53,7 +56,7 @@ impl FormData {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
                 let data = BodyExt::collect(body)
                     .await
-                    .map_err(ParseError::other)?
+                    .map_err(|_| ParseError::other("read body bytes failed"))?
                     .to_bytes();
                 let mut form_data = Self::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
@@ -66,7 +69,7 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
-                    let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
+                    // let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
                     let mut multipart = Multipart::new(body, boundary);
                     while let Some(mut field) = multipart.next_field().await? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {
