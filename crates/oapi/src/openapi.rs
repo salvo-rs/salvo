@@ -1301,6 +1301,9 @@ mod tests {
 
     #[test]
     fn test_openapi_schema_work_with_generics() {
+        // Reset global namer state to ensure deterministic test results
+        crate::naming::set_namer(crate::naming::FlexNamer::new());
+
         #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
         #[salvo(schema(name = City))]
         pub(crate) struct CityDTO {
@@ -1372,7 +1375,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>"
+                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<City>>"
                                             }
                                         }
                                     }
@@ -1438,7 +1441,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>": {
+                        "Response<alloc.vec.Vec<City>>": {
                             "type": "object",
                             "required": [
                                 "status",

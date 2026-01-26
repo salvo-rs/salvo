@@ -5,15 +5,15 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use futures_util::StreamExt;
 use http::Extensions;
 use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
+use http_body_util::{BodyExt, Limited};
 use multimap::MultiMap;
 use parking_lot::RwLock;
 use serde::de::Deserialize;
@@ -1117,27 +1117,30 @@ impl Request {
         let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                let mut body = body;
-                let mut buf = BytesMut::new();
-                let mut total = 0usize;
-                while let Some(frame) = body.next().await {
-                    let frame = frame.map_err(ParseError::Io)?;
-                    let data = frame.into_data().unwrap_or_default();
-                    total = total.saturating_add(data.len());
-                    if total > max_size {
-                        return Err(ParseError::PayloadTooLarge { max_size });
-                    }
-                    buf.extend_from_slice(&data);
-                }
-                Ok(buf.freeze())
+                let limited = Limited::new(body, max_size);
+                let collected = limited
+                    .collect()
+                    .await
+                    .map_err(|e| {
+                        if e.is::<http_body_util::LengthLimitError>() {
+                            ParseError::PayloadTooLarge { max_size }
+                        } else {
+                            ParseError::other(e)
+                        }
+                    })?;
+                Ok(collected.to_bytes())
             })
             .await
     }
 
-    /// Get [`FormData`] reference from request.
+    /// Get [`FormData`] reference from request with the default size limit.
     ///
     /// Parses the request body as form data (either `application/x-www-form-urlencoded`
     /// or `multipart/form-data`) and caches the result for subsequent calls.
+    ///
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size) (64KB by
+    /// default). For a custom size limit, use
+    /// [`form_data_max_size()`](Request::form_data_max_size).
     ///
     /// # Body Handling
     ///
@@ -1174,15 +1177,34 @@ impl Request {
     /// ```
     #[inline]
     pub async fn form_data(&mut self) -> ParseResult<&FormData> {
-        self.form_data_with_max_size(self.secure_max_size()).await
+        self.form_data_max_size(self.secure_max_size()).await
     }
 
     /// Get [`FormData`] reference from request with a custom size limit.
     ///
-    /// The parsed result is cached after the first successful read. Subsequent calls
-    /// will return the cached data regardless of the `max_size` provided.
+    /// Similar to [`form_data()`](Request::form_data), but allows specifying a custom
+    /// maximum size limit instead of using the default.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit, an error
+    ///   is returned.
+    ///
+    /// # Caching Behavior
+    ///
+    /// The form data is cached after the first successful parse. Once cached, the
+    /// `max_size` parameter is ignored on subsequent calls since the data is
+    /// already in memory.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Allow up to 1MB form data
+    /// let form_data = req.form_data_max_size(1024 * 1024).await?;
+    /// let username = form_data.fields.get("username");
+    /// ```
     #[inline]
-    pub async fn form_data_with_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
+    pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
                 let body = self.take_body();
@@ -1191,15 +1213,15 @@ impl Request {
                     let headers = self.headers();
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read_with_max_size(headers, ReqBody::Once(bytes), max_size)
-                                .await
+                            FormData::read(headers, ReqBody::Once(bytes).into_data_stream()).await
                         })
                         .await
                 } else {
                     let headers = self.headers();
+                    let limited = Limited::new(body, max_size);
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read_with_max_size(headers, body, max_size).await
+                            FormData::read(headers, limited.into_data_stream()).await
                         })
                         .await
                 }
@@ -1413,10 +1435,7 @@ impl Request {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
                 return from_str_multi_map(
-                    self.form_data_with_max_size(max_size)
-                        .await?
-                        .fields
-                        .iter_all(),
+                    self.form_data_max_size(max_size).await?.fields.iter_all(),
                 )
                 .map_err(ParseError::Deserialize);
             } else if ctype.subtype() == mime::JSON {
@@ -1628,6 +1647,25 @@ Hello World\r\n\
         req.set_secure_max_size(16);
         let err = req.form_data().await.unwrap_err();
         assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 16 }));
+
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(1600);
+        assert!(req.form_data().await.is_ok());
     }
 
     #[tokio::test]
@@ -1649,6 +1687,7 @@ Hello World\r\n\
             username: String,
             password: String,
         }
+        // Test that small max_size triggers error
         let mut req = TestClient::post("http://127.0.0.1:8698/form")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=test_user&password=secret123")
@@ -1658,5 +1697,16 @@ Hello World\r\n\
             .await
             .unwrap_err();
         assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+
+        // Test that sufficient max_size succeeds (need new request since body was consumed)
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        assert!(
+            req.parse_body_with_max_size::<LoginForm>(1000)
+                .await
+                .is_ok()
+        );
     }
 }

@@ -90,7 +90,7 @@ moka = "0.12"
 multer = "3"
 multimap = "0.10"
 native-tls = "0.2"
-nix = { version = "0.30", default-features = false }
+nix = { version = "0.31", default-features = false }
 openssl = { version = "0.10" }
 opentelemetry = { version = "0.31", default-features = false }
 opentelemetry-http = { version = "0.31", default-features = false }
@@ -159,7 +159,7 @@ unsafe_code = "forbid"
 [workspace.lints.clippy]
 await_holding_lock = "warn"
 dbg_macro = "warn"
-empty_enum = "warn"
+empty_enums = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
 exit = "warn"

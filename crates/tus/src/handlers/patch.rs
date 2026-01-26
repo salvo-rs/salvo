@@ -93,25 +93,20 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     };
 
     let mut expires_at = None;
-    if store.has_extension(Extension::Expiration) {
-        if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0)
-                && !already_uploaded_info.creation_date.is_empty()
-            {
-                if let Ok(created_at) =
-                    chrono::DateTime::parse_from_rfc3339(&already_uploaded_info.creation_date)
-                {
-                    if let Ok(delta) = chrono::Duration::from_std(expiration) {
-                        let expires = created_at.with_timezone(&chrono::Utc) + delta;
-                        if chrono::Utc::now() > expires {
-                            res.status_code = Some(TusError::FileNoLongerExists.status());
-                            return;
-                        }
-                        expires_at = Some(expires);
-                    }
-                }
-            }
+    if store.has_extension(Extension::Expiration)
+        && let Some(expiration) = store.get_expiration()
+        && expiration > std::time::Duration::from_secs(0)
+        && !already_uploaded_info.creation_date.is_empty()
+        && let Ok(created_at) =
+            chrono::DateTime::parse_from_rfc3339(&already_uploaded_info.creation_date)
+        && let Ok(delta) = chrono::Duration::from_std(expiration)
+    {
+        let expires = created_at.with_timezone(&chrono::Utc) + delta;
+        if chrono::Utc::now() > expires {
+            res.status_code = Some(TusError::FileNoLongerExists.status());
+            return;
         }
+        expires_at = Some(expires);
     }
 
     // If a Client does attempt to resume an upload which has since
@@ -207,11 +202,11 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         _ => None,
     };
 
-    if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
-        if offset + incoming > max_allowed {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-            return;
-        }
+    if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed)
+        && offset + incoming > max_allowed
+    {
+        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+        return;
     }
 
     // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info,
@@ -257,6 +252,5 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub fn patch_handler() -> Router {
-    let patch_router = Router::with_path("{id}").patch(patch);
-    patch_router
+    Router::with_path("{id}").patch(patch)
 }

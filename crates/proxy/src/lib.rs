@@ -394,11 +394,8 @@ where
         let path = encode_url_path(&(self.url_path_getter)(req, depot).unwrap_or_default());
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
-            if query.starts_with('?') {
-                format!(
-                    "{path}?{}",
-                    utf8_percent_encode(&query[1..], QUERY_ENCODE_SET)
-                )
+            if let Some(stripped) = query.strip_prefix('?') {
+                format!("{path}?{}", utf8_percent_encode(stripped, QUERY_ENCODE_SET))
             } else {
                 format!("{path}?{}", utf8_percent_encode(&query, QUERY_ENCODE_SET))
             }

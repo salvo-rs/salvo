@@ -124,6 +124,11 @@ pub struct Tus {
     options: TusOptions,
     store: Arc<dyn DataStore>,
 }
+impl Default for Tus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // Tus service Configuration
 impl Tus {
@@ -163,7 +168,7 @@ impl Tus {
         let base_path = normalize_path(&self.options.path);
         let state = Arc::new(self);
 
-        let router = Router::with_path(base_path)
+        Router::with_path(base_path)
             .hoop(TusStateHoop {
                 state: state.clone(),
             })
@@ -172,9 +177,7 @@ impl Tus {
             .push(handlers::head_handler())
             .push(handlers::patch_handler())
             .push(handlers::delete_handler())
-            .push(handlers::get_handler());
-
-        router
+            .push(handlers::get_handler())
     }
 }
 

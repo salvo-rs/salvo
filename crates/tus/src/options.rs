@@ -22,6 +22,7 @@ pub fn get_file_id_regex() -> &'static Regex {
 #[derive(Clone)]
 pub enum MaxSize {
     Fixed(u64),
+    #[allow(clippy::type_complexity)]
     Dynamic(Arc<dyn Fn(&Request, UploadId) -> BoxFuture<'static, u64> + Send + Sync>),
 }
 
@@ -158,7 +159,7 @@ impl TusOptions {
         re.captures(path)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string())
-            .ok_or_else(|| TusError::FileIdError)
+            .ok_or(TusError::FileIdError)
     }
 
     pub async fn get_configured_max_size(&self, req: &Request, upload_id: Option<String>) -> u64 {
@@ -188,7 +189,7 @@ impl TusOptions {
 
         if let Some(callback) = &self.generate_url_function {
             match callback(
-                &req,
+                req,
                 GenerateUrlCtx {
                     proto,
                     host,
@@ -205,16 +206,10 @@ impl TusOptions {
         if self.relative_location {
             // NOTE: TS version returns `${path}/${id}` — even if path = "" it yields "/id"
             // This matches that behavior.
-            return Ok(format!("{}/{}", path, upload_id));
+            return Ok(format!("{path}/{upload_id}"));
         }
 
-        Ok(format!(
-            "{}://{}{}{}",
-            proto,
-            host,
-            path,
-            format!("/{}", upload_id)
-        ))
+        Ok(format!("{proto}://{host}{path}/{upload_id}"))
     }
 
     /// Rust version of BaseHandler.extractHostAndProto(...)
@@ -239,42 +234,39 @@ impl TusOptions {
             }
 
             // Fallback: X-Forwarded-Host
-            if host == "localhost" {
-                if let Some(v) = headers
+            if host == "localhost"
+                && let Some(v) = headers
                     .get("x-forwarded-host")
                     .and_then(|v| v.to_str().ok())
-                {
-                    // x-forwarded-host may contain comma-separated list; use the first one
-                    host = v.split(',').next().unwrap_or(v).trim();
-                }
+            {
+                // x-forwarded-host may contain comma-separated list; use the first one
+                host = v.split(',').next().unwrap_or(v).trim();
             }
 
             // 2) determine proto (X-Forwarded-Proto)
-            if proto == "http" {
-                if let Some(v) = headers
+            if proto == "http"
+                && let Some(v) = headers
                     .get("x-forwarded-proto")
                     .and_then(|v| v.to_str().ok())
-                {
-                    proto = v.split(',').next().unwrap_or(v).trim();
-                }
+            {
+                proto = v.split(',').next().unwrap_or(v).trim();
             }
         }
 
         // If we still haven't got a host, use Host header
-        if host == "localhost" {
-            if let Some(v) = headers.get(header::HOST).and_then(|v| v.to_str().ok()) {
-                host = v.trim();
-            }
+        if host == "localhost"
+            && let Some(v) = headers.get(header::HOST).and_then(|v| v.to_str().ok())
+        {
+            host = v.trim();
         }
 
         // If we still haven't got proto, infer from scheme-ish headers
         // (optional fallback)
-        if proto == "http" {
-            if let Some(v) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok()) {
-                if v.eq_ignore_ascii_case("on") {
-                    proto = "https";
-                }
-            }
+        if proto == "http"
+            && let Some(v) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok())
+            && v.eq_ignore_ascii_case("on")
+        {
+            proto = "https";
         }
 
         HostProto { proto, host }
