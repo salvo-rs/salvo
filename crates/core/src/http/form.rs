@@ -57,7 +57,14 @@ impl FormData {
             Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
                 futures_util::pin_mut!(body);
                 let mut data = BytesMut::new();
-                while let Some(chunk) = body.try_next().await.map_err(|e| ParseError::other(e))? {
+                while let Some(chunk) = body.try_next().await.map_err(|e| {
+                    let err = e.into();
+                    if err.is::<http_body_util::LengthLimitError>() {
+                        ParseError::PayloadTooLarge
+                    } else {
+                        ParseError::other(err)
+                    }
+                })? {
                     data.extend_from_slice(&chunk.into());
                 }
                 let mut form_data = Self::new();
@@ -72,7 +79,17 @@ impl FormData {
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
                     let mut multipart = Multipart::new(body, boundary);
-                    while let Some(mut field) = multipart.next_field().await? {
+                    while let Some(mut field) = multipart.next_field().await.map_err(|e| {
+                        // Check if the multer error contains a LengthLimitError
+                        let mut source = std::error::Error::source(&e);
+                        while let Some(err) = source {
+                            if err.is::<http_body_util::LengthLimitError>() {
+                                return ParseError::PayloadTooLarge;
+                            }
+                            source = std::error::Error::source(err);
+                        }
+                        ParseError::Multer(e)
+                    })? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {
                             if field.headers().get(CONTENT_TYPE).is_some() {
                                 form_data

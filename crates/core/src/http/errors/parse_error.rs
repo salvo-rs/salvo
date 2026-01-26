@@ -16,11 +16,8 @@ pub type ParseResult<T> = Result<T, ParseError>;
 #[non_exhaustive]
 pub enum ParseError {
     /// Request payload exceeds the configured maximum size.
-    #[error("payload too large (limit: {max_size} bytes)")]
-    PayloadTooLarge {
-        /// Maximum allowed payload size in bytes.
-        max_size: usize,
-    },
+    #[error("payload too large")]
+    PayloadTooLarge,
     /// The Hyper request did not have a valid Content-Type header.
     #[error("the request did not have a valid Content-Type header")]
     InvalidContentType,

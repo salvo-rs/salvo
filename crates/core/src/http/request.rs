@@ -1118,16 +1118,13 @@ impl Request {
         self.payload
             .get_or_try_init(|| async {
                 let limited = Limited::new(body, max_size);
-                let collected = limited
-                    .collect()
-                    .await
-                    .map_err(|e| {
-                        if e.is::<http_body_util::LengthLimitError>() {
-                            ParseError::PayloadTooLarge { max_size }
-                        } else {
-                            ParseError::other(e)
-                        }
-                    })?;
+                let collected = limited.collect().await.map_err(|e| {
+                    if e.is::<http_body_util::LengthLimitError>() {
+                        ParseError::PayloadTooLarge
+                    } else {
+                        ParseError::other(e)
+                    }
+                })?;
                 Ok(collected.to_bytes())
             })
             .await
@@ -1623,7 +1620,7 @@ Hello World\r\n\
             .build();
         req.set_secure_max_size(10);
         let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(matches!(err, ParseError::PayloadTooLarge));
     }
 
     #[tokio::test]
@@ -1646,7 +1643,7 @@ Hello World\r\n\
             .build();
         req.set_secure_max_size(16);
         let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 16 }));
+        assert!(matches!(err, ParseError::PayloadTooLarge));
 
         let mut req = TestClient::post("http://127.0.0.1:8698/upload")
             .add_header(
@@ -1677,7 +1674,7 @@ Hello World\r\n\
             .build();
         req.set_secure_max_size(10);
         let err = req.form_data().await.unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(matches!(err, ParseError::PayloadTooLarge));
     }
 
     #[tokio::test]
@@ -1696,7 +1693,7 @@ Hello World\r\n\
             .parse_body_with_max_size::<LoginForm>(10)
             .await
             .unwrap_err();
-        assert!(matches!(err, ParseError::PayloadTooLarge { max_size: 10 }));
+        assert!(matches!(err, ParseError::PayloadTooLarge));
 
         // Test that sufficient max_size succeeds (need new request since body was consumed)
         let mut req = TestClient::post("http://127.0.0.1:8698/form")
