@@ -27,7 +27,11 @@ static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
     // Borrowable string types (most common, listed first)
     |d, k| d.get::<String>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
     |d, k| d.get::<&'static str>(k).ok().map(|v| Cow::Borrowed(*v)),
-    |d, k| d.get::<Arc<String>>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
+    |d, k| {
+        d.get::<Arc<String>>(k)
+            .ok()
+            .map(|v| Cow::Borrowed(v.as_str()))
+    },
     |d, k| d.get::<Arc<str>>(k).ok().map(|v| Cow::Borrowed(&**v)),
     // Signed integer types
     |d, k| d.get::<i8>(k).ok().map(|v| Cow::Owned(v.to_string())),
@@ -51,7 +55,8 @@ static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
 ];
 
 /// Helper function to extract a value from Depot and convert it to a Cow<str>.
-/// Supports String, &str, Arc<String>, Arc<str>, and common primitive types (integers, floats, bool).
+/// Supports String, &str, Arc<String>, Arc<str>, and common primitive types (integers, floats,
+/// bool).
 fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
     for extractor in DEPOT_EXTRACTORS {
         if let Some(value) = extractor(depot, key) {
