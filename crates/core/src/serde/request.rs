@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use multimap::MultiMap;
@@ -14,6 +15,56 @@ use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
 use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
+
+/// Type alias for depot value extractor functions.
+/// Each extractor attempts to extract a specific type from the Depot and convert it to Cow<str>.
+type DepotExtractFn = for<'a> fn(&'a Depot, &str) -> Option<Cow<'a, str>>;
+
+/// Registry of depot value extractors.
+/// Extractors are tried in order until one succeeds.
+/// String types that can be borrowed are listed first for efficiency.
+static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
+    // Borrowable string types (most common, listed first)
+    |d, k| d.get::<String>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
+    |d, k| d.get::<&'static str>(k).ok().map(|v| Cow::Borrowed(*v)),
+    |d, k| {
+        d.get::<Arc<String>>(k)
+            .ok()
+            .map(|v| Cow::Borrowed(v.as_str()))
+    },
+    |d, k| d.get::<Arc<str>>(k).ok().map(|v| Cow::Borrowed(&**v)),
+    // Signed integer types
+    |d, k| d.get::<i8>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i16>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i128>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<isize>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Unsigned integer types
+    |d, k| d.get::<u8>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u16>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u128>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<usize>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Floating point types
+    |d, k| d.get::<f32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<f64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Boolean
+    |d, k| d.get::<bool>(k).ok().map(|v| Cow::Owned(v.to_string())),
+];
+
+/// Helper function to extract a value from Depot and convert it to a Cow<str>.
+/// Supports String, &str, Arc<String>, Arc<str>, and common primitive types (integers, floats,
+/// bool).
+fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
+    for extractor in DEPOT_EXTRACTORS {
+        if let Some(value) = extractor(depot, key) {
+            return Some(value);
+        }
+    }
+    None
+}
 
 pub async fn from_request<'de, T>(
     req: &'de mut Request,
@@ -76,7 +127,7 @@ pub(crate) struct RequestDeserializer<'de> {
     field_index: isize,
     field_flatten: bool,
     field_source: Option<Source>,
-    field_str_value: Option<&'de str>,
+    field_str_value: Option<Cow<'de, str>>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
 }
 
@@ -186,17 +237,22 @@ impl<'de> RequestDeserializer<'de> {
 
             let parser = self.real_parser(source);
             if source.from == SourceFrom::Body && parser == SourceParser::Json {
+                // For JSON body parsing, value is always borrowed from the request payload.
                 // panic because this indicates a bug in the program rather than an expected
                 // failure.
                 let value = self
                     .field_str_value
+                    .take()
                     .expect("MapAccess::next_value called before next_key");
-                let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-
-                seed.deserialize(&mut value)
+                // Body JSON values are always borrowed from the request payload
+                let Cow::Borrowed(s) = value else {
+                    return Err(ValError::custom("JSON body value must be borrowed"));
+                };
+                let mut de = serde_json::Deserializer::new(serde_json::de::StrRead::new(s));
+                seed.deserialize(&mut de)
                     .map_err(|_| ValError::custom("parse value error"))
             } else if let Some(value) = self.field_str_value.take() {
-                seed.deserialize(CowValue(value.into()))
+                seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
                 if source.from == SourceFrom::Query || source.from == SourceFrom::Header {
                     seed.deserialize(FlatValue(value))
@@ -249,7 +305,7 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     }
                     if let Some(value) = value {
-                        self.field_str_value = Some(value);
+                        self.field_str_value = Some(Cow::Borrowed(value));
                         self.field_source = Some(source);
                         return true;
                     }
@@ -308,6 +364,22 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     };
                     if let Some(value) = value {
+                        self.field_str_value = Some(Cow::Borrowed(value));
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
+                SourceFrom::Depot => {
+                    let mut value = get_depot_value(self.depot, field_name);
+                    if value.is_none() {
+                        for alias in &field.aliases {
+                            value = get_depot_value(self.depot, alias);
+                            if value.is_some() {
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(value) = value {
                         self.field_str_value = Some(value);
                         self.field_source = Some(source);
                         return true;
@@ -330,7 +402,7 @@ impl<'de> RequestDeserializer<'de> {
                                             }
                                         }
                                         if let Some(value) = value {
-                                            self.field_str_value = Some(value);
+                                            self.field_str_value = Some(Cow::Borrowed(value));
                                             self.field_source = Some(source);
                                             return true;
                                         }
@@ -347,14 +419,14 @@ impl<'de> RequestDeserializer<'de> {
                                             }
                                         }
                                         if let Some(value) = value {
-                                            self.field_str_value = Some(value.get());
+                                            self.field_str_value = Some(Cow::Borrowed(value.get()));
                                             self.field_source = Some(source);
                                             return true;
                                         }
                                         return false;
                                     }
                                     Payload::JsonStr(value) => {
-                                        self.field_str_value = Some(*value);
+                                        self.field_str_value = Some(Cow::Borrowed(*value));
                                         self.field_source = Some(source);
                                         return true;
                                     }
@@ -938,6 +1010,141 @@ mod tests {
             data,
             RequestData {
                 ids: vec![3, 2, 11]
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            user_id: String,
+            username: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", "12345".to_string());
+        depot.insert("username", "alice".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                username: "alice".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_alias() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            #[salvo(extract(alias = "uid"))]
+            user_id: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("uid", "12345".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_and_query() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        struct RequestData {
+            #[salvo(extract(source(from = "depot")))]
+            user_id: String,
+            #[salvo(extract(source(from = "query")))]
+            page: i64,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test?page=5").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", "12345".to_string());
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                page: 5
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_primitives() {
+        #[derive(Deserialize, Extractible, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            int_val: i64,
+            uint_val: u32,
+            float_val: f64,
+            bool_val: bool,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("int_val", -42i64);
+        depot.insert("uint_val", 100u32);
+        depot.insert("float_val", 3.14f64);
+        depot.insert("bool_val", true);
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                int_val: -42,
+                uint_val: 100,
+                float_val: 3.14,
+                bool_val: true
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_static_str() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            message: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("message", "hello world");
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                message: "hello world".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_arc_string() {
+        use std::sync::Arc;
+
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            user_id: String,
+            username: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", Arc::new("12345".to_string()));
+        depot.insert("username", Arc::<str>::from("alice"));
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                username: "alice".to_string()
             }
         );
     }
