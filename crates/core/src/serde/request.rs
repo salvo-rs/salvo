@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use multimap::MultiMap;
@@ -15,65 +16,47 @@ use crate::http::header::HeaderMap;
 use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
 
+/// Type alias for depot value extractor functions.
+/// Each extractor attempts to extract a specific type from the Depot and convert it to Cow<str>.
+type DepotExtractFn = for<'a> fn(&'a Depot, &str) -> Option<Cow<'a, str>>;
+
+/// Registry of depot value extractors.
+/// Extractors are tried in order until one succeeds.
+/// String types that can be borrowed are listed first for efficiency.
+static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
+    // Borrowable string types (most common, listed first)
+    |d, k| d.get::<String>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
+    |d, k| d.get::<&'static str>(k).ok().map(|v| Cow::Borrowed(*v)),
+    |d, k| d.get::<Arc<String>>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
+    |d, k| d.get::<Arc<str>>(k).ok().map(|v| Cow::Borrowed(&**v)),
+    // Signed integer types
+    |d, k| d.get::<i8>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i16>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<i128>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<isize>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Unsigned integer types
+    |d, k| d.get::<u8>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u16>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<u128>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<usize>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Floating point types
+    |d, k| d.get::<f32>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    |d, k| d.get::<f64>(k).ok().map(|v| Cow::Owned(v.to_string())),
+    // Boolean
+    |d, k| d.get::<bool>(k).ok().map(|v| Cow::Owned(v.to_string())),
+];
+
 /// Helper function to extract a value from Depot and convert it to a Cow<str>.
-/// Supports String, &str, and common primitive types (integers, floats, bool).
+/// Supports String, &str, Arc<String>, Arc<str>, and common primitive types (integers, floats, bool).
 fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
-    // Try String first (most common case)
-    if let Ok(v) = depot.get::<String>(key) {
-        return Some(Cow::Borrowed(v.as_str()));
-    }
-    // Try &'static str
-    if let Ok(v) = depot.get::<&'static str>(key) {
-        return Some(Cow::Borrowed(*v));
-    }
-    // Try common integer types
-    if let Ok(v) = depot.get::<i8>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<i16>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<i32>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<i64>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<i128>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<isize>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    // Try unsigned integer types
-    if let Ok(v) = depot.get::<u8>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<u16>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<u32>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<u64>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<u128>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<usize>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    // Try floating point types
-    if let Ok(v) = depot.get::<f32>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    if let Ok(v) = depot.get::<f64>(key) {
-        return Some(Cow::Owned(v.to_string()));
-    }
-    // Try bool
-    if let Ok(v) = depot.get::<bool>(key) {
-        return Some(Cow::Owned(v.to_string()));
+    for extractor in DEPOT_EXTRACTORS {
+        if let Some(value) = extractor(depot, key) {
+            return Some(value);
+        }
     }
     None
 }
@@ -1133,6 +1116,30 @@ mod tests {
             data,
             RequestData {
                 message: "hello world".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_from_depot_with_arc_string() {
+        use std::sync::Arc;
+
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "depot")))]
+        struct RequestData {
+            user_id: String,
+            username: String,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
+        let mut depot = Depot::new();
+        depot.insert("user_id", Arc::new("12345".to_string()));
+        depot.insert("username", Arc::<str>::from("alice"));
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                user_id: "12345".to_string(),
+                username: "alice".to_string()
             }
         );
     }
