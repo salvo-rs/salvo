@@ -5,7 +5,7 @@ use std::pin::Pin;
 
 use bytes::Bytes;
 pub use disk::*;
-use futures_core::Stream;
+use futures_util::Stream;
 use salvo_core::async_trait;
 use salvo_core::http::HeaderValue;
 
