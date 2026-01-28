@@ -112,7 +112,7 @@ impl ParseError {
 impl Writer for ParseError {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let status = match &self {
-            ParseError::PayloadTooLarge { .. } => StatusError::payload_too_large(),
+            Self::PayloadTooLarge => StatusError::payload_too_large(),
             _ => StatusError::bad_request().brief("parse http data failed"),
         };
         res.render(status.cause(self));
