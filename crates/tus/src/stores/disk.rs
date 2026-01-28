@@ -406,3 +406,734 @@ impl DataStore for DiskStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use tempfile::TempDir;
+
+    use super::*;
+
+    fn create_test_store() -> (DiskStore, TempDir) {
+        let temp_dir = TempDir::new().unwrap();
+        let store = DiskStore::new().disk_root(temp_dir.path());
+        (store, temp_dir)
+    }
+
+    fn create_test_upload_info(id: &str) -> UploadInfo {
+        UploadInfo {
+            id: id.to_string(),
+            size: Some(1024),
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_disk_store_new() {
+        let store = DiskStore::new();
+        assert_eq!(store.root, PathBuf::from("./tus-upload-files"));
+    }
+
+    #[test]
+    fn test_disk_store_disk_root() {
+        let store = DiskStore::new().disk_root("/custom/path");
+        assert_eq!(store.root, PathBuf::from("/custom/path"));
+    }
+
+    #[test]
+    fn test_disk_store_data_path() {
+        let store = DiskStore::new().disk_root("/uploads");
+        let path = store.data_path("test-id");
+        assert_eq!(path, PathBuf::from("/uploads/test-id.bin"));
+    }
+
+    #[test]
+    fn test_disk_store_meta_path() {
+        let store = DiskStore::new().disk_root("/uploads");
+        let path = store.meta_path("test-id");
+        assert_eq!(path, PathBuf::from("/uploads/test-id.json"));
+    }
+
+    #[test]
+    fn test_disk_store_meta_tmp_path() {
+        let store = DiskStore::new().disk_root("/uploads");
+        let path = store.meta_tmp_path("test-id");
+        assert_eq!(path, PathBuf::from("/uploads/test-id.json.tmp"));
+    }
+
+    #[test]
+    fn test_disk_store_extensions() {
+        let store = DiskStore::new();
+        let extensions = store.extensions();
+
+        assert!(extensions.contains(&Extension::Creation));
+        assert!(extensions.contains(&Extension::CreationDeferLength));
+        assert!(extensions.contains(&Extension::CreationWithUpload));
+        assert!(extensions.contains(&Extension::Termination));
+        assert!(!extensions.contains(&Extension::Expiration));
+        assert!(!extensions.contains(&Extension::Concatenation));
+    }
+
+    #[test]
+    fn test_disk_store_has_extension() {
+        let store = DiskStore::new();
+
+        assert!(store.has_extension(Extension::Creation));
+        assert!(store.has_extension(Extension::Termination));
+        assert!(!store.has_extension(Extension::Expiration));
+    }
+
+    #[test]
+    fn test_sanitize_filename_valid() {
+        assert_eq!(
+            DiskStore::sanitize_filename("test.txt"),
+            Some("test.txt".to_string())
+        );
+        assert_eq!(
+            DiskStore::sanitize_filename("  test.txt  "),
+            Some("test.txt".to_string())
+        );
+        assert_eq!(
+            DiskStore::sanitize_filename("/path/to/file.txt"),
+            Some("file.txt".to_string())
+        );
+        assert_eq!(DiskStore::sanitize_filename("a"), Some("a".to_string()));
+    }
+
+    #[test]
+    fn test_sanitize_filename_invalid() {
+        assert_eq!(DiskStore::sanitize_filename(""), None);
+        assert_eq!(DiskStore::sanitize_filename("   "), None);
+        assert_eq!(DiskStore::sanitize_filename("."), None);
+        assert_eq!(DiskStore::sanitize_filename(".."), None);
+    }
+
+    #[test]
+    fn test_filename_from_meta_with_filename() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filename".to_string(), Some("document.pdf".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::filename_from_meta(&meta),
+            Some("document.pdf".to_string())
+        );
+    }
+
+    #[test]
+    fn test_filename_from_meta_without_filename() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(DiskStore::filename_from_meta(&meta), None);
+    }
+
+    #[test]
+    fn test_extension_from_filetype() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filetype".to_string(), Some("application/pdf".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::extension_from_filetype(&meta),
+            Some("pdf".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extension_from_filetype_image() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filetype".to_string(), Some("image/png".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::extension_from_filetype(&meta),
+            Some("png".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extension_from_filetype_invalid() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filetype".to_string(), Some("invalid".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(DiskStore::extension_from_filetype(&meta), None);
+    }
+
+    #[test]
+    fn test_extension_from_filetype_empty_subtype() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filetype".to_string(), Some("application/".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(DiskStore::extension_from_filetype(&meta), None);
+    }
+
+    #[test]
+    fn test_desired_filename_with_name_and_extension() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filename".to_string(), Some("document.pdf".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::desired_filename(&meta),
+            Some("document.pdf".to_string())
+        );
+    }
+
+    #[test]
+    fn test_desired_filename_with_name_without_extension() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filename".to_string(), Some("document".to_string()));
+                m.insert("filetype".to_string(), Some("application/pdf".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::desired_filename(&meta),
+            Some("document.pdf".to_string())
+        );
+    }
+
+    #[test]
+    fn test_desired_filename_only_filetype() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("filetype".to_string(), Some("image/png".to_string()));
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(
+            DiskStore::desired_filename(&meta),
+            Some("test-id.png".to_string())
+        );
+    }
+
+    #[test]
+    fn test_desired_filename_no_metadata() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: 0,
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        assert_eq!(DiskStore::desired_filename(&meta), None);
+    }
+
+    #[test]
+    fn test_with_id_suffix_with_extension() {
+        assert_eq!(
+            DiskStore::with_id_suffix("file.txt", "abc123"),
+            "file-abc123.txt"
+        );
+    }
+
+    #[test]
+    fn test_with_id_suffix_without_extension() {
+        assert_eq!(DiskStore::with_id_suffix("file", "abc123"), "file-abc123");
+    }
+
+    #[test]
+    fn test_with_id_suffix_complex_name() {
+        assert_eq!(
+            DiskStore::with_id_suffix("my.file.name.txt", "abc123"),
+            "my.file.name-abc123.txt"
+        );
+    }
+
+    #[test]
+    fn test_resolve_data_path_with_storage() {
+        let store = DiskStore::new().disk_root("/uploads");
+        let storage = Some(MetaStoreInfo {
+            type_name: "file".to_string(),
+            path: "/custom/path/file.bin".to_string(),
+            bucket: None,
+        });
+        let path = store.resolve_data_path("test-id", &storage);
+        assert_eq!(path, PathBuf::from("/custom/path/file.bin"));
+    }
+
+    #[test]
+    fn test_resolve_data_path_without_storage() {
+        let store = DiskStore::new().disk_root("/uploads");
+        let path = store.resolve_data_path("test-id", &None);
+        assert_eq!(path, PathBuf::from("/uploads/test-id.bin"));
+    }
+
+    #[test]
+    fn test_meta_store_info_from_store_info() {
+        let store_info = StoreInfo {
+            type_name: "disk".to_string(),
+            path: "/path/to/file".to_string(),
+            bucket: Some("bucket".to_string()),
+        };
+        let meta_info: MetaStoreInfo = store_info.into();
+        assert_eq!(meta_info.type_name, "disk");
+        assert_eq!(meta_info.path, "/path/to/file");
+        assert_eq!(meta_info.bucket, Some("bucket".to_string()));
+    }
+
+    #[test]
+    fn test_store_info_from_meta_store_info() {
+        let meta_info = MetaStoreInfo {
+            type_name: "disk".to_string(),
+            path: "/path/to/file".to_string(),
+            bucket: None,
+        };
+        let store_info: StoreInfo = meta_info.into();
+        assert_eq!(store_info.type_name, "disk");
+        assert_eq!(store_info.path, "/path/to/file");
+        assert_eq!(store_info.bucket, None);
+    }
+
+    #[test]
+    fn test_meta_upload_from_upload_info() {
+        let upload_info = UploadInfo {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: Some(512),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        let meta: MetaUpload = upload_info.into();
+        assert_eq!(meta.id, "test-id");
+        assert_eq!(meta.size, Some(1024));
+        assert_eq!(meta.offset, 512);
+    }
+
+    #[test]
+    fn test_meta_upload_from_upload_info_no_offset() {
+        let upload_info = UploadInfo {
+            id: "test-id".to_string(),
+            size: Some(1024),
+            offset: None,
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        let meta: MetaUpload = upload_info.into();
+        assert_eq!(meta.offset, 0); // defaults to 0
+    }
+
+    #[test]
+    fn test_upload_info_from_meta_upload() {
+        let meta = MetaUpload {
+            id: "test-id".to_string(),
+            size: Some(2048),
+            offset: 1024,
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+        let upload_info: UploadInfo = meta.into();
+        assert_eq!(upload_info.id, "test-id");
+        assert_eq!(upload_info.size, Some(2048));
+        assert_eq!(upload_info.offset, Some(1024));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_create_and_read() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = create_test_upload_info("test-create-1");
+
+        let created = store.create(upload_info.clone()).await.unwrap();
+        assert_eq!(created.id, "test-create-1");
+        assert!(created.storage.is_some());
+
+        let info = store.get_upload_file_info("test-create-1").await.unwrap();
+        assert_eq!(info.id, "test-create-1");
+        assert_eq!(info.size, Some(1024));
+        assert_eq!(info.offset, Some(0));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_create_with_deferred_size() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-deferred".to_string(),
+            size: None, // deferred
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        let _created = store.create(upload_info).await.unwrap();
+        let info = store.get_upload_file_info("test-deferred").await.unwrap();
+        assert!(info.get_size_is_deferred());
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_remove() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = create_test_upload_info("test-remove");
+
+        store.create(upload_info).await.unwrap();
+        store.remove("test-remove").await.unwrap();
+
+        let result = store.get_upload_file_info("test-remove").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_remove_not_found() {
+        let (store, _temp_dir) = create_test_store();
+
+        let result = store.remove("non-existent").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_get_upload_file_info_not_found() {
+        let (store, _temp_dir) = create_test_store();
+
+        let result = store.get_upload_file_info("non-existent").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_declare_upload_length() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-declare".to_string(),
+            size: None,
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        store
+            .declare_upload_length("test-declare", 2048)
+            .await
+            .unwrap();
+
+        let info = store.get_upload_file_info("test-declare").await.unwrap();
+        assert_eq!(info.size, Some(2048));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_declare_upload_length_too_small() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-declare-small".to_string(),
+            size: None,
+            offset: Some(100), // Already has some offset
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        // Try to declare length smaller than current offset
+        let result = store.declare_upload_length("test-declare-small", 50).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-write".to_string(),
+            size: Some(100),
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        let data = Bytes::from("Hello, World!");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+
+        let written = store.write("test-write", 0, stream).await.unwrap();
+        assert_eq!(written, 13);
+
+        let info = store.get_upload_file_info("test-write").await.unwrap();
+        assert_eq!(info.offset, Some(13));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_offset_mismatch() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = create_test_upload_info("test-write-mismatch");
+
+        store.create(upload_info).await.unwrap();
+
+        let data = Bytes::from("test");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+
+        // Try to write at wrong offset
+        let result = store.write("test-write-mismatch", 100, stream).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            TusError::OffsetMismatch { expected, got } => {
+                assert_eq!(expected, 0);
+                assert_eq!(got, 100);
+            }
+            _ => panic!("Expected OffsetMismatch error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_payload_too_large() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-write-large".to_string(),
+            size: Some(5), // Only 5 bytes allowed
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        let data = Bytes::from("This is too long");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+
+        let result = store.write("test-write-large", 0, stream).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_not_found() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+
+        let data = Bytes::from("test");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+
+        let result = store.write("non-existent", 0, stream).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_multiple_chunks() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-multi-chunk".to_string(),
+            size: Some(100),
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        // First write
+        let data1 = Bytes::from("Hello, ");
+        let stream1: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data1) }));
+        let written1 = store.write("test-multi-chunk", 0, stream1).await.unwrap();
+        assert_eq!(written1, 7);
+
+        // Second write
+        let data2 = Bytes::from("World!");
+        let stream2: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data2) }));
+        let written2 = store.write("test-multi-chunk", 7, stream2).await.unwrap();
+        assert_eq!(written2, 6);
+
+        let info = store
+            .get_upload_file_info("test-multi-chunk")
+            .await
+            .unwrap();
+        assert_eq!(info.offset, Some(13));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_finalize_on_complete() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, temp_dir) = create_test_store();
+
+        let mut metadata = HashMap::new();
+        metadata.insert("filename".to_string(), Some("myfile.txt".to_string()));
+
+        let upload_info = UploadInfo {
+            id: "test-finalize".to_string(),
+            size: Some(5),
+            offset: Some(0),
+            metadata: Some(Metadata(metadata)),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        let data = Bytes::from("hello");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+        store.write("test-finalize", 0, stream).await.unwrap();
+
+        // Check that the file was renamed
+        let info = store.get_upload_file_info("test-finalize").await.unwrap();
+        assert!(info.storage.is_some());
+        let storage = info.storage.unwrap();
+        assert!(storage.path.contains("myfile.txt"));
+
+        // Verify file exists at final path
+        assert!(temp_dir.path().join("myfile.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_create_with_metadata() {
+        let (store, _temp_dir) = create_test_store();
+
+        let mut metadata = HashMap::new();
+        metadata.insert("filename".to_string(), Some("test.pdf".to_string()));
+        metadata.insert("filetype".to_string(), Some("application/pdf".to_string()));
+
+        let upload_info = UploadInfo {
+            id: "test-metadata".to_string(),
+            size: Some(1024),
+            offset: Some(0),
+            metadata: Some(Metadata(metadata)),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        let info = store.get_upload_file_info("test-metadata").await.unwrap();
+        assert!(info.metadata.is_some());
+        let meta = info.metadata.unwrap();
+        assert_eq!(meta.get("filename"), Some(&Some("test.pdf".to_string())));
+    }
+
+    #[test]
+    fn test_metadata_value_extraction() {
+        let meta = MetaUpload {
+            id: "test".to_string(),
+            size: Some(100),
+            offset: 0,
+            metadata: Some({
+                let mut m = HashMap::new();
+                m.insert("key1".to_string(), Some("value1".to_string()));
+                m.insert("key2".to_string(), None);
+                m
+            }),
+            storage: None,
+            creation_date: "2024-01-01".to_string(),
+        };
+
+        assert_eq!(
+            DiskStore::metadata_value(&meta, "key1"),
+            Some("value1".to_string())
+        );
+        assert_eq!(DiskStore::metadata_value(&meta, "key2"), None);
+        assert_eq!(DiskStore::metadata_value(&meta, "key3"), None);
+    }
+
+    #[test]
+    fn test_disk_store_clone() {
+        let store1 = DiskStore::new().disk_root("/path1");
+        let store2 = store1.clone();
+        assert_eq!(store1.root, store2.root);
+    }
+}

@@ -241,3 +241,305 @@ impl Tus {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(TUS_VERSION, "1.0.0");
+        assert_eq!(H_TUS_RESUMABLE, "tus-resumable");
+        assert_eq!(H_TUS_VERSION, "tus-version");
+        assert_eq!(H_TUS_EXTENSION, "tus-extension");
+        assert_eq!(H_TUS_MAX_SIZE, "tus-max-size");
+        assert_eq!(H_UPLOAD_LENGTH, "upload-length");
+        assert_eq!(H_UPLOAD_OFFSET, "upload-offset");
+        assert_eq!(H_UPLOAD_METADATA, "upload-metadata");
+        assert_eq!(H_UPLOAD_CONCAT, "upload-concat");
+        assert_eq!(H_UPLOAD_DEFER_LENGTH, "upload-defer-length");
+        assert_eq!(H_UPLOAD_EXPIRES, "upload-expires");
+        assert_eq!(H_CONTENT_TYPE, "content-type");
+        assert_eq!(H_CONTENT_LENGTH, "content-length");
+        assert_eq!(CT_OFFSET_OCTET_STREAM, "application/offset+octet-stream");
+    }
+
+    #[test]
+    fn test_cancellation_reason_equality() {
+        assert_eq!(CancellationReason::Abort, CancellationReason::Abort);
+        assert_eq!(CancellationReason::Cancel, CancellationReason::Cancel);
+        assert_ne!(CancellationReason::Abort, CancellationReason::Cancel);
+    }
+
+    #[test]
+    fn test_cancellation_reason_clone_copy() {
+        let reason = CancellationReason::Abort;
+        let cloned = reason.clone();
+        let copied = reason;
+        assert_eq!(reason, cloned);
+        assert_eq!(reason, copied);
+    }
+
+    #[test]
+    fn test_cancellation_reason_debug() {
+        let debug = format!("{:?}", CancellationReason::Abort);
+        assert_eq!(debug, "Abort");
+
+        let debug = format!("{:?}", CancellationReason::Cancel);
+        assert_eq!(debug, "Cancel");
+    }
+
+    #[test]
+    fn test_cancellation_context_new() {
+        let ctx = CancellationContext::new();
+        assert!(!ctx.signal.is_cancelled());
+        assert!(!ctx.signal.is_aborted());
+        assert!(ctx.signal.reason().is_none());
+    }
+
+    #[test]
+    fn test_cancellation_context_default() {
+        let ctx = CancellationContext::default();
+        assert!(!ctx.signal.is_cancelled());
+    }
+
+    #[test]
+    fn test_cancellation_context_abort() {
+        let ctx = CancellationContext::new();
+        ctx.abort();
+
+        assert!(ctx.signal.is_cancelled());
+        assert!(ctx.signal.is_aborted());
+        assert_eq!(ctx.signal.reason(), Some(CancellationReason::Abort));
+    }
+
+    #[test]
+    fn test_cancellation_context_cancel() {
+        let ctx = CancellationContext::new();
+        ctx.cancel();
+
+        assert!(ctx.signal.is_cancelled());
+        assert!(!ctx.signal.is_aborted());
+        assert_eq!(ctx.signal.reason(), Some(CancellationReason::Cancel));
+    }
+
+    #[test]
+    fn test_cancellation_signal_clone() {
+        let ctx = CancellationContext::new();
+        let signal1 = ctx.signal.clone();
+        let signal2 = ctx.signal.clone();
+
+        assert!(!signal1.is_cancelled());
+        assert!(!signal2.is_cancelled());
+
+        ctx.abort();
+
+        assert!(signal1.is_cancelled());
+        assert!(signal2.is_cancelled());
+    }
+
+    #[test]
+    fn test_cancellation_context_clone() {
+        let ctx1 = CancellationContext::new();
+        let ctx2 = ctx1.clone();
+
+        // Both contexts share the same sender/receiver
+        ctx1.abort();
+
+        assert!(ctx2.signal.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_signal_cancelled_async() {
+        let ctx = CancellationContext::new();
+        let mut signal = ctx.signal.clone();
+
+        // Spawn a task to cancel after a short delay
+        let ctx_clone = ctx.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            ctx_clone.cancel();
+        });
+
+        let reason = signal.cancelled().await;
+        assert_eq!(reason, CancellationReason::Cancel);
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_signal_cancelled_already_cancelled() {
+        let ctx = CancellationContext::new();
+        ctx.abort();
+
+        let mut signal = ctx.signal.clone();
+        let reason = signal.cancelled().await;
+        assert_eq!(reason, CancellationReason::Abort);
+    }
+
+    #[test]
+    fn test_cancellation_context_debug() {
+        let ctx = CancellationContext::new();
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("CancellationContext"));
+    }
+
+    #[test]
+    fn test_cancellation_signal_debug() {
+        let ctx = CancellationContext::new();
+        let debug = format!("{:?}", ctx.signal);
+        assert!(debug.contains("CancellationSignal"));
+    }
+
+    #[test]
+    fn test_tus_new() {
+        let tus = Tus::new();
+        assert_eq!(tus.options.path, "/tus-files");
+    }
+
+    #[test]
+    fn test_tus_default() {
+        let tus = Tus::default();
+        assert_eq!(tus.options.path, "/tus-files");
+    }
+
+    #[test]
+    fn test_tus_path() {
+        let tus = Tus::new().path("/custom/uploads");
+        assert_eq!(tus.options.path, "/custom/uploads");
+    }
+
+    #[test]
+    fn test_tus_max_size() {
+        let tus = Tus::new().max_size(MaxSize::Fixed(1024 * 1024));
+        match &tus.options.max_size {
+            Some(MaxSize::Fixed(size)) => assert_eq!(*size, 1024 * 1024),
+            _ => panic!("Expected Fixed max_size"),
+        }
+    }
+
+    #[test]
+    fn test_tus_relative_location() {
+        let tus = Tus::new().relative_location(false);
+        assert!(!tus.options.relative_location);
+
+        let tus = Tus::new().relative_location(true);
+        assert!(tus.options.relative_location);
+    }
+
+    #[test]
+    fn test_tus_with_locker() {
+        use lockers::memory_locker::MemoryLocker;
+
+        let tus = Tus::new().with_locker(MemoryLocker::new());
+        // Just verify it compiles and doesn't panic
+        assert!(Arc::strong_count(&tus.options.locker) >= 1);
+    }
+
+    #[test]
+    fn test_tus_with_store() {
+        let tus = Tus::new().with_store(stores::DiskStore::new());
+        // Just verify it compiles and doesn't panic
+        assert!(Arc::strong_count(&tus.store) >= 1);
+    }
+
+    #[test]
+    fn test_tus_into_router() {
+        let tus = Tus::new().path("/uploads");
+        let _router = tus.into_router();
+        // Router creation should succeed
+    }
+
+    #[test]
+    fn test_tus_clone() {
+        let tus = Tus::new().path("/test");
+        let cloned = tus.clone();
+        assert_eq!(cloned.options.path, "/test");
+    }
+
+    #[test]
+    fn test_tus_builder_chain() {
+        let tus = Tus::new()
+            .path("/api/tus")
+            .max_size(MaxSize::Fixed(10 * 1024 * 1024))
+            .relative_location(false);
+
+        assert_eq!(tus.options.path, "/api/tus");
+        assert!(!tus.options.relative_location);
+        match &tus.options.max_size {
+            Some(MaxSize::Fixed(size)) => assert_eq!(*size, 10 * 1024 * 1024),
+            _ => panic!("Expected Fixed max_size"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_tus_with_upload_id_naming_function() {
+        let tus = Tus::new().with_upload_id_naming_function(|_req, _meta| async move {
+            Ok("custom-id".to_string())
+        });
+
+        // Verify the function is set by calling it
+        let req = Request::default();
+        let result = (tus.options.upload_id_naming_function)(&req, None).await;
+        assert_eq!(result.unwrap(), "custom-id");
+    }
+
+    #[test]
+    fn test_tus_with_generate_url_function() {
+        let tus = Tus::new().with_generate_url_function(|_req, ctx| {
+            Ok(format!("https://cdn.example.com/{}", ctx.id))
+        });
+
+        assert!(tus.options.generate_url_function.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_tus_with_on_incoming_request() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let called = Arc::new(AtomicBool::new(false));
+        let called_clone = called.clone();
+
+        let tus = Tus::new().with_on_incoming_request(move |_req, _id| {
+            let called = called_clone.clone();
+            async move {
+                called.store(true, Ordering::SeqCst);
+            }
+        });
+
+        assert!(tus.options.on_incoming_request.is_some());
+        let req = Request::default();
+        (tus.options.on_incoming_request.unwrap())(&req, "test-id".to_string()).await;
+        assert!(called.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_tus_with_on_incoming_request_sync() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let called = Arc::new(AtomicBool::new(false));
+        let called_clone = called.clone();
+
+        let tus = Tus::new().with_on_incoming_request_sync(move |_req, _id| {
+            called_clone.store(true, Ordering::SeqCst);
+        });
+
+        assert!(tus.options.on_incoming_request.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_tus_with_on_upload_create() {
+        let tus = Tus::new()
+            .with_on_upload_create(|_req, _upload| async move { Ok(UploadPatch::default()) });
+
+        assert!(tus.options.on_upload_create.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_tus_with_on_upload_finish() {
+        let tus = Tus::new()
+            .with_on_upload_finish(|_req, _upload| async move { Ok(UploadFinishPatch::default()) });
+
+        assert!(tus.options.on_upload_finish.is_some());
+    }
+}
