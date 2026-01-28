@@ -551,4 +551,350 @@ mod tests {
             .await;
         assert_eq!(response.take_string().await.unwrap(), "home");
     }
+
+    // Tests for HandlerBuilder
+    #[test]
+    fn test_handler_builder_new() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        );
+        assert_eq!(builder.cookie_path, "/");
+        assert_eq!(builder.cookie_name, "salvo.session.id");
+        assert!(builder.cookie_domain.is_none());
+        assert!(builder.save_unchanged);
+        assert_eq!(builder.same_site_policy, SameSite::Lax);
+        assert_eq!(builder.session_ttl, Some(Duration::from_secs(24 * 60 * 60)));
+    }
+
+    #[test]
+    fn test_handler_builder_cookie_path() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .cookie_path("/custom");
+        assert_eq!(builder.cookie_path, "/custom");
+    }
+
+    #[test]
+    fn test_handler_builder_session_ttl() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .session_ttl(Some(Duration::from_secs(3600)));
+        assert_eq!(builder.session_ttl, Some(Duration::from_secs(3600)));
+    }
+
+    #[test]
+    fn test_handler_builder_session_ttl_none() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .session_ttl(None);
+        assert!(builder.session_ttl.is_none());
+    }
+
+    #[test]
+    fn test_handler_builder_cookie_name() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .cookie_name("my_session");
+        assert_eq!(builder.cookie_name, "my_session");
+    }
+
+    #[test]
+    fn test_handler_builder_save_unchanged() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .save_unchanged(false);
+        assert!(!builder.save_unchanged);
+    }
+
+    #[test]
+    fn test_handler_builder_same_site_policy() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .same_site_policy(SameSite::None);
+        assert_eq!(builder.same_site_policy, SameSite::None);
+    }
+
+    #[test]
+    fn test_handler_builder_cookie_domain() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .cookie_domain("example.com");
+        assert_eq!(builder.cookie_domain, Some("example.com".to_string()));
+    }
+
+    #[test]
+    fn test_handler_builder_fallback_keys() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .fallback_keys(vec![Key::from(
+            b"fallbackfallbackfallbackfallbackfallbackfallbackfallbackfallback" as &[u8],
+        )]);
+        assert_eq!(builder.fallback_keys.len(), 1);
+    }
+
+    #[test]
+    fn test_handler_builder_add_fallback_key() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .add_fallback_key(Key::from(
+            b"fallbackfallbackfallbackfallbackfallbackfallbackfallbackfallback" as &[u8],
+        ))
+        .add_fallback_key(Key::from(
+            b"anotherkeyanotherkeyanotherkeyanotherkeyanotherkeyanotherkeyanot" as &[u8],
+        ));
+        assert_eq!(builder.fallback_keys.len(), 2);
+    }
+
+    #[test]
+    fn test_handler_builder_build() {
+        let handler = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+        assert_eq!(handler.cookie_path, "/");
+        assert_eq!(handler.cookie_name, "salvo.session.id");
+    }
+
+    #[test]
+    fn test_handler_builder_debug() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        );
+        let debug_str = format!("{:?}", builder);
+        assert!(debug_str.contains("HandlerBuilder"));
+        assert!(debug_str.contains("cookie_path"));
+        assert!(debug_str.contains("cookie_name"));
+    }
+
+    #[test]
+    fn test_handler_builder_chain() {
+        let handler = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .cookie_path("/app")
+        .cookie_name("app_session")
+        .cookie_domain("app.example.com")
+        .session_ttl(Some(Duration::from_secs(7200)))
+        .save_unchanged(false)
+        .same_site_policy(SameSite::Strict)
+        .build()
+        .unwrap();
+
+        assert_eq!(handler.cookie_path, "/app");
+        assert_eq!(handler.cookie_name, "app_session");
+        assert_eq!(handler.cookie_domain, Some("app.example.com".to_string()));
+        assert_eq!(handler.session_ttl, Some(Duration::from_secs(7200)));
+        assert!(!handler.save_unchanged);
+        assert_eq!(handler.same_site_policy, SameSite::Strict);
+    }
+
+    // Tests for SessionHandler
+    #[test]
+    fn test_session_handler_builder() {
+        let handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+        assert_eq!(handler.cookie_name, "salvo.session.id");
+    }
+
+    #[test]
+    fn test_session_handler_debug() {
+        let handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+        let debug_str = format!("{:?}", handler);
+        assert!(debug_str.contains("SessionHandler"));
+        assert!(debug_str.contains("cookie_path"));
+    }
+
+    // Tests for SessionDepotExt
+    #[test]
+    fn test_depot_set_session() {
+        let mut depot = Depot::new();
+        let session = Session::new();
+        depot.set_session(session);
+        assert!(depot.session().is_some());
+    }
+
+    #[test]
+    fn test_depot_take_session() {
+        let mut depot = Depot::new();
+        let session = Session::new();
+        depot.set_session(session);
+        let taken = depot.take_session();
+        assert!(taken.is_some());
+        assert!(depot.session().is_none());
+    }
+
+    #[test]
+    fn test_depot_session() {
+        let mut depot = Depot::new();
+        assert!(depot.session().is_none());
+
+        depot.set_session(Session::new());
+        assert!(depot.session().is_some());
+    }
+
+    #[test]
+    fn test_depot_session_mut() {
+        let mut depot = Depot::new();
+        depot.set_session(Session::new());
+
+        if let Some(session) = depot.session_mut() {
+            session.insert("key", "value").unwrap();
+        }
+
+        if let Some(session) = depot.session() {
+            assert_eq!(session.get::<String>("key"), Some("value".to_string()));
+        }
+    }
+
+    // Tests for session with destroyed state
+    #[tokio::test]
+    async fn test_session_destroy() {
+        #[handler]
+        pub async fn destroy_session(depot: &mut Depot, res: &mut Response) {
+            if let Some(session) = depot.session_mut() {
+                session.destroy();
+            }
+            res.render("destroyed");
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+
+        let router = Router::new()
+            .hoop(session_handler)
+            .push(Router::with_path("destroy").get(destroy_session));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/destroy")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+    }
+
+    // Tests for session with save_unchanged = false
+    #[tokio::test]
+    async fn test_session_save_unchanged_false() {
+        #[handler]
+        pub async fn no_change(depot: &mut Depot, res: &mut Response) {
+            // Access session but don't modify it
+            let _ = depot.session();
+            res.render("no change");
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .save_unchanged(false)
+        .build()
+        .unwrap();
+
+        let router = Router::new()
+            .hoop(session_handler)
+            .push(Router::with_path("nochange").get(no_change));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/nochange")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        // When save_unchanged is false and no data is modified, no cookie should be set
+        // for a new session (unless there's existing session data)
+    }
+
+    // Tests for session data persistence
+    #[tokio::test]
+    async fn test_session_data_persistence() {
+        #[handler]
+        pub async fn set_data(depot: &mut Depot, res: &mut Response) {
+            if let Some(session) = depot.session_mut() {
+                session.insert("counter", 1).unwrap();
+            }
+            res.render("set");
+        }
+
+        #[handler]
+        pub async fn get_data(depot: &mut Depot, res: &mut Response) {
+            let counter = if let Some(session) = depot.session() {
+                session.get::<i32>("counter").unwrap_or(0)
+            } else {
+                0
+            };
+            res.render(format!("{}", counter));
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+
+        let router = Router::new()
+            .hoop(session_handler)
+            .push(Router::with_path("set").get(set_data))
+            .push(Router::with_path("get").get(get_data));
+        let service = Service::new(router);
+
+        // Set data
+        let response = TestClient::get("http://127.0.0.1:8698/set")
+            .send(&service)
+            .await;
+        let cookie = response.headers().get(SET_COOKIE).unwrap();
+
+        // Get data with same session
+        let mut response = TestClient::get("http://127.0.0.1:8698/get")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
+        assert_eq!(response.take_string().await.unwrap(), "1");
+    }
+
+    // Test for SESSION_KEY constant
+    #[test]
+    fn test_session_key_constant() {
+        assert_eq!(SESSION_KEY, "::salvo::session");
+    }
+
+    // Test for BASE64_DIGEST_LEN constant
+    #[test]
+    fn test_base64_digest_len() {
+        assert_eq!(BASE64_DIGEST_LEN, 44);
+    }
 }

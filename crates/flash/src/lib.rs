@@ -399,4 +399,322 @@ mod tests {
             .await;
         assert!(response.take_string().await.unwrap().is_empty());
     }
+
+    // Tests for Flash struct
+    #[test]
+    fn test_flash_default() {
+        let flash = Flash::default();
+        assert!(flash.0.is_empty());
+    }
+
+    #[test]
+    fn test_flash_debug() {
+        let mut flash = Flash::default();
+        flash.info("test message");
+        let debug_str = format!("{:?}", flash);
+        assert!(debug_str.contains("Flash"));
+        assert!(debug_str.contains("test message"));
+    }
+
+    #[test]
+    fn test_flash_clone() {
+        let mut flash = Flash::default();
+        flash.info("test");
+        let cloned = flash.clone();
+        assert_eq!(flash.0.len(), cloned.0.len());
+    }
+
+    #[test]
+    fn test_flash_add_debug() {
+        let mut flash = Flash::default();
+        flash.debug("debug message");
+        assert_eq!(flash.0.len(), 1);
+        assert_eq!(flash.0[0].level, FlashLevel::Debug);
+        assert_eq!(flash.0[0].value, "debug message");
+    }
+
+    #[test]
+    fn test_flash_add_info() {
+        let mut flash = Flash::default();
+        flash.info("info message");
+        assert_eq!(flash.0.len(), 1);
+        assert_eq!(flash.0[0].level, FlashLevel::Info);
+        assert_eq!(flash.0[0].value, "info message");
+    }
+
+    #[test]
+    fn test_flash_add_success() {
+        let mut flash = Flash::default();
+        flash.success("success message");
+        assert_eq!(flash.0.len(), 1);
+        assert_eq!(flash.0[0].level, FlashLevel::Success);
+        assert_eq!(flash.0[0].value, "success message");
+    }
+
+    #[test]
+    fn test_flash_add_warning() {
+        let mut flash = Flash::default();
+        flash.warning("warning message");
+        assert_eq!(flash.0.len(), 1);
+        assert_eq!(flash.0[0].level, FlashLevel::Warning);
+        assert_eq!(flash.0[0].value, "warning message");
+    }
+
+    #[test]
+    fn test_flash_add_error() {
+        let mut flash = Flash::default();
+        flash.error("error message");
+        assert_eq!(flash.0.len(), 1);
+        assert_eq!(flash.0[0].level, FlashLevel::Error);
+        assert_eq!(flash.0[0].value, "error message");
+    }
+
+    #[test]
+    fn test_flash_chain_messages() {
+        let mut flash = Flash::default();
+        flash
+            .debug("debug")
+            .info("info")
+            .success("success")
+            .warning("warning")
+            .error("error");
+        assert_eq!(flash.0.len(), 5);
+    }
+
+    #[test]
+    fn test_flash_deref() {
+        let mut flash = Flash::default();
+        flash.info("test");
+        // Deref to Vec<FlashMessage>
+        assert_eq!(flash.len(), 1);
+        assert!(flash.iter().any(|m| m.value == "test"));
+    }
+
+    // Tests for FlashMessage
+    #[test]
+    fn test_flash_message_debug() {
+        let msg = FlashMessage::debug("debug msg");
+        assert_eq!(msg.level, FlashLevel::Debug);
+        assert_eq!(msg.value, "debug msg");
+    }
+
+    #[test]
+    fn test_flash_message_info() {
+        let msg = FlashMessage::info("info msg");
+        assert_eq!(msg.level, FlashLevel::Info);
+        assert_eq!(msg.value, "info msg");
+    }
+
+    #[test]
+    fn test_flash_message_success() {
+        let msg = FlashMessage::success("success msg");
+        assert_eq!(msg.level, FlashLevel::Success);
+        assert_eq!(msg.value, "success msg");
+    }
+
+    #[test]
+    fn test_flash_message_warning() {
+        let msg = FlashMessage::warning("warning msg");
+        assert_eq!(msg.level, FlashLevel::Warning);
+        assert_eq!(msg.value, "warning msg");
+    }
+
+    #[test]
+    fn test_flash_message_error() {
+        let msg = FlashMessage::error("error msg");
+        assert_eq!(msg.level, FlashLevel::Error);
+        assert_eq!(msg.value, "error msg");
+    }
+
+    #[test]
+    fn test_flash_message_clone() {
+        let msg = FlashMessage::info("test");
+        let cloned = msg.clone();
+        assert_eq!(msg.level, cloned.level);
+        assert_eq!(msg.value, cloned.value);
+    }
+
+    #[test]
+    fn test_flash_message_debug_trait() {
+        let msg = FlashMessage::info("test");
+        let debug_str = format!("{:?}", msg);
+        assert!(debug_str.contains("FlashMessage"));
+        assert!(debug_str.contains("test"));
+    }
+
+    // Tests for FlashLevel
+    #[test]
+    fn test_flash_level_to_str() {
+        assert_eq!(FlashLevel::Debug.to_str(), "debug");
+        assert_eq!(FlashLevel::Info.to_str(), "info");
+        assert_eq!(FlashLevel::Success.to_str(), "success");
+        assert_eq!(FlashLevel::Warning.to_str(), "warning");
+        assert_eq!(FlashLevel::Error.to_str(), "error");
+    }
+
+    #[test]
+    fn test_flash_level_debug_trait() {
+        assert_eq!(format!("{:?}", FlashLevel::Debug), "debug");
+        assert_eq!(format!("{:?}", FlashLevel::Info), "info");
+        assert_eq!(format!("{:?}", FlashLevel::Success), "success");
+        assert_eq!(format!("{:?}", FlashLevel::Warning), "warning");
+        assert_eq!(format!("{:?}", FlashLevel::Error), "error");
+    }
+
+    #[test]
+    fn test_flash_level_display() {
+        assert_eq!(format!("{}", FlashLevel::Debug), "debug");
+        assert_eq!(format!("{}", FlashLevel::Info), "info");
+        assert_eq!(format!("{}", FlashLevel::Success), "success");
+        assert_eq!(format!("{}", FlashLevel::Warning), "warning");
+        assert_eq!(format!("{}", FlashLevel::Error), "error");
+    }
+
+    #[test]
+    fn test_flash_level_ord() {
+        assert!(FlashLevel::Debug < FlashLevel::Info);
+        assert!(FlashLevel::Info < FlashLevel::Success);
+        assert!(FlashLevel::Success < FlashLevel::Warning);
+        assert!(FlashLevel::Warning < FlashLevel::Error);
+    }
+
+    #[test]
+    fn test_flash_level_eq() {
+        assert_eq!(FlashLevel::Debug, FlashLevel::Debug);
+        assert_ne!(FlashLevel::Debug, FlashLevel::Info);
+    }
+
+    #[test]
+    fn test_flash_level_clone() {
+        let level = FlashLevel::Info;
+        let cloned = level;
+        assert_eq!(level, cloned);
+    }
+
+    #[test]
+    fn test_flash_level_copy() {
+        let level = FlashLevel::Warning;
+        let copied = level;
+        assert_eq!(level, copied);
+    }
+
+    // Tests for FlashHandler
+    #[test]
+    fn test_flash_handler_new() {
+        #[cfg(feature = "cookie-store")]
+        {
+            let handler = FlashHandler::new(CookieStore::new());
+            assert!(handler.minimum_level.is_none());
+        }
+    }
+
+    #[test]
+    fn test_flash_handler_minimum_level() {
+        #[cfg(feature = "cookie-store")]
+        {
+            let mut handler = FlashHandler::new(CookieStore::new());
+            handler.minimum_level(FlashLevel::Warning);
+            assert_eq!(handler.minimum_level, Some(FlashLevel::Warning));
+        }
+    }
+
+    #[test]
+    fn test_flash_handler_minimum_level_none() {
+        #[cfg(feature = "cookie-store")]
+        {
+            let mut handler = FlashHandler::new(CookieStore::new());
+            handler.minimum_level(FlashLevel::Info);
+            handler.minimum_level(None);
+            assert!(handler.minimum_level.is_none());
+        }
+    }
+
+    #[test]
+    fn test_flash_handler_debug() {
+        #[cfg(feature = "cookie-store")]
+        {
+            let handler = FlashHandler::new(CookieStore::new());
+            let debug_str = format!("{:?}", handler);
+            assert!(debug_str.contains("FlashHandler"));
+            assert!(debug_str.contains("store"));
+        }
+    }
+
+    // Tests for Flash serialization
+    #[test]
+    fn test_flash_serialization() {
+        let mut flash = Flash::default();
+        flash.info("test message");
+
+        let serialized = serde_json::to_string(&flash).unwrap();
+        let deserialized: Flash = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(flash.0.len(), deserialized.0.len());
+        assert_eq!(flash.0[0].value, deserialized.0[0].value);
+        assert_eq!(flash.0[0].level, deserialized.0[0].level);
+    }
+
+    #[test]
+    fn test_flash_message_serialization() {
+        let msg = FlashMessage::warning("test");
+
+        let serialized = serde_json::to_string(&msg).unwrap();
+        let deserialized: FlashMessage = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(msg.value, deserialized.value);
+        assert_eq!(msg.level, deserialized.level);
+    }
+
+    #[test]
+    fn test_flash_level_serialization() {
+        let level = FlashLevel::Error;
+
+        let serialized = serde_json::to_string(&level).unwrap();
+        let deserialized: FlashLevel = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(level, deserialized);
+    }
+
+    #[cfg(feature = "cookie-store")]
+    #[tokio::test]
+    async fn test_flash_handler_filters_by_minimum_level() {
+        #[handler]
+        pub async fn set_all_levels(depot: &mut Depot, res: &mut Response) {
+            let flash = depot.outgoing_flash_mut();
+            flash
+                .debug("debug msg")
+                .info("info msg")
+                .warning("warning msg")
+                .error("error msg");
+            res.render(Redirect::other("/get"));
+        }
+
+        let mut handler = FlashHandler::new(CookieStore::new());
+        handler.minimum_level(FlashLevel::Warning);
+
+        let router = Router::new()
+            .hoop(handler)
+            .push(Router::with_path("get").get(get_flash))
+            .push(Router::with_path("set").get(set_all_levels));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/set")
+            .send(&service)
+            .await;
+
+        let cookie = response.headers().get(SET_COOKIE).unwrap();
+
+        let mut response = TestClient::get("http://127.0.0.1:8698/get")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
+
+        let body = response.take_string().await.unwrap();
+
+        // Should contain warning and error, but not debug and info
+        assert!(body.contains("warning msg"));
+        assert!(body.contains("error msg"));
+        assert!(!body.contains("debug msg"));
+        assert!(!body.contains("info msg"));
+    }
 }
