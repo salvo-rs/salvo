@@ -10,7 +10,7 @@ documentation = "https://docs.rs/salvo-tus/"
 homepage      = { workspace = true }
 repository    = { workspace = true }
 keywords      = ["tus", "files-upload", "salvo", "big-files-upload"]
-categories    = ["network-programming", "asynchronous", "salvo"]
+categories    = ["network-programming", "asynchronous"]
 authors       = ["Tyrese Luo <tyreseluo@outlook.com>", "Salvo Maintainers"]
 
 [features]
