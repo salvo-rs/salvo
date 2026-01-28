@@ -122,3 +122,96 @@ impl FlashStore for CookieStore {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cookie_store_new() {
+        let store = CookieStore::new();
+        assert_eq!(store.max_age, Duration::seconds(60));
+        assert_eq!(store.same_site, SameSite::Lax);
+        assert!(store.http_only);
+        assert_eq!(store.path, "/");
+        assert_eq!(store.name, "salvo.flash");
+    }
+
+    #[test]
+    fn test_cookie_store_default() {
+        let store = CookieStore::default();
+        assert_eq!(store.name, "salvo.flash");
+        assert_eq!(store.path, "/");
+    }
+
+    #[test]
+    fn test_cookie_store_name() {
+        let store = CookieStore::new().name("custom_flash");
+        assert_eq!(store.name, "custom_flash");
+    }
+
+    #[test]
+    fn test_cookie_store_max_age() {
+        let store = CookieStore::new().max_age(Duration::seconds(120));
+        assert_eq!(store.max_age, Duration::seconds(120));
+    }
+
+    #[test]
+    fn test_cookie_store_same_site() {
+        let store = CookieStore::new().same_site(SameSite::Strict);
+        assert_eq!(store.same_site, SameSite::Strict);
+    }
+
+    #[test]
+    fn test_cookie_store_same_site_none() {
+        let store = CookieStore::new().same_site(SameSite::None);
+        assert_eq!(store.same_site, SameSite::None);
+    }
+
+    #[test]
+    fn test_cookie_store_http_only() {
+        let store = CookieStore::new().http_only(false);
+        assert!(!store.http_only);
+    }
+
+    #[test]
+    fn test_cookie_store_path() {
+        let store = CookieStore::new().path("/app");
+        assert_eq!(store.path, "/app");
+    }
+
+    #[test]
+    fn test_cookie_store_into_handler() {
+        let store = CookieStore::new();
+        let handler = store.into_handler();
+        assert!(handler.minimum_level.is_none());
+    }
+
+    #[test]
+    fn test_cookie_store_chain_config() {
+        let store = CookieStore::new()
+            .name("my_flash")
+            .max_age(Duration::seconds(300))
+            .same_site(SameSite::Strict)
+            .http_only(false)
+            .path("/dashboard");
+
+        assert_eq!(store.name, "my_flash");
+        assert_eq!(store.max_age, Duration::seconds(300));
+        assert_eq!(store.same_site, SameSite::Strict);
+        assert!(!store.http_only);
+        assert_eq!(store.path, "/dashboard");
+    }
+
+    #[test]
+    fn test_cookie_store_debug() {
+        let store = CookieStore::new();
+        let debug_str = format!("{:?}", store);
+        assert!(debug_str.contains("CookieStore"));
+        assert!(debug_str.contains("max_age"));
+        assert!(debug_str.contains("same_site"));
+        assert!(debug_str.contains("http_only"));
+        assert!(debug_str.contains("path"));
+        assert!(debug_str.contains("name"));
+    }
+}

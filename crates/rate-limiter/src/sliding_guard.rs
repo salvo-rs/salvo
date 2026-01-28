@@ -87,3 +87,184 @@ impl RateGuard for SlidingGuard {
         quota.limit
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sliding_guard_new() {
+        let guard = SlidingGuard::new();
+        assert!(guard.counts.is_empty());
+        assert_eq!(guard.head, 0);
+        assert!(guard.quota.is_none());
+    }
+
+    #[test]
+    fn test_sliding_guard_default() {
+        let guard = SlidingGuard::default();
+        assert!(guard.counts.is_empty());
+        assert_eq!(guard.head, 0);
+        assert!(guard.quota.is_none());
+    }
+
+    #[test]
+    fn test_sliding_guard_debug() {
+        let guard = SlidingGuard::new();
+        let debug_str = format!("{:?}", guard);
+        assert!(debug_str.contains("SlidingGuard"));
+        assert!(debug_str.contains("cell_inst"));
+        assert!(debug_str.contains("counts"));
+    }
+
+    #[test]
+    fn test_sliding_guard_clone() {
+        let guard = SlidingGuard::new();
+        let cloned = guard.clone();
+        assert_eq!(guard.head, cloned.head);
+        assert_eq!(guard.counts, cloned.counts);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_first_request() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(5, 2);
+
+        let result = guard.verify(&quota).await;
+        assert!(result);
+        assert!(!guard.counts.is_empty());
+        assert!(guard.quota.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_within_limit() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(3, 2);
+
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_exceeds_limit() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(2, 2);
+
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_zero_cells() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(5, 0, Duration::seconds(1));
+
+        // Zero cells should be treated as 1
+        assert!(guard.verify(&quota).await);
+        assert_eq!(guard.counts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_cells_greater_than_limit() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(3, 10, Duration::seconds(1));
+
+        // Cells should be clamped to limit
+        assert!(guard.verify(&quota).await);
+        assert_eq!(guard.counts.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_reset_after_period() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(2, 2, Duration::milliseconds(100));
+
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+
+        // Wait for period to expire
+        tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+
+        // Should be allowed again
+        assert!(guard.verify(&quota).await);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_remaining() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(5, 2);
+
+        guard.verify(&quota).await;
+        let remaining = guard.remaining(&quota).await;
+        assert!(remaining < 5);
+
+        guard.verify(&quota).await;
+        let remaining2 = guard.remaining(&quota).await;
+        assert!(remaining2 < remaining);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_remaining_saturating() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(2, 2);
+
+        guard.verify(&quota).await;
+        guard.verify(&quota).await;
+        guard.verify(&quota).await;
+
+        // Should not underflow
+        let remaining = guard.remaining(&quota).await;
+        assert_eq!(remaining, 0);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_limit() {
+        let guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(10, 3);
+
+        assert_eq!(guard.limit(&quota).await, 10);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_reset_timestamp() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(5, 2);
+
+        guard.verify(&quota).await;
+
+        let reset_time = guard.reset(&quota).await;
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+
+        // Reset time should be approximately 1 second from now
+        assert!(reset_time > now);
+        assert!(reset_time <= now + 2);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_quota_change() {
+        let mut guard = SlidingGuard::new();
+        let quota1 = CelledQuota::per_second(2, 2);
+        let quota2 = CelledQuota::per_second(5, 3);
+
+        assert!(guard.verify(&quota1).await);
+        assert!(guard.verify(&quota1).await);
+        assert!(!guard.verify(&quota1).await);
+
+        // Change quota should reset
+        assert!(guard.verify(&quota2).await);
+        assert_eq!(guard.counts.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_multiple_cells() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(10, 5, Duration::seconds(1));
+
+        guard.verify(&quota).await;
+
+        assert_eq!(guard.counts.len(), 5);
+    }
+}

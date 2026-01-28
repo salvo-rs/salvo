@@ -562,4 +562,338 @@ mod tests {
         let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
+
+    // Tests for CompressionLevel
+    #[test]
+    fn test_compression_level_default() {
+        let level: CompressionLevel = Default::default();
+        assert_eq!(level, CompressionLevel::Default);
+    }
+
+    #[test]
+    fn test_compression_level_fastest() {
+        let level = CompressionLevel::Fastest;
+        assert_eq!(level, CompressionLevel::Fastest);
+    }
+
+    #[test]
+    fn test_compression_level_minsize() {
+        let level = CompressionLevel::Minsize;
+        assert_eq!(level, CompressionLevel::Minsize);
+    }
+
+    #[test]
+    fn test_compression_level_precise() {
+        let level = CompressionLevel::Precise(5);
+        assert_eq!(level, CompressionLevel::Precise(5));
+    }
+
+    #[test]
+    fn test_compression_level_clone() {
+        let level = CompressionLevel::Fastest;
+        let cloned = level;
+        assert_eq!(level, cloned);
+    }
+
+    #[test]
+    fn test_compression_level_copy() {
+        let level = CompressionLevel::Default;
+        let copied = level;
+        assert_eq!(level, copied);
+    }
+
+    #[test]
+    fn test_compression_level_debug() {
+        let level = CompressionLevel::Fastest;
+        let debug_str = format!("{:?}", level);
+        assert!(debug_str.contains("Fastest"));
+    }
+
+    // Tests for CompressionAlgo
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_compression_algo_gzip_from_str() {
+        let algo: CompressionAlgo = "gzip".parse().unwrap();
+        assert_eq!(algo, CompressionAlgo::Gzip);
+    }
+
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_compression_algo_brotli_from_str() {
+        let algo: CompressionAlgo = "br".parse().unwrap();
+        assert_eq!(algo, CompressionAlgo::Brotli);
+
+        let algo: CompressionAlgo = "brotli".parse().unwrap();
+        assert_eq!(algo, CompressionAlgo::Brotli);
+    }
+
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn test_compression_algo_deflate_from_str() {
+        let algo: CompressionAlgo = "deflate".parse().unwrap();
+        assert_eq!(algo, CompressionAlgo::Deflate);
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_compression_algo_zstd_from_str() {
+        let algo: CompressionAlgo = "zstd".parse().unwrap();
+        assert_eq!(algo, CompressionAlgo::Zstd);
+    }
+
+    #[test]
+    fn test_compression_algo_unknown_from_str() {
+        let result: Result<CompressionAlgo, _> = "unknown".parse();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown compression algorithm"));
+    }
+
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_compression_algo_gzip_display() {
+        let algo = CompressionAlgo::Gzip;
+        assert_eq!(format!("{}", algo), "gzip");
+    }
+
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_compression_algo_brotli_display() {
+        let algo = CompressionAlgo::Brotli;
+        assert_eq!(format!("{}", algo), "br");
+    }
+
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn test_compression_algo_deflate_display() {
+        let algo = CompressionAlgo::Deflate;
+        assert_eq!(format!("{}", algo), "deflate");
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_compression_algo_zstd_display() {
+        let algo = CompressionAlgo::Zstd;
+        assert_eq!(format!("{}", algo), "zstd");
+    }
+
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_compression_algo_into_header_value() {
+        let algo = CompressionAlgo::Gzip;
+        let header: HeaderValue = algo.into();
+        assert_eq!(header, "gzip");
+    }
+
+    #[test]
+    fn test_compression_algo_debug() {
+        #[cfg(feature = "gzip")]
+        {
+            let algo = CompressionAlgo::Gzip;
+            let debug_str = format!("{:?}", algo);
+            assert!(debug_str.contains("Gzip"));
+        }
+    }
+
+    #[test]
+    fn test_compression_algo_clone() {
+        #[cfg(feature = "gzip")]
+        {
+            let algo = CompressionAlgo::Gzip;
+            let cloned = algo;
+            assert_eq!(algo, cloned);
+        }
+    }
+
+    #[test]
+    fn test_compression_algo_hash() {
+        use std::collections::HashSet;
+        #[cfg(feature = "gzip")]
+        {
+            let mut set = HashSet::new();
+            set.insert(CompressionAlgo::Gzip);
+            assert!(set.contains(&CompressionAlgo::Gzip));
+        }
+    }
+
+    // Tests for Compression struct
+    #[test]
+    fn test_compression_new() {
+        let comp = Compression::new();
+        assert!(!comp.algos.is_empty());
+        assert!(!comp.content_types.is_empty());
+        assert_eq!(comp.min_length, 0);
+        assert!(!comp.force_priority);
+    }
+
+    #[test]
+    fn test_compression_default() {
+        let comp = Compression::default();
+        assert!(!comp.algos.is_empty());
+    }
+
+    #[test]
+    fn test_compression_disable_all() {
+        let comp = Compression::new().disable_all();
+        assert!(comp.algos.is_empty());
+    }
+
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_compression_enable_gzip() {
+        let comp = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Fastest);
+        assert!(comp.algos.contains_key(&CompressionAlgo::Gzip));
+        assert_eq!(comp.algos.get(&CompressionAlgo::Gzip), Some(&CompressionLevel::Fastest));
+    }
+
+    #[cfg(feature = "gzip")]
+    #[test]
+    fn test_compression_disable_gzip() {
+        let comp = Compression::new().disable_gzip();
+        assert!(!comp.algos.contains_key(&CompressionAlgo::Gzip));
+    }
+
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_compression_enable_brotli() {
+        let comp = Compression::new()
+            .disable_all()
+            .enable_brotli(CompressionLevel::Minsize);
+        assert!(comp.algos.contains_key(&CompressionAlgo::Brotli));
+    }
+
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_compression_disable_brotli() {
+        let comp = Compression::new().disable_brotli();
+        assert!(!comp.algos.contains_key(&CompressionAlgo::Brotli));
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_compression_enable_zstd() {
+        let comp = Compression::new()
+            .disable_all()
+            .enable_zstd(CompressionLevel::Default);
+        assert!(comp.algos.contains_key(&CompressionAlgo::Zstd));
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_compression_disable_zstd() {
+        let comp = Compression::new().disable_zstd();
+        assert!(!comp.algos.contains_key(&CompressionAlgo::Zstd));
+    }
+
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn test_compression_enable_deflate() {
+        let comp = Compression::new()
+            .disable_all()
+            .enable_deflate(CompressionLevel::Default);
+        assert!(comp.algos.contains_key(&CompressionAlgo::Deflate));
+    }
+
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn test_compression_disable_deflate() {
+        let comp = Compression::new().disable_deflate();
+        assert!(!comp.algos.contains_key(&CompressionAlgo::Deflate));
+    }
+
+    #[test]
+    fn test_compression_min_length() {
+        let comp = Compression::new().min_length(1024);
+        assert_eq!(comp.min_length, 1024);
+    }
+
+    #[test]
+    fn test_compression_force_priority() {
+        let comp = Compression::new().force_priority(true);
+        assert!(comp.force_priority);
+    }
+
+    #[test]
+    fn test_compression_content_types() {
+        let comp = Compression::new().content_types(&[mime::TEXT_PLAIN, mime::TEXT_HTML]);
+        assert_eq!(comp.content_types.len(), 2);
+        assert!(comp.content_types.contains(&mime::TEXT_PLAIN));
+        assert!(comp.content_types.contains(&mime::TEXT_HTML));
+    }
+
+    #[test]
+    fn test_compression_debug() {
+        let comp = Compression::new();
+        let debug_str = format!("{:?}", comp);
+        assert!(debug_str.contains("Compression"));
+        assert!(debug_str.contains("algos"));
+        assert!(debug_str.contains("content_types"));
+    }
+
+    #[test]
+    fn test_compression_clone() {
+        let comp = Compression::new().min_length(100);
+        let cloned = comp.clone();
+        assert_eq!(comp.min_length, cloned.min_length);
+        assert_eq!(comp.algos.len(), cloned.algos.len());
+    }
+
+    // Tests for no compression scenarios
+    #[tokio::test]
+    async fn test_no_accept_encoding_header() {
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_unsupported_encoding() {
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "unknown", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_empty_response() {
+        #[handler]
+        async fn empty() {}
+
+        let comp_handler = Compression::new();
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("empty").get(empty));
+
+        let res = TestClient::get("http://127.0.0.1:5801/empty")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_chained_configuration() {
+        #[cfg(all(feature = "gzip", feature = "brotli"))]
+        {
+            let comp_handler = Compression::new()
+                .disable_all()
+                .enable_gzip(CompressionLevel::Fastest)
+                .enable_brotli(CompressionLevel::Default)
+                .min_length(1)
+                .force_priority(false)
+                .content_types(&[mime::TEXT_PLAIN]);
+
+            assert_eq!(comp_handler.algos.len(), 2);
+            assert_eq!(comp_handler.min_length, 1);
+            assert!(!comp_handler.force_priority);
+            assert_eq!(comp_handler.content_types.len(), 1);
+        }
+    }
 }

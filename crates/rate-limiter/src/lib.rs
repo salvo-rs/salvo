@@ -512,4 +512,12 @@ mod tests {
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.take_string().await.unwrap(), "Limited page");
     }
+
+    // Tests for RemoteIpIssuer
+    #[test]
+    fn test_remote_ip_issuer_debug() {
+        let issuer = RemoteIpIssuer;
+        let debug_str = format!("{:?}", issuer);
+        assert!(debug_str.contains("RemoteIpIssuer"));
+    }
 }
