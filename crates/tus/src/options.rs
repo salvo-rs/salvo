@@ -1,7 +1,7 @@
 use std::pin::Pin;
 use std::sync::{Arc, OnceLock};
 
-use futures_core::future::BoxFuture;
+use futures_util::future::BoxFuture;
 use regex::Regex;
 use salvo_core::Request;
 use salvo_core::http::{HeaderMap, StatusCode, header};
