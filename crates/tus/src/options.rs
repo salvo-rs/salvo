@@ -337,10 +337,7 @@ mod tests {
             parse_forwarded_param(forwarded, "host"),
             Some("example.com")
         );
-        assert_eq!(
-            parse_forwarded_param(forwarded, "for"),
-            Some("192.0.2.43")
-        );
+        assert_eq!(parse_forwarded_param(forwarded, "for"), Some("192.0.2.43"));
     }
 
     #[test]
@@ -348,7 +345,10 @@ mod tests {
         let forwarded = "Proto=https; Host=example.com";
         assert_eq!(parse_forwarded_param(forwarded, "proto"), Some("https"));
         assert_eq!(parse_forwarded_param(forwarded, "PROTO"), Some("https"));
-        assert_eq!(parse_forwarded_param(forwarded, "host"), Some("example.com"));
+        assert_eq!(
+            parse_forwarded_param(forwarded, "host"),
+            Some("example.com")
+        );
     }
 
     #[test]
@@ -610,10 +610,7 @@ mod tests {
     #[test]
     fn test_extract_host_and_proto_x_forwarded_proto_list() {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            "x-forwarded-proto",
-            "https, http".parse().unwrap(),
-        );
+        headers.insert("x-forwarded-proto", "https, http".parse().unwrap());
 
         let result = TusOptions::extract_host_and_proto(&headers, true);
         assert_eq!(result.proto, "https");
@@ -691,7 +688,10 @@ mod tests {
 
         // First acquire a lock to block
         let context2 = CancellationContext::new();
-        let _guard = options.acquire_write_lock(&req, "blocked-id", context2).await.unwrap();
+        let _guard = options
+            .acquire_write_lock(&req, "blocked-id", context2)
+            .await
+            .unwrap();
 
         // Try to acquire the same lock with cancelled context
         let context3 = CancellationContext::new();

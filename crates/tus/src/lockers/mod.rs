@@ -42,9 +42,11 @@ impl LockGuard {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
     use tokio::sync::RwLock;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_lock_guard_read() {
@@ -85,7 +87,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_lock_guard_write_is_exclusive() {
-        use tokio::time::{timeout, Duration};
+        use tokio::time::{Duration, timeout};
 
         let lock = Arc::new(RwLock::new(()));
         let lock_clone = lock.clone();

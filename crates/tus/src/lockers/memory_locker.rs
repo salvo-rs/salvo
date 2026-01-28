@@ -48,9 +48,10 @@ impl Locker for MemoryLocker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
+
+    use super::*;
 
     #[test]
     fn test_memory_locker_new() {
@@ -142,7 +143,11 @@ mod tests {
         // Try to acquire another write lock in a separate task
         let handle = tokio::spawn(async move {
             // This should block until the first lock is released
-            let result = timeout(Duration::from_millis(50), locker_clone.write_lock("test-id")).await;
+            let result = timeout(
+                Duration::from_millis(50),
+                locker_clone.write_lock("test-id"),
+            )
+            .await;
             if result.is_ok() {
                 counter_clone.fetch_add(1, Ordering::SeqCst);
             }

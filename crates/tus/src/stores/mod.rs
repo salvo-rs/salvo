@@ -115,8 +115,14 @@ mod tests {
     fn test_extension_as_str() {
         assert_eq!(Extension::Creation.as_str(), "creation");
         assert_eq!(Extension::Expiration.as_str(), "expiration");
-        assert_eq!(Extension::CreationWithUpload.as_str(), "creation-with-upload");
-        assert_eq!(Extension::CreationDeferLength.as_str(), "creation-defer-length");
+        assert_eq!(
+            Extension::CreationWithUpload.as_str(),
+            "creation-with-upload"
+        );
+        assert_eq!(
+            Extension::CreationDeferLength.as_str(),
+            "creation-defer-length"
+        );
         assert_eq!(Extension::Concatenation.as_str(), "concatenation");
         assert_eq!(Extension::Termination.as_str(), "termination");
     }
@@ -241,8 +247,9 @@ mod tests {
 
     #[test]
     fn test_upload_info_with_metadata() {
-        use crate::handlers::Metadata;
         use std::collections::HashMap;
+
+        use crate::handlers::Metadata;
 
         let mut map = HashMap::new();
         map.insert("filename".to_string(), Some("test.txt".to_string()));

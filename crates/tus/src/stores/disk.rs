@@ -409,9 +409,11 @@ impl DataStore for DiskStore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
     use tempfile::TempDir;
+
+    use super::*;
 
     fn create_test_store() -> (DiskStore, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -499,10 +501,7 @@ mod tests {
             DiskStore::sanitize_filename("/path/to/file.txt"),
             Some("file.txt".to_string())
         );
-        assert_eq!(
-            DiskStore::sanitize_filename("a"),
-            Some("a".to_string())
-        );
+        assert_eq!(DiskStore::sanitize_filename("a"), Some("a".to_string()));
     }
 
     #[test]
@@ -704,10 +703,7 @@ mod tests {
 
     #[test]
     fn test_with_id_suffix_without_extension() {
-        assert_eq!(
-            DiskStore::with_id_suffix("file", "abc123"),
-            "file-abc123"
-        );
+        assert_eq!(DiskStore::with_id_suffix("file", "abc123"), "file-abc123");
     }
 
     #[test]
@@ -886,7 +882,10 @@ mod tests {
 
         store.create(upload_info).await.unwrap();
 
-        store.declare_upload_length("test-declare", 2048).await.unwrap();
+        store
+            .declare_upload_length("test-declare", 2048)
+            .await
+            .unwrap();
 
         let info = store.get_upload_file_info("test-declare").await.unwrap();
         assert_eq!(info.size, Some(2048));
@@ -1039,7 +1038,10 @@ mod tests {
         let written2 = store.write("test-multi-chunk", 7, stream2).await.unwrap();
         assert_eq!(written2, 6);
 
-        let info = store.get_upload_file_info("test-multi-chunk").await.unwrap();
+        let info = store
+            .get_upload_file_info("test-multi-chunk")
+            .await
+            .unwrap();
         assert_eq!(info.offset, Some(13));
     }
 

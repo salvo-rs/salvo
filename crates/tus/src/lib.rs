@@ -493,8 +493,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_tus_with_on_incoming_request() {
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
 
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = called.clone();
@@ -514,8 +514,8 @@ mod tests {
 
     #[test]
     fn test_tus_with_on_incoming_request_sync() {
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
 
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = called.clone();
@@ -529,18 +529,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_tus_with_on_upload_create() {
-        let tus = Tus::new().with_on_upload_create(|_req, _upload| async move {
-            Ok(UploadPatch::default())
-        });
+        let tus = Tus::new()
+            .with_on_upload_create(|_req, _upload| async move { Ok(UploadPatch::default()) });
 
         assert!(tus.options.on_upload_create.is_some());
     }
 
     #[tokio::test]
     async fn test_tus_with_on_upload_finish() {
-        let tus = Tus::new().with_on_upload_finish(|_req, _upload| async move {
-            Ok(UploadFinishPatch::default())
-        });
+        let tus = Tus::new()
+            .with_on_upload_finish(|_req, _upload| async move { Ok(UploadFinishPatch::default()) });
 
         assert!(tus.options.on_upload_finish.is_some());
     }

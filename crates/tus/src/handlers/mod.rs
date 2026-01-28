@@ -156,14 +156,20 @@ mod tests {
     fn test_metadata_parse_single_key_value() {
         let raw = "filename dGVzdC50eHQ="; // "test.txt" in base64
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_string())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".to_string()))
+        );
     }
 
     #[test]
     fn test_metadata_parse_multiple_key_values() {
         let raw = "filename dGVzdC50eHQ=,filetype dGV4dC9wbGFpbg=="; // "test.txt", "text/plain"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_string())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".to_string()))
+        );
         assert_eq!(
             metadata.get("filetype"),
             Some(&Some("text/plain".to_string()))
@@ -181,7 +187,10 @@ mod tests {
     fn test_metadata_parse_mixed_keys() {
         let raw = "filename dGVzdC50eHQ=,is_private,size MTAyNA=="; // "test.txt", no value, "1024"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_string())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".to_string()))
+        );
         assert_eq!(metadata.get("is_private"), Some(&None));
         assert_eq!(metadata.get("size"), Some(&Some("1024".to_string())));
     }
@@ -190,14 +199,20 @@ mod tests {
     fn test_metadata_parse_empty_string() {
         let result = Metadata::parse_metadata("");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ProtocolError::InvalidMetadata));
+        assert!(matches!(
+            result.unwrap_err(),
+            ProtocolError::InvalidMetadata
+        ));
     }
 
     #[test]
     fn test_metadata_parse_whitespace_only() {
         let result = Metadata::parse_metadata("   ");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ProtocolError::InvalidMetadata));
+        assert!(matches!(
+            result.unwrap_err(),
+            ProtocolError::InvalidMetadata
+        ));
     }
 
     #[test]
@@ -229,7 +244,10 @@ mod tests {
         let raw = "filename dGVzdDE=,filename dGVzdDI="; // "test1", "test2"
         let result = Metadata::parse_metadata(raw);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ProtocolError::InvalidMetadata));
+        assert!(matches!(
+            result.unwrap_err(),
+            ProtocolError::InvalidMetadata
+        ));
     }
 
     #[test]
@@ -357,24 +375,17 @@ mod tests {
         let mut headers = HeaderMap::new();
         apply_common_headers(&mut headers);
 
-        assert_eq!(
-            headers.get(H_TUS_RESUMABLE).unwrap(),
-            TUS_VERSION
+        assert_eq!(headers.get(H_TUS_RESUMABLE).unwrap(), TUS_VERSION);
+        assert_eq!(headers.get("access-control-allow-origin").unwrap(), "*");
+        assert!(
+            headers
+                .get("access-control-expose-headers")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("Upload-Offset")
         );
-        assert_eq!(
-            headers.get("access-control-allow-origin").unwrap(),
-            "*"
-        );
-        assert!(headers
-            .get("access-control-expose-headers")
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains("Upload-Offset"));
-        assert_eq!(
-            headers.get("cache-control").unwrap(),
-            "no-store"
-        );
+        assert_eq!(headers.get("cache-control").unwrap(), "no-store");
     }
 
     #[test]
@@ -382,20 +393,16 @@ mod tests {
         let mut headers = HeaderMap::new();
         apply_options_headers(&mut headers);
 
-        assert_eq!(
-            headers.get("access-control-allow-origin").unwrap(),
-            "*"
+        assert_eq!(headers.get("access-control-allow-origin").unwrap(), "*");
+        assert!(
+            headers
+                .get("access-control-expose-headers")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("Tus-Resumable")
         );
-        assert!(headers
-            .get("access-control-expose-headers")
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains("Tus-Resumable"));
-        assert_eq!(
-            headers.get("cache-control").unwrap(),
-            "no-store"
-        );
+        assert_eq!(headers.get("cache-control").unwrap(), "no-store");
         // Should NOT have tus-resumable header
         assert!(headers.get(H_TUS_RESUMABLE).is_none());
     }

@@ -149,24 +149,35 @@ mod tests {
 
     #[test]
     fn test_protocol_error_unsupported_extensions() {
-        assert!(ProtocolError::UnsupportedConcatenationExtension
-            .to_string()
-            .contains("Concatenation extension"));
-        assert!(ProtocolError::UnsupportedCreationDeferLengthExtension
-            .to_string()
-            .contains("creation-defer-length"));
-        assert!(ProtocolError::UnsupportedCreationWithUploadExtension
-            .to_string()
-            .contains("creation-with-upload"));
-        assert!(ProtocolError::UnsupportedTerminationExtension
-            .to_string()
-            .contains("termination"));
+        assert!(
+            ProtocolError::UnsupportedConcatenationExtension
+                .to_string()
+                .contains("Concatenation extension")
+        );
+        assert!(
+            ProtocolError::UnsupportedCreationDeferLengthExtension
+                .to_string()
+                .contains("creation-defer-length")
+        );
+        assert!(
+            ProtocolError::UnsupportedCreationWithUploadExtension
+                .to_string()
+                .contains("creation-with-upload")
+        );
+        assert!(
+            ProtocolError::UnsupportedTerminationExtension
+                .to_string()
+                .contains("termination")
+        );
     }
 
     #[test]
     fn test_tus_error_display() {
         assert_eq!(TusError::NotFound.to_string(), "upload not found");
-        assert_eq!(TusError::InvalidOffset.to_string(), "Upload-Offset conflict");
+        assert_eq!(
+            TusError::InvalidOffset.to_string(),
+            "Upload-Offset conflict"
+        );
         assert_eq!(
             TusError::OffsetMismatch {
                 expected: 100,
@@ -289,7 +300,10 @@ mod tests {
         assert_eq!(TusError::FileIdError.status(), StatusCode::BAD_REQUEST);
 
         // 413 Payload Too Large
-        assert_eq!(TusError::PayloadTooLarge.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(
+            TusError::PayloadTooLarge.status(),
+            StatusCode::PAYLOAD_TOO_LARGE
+        );
 
         // 500 Internal Server Error
         assert_eq!(

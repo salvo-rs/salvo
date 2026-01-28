@@ -46,8 +46,9 @@ pub fn validate_header(name: &'static str, value: Option<&HeaderValue>) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo_core::http::HeaderValue;
+
+    use super::*;
 
     #[test]
     fn test_check_tus_version_valid() {
