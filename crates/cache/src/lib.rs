@@ -423,11 +423,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
     use bytes::Bytes;
+    use salvo_core::http::HeaderMap;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::http::HeaderMap;
-    use std::collections::VecDeque;
     use time::OffsetDateTime;
 
     use super::*;
@@ -652,11 +653,7 @@ mod tests {
     // Tests for CachedEntry
     #[test]
     fn test_cached_entry_new() {
-        let entry = CachedEntry::new(
-            Some(StatusCode::OK),
-            HeaderMap::new(),
-            CachedBody::None,
-        );
+        let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
         assert_eq!(entry.status, Some(StatusCode::OK));
         assert!(entry.headers.is_empty());
         assert_eq!(entry.body, CachedBody::None);
@@ -696,11 +693,7 @@ mod tests {
 
     #[test]
     fn test_cached_entry_debug() {
-        let entry = CachedEntry::new(
-            Some(StatusCode::OK),
-            HeaderMap::new(),
-            CachedBody::None,
-        );
+        let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
         let debug_str = format!("{:?}", entry);
         assert!(debug_str.contains("CachedEntry"));
         assert!(debug_str.contains("status"));
@@ -721,19 +714,13 @@ mod tests {
     // Tests for Cache
     #[test]
     fn test_cache_new() {
-        let cache = Cache::new(
-            MokaStore::<String>::new(100),
-            RequestIssuer::default(),
-        );
+        let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
         assert!(format!("{:?}", cache).contains("Cache"));
     }
 
     #[test]
     fn test_cache_debug() {
-        let cache = Cache::new(
-            MokaStore::<String>::new(100),
-            RequestIssuer::default(),
-        );
+        let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
         let debug_str = format!("{:?}", cache);
         assert!(debug_str.contains("Cache"));
         assert!(debug_str.contains("store"));

@@ -101,8 +101,9 @@ impl Skipper for MethodSkipper {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use salvo_core::http::Method;
+
+    use super::*;
 
     #[test]
     fn test_method_skipper_new() {

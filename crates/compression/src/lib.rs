@@ -645,7 +645,11 @@ mod tests {
     fn test_compression_algo_unknown_from_str() {
         let result: Result<CompressionAlgo, _> = "unknown".parse();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("unknown compression algorithm"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("unknown compression algorithm")
+        );
     }
 
     #[cfg(feature = "gzip")]
@@ -744,7 +748,10 @@ mod tests {
             .disable_all()
             .enable_gzip(CompressionLevel::Fastest);
         assert!(comp.algos.contains_key(&CompressionAlgo::Gzip));
-        assert_eq!(comp.algos.get(&CompressionAlgo::Gzip), Some(&CompressionLevel::Fastest));
+        assert_eq!(
+            comp.algos.get(&CompressionAlgo::Gzip),
+            Some(&CompressionLevel::Fastest)
+        );
     }
 
     #[cfg(feature = "gzip")]
