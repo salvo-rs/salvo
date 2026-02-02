@@ -11,6 +11,25 @@
 //! - OpenID Connect support (behind the `oidc` feature flag)
 //! - Seamless integration with Salvo's middleware system
 //!
+//! # Security Considerations
+//!
+//! **⚠️ WARNING: Avoid passing JWT tokens in URL query parameters in production!**
+//!
+//! While this crate supports extracting tokens from query parameters (via [`QueryFinder`]),
+//! this method has significant security risks:
+//!
+//! - **Browser history exposure**: URLs with tokens are stored in browser history
+//! - **Server logs**: Tokens may be logged in web server access logs
+//! - **Referer header leakage**: Tokens can leak to third-party sites via the Referer header
+//! - **Shoulder surfing**: Tokens are visible in the address bar
+//!
+//! **Recommended alternatives:**
+//! - Use [`HeaderFinder`] with the `Authorization: Bearer <token>` header (recommended)
+//! - Use [`CookieFinder`] with `HttpOnly` and `Secure` cookie flags
+//!
+//! The example below uses query parameters for simplicity, but **production applications
+//! should use the Authorization header or secure cookies instead**.
+//!
 //! # Example:
 //!
 //! ```no_run
