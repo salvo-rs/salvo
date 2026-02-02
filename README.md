@@ -49,7 +49,8 @@
 
 Create a new project:
 ```bash
-cargo new hello-salvo && cd hello-salvo
+cargo new hello-salvo
+cd hello-salvo
 cargo add salvo tokio --features salvo/oapi,tokio/macros
 ```
 
