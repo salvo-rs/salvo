@@ -12,6 +12,7 @@ AttributeIDSupressMenu = "AttributeIDSupressMenu"
 # Don't correct the surname "Teh"
 teh = "teh"
 Hashi = "Hashi"
+consts = "consts"
 
 [files]
 extend-exclude = ["**/*.js", "**/*.css", "**/*.html", "examples/*/static/**/*.*"]
