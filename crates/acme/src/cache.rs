@@ -214,35 +214,206 @@ fn file_hash_part(data: &[String]) -> String {
     URL_SAFE_NO_PAD.encode(ctx.finish())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::path::PathBuf;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
 
-//     #[tokio::test]
-//     async fn test_acme_cache() {
-//         let cache_path = PathBuf::from("temp/test_cache");
-//         let directory_name = "test_directory";
-//         let domains = vec!["example.com".to_string(), "www.example.com".to_string()];
-//         let key_data = b"test_key_data";
-//         let cert_data = b"test_cert_data";
+    #[tokio::test]
+    async fn test_acme_cache_key_write_read() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "test_directory";
+        let domains = vec!["example.com".to_string(), "www.example.com".to_string()];
+        let key_data = b"test_key_data_content";
 
-//         // Test write_key
-//         let result = AcmeCache::write_key(&cache_path, directory_name, &domains, key_data).await;
-//         assert!(result.is_ok());
+        // Test write_key
+        let result: Result<(), IoError> =
+            cache_path.write_key(directory_name, &domains, key_data).await;
+        assert!(result.is_ok());
 
-//         // Test read_key
-//         let result = AcmeCache::read_key(&cache_path, directory_name, &domains).await;
-//         assert!(result.is_ok());
-//         assert_eq!(result.unwrap().unwrap(), key_data);
+        // Test read_key
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), key_data.to_vec());
+    }
 
-//         // Test write_cert
-//         let result = AcmeCache::write_cert(&cache_path, directory_name, &domains,
-// cert_data).await;         assert!(result.is_ok());
+    #[tokio::test]
+    async fn test_acme_cache_cert_write_read() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "test_directory";
+        let domains = vec!["example.com".to_string()];
+        let cert_data = b"test_cert_data_content";
 
-//         // Test read_cert
-//         let result = AcmeCache::read_cert(&cache_path, directory_name, &domains).await;
-//         assert!(result.is_ok());
-//         assert_eq!(result.unwrap().unwrap(), cert_data);
-//     }
-// }
+        // Test write_cert
+        let result: Result<(), IoError> =
+            cache_path.write_cert(directory_name, &domains, cert_data).await;
+        assert!(result.is_ok());
+
+        // Test read_cert
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_cert(directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), cert_data.to_vec());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_read_key_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "nonexistent";
+        let domains = vec!["nonexistent.com".to_string()];
+
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_read_cert_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "nonexistent";
+        let domains = vec!["nonexistent.com".to_string()];
+
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_cert(directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_different_domains_different_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "test";
+        let domains1 = vec!["example1.com".to_string()];
+        let domains2 = vec!["example2.com".to_string()];
+        let key_data1 = b"key_data_1";
+        let key_data2 = b"key_data_2";
+
+        // Write keys for different domains
+        let _: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains1, key_data1)
+            .await;
+        let _: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains2, key_data2)
+            .await;
+
+        // Read back and verify they are different
+        let result1: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains1).await;
+        let result2: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains2).await;
+
+        assert_eq!(result1.unwrap().unwrap(), key_data1.to_vec());
+        assert_eq!(result2.unwrap().unwrap(), key_data2.to_vec());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_overwrite_key() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().to_path_buf();
+        let directory_name = "test";
+        let domains = vec!["example.com".to_string()];
+
+        // Write initial key
+        let _: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains, b"initial_key")
+            .await;
+
+        // Overwrite with new key
+        let _: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains, b"updated_key")
+            .await;
+
+        // Read and verify it's the updated key
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains).await;
+        assert_eq!(result.unwrap().unwrap(), b"updated_key".to_vec());
+    }
+
+    #[test]
+    fn test_file_hash_part_deterministic() {
+        let domains1 = vec!["example.com".to_string(), "www.example.com".to_string()];
+        let domains2 = vec!["example.com".to_string(), "www.example.com".to_string()];
+
+        let hash1 = file_hash_part(&domains1);
+        let hash2 = file_hash_part(&domains2);
+
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_file_hash_part_different_domains() {
+        let domains1 = vec!["example.com".to_string()];
+        let domains2 = vec!["different.com".to_string()];
+
+        let hash1 = file_hash_part(&domains1);
+        let hash2 = file_hash_part(&domains2);
+
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_file_hash_part_order_matters() {
+        let domains1 = vec!["a.com".to_string(), "b.com".to_string()];
+        let domains2 = vec!["b.com".to_string(), "a.com".to_string()];
+
+        let hash1 = file_hash_part(&domains1);
+        let hash2 = file_hash_part(&domains2);
+
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_file_hash_part_empty() {
+        let domains: Vec<String> = vec![];
+        let hash = file_hash_part(&domains);
+        // Should produce a valid hash even for empty input
+        assert!(!hash.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_with_string_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: String = temp_dir.path().to_str().unwrap().to_string();
+        let directory_name = "test";
+        let domains = vec!["example.com".to_string()];
+        let key_data = b"test_key";
+
+        // Test with String path
+        let result: Result<(), IoError> =
+            cache_path.write_key(directory_name, &domains, key_data).await;
+        assert!(result.is_ok());
+
+        let result: Result<Option<Vec<u8>>, IoError> =
+            cache_path.read_key(directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), key_data.to_vec());
+    }
+
+    #[tokio::test]
+    async fn test_acme_cache_creates_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path: PathBuf = temp_dir.path().join("nested").join("cache").join("dir");
+        let directory_name = "test";
+        let domains = vec!["example.com".to_string()];
+        let key_data = b"test_key";
+
+        // Directory doesn't exist yet
+        assert!(!cache_path.exists());
+
+        // Write should create the directory
+        let result: Result<(), IoError> =
+            cache_path.write_key(directory_name, &domains, key_data).await;
+        assert!(result.is_ok());
+
+        // Directory should now exist
+        assert!(cache_path.exists());
+    }
+}
