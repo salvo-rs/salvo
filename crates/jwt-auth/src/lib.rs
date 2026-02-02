@@ -444,8 +444,309 @@ mod tests {
         user: String,
         exp: i64,
     }
+
+    fn create_test_token(secret: &[u8], exp_days: i64) -> String {
+        let claim = JwtClaims {
+            user: "test_user".into(),
+            exp: (OffsetDateTime::now_utc() + Duration::days(exp_days)).unix_timestamp(),
+        };
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(secret),
+        )
+        .unwrap()
+    }
+
+    // ==================== ConstDecoder Tests ====================
+
+    #[test]
+    fn test_const_decoder_new() {
+        let key = DecodingKey::from_secret(b"test_secret");
+        let decoder = ConstDecoder::new(key);
+        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+    }
+
+    #[test]
+    fn test_const_decoder_with_validation() {
+        let key = DecodingKey::from_secret(b"test_secret");
+        let mut validation = Validation::default();
+        validation.validate_exp = false;
+        let decoder = ConstDecoder::with_validation(key, validation);
+        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+    }
+
+    #[test]
+    fn test_const_decoder_from_secret() {
+        let decoder = ConstDecoder::from_secret(b"my_secret_key");
+        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+    }
+
+    #[test]
+    fn test_const_decoder_from_base64_secret() {
+        // Valid base64 encoded secret
+        let decoder = ConstDecoder::from_base64_secret("dGVzdF9zZWNyZXQ=");
+        assert!(decoder.is_ok());
+
+        // Invalid base64 should fail
+        let decoder = ConstDecoder::from_base64_secret("not valid base64!!!");
+        assert!(decoder.is_err());
+    }
+
     #[tokio::test]
-    async fn test_jwt_auth() {
+    async fn test_const_decoder_decode_valid_token() {
+        let secret = b"test_secret_key";
+        let decoder = ConstDecoder::from_secret(secret);
+        let token = create_test_token(secret, 1);
+
+        let mut depot = Depot::new();
+        let result = decoder.decode::<JwtClaims>(&token, &mut depot).await;
+        assert!(result.is_ok());
+
+        let token_data = result.unwrap();
+        assert_eq!(token_data.claims.user, "test_user");
+    }
+
+    #[tokio::test]
+    async fn test_const_decoder_decode_invalid_token() {
+        let decoder = ConstDecoder::from_secret(b"correct_secret");
+        let token = create_test_token(b"wrong_secret", 1);
+
+        let mut depot = Depot::new();
+        let result = decoder.decode::<JwtClaims>(&token, &mut depot).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_const_decoder_decode_expired_token() {
+        let secret = b"test_secret_key";
+        let decoder = ConstDecoder::from_secret(secret);
+        let token = create_test_token(secret, -1); // Expired
+
+        let mut depot = Depot::new();
+        let result = decoder.decode::<JwtClaims>(&token, &mut depot).await;
+        assert!(result.is_err());
+    }
+
+    // ==================== HeaderFinder Tests ====================
+
+    #[test]
+    fn test_header_finder_new() {
+        let finder = HeaderFinder::new();
+        assert_eq!(finder.cared_methods.len(), 9); // All methods
+        assert_eq!(finder.header_names.len(), 2); // Authorization + Proxy-Authorization
+    }
+
+    #[test]
+    fn test_header_finder_cared_methods() {
+        let finder = HeaderFinder::new().cared_methods(vec![Method::GET, Method::POST]);
+        assert_eq!(finder.cared_methods.len(), 2);
+        assert!(finder.cared_methods.contains(&Method::GET));
+        assert!(finder.cared_methods.contains(&Method::POST));
+    }
+
+    #[test]
+    fn test_header_finder_header_names() {
+        use salvo_core::http::header::HeaderName;
+        let custom_header = HeaderName::from_static("x-custom-auth");
+        let finder = HeaderFinder::new().header_names(vec![custom_header.clone()]);
+        assert_eq!(finder.header_names.len(), 1);
+        assert_eq!(finder.header_names[0], custom_header);
+    }
+
+    #[test]
+    fn test_header_finder_mut_methods() {
+        let mut finder = HeaderFinder::new();
+        finder.cared_methods_mut().push(Method::CONNECT);
+        finder.header_names_mut().clear();
+        assert!(finder.header_names.is_empty());
+    }
+
+    // ==================== QueryFinder Tests ====================
+
+    #[test]
+    fn test_query_finder_new() {
+        let finder = QueryFinder::new("token");
+        assert_eq!(finder.query_name, "token");
+        assert_eq!(finder.cared_methods.len(), 9);
+    }
+
+    #[test]
+    fn test_query_finder_with_static_str() {
+        let finder = QueryFinder::new("access_token");
+        assert_eq!(finder.query_name, "access_token");
+    }
+
+    #[test]
+    fn test_query_finder_with_string() {
+        let finder = QueryFinder::new(String::from("jwt"));
+        assert_eq!(finder.query_name, "jwt");
+    }
+
+    #[test]
+    fn test_query_finder_cared_methods() {
+        let finder = QueryFinder::new("token").cared_methods(vec![Method::GET]);
+        assert_eq!(finder.cared_methods.len(), 1);
+        assert!(finder.cared_methods.contains(&Method::GET));
+    }
+
+    // ==================== CookieFinder Tests ====================
+
+    #[test]
+    fn test_cookie_finder_new() {
+        let finder = CookieFinder::new("session");
+        assert_eq!(finder.cookie_name, "session");
+        assert_eq!(finder.cared_methods.len(), 9);
+    }
+
+    #[test]
+    fn test_cookie_finder_cared_methods() {
+        let finder = CookieFinder::new("jwt").cared_methods(vec![Method::GET, Method::POST]);
+        assert_eq!(finder.cared_methods.len(), 2);
+    }
+
+    #[test]
+    fn test_cookie_finder_mut_methods() {
+        let mut finder = CookieFinder::new("token");
+        finder.cared_methods_mut().clear();
+        assert!(finder.cared_methods.is_empty());
+    }
+
+    // ==================== FormFinder Tests ====================
+
+    #[test]
+    fn test_form_finder_new() {
+        let finder = FormFinder::new("token");
+        assert_eq!(finder.field_name, "token");
+        assert_eq!(finder.cared_methods.len(), 9);
+    }
+
+    #[test]
+    fn test_form_finder_cared_methods() {
+        let finder = FormFinder::new("access_token").cared_methods(vec![Method::POST]);
+        assert_eq!(finder.cared_methods.len(), 1);
+        assert!(finder.cared_methods.contains(&Method::POST));
+    }
+
+    // ==================== JwtAuthState Tests ====================
+
+    #[test]
+    fn test_jwt_auth_state_eq() {
+        assert_eq!(JwtAuthState::Authorized, JwtAuthState::Authorized);
+        assert_eq!(JwtAuthState::Unauthorized, JwtAuthState::Unauthorized);
+        assert_eq!(JwtAuthState::Forbidden, JwtAuthState::Forbidden);
+        assert_ne!(JwtAuthState::Authorized, JwtAuthState::Forbidden);
+    }
+
+    #[test]
+    fn test_jwt_auth_state_clone() {
+        let state = JwtAuthState::Authorized;
+        let cloned = state;
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn test_jwt_auth_state_debug() {
+        assert!(format!("{:?}", JwtAuthState::Authorized).contains("Authorized"));
+        assert!(format!("{:?}", JwtAuthState::Unauthorized).contains("Unauthorized"));
+        assert!(format!("{:?}", JwtAuthState::Forbidden).contains("Forbidden"));
+    }
+
+    // ==================== JwtAuthDepotExt Tests ====================
+
+    #[test]
+    fn test_depot_jwt_auth_state_default() {
+        let depot = Depot::new();
+        assert_eq!(depot.jwt_auth_state(), JwtAuthState::Unauthorized);
+    }
+
+    #[test]
+    fn test_depot_jwt_auth_token_none() {
+        let depot = Depot::new();
+        assert!(depot.jwt_auth_token().is_none());
+    }
+
+    #[test]
+    fn test_depot_jwt_auth_data_none() {
+        let depot = Depot::new();
+        assert!(depot.jwt_auth_data::<JwtClaims>().is_none());
+    }
+
+    #[test]
+    fn test_depot_jwt_auth_error_none() {
+        let depot = Depot::new();
+        assert!(depot.jwt_auth_error().is_none());
+    }
+
+    #[test]
+    fn test_depot_with_jwt_auth_state() {
+        let mut depot = Depot::new();
+        depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Authorized);
+        assert_eq!(depot.jwt_auth_state(), JwtAuthState::Authorized);
+    }
+
+    #[test]
+    fn test_depot_with_jwt_auth_token() {
+        let mut depot = Depot::new();
+        depot.insert(JWT_AUTH_TOKEN_KEY, String::from("test_token_value"));
+        assert_eq!(depot.jwt_auth_token(), Some("test_token_value"));
+    }
+
+    // ==================== JwtAuth Tests ====================
+
+    #[test]
+    fn test_jwt_auth_new() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
+        assert!(!auth.force_passed);
+        assert_eq!(auth.finders.len(), 1); // Default HeaderFinder
+    }
+
+    #[test]
+    fn test_jwt_auth_force_passed() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder).force_passed(true);
+        assert!(auth.force_passed);
+    }
+
+    #[test]
+    fn test_jwt_auth_finders() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder).finders(vec![
+            Box::new(HeaderFinder::new()),
+            Box::new(QueryFinder::new("token")),
+        ]);
+        assert_eq!(auth.finders.len(), 2);
+    }
+
+    #[test]
+    fn test_jwt_auth_finders_mut() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let mut auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
+        auth.finders_mut().push(Box::new(CookieFinder::new("jwt")));
+        assert_eq!(auth.finders.len(), 2);
+    }
+
+    #[test]
+    fn test_jwt_auth_decoder_mut() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let mut auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
+        let _ = auth.decoder_mut(); // Just verify it compiles and returns
+    }
+
+    #[test]
+    fn test_jwt_auth_debug() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
+        let debug_str = format!("{:?}", auth);
+        assert!(debug_str.contains("JwtAuth"));
+        assert!(debug_str.contains("force_passed"));
+    }
+
+    // ==================== Integration Tests ====================
+
+    #[tokio::test]
+    async fn test_jwt_auth_header_authorization() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
             JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF")).finders(vec![
                 Box::new(HeaderFinder::new()),
@@ -511,5 +812,228 @@ mod tests {
         .unwrap();
         let content = access(&service, &token).await;
         assert!(content.contains("Forbidden"));
+    }
+
+    #[tokio::test]
+    async fn test_jwt_auth_unauthorized_no_token() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+    }
+
+    #[tokio::test]
+    async fn test_jwt_auth_force_passed_no_token() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).force_passed(true);
+
+        #[handler]
+        async fn hello(depot: &mut Depot) -> String {
+            format!("{:?}", depot.jwt_auth_state())
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+    }
+
+    #[tokio::test]
+    async fn test_jwt_auth_force_passed_invalid_token() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).force_passed(true);
+
+        #[handler]
+        async fn hello(depot: &mut Depot) -> String {
+            format!("{:?}", depot.jwt_auth_state())
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Authorization", "Bearer invalid_token", true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Forbidden"));
+    }
+
+    #[tokio::test]
+    async fn test_jwt_auth_depot_data_access() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+
+        #[handler]
+        async fn hello(depot: &mut Depot) -> String {
+            match depot.jwt_auth_data::<JwtClaims>() {
+                Some(data) => format!("user:{}", data.claims.user),
+                None => "no_data".to_string(),
+            }
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let claim = JwtClaims {
+            user: "admin".into(),
+            exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
+        };
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(b"SECRET"),
+        )
+        .unwrap();
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Authorization", format!("Bearer {token}"), true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("user:admin"));
+    }
+
+    #[tokio::test]
+    async fn test_jwt_auth_proxy_authorization_header() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let claim = JwtClaims {
+            user: "proxy_user".into(),
+            exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
+        };
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(b"SECRET"),
+        )
+        .unwrap();
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Proxy-Authorization", format!("Bearer {token}"), true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_header_finder_non_bearer_ignored() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        // Basic auth should be ignored
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Authorization", "Basic dXNlcjpwYXNz", true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+    }
+
+    #[tokio::test]
+    async fn test_header_finder_method_filtering() {
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).finders(vec![Box::new(
+                HeaderFinder::new().cared_methods(vec![Method::POST]),
+            )]);
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello).post(hello));
+        let service = Service::new(router);
+
+        let claim = JwtClaims {
+            user: "test".into(),
+            exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
+        };
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(b"SECRET"),
+        )
+        .unwrap();
+
+        // GET should not find token (method not cared)
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Authorization", format!("Bearer {token}"), true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+
+        // POST should find token
+        let content = TestClient::post("http://127.0.0.1:5801/hello")
+            .add_header("Authorization", format!("Bearer {token}"), true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("hello"));
     }
 }
