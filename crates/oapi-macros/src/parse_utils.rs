@@ -150,3 +150,140 @@ pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
         Err(syn::Error::new(input.span(), "invalid indent or lit str"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn test_lit_str_or_expr_from_string() {
+        let result = LitStrOrExpr::from("test".to_string());
+        assert!(matches!(result, LitStrOrExpr::LitStr(_)));
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_default() {
+        let result = LitStrOrExpr::default();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_is_empty_true() {
+        let result = LitStrOrExpr::from("".to_string());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_is_empty_false() {
+        let result = LitStrOrExpr::from("not empty".to_string());
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_parse_lit_str() {
+        let result: LitStrOrExpr = syn::parse_str(r#""hello world""#).unwrap();
+        assert!(matches!(result, LitStrOrExpr::LitStr(_)));
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_parse_expr() {
+        let result: LitStrOrExpr = syn::parse_str("some_variable").unwrap();
+        assert!(matches!(result, LitStrOrExpr::Expr(_)));
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_to_tokens() {
+        let lit = LitStrOrExpr::from("test".to_string());
+        let mut tokens = TokenStream::new();
+        lit.to_tokens(&mut tokens);
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_display_lit_str() {
+        let lit = LitStrOrExpr::from("display test".to_string());
+        let display = format!("{}", lit);
+        assert_eq!(display, "display test");
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_display_expr() {
+        let result: LitStrOrExpr = syn::parse_str("my_var").unwrap();
+        let display = format!("{}", result);
+        assert!(display.contains("my_var"));
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_debug() {
+        let lit = LitStrOrExpr::from("test".to_string());
+        let debug = format!("{:?}", lit);
+        assert!(debug.contains("LitStr"));
+    }
+
+    #[test]
+    fn test_lit_str_or_expr_clone() {
+        let original = LitStrOrExpr::from("clone test".to_string());
+        let cloned = original.clone();
+        assert!(matches!(cloned, LitStrOrExpr::LitStr(_)));
+    }
+
+    #[test]
+    fn test_parse_bool_or_true_no_value() {
+        let tokens = quote! {};
+        let result: bool = syn::parse::Parser::parse2(parse_bool_or_true, tokens).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_bool_or_true_with_true() {
+        let tokens = quote! { = true };
+        let result: bool = syn::parse::Parser::parse2(parse_bool_or_true, tokens).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_bool_or_true_with_false() {
+        let tokens = quote! { = false };
+        let result: bool = syn::parse::Parser::parse2(parse_bool_or_true, tokens).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_path_or_lit_str_path() {
+        let tokens = quote! { std::string::String };
+        let result: String =
+            syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
+        assert!(result.contains("String"));
+    }
+
+    #[test]
+    fn test_parse_path_or_lit_str_lit() {
+        let tokens = quote! { "literal string" };
+        let result: String =
+            syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
+        assert_eq!(result, "literal string");
+    }
+
+    #[test]
+    fn test_parse_json_token_stream_valid() {
+        let tokens = quote! { json!({ "key": "value" }) };
+        let result = syn::parse::Parser::parse2(parse_json_token_stream, tokens);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_json_token_stream_invalid_ident() {
+        let tokens = quote! { notjson!({ "key": "value" }) };
+        let result = syn::parse::Parser::parse2(parse_json_token_stream, tokens);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_next_lit_str() {
+        let tokens = quote! { = "test string" };
+        let result: String =
+            syn::parse::Parser::parse2(parse_next_lit_str, tokens).unwrap();
+        assert_eq!(result, "test string");
+    }
+}
