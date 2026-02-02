@@ -690,3 +690,377 @@ impl ToTokens for Variant {
         };
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_path(s: &str) -> syn::Path {
+        syn::parse_str(s).unwrap()
+    }
+
+    // ==================== SchemaTypeInner Tests ====================
+
+    #[test]
+    fn test_schema_type_inner_eq() {
+        assert_eq!(SchemaTypeInner::Object, SchemaTypeInner::Object);
+        assert_eq!(SchemaTypeInner::String, SchemaTypeInner::String);
+        assert_eq!(SchemaTypeInner::Integer, SchemaTypeInner::Integer);
+        assert_eq!(SchemaTypeInner::Number, SchemaTypeInner::Number);
+        assert_eq!(SchemaTypeInner::Boolean, SchemaTypeInner::Boolean);
+        assert_eq!(SchemaTypeInner::Array, SchemaTypeInner::Array);
+        assert_eq!(SchemaTypeInner::Null, SchemaTypeInner::Null);
+        assert_ne!(SchemaTypeInner::Object, SchemaTypeInner::String);
+    }
+
+    #[test]
+    fn test_schema_type_inner_clone() {
+        let original = SchemaTypeInner::String;
+        let cloned = original;
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn test_schema_type_inner_debug() {
+        let debug = format!("{:?}", SchemaTypeInner::Integer);
+        assert_eq!(debug, "Integer");
+    }
+
+    // ==================== SchemaType Tests ====================
+
+    #[test]
+    fn test_schema_type_is_integer_signed() {
+        for ty in ["i8", "i16", "i32", "i64", "i128", "isize"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(schema_type.is_integer(), "Expected {ty} to be integer");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_integer_unsigned() {
+        for ty in ["u8", "u16", "u32", "u64", "u128", "usize"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(schema_type.is_integer(), "Expected {ty} to be integer");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_integer_false() {
+        for ty in ["String", "bool", "f32", "f64"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(
+                !schema_type.is_integer(),
+                "Expected {ty} to not be integer"
+            );
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_unsigned_integer() {
+        for ty in ["u8", "u16", "u32", "u64", "u128", "usize"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(
+                schema_type.is_unsigned_integer(),
+                "Expected {ty} to be unsigned integer"
+            );
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_unsigned_integer_false() {
+        for ty in ["i8", "i16", "i32", "i64", "String"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(
+                !schema_type.is_unsigned_integer(),
+                "Expected {ty} to not be unsigned integer"
+            );
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_number_floats() {
+        for ty in ["f32", "f64"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(schema_type.is_number(), "Expected {ty} to be number");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_number_integers() {
+        // Integers are also numbers
+        let path = make_path("i32");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(schema_type.is_number());
+    }
+
+    #[test]
+    fn test_schema_type_is_number_false() {
+        for ty in ["String", "bool"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(!schema_type.is_number(), "Expected {ty} to not be number");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_string() {
+        for ty in ["str", "String"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(schema_type.is_string(), "Expected {ty} to be string");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_string_false() {
+        for ty in ["i32", "bool", "Vec"] {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(!schema_type.is_string(), "Expected {ty} to not be string");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_byte() {
+        let path = make_path("u8");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(schema_type.is_byte());
+    }
+
+    #[test]
+    fn test_schema_type_is_byte_false() {
+        let path = make_path("i8");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(!schema_type.is_byte());
+    }
+
+    #[test]
+    fn test_schema_type_is_value() {
+        let path = make_path("Value");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(schema_type.is_value());
+    }
+
+    #[test]
+    fn test_schema_type_is_value_false() {
+        let path = make_path("String");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(!schema_type.is_value());
+    }
+
+    #[test]
+    fn test_schema_type_is_primitive() {
+        let primitives = [
+            "String", "str", "char", "bool", "usize", "u8", "u16", "u32", "u64", "u128", "isize",
+            "i8", "i16", "i32", "i64", "i128", "f32", "f64", "Ipv4Addr", "Ipv6Addr",
+        ];
+        for ty in primitives {
+            let path = make_path(ty);
+            let schema_type = SchemaType {
+                path: &path,
+                nullable: false,
+            };
+            assert!(schema_type.is_primitive(), "Expected {ty} to be primitive");
+        }
+    }
+
+    #[test]
+    fn test_schema_type_is_primitive_false() {
+        let path = make_path("MyCustomType");
+        let schema_type = SchemaType {
+            path: &path,
+            nullable: false,
+        };
+        assert!(!schema_type.is_primitive());
+    }
+
+    // ==================== Variant Tests ====================
+
+    #[test]
+    fn test_variant_parse_int32() {
+        let variant: Variant = syn::parse_str("Int32").unwrap();
+        assert!(matches!(variant, Variant::Int32));
+    }
+
+    #[test]
+    fn test_variant_parse_int64() {
+        let variant: Variant = syn::parse_str("Int64").unwrap();
+        assert!(matches!(variant, Variant::Int64));
+    }
+
+    #[test]
+    fn test_variant_parse_float() {
+        let variant: Variant = syn::parse_str("Float").unwrap();
+        assert!(matches!(variant, Variant::Float));
+    }
+
+    #[test]
+    fn test_variant_parse_double() {
+        let variant: Variant = syn::parse_str("Double").unwrap();
+        assert!(matches!(variant, Variant::Double));
+    }
+
+    #[test]
+    fn test_variant_parse_byte() {
+        let variant: Variant = syn::parse_str("Byte").unwrap();
+        assert!(matches!(variant, Variant::Byte));
+    }
+
+    #[test]
+    fn test_variant_parse_binary() {
+        let variant: Variant = syn::parse_str("Binary").unwrap();
+        assert!(matches!(variant, Variant::Binary));
+    }
+
+    #[test]
+    fn test_variant_parse_date() {
+        let variant: Variant = syn::parse_str("Date").unwrap();
+        assert!(matches!(variant, Variant::Date));
+    }
+
+    #[test]
+    fn test_variant_parse_datetime() {
+        let variant: Variant = syn::parse_str("DateTime").unwrap();
+        assert!(matches!(variant, Variant::DateTime));
+    }
+
+    #[test]
+    fn test_variant_parse_password() {
+        let variant: Variant = syn::parse_str("Password").unwrap();
+        assert!(matches!(variant, Variant::Password));
+    }
+
+    #[test]
+    fn test_variant_parse_custom() {
+        let variant: Variant = syn::parse_str(r#""my-custom-format""#).unwrap();
+        assert!(matches!(variant, Variant::Custom(s) if s == "my-custom-format"));
+    }
+
+    #[test]
+    fn test_variant_parse_invalid() {
+        let result: syn::Result<Variant> = syn::parse_str("InvalidFormat");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_variant_clone() {
+        let original = Variant::Int32;
+        let cloned = original.clone();
+        assert!(matches!(cloned, Variant::Int32));
+    }
+
+    #[test]
+    fn test_variant_debug() {
+        let variant = Variant::Float;
+        let debug = format!("{:?}", variant);
+        assert_eq!(debug, "Float");
+    }
+
+    // ==================== SchemaFormat Tests ====================
+
+    #[test]
+    fn test_schema_format_is_known_format_variant() {
+        let format = SchemaFormat::Variant(Variant::Int32);
+        assert!(format.is_known_format());
+    }
+
+    #[test]
+    fn test_schema_format_from_path() {
+        let path = make_path("i32");
+        let format = SchemaFormat::from(&path);
+        assert!(format.is_known_format());
+    }
+
+    #[test]
+    fn test_schema_format_from_path_unknown() {
+        let path = make_path("MyType");
+        let format = SchemaFormat::from(&path);
+        assert!(!format.is_known_format());
+    }
+
+    #[test]
+    fn test_schema_format_clone() {
+        let path = make_path("i32");
+        let format = SchemaFormat::from(&path);
+        let cloned = format.clone();
+        assert!(cloned.is_known_format());
+    }
+
+    #[test]
+    fn test_schema_format_debug() {
+        let format = SchemaFormat::Variant(Variant::Double);
+        let debug = format!("{:?}", format);
+        assert!(debug.contains("Variant"));
+        assert!(debug.contains("Double"));
+    }
+
+    // ==================== is_primitive helper Tests ====================
+
+    #[test]
+    fn test_is_primitive_helper() {
+        assert!(is_primitive("String"));
+        assert!(is_primitive("i32"));
+        assert!(is_primitive("bool"));
+        assert!(is_primitive("Ipv4Addr"));
+        assert!(!is_primitive("CustomType"));
+    }
+
+    // ==================== is_known_format helper Tests ====================
+
+    #[test]
+    fn test_is_known_format_helper() {
+        assert!(is_known_format("i32"));
+        assert!(is_known_format("f64"));
+        assert!(is_known_format("Ipv4Addr"));
+        assert!(!is_known_format("String"));
+        assert!(!is_known_format("bool"));
+    }
+}
