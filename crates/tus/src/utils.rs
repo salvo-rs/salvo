@@ -31,6 +31,51 @@ pub fn normalize_path(p: &str) -> String {
     out
 }
 
+/// Validate that an upload ID is safe to use in file paths.
+/// Returns true if the ID contains only safe characters (alphanumeric, dash, underscore).
+/// This prevents path traversal attacks via malicious upload IDs.
+pub fn is_safe_upload_id(id: &str) -> bool {
+    if id.is_empty() {
+        return false;
+    }
+    // Only allow alphanumeric characters, dashes, and underscores
+    id.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Sanitize a path component to remove potentially dangerous sequences.
+/// Returns None if the path component is unsafe.
+pub fn sanitize_path_component(component: &str) -> Option<&str> {
+    let component = component.trim();
+
+    // Reject empty components
+    if component.is_empty() {
+        return None;
+    }
+
+    // Reject path traversal sequences
+    if component == "." || component == ".." {
+        return None;
+    }
+
+    // Reject components with path separators
+    if component.contains('/') || component.contains('\\') {
+        return None;
+    }
+
+    // Reject components with null bytes
+    if component.contains('\0') {
+        return None;
+    }
+
+    // Reject Windows drive letters
+    if component.len() >= 2 && component.chars().nth(1) == Some(':') {
+        return None;
+    }
+
+    Some(component)
+}
+
 pub fn validate_header(name: &'static str, value: Option<&HeaderValue>) -> bool {
     match value {
         Some(v) => {
@@ -221,5 +266,42 @@ mod tests {
     fn test_validate_header_empty() {
         let header = HeaderValue::from_static("");
         assert!(!validate_header("application/json", Some(&header)));
+    }
+
+    #[test]
+    fn test_is_safe_upload_id_valid() {
+        assert!(is_safe_upload_id("abc123"));
+        assert!(is_safe_upload_id("ABC-123"));
+        assert!(is_safe_upload_id("test_file_id"));
+        assert!(is_safe_upload_id("a1b2c3d4-e5f6-7890-abcd-ef1234567890"));
+    }
+
+    #[test]
+    fn test_is_safe_upload_id_invalid() {
+        assert!(!is_safe_upload_id(""));
+        assert!(!is_safe_upload_id("../parent"));
+        assert!(!is_safe_upload_id("path/traversal"));
+        assert!(!is_safe_upload_id("path\\traversal"));
+        assert!(!is_safe_upload_id("file.txt"));
+        assert!(!is_safe_upload_id("id with spaces"));
+        assert!(!is_safe_upload_id("id\0null"));
+    }
+
+    #[test]
+    fn test_sanitize_path_component_valid() {
+        assert_eq!(sanitize_path_component("file"), Some("file"));
+        assert_eq!(sanitize_path_component("file-name"), Some("file-name"));
+        assert_eq!(sanitize_path_component("  file  "), Some("file"));
+    }
+
+    #[test]
+    fn test_sanitize_path_component_invalid() {
+        assert_eq!(sanitize_path_component(""), None);
+        assert_eq!(sanitize_path_component("."), None);
+        assert_eq!(sanitize_path_component(".."), None);
+        assert_eq!(sanitize_path_component("path/file"), None);
+        assert_eq!(sanitize_path_component("path\\file"), None);
+        assert_eq!(sanitize_path_component("C:file"), None);
+        assert_eq!(sanitize_path_component("file\0name"), None);
     }
 }
