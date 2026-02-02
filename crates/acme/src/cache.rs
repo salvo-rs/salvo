@@ -216,9 +216,11 @@ fn file_hash_part(data: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
     use tempfile::TempDir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_acme_cache_key_write_read() {
@@ -229,8 +231,9 @@ mod tests {
         let key_data = b"test_key_data_content";
 
         // Test write_key
-        let result: Result<(), IoError> =
-            cache_path.write_key(directory_name, &domains, key_data).await;
+        let result: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains, key_data)
+            .await;
         assert!(result.is_ok());
 
         // Test read_key
@@ -249,8 +252,9 @@ mod tests {
         let cert_data = b"test_cert_data_content";
 
         // Test write_cert
-        let result: Result<(), IoError> =
-            cache_path.write_cert(directory_name, &domains, cert_data).await;
+        let result: Result<(), IoError> = cache_path
+            .write_cert(directory_name, &domains, cert_data)
+            .await;
         assert!(result.is_ok());
 
         // Test read_cert
@@ -387,8 +391,9 @@ mod tests {
         let key_data = b"test_key";
 
         // Test with String path
-        let result: Result<(), IoError> =
-            cache_path.write_key(directory_name, &domains, key_data).await;
+        let result: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains, key_data)
+            .await;
         assert!(result.is_ok());
 
         let result: Result<Option<Vec<u8>>, IoError> =
@@ -409,8 +414,9 @@ mod tests {
         assert!(!cache_path.exists());
 
         // Write should create the directory
-        let result: Result<(), IoError> =
-            cache_path.write_key(directory_name, &domains, key_data).await;
+        let result: Result<(), IoError> = cache_path
+            .write_key(directory_name, &domains, key_data)
+            .await;
         assert!(result.is_ok());
 
         // Directory should now exist

@@ -153,8 +153,9 @@ pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use quote::quote;
+
+    use super::*;
 
     #[test]
     fn test_lit_str_or_expr_from_string() {
@@ -252,16 +253,14 @@ mod tests {
     #[test]
     fn test_parse_path_or_lit_str_path() {
         let tokens = quote! { std::string::String };
-        let result: String =
-            syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
+        let result: String = syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
         assert!(result.contains("String"));
     }
 
     #[test]
     fn test_parse_path_or_lit_str_lit() {
         let tokens = quote! { "literal string" };
-        let result: String =
-            syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
+        let result: String = syn::parse::Parser::parse2(parse_path_or_lit_str, tokens).unwrap();
         assert_eq!(result, "literal string");
     }
 
@@ -282,8 +281,7 @@ mod tests {
     #[test]
     fn test_parse_next_lit_str() {
         let tokens = quote! { = "test string" };
-        let result: String =
-            syn::parse::Parser::parse2(parse_next_lit_str, tokens).unwrap();
+        let result: String = syn::parse::Parser::parse2(parse_next_lit_str, tokens).unwrap();
         assert_eq!(result, "test string");
     }
 }

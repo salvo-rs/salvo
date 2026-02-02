@@ -760,10 +760,7 @@ mod tests {
                 path: &path,
                 nullable: false,
             };
-            assert!(
-                !schema_type.is_integer(),
-                "Expected {ty} to not be integer"
-            );
+            assert!(!schema_type.is_integer(), "Expected {ty} to not be integer");
         }
     }
 

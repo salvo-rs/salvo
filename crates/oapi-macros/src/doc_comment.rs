@@ -64,8 +64,9 @@ impl Deref for CommentAttributes {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use quote::quote;
+
+    use super::*;
 
     fn parse_attrs(tokens: proc_macro2::TokenStream) -> Vec<Attribute> {
         let item: syn::ItemStruct = syn::parse2(tokens).unwrap();
