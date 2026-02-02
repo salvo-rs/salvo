@@ -147,12 +147,100 @@ where
     }
 }
 
-/// Identify user by IP address.
-#[derive(Debug)]
+/// Identify user by the direct connection IP address.
+///
+/// # Security Note
+///
+/// This issuer uses `req.remote_addr()` which returns the IP of the direct
+/// connection. When your application is behind a reverse proxy or load balancer,
+/// this will be the proxy's IP, not the client's real IP.
+///
+/// For applications behind proxies, use [`RealIpIssuer`] instead, which can
+/// extract the client IP from headers like `X-Forwarded-For` or `X-Real-IP`.
+///
+/// **Warning**: Never use `RealIpIssuer` without a trusted proxy, as clients
+/// can forge these headers to bypass rate limiting.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RemoteIpIssuer;
 impl RateIssuer for RemoteIpIssuer {
     type Key = IpAddr;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+        req.remote_addr().ip()
+    }
+}
+
+/// Identify user by their real IP address, supporting proxy headers.
+///
+/// This issuer attempts to extract the client's real IP address by checking
+/// headers in the following order:
+/// 1. `X-Forwarded-For` (first IP in the list)
+/// 2. `X-Real-IP`
+/// 3. Falls back to `remote_addr()` if no headers are present
+///
+/// # Security Warning
+///
+/// **Only use this issuer when your application is behind a TRUSTED proxy!**
+///
+/// If clients can connect directly to your application (bypassing the proxy),
+/// they can forge these headers to:
+/// - Bypass rate limiting by spoofing different IP addresses
+/// - Impersonate other users
+///
+/// Ensure your proxy is configured to:
+/// - Overwrite (not append to) the `X-Forwarded-For` header
+/// - Block direct connections to your application
+///
+/// # Example
+///
+/// ```ignore
+/// use salvo_rate_limiter::{RateLimiter, RealIpIssuer, BasicQuota, FixedGuard, MokaStore};
+///
+/// let limiter = RateLimiter::new(
+///     FixedGuard::default(),
+///     MokaStore::default(),
+///     RealIpIssuer::new(),
+///     BasicQuota::per_minute(100),
+/// );
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RealIpIssuer;
+
+impl RealIpIssuer {
+    /// Create a new `RealIpIssuer`.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl RateIssuer for RealIpIssuer {
+    type Key = IpAddr;
+
+    async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+        // Try X-Forwarded-For header first (common with most reverse proxies)
+        if let Some(xff) = req.headers().get("x-forwarded-for") {
+            if let Ok(xff_str) = xff.to_str() {
+                // X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+                // The first one is the original client IP
+                if let Some(first_ip) = xff_str.split(',').next() {
+                    if let Ok(ip) = first_ip.trim().parse::<IpAddr>() {
+                        return Some(ip);
+                    }
+                }
+            }
+        }
+
+        // Try X-Real-IP header (used by nginx)
+        if let Some(real_ip) = req.headers().get("x-real-ip") {
+            if let Ok(real_ip_str) = real_ip.to_str() {
+                if let Ok(ip) = real_ip_str.trim().parse::<IpAddr>() {
+                    return Some(ip);
+                }
+            }
+        }
+
+        // Fall back to remote address
         req.remote_addr().ip()
     }
 }
