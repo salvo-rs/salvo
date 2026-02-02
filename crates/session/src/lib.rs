@@ -141,14 +141,36 @@ where
     }
 }
 
+/// Minimum recommended secret key length in bytes (256 bits).
+pub const RECOMMENDED_KEY_LEN: usize = 32;
+
 impl<S> HandlerBuilder<S>
 where
     S: SessionStore,
 {
     /// Create new `HandlerBuilder`
+    ///
+    /// # Security Note
+    ///
+    /// The `secret` should be at least 32 bytes (256 bits) for adequate security.
+    /// A warning will be logged if a shorter key is provided.
+    ///
+    /// **Example of generating a secure key:**
+    /// ```ignore
+    /// use rand::RngCore;
+    /// let mut key = [0u8; 64];
+    /// rand::rngs::OsRng.fill_bytes(&mut key);
+    /// ```
     #[inline]
     #[must_use]
     pub fn new(store: S, secret: &[u8]) -> Self {
+        if secret.len() < RECOMMENDED_KEY_LEN {
+            tracing::warn!(
+                "Session secret key is {} bytes, but at least {} bytes is recommended for security",
+                secret.len(),
+                RECOMMENDED_KEY_LEN
+            );
+        }
         Self {
             store,
             save_unchanged: true,
