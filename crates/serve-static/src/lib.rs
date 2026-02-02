@@ -66,16 +66,41 @@ pub(crate) fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
+/// Check if a path component is a Windows reserved device name.
+/// These names are reserved regardless of extension (e.g., "CON.txt" is also reserved).
+#[inline]
+pub(crate) fn is_windows_reserved_name(name: &str) -> bool {
+    // Get the base name without extension
+    let base = name.split('.').next().unwrap_or(name);
+    let upper = base.to_ascii_uppercase();
+
+    matches!(
+        upper.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" |
+        "COM1" | "COM2" | "COM3" | "COM4" | "COM5" | "COM6" | "COM7" | "COM8" | "COM9" |
+        "LPT1" | "LPT2" | "LPT3" | "LPT4" | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+    )
+}
+
 #[inline]
 pub(crate) fn format_url_path_safely(path: &str) -> String {
     let final_slash = if path.ends_with('/') { "/" } else { "" };
     let mut used_parts = Vec::with_capacity(8);
     for part in path.split(['/', '\\']) {
+        // Skip empty parts, current directory references, and parts with drive letters
         if part.is_empty() || part == "." || (cfg!(windows) && part.contains(':')) {
             continue;
         }
+        // Skip parts containing null bytes (security risk)
+        if part.contains('\0') {
+            continue;
+        }
+        // Handle parent directory references
         if part == ".." {
             used_parts.pop();
+        } else if cfg!(windows) && is_windows_reserved_name(part) {
+            // Skip Windows reserved device names
+            continue;
         } else {
             used_parts.push(part);
         }
@@ -313,5 +338,72 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_format_url_path_safely() {
+        // Basic path normalization
+        assert_eq!(format_url_path_safely("a/b/c"), "a/b/c");
+        assert_eq!(format_url_path_safely("/a/b/c"), "a/b/c");
+        assert_eq!(format_url_path_safely("a/b/c/"), "a/b/c/");
+
+        // Parent directory handling
+        assert_eq!(format_url_path_safely("a/../b"), "b");
+        assert_eq!(format_url_path_safely("a/b/../c"), "a/c");
+        assert_eq!(format_url_path_safely("../a/b"), "a/b");
+        assert_eq!(format_url_path_safely("a/../../b"), "b");
+
+        // Current directory handling
+        assert_eq!(format_url_path_safely("./a/b"), "a/b");
+        assert_eq!(format_url_path_safely("a/./b"), "a/b");
+
+        // Backslash handling
+        assert_eq!(format_url_path_safely("a\\b\\c"), "a/b/c");
+        assert_eq!(format_url_path_safely("a\\..\\b"), "b");
+
+        // Empty parts
+        assert_eq!(format_url_path_safely("a//b"), "a/b");
+        assert_eq!(format_url_path_safely(""), "");
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_format_url_path_safely_windows() {
+        // Windows drive letters
+        assert_eq!(format_url_path_safely("C:/Windows"), "Windows");
+        assert_eq!(format_url_path_safely("a/C:/b"), "a/b");
+
+        // Windows reserved device names
+        assert_eq!(format_url_path_safely("CON"), "");
+        assert_eq!(format_url_path_safely("a/CON/b"), "a/b");
+        assert_eq!(format_url_path_safely("a/con.txt/b"), "a/b");
+        assert_eq!(format_url_path_safely("PRN"), "");
+        assert_eq!(format_url_path_safely("AUX"), "");
+        assert_eq!(format_url_path_safely("NUL"), "");
+        assert_eq!(format_url_path_safely("COM1"), "");
+        assert_eq!(format_url_path_safely("LPT1"), "");
+    }
+
+    #[test]
+    fn test_is_windows_reserved_name() {
+        // Test reserved names
+        assert!(is_windows_reserved_name("CON"));
+        assert!(is_windows_reserved_name("con"));
+        assert!(is_windows_reserved_name("Con"));
+        assert!(is_windows_reserved_name("CON.txt"));
+        assert!(is_windows_reserved_name("PRN"));
+        assert!(is_windows_reserved_name("AUX"));
+        assert!(is_windows_reserved_name("NUL"));
+        assert!(is_windows_reserved_name("COM1"));
+        assert!(is_windows_reserved_name("COM9"));
+        assert!(is_windows_reserved_name("LPT1"));
+        assert!(is_windows_reserved_name("LPT9"));
+
+        // Test non-reserved names
+        assert!(!is_windows_reserved_name("file.txt"));
+        assert!(!is_windows_reserved_name("CONSOLE"));
+        assert!(!is_windows_reserved_name("COM10"));
+        assert!(!is_windows_reserved_name("LPT10"));
+        assert!(!is_windows_reserved_name(""));
     }
 }
