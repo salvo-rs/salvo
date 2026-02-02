@@ -289,7 +289,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
 
                 if !self.skipper.skipped(req, depot) {
                     if let Some(token) = &self.find_token(req).await {
-                        tracing::debug!("csrf token: {token}");
+                        tracing::debug!("csrf token found in request");
                         if !self.cipher.verify(token, &proof) {
                             tracing::debug!(
                                 "rejecting request due to invalid or expired CSRF token"
@@ -298,10 +298,10 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                             ctrl.skip_rest();
                             return;
                         } else {
-                            tracing::debug!("cipher verify CSRF token success");
+                            tracing::debug!("csrf token verification success");
                         }
                     } else {
-                        tracing::debug!("rejecting request due to missing CSRF token",);
+                        tracing::debug!("rejecting request due to missing CSRF token");
                         res.status_code(StatusCode::FORBIDDEN);
                         ctrl.skip_rest();
                         return;
@@ -317,9 +317,9 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 } else {
                     let (token, proof) = self.cipher.generate();
                     if let Err(e) = self.store.save(req, depot, res, &token, &proof).await {
-                        tracing::error!(error = ?e, "salvo csrf token failed");
+                        tracing::error!(error = ?e, "csrf token save failed");
                     }
-                    tracing::debug!("new token: {:?}", token);
+                    tracing::debug!("new csrf token generated");
                     depot.insert(CSRF_TOKEN_KEY, token);
                     ctrl.call_next(req, depot, res).await;
                 }
