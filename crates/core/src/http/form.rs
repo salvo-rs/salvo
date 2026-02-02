@@ -227,8 +227,27 @@ impl Drop for FilePart {
             let path = self.path.clone();
             let temp_dir = temp_dir.to_owned();
             tokio::task::spawn_blocking(move || {
-                let _ = std::fs::remove_file(&path);
-                let _ = std::fs::remove_dir(temp_dir);
+                // Log warnings if cleanup fails to help identify potential disk space issues
+                if let Err(e) = std::fs::remove_file(&path) {
+                    // Only log if the file still exists (ENOENT is expected if already cleaned up)
+                    if e.kind() != std::io::ErrorKind::NotFound {
+                        tracing::warn!(
+                            error = %e,
+                            path = %path.display(),
+                            "failed to remove temporary upload file"
+                        );
+                    }
+                }
+                if let Err(e) = std::fs::remove_dir(&temp_dir) {
+                    // Only log if directory still exists and is not empty
+                    if e.kind() != std::io::ErrorKind::NotFound {
+                        tracing::debug!(
+                            error = %e,
+                            path = %temp_dir.display(),
+                            "failed to remove temporary upload directory"
+                        );
+                    }
+                }
             });
         }
     }
