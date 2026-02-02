@@ -292,7 +292,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                         tracing::debug!("csrf token found in request");
                         if !self.cipher.verify(token, &proof) {
                             tracing::debug!(
-                                "rejecting request due to invalid or expired CSRF token"
+                                "rejecting request due to invalid or expired csrf token"
                             );
                             res.status_code(StatusCode::FORBIDDEN);
                             ctrl.skip_rest();
@@ -301,7 +301,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                             tracing::debug!("csrf token verification success");
                         }
                     } else {
-                        tracing::debug!("rejecting request due to missing CSRF token");
+                        tracing::debug!("rejecting request due to missing csrf token");
                         res.status_code(StatusCode::FORBIDDEN);
                         ctrl.skip_rest();
                         return;
@@ -311,7 +311,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
             }
             None => {
                 if !self.skipper.skipped(req, depot) {
-                    tracing::debug!("rejecting request due to missing CSRF token",);
+                    tracing::debug!("rejecting request due to missing csrf token",);
                     res.status_code(StatusCode::FORBIDDEN);
                     ctrl.skip_rest();
                 } else {
