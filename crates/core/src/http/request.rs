@@ -4,6 +4,7 @@ use std::fmt::{self, Debug, Formatter};
 #[cfg(feature = "quinn")]
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -15,7 +16,6 @@ pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http_body_util::{BodyExt, Limited};
 use multimap::MultiMap;
-use parking_lot::RwLock;
 use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
@@ -30,14 +30,14 @@ use crate::serde::{
 };
 use crate::{Depot, Error, FlowCtrl, Handler, async_trait};
 
-static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
+static GLOBAL_SECURE_MAX_SIZE: AtomicUsize = AtomicUsize::new(64 * 1024);
 
 /// Get global secure maximum size, default value is 64KB.
 ///
 /// **Note**: The security maximum value applies to request body reads and form parsing,
 /// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn global_secure_max_size() -> usize {
-    *GLOBAL_SECURE_MAX_SIZE.read()
+    GLOBAL_SECURE_MAX_SIZE.load(Ordering::Relaxed)
 }
 
 /// Set secure maximum size globally.
@@ -48,8 +48,7 @@ pub fn global_secure_max_size() -> usize {
 /// **Note**: The security maximum value applies to request body reads and form parsing,
 /// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn set_global_secure_max_size(size: usize) {
-    let mut lock = GLOBAL_SECURE_MAX_SIZE.write();
-    *lock = size;
+    GLOBAL_SECURE_MAX_SIZE.store(size, Ordering::Relaxed);
 }
 
 /// Middleware for set the secure maximum size of request body.
