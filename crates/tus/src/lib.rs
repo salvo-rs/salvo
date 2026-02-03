@@ -1,3 +1,81 @@
+//! TUS (Resumable Upload Protocol) implementation for the Salvo web framework.
+//!
+//! [TUS](https://tus.io/) is an open protocol for resumable file uploads over HTTP.
+//! It allows reliable uploads of large files by enabling pause and resume functionality,
+//! making it ideal for unreliable network conditions.
+//!
+//! # Features
+//!
+//! - Resumable uploads - Clients can resume interrupted uploads
+//! - Upload metadata - Attach custom metadata to uploads
+//! - Configurable max size - Limit upload file sizes
+//! - Lifecycle hooks - React to upload events
+//! - Customizable storage - Implement your own storage backend
+//!
+//! # Example
+//!
+//! ```ignore
+//! use salvo_tus::{Tus, MaxSize};
+//! use salvo_core::prelude::*;
+//!
+//! let tus = Tus::new()
+//!     .path("/uploads")
+//!     .max_size(MaxSize::Fixed(100 * 1024 * 1024));  // 100 MB limit
+//!
+//! let router = Router::new()
+//!     .push(tus.into_router());
+//!
+//! let acceptor = TcpListener::new("0.0.0.0:8080").bind().await;
+//! Server::new(acceptor).serve(router).await;
+//! ```
+//!
+//! # TUS Protocol Endpoints
+//!
+//! The router created by `into_router()` handles:
+//!
+//! | Method | Path | Description |
+//! |--------|------|-------------|
+//! | OPTIONS | `/uploads` | Returns TUS protocol capabilities |
+//! | POST | `/uploads` | Creates a new upload |
+//! | HEAD | `/uploads/{id}` | Returns upload progress |
+//! | PATCH | `/uploads/{id}` | Uploads a chunk |
+//! | DELETE | `/uploads/{id}` | Cancels an upload |
+//! | GET | `/uploads/{id}` | Downloads the uploaded file |
+//!
+//! # Lifecycle Hooks
+//!
+//! React to upload events:
+//!
+//! ```ignore
+//! let tus = Tus::new()
+//!     .with_on_upload_create(|req, upload_info| async move {
+//!         println!("New upload: {:?}", upload_info);
+//!         Ok(UploadPatch::default())
+//!     })
+//!     .with_on_upload_finish(|req, upload_info| async move {
+//!         println!("Upload complete: {:?}", upload_info);
+//!         Ok(UploadFinishPatch::default())
+//!     });
+//! ```
+//!
+//! # Custom Upload ID
+//!
+//! Generate custom upload IDs:
+//!
+//! ```ignore
+//! let tus = Tus::new()
+//!     .with_upload_id_naming_function(|req, metadata| async move {
+//!         Ok(uuid::Uuid::new_v4().to_string())
+//!     });
+//! ```
+//!
+//! # Storage Backends
+//!
+//! By default, files are stored on disk using `DiskStore`.
+//! Implement `DataStore` trait for custom storage (S3, database, etc.).
+//!
+//! Read more: <https://salvo.rs>
+
 use std::sync::Arc;
 
 use tokio::sync::watch;

@@ -37,18 +37,65 @@
 
 Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
 
-## Compression middleware for Salvo.
+# salvo-compression
 
-This is an official crate, so you can enable it in `Cargo.toml` like this:
+Compression middleware for the Salvo web framework that automatically compresses HTTP responses, reducing bandwidth usage and improving load times.
+
+## Features
+
+- **Multiple algorithms**: Gzip, Brotli, Deflate, and Zstd compression
+- **Content negotiation**: Automatically selects the best algorithm based on client's `Accept-Encoding` header
+- **Configurable compression levels**: Choose between fastest, default, best compression, or precise control
+- **Content type filtering**: Only compress appropriate MIME types (text, JSON, etc.)
+- **Minimum length threshold**: Skip compression for small responses that wouldn't benefit
+
+## Supported Algorithms
+
+| Algorithm | Feature | Content-Encoding |
+|-----------|---------|------------------|
+| Gzip | `gzip` | `gzip` |
+| Brotli | `brotli` | `br` |
+| Deflate | `deflate` | `deflate` |
+| Zstd | `zstd` | `zstd` |
+
+## Installation
+
+This is an official crate, so you can enable it in `Cargo.toml`:
 
 ```toml
 salvo = { version = "*", features = ["compression"] }
 ```
 
+## Quick Start
+
+```rust
+use salvo::prelude::*;
+use salvo::compression::{Compression, CompressionLevel};
+
+#[handler]
+async fn hello() -> &'static str {
+    "Hello World!"
+}
+
+#[tokio::main]
+async fn main() {
+    let compression = Compression::new()
+        .enable_gzip(CompressionLevel::Default)
+        .min_length(1024);  // Only compress responses > 1KB
+
+    let router = Router::new()
+        .hoop(compression)
+        .get(hello);
+
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-compression)
-- [Example Projects](https://github.com/salvo-rs/salvo/examples/)
+- [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 
 ## ☕ Donate
 

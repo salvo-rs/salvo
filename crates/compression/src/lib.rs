@@ -2,6 +2,63 @@
 
 //! Compression middleware for the Salvo web framework.
 //!
+//! This middleware automatically compresses HTTP responses using various algorithms,
+//! reducing bandwidth usage and improving load times for clients.
+//!
+//! # Supported Algorithms
+//!
+//! | Algorithm | Feature | Content-Encoding |
+//! |-----------|---------|------------------|
+//! | Gzip | `gzip` | `gzip` |
+//! | Brotli | `brotli` | `br` |
+//! | Deflate | `deflate` | `deflate` |
+//! | Zstd | `zstd` | `zstd` |
+//!
+//! # Example
+//!
+//! ```ignore
+//! use salvo_compression::{Compression, CompressionLevel};
+//! use salvo_core::prelude::*;
+//!
+//! let compression = Compression::new()
+//!     .enable_gzip(CompressionLevel::Default)
+//!     .min_length(1024);  // Only compress responses > 1KB
+//!
+//! let router = Router::new()
+//!     .hoop(compression)
+//!     .get(my_handler);
+//! ```
+//!
+//! # Algorithm Negotiation
+//!
+//! The middleware negotiates the compression algorithm based on the client's
+//! `Accept-Encoding` header. By default, it respects the client's preference order.
+//! Use `force_priority(true)` to use the server's configured priority instead.
+//!
+//! # Compression Levels
+//!
+//! - [`CompressionLevel::Fastest`]: Fastest compression, larger output
+//! - [`CompressionLevel::Default`]: Balanced compression (recommended)
+//! - [`CompressionLevel::Minsize`]: Best compression, slower
+//! - `CompressionLevel::Precise(u32)`: Fine-grained control
+//!
+//! # Default Content Types
+//!
+//! By default, the middleware compresses:
+//! - `text/*` (HTML, CSS, plain text, etc.)
+//! - `application/javascript`
+//! - `application/json`
+//! - `application/xml`, `application/rss+xml`
+//! - `application/wasm`
+//! - `image/svg+xml`
+//!
+//! Use `.content_types()` to customize which MIME types are compressed.
+//!
+//! # Minimum Length
+//!
+//! Small responses may not benefit from compression. Use `.min_length(bytes)`
+//! to skip compression for responses smaller than the specified size.
+//!
 //! Read more: <https://salvo.rs>
 
 use std::fmt::{self, Display, Formatter};

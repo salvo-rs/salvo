@@ -1,4 +1,69 @@
-//! The flash message lib for Salvo web framework.
+//! Flash messages middleware for the Salvo web framework.
+//!
+//! Flash messages are temporary notifications that persist across a single redirect,
+//! commonly used to display success, error, or info messages after form submissions.
+//!
+//! # How It Works
+//!
+//! 1. A handler sets flash messages before redirecting
+//! 2. The middleware stores them (in cookies or session)
+//! 3. On the next request, the messages are available and then cleared
+//!
+//! # Storage Options
+//!
+//! | Store | Feature | Description |
+//! |-------|---------|-------------|
+//! | [`CookieStore`] | `cookie-store` | Stores messages in a cookie |
+//! | `SessionStore` | `session-store` | Stores messages in the session |
+//!
+//! # Message Levels
+//!
+//! Messages have severity levels for appropriate UI styling:
+//!
+//! - `Debug` - Debugging information
+//! - `Info` - General information
+//! - `Success` - Operation completed successfully
+//! - `Warning` - Warning that doesn't prevent operation
+//! - `Error` - Error that needs attention
+//!
+//! # Example
+//!
+//! ```ignore
+//! use salvo_flash::{FlashDepotExt, CookieStore};
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn submit_form(depot: &mut Depot, res: &mut Response) {
+//!     // Set flash message before redirect
+//!     depot.outgoing_flash_mut().success("Form submitted successfully!");
+//!     res.render(Redirect::other("/result"));
+//! }
+//!
+//! #[handler]
+//! async fn show_result(depot: &mut Depot, res: &mut Response) {
+//!     if let Some(flash) = depot.incoming_flash() {
+//!         for msg in flash.iter() {
+//!             println!("{}: {}", msg.level, msg.value);
+//!         }
+//!     }
+//!     res.render("Result page");
+//! }
+//!
+//! // Setup router with flash middleware
+//! let router = Router::new()
+//!     .hoop(CookieStore::new().into_handler())
+//!     .push(Router::with_path("submit").post(submit_form))
+//!     .push(Router::with_path("result").get(show_result));
+//! ```
+//!
+//! # Filtering by Level
+//!
+//! Use `minimum_level()` to filter out lower-priority messages:
+//!
+//! ```ignore
+//! let mut handler = FlashHandler::new(CookieStore::new());
+//! handler.minimum_level(FlashLevel::Warning);  // Only show Warning and Error
+//! ```
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

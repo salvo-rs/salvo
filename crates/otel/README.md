@@ -37,18 +37,77 @@
 
 Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
 
-## OpenTelemetry support for Salvo.
+# salvo-otel
 
-This is an official crate, so you can enable it in `Cargo.toml` like this:
+OpenTelemetry integration for the Salvo web framework. This crate provides middleware for collecting metrics and distributed traces using the [OpenTelemetry](https://opentelemetry.io/) observability framework.
+
+## Features
+
+- **Metrics collection**: Track request duration, active requests, and body sizes
+- **Distributed tracing**: Add spans to requests for end-to-end visibility
+- **Standard conventions**: Uses OpenTelemetry HTTP semantic conventions
+- **Easy integration**: Simple middleware that works with any OpenTelemetry exporter
+
+## Components
+
+| Middleware | Purpose |
+|------------|---------|
+| `Metrics` | Collects HTTP request metrics (latency, status codes, etc.) |
+| `Tracing` | Adds distributed tracing spans to requests |
+
+## Collected Metrics
+
+The `Metrics` middleware collects:
+- `http.server.request.duration` - Request duration histogram
+- `http.server.active_requests` - Number of in-flight requests
+- `http.server.request.body.size` - Request body size
+- `http.server.response.body.size` - Response body size
+
+## Trace Attributes
+
+The `Tracing` middleware adds standard HTTP semantic conventions:
+- `http.method` - HTTP method
+- `http.route` - Matched route pattern
+- `http.status_code` - Response status code
+- `http.url` - Request URL
+
+## Installation
+
+This is an official crate, so you can enable it in `Cargo.toml`:
 
 ```toml
 salvo = { version = "*", features = ["otel"] }
 ```
 
+## Quick Start
+
+```rust
+use salvo::prelude::*;
+use salvo::otel::{Metrics, Tracing};
+
+#[handler]
+async fn hello() -> &'static str {
+    "Hello World!"
+}
+
+#[tokio::main]
+async fn main() {
+    // Initialize your OpenTelemetry provider here...
+
+    let router = Router::new()
+        .hoop(Metrics::new())
+        .hoop(Tracing::new())
+        .get(hello);
+
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-otel)
-- [Example Projects](https://github.com/salvo-rs/salvo/examples/)
+- [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 
 ## ☕ Donate
 
