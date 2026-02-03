@@ -39,20 +39,84 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 # salvo-tus
 
-## Provide a TUS protocol supports for Salvo.
+[TUS](https://tus.io/) (Resumable Upload Protocol) implementation for the Salvo web framework. TUS is an open protocol for resumable file uploads over HTTP, allowing reliable uploads of large files by enabling pause and resume functionality.
 
-This is an official crate, so you can enable it in `Cargo.toml` like this:
+## Features
+
+- **Resumable uploads**: Clients can resume interrupted uploads from where they left off
+- **Upload metadata**: Attach custom metadata to uploads
+- **Configurable max size**: Limit upload file sizes with fixed or dynamic limits
+- **Lifecycle hooks**: React to upload events (create, finish, incoming request)
+- **Custom upload IDs**: Generate custom upload identifiers
+- **Customizable storage**: Use built-in disk storage or implement your own backend
+
+## Protocol Support
+
+- **TUS protocol version**: 1.0.0
+- **Extensions**: creation, creation-with-upload, creation-defer-length, termination
+- **Built-in handlers**: OPTIONS, POST, HEAD, PATCH, DELETE, GET
+
+## TUS Protocol Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| OPTIONS | `/uploads` | Returns TUS protocol capabilities |
+| POST | `/uploads` | Creates a new upload |
+| HEAD | `/uploads/{id}` | Returns upload progress |
+| PATCH | `/uploads/{id}` | Uploads a chunk |
+| DELETE | `/uploads/{id}` | Cancels an upload |
+| GET | `/uploads/{id}` | Downloads the uploaded file |
+
+## Installation
+
+This is an official crate, so you can enable it in `Cargo.toml`:
 
 ```toml
 salvo = { version = "*", features = ["tus"] }
 ```
 
-## Feature
+## Quick Start
 
-- Supported TUS protocol version: 1.0.0
-- Built-in handlers: OPTIONS, POST, HEAD, PATCH, DELETE, GET
-- Default store: DiskStore (file-based, metadata in JSON)
-- Extensions advertised by DiskStore: creation, creation-with-upload, creation-defer-length, termination
-- Expiration flow implemented when a store provides the expiration extension
-- Hooks: on_incoming_request, on_upload_create, on_upload_finish
-- Per-upload read/write locks (in-memory) to serialize writes and allow concurrent reads
+```rust
+use salvo::prelude::*;
+use salvo::tus::{Tus, MaxSize};
+
+#[tokio::main]
+async fn main() {
+    let tus = Tus::new()
+        .path("/uploads")
+        .max_size(MaxSize::Fixed(100 * 1024 * 1024));  // 100 MB limit
+
+    let router = Router::new()
+        .push(tus.into_router());
+
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
+## Lifecycle Hooks
+
+React to upload events:
+
+```rust
+let tus = Tus::new()
+    .with_on_upload_create(|req, upload_info| async move {
+        println!("New upload: {:?}", upload_info);
+        Ok(UploadPatch::default())
+    })
+    .with_on_upload_finish(|req, upload_info| async move {
+        println!("Upload complete: {:?}", upload_info);
+        Ok(UploadFinishPatch::default())
+    });
+```
+
+## Storage Backends
+
+By default, files are stored on disk using `DiskStore`. Implement the `DataStore` trait for custom storage (S3, database, etc.).
+
+## Documentation & Resources
+
+- [API Documentation](https://docs.rs/salvo-tus)
+- [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
+- [TUS Protocol Specification](https://tus.io/protocols/resumable-upload)

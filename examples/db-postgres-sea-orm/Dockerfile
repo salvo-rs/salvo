@@ -24,6 +24,6 @@ COPY --from=builder . /app/
 
 RUN chmod +x /app/salvo_postgres_seaorm
 
-EXPOSE 5800
+EXPOSE 8698
 
 CMD ["/app/salvo_postgres_seaorm"]

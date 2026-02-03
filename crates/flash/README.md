@@ -39,12 +39,70 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 # salvo-flash
 
-## Flash message for Salvo.
+Flash messages middleware for the Salvo web framework. Flash messages are temporary notifications that persist across a single redirect, commonly used to display success, error, or info messages after form submissions.
 
-This is an official crate, so you can enable it in `Cargo.toml` like this:
+## Features
+
+- **Multiple storage backends**: Cookie-based or session-based storage
+- **Message levels**: Debug, Info, Success, Warning, and Error severity levels
+- **Level filtering**: Filter messages by minimum severity level
+- **Easy integration**: Simple API for setting and retrieving flash messages
+- **Automatic cleanup**: Messages are automatically cleared after being read
+
+## How It Works
+
+1. A handler sets flash messages before redirecting
+2. The middleware stores them (in cookies or session)
+3. On the next request, the messages are available and then cleared
+
+## Storage Options
+
+| Store | Feature | Description |
+|-------|---------|-------------|
+| `CookieStore` | `cookie-store` | Stores messages in a cookie |
+| `SessionStore` | `session-store` | Stores messages in the session |
+
+## Installation
+
+This is an official crate, so you can enable it in `Cargo.toml`:
 
 ```toml
 salvo = { version = "*", features = ["flash"] }
+```
+
+## Quick Start
+
+```rust
+use salvo::prelude::*;
+use salvo::flash::{FlashDepotExt, CookieStore};
+
+#[handler]
+async fn submit_form(depot: &mut Depot, res: &mut Response) {
+    // Set flash message before redirect
+    depot.outgoing_flash_mut().success("Form submitted successfully!");
+    res.render(Redirect::other("/result"));
+}
+
+#[handler]
+async fn show_result(depot: &mut Depot, res: &mut Response) {
+    if let Some(flash) = depot.incoming_flash() {
+        for msg in flash.iter() {
+            println!("{}: {}", msg.level, msg.value);
+        }
+    }
+    res.render("Result page");
+}
+
+#[tokio::main]
+async fn main() {
+    let router = Router::new()
+        .hoop(CookieStore::new().into_handler())
+        .push(Router::with_path("submit").post(submit_form))
+        .push(Router::with_path("result").get(show_result));
+
+    let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
 ```
 
 ## Documentation & Resources
