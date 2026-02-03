@@ -35,17 +35,11 @@ pub trait WispBuilder: Send + Sync {
     fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<WispKind, String>;
 }
 
-type WispBuilderMap = RwLock<HashMap<String, Arc<Box<dyn WispBuilder>>>>;
+type WispBuilderMap = RwLock<HashMap<String, Arc<dyn WispBuilder>>>;
 static WISP_BUILDERS: LazyLock<WispBuilderMap> = LazyLock::new(|| {
-    let mut map: HashMap<String, Arc<Box<dyn WispBuilder>>> = HashMap::with_capacity(8);
-    map.insert(
-        "num".into(),
-        Arc::new(Box::new(CharsWispBuilder::new(is_num))),
-    );
-    map.insert(
-        "hex".into(),
-        Arc::new(Box::new(CharsWispBuilder::new(is_hex))),
-    );
+    let mut map: HashMap<String, Arc<dyn WispBuilder>> = HashMap::with_capacity(8);
+    map.insert("num".into(), Arc::new(CharsWispBuilder::new(is_num)));
+    map.insert("hex".into(), Arc::new(CharsWispBuilder::new(is_hex)));
     RwLock::new(map)
 });
 
@@ -1058,16 +1052,13 @@ impl PathFilter {
         B: WispBuilder + 'static,
     {
         let mut builders = WISP_BUILDERS.write();
-        builders.insert(name.into(), Arc::new(Box::new(builder)));
+        builders.insert(name.into(), Arc::new(builder));
     }
     /// Register new path part regex.
     #[inline]
     pub fn register_wisp_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = WISP_BUILDERS.write();
-        builders.insert(
-            name.into(),
-            Arc::new(Box::new(RegexWispBuilder::new(regex))),
-        );
+        builders.insert(name.into(), Arc::new(RegexWispBuilder::new(regex)));
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
