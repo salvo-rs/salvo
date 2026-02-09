@@ -17,7 +17,7 @@ use std::fmt::{self, Debug, Formatter};
 mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
-use rand::Rng;
+use rand::RngExt;
 use rand::distr::StandardUniform;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};

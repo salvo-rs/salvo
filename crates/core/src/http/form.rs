@@ -10,8 +10,8 @@ use futures_util::stream::{Stream, TryStreamExt};
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
-use rand::TryRngCore;
-use rand::rngs::OsRng;
+use rand::TryRng;
+use rand::rngs::SysRng;
 use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -268,13 +268,13 @@ fn text_nonce() -> String {
         Write::write_all(&mut cursor, &secs.to_le_bytes()).expect("write_all failed");
 
         // Get the last bytes from random data
-        OsRng
+        SysRng
             .try_fill_bytes(&mut raw[12..BYTE_LEN])
-            .expect("OsRng.try_fill_bytes failed");
+            .expect("SysRng.try_fill_bytes failed");
     } else {
-        OsRng
+        SysRng
             .try_fill_bytes(&mut raw[..])
-            .expect("OsRng.try_fill_bytes failed");
+            .expect("SysRng.try_fill_bytes failed");
     }
 
     // base64 encode

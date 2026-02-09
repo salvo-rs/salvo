@@ -157,9 +157,9 @@ where
     ///
     /// **Example of generating a secure key:**
     /// ```ignore
-    /// use rand::RngCore;
+    /// use rand::Rng;
     /// let mut key = [0u8; 64];
-    /// rand::rngs::OsRng.fill_bytes(&mut key);
+    /// rand::rngs::SysRng.fill_bytes(&mut key);
     /// ```
     #[inline]
     #[must_use]
