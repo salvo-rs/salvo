@@ -105,7 +105,7 @@ proc-macro2-diagnostics = { version = "0.10", default-features = true }
 proc-macro2 = "1"
 quinn = { version = "0.11", default-features = false }
 quote = "1"
-rand = "0.9"
+rand = "0.10"
 rcgen = "0.14"
 regex = "1"
 reqwest = { version = "0.13", default-features = false }
