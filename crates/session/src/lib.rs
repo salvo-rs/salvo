@@ -141,8 +141,8 @@ where
     }
 }
 
-/// Minimum recommended secret key length in bytes (256 bits).
-pub const RECOMMENDED_KEY_LEN: usize = 32;
+/// Minimum recommended secret key length in bytes (512 bits).
+pub const RECOMMENDED_KEY_LEN: usize = 64;
 
 impl<S> HandlerBuilder<S>
 where
