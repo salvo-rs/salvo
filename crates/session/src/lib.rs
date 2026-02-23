@@ -65,7 +65,7 @@
 use std::fmt::{self, Formatter};
 use std::time::Duration;
 
-use cookie::{Cookie, Key, SameSite};
+use cookie::{Cookie, Key, KeyError, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 use saysion::base64::Engine as _;
@@ -141,9 +141,6 @@ where
     }
 }
 
-/// Minimum recommended secret key length in bytes (512 bits).
-pub const RECOMMENDED_KEY_LEN: usize = 64;
-
 impl<S> HandlerBuilder<S>
 where
     S: SessionStore,
@@ -152,8 +149,8 @@ where
     ///
     /// # Security Note
     ///
-    /// The `secret` should be at least 32 bytes (256 bits) for adequate security.
-    /// A warning will be logged if a shorter key is provided.
+    /// The `secret` must be at least 64 bytes (512 bits) for adequate security. Will panic on keys
+    /// shorter than 64 bytes. For non-panicking version, use [`HandlerBuilder::try_new`].
     ///
     /// **Example of generating a secure key:**
     /// ```ignore
@@ -164,14 +161,25 @@ where
     #[inline]
     #[must_use]
     pub fn new(store: S, secret: &[u8]) -> Self {
-        if secret.len() < RECOMMENDED_KEY_LEN {
-            tracing::warn!(
-                "Session secret key is {} bytes, but at least {} bytes is recommended for security",
-                secret.len(),
-                RECOMMENDED_KEY_LEN
-            );
-        }
-        Self {
+        Self::try_new(store, secret).unwrap()
+    }
+
+    /// Try creating new `HandlerBuilder`
+    ///
+    /// # Security Note
+    ///
+    /// The `secret` must be at least 64 bytes (512 bits) for adequate security.
+    ///
+    /// **Example of generating a secure key:**
+    /// ```ignore
+    /// use rand::Rng;
+    /// let mut key = [0u8; 64];
+    /// rand::rngs::SysRng.fill_bytes(&mut key);
+    /// ```
+    #[inline]
+    pub fn try_new(store: S, secret: &[u8]) -> Result<Self, KeyError> {
+        let key = Key::try_from(secret)?;
+        Ok(Self {
             store,
             save_unchanged: true,
             cookie_path: "/".into(),
@@ -179,9 +187,9 @@ where
             cookie_domain: None,
             same_site_policy: SameSite::Lax,
             session_ttl: Some(Duration::from_secs(24 * 60 * 60)),
-            key: Key::from(secret),
+            key,
             fallback_keys: vec![],
-        }
+        })
     }
 
     /// Sets a cookie path for this session middleware.
