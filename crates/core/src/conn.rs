@@ -97,7 +97,7 @@ cfg_feature! {
     pub use self::quinn::{QuinnListener, QuinnConnection};
 }
 cfg_feature! {
-    #![unix]
+    #![all(feature = "unix", unix)]
     pub mod unix;
 }
 pub mod addr;
@@ -110,7 +110,7 @@ mod joined;
 pub use joined::{JoinedAcceptor, JoinedListener};
 
 cfg_feature! {
-    #![unix]
+    #![all(feature = "unix", unix)]
     pub use unix::UnixListener;
 }
 
