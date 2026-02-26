@@ -626,7 +626,7 @@ mod tests {
             let acceptor = TcpListener::new(addr).bind().await;
             Server::new(acceptor).serve(Router::new()).await;
         };
-        #[cfg(unix)]
+        #[cfg(all(feature = "unix", unix))]
         let _: &dyn Send = &async {
             use crate::conn::UnixListener;
 
