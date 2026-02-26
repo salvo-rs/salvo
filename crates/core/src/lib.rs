@@ -103,7 +103,7 @@ pub mod prelude {
         pub use crate::conn::QuinnListener;
     }
     cfg_feature! {
-        #![unix]
+        #![all(feature = "unix", unix)]
         pub use crate::conn::UnixListener;
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};

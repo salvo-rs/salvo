@@ -106,7 +106,7 @@ impl SocketAddr {
     }
 
     cfg_feature! {
-        #![unix]
+        #![all(feature = "unix", unix)]
         /// Returns if it is a Unix socket address.
         #[inline]
         #[must_use] pub fn is_unix(&self) -> bool {
@@ -134,7 +134,7 @@ impl SocketAddr {
     }
 
     cfg_feature! {
-        #![unix]
+        #![all(feature = "unix", unix)]
         /// Returns Unix socket address.
         #[inline]
         #[must_use] pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
