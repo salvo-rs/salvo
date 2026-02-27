@@ -6,5 +6,5 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-salvo = { workspace = true, features = ["serve-static"] }
+salvo = { workspace = true, features = ["serve-static", "unix"] }
 tokio = { workspace = true, features = ["macros"] }
