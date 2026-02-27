@@ -27,6 +27,7 @@ default = [
     "test",
     "aws-lc-rs",
     "matched-path",
+    "unix",
 ]
 full = [
     "cookie",
