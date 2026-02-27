@@ -171,11 +171,11 @@ mod tests {
         let ipv4: SocketAddr = ipv4.into();
         assert!(ipv4.is_ipv4());
         assert!(!ipv4.is_ipv6());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(!ipv4.is_unix());
         assert_eq!(ipv4.as_ipv4().unwrap().to_string(), "127.0.0.1:8080");
         assert!(ipv4.as_ipv6().is_none());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(ipv4.as_unix().is_none());
     }
 
@@ -188,11 +188,11 @@ mod tests {
         let ipv6: SocketAddr = ipv6.into();
         assert!(!ipv6.is_ipv4());
         assert!(ipv6.is_ipv6());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(!ipv6.is_unix());
         assert!(ipv6.as_ipv4().is_none());
         assert_eq!(ipv6.as_ipv6().unwrap().to_string(), "[::ffff:0.0.0.1]:8080");
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(ipv6.as_unix().is_none());
     }
 }
