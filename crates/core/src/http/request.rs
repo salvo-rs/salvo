@@ -1003,12 +1003,6 @@ impl Request {
         self.form_data().await.map(|ps| ps.files.get(key))
     }
 
-    /// Alias of [`file()`](Request::file), kept for compatibility.
-    #[inline]
-    pub async fn try_file(&mut self, key: &str) -> ParseResult<Option<&FilePart>> {
-        self.file(key).await
-    }
-
     /// Gets the first uploaded file from the request.
     ///
     /// Useful when you only expect a single file upload and don't care about the
@@ -1019,12 +1013,6 @@ impl Request {
         self.form_data()
             .await
             .map(|ps| ps.files.iter().next().map(|(_, f)| f))
-    }
-
-    /// Alias of [`first_file()`](Request::first_file), kept for compatibility.
-    #[inline]
-    pub async fn try_first_file(&mut self) -> ParseResult<Option<&FilePart>> {
-        self.first_file().await
     }
 
     /// Gets all files uploaded with the given form field name.
@@ -1039,12 +1027,6 @@ impl Request {
         self.form_data().await.map(|ps| ps.files.get_vec(key))
     }
 
-    /// Alias of [`files()`](Request::files), kept for compatibility.
-    #[inline]
-    pub async fn try_files(&mut self, key: &str) -> ParseResult<Option<&Vec<FilePart>>> {
-        self.files(key).await
-    }
-
     /// Gets all uploaded files from the request, regardless of field name.
     ///
     /// Returns a [`ParseResult`] containing an empty vector if no files were uploaded.
@@ -1053,12 +1035,6 @@ impl Request {
         self.form_data()
             .await
             .map(|ps| ps.files.flat_iter().map(|(_, f)| f).collect())
-    }
-
-    /// Alias of [`all_files()`](Request::all_files), kept for compatibility.
-    #[inline]
-    pub async fn try_all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
-        self.all_files().await
     }
 
     /// Get request payload as raw bytes with the default size limit.

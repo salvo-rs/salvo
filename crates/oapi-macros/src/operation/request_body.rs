@@ -35,14 +35,14 @@ use crate::{AnyValue, Array, DiagResult, Required, TryToTokens, parse_utils};
 ///    request_body = Foo,
 /// )]
 /// ```
-///
+/// 
 /// Or the request body content can also be an array as well by surrounding it with brackets `[..]`.
 /// ```text
 /// #[salvo_oapi::endpoint(
 ///    request_body = [Foo],
 /// )]
 /// ```
-///
+/// 
 /// To define optional request body just wrap the type in `Option<type>`.
 /// ```text
 /// #[salvo_oapi::endpoint(
