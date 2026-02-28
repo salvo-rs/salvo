@@ -987,47 +987,44 @@ impl Request {
 
     /// Gets an uploaded file by form field name.
     ///
-    /// Returns the first file uploaded with the given field name, or `None`
-    /// if no file was uploaded with that name.
+    /// Returns a [`ParseResult`] containing the first file uploaded with the given
+    /// field name, or `None` if no file was uploaded with that name.
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// if let Some(file) = req.file("avatar").await {
+    /// if let Some(file) = req.file("avatar").await? {
     ///     let filename = file.name().unwrap_or("unknown");
     ///     let content_type = file.content_type();
     /// }
     /// ```
     #[inline]
-    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
-        self.try_file(key).await.ok().flatten()
+    pub async fn file(&mut self, key: &str) -> ParseResult<Option<&FilePart>> {
+        self.form_data().await.map(|ps| ps.files.get(key))
     }
 
-    /// Tries to get an uploaded file by form field name.
-    ///
-    /// Returns a [`ParseResult`] containing `Option<&FilePart>`.
-    /// The outer result indicates if form parsing succeeded;
-    /// the inner option indicates if a file with that key exists.
+    /// Alias of [`file()`](Request::file), kept for compatibility.
     #[inline]
     pub async fn try_file(&mut self, key: &str) -> ParseResult<Option<&FilePart>> {
-        self.form_data().await.map(|ps| ps.files.get(key))
+        self.file(key).await
     }
 
     /// Gets the first uploaded file from the request.
     ///
-    /// Useful when you only expect a single file upload and don't care about the field name.
-    /// Returns `None` if no files were uploaded.
+    /// Useful when you only expect a single file upload and don't care about the
+    /// field name. Returns a [`ParseResult`] containing `None` if no files were
+    /// uploaded.
     #[inline]
-    pub async fn first_file(&mut self) -> Option<&FilePart> {
-        self.try_first_file().await.ok().flatten()
-    }
-
-    /// Tries to get the first uploaded file from the request.
-    #[inline]
-    pub async fn try_first_file(&mut self) -> ParseResult<Option<&FilePart>> {
+    pub async fn first_file(&mut self) -> ParseResult<Option<&FilePart>> {
         self.form_data()
             .await
             .map(|ps| ps.files.iter().next().map(|(_, f)| f))
+    }
+
+    /// Alias of [`first_file()`](Request::first_file), kept for compatibility.
+    #[inline]
+    pub async fn try_first_file(&mut self) -> ParseResult<Option<&FilePart>> {
+        self.first_file().await
     }
 
     /// Gets all files uploaded with the given form field name.
@@ -1035,32 +1032,33 @@ impl Request {
     /// HTML forms with `<input type="file" name="docs" multiple>` can upload
     /// multiple files under the same field name. This method returns all of them.
     ///
-    /// Returns `None` if no files were uploaded with that name.
+    /// Returns a [`ParseResult`] containing `None` if no files were uploaded with
+    /// that name.
     #[inline]
-    pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
-        self.try_files(key).await.ok().flatten()
+    pub async fn files(&mut self, key: &str) -> ParseResult<Option<&Vec<FilePart>>> {
+        self.form_data().await.map(|ps| ps.files.get_vec(key))
     }
 
-    /// Tries to get all files uploaded with the given form field name.
+    /// Alias of [`files()`](Request::files), kept for compatibility.
     #[inline]
     pub async fn try_files(&mut self, key: &str) -> ParseResult<Option<&Vec<FilePart>>> {
-        self.form_data().await.map(|ps| ps.files.get_vec(key))
+        self.files(key).await
     }
 
     /// Gets all uploaded files from the request, regardless of field name.
     ///
-    /// Returns an empty vector if no files were uploaded.
+    /// Returns a [`ParseResult`] containing an empty vector if no files were uploaded.
     #[inline]
-    pub async fn all_files(&mut self) -> Vec<&FilePart> {
-        self.try_all_files().await.unwrap_or_default()
-    }
-
-    /// Tries to get all uploaded files from the request.
-    #[inline]
-    pub async fn try_all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
+    pub async fn all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
         self.form_data()
             .await
             .map(|ps| ps.files.flat_iter().map(|(_, f)| f).collect())
+    }
+
+    /// Alias of [`all_files()`](Request::all_files), kept for compatibility.
+    #[inline]
+    pub async fn try_all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
+        self.all_files().await
     }
 
     /// Get request payload as raw bytes with the default size limit.
@@ -1543,11 +1541,59 @@ file content\r\n\
             )
             .build();
         assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
-        let file = req.file("file1").await.unwrap();
+        let file = req.file("file1").await.unwrap().unwrap();
         assert_eq!(file.name().unwrap(), "err.txt");
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
-        let files = req.files("file1").await.unwrap();
+        let files = req.files("file1").await.unwrap().unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
+    }
+
+    #[tokio::test]
+    async fn test_file_payload_too_large_multipart() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(16);
+
+        let err = req.file("file").await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_files_payload_too_large_multipart() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(16);
+
+        let err = req.files("file").await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
     }
 
     /// Test that `form_data()` works correctly after `payload()` has been accessed.

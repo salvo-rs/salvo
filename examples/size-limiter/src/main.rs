@@ -9,7 +9,19 @@ async fn index(res: &mut Response) {
 }
 #[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.file("file").await;
+    let file = match req.file("file").await {
+        Ok(file) => file,
+        Err(e) => {
+            let status = if matches!(e, salvo::http::ParseError::PayloadTooLarge) {
+                StatusCode::PAYLOAD_TOO_LARGE
+            } else {
+                StatusCode::BAD_REQUEST
+            };
+            res.status_code(status);
+            res.render(Text::Plain(format!("failed to parse file upload: {e}")));
+            return;
+        }
+    };
     if let Some(file) = file {
         let dest = format!("temp/{}", file.name().unwrap_or("file"));
         tracing::debug!(dest, "upload file");

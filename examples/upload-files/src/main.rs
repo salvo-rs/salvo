@@ -10,7 +10,19 @@ async fn index(res: &mut Response) {
 
 #[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let files = req.files("files").await;
+    let files = match req.files("files").await {
+        Ok(files) => files,
+        Err(e) => {
+            let status = if matches!(e, salvo::http::ParseError::PayloadTooLarge) {
+                StatusCode::PAYLOAD_TOO_LARGE
+            } else {
+                StatusCode::BAD_REQUEST
+            };
+            res.status_code(status);
+            res.render(Text::Plain(format!("failed to parse file upload: {e}")));
+            return;
+        }
+    };
     if let Some(files) = files {
         let mut msgs = Vec::with_capacity(files.len());
         for file in files {
