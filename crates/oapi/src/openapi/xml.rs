@@ -114,7 +114,7 @@ mod tests {
         xml = xml.name("name");
         assert!(xml.name.is_some());
 
-        xml = xml.namespace("namespave");
+        xml = xml.namespace("namespace");
         assert!(xml.namespace.is_some());
 
         xml = xml.prefix("prefix");
