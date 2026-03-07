@@ -173,10 +173,11 @@ pub fn parse_credentials(
     if authorization.starts_with("Basic")
         && let Some((_, auth)) = authorization.split_once(' ')
     {
-        let auth = general_purpose::STANDARD
+        let auth_bytes = general_purpose::STANDARD
             .decode(auth)
             .map_err(Error::other)?;
-        let auth = auth.iter().map(|&c| c as char).collect::<String>();
+        let auth = String::from_utf8(auth_bytes)
+            .map_err(|_| Error::other("credentials contain invalid UTF-8"))?;
         if let Some((username, password)) = auth.split_once(':') {
             return Ok((username.to_owned(), password.to_owned()));
         } else {
@@ -252,5 +253,47 @@ mod tests {
             .await
             .unwrap();
         assert!(content.contains("Unauthorized"));
+    }
+
+    #[test]
+    fn test_parse_credentials_utf8() {
+        // Test valid UTF-8 credentials
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            AUTHORIZATION,
+            "Basic cm9vdDpwd2Q=".parse().unwrap(), // root:pwd
+        );
+        let result = parse_credentials(&req, &[AUTHORIZATION]);
+        assert!(result.is_ok());
+        let (username, password) = result.unwrap();
+        assert_eq!(username, "root");
+        assert_eq!(password, "pwd");
+    }
+
+    #[test]
+    fn test_parse_credentials_invalid_utf8() {
+        // Test invalid UTF-8 sequence - 0xFF is not valid UTF-8
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            AUTHORIZATION,
+            "Basic //86cHdk".parse().unwrap(), // Contains invalid UTF-8
+        );
+        let result = parse_credentials(&req, &[AUTHORIZATION]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_credentials_unicode() {
+        // Test valid Unicode credentials (Chinese characters)
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            AUTHORIZATION,
+            "Basic 55So5oi3OuWvhueggQ==".parse().unwrap(), // 用户:密码 (user:password in Chinese)
+        );
+        let result = parse_credentials(&req, &[AUTHORIZATION]);
+        assert!(result.is_ok());
+        let (username, password) = result.unwrap();
+        assert_eq!(username, "用户");
+        assert_eq!(password, "密码");
     }
 }

@@ -200,6 +200,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_acme_config_builder_new_defaults() {
+        let builder = AcmeConfigBuilder::new();
+        assert_eq!(builder.directory_name, "lets_encrypt");
+        assert_eq!(builder.directory_url, LETS_ENCRYPT_PRODUCTION);
+        assert!(builder.domains.is_empty());
+        assert!(builder.contacts.is_empty());
+        assert_eq!(builder.challenge_type, ChallengeType::TlsAlpn01);
+        assert!(builder.cache_path.is_none());
+        assert!(builder.keys_for_http01.is_none());
+        assert_eq!(builder.before_expired, Duration::from_secs(12 * 60 * 60));
+    }
+
+    #[test]
     fn test_acme_config_builder() {
         let domains = vec!["example.com".to_string(), "example.org".to_string()];
         let contacts = vec!["mailto:admin@example.com".to_string()];
@@ -227,5 +240,103 @@ mod tests {
             acme_config.before_expired,
             Duration::from_secs(24 * 60 * 60)
         );
+    }
+
+    #[test]
+    fn test_acme_config_builder_add_domain() {
+        let config = AcmeConfig::builder()
+            .add_domain("example.com")
+            .add_domain("www.example.com")
+            .build()
+            .unwrap();
+
+        assert_eq!(config.domains.len(), 2);
+        assert_eq!(config.domains[0], "example.com");
+        assert_eq!(config.domains[1], "www.example.com");
+    }
+
+    #[test]
+    fn test_acme_config_builder_add_contact() {
+        let config = AcmeConfig::builder()
+            .add_domain("example.com")
+            .add_contact("mailto:admin@example.com")
+            .add_contact("mailto:webmaster@example.com")
+            .build()
+            .unwrap();
+
+        assert_eq!(config.contacts.len(), 2);
+        assert_eq!(config.contacts[0], "mailto:admin@example.com");
+        assert_eq!(config.contacts[1], "mailto:webmaster@example.com");
+    }
+
+    #[test]
+    fn test_acme_config_builder_tls_alpn01_challenge() {
+        let config = AcmeConfig::builder()
+            .add_domain("example.com")
+            .http01_challenge()
+            .tls_alpn01_challenge() // Should override http01
+            .build()
+            .unwrap();
+
+        assert_eq!(config.challenge_type, ChallengeType::TlsAlpn01);
+        assert!(config.keys_for_http01.is_none());
+    }
+
+    #[test]
+    fn test_acme_config_builder_http01_challenge() {
+        let config = AcmeConfig::builder()
+            .add_domain("example.com")
+            .http01_challenge()
+            .build()
+            .unwrap();
+
+        assert_eq!(config.challenge_type, ChallengeType::Http01);
+        assert!(config.keys_for_http01.is_some());
+    }
+
+    #[test]
+    fn test_acme_config_builder_no_domains_error() {
+        let result = AcmeConfig::builder().build();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("at least one domain"));
+    }
+
+    #[test]
+    fn test_acme_config_builder_invalid_url_error() {
+        let result = AcmeConfig::builder()
+            .directory("test", "not a valid url \x00 with null")
+            .add_domain("example.com")
+            .build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_acme_config_builder_debug() {
+        let builder = AcmeConfigBuilder::new();
+        let debug_str = format!("{:?}", builder);
+        assert!(debug_str.contains("AcmeConfigBuilder"));
+        assert!(debug_str.contains("directory_name"));
+    }
+
+    #[test]
+    fn test_acme_config_debug() {
+        let config = AcmeConfig::builder()
+            .add_domain("example.com")
+            .build()
+            .unwrap();
+
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("AcmeConfig"));
+        assert!(debug_str.contains("directory_name"));
+        assert!(debug_str.contains("directory_url"));
+        assert!(debug_str.contains("domains"));
+    }
+
+    #[test]
+    fn test_acme_config_builder_static() {
+        // Test that AcmeConfig::builder() returns a new builder
+        let builder = AcmeConfig::builder();
+        assert_eq!(builder.directory_name, "lets_encrypt");
     }
 }

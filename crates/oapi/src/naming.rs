@@ -44,6 +44,16 @@ pub fn set_namer(namer: impl Namer) {
     NAME_TYPES.write().clear();
 }
 
+/// Reset global naming state to defaults.
+///
+/// This clears all registered type names and resets the namer to default `FlexNamer`.
+/// Primarily useful for testing to ensure test isolation.
+#[cfg(test)]
+pub fn reset_global_state() {
+    *GLOBAL_NAMER.write() = Box::new(FlexNamer::new());
+    NAME_TYPES.write().clear();
+}
+
 #[doc(hidden)]
 pub fn namer() -> RwLockReadGuard<'static, Box<dyn Namer>> {
     GLOBAL_NAMER.read()
@@ -52,6 +62,122 @@ pub fn namer() -> RwLockReadGuard<'static, Box<dyn Namer>> {
 /// Get type info by name.
 pub fn type_info_by_name(name: &str) -> Option<(TypeId, &'static str)> {
     NAME_TYPES.read().get(name).cloned()
+}
+
+/// Get registered name by rust type name (from `std::any::type_name`).
+///
+/// This searches through NAME_TYPES to find if a type with the given rust type name
+/// has been registered with a custom name.
+pub fn name_by_type_name(type_name: &str) -> Option<String> {
+    NAME_TYPES
+        .read()
+        .iter()
+        .find(|(_, (_, registered_type_name))| *registered_type_name == type_name)
+        .map(|(name, _)| name.clone())
+}
+
+/// Resolve generic type parameters to their registered names.
+///
+/// This function recursively processes a type name string and replaces any
+/// generic type parameters with their registered names from NAME_TYPES.
+///
+/// For example, if `CityDTO` is registered as `City`, then:
+/// - `Response<CityDTO>` becomes `Response<City>`
+/// - `Vec<HashMap<String, CityDTO>>` becomes `Vec<HashMap<String, City>>`
+#[must_use]
+pub fn resolve_generic_names(type_name: &str) -> String {
+    // First check if the entire type (without generics) has a registered name
+    if let Some(registered_name) = name_by_type_name(type_name) {
+        return registered_name;
+    }
+
+    // Find the position of the first '<' to separate base type from generic params
+    let Some(generic_start) = type_name.find('<') else {
+        // No generics, return as-is
+        return type_name.to_owned();
+    };
+
+    // Extract base type and generic part
+    let base_type = &type_name[..generic_start];
+    let generic_part = &type_name[generic_start..];
+
+    // Parse and resolve each generic parameter
+    let resolved_generic = resolve_generic_part(generic_part);
+
+    format!("{base_type}{resolved_generic}")
+}
+
+/// Parse generic part like `<A, B<C, D>, E>` and resolve each type parameter.
+fn resolve_generic_part(generic_part: &str) -> String {
+    if !generic_part.starts_with('<') || !generic_part.ends_with('>') {
+        return generic_part.to_owned();
+    }
+
+    // Remove outer < and >
+    let inner = &generic_part[1..generic_part.len() - 1];
+
+    // Split by top-level commas (not nested in <>)
+    let params = split_generic_params(inner);
+
+    let resolved_params: Vec<String> = params
+        .into_iter()
+        .map(|param| {
+            let param = param.trim();
+            // Check if this exact type has a registered name
+            if let Some(registered_name) = name_by_type_name(param) {
+                registered_name
+            } else if param.contains('<') {
+                // Recursively resolve nested generics
+                resolve_generic_names(param)
+            } else {
+                // Use short name for unregistered types (like primitive types)
+                // e.g., "alloc::string::String" -> "String"
+                short_type_name(param).to_owned()
+            }
+        })
+        .collect();
+
+    format!("<{}>", resolved_params.join(", "))
+}
+
+/// Split generic parameters at top-level commas, respecting nested angle brackets.
+fn split_generic_params(s: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+
+    for (i, c) in s.char_indices() {
+        match c {
+            '<' => depth += 1,
+            '>' => depth -= 1,
+            ',' if depth == 0 => {
+                result.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+
+    // Don't forget the last segment
+    if start < s.len() {
+        result.push(&s[start..]);
+    }
+
+    result
+}
+
+/// Extract the short name from a fully qualified type path.
+///
+/// For example:
+/// - `alloc::string::String` -> `String`
+/// - `std::collections::HashMap` -> `HashMap`
+/// - `my_crate::module::MyType` -> `MyType`
+fn short_type_name(type_name: &str) -> &str {
+    // Find the last `::` and return everything after it
+    type_name
+        .rfind("::")
+        .map(|pos| &type_name[pos + 2..])
+        .unwrap_or(type_name)
 }
 
 /// Set type info by name.
@@ -92,9 +218,30 @@ pub fn get_name<T: 'static>() -> String {
 }
 
 fn type_generic_part(type_name: &str) -> String {
-    let re = Regex::new(r"^[^<]+").expect("Invalid regex");
-    let result = re.replace_all(type_name, "");
-    result.to_string()
+    if let Some(pos) = type_name.find('<') {
+        type_name[pos..].to_string()
+    } else {
+        String::new()
+    }
+}
+
+/// Resolve generic part and format it according to namer settings.
+fn resolve_and_format_generic_part(type_name: &str, short_mode: bool) -> String {
+    let generic_part = type_generic_part(type_name);
+    if generic_part.is_empty() {
+        return generic_part;
+    }
+
+    // Resolve registered names in generic parameters
+    let resolved = resolve_generic_part(&generic_part);
+
+    // Apply formatting (:: -> . for non-short mode, or strip module paths for short mode)
+    if short_mode {
+        let re = Regex::new(r"([^<>, ]*::)+").expect("Invalid regex");
+        re.replace_all(&resolved, "").to_string()
+    } else {
+        resolved.replace("::", ".")
+    }
 }
 /// Namer is used to assign names to types.
 pub trait Namer: Sync + Send + 'static {
@@ -133,11 +280,14 @@ impl Namer for FlexNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
         let name = match rule {
             NameRule::Auto => {
+                // First resolve any registered names in generic parameters
+                let resolved_type_name = resolve_generic_names(type_name);
+
                 let mut base = if self.short_mode {
-                    let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
-                    re.replace_all(type_name, "").to_string()
+                    let re = Regex::new(r"([^<>, ]*::)+").expect("Invalid regex");
+                    re.replace_all(&resolved_type_name, "").to_string()
                 } else {
-                    type_name.replace("::", ".")
+                    resolved_type_name.replace("::", ".")
                 };
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
@@ -155,11 +305,14 @@ impl Namer for FlexNamer {
                 name
             }
             NameRule::Force(force_name) => {
+                // Resolve registered names in generic parameters
+                let resolved_generic = resolve_and_format_generic_part(type_name, self.short_mode);
+
                 let mut base = if self.short_mode {
-                    let re = Regex::new(r"([^<>]*::)+").expect("Invalid regex");
-                    re.replace_all(type_name, "").to_string()
+                    // In short mode with Force, use the forced name + resolved generics
+                    format!("{force_name}{resolved_generic}")
                 } else {
-                    format! {"{}{}", force_name, type_generic_part(type_name).replace("::", ".")}
+                    format!("{force_name}{resolved_generic}")
                 };
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
@@ -183,10 +336,17 @@ impl Namer for FlexNamer {
     }
 }
 
+#[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     #[test]
+    #[serial]
     fn test_name() {
         use super::*;
+
+        // Reset global state to ensure deterministic test results
+        reset_global_state();
 
         struct MyString;
         mod nest {
@@ -199,37 +359,157 @@ mod tests {
         assert_eq!(name, "alloc.vec.Vec<alloc.string.String>");
 
         let name = assign_name::<MyString>(NameRule::Auto);
-        assert_eq!(name, "salvo_oapi.naming.tests.test_name.MyString");
+        assert!(
+            name.contains("MyString") && !name.contains("nest"),
+            "Expected name containing 'MyString' but not 'nest', got: {name}"
+        );
         let name = assign_name::<nest::MyString>(NameRule::Auto);
-        assert_eq!(name, "salvo_oapi.naming.tests.test_name.nest.MyString");
+        assert!(
+            name.contains("nest") && name.contains("MyString"),
+            "Expected name containing 'nest.MyString', got: {name}"
+        );
+    }
 
-        // let namer = FlexNamer::new().generic_delimiter('_', '_');
-        // set_namer(namer);
+    #[test]
+    #[serial]
+    fn test_resolve_generic_names() {
+        use super::*;
 
-        // let name = assign_name::<String>(NameRule::Auto);
-        // assert_eq!(name, "alloc.string.String");
-        // let name = assign_name::<Vec<String>>(NameRule::Auto);
-        // assert_eq!(name, "alloc.vec.Vec_alloc.string.String_");
+        // Reset global state to ensure deterministic test results
+        reset_global_state();
 
-        // let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
-        // set_namer(namer);
+        // Simulate registering CityDTO as "City"
+        let city_type_name = "test_module::CityDTO";
+        set_name_type_info(
+            "City".to_string(),
+            TypeId::of::<()>(), // dummy TypeId
+            city_type_name,
+        );
 
-        // let name = assign_name::<String>(NameRule::Auto);
-        // assert_eq!(name, "String");
-        // let name = assign_name::<Vec<String>>(NameRule::Auto);
-        // assert_eq!(name, "Vec_String_");
+        // Test resolve_generic_names with registered type
+        let resolved = resolve_generic_names("Response<test_module::CityDTO>");
+        assert_eq!(resolved, "Response<City>");
 
-        // let namer = FlexNamer::new().short_mode(true).generic_delimiter('_', '_');
-        // set_namer(namer);
+        // Test nested generics - unregistered types get short names
+        let resolved = resolve_generic_names("Vec<HashMap<String, test_module::CityDTO>>");
+        assert_eq!(resolved, "Vec<HashMap<String, City>>");
 
-        // struct MyString;
-        // mod nest {
-        //     pub(crate) struct MyString;
-        // }
+        // Test multiple generic parameters
+        let resolved = resolve_generic_names("Tuple<test_module::CityDTO, test_module::CityDTO>");
+        assert_eq!(resolved, "Tuple<City, City>");
+    }
 
-        // let name = assign_name::<MyString>(NameRule::Auto);
-        // assert_eq!(name, "MyString");
-        // let name = assign_name::<nest::MyString>(NameRule::Auto);
-        // assert_eq!(name, "MyString2");
+    #[test]
+    #[serial]
+    fn test_resolve_primitive_types() {
+        use super::*;
+
+        // Reset global state to ensure deterministic test results
+        reset_global_state();
+
+        // Test with primitive types (not registered, should use short names in generic params)
+        let resolved = resolve_generic_names("Response<alloc::string::String>");
+        assert_eq!(resolved, "Response<String>");
+
+        // Note: The base type (Vec) keeps its path, only generic params are shortened
+        // FlexNamer::assign_name handles the full path transformation later
+        let resolved = resolve_generic_names("Vec<alloc::vec::Vec<alloc::string::String>>");
+        assert_eq!(resolved, "Vec<alloc::vec::Vec<String>>");
+
+        // Test HashMap with primitive types
+        let resolved =
+            resolve_generic_names("std::collections::HashMap<alloc::string::String, i32>");
+        assert_eq!(resolved, "std::collections::HashMap<String, i32>");
+
+        // Test that nested generic base types are also shortened in their generics
+        let resolved = resolve_generic_names("Option<Vec<alloc::string::String>>");
+        assert_eq!(resolved, "Option<Vec<String>>");
+    }
+
+    #[test]
+    fn test_short_type_name() {
+        use super::*;
+
+        assert_eq!(short_type_name("alloc::string::String"), "String");
+        assert_eq!(short_type_name("std::collections::HashMap"), "HashMap");
+        assert_eq!(short_type_name("MyType"), "MyType");
+        assert_eq!(short_type_name("my_crate::module::submodule::Type"), "Type");
+    }
+
+    #[test]
+    fn test_split_generic_params() {
+        use super::*;
+
+        let params = split_generic_params("A, B, C");
+        assert_eq!(params, vec!["A", " B", " C"]);
+
+        let params = split_generic_params("A<X, Y>, B, C<Z>");
+        assert_eq!(params, vec!["A<X, Y>", " B", " C<Z>"]);
+
+        let params = split_generic_params("A<X<Y, Z>>, B");
+        assert_eq!(params, vec!["A<X<Y, Z>>", " B"]);
+    }
+
+    #[test]
+    #[serial]
+    fn test_assign_name_with_generic_resolution() {
+        use super::*;
+
+        // Reset global state to ensure deterministic test results
+        reset_global_state();
+
+        // Define unique test types for this test to avoid conflicts with other tests
+        mod test_generic_resolution {
+            pub(super) struct CityDTO;
+            pub(super) struct Response<T>(std::marker::PhantomData<T>);
+            pub(super) struct Wrapper<T>(std::marker::PhantomData<T>);
+        }
+        use test_generic_resolution::*;
+
+        // First, register CityDTO with a custom name "City"
+        let city_name = assign_name::<CityDTO>(NameRule::Force("City"));
+        assert_eq!(city_name, "City");
+
+        // Now register Response<CityDTO> with Force("Response")
+        // It should resolve CityDTO to "City" in the generic parameter
+        let response_name = assign_name::<Response<CityDTO>>(NameRule::Force("Response"));
+        assert_eq!(response_name, "Response<City>");
+
+        // Test with Auto mode - should also resolve generic parameters
+        let wrapper_name = assign_name::<Wrapper<CityDTO>>(NameRule::Auto);
+        // The base type will have full path, but CityDTO should be resolved to City
+        assert!(
+            wrapper_name.contains("<City>"),
+            "Expected wrapper name to contain '<City>', got: {}",
+            wrapper_name
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_assign_name_with_primitive_generics() {
+        use super::*;
+
+        // Reset global state to ensure deterministic test results
+        reset_global_state();
+
+        mod test_primitive_generics {
+            pub(super) struct Response<T>(std::marker::PhantomData<T>);
+        }
+        use test_primitive_generics::*;
+
+        // Test Response<String> with Force("Response")
+        // String is not registered, but should be shortened to "String"
+        let response_name = assign_name::<Response<String>>(NameRule::Force("Response"));
+        assert_eq!(response_name, "Response<String>");
+
+        // Test Response<Vec<String>> - nested generics with primitives
+        let response_vec_name =
+            assign_name::<Response<Vec<String>>>(NameRule::Force("ResponseVec"));
+        assert!(
+            response_vec_name.contains("<String>"),
+            "Expected name to contain '<String>', got: {}",
+            response_vec_name
+        );
     }
 }

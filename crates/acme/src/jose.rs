@@ -190,3 +190,162 @@ pub(crate) fn key_authorization(key: &KeyPair, token: &str) -> IoResult<String> 
 pub(crate) fn key_authorization_sha256(key: &KeyPair, token: &str) -> IoResult<impl AsRef<[u8]>> {
     Ok(sha256(key_authorization(key, token)?.as_bytes()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jwk_new() {
+        let key_pair = KeyPair::generate().unwrap();
+        let jwk = Jwk::new(&key_pair);
+
+        assert_eq!(jwk.alg, "ES256");
+        assert_eq!(jwk.crv, "P-256");
+        assert_eq!(jwk.kty, "EC");
+        assert_eq!(jwk.u, "sig");
+        // x and y should be base64url encoded
+        assert!(!jwk.x.is_empty());
+        assert!(!jwk.y.is_empty());
+    }
+
+    #[test]
+    fn test_jwk_thumb_sha256_base64() {
+        let key_pair = KeyPair::generate().unwrap();
+        let jwk = Jwk::new(&key_pair);
+
+        let thumb = jwk.thumb_sha256_base64();
+        assert!(thumb.is_ok());
+
+        let thumb_str = thumb.unwrap();
+        // SHA256 produces 32 bytes, base64url encoded should be ~43 characters
+        assert!(!thumb_str.is_empty());
+        // Base64url should not contain + or /
+        assert!(!thumb_str.contains('+'));
+        assert!(!thumb_str.contains('/'));
+    }
+
+    #[test]
+    fn test_jwk_deterministic() {
+        let key_pair = KeyPair::generate().unwrap();
+        let jwk1 = Jwk::new(&key_pair);
+        let jwk2 = Jwk::new(&key_pair);
+
+        // Same key pair should produce same JWK
+        assert_eq!(jwk1.x, jwk2.x);
+        assert_eq!(jwk1.y, jwk2.y);
+    }
+
+    #[test]
+    fn test_protected_base64() {
+        let key_pair = KeyPair::generate().unwrap();
+        let jwk = Jwk::new(&key_pair);
+        let nonce = "test_nonce";
+        let url = "https://example.com/acme";
+
+        let result = Protected::base64(Some(jwk), None, nonce, url);
+        assert!(result.is_ok());
+
+        let encoded = result.unwrap();
+        // Should be base64url encoded
+        assert!(!encoded.is_empty());
+        assert!(!encoded.contains('+'));
+        assert!(!encoded.contains('/'));
+    }
+
+    #[test]
+    fn test_protected_base64_with_kid() {
+        let nonce = "test_nonce";
+        let url = "https://example.com/acme";
+        let kid = "https://example.com/acme/acct/12345";
+
+        let result = Protected::base64(None, Some(kid), nonce, url);
+        assert!(result.is_ok());
+
+        let encoded = result.unwrap();
+        assert!(!encoded.is_empty());
+    }
+
+    #[test]
+    fn test_key_authorization() {
+        let key_pair = KeyPair::generate().unwrap();
+        let token = "test_token_12345";
+
+        let result = key_authorization(&key_pair, token);
+        assert!(result.is_ok());
+
+        let auth = result.unwrap();
+        // Key authorization format: token.thumbprint
+        assert!(auth.contains('.'));
+        assert!(auth.starts_with(token));
+    }
+
+    #[test]
+    fn test_key_authorization_deterministic() {
+        let key_pair = KeyPair::generate().unwrap();
+        let token = "test_token";
+
+        let auth1 = key_authorization(&key_pair, token).unwrap();
+        let auth2 = key_authorization(&key_pair, token).unwrap();
+
+        // Same key and token should produce same authorization
+        assert_eq!(auth1, auth2);
+    }
+
+    #[test]
+    fn test_key_authorization_sha256() {
+        let key_pair = KeyPair::generate().unwrap();
+        let token = "test_token";
+
+        let result = key_authorization_sha256(&key_pair, token);
+        assert!(result.is_ok());
+
+        let hash = result.unwrap();
+        let hash_bytes: &[u8] = hash.as_ref();
+        // SHA256 produces 32 bytes
+        assert_eq!(hash_bytes.len(), 32);
+    }
+
+    #[test]
+    fn test_sha256() {
+        let data = b"test data";
+        let hash = sha256(data);
+
+        // SHA256 produces 32 bytes
+        assert_eq!(hash.len(), 32);
+    }
+
+    #[test]
+    fn test_sha256_deterministic() {
+        let data = b"test data";
+        let hash1 = sha256(data);
+        let hash2 = sha256(data);
+
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_sha256_different_input() {
+        let hash1 = sha256(b"data1");
+        let hash2 = sha256(b"data2");
+
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_body_serialization() {
+        let body = Body {
+            protected: "protected_data".to_string(),
+            payload: "payload_data".to_string(),
+            signature: "signature_data".to_string(),
+        };
+
+        let json = serde_json::to_string(&body);
+        assert!(json.is_ok());
+
+        let json_str = json.unwrap();
+        assert!(json_str.contains("protected"));
+        assert!(json_str.contains("payload"));
+        assert!(json_str.contains("signature"));
+    }
+}

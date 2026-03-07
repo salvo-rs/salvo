@@ -1,15 +1,79 @@
-//! Cache middleware for the Salvo web framework.
+//! Response caching middleware for the Salvo web framework.
 //!
-//! Cache middleware for Salvo designed to intercept responses and cache them.
-//! This middleware will cache the response's StatusCode, Headers, and Body.
+//! This middleware intercepts HTTP responses and caches them for subsequent
+//! requests, reducing server load and improving response times for cacheable
+//! content.
 //!
-//! You can define your custom [`CacheIssuer`] to determine which responses should be cached,
-//! or you can use the default [`RequestIssuer`].
+//! # What Gets Cached
 //!
-//! The default cache store is [`MokaStore`], which is a wrapper of [`moka`].
-//! You can define your own cache store by implementing [`CacheStore`].
+//! The cache stores the complete response including:
+//! - HTTP status code
+//! - Response headers
+//! - Response body (except for streaming responses)
 //!
-//! Example: [cache-simple](https://github.com/salvo-rs/salvo/tree/main/examples/cache-simple)
+//! # Key Components
+//!
+//! - [`CacheIssuer`]: Determines the cache key for each request
+//! - [`CacheStore`]: Backend storage for cached responses
+//! - [`Cache`]: The middleware handler
+//!
+//! # Default Implementations
+//!
+//! - [`RequestIssuer`]: Generates cache keys from the request URI and method
+//! - [`MokaStore`]: High-performance concurrent cache backed by [`moka`]
+//!
+//! # Example
+//!
+//! ```ignore
+//! use std::time::Duration;
+//! use salvo_cache::{Cache, MokaStore, RequestIssuer};
+//! use salvo_core::prelude::*;
+//!
+//! let cache = Cache::new(
+//!     MokaStore::builder()
+//!         .time_to_live(Duration::from_secs(300))  // Cache for 5 minutes
+//!         .build(),
+//!     RequestIssuer::default(),
+//! );
+//!
+//! let router = Router::new()
+//!     .hoop(cache)
+//!     .get(my_expensive_handler);
+//! ```
+//!
+//! # Custom Cache Keys
+//!
+//! Implement [`CacheIssuer`] to customize cache key generation:
+//!
+//! ```ignore
+//! use salvo_cache::CacheIssuer;
+//!
+//! struct UserBasedIssuer;
+//! impl CacheIssuer for UserBasedIssuer {
+//!     type Key = String;
+//!
+//!     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+//!         // Cache per user + path
+//!         let user_id = depot.get::<String>("user_id").ok()?;
+//!         Some(format!("{}:{}", user_id, req.uri().path()))
+//!     }
+//! }
+//! ```
+//!
+//! # Skipping Cache
+//!
+//! By default, only GET requests are cached. Use the `skipper` method to customize:
+//!
+//! ```ignore
+//! let cache = Cache::new(store, issuer)
+//!     .skipper(|req, _depot| req.uri().path().starts_with("/api/"));
+//! ```
+//!
+//! # Limitations
+//!
+//! - Streaming responses ([`ResBody::Stream`]) cannot be cached
+//! - Error responses are not cached
+//!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -359,6 +423,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
+    use bytes::Bytes;
+    use salvo_core::http::HeaderMap;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use time::OffsetDateTime;
@@ -406,5 +474,281 @@ mod tests {
         let content2 = res.take_string().await.unwrap();
 
         assert_ne!(content0, content2);
+    }
+
+    // Tests for RequestIssuer
+    #[test]
+    fn test_request_issuer_new() {
+        let issuer = RequestIssuer::new();
+        assert!(issuer.use_scheme);
+        assert!(issuer.use_authority);
+        assert!(issuer.use_path);
+        assert!(issuer.use_query);
+        assert!(issuer.use_method);
+    }
+
+    #[test]
+    fn test_request_issuer_default() {
+        let issuer = RequestIssuer::default();
+        assert!(issuer.use_scheme);
+        assert!(issuer.use_authority);
+        assert!(issuer.use_path);
+        assert!(issuer.use_query);
+        assert!(issuer.use_method);
+    }
+
+    #[test]
+    fn test_request_issuer_use_scheme() {
+        let issuer = RequestIssuer::new().use_scheme(false);
+        assert!(!issuer.use_scheme);
+        assert!(issuer.use_authority);
+    }
+
+    #[test]
+    fn test_request_issuer_use_authority() {
+        let issuer = RequestIssuer::new().use_authority(false);
+        assert!(issuer.use_scheme);
+        assert!(!issuer.use_authority);
+    }
+
+    #[test]
+    fn test_request_issuer_use_path() {
+        let issuer = RequestIssuer::new().use_path(false);
+        assert!(!issuer.use_path);
+    }
+
+    #[test]
+    fn test_request_issuer_use_query() {
+        let issuer = RequestIssuer::new().use_query(false);
+        assert!(!issuer.use_query);
+    }
+
+    #[test]
+    fn test_request_issuer_use_method() {
+        let issuer = RequestIssuer::new().use_method(false);
+        assert!(!issuer.use_method);
+    }
+
+    #[test]
+    fn test_request_issuer_chain() {
+        let issuer = RequestIssuer::new()
+            .use_scheme(false)
+            .use_authority(false)
+            .use_path(true)
+            .use_query(false)
+            .use_method(true);
+        assert!(!issuer.use_scheme);
+        assert!(!issuer.use_authority);
+        assert!(issuer.use_path);
+        assert!(!issuer.use_query);
+        assert!(issuer.use_method);
+    }
+
+    #[test]
+    fn test_request_issuer_debug() {
+        let issuer = RequestIssuer::new();
+        let debug_str = format!("{:?}", issuer);
+        assert!(debug_str.contains("RequestIssuer"));
+        assert!(debug_str.contains("use_scheme"));
+    }
+
+    #[test]
+    fn test_request_issuer_clone() {
+        let issuer = RequestIssuer::new().use_scheme(false);
+        let cloned = issuer.clone();
+        assert_eq!(issuer.use_scheme, cloned.use_scheme);
+        assert_eq!(issuer.use_authority, cloned.use_authority);
+    }
+
+    // Tests for CachedBody
+    #[test]
+    fn test_cached_body_none() {
+        let body = CachedBody::None;
+        assert_eq!(body, CachedBody::None);
+    }
+
+    #[test]
+    fn test_cached_body_once() {
+        let bytes = Bytes::from("test data");
+        let body = CachedBody::Once(bytes.clone());
+        assert_eq!(body, CachedBody::Once(bytes));
+    }
+
+    #[test]
+    fn test_cached_body_chunks() {
+        let mut chunks = VecDeque::new();
+        chunks.push_back(Bytes::from("chunk1"));
+        chunks.push_back(Bytes::from("chunk2"));
+        let body = CachedBody::Chunks(chunks.clone());
+        assert_eq!(body, CachedBody::Chunks(chunks));
+    }
+
+    #[test]
+    fn test_cached_body_try_from_res_body_none() {
+        let res_body = ResBody::None;
+        let result: Result<CachedBody, _> = (&res_body).try_into();
+        assert_eq!(result.unwrap(), CachedBody::None);
+    }
+
+    #[test]
+    fn test_cached_body_try_from_res_body_once() {
+        let bytes = Bytes::from("test");
+        let res_body = ResBody::Once(bytes.clone());
+        let result: Result<CachedBody, _> = (&res_body).try_into();
+        assert_eq!(result.unwrap(), CachedBody::Once(bytes));
+    }
+
+    #[test]
+    fn test_cached_body_try_from_res_body_chunks() {
+        let mut chunks = VecDeque::new();
+        chunks.push_back(Bytes::from("chunk1"));
+        chunks.push_back(Bytes::from("chunk2"));
+        let res_body = ResBody::Chunks(chunks.clone());
+        let result: Result<CachedBody, _> = (&res_body).try_into();
+        assert_eq!(result.unwrap(), CachedBody::Chunks(chunks));
+    }
+
+    #[test]
+    fn test_cached_body_into_res_body_none() {
+        let cb = CachedBody::None;
+        let res_body: ResBody = cb.into();
+        assert!(matches!(res_body, ResBody::None));
+    }
+
+    #[test]
+    fn test_cached_body_into_res_body_once() {
+        let bytes = Bytes::from("test");
+        let cb = CachedBody::Once(bytes.clone());
+        let res_body: ResBody = cb.into();
+        assert!(matches!(res_body, ResBody::Once(b) if b == bytes));
+    }
+
+    #[test]
+    fn test_cached_body_into_res_body_chunks() {
+        let mut chunks = VecDeque::new();
+        chunks.push_back(Bytes::from("chunk1"));
+        let cb = CachedBody::Chunks(chunks);
+        let res_body: ResBody = cb.into();
+        assert!(matches!(res_body, ResBody::Chunks(_)));
+    }
+
+    #[test]
+    fn test_cached_body_debug() {
+        let body = CachedBody::None;
+        let debug_str = format!("{:?}", body);
+        assert!(debug_str.contains("None"));
+
+        let body = CachedBody::Once(Bytes::from("test"));
+        let debug_str = format!("{:?}", body);
+        assert!(debug_str.contains("Once"));
+    }
+
+    #[test]
+    fn test_cached_body_clone() {
+        let body = CachedBody::Once(Bytes::from("test"));
+        let cloned = body.clone();
+        assert_eq!(body, cloned);
+    }
+
+    // Tests for CachedEntry
+    #[test]
+    fn test_cached_entry_new() {
+        let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
+        assert_eq!(entry.status, Some(StatusCode::OK));
+        assert!(entry.headers.is_empty());
+        assert_eq!(entry.body, CachedBody::None);
+    }
+
+    #[test]
+    fn test_cached_entry_status() {
+        let entry = CachedEntry::new(
+            Some(StatusCode::NOT_FOUND),
+            HeaderMap::new(),
+            CachedBody::None,
+        );
+        assert_eq!(entry.status(), Some(StatusCode::NOT_FOUND));
+    }
+
+    #[test]
+    fn test_cached_entry_status_none() {
+        let entry = CachedEntry::new(None, HeaderMap::new(), CachedBody::None);
+        assert_eq!(entry.status(), None);
+    }
+
+    #[test]
+    fn test_cached_entry_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+        let entry = CachedEntry::new(Some(StatusCode::OK), headers.clone(), CachedBody::None);
+        assert_eq!(entry.headers().len(), 1);
+        assert!(entry.headers().contains_key("Content-Type"));
+    }
+
+    #[test]
+    fn test_cached_entry_body() {
+        let body = CachedBody::Once(Bytes::from("test body"));
+        let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), body.clone());
+        assert_eq!(entry.body(), &body);
+    }
+
+    #[test]
+    fn test_cached_entry_debug() {
+        let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
+        let debug_str = format!("{:?}", entry);
+        assert!(debug_str.contains("CachedEntry"));
+        assert!(debug_str.contains("status"));
+    }
+
+    #[test]
+    fn test_cached_entry_clone() {
+        let entry = CachedEntry::new(
+            Some(StatusCode::OK),
+            HeaderMap::new(),
+            CachedBody::Once(Bytes::from("test")),
+        );
+        let cloned = entry.clone();
+        assert_eq!(entry.status, cloned.status);
+        assert_eq!(entry.body, cloned.body);
+    }
+
+    // Tests for Cache
+    #[test]
+    fn test_cache_new() {
+        let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
+        assert!(format!("{:?}", cache).contains("Cache"));
+    }
+
+    #[test]
+    fn test_cache_debug() {
+        let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
+        let debug_str = format!("{:?}", cache);
+        assert!(debug_str.contains("Cache"));
+        assert!(debug_str.contains("store"));
+        assert!(debug_str.contains("issuer"));
+    }
+
+    #[tokio::test]
+    async fn test_cache_same_path_same_content() {
+        let cache = Cache::new(
+            MokaStore::builder()
+                .time_to_live(std::time::Duration::from_secs(60))
+                .build(),
+            RequestIssuer::default(),
+        );
+        let router = Router::new().hoop(cache).goal(cached);
+        let service = Service::new(router);
+
+        let mut res1 = TestClient::get("http://127.0.0.1:5801/same-path")
+            .send(&service)
+            .await;
+        let content1 = res1.take_string().await.unwrap();
+
+        let mut res2 = TestClient::get("http://127.0.0.1:5801/same-path")
+            .send(&service)
+            .await;
+        let content2 = res2.take_string().await.unwrap();
+
+        // Same path should return cached content
+        assert_eq!(content1, content2);
     }
 }

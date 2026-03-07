@@ -73,25 +73,19 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // TODO: Time handle
 
     let mut expires_at = None;
-    if store.has_extension(Extension::Expiration) {
-        if let Some(expiration) = store.get_expiration() {
-            if expiration > std::time::Duration::from_secs(0)
-                && !upload_info.creation_date.is_empty()
-            {
-                if let Ok(created_at) =
-                    chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date)
-                {
-                    if let Ok(delta) = chrono::Duration::from_std(expiration) {
-                        let expires = created_at.with_timezone(&chrono::Utc) + delta;
-                        if chrono::Utc::now() > expires {
-                            res.status_code = Some(TusError::FileNoLongerExists.status());
-                            return;
-                        }
-                        expires_at = Some(expires);
-                    }
-                }
-            }
+    if store.has_extension(Extension::Expiration)
+        && let Some(expiration) = store.get_expiration()
+        && expiration > std::time::Duration::from_secs(0)
+        && !upload_info.creation_date.is_empty()
+        && let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date)
+        && let Ok(delta) = chrono::Duration::from_std(expiration)
+    {
+        let expires = created_at.with_timezone(&chrono::Utc) + delta;
+        if chrono::Utc::now() > expires {
+            res.status_code = Some(TusError::FileNoLongerExists.status());
+            return;
         }
+        expires_at = Some(expires);
     }
 
     res.status_code = Some(StatusCode::OK);
@@ -108,13 +102,11 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     if upload_info.get_size_is_deferred() {
         headers.insert("Upload-Defer-Length", HeaderValue::from_static("1"));
-    } else {
-        if let Some(size) = &upload_info.size {
-            headers.insert(
-                "Upload-Length",
-                HeaderValue::from_str(&size.to_string()).unwrap(),
-            );
-        };
+    } else if let Some(size) = &upload_info.size {
+        headers.insert(
+            "Upload-Length",
+            HeaderValue::from_str(&size.to_string()).unwrap(),
+        );
     }
 
     if let Some(metadata) = upload_info.metadata {
@@ -140,6 +132,5 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub fn head_handler() -> Router {
-    let head_router = Router::with_path("{id}").head(head);
-    head_router
+    Router::with_path("{id}").head(head)
 }

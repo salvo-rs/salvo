@@ -10,7 +10,7 @@ documentation = "https://docs.rs/salvo-tus/"
 homepage      = { workspace = true }
 repository    = { workspace = true }
 keywords      = ["tus", "files-upload", "salvo", "big-files-upload"]
-categories    = ["network-programming", "asynchronous", "salvo"]
+categories    = ["network-programming", "asynchronous"]
 authors       = ["Tyrese Luo <tyreseluo@outlook.com>", "Salvo Maintainers"]
 
 [features]
@@ -28,7 +28,10 @@ serde         = { workspace = true, features = ["derive"] }
 serde_json    = { workspace = true }
 uuid          = { workspace = true, features = ["v4"]}
 regex         = { workspace = true }
-futures-core  = "0.3"
 futures-util  = { workspace = true }
 chrono        = { workspace = true }
 tracing       = { workspace = true }
+
+[dev-dependencies]
+tempfile      = { workspace = true }
+tokio         = { workspace = true, features = ["rt", "macros", "time"] }

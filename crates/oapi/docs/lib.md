@@ -1,40 +1,111 @@
-OpenAPI support for salvo, modified from [utoipa](https://github.com/juhaku/utoipa), It uses simple proc macros which
-you can use to annotate your code to have items documented.
+OpenAPI support for the Salvo web framework.
+
+This crate provides automatic OpenAPI documentation generation using simple
+procedural macros. Annotate your handlers and types, and get a complete OpenAPI
+specification.
+
+# Quick Start
+
+1. Add the `oapi` feature to your Salvo dependency
+2. Use `#[endpoint]` instead of `#[handler]` on your handlers
+3. Derive `ToSchema` on your data types
+4. Create an `OpenApi` instance and mount the Swagger UI
+
+```ignore
+use salvo::prelude::*;
+use salvo::oapi::extract::*;
+
+#[derive(ToSchema, serde::Deserialize)]
+struct User {
+    id: i64,
+    name: String,
+}
+
+#[endpoint]
+async fn get_user(id: PathParam<i64>) -> Json<User> {
+    Json(User { id: *id, name: "Alice".into() })
+}
+
+#[tokio::main]
+async fn main() {
+    let router = Router::new()
+        .push(Router::with_path("users/<id>").get(get_user));
+
+    let doc = OpenApi::new("My API", "1.0.0").merge_router(&router);
+
+    let router = router
+        .push(doc.into_router("/api-doc/openapi.json"))
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:8080").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
+# Key Traits
+
+| Trait | Purpose | Derive Macro |
+|-------|---------|--------------|
+| [`ToSchema`] | Define JSON schema for types | `#[derive(ToSchema)]` |
+| [`ToParameters`] | Define query/path parameters | `#[derive(ToParameters)]` |
+| [`ToResponse`] | Define a single response type | `#[derive(ToResponse)]` |
+| [`ToResponses`] | Define multiple response types | `#[derive(ToResponses)]` |
+
+# Documentation UIs
+
+Multiple OpenAPI documentation UIs are available:
+
+| UI | Feature Flag | Description |
+|----|--------------|-------------|
+| Swagger UI | `swagger-ui` | Interactive API explorer |
+| Scalar | `scalar` | Modern, beautiful API docs |
+| RapiDoc | `rapidoc` | Customizable API documentation |
+| ReDoc | `redoc` | Clean, responsive documentation |
 
 # Crate Features
 
-- **`yaml`** Enables **serde_norway** serialization of OpenAPI objects.
+## Serialization
 
-- **`chrono`** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
-  types. By default these types are parsed to `string` types with additional `format` information.
-  `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according
-  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
-  override default `string` representation users have to use `value_type` attribute to override the type.
-  See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
+- **`yaml`** - Enable YAML serialization of OpenAPI objects
 
-- **`time`** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types. By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
+## Type Support
 
-- **`decimal`** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default** it is interpreted as `String`. If you wish to change the format you need to override the type. See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
+- **`chrono`** - Support for `chrono` date/time types (`DateTime`, `Date`, `NaiveDate`, `Duration`)
+  - `DateTime` uses `format: date-time` per [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14)
+  - `Date` and `NaiveDate` use `format: date`
 
-- **`decimal-float`** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default** it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
+- **`time`** - Support for `time` crate types (`OffsetDateTime`, `PrimitiveDateTime`, `Date`, `Duration`)
 
-- **`uuid`** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with format `uuid` in OpenAPI spec.
+- **`decimal`** - Support for `rust_decimal::Decimal` as String (default)
 
-- **`ulid`** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with format `ulid` in OpenAPI spec.
+- **`decimal-float`** - Support for `rust_decimal::Decimal` as Number (mutually exclusive with `decimal`)
 
-- **`url`** Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with format `uri` in OpenAPI spec.
+- **`uuid`** - Support for `uuid::Uuid` with `format: uuid`
 
-- **`smallvec`** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
+- **`ulid`** - Support for `ulid::Ulid` with `format: ulid`
 
-- **`indexmap`** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to `BTreeMap` and `HashMap`.
+- **`url`** - Support for `url::Url` with `format: uri`
 
-# Go beyond the surface
+- **`smallvec`** - Support for `SmallVec` (rendered as array)
 
-- Browse to [examples](https://github.com/salvo-rs/salvo/tree/master/examples) for more comprehensive examples.
-- Check [`derive@ToResponses`] and [`derive@ToResponse`] for examples on deriving responses.
-- More about OpenAPI security in [security documentation][security].
+- **`indexmap`** - Support for `IndexMap` (rendered as object)
 
-[path]: attr.path.html
-[serde]: derive.ToSchema.html#partial-serde-attributes-support
+# Examples
+
+Browse the [examples directory](https://github.com/salvo-rs/salvo/tree/master/examples)
+for comprehensive examples including:
+
+- `oapi-hello` - Basic OpenAPI setup
+- `oapi-todos` - CRUD API with documentation
+- `oapi-upload` - File upload documentation
+
+# Learn More
+
+- [`derive@ToSchema`] - Schema derivation with all attributes
+- [`derive@ToParameters`] - Parameter extraction documentation
+- [`derive@ToResponse`] / [`derive@ToResponses`] - Response documentation
+- [`endpoint`] - Endpoint macro documentation
+- [Security documentation][security] - API authentication setup
+
 [security]: openapi/security/index.html
 [to_schema_derive]: derive.ToSchema.html

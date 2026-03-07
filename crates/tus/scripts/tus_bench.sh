@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://127.0.0.1:5800/files}"
+BASE_URL="${1:-http://127.0.0.1:8698/files}"
 HEAD_COUNT="${HEAD_COUNT:-200}"
 HEAD_CONCURRENCY="${HEAD_CONCURRENCY:-50}"
 HEAD_COUNT_BASE="${HEAD_COUNT_BASE:-$HEAD_COUNT}"

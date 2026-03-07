@@ -157,7 +157,7 @@ impl Parse for SourceInfo {
         if source.parser.is_empty() {
             source.parser = "smart".to_owned();
         }
-        if !["param", "query", "header", "body"].contains(&source.from.as_str()) {
+        if !["param", "query", "header", "body", "depot"].contains(&source.from.as_str()) {
             return Err(Error::new(
                 input.span(),
                 format!("source from is invalid: {}", source.from),
@@ -420,10 +420,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 #metadata
 
                 #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, #salvo::http::ParseError>
                 where
                     Self: Sized {
-                    #salvo::serde::from_request(req, Self::metadata()).await
+                    #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
             }
         }
@@ -437,10 +437,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 #metadata
 
                 #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, #salvo::http::ParseError>
                 where
                     Self: Sized {
-                    #salvo::serde::from_request(req, Self::metadata()).await
+                    #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
             }
         }

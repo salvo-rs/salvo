@@ -14,6 +14,7 @@ pub fn new_store() -> Db {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[salvo(schema(name = "Todo"))]
 pub struct Todo {
     #[salvo(schema(example = 1))]
     pub id: u64,
@@ -154,14 +155,49 @@ pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>
 <html>
     <head>
-        <title>Oapi todos</title>
+        <title>Oapi Todos - Salvo OpenAPI Demo</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+            h1 { color: #333; border-bottom: 2px solid #4a9eff; padding-bottom: 10px; }
+            h2 { color: #555; margin-top: 30px; }
+            a { color: #4a9eff; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            ul { list-style-type: none; padding: 0; }
+            li { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+            li strong { display: block; margin-bottom: 5px; }
+            code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', monospace; }
+        </style>
     </head>
     <body>
+        <h1>Salvo OpenAPI Todos Demo</h1>
+        <p>This example demonstrates how to build a RESTful API with <strong>Salvo</strong> and automatically generate <strong>OpenAPI</strong> documentation using the <code>#[endpoint]</code> macro.</p>
+
+        <h2>API Documentation Viewers</h2>
         <ul>
-        <li><a href="swagger-ui" target="_blank">swagger-ui</a></li>
-        <li><a href="scalar" target="_blank">scalar</a></li>
-        <li><a href="rapidoc" target="_blank">rapidoc</a></li>
-        <li><a href="redoc" target="_blank">redoc</a></li>
+            <li>
+                <strong><a href="swagger-ui" target="_blank">Swagger UI</a></strong>
+                Interactive API documentation with a try-it-out feature
+            </li>
+            <li>
+                <strong><a href="scalar" target="_blank">Scalar</a></strong>
+                Modern, beautiful API reference documentation
+            </li>
+            <li>
+                <strong><a href="rapidoc" target="_blank">RapiDoc</a></strong>
+                Web component for viewing OpenAPI specs with customizable themes
+            </li>
+            <li>
+                <strong><a href="redoc" target="_blank">ReDoc</a></strong>
+                Clean, responsive three-panel API documentation
+            </li>
+        </ul>
+
+        <h2>Raw OpenAPI Specification</h2>
+        <ul>
+            <li>
+                <strong><a href="api-doc/openapi.json" target="_blank">openapi.json</a></strong>
+                Raw OpenAPI 3.1 specification in JSON format
+            </li>
         </ul>
     </body>
 </html>

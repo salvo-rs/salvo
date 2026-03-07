@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use headers::HeaderValue;
 use http::header::{ALT_SVC, CONTENT_TYPE};
@@ -212,6 +212,10 @@ impl Handler for DefaultStatusOK {
     }
 }
 
+/// Cached DefaultStatusOK handler to avoid Arc allocation per request.
+static DEFAULT_STATUS_OK_HANDLER: LazyLock<Arc<dyn Handler>> =
+    LazyLock::new(|| Arc::new(DefaultStatusOK));
+
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
@@ -272,7 +276,7 @@ impl HyperHandler {
                     [
                         &hoops[..],
                         &dm.hoops[..],
-                        &[Arc::new(DefaultStatusOK)],
+                        std::slice::from_ref(&*DEFAULT_STATUS_OK_HANDLER),
                         &[dm.goal],
                     ]
                     .concat(),

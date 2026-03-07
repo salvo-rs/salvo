@@ -60,8 +60,7 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub fn options_handler() -> Router {
-    let options_router = Router::new()
+    Router::new()
         .options(options)
-        .push(Router::with_path("{id}").options(options));
-    options_router
+        .push(Router::with_path("{id}").options(options))
 }

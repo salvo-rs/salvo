@@ -32,19 +32,60 @@ pub(crate) enum Flag {
     ContentDisposition = 0b0100,
 }
 
-/// A file with an associated name.
+/// A file with an associated name and metadata for HTTP serving.
 ///
-/// This struct represents a file with an associated name. It provides methods for opening and
-/// sending the file, as well as setting various headers such as `Content-Type` and
-/// `Content-Disposition`.
+/// `NamedFile` wraps a file handle with HTTP-specific functionality including:
 ///
-/// # Examples
+/// - Automatic MIME type detection based on file extension
+/// - ETag generation for caching
+/// - Last-Modified header support
+/// - Content-Disposition header for downloads
+/// - HTTP Range request support for partial content
+/// - Chunked transfer for large files
+///
+/// # Opening Files
+///
+/// Files can be opened directly or through a builder:
 ///
 /// ```
 /// use salvo_core::fs::NamedFile;
-/// async fn open() {
-///     let file = NamedFile::open("foo.txt").await;
+///
+/// async fn examples() {
+///     // Simple open
+///     let file = NamedFile::open("document.pdf").await;
+///
+///     // Builder pattern for more control
+///     let file = NamedFile::builder("document.pdf")
+///         .attached_name("report.pdf")
+///         .buffer_size(65536)
+///         .build()
+///         .await;
 /// }
+/// ```
+///
+/// # Using as a Response
+///
+/// `NamedFile` implements [`Writer`], so it can be returned directly from handlers:
+///
+/// ```ignore
+/// #[handler]
+/// async fn download(res: &mut Response) -> Result<NamedFile> {
+///     NamedFile::open("./files/document.pdf").await
+/// }
+/// ```
+///
+/// # Content-Disposition
+///
+/// By default, text, images, video, and audio files are served with
+/// `Content-Disposition: inline`, while other files use `attachment`.
+/// Use [`NamedFileBuilder::attached_name`] to force a download with a specific filename.
+///
+/// # Caching Headers
+///
+/// By default, `NamedFile` generates `ETag` and `Last-Modified` headers
+/// and respects conditional request headers (`If-None-Match`, `If-Modified-Since`, etc.).
+/// These can be disabled via [`use_etag()`](NamedFile::use_etag) and
+/// [`use_last_modified()`](NamedFile::use_last_modified).
 #[derive(Debug)]
 pub struct NamedFile {
     path: PathBuf,
@@ -58,7 +99,29 @@ pub struct NamedFile {
     content_encoding: Option<HeaderValue>,
 }
 
-/// Builder for build [`NamedFile`].
+/// Builder for constructing [`NamedFile`] instances with custom configuration.
+///
+/// The builder pattern allows customizing various aspects of file serving:
+///
+/// - MIME content type
+/// - Content-Disposition (inline vs attachment)
+/// - Download filename
+/// - Buffer size for chunked reading
+/// - ETag and Last-Modified header generation
+///
+/// # Example
+///
+/// ```ignore
+/// use salvo_core::fs::NamedFile;
+///
+/// let file = NamedFile::builder("./data/export.csv")
+///     .attached_name("data-export-2024.csv")  // Force download with this name
+///     .content_type("text/csv".parse().unwrap())
+///     .buffer_size(131072)  // 128KB chunks
+///     .use_etag(true)
+///     .build()
+///     .await?;
+/// ```
 #[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,

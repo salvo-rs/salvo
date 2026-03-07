@@ -6,7 +6,6 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-async-std = { workspace = true }
 rbatis = { workspace = true }
 rbdc = { workspace = true }
 rbdc-mysql = { workspace = true }

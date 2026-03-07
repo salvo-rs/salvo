@@ -73,6 +73,8 @@ jobs:
             path: crates/craft
           - crate: salvo-acme
             path: crates/acme
+          - crate: salvo-tus
+            path: crates/tus
           - crate: salvo
             path: crates/salvo
     steps:

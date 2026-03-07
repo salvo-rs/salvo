@@ -44,16 +44,23 @@ impl BcryptCipher {
 
 impl CsrfCipher for BcryptCipher {
     fn verify(&self, token: &str, proof: &str) -> bool {
-        if let Ok(token) = URL_SAFE_NO_PAD.decode(token.as_bytes()) {
-            let proof = proof.replace('_', "/").replace('-', "+");
-            bcrypt::verify(token, &proof).unwrap_or(false)
-        } else {
-            false
-        }
+        // Decode the token, using a dummy value if decoding fails to prevent timing attacks.
+        // This ensures bcrypt::verify is always called with consistent timing.
+        let token_bytes = URL_SAFE_NO_PAD
+            .decode(token.as_bytes())
+            .unwrap_or_else(|_| vec![0u8; self.token_size]);
+
+        let proof = proof.replace('_', "/").replace('-', "+");
+
+        // Always perform bcrypt verification to maintain constant time
+        bcrypt::verify(&token_bytes, &proof).unwrap_or(false)
     }
     fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
-        let proof = bcrypt::hash(&token, self.cost).expect("Call bcrypt hash get error result.").replace('+', "/").replace('/', "_");
+        let proof = bcrypt::hash(&token, self.cost)
+            .expect("bcrypt hash failed")
+            .replace('+', "/")
+            .replace('/', "_");
 
         (URL_SAFE_NO_PAD.encode(token), proof)
     }

@@ -1,14 +1,88 @@
-//! Rate limiter middleware for Salvo.
+//! Rate limiting middleware for Salvo.
 //!
-//! Rate Limiter middleware is used to limiting the amount of requests to the server
-//! from a particular IP or id within a time period.
+//! This middleware protects your server from abuse by limiting the number of
+//! requests a client can make within a specified time period. It's essential
+//! for preventing denial-of-service attacks and ensuring fair resource usage.
 //!
-//! [`RateIssuer`] is used to issue a key to request, your can define your custom `RateIssuer`.
-//! If you want just identify user by IP address, you can use [`RemoteIpIssuer`].
+//! # Key Components
 //!
-//! [`QuotaGetter`] is used to get quota for every key.
+//! | Component | Purpose |
+//! |-----------|---------|
+//! | [`RateIssuer`] | Identifies clients (by IP, user ID, API key, etc.) |
+//! | [`QuotaGetter`] | Defines rate limits for each client |
+//! | [`RateGuard`] | Implements the limiting algorithm |
+//! | [`RateStore`] | Stores rate limit state |
 //!
-//! [`RateGuard`] is strategy to verify is the request exceeded quota.
+//! # Built-in Implementations
+//!
+//! ## Issuers
+//! - [`RemoteIpIssuer`]: Identifies clients by IP address
+//!
+//! ## Guards (Algorithms)
+//! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)
+//! - `SlidingGuard`: Sliding window algorithm (requires `sliding-guard` feature)
+//!
+//! ## Stores
+//! - [`MokaStore`]: In-memory store backed by moka (requires `moka-store` feature)
+//!
+//! # Example
+//!
+//! Basic rate limiting by IP address:
+//!
+//! ```ignore
+//! use salvo_rate_limiter::{RateLimiter, RemoteIpIssuer, BasicQuota, FixedGuard, MokaStore};
+//! use salvo_core::prelude::*;
+//!
+//! let limiter = RateLimiter::new(
+//!     FixedGuard::default(),
+//!     MokaStore::default(),
+//!     RemoteIpIssuer,
+//!     BasicQuota::per_minute(100),  // 100 requests per minute
+//! );
+//!
+//! let router = Router::new()
+//!     .hoop(limiter)
+//!     .get(my_handler);
+//! ```
+//!
+//! # Custom Quotas Per User
+//!
+//! Different users can have different rate limits:
+//!
+//! ```ignore
+//! use salvo_rate_limiter::{QuotaGetter, BasicQuota};
+//!
+//! struct TieredQuota;
+//! impl QuotaGetter<String> for TieredQuota {
+//!     type Quota = BasicQuota;
+//!     type Error = salvo_core::Error;
+//!
+//!     async fn get<Q>(&self, user_id: &Q) -> Result<Self::Quota, Self::Error>
+//!     where
+//!         String: std::borrow::Borrow<Q>,
+//!         Q: std::hash::Hash + Eq + Sync,
+//!     {
+//!         // Premium users get higher limits
+//!         if is_premium_user(user_id) {
+//!             Ok(BasicQuota::per_minute(1000))
+//!         } else {
+//!             Ok(BasicQuota::per_minute(60))
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! # Response Headers
+//!
+//! Enable rate limit headers in responses with `.add_headers(true)`:
+//!
+//! - `X-RateLimit-Limit`: Maximum requests allowed
+//! - `X-RateLimit-Remaining`: Requests remaining in current window
+//! - `X-RateLimit-Reset`: Unix timestamp when the limit resets
+//!
+//! # HTTP Status
+//!
+//! When the limit is exceeded, returns `429 Too Many Requests`.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -73,12 +147,100 @@ where
     }
 }
 
-/// Identify user by IP address.
-#[derive(Debug)]
+/// Identify user by the direct connection IP address.
+///
+/// # Security Note
+///
+/// This issuer uses `req.remote_addr()` which returns the IP of the direct
+/// connection. When your application is behind a reverse proxy or load balancer,
+/// this will be the proxy's IP, not the client's real IP.
+///
+/// For applications behind proxies, use [`RealIpIssuer`] instead, which can
+/// extract the client IP from headers like `X-Forwarded-For` or `X-Real-IP`.
+///
+/// **Warning**: Never use `RealIpIssuer` without a trusted proxy, as clients
+/// can forge these headers to bypass rate limiting.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RemoteIpIssuer;
 impl RateIssuer for RemoteIpIssuer {
     type Key = IpAddr;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+        req.remote_addr().ip()
+    }
+}
+
+/// Identify user by their real IP address, supporting proxy headers.
+///
+/// This issuer attempts to extract the client's real IP address by checking
+/// headers in the following order:
+/// 1. `X-Forwarded-For` (first IP in the list)
+/// 2. `X-Real-IP`
+/// 3. Falls back to `remote_addr()` if no headers are present
+///
+/// # Security Warning
+///
+/// **Only use this issuer when your application is behind a TRUSTED proxy!**
+///
+/// If clients can connect directly to your application (bypassing the proxy),
+/// they can forge these headers to:
+/// - Bypass rate limiting by spoofing different IP addresses
+/// - Impersonate other users
+///
+/// Ensure your proxy is configured to:
+/// - Overwrite (not append to) the `X-Forwarded-For` header
+/// - Block direct connections to your application
+///
+/// # Example
+///
+/// ```ignore
+/// use salvo_rate_limiter::{RateLimiter, RealIpIssuer, BasicQuota, FixedGuard, MokaStore};
+///
+/// let limiter = RateLimiter::new(
+///     FixedGuard::default(),
+///     MokaStore::default(),
+///     RealIpIssuer::new(),
+///     BasicQuota::per_minute(100),
+/// );
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RealIpIssuer;
+
+impl RealIpIssuer {
+    /// Create a new `RealIpIssuer`.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl RateIssuer for RealIpIssuer {
+    type Key = IpAddr;
+
+    async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+        // Try X-Forwarded-For header first (common with most reverse proxies)
+        if let Some(xff) = req.headers().get("x-forwarded-for") {
+            if let Ok(xff_str) = xff.to_str() {
+                // X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+                // The first one is the original client IP
+                if let Some(first_ip) = xff_str.split(',').next() {
+                    if let Ok(ip) = first_ip.trim().parse::<IpAddr>() {
+                        return Some(ip);
+                    }
+                }
+            }
+        }
+
+        // Try X-Real-IP header (used by nginx)
+        if let Some(real_ip) = req.headers().get("x-real-ip") {
+            if let Ok(real_ip_str) = real_ip.to_str() {
+                if let Ok(ip) = real_ip_str.trim().parse::<IpAddr>() {
+                    return Some(ip);
+                }
+            }
+        }
+
+        // Fall back to remote address
         req.remote_addr().ip()
     }
 }
@@ -437,5 +599,13 @@ mod tests {
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.take_string().await.unwrap(), "Limited page");
+    }
+
+    // Tests for RemoteIpIssuer
+    #[test]
+    fn test_remote_ip_issuer_debug() {
+        let issuer = RemoteIpIssuer;
+        let debug_str = format!("{:?}", issuer);
+        assert!(debug_str.contains("RemoteIpIssuer"));
     }
 }

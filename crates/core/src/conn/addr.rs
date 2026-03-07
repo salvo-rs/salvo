@@ -75,8 +75,8 @@ impl SocketAddr {
     #[must_use]
     pub fn ip(&self) -> Option<std::net::IpAddr> {
         match self {
-            SocketAddr::IPv4(a) => Some(std::net::IpAddr::V4(*a.ip())),
-            SocketAddr::IPv6(a) => Some(std::net::IpAddr::V6(*a.ip())),
+            Self::IPv4(a) => Some(std::net::IpAddr::V4(*a.ip())),
+            Self::IPv6(a) => Some(std::net::IpAddr::V6(*a.ip())),
             _ => None,
         }
     }
@@ -88,8 +88,8 @@ impl SocketAddr {
     #[inline]
     pub fn port(&self) -> Option<u16> {
         match self {
-            SocketAddr::IPv4(a) => Some(a.port()),
-            SocketAddr::IPv6(a) => Some(a.port()),
+            Self::IPv4(a) => Some(a.port()),
+            Self::IPv6(a) => Some(a.port()),
             _ => None,
         }
     }
@@ -106,7 +106,7 @@ impl SocketAddr {
     }
 
     cfg_feature! {
-        #![unix]
+        #![all(feature = "unix", unix)]
         /// Returns if it is a Unix socket address.
         #[inline]
         #[must_use] pub fn is_unix(&self) -> bool {
@@ -134,7 +134,7 @@ impl SocketAddr {
     }
 
     cfg_feature! {
-        #![unix]
+        #![all(feature = "unix", unix)]
         /// Returns Unix socket address.
         #[inline]
         #[must_use] pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
@@ -171,11 +171,11 @@ mod tests {
         let ipv4: SocketAddr = ipv4.into();
         assert!(ipv4.is_ipv4());
         assert!(!ipv4.is_ipv6());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(!ipv4.is_unix());
         assert_eq!(ipv4.as_ipv4().unwrap().to_string(), "127.0.0.1:8080");
         assert!(ipv4.as_ipv6().is_none());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(ipv4.as_unix().is_none());
     }
 
@@ -188,11 +188,11 @@ mod tests {
         let ipv6: SocketAddr = ipv6.into();
         assert!(!ipv6.is_ipv4());
         assert!(ipv6.is_ipv6());
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(!ipv6.is_unix());
         assert!(ipv6.as_ipv4().is_none());
         assert_eq!(ipv6.as_ipv6().unwrap().to_string(), "[::ffff:0.0.0.1]:8080");
-        #[cfg(target_os = "linux")]
+        #[cfg(all(feature = "unix", unix))]
         assert!(ipv6.as_unix().is_none());
     }
 }

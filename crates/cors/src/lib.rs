@@ -102,6 +102,16 @@ impl Cors {
     /// - All methods allowed.
     /// - All origins allowed.
     /// - All headers exposed.
+    ///
+    /// # Security Warning
+    ///
+    /// **This configuration allows any website to make requests to your API.**
+    /// Only use this for:
+    /// - Public APIs that don't require authentication
+    /// - Development/testing environments
+    ///
+    /// For production APIs that require authentication, configure CORS explicitly
+    /// with specific allowed origins.
     #[must_use]
     pub fn permissive() -> Self {
         Self::new()
@@ -119,8 +129,34 @@ impl Cors {
     /// - The header names received in `Access-Control-Request-Headers` are sent back as allowed
     ///   headers.
     /// - No headers are currently exposed, but this may change in the future.
+    ///
+    /// # Security Warning
+    ///
+    /// **⚠️ DANGER: This configuration essentially disables CORS protection!**
+    ///
+    /// By enabling credentials AND mirroring the request origin, you are allowing
+    /// ANY website to:
+    /// - Make authenticated requests to your API
+    /// - Read response data including sensitive information
+    /// - Perform actions on behalf of logged-in users (CSRF attacks)
+    ///
+    /// **This should NEVER be used in production with authentication.**
+    ///
+    /// Only use this for:
+    /// - Local development where security is not a concern
+    /// - Internal tools on trusted networks
+    ///
+    /// For production, always configure explicit allowed origins:
+    /// ```ignore
+    /// Cors::new()
+    ///     .allow_origin("https://your-frontend.com")
+    ///     .allow_credentials(true)
+    /// ```
     #[must_use]
     pub fn very_permissive() -> Self {
+        tracing::warn!(
+            "Using Cors::very_permissive() - this disables CORS security and should not be used in production!"
+        );
         Self::new()
             .allow_credentials(true)
             .allow_headers(AllowHeaders::mirror_request())

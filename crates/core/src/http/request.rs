@@ -4,6 +4,7 @@ use std::fmt::{self, Debug, Formatter};
 #[cfg(feature = "quinn")]
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -15,7 +16,6 @@ pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http_body_util::{BodyExt, Limited};
 use multimap::MultiMap;
-use parking_lot::RwLock;
 use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
@@ -30,15 +30,14 @@ use crate::serde::{
 };
 use crate::{Depot, Error, FlowCtrl, Handler, async_trait};
 
-static GLOBAL_SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
+static GLOBAL_SECURE_MAX_SIZE: AtomicUsize = AtomicUsize::new(64 * 1024);
 
 /// Get global secure maximum size, default value is 64KB.
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn global_secure_max_size() -> usize {
-    *GLOBAL_SECURE_MAX_SIZE.read()
+    GLOBAL_SECURE_MAX_SIZE.load(Ordering::Relaxed)
 }
 
 /// Set secure maximum size globally.
@@ -46,19 +45,16 @@ pub fn global_secure_max_size() -> usize {
 /// It is recommended to use the [`SecureMaxSize`] middleware to have finer-grained
 /// control over [`Request`].
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 pub fn set_global_secure_max_size(size: usize) {
-    let mut lock = GLOBAL_SECURE_MAX_SIZE.write();
-    *lock = size;
+    GLOBAL_SECURE_MAX_SIZE.store(size, Ordering::Relaxed);
 }
 
 /// Middleware for set the secure maximum size of request body.
 ///
-/// **Note**: The security maximum value is only effective when directly obtaining data
-/// from the body. For uploaded files, the files are written to temporary files
-/// and the bytes is not directly obtained, so they will not be affected.
+/// **Note**: The security maximum value applies to request body reads and form parsing,
+/// including multipart file uploads. Increase the limit if you need to accept large uploads.
 #[derive(Debug, Clone, Copy)]
 pub struct SecureMaxSize(pub usize);
 impl SecureMaxSize {
@@ -83,7 +79,41 @@ impl Handler for SecureMaxSize {
 
 /// Represents an HTTP request.
 ///
-/// Stores all the properties of the client's request.
+/// Stores all the properties of the client's request including URI, headers, body,
+/// method, cookies, path parameters, query parameters, and form data.
+///
+/// # Body Consumption and Caching
+///
+/// The request body can only be read once from the underlying stream. However, Salvo
+/// provides automatic caching mechanisms to allow multiple accesses:
+///
+/// - [`payload()`](Request::payload) and
+///   [`payload_with_max_size()`](Request::payload_with_max_size) read the body and cache it
+///   internally. Subsequent calls return the cached bytes.
+/// - [`form_data()`](Request::form_data) parses form data and caches the result. If the body has
+///   already been consumed by `payload()`, it will use the cached bytes to parse the form.
+///
+/// # Size Limits
+///
+/// To prevent denial-of-service attacks, the request body size is limited by default to 64KB.
+/// This can be configured using:
+///
+/// - [`set_global_secure_max_size()`] - Set the global default limit
+/// - [`SecureMaxSize`] middleware - Set per-route limits
+/// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request limits
+///
+/// **Note**: Size limits apply to request body reads and form parsing, including
+/// multipart file uploads. Increase the limit if you need to accept large uploads.
+///
+/// # Examples
+///
+/// ```
+/// use salvo_core::http::Request;
+///
+/// // Create a new request
+/// let req = Request::new();
+/// assert_eq!(*req.method(), salvo_core::http::Method::GET);
+/// ```
 pub struct Request {
     // The requested URL.
     uri: Uri,
@@ -351,45 +381,58 @@ impl Request {
         &mut self.method
     }
 
-    /// Returns the associated version.
+    /// Returns the HTTP version of the request.
+    ///
+    /// Common values are `HTTP/1.0`, `HTTP/1.1`, `HTTP/2.0`, and `HTTP/3.0`.
     #[inline]
     pub fn version(&self) -> Version {
         self.version
     }
-    /// Returns a mutable reference to the associated version.
+
+    /// Returns a mutable reference to the HTTP version.
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
 
-    /// Returns the associated scheme.
+    /// Returns the URI scheme of the request (e.g., `http` or `https`).
     #[inline]
     pub fn scheme(&self) -> &Scheme {
         &self.scheme
     }
-    /// Returns a mutable reference to the associated scheme.
+
+    /// Returns a mutable reference to the URI scheme.
     #[inline]
     pub fn scheme_mut(&mut self) -> &mut Scheme {
         &mut self.scheme
     }
 
-    /// Get request remote address.
+    /// Returns the remote (client) socket address.
+    ///
+    /// This is the IP address and port of the client making the request.
+    /// Note that if behind a reverse proxy, this may be the proxy's address
+    /// rather than the actual client's address.
     #[inline]
     pub fn remote_addr(&self) -> &SocketAddr {
         &self.remote_addr
     }
-    /// Get request remote address.
+
+    /// Returns a mutable reference to the remote socket address.
     #[inline]
     pub fn remote_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.remote_addr
     }
 
-    /// Get request local address reference.
+    /// Returns the local (server) socket address.
+    ///
+    /// This is the IP address and port that the server is listening on
+    /// for this connection.
     #[inline]
     pub fn local_addr(&self) -> &SocketAddr {
         &self.local_addr
     }
-    /// Get mutable request local address reference.
+
+    /// Returns a mutable reference to the local socket address.
     #[inline]
     pub fn local_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.local_addr
@@ -494,23 +537,59 @@ impl Request {
     }
 
     /// Returns a reference to the associated HTTP body.
+    ///
+    /// # Note
+    ///
+    /// The body can only be read once from the underlying stream. For most use cases,
+    /// prefer using [`payload()`](Request::payload) or [`form_data()`](Request::form_data)
+    /// which handle caching automatically.
     #[inline]
     pub fn body(&self) -> &ReqBody {
         &self.body
     }
+
     /// Returns a mutable reference to the associated HTTP body.
+    ///
+    /// # Note
+    ///
+    /// Modifying the body directly may interfere with methods like
+    /// [`payload()`](Request::payload) and [`form_data()`](Request::form_data).
+    /// Use with caution.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ReqBody {
         &mut self.body
     }
 
-    /// Sets body to a new value and returns old value.
+    /// Replaces the body with a new value and returns the old body.
+    ///
+    /// This is useful when you need to transform or wrap the request body.
+    ///
+    /// # Note
+    ///
+    /// Replacing the body does not clear the cached payload or form data.
+    /// If you've already called [`payload()`](Request::payload), those cached
+    /// values will still be returned on subsequent calls.
     #[inline]
     pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
         std::mem::replace(&mut self.body, body)
     }
 
-    /// Take body form the request, and set the body to None in the request.
+    /// Takes the body from the request, leaving [`ReqBody::None`] in its place.
+    ///
+    /// This consumes the body, making it unavailable for subsequent reads unless
+    /// it was already cached via [`payload()`](Request::payload).
+    ///
+    /// # When to Use
+    ///
+    /// - When forwarding the request body to another service
+    /// - When you need ownership of the body stream
+    /// - When implementing custom body processing
+    ///
+    /// # Note
+    ///
+    /// Methods like [`payload()`](Request::payload) and [`form_data()`](Request::form_data)
+    /// call this internally. If those methods have already been called successfully,
+    /// the data is cached and can still be accessed.
     #[inline]
     pub fn take_body(&mut self) -> ReqBody {
         self.replace_body(ReqBody::None)
@@ -530,12 +609,28 @@ impl Request {
         &self.extensions
     }
 
-    /// Set secure max size, default value is 64KB.
+    /// Sets the maximum allowed body size for this request.
+    ///
+    /// This overrides both the global default and any value set by the
+    /// [`SecureMaxSize`] middleware for this specific request.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - Maximum body size in bytes.
+    ///
+    /// # Note
+    ///
+    /// This limit applies to request body reads and form parsing, including
+    /// multipart file uploads. Increase the limit if you need to accept large uploads.
     pub fn set_secure_max_size(&mut self, size: usize) {
         self.secure_max_size = Some(size);
     }
 
-    /// Get secure max size, default value is 64KB.
+    /// Returns the maximum allowed body size for this request.
+    ///
+    /// Returns the request-specific limit if set via
+    /// [`set_secure_max_size()`](Request::set_secure_max_size) or [`SecureMaxSize`] middleware,
+    /// otherwise returns the global default (64KB).
     pub fn secure_max_size(&self) -> usize {
         self.secure_max_size.unwrap_or_else(global_secure_max_size)
     }
@@ -618,7 +713,19 @@ impl Request {
         &mut self.extensions
     }
 
-    /// Get accept.
+    /// Returns all MIME types from the `Accept` header.
+    ///
+    /// Parses the `Accept` header and returns a list of MIME types the client
+    /// is willing to accept. Returns an empty vector if the header is missing
+    /// or cannot be parsed.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // For Accept: text/html, application/json
+    /// let types = req.accept();
+    /// // types = [text/html, application/json]
+    /// ```
     pub fn accept(&self) -> Vec<Mime> {
         let mut list: Vec<Mime> = vec![];
         if let Some(accept) = self.headers.get("accept").and_then(|h| h.to_str().ok()) {
@@ -632,7 +739,10 @@ impl Request {
         list
     }
 
-    /// Get first accept.
+    /// Returns the first MIME type from the `Accept` header.
+    ///
+    /// This is typically the client's most preferred content type.
+    /// Returns `None` if the `Accept` header is missing or empty.
     #[inline]
     pub fn first_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
@@ -643,7 +753,19 @@ impl Request {
         }
     }
 
-    /// Get content type.
+    /// Returns the `Content-Type` header value as a [`Mime`] type.
+    ///
+    /// Returns `None` if the header is missing or cannot be parsed.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// if let Some(ct) = req.content_type() {
+    ///     if ct.subtype() == mime::JSON {
+    ///         // Handle JSON request
+    ///     }
+    /// }
+    /// ```
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         self.headers
@@ -721,7 +843,23 @@ impl Request {
             .expect("queries should be initialized")
     }
 
-    /// Get query value from queries.
+    /// Gets a query parameter value by key, deserializing it to type `T`.
+    ///
+    /// Returns `None` if the key doesn't exist or deserialization fails.
+    /// For error details, use [`try_query()`](Request::try_query) instead.
+    ///
+    /// # Type Coercion
+    ///
+    /// The value is deserialized from a string, so numeric types, booleans,
+    /// and other `Deserialize` implementations are supported.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // URL: /search?page=2&limit=10
+    /// let page: u32 = req.query("page").unwrap_or(1);
+    /// let tags: Vec<String> = req.query("tags").unwrap_or_default();
+    /// ```
     #[inline]
     pub fn query<'de, T>(&'de self, key: &str) -> Option<T>
     where
@@ -730,7 +868,10 @@ impl Request {
         self.try_query(key).ok()
     }
 
-    /// Try to get query value from queries.
+    /// Tries to get a query parameter value by key.
+    ///
+    /// Returns a [`ParseResult`] with either the deserialized value or an error
+    /// indicating why parsing failed.
     #[inline]
     pub fn try_query<'de, T>(&'de self, key: &str) -> ParseResult<T>
     where
@@ -742,7 +883,19 @@ impl Request {
             .and_then(|vs| from_str_multi_val(vs).map_err(Into::into))
     }
 
-    /// Get field data from form.
+    /// Gets a form field value by key, deserializing it to type `T`.
+    ///
+    /// Returns `None` if the key doesn't exist or deserialization fails.
+    /// For error details, use [`try_form()`](Request::try_form) instead.
+    ///
+    /// This method parses the request body as form data on first call
+    /// (see [`form_data()`](Request::form_data) for caching behavior).
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let username: String = req.form("username").await.unwrap_or_default();
+    /// ```
     #[inline]
     pub async fn form<'de, T>(&'de mut self, key: &str) -> Option<T>
     where
@@ -751,7 +904,10 @@ impl Request {
         self.try_form(key).await.ok()
     }
 
-    /// Try to get field data from form.
+    /// Tries to get a form field value by key.
+    ///
+    /// Returns a [`ParseResult`] with either the deserialized value or an error
+    /// indicating why parsing failed.
     #[inline]
     pub async fn try_form<'de, T>(&'de mut self, key: &str) -> ParseResult<T>
     where
@@ -763,7 +919,15 @@ impl Request {
             .and_then(|vs| from_str_multi_val(vs).map_err(Into::into))
     }
 
-    /// Get field data from form, if key is not found in form data, then get from query.
+    /// Gets a value from form data first, falling back to query parameters.
+    ///
+    /// Checks the form body for the key first. If not found, checks query parameters.
+    /// Returns `None` if the key doesn't exist in either location.
+    ///
+    /// # Use Case
+    ///
+    /// Useful when a parameter can come from either a form submission or URL query string,
+    /// with form data taking precedence.
     #[inline]
     pub async fn form_or_query<'de, T>(&'de mut self, key: &str) -> Option<T>
     where
@@ -772,7 +936,9 @@ impl Request {
         self.try_form_or_query(key).await.ok()
     }
 
-    /// Try to get field data from form, if key is not found in form data, then get from query.
+    /// Tries to get a value from form data first, falling back to query parameters.
+    ///
+    /// Returns a [`ParseResult`] with either the deserialized value or an error.
     #[inline]
     pub async fn try_form_or_query<'de, T>(&'de mut self, key: &str) -> ParseResult<T>
     where
@@ -787,7 +953,15 @@ impl Request {
         }
     }
 
-    /// Get value from query, if key is not found in queries, then get from form.
+    /// Gets a value from query parameters first, falling back to form data.
+    ///
+    /// Checks query parameters for the key first. If not found, checks the form body.
+    /// Returns `None` if the key doesn't exist in either location.
+    ///
+    /// # Use Case
+    ///
+    /// Useful when a parameter can come from either URL query string or form submission,
+    /// with query parameters taking precedence.
     #[inline]
     pub async fn query_or_form<'de, T>(&'de mut self, key: &str) -> Option<T>
     where
@@ -796,7 +970,9 @@ impl Request {
         self.try_query_or_form(key).await.ok()
     }
 
-    /// Try to get value from query, if key is not found in queries, then get from form.
+    /// Tries to get a value from query parameters first, falling back to form data.
+    ///
+    /// Returns a [`ParseResult`] with either the deserialized value or an error.
     #[inline]
     pub async fn try_query_or_form<'de, T>(&'de mut self, key: &str) -> ParseResult<T>
     where
@@ -809,24 +985,44 @@ impl Request {
         }
     }
 
-    /// Get [`FilePart`] reference from request.
+    /// Gets an uploaded file by form field name.
+    ///
+    /// Returns the first file uploaded with the given field name, or `None`
+    /// if no file was uploaded with that name.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// if let Some(file) = req.file("avatar").await {
+    ///     let filename = file.name().unwrap_or("unknown");
+    ///     let content_type = file.content_type();
+    /// }
+    /// ```
     #[inline]
     pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
         self.try_file(key).await.ok().flatten()
     }
-    /// Try to get [`FilePart`] reference from request.
+
+    /// Tries to get an uploaded file by form field name.
+    ///
+    /// Returns a [`ParseResult`] containing `Option<&FilePart>`.
+    /// The outer result indicates if form parsing succeeded;
+    /// the inner option indicates if a file with that key exists.
     #[inline]
     pub async fn try_file(&mut self, key: &str) -> ParseResult<Option<&FilePart>> {
         self.form_data().await.map(|ps| ps.files.get(key))
     }
 
-    /// Get [`FilePart`] reference from request.
+    /// Gets the first uploaded file from the request.
+    ///
+    /// Useful when you only expect a single file upload and don't care about the field name.
+    /// Returns `None` if no files were uploaded.
     #[inline]
     pub async fn first_file(&mut self) -> Option<&FilePart> {
         self.try_first_file().await.ok().flatten()
     }
 
-    /// Try to get [`FilePart`] reference from request.
+    /// Tries to get the first uploaded file from the request.
     #[inline]
     pub async fn try_first_file(&mut self) -> ParseResult<Option<&FilePart>> {
         self.form_data()
@@ -834,24 +1030,32 @@ impl Request {
             .map(|ps| ps.files.iter().next().map(|(_, f)| f))
     }
 
-    /// Get [`FilePart`] list reference from request.
+    /// Gets all files uploaded with the given form field name.
+    ///
+    /// HTML forms with `<input type="file" name="docs" multiple>` can upload
+    /// multiple files under the same field name. This method returns all of them.
+    ///
+    /// Returns `None` if no files were uploaded with that name.
     #[inline]
     pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
         self.try_files(key).await.ok().flatten()
     }
-    /// Try to get [`FilePart`] list reference from request.
+
+    /// Tries to get all files uploaded with the given form field name.
     #[inline]
     pub async fn try_files(&mut self, key: &str) -> ParseResult<Option<&Vec<FilePart>>> {
         self.form_data().await.map(|ps| ps.files.get_vec(key))
     }
 
-    /// Get [`FilePart`] list reference from request.
+    /// Gets all uploaded files from the request, regardless of field name.
+    ///
+    /// Returns an empty vector if no files were uploaded.
     #[inline]
     pub async fn all_files(&mut self) -> Vec<&FilePart> {
         self.try_all_files().await.unwrap_or_default()
     }
 
-    /// Try to get [`FilePart`] list reference from request.
+    /// Tries to get all uploaded files from the request.
     #[inline]
     pub async fn try_all_files(&mut self) -> ParseResult<Vec<&FilePart>> {
         self.form_data()
@@ -859,45 +1063,164 @@ impl Request {
             .map(|ps| ps.files.flat_iter().map(|(_, f)| f).collect())
     }
 
-    /// Get request payload with default max size limit(64KB).
+    /// Get request payload as raw bytes with the default size limit.
     ///
-    /// <https://github.com/hyperium/hyper/issues/3111>
-    /// *Notice: This method takes body.
+    /// Reads the entire request body into memory and caches it. The default size limit
+    /// is determined by [`secure_max_size()`](Request::secure_max_size) (64KB by default).
+    ///
+    /// # Caching Behavior
+    ///
+    /// The payload is cached after the first call, so subsequent calls return the
+    /// cached bytes without re-reading the body. This allows both middleware and
+    /// handlers to access the raw body data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the body exceeds the size limit or if reading fails.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let bytes = req.payload().await?;
+    /// println!("Body length: {}", bytes.len());
+    /// ```
     #[inline]
     pub async fn payload(&mut self) -> ParseResult<&Bytes> {
         self.payload_with_max_size(self.secure_max_size()).await
     }
 
-    /// Get request payload with max size limit.
+    /// Get request payload as raw bytes with a custom size limit.
     ///
-    /// <https://github.com/hyperium/hyper/issues/3111>
-    /// *Notice: This method takes body.
+    /// Similar to [`payload()`](Request::payload), but allows specifying a custom
+    /// maximum size limit instead of using the default.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit, an error
+    ///   is returned.
+    ///
+    /// # Caching Behavior
+    ///
+    /// The payload is cached after the first successful read. Once cached, the
+    /// `max_size` parameter is ignored on subsequent calls since the data is
+    /// already in memory.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Allow up to 1MB payload
+    /// let bytes = req.payload_with_max_size(1024 * 1024).await?;
+    /// ```
     #[inline]
     pub async fn payload_with_max_size(&mut self, max_size: usize) -> ParseResult<&Bytes> {
         let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                Ok(Limited::new(body, max_size)
-                    .collect()
-                    .await
-                    .map_err(ParseError::other)?
-                    .to_bytes())
+                let limited = Limited::new(body, max_size);
+                let collected = limited.collect().await.map_err(|e| {
+                    if e.is::<http_body_util::LengthLimitError>() {
+                        ParseError::PayloadTooLarge
+                    } else {
+                        ParseError::other(e)
+                    }
+                })?;
+                Ok(collected.to_bytes())
             })
             .await
     }
 
-    /// Get `FormData` reference from request.
+    /// Get [`FormData`] reference from request with the default size limit.
     ///
-    /// *Notice: This method takes body and body's size is not limited.
+    /// Parses the request body as form data (either `application/x-www-form-urlencoded`
+    /// or `multipart/form-data`) and caches the result for subsequent calls.
+    ///
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size) (64KB by
+    /// default). For a custom size limit, use
+    /// [`form_data_max_size()`](Request::form_data_max_size).
+    ///
+    /// # Body Handling
+    ///
+    /// This method intelligently handles body consumption:
+    ///
+    /// - If the body hasn't been consumed yet, it reads directly from the body stream.
+    /// - If the body was already consumed by [`payload()`](Request::payload), it reuses the cached
+    ///   payload bytes to parse the form data.
+    /// - The parsed [`FormData`] is cached, so subsequent calls return the cached result.
+    ///
+    /// This allows middleware to read the raw body via `payload()` while still allowing
+    /// handlers to access parsed form data.
+    ///
+    /// # Content Type Requirements
+    ///
+    /// Returns [`ParseError::NotFormData`] if the `Content-Type` header is not:
+    /// - `application/x-www-form-urlencoded`
+    /// - `multipart/form-data`
+    ///
+    /// # Note
+    ///
+    /// For multipart form data, file uploads are written to temporary files but the
+    /// overall request size is still subject to the secure max size limit.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Access form fields
+    /// let form_data = req.form_data().await?;
+    /// let username = form_data.fields.get("username");
+    ///
+    /// // Access uploaded files
+    /// let file = form_data.files.get("avatar");
+    /// ```
     #[inline]
     pub async fn form_data(&mut self) -> ParseResult<&FormData> {
+        self.form_data_max_size(self.secure_max_size()).await
+    }
+
+    /// Get [`FormData`] reference from request with a custom size limit.
+    ///
+    /// Similar to [`form_data()`](Request::form_data), but allows specifying a custom
+    /// maximum size limit instead of using the default.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_size` - Maximum allowed body size in bytes. If the body exceeds this limit, an error
+    ///   is returned.
+    ///
+    /// # Caching Behavior
+    ///
+    /// The form data is cached after the first successful parse. Once cached, the
+    /// `max_size` parameter is ignored on subsequent calls since the data is
+    /// already in memory.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Allow up to 1MB form data
+    /// let form_data = req.form_data_max_size(1024 * 1024).await?;
+    /// let username = form_data.fields.get("username");
+    /// ```
+    #[inline]
+    pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
                 let body = self.take_body();
-                let headers = self.headers();
-                self.form_data
-                    .get_or_try_init(|| async { FormData::read(headers, body).await })
-                    .await
+                if body.is_none() {
+                    let bytes = self.payload_with_max_size(max_size).await?.to_owned();
+                    let headers = self.headers();
+                    self.form_data
+                        .get_or_try_init(|| async {
+                            FormData::read(headers, ReqBody::Once(bytes).into_data_stream()).await
+                        })
+                        .await
+                } else {
+                    let headers = self.headers();
+                    let limited = Limited::new(body, max_size);
+                    self.form_data
+                        .get_or_try_init(|| async {
+                            FormData::read(headers, limited.into_data_stream()).await
+                        })
+                        .await
+                }
             } else {
                 Err(ParseError::NotFormData)
             }
@@ -908,23 +1231,24 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract<'de, T>(&'de mut self) -> ParseResult<T>
+    pub async fn extract<'de, T>(&'de mut self, depot: &'de mut Depot) -> ParseResult<T>
     where
         T: Extractible<'de> + Deserialize<'de> + Send,
     {
-        self.extract_with_metadata(T::metadata()).await
+        self.extract_with_metadata(depot, T::metadata()).await
     }
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
     pub async fn extract_with_metadata<'de, T>(
         &'de mut self,
+        depot: &'de mut Depot,
         metadata: &'de Metadata,
     ) -> ParseResult<T>
     where
         T: Deserialize<'de> + Send,
     {
-        from_request(self, metadata).await
+        from_request(self, depot, metadata).await
     }
 
     /// Parse url params as type `T` from request.
@@ -976,7 +1300,30 @@ impl Request {
         }
     }
 
-    /// Parse json body as type `T` from request with default max size limit.
+    /// Parses the JSON request body into type `T`.
+    ///
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size).
+    ///
+    /// # Content Type
+    ///
+    /// Requires `Content-Type: application/json`. Returns [`ParseError::InvalidContentType`]
+    /// if the content type doesn't match.
+    ///
+    /// # Empty Body Handling
+    ///
+    /// An empty body is treated as JSON `null`, allowing deserialization into `Option<T>`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// #[derive(Deserialize)]
+    /// struct CreateUser {
+    ///     name: String,
+    ///     email: String,
+    /// }
+    ///
+    /// let user: CreateUser = req.parse_json().await?;
+    /// ```
     #[inline]
     pub async fn parse_json<'de, T>(&'de mut self) -> ParseResult<T>
     where
@@ -984,7 +1331,10 @@ impl Request {
     {
         self.parse_json_with_max_size(self.secure_max_size()).await
     }
-    /// Parse json body as type `T` from request with max size limit.
+
+    /// Parses the JSON request body into type `T` with a custom size limit.
+    ///
+    /// See [`parse_json()`](Request::parse_json) for details.
     #[inline]
     pub async fn parse_json_with_max_size<'de, T>(&'de mut self, max_size: usize) -> ParseResult<T>
     where
@@ -1009,7 +1359,27 @@ impl Request {
         }
     }
 
-    /// Parse form body as type `T` from request.
+    /// Parses the form request body into type `T`.
+    ///
+    /// Deserializes form fields into the target type. Works with both
+    /// `application/x-www-form-urlencoded` and `multipart/form-data` content types.
+    ///
+    /// # Content Type
+    ///
+    /// Requires `Content-Type` to be either `application/x-www-form-urlencoded`
+    /// or `multipart/form-data`. Returns [`ParseError::InvalidContentType`] otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// #[derive(Deserialize)]
+    /// struct LoginForm {
+    ///     username: String,
+    ///     password: String,
+    /// }
+    ///
+    /// let form: LoginForm = req.parse_form().await?;
+    /// ```
     #[inline]
     pub async fn parse_form<'de, T>(&'de mut self) -> ParseResult<T>
     where
@@ -1025,7 +1395,24 @@ impl Request {
         }
     }
 
-    /// Parse json body or form body as type `T` from request with default max size.
+    /// Parses the request body as either JSON or form data into type `T`.
+    ///
+    /// Automatically detects the content type and parses accordingly:
+    /// - `application/json` → parses as JSON
+    /// - `application/x-www-form-urlencoded` or `multipart/form-data` → parses as form
+    ///
+    /// Uses the default size limit from [`secure_max_size()`](Request::secure_max_size).
+    ///
+    /// # Use Case
+    ///
+    /// Useful for APIs that accept both JSON and form submissions for the same endpoint.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Works with both JSON and form submissions
+    /// let data: MyStruct = req.parse_body().await?;
+    /// ```
     #[inline]
     pub async fn parse_body<'de, T>(&'de mut self) -> ParseResult<T>
     where
@@ -1034,15 +1421,19 @@ impl Request {
         self.parse_body_with_max_size(self.secure_max_size()).await
     }
 
-    /// Parse json body or form body as type `T` from request with max size.
+    /// Parses the request body as either JSON or form data with a custom size limit.
+    ///
+    /// See [`parse_body()`](Request::parse_body) for details.
     pub async fn parse_body_with_max_size<'de, T>(&'de mut self, max_size: usize) -> ParseResult<T>
     where
         T: Deserialize<'de>,
     {
         if let Some(ctype) = self.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                return from_str_multi_map(self.form_data().await?.fields.iter_all())
-                    .map_err(ParseError::Deserialize);
+                return from_str_multi_map(
+                    self.form_data_max_size(max_size).await?.fields.iter_all(),
+                )
+                .map_err(ParseError::Deserialize);
             } else if ctype.subtype() == mime::JSON {
                 return self.payload_with_max_size(max_size).await.and_then(|body| {
                     serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson)
@@ -1157,5 +1548,161 @@ file content\r\n\
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
+    }
+
+    /// Test that `form_data()` works correctly after `payload()` has been accessed.
+    ///
+    /// This simulates a common scenario where middleware reads the request body
+    /// via `payload()` before the handler tries to parse form data. The cached
+    /// payload bytes should be reused by `form_data()`.
+    #[tokio::test]
+    async fn test_form_data_after_payload() {
+        // Test 1: URL-encoded form (application/x-www-form-urlencoded)
+        // Simulates browser submitting a simple HTML form
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+
+        // Access payload first - simulates middleware reading the body
+        let payload = req.payload().await.unwrap();
+        assert!(!payload.is_empty());
+        assert_eq!(payload.as_ref(), b"username=test_user&password=secret123");
+
+        // form_data() should still work by using cached payload bytes
+        let form_data = req.form_data().await.unwrap();
+        assert_eq!(form_data.fields.get("username").unwrap(), "test_user");
+        assert_eq!(form_data.fields.get("password").unwrap(), "secret123");
+
+        // Verify form_data can be accessed multiple times (caching works)
+        let form_data_again = req.form_data().await.unwrap();
+        assert_eq!(form_data_again.fields.get("username").unwrap(), "test_user");
+
+        // Test 2: Multipart form (multipart/form-data)
+        // Simulates browser submitting a form with file upload
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+
+        // Access payload first - simulates middleware or logging reading the body
+        let payload = req.payload().await.unwrap();
+        assert!(!payload.is_empty());
+
+        // form_data() should still parse multipart data from cached payload
+        let form_data = req.form_data().await.unwrap();
+        assert_eq!(form_data.fields.get("title").unwrap(), "My Document");
+
+        // Verify file upload data is correctly parsed
+        let file = form_data.files.get("file").unwrap();
+        assert_eq!(file.name().unwrap(), "test.txt");
+        assert_eq!(file.content_type().unwrap(), "text/plain");
+    }
+
+    #[tokio::test]
+    async fn test_form_data_payload_too_large_urlencoded() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        req.set_secure_max_size(10);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_form_data_payload_too_large_multipart() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(16);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
+
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\nMy Document\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\
+Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+Hello World\r\n\
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+            )
+            .build();
+        req.set_secure_max_size(1600);
+        assert!(req.form_data().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_form_data_content_length_too_large() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .add_header("content-length", "9999", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        req.set_secure_max_size(10);
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_parse_body_with_max_size_form() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct LoginForm {
+            username: String,
+            password: String,
+        }
+        // Test that small max_size triggers error
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        let err = req
+            .parse_body_with_max_size::<LoginForm>(10)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ParseError::PayloadTooLarge));
+
+        // Test that sufficient max_size succeeds (need new request since body was consumed)
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=test_user&password=secret123")
+            .build();
+        assert!(
+            req.parse_body_with_max_size::<LoginForm>(1000)
+                .await
+                .is_ok()
+        );
     }
 }

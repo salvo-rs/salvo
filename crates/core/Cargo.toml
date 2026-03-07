@@ -27,6 +27,7 @@ default = [
     "test",
     "aws-lc-rs",
     "matched-path",
+    "unix",
 ]
 full = [
     "cookie",
@@ -59,7 +60,7 @@ quinn = ["dep:salvo-http3", "dep:quinn", "dep:h3-datagram", "rustls"]
 rustls = ["dep:tokio-rustls"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
-unix = ["http1"]
+unix = ["http1", "dep:nix"]
 test = [
     "dep:brotli",
     "dep:flate2",
@@ -141,7 +142,7 @@ flate2 = { workspace = true, optional = true, features = ["default"] }
 zstd = { workspace = true, optional = true, features = ["default"] }
 
 [target.'cfg(unix)'.dependencies]
-nix = { workspace = true, features = ["fs", "user"] }
+nix = { workspace = true, optional = true, features = ["fs", "user"] }
 
 [dev-dependencies]
 fastrand = { workspace = true }

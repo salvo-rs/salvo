@@ -100,6 +100,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
+serial_test = "3"
 assert-json-diff = { workspace = true }
 salvo_core = { workspace = true, default-features = false, features = [
     "cookie",

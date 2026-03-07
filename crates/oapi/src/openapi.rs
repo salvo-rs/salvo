@@ -1154,6 +1154,21 @@ mod tests {
     }
 
     #[test]
+    fn merge_router_normalizes_constrained_path_params() {
+        #[salvo_oapi::endpoint]
+        async fn get_post(id: PathParam<i32>) -> &'static str {
+            let _ = id;
+            "ok"
+        }
+
+        let router = Router::with_path("/posts/{id:num}").get(get_post);
+        let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+
+        assert!(doc.paths.contains_key("/posts/{id}"));
+        assert!(!doc.paths.contains_key("/posts/{id:num}"));
+    }
+
+    #[test]
     fn test_build_openapi() {
         let _doc = OpenApi::new("pet api", "0.1.0")
             .info(Info::new("my pet api", "0.2.0"))
@@ -1301,6 +1316,9 @@ mod tests {
 
     #[test]
     fn test_openapi_schema_work_with_generics() {
+        // Reset global namer state to ensure deterministic test results
+        crate::naming::set_namer(crate::naming::FlexNamer::new());
+
         #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
         #[salvo(schema(name = City))]
         pub(crate) struct CityDTO {
@@ -1372,7 +1390,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>"
+                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<City>>"
                                             }
                                         }
                                     }
@@ -1438,7 +1456,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc.vec.Vec<salvo_oapi.openapi.tests.test_openapi_schema_work_with_generics.CityDTO>>": {
+                        "Response<alloc.vec.Vec<City>>": {
                             "type": "object",
                             "required": [
                                 "status",

@@ -2,11 +2,70 @@ use std::any::TypeId;
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{LazyLock, RwLock};
 
-use regex::Regex;
 use salvo_core::Router;
 
 use crate::SecurityRequirement;
 use crate::path::PathItemType;
+
+fn normalize_oapi_path(path: &str) -> String {
+    let mut normalized = String::with_capacity(path.len());
+    let mut chars = path.char_indices().peekable();
+
+    while let Some((start, ch)) = chars.next() {
+        if ch != '{' {
+            normalized.push(ch);
+            continue;
+        }
+        // Keep escaped literal braces (`{{`) as-is.
+        if chars.peek().map(|(_, next)| *next) == Some('{') {
+            normalized.push('{');
+            normalized.push('{');
+            chars.next();
+            continue;
+        }
+
+        let content_start = start + ch.len_utf8();
+        let mut braces_depth = 0usize;
+        let mut escaping = false;
+        let mut param_end = None;
+
+        while let Some((idx, current)) = chars.next() {
+            if escaping {
+                escaping = false;
+                continue;
+            }
+            match current {
+                '\\' => escaping = true,
+                '{' => braces_depth += 1,
+                '}' => {
+                    if braces_depth == 0 {
+                        param_end = Some(idx);
+                        break;
+                    }
+                    braces_depth -= 1;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(param_end) = param_end {
+            let content = &path[content_start..param_end];
+            if let Some(name_end) = content.find([':', '|']) {
+                normalized.push('{');
+                normalized.push_str(&content[..name_end]);
+                normalized.push('}');
+            } else {
+                normalized.push('{');
+                normalized.push_str(content);
+                normalized.push('}');
+            }
+        } else {
+            normalized.push_str(&path[start..]);
+            break;
+        }
+    }
+    normalized
+}
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
@@ -36,7 +95,6 @@ impl NormNode {
                 .extend(metadata.securities.iter().cloned());
         }
 
-        let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).expect("invalid regex");
         for filter in router.filters() {
             let info = format!("{filter:?}");
             if info.starts_with("path:") {
@@ -44,7 +102,7 @@ impl NormNode {
                     .split_once(':')
                     .expect("split once by ':' should not be get `None`")
                     .1;
-                node.path = Some(regex.replace_all(path, "{$1}").to_string());
+                node.path = Some(normalize_oapi_path(path));
             } else if info.starts_with("method:") {
                 match info
                     .split_once(':')
@@ -159,4 +217,25 @@ impl RouterExt for Router {
 pub(crate) struct Metadata {
     pub(crate) tags: BTreeSet<String>,
     pub(crate) securities: Vec<SecurityRequirement>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_oapi_path;
+
+    #[test]
+    fn normalize_braced_path_constraints() {
+        assert_eq!(normalize_oapi_path("/posts/{id}"), "/posts/{id}");
+        assert_eq!(normalize_oapi_path("/posts/{id:num}"), "/posts/{id}");
+        assert_eq!(
+            normalize_oapi_path("/posts/{id:num(3..=10)}"),
+            "/posts/{id}"
+        );
+        assert_eq!(normalize_oapi_path(r"/posts/{id|\d+}"), "/posts/{id}");
+        assert_eq!(normalize_oapi_path("/posts/{id|[a-z]{2}}"), "/posts/{id}");
+        assert_eq!(
+            normalize_oapi_path("/posts/article_{id:num}"),
+            "/posts/article_{id}"
+        );
+    }
 }

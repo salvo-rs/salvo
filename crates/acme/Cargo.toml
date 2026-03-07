@@ -59,6 +59,7 @@ x509-parser = { workspace = true }
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 time = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
