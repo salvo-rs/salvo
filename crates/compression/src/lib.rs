@@ -312,29 +312,55 @@ impl Compression {
             .get(ACCEPT_ENCODING)
             .and_then(|v| v.to_str().ok())?;
 
-        let accept_algos = http::parse_accept_encoding(header)
-            .into_iter()
-            .filter_map(|(algo, level)| {
-                if let Ok(algo) = algo.parse::<CompressionAlgo>() {
-                    Some((algo, level))
-                } else {
-                    None
-                }
-            })
+        let accept_list = http::parse_accept_encoding(header);
+
+        let wildcard_q = accept_list.iter().find(|(a, _)| a == "*").map(|(_, q)| *q);
+
+        // Algorithms accept q > 0 and sorted by q-value descending.
+        let accept_algos = accept_list
+            .iter()
+            .filter(|(_, q)| *q > 0)
+            .filter_map(|(algo, q)| algo.parse::<CompressionAlgo>().ok().map(|a| (a, *q)))
             .collect::<Vec<_>>();
+
+        // Algorithms to explicitly rejected when q = 0
+        let rejected = accept_list
+            .iter()
+            .filter(|(_, q)| *q == 0)
+            .filter_map(|(algo, _)| algo.parse::<CompressionAlgo>().ok())
+            .collect::<Vec<_>>();
+
         if self.force_priority {
-            let accept_algos = accept_algos
-                .into_iter()
-                .map(|(algo, _)| algo)
-                .collect::<Vec<_>>();
+            // Server preference: pick the highest-priority server algo the client accepts.
             self.algos
                 .iter()
-                .find(|(algo, _level)| accept_algos.contains(algo))
+                .find(|(algo, _)| {
+                    if rejected.contains(algo) {
+                        return false;
+                    }
+                    accept_algos.iter().any(|(a, _)| a == *algo)
+                        || wildcard_q.is_some_and(|q| q > 0)
+                })
                 .map(|(algo, level)| (*algo, *level))
         } else {
-            accept_algos
-                .into_iter()
-                .find_map(|(algo, _)| self.algos.get(&algo).map(|level| (algo, *level)))
+            // Client preference: pick the highest q-value algo the server supports.
+            let result = accept_algos
+                .iter()
+                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
+
+            if result.is_some() {
+                return result;
+            }
+
+            // Wildcard `*`: use the server's top algo that is not explicitly rejected.
+            if wildcard_q.is_some_and(|q| q > 0) {
+                self.algos
+                    .iter()
+                    .find(|(algo, _)| !rejected.contains(algo))
+                    .map(|(algo, level)| (*algo, *level))
+            } else {
+                None
+            }
         }
     }
 }
@@ -368,7 +394,7 @@ impl Handler for Compression {
                 }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, Some(bytes)));
-                    res.headers_mut().append(CONTENT_ENCODING, algo.into());
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
                     res.body(ResBody::Once(bytes));
                     return;
@@ -384,7 +410,7 @@ impl Handler for Compression {
                 }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, chunks));
-                    res.headers_mut().append(CONTENT_ENCODING, algo.into());
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
                     res.body(ResBody::Chunks(chunks));
                     return;
@@ -393,7 +419,7 @@ impl Handler for Compression {
             ResBody::Hyper(body) => {
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
-                    res.headers_mut().append(CONTENT_ENCODING, algo.into());
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
                     res.body(ResBody::Hyper(body));
                     return;
@@ -403,7 +429,7 @@ impl Handler for Compression {
                 let body = body.into_inner();
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
-                    res.headers_mut().append(CONTENT_ENCODING, algo.into());
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
                     res.body(ResBody::stream(body));
                     return;
@@ -542,6 +568,96 @@ mod tests {
             .send(router)
             .await;
         assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_q_value_preference() {
+        // Client prefers br (q=1.0) over gzip (q=0.5)
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip;q=0.5, br;q=1.0", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+        let content = res.take_string().await.unwrap();
+        assert_eq!(content, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_q_value_zero_rejects_algo() {
+        // gzip is explicitly rejected (q=0), only br is acceptable
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip;q=0, br", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+        let content = res.take_string().await.unwrap();
+        assert_eq!(content, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_identity_only_no_compression() {
+        // identity means no encoding; server must not compress
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "identity", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_wildcard_uses_server_algo() {
+        // `*` means accept any encoding; server picks its preferred algo
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "*", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
+    }
+
+    #[tokio::test]
+    async fn test_wildcard_excludes_rejected_algo() {
+        // `*` but gzip;q=0 — server must not use gzip, falls back to next algo
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .enable_brotli(CompressionLevel::Default)
+            .min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "*, gzip;q=0", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+    }
+
+    #[tokio::test]
+    async fn test_single_content_encoding_header() {
+        // Ensure only one Content-Encoding header is set (no duplicates via append)
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        let count = res.headers().get_all(CONTENT_ENCODING).iter().count();
+        assert_eq!(count, 1, "must have exactly one Content-Encoding header");
     }
 
     #[tokio::test]
