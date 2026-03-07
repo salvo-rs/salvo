@@ -41,7 +41,7 @@ catch-panic = ["dep:futures-util", "dep:tracing"]
 force-https = ["dep:tracing"]
 logging = ["dep:tracing"]
 concurrency-limiter = ["dep:tracing", "tokio"]
-size-limiter = []
+size-limiter = ["dep:http-body-util"]
 sse = [
     "dep:futures-util",
     "dep:pin-project",
