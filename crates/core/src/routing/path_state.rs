@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::{PathParams, decode_url_path_safely};
+use super::{PathParams, decode_url_path};
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -27,7 +27,7 @@ impl PathState {
             .split('/')
             .filter_map(|p| {
                 if !p.is_empty() {
-                    Some(decode_url_path_safely(p))
+                    Some(decode_url_path(p))
                 } else {
                     None
                 }

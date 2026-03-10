@@ -11,9 +11,8 @@ pub mod oauth;
 pub use config::Config;
 pub use oauth::Config as OauthConfig;
 use rust_embed::RustEmbed;
-use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::http::{HeaderValue, ResBody, StatusError, header};
-use salvo_core::writing::Redirect;
+use salvo_core::routing::redirect_to_dir_url;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, Router, async_trait};
 use serde::Serialize;
 
@@ -202,37 +201,6 @@ impl SwaggerUi {
     /// Consusmes the [`SwaggerUi`] and returns [`Router`] with the [`SwaggerUi`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(format!("{}/{{**}}", path.into())).goal(self)
-    }
-}
-
-#[inline]
-pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
-    let UriParts {
-        scheme,
-        authority,
-        path_and_query,
-        ..
-    } = req_uri.clone().into_parts();
-    let mut builder = Uri::builder();
-    if let Some(scheme) = scheme {
-        builder = builder.scheme(scheme);
-    }
-    if let Some(authority) = authority {
-        builder = builder.authority(authority);
-    }
-    if let Some(path_and_query) = path_and_query {
-        if let Some(query) = path_and_query.query() {
-            builder = builder.path_and_query(format!("{}/?{}", path_and_query.path(), query));
-        } else {
-            builder = builder.path_and_query(format!("{}/", path_and_query.path()));
-        }
-    }
-    match builder.build() {
-        Ok(redirect_uri) => res.render(Redirect::found(redirect_uri)),
-        Err(e) => {
-            tracing::error!(error = ?e, "failed to build redirect uri");
-            res.render(StatusError::internal_server_error());
-        }
     }
 }
 
