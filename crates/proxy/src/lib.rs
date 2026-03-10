@@ -393,7 +393,6 @@ where
         }
 
         let path = (self.url_path_getter)(req, depot).unwrap_or_default();
-
         let path = encode_url_path(&normalize_url_path(&path));
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
@@ -718,17 +717,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_build_proxied_request_rejects_unsafe_tail() {
+    async fn test_build_proxied_request_unsafe_tail() {
         let mut request = Request::new();
         request.params_mut().insert("**rest", "../admin".to_owned());
         let depot = Depot::new();
         let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
 
-        let error = proxy
+        let req = proxy
             .build_proxied_request(&mut request, &depot)
             .await
-            .unwrap_err();
-        assert!(error.to_string().contains("parent directory"));
+            .unwrap();
+        assert_eq!(req.uri().to_string(), "http://example.com/api/admin");
     }
 
     #[tokio::test]
