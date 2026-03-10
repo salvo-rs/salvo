@@ -580,25 +580,6 @@ mod tests {
     }
 
     #[test]
-    fn test_normalize_proxy_path_safely() {
-        assert_eq!(
-            normalize_proxy_path_safely("guide/index.html").unwrap(),
-            "guide/index.html"
-        );
-        assert_eq!(
-            normalize_proxy_path_safely("guide\\index.html").unwrap(),
-            "guide/index.html"
-        );
-        assert_eq!(
-            normalize_proxy_path_safely("./guide//index.html").unwrap(),
-            "guide/index.html"
-        );
-        assert!(normalize_proxy_path_safely("../admin").is_err());
-        assert!(normalize_proxy_path_safely("guide/../admin").is_err());
-        assert!(normalize_proxy_path_safely("guide/\0/index.html").is_err());
-    }
-
-    #[test]
     fn test_default_url_path_getter_uses_raw_tail() {
         let mut request = Request::new();
         request

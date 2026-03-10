@@ -412,10 +412,10 @@ mod flow_ctrl;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-pub use flow_ctrl::FlowCtrl;
 use crate::http::uri::{Parts as UriParts, Uri};
+pub use flow_ctrl::FlowCtrl;
 
-use crate::{Response, Handler};
+use crate::{Handler, Response};
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 
 const HTML_ENCODE_SET: &AsciiSet = &CONTROLS
@@ -556,6 +556,7 @@ fn is_windows_reserved_name(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use crate::routing::{is_windows_reserved_name, normalize_url_path};
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
