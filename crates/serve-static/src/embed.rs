@@ -10,9 +10,8 @@ use salvo_core::http::header::{
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
 use salvo_core::http::mime::fill_mime_charset_if_need;
 use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
+use salvo_core::routing::{decode_url_path, redirect_to_dir_url, normalize_url_path};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
-
-use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url};
 
 /// Handler that serves embedded files using `rust-embed`.
 ///
@@ -241,9 +240,9 @@ where
         let req_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
-            &*decode_url_path_safely(req.uri().path())
+            &*decode_url_path(req.uri().path())
         };
-        let req_path = format_url_path_safely(req_path);
+        let req_path = normalize_url_path(req_path);
         let mut key_path = Cow::Borrowed(&*req_path);
         let mut embedded_file = T::get(req_path.as_str());
         if embedded_file.is_none() {

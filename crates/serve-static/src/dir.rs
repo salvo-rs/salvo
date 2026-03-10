@@ -12,6 +12,9 @@ use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError, mime};
+use salvo_core::routing::{
+    decode_url_path, encode_url_path, normalize_url_path, redirect_to_dir_url,
+};
 use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
@@ -20,9 +23,7 @@ use time::OffsetDateTime;
 use time::macros::format_description;
 use tokio::io::AsyncReadExt;
 
-use super::{
-    decode_url_path_safely, encode_url_path, format_url_path_safely, join_path, redirect_to_dir_url,
-};
+use super::join_path;
 
 /// Supported compression algorithms for serving compressed file variants
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
@@ -340,9 +341,9 @@ impl Handler for StaticDir {
         let rel_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
-            &*decode_url_path_safely(req_path)
+            &*decode_url_path(req_path)
         };
-        let rel_path = format_url_path_safely(rel_path);
+        let rel_path = normalize_url_path(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let is_dot_file = Path::new(&rel_path)
@@ -513,7 +514,7 @@ impl Handler for StaticDir {
                 .map(|(name, metadata)| DirInfo::new(name, &metadata))
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
-            let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
+            let root = CurrentInfo::new(decode_url_path(req_path), files, dirs);
             res.status_code(StatusCode::OK);
             match format.subtype().as_ref() {
                 "plain" => res.render(Text::Plain(list_text(&root))),

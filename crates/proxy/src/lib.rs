@@ -52,6 +52,7 @@ use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
+use salvo_core::routing::normalize_url_path;
 use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 
 #[macro_use]
@@ -187,7 +188,7 @@ pub type HostHeaderGetter =
 /// This getter will get the last param as the rest url path from request.
 /// In most case you should use wildcard param, like `{**rest}`, `{*+rest}`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
-    req.params().tail().map(encode_url_path)
+    req.params().tail().map(str::to_owned)
 }
 /// Default url query getter. This getter just return the query string from request uri.
 pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String> {
@@ -391,7 +392,8 @@ where
             return Err(Error::other("upstreams is empty"));
         }
 
-        let path = encode_url_path(&(self.url_path_getter)(req, depot).unwrap_or_default());
+        let path = (self.url_path_getter)(req, depot).unwrap_or_default();
+        let path = encode_url_path(&normalize_url_path(&path));
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if let Some(stripped) = query.strip_prefix('?') {
@@ -531,6 +533,7 @@ where
             }
             Err(e) => {
                 tracing::error!(error = ?e, "build proxied request failed");
+                res.status_code(StatusCode::BAD_REQUEST);
             }
         }
     }
@@ -573,6 +576,20 @@ mod tests {
         let path = "/test/path";
         let encoded_path = encode_url_path(path);
         assert_eq!(encoded_path, "/test/path");
+    }
+
+    #[test]
+    fn test_default_url_path_getter_uses_raw_tail() {
+        let mut request = Request::new();
+        request
+            .params_mut()
+            .insert("**rest", "guide/../index.html".to_owned());
+        let depot = Depot::new();
+
+        assert_eq!(
+            default_url_path_getter(&request, &depot).as_deref(),
+            Some("guide/../index.html")
+        );
     }
 
     #[test]
@@ -697,5 +714,38 @@ mod tests {
             ),
             _ => assert!(false),
         }
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_unsafe_tail() {
+        let mut request = Request::new();
+        request.params_mut().insert("**rest", "../admin".to_owned());
+        let depot = Depot::new();
+        let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
+
+        let req = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+        assert_eq!(req.uri().to_string(), "http://example.com/api/admin");
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_normalizes_safe_tail() {
+        let mut request = Request::new();
+        request
+            .params_mut()
+            .insert("**rest", "guide\\index.html".to_owned());
+        let depot = Depot::new();
+        let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
+
+        let proxied_request = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+        assert_eq!(
+            proxied_request.uri().to_string(),
+            "http://example.com/api/guide/index.html"
+        );
     }
 }
