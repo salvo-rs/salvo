@@ -412,11 +412,11 @@ mod flow_ctrl;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use crate::http::uri::{Parts as UriParts, Uri};
 pub use flow_ctrl::FlowCtrl;
-
-use crate::{Handler, Response};
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
+
+use crate::http::uri::{Parts as UriParts, Uri};
+use crate::{Handler, Response};
 
 const HTML_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b'\'')

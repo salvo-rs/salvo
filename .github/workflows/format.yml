@@ -15,6 +15,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
-      - uses: mbrobbel/rustfmt-check@master
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check formatting
+        run: cargo +nightly fmt --all -- --check
