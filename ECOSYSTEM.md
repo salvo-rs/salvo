@@ -12,9 +12,9 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [salvo-casbin](https://github.com/casbin-rs/salvo-casbin): Casbin access control hoop for salvo framework.
 
 ## Project showcase
-
-- [AI00 RWKV Server](https://github.com/Ai00-X/ai00_server): AI00 RWKV Server is an inference API server based on the RWKV model.
+- [Savhub](https://github.com/savhub-ai/savhub): Easily manage your AI skills.
 - [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
+- [AI00 RWKV Server](https://github.com/Ai00-X/ai00_server): AI00 RWKV Server is an inference API server based on the RWKV model.
 - [dora](https://github.com/dora-rs/dora): Making robotic applications fast and simple!
 - [rmqtt](https://github.com/rmqtt/rmqtt): MQTT Server/MQTT Broker - Scalable Distributed MQTT Message Broker for IoT in the 5G Era.
 - [Salvo Admin](https://github.com/lyqgit/salvo-admin): 基于salvo和Ruoyi-Vue3的rust快速开发框架.
