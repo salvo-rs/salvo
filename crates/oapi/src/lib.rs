@@ -181,7 +181,8 @@ pub mod oapi {
 
 #[doc(hidden)]
 pub mod __private {
-    pub use {inventory, serde_json};
+    pub use inventory;
+    pub use serde_json;
 }
 
 #[rustfmt::skip]
