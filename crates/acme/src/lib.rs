@@ -179,10 +179,6 @@ impl Handler for Http01Handler {
     }
 }
 
-// ---------------------------------------------------------------------------
-// ListenerAcmeExt
-// ---------------------------------------------------------------------------
-
 /// Extension trait for Listener to support ACME.
 pub trait AcmeListener {
     /// Enable ACME support for the listener.
