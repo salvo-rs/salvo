@@ -142,6 +142,13 @@ salvo new my_project
 - [API 文件](https://docs.rs/salvo)
 - [範例程式碼](./examples/)
 
+## 推薦專案
+
+- **[Savhub](https://github.com/savhub-ai/savhub)** - 輕鬆管理你的 AI 技能。基於 Salvo 構建的 AI 能力管理和分享平台。
+- **[Palpo](https://github.com/palpo-matrix-server/palpo)** - 使用 Rust 實現的 Matrix 伺服器，基於 Salvo 構建。
+
+查看完整的社區專案列表：[ECOSYSTEM.md](./ECOSYSTEM.md)。
+
 ## 效能
 
 Salvo 在 Rust Web 框架中效能名列前茅：

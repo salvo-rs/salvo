@@ -139,6 +139,13 @@ salvo new my_project
 - [API Documentation](https://docs.rs/salvo)
 - [Examples](./examples/)
 
+## Recommended Projects
+
+- **[Savhub](https://github.com/savhub-ai/savhub)** - Easily manage your AI skills. A platform built with Salvo for organizing and sharing AI capabilities.
+- **[Palpo](https://github.com/palpo-matrix-server/palpo)** - A Matrix server implementation in Rust, powered by Salvo.
+
+Check out the full list of community projects in our [ECOSYSTEM.md](./ECOSYSTEM.md).
+
 ## Performance
 
 Salvo consistently ranks among the fastest Rust web frameworks:
