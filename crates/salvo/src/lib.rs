@@ -279,7 +279,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="acme"]
-        pub use salvo_acme::ListenerAcmeExt;
+        pub use salvo_acme::AcmeListener;
     }
     cfg_feature! {
         #![feature ="oapi"]

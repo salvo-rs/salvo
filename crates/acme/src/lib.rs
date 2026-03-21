@@ -1,14 +1,22 @@
-//! ACME supports.
+//! Automatic HTTPS/TLS certificate management for Salvo via the ACME protocol.
 //!
-//! Reference: <https://datatracker.ietf.org/doc/html/rfc8555>
-//! Reference: <https://datatracker.ietf.org/doc/html/rfc8737>
+//! This crate integrates [certon](https://crates.io/crates/certon) — a
+//! production-grade ACME client — with Salvo's listener/acceptor system.
 //!
-//! * HTTP-01
+//! ## Features
 //!
-//! # Example
+//! - **Multiple issuers**: Let's Encrypt, ZeroSSL, or any ACME-compatible CA.
+//! - **Multiple challenge types**: HTTP-01, TLS-ALPN-01, DNS-01.
+//! - **On-demand TLS**: obtain certificates at handshake time.
+//! - **OCSP stapling**: automatic OCSP response fetching and stapling.
+//! - **Multiple key types**: ECDSA P-256/P-384/P-521, RSA, Ed25519.
+//! - **Persistent storage**: pluggable storage backend via [`certon::Storage`].
+//! - **Background renewal**: automatic certificate renewal and OCSP refresh.
 //!
-//! ```no_run
-//! use salvo_acme::ListenerAcmeExt;
+//! ## Quick Start — HTTP-01
+//!
+//! ```ignore
+//! use salvo_acme::AcmeListener;
 //! use salvo_core::prelude::*;
 //!
 //! #[handler]
@@ -21,21 +29,18 @@
 //!     let mut router = Router::new().get(hello);
 //!     let listener = TcpListener::new("0.0.0.0:443")
 //!         .acme()
-//!         // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
 //!         .cache_path("acme/letsencrypt")
-//!         .add_domain("acme-http01.salvo.rs")
+//!         .add_domain("example.com")
 //!         .http01_challenge(&mut router);
 //!     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
 //!
-//! * TLS ALPN-01
+//! ## Quick Start — TLS-ALPN-01
 //!
-//! # Example
-//!
-//! ```no_run
-//! use salvo_acme::ListenerAcmeExt;
+//! ```ignore
+//! use salvo_acme::AcmeListener;
 //! use salvo_core::prelude::*;
 //!
 //! #[handler]
@@ -48,9 +53,8 @@
 //!     let router = Router::new().get(hello);
 //!     let acceptor = TcpListener::new("0.0.0.0:443")
 //!         .acme()
-//!         // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
 //!         .cache_path("acme/letsencrypt")
-//!         .add_domain("acme-tls-alpn01.salvo.rs")
+//!         .add_domain("example.com")
 //!         .bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
@@ -59,106 +63,87 @@
 #[macro_use]
 mod cfg;
 
-pub mod cache;
-mod client;
 mod config;
-mod issuer;
-mod jose;
-mod key_pair;
 mod listener;
-mod resolver;
 
 use std::collections::HashMap;
-use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 
-use cache::AcmeCache;
-use client::AcmeClient;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
-pub use listener::{AcmeAcceptor, AcmeListener};
-use parking_lot::RwLock;
+pub use listener::{AcmeAcceptor, AcmeListenerBuilder};
 use salvo_core::conn::tcp::TcpListener;
 use salvo_core::http::StatusError;
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
-use serde::{Deserialize, Serialize};
 use tokio::net::ToSocketAddrs;
+use tokio::sync::RwLock;
 
 cfg_feature! {
     #![feature = "quinn"]
     pub use listener::AcmeQuinnListener;
 }
-#[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
-compile_error!("one of feature \"ring\" or \"aws-lc-rs\" must be enabled");
 
-/// Letsencrypt production directory url
-pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";
-/// Letsencrypt staging directory url
-pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt.org/directory";
+// ---------------------------------------------------------------------------
+// Re-exports from certon for advanced usage
+// ---------------------------------------------------------------------------
 
-/// Well known acme challenge path
+/// Re-export the entire `certon` crate for advanced configuration.
+pub use certon;
+pub use certon::{
+    AcmeIssuer, AcmeIssuerBuilder, CertCache, CertIssuer, CertResolver, Certificate,
+    Config as CertonConfig, ConfigBuilder as CertonConfigBuilder, DistributedSolver, Dns01Solver,
+    DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
+    MaintenanceConfig, Manager, OcspConfig, OnDemandConfig, PreChecker, Revoker, Solver, Storage,
+    TlsAlpn01Solver, ZeroSslIssuer,
+};
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/// Let's Encrypt production directory URL.
+pub const LETS_ENCRYPT_PRODUCTION: &str = certon::LETS_ENCRYPT_PRODUCTION;
+/// Let's Encrypt staging directory URL.
+pub const LETS_ENCRYPT_STAGING: &str = certon::LETS_ENCRYPT_STAGING;
+/// ZeroSSL production directory URL.
+pub const ZEROSSL_PRODUCTION: &str = certon::ZEROSSL_PRODUCTION;
+
+/// Well known ACME challenge path.
 pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
 
-/// HTTP-01 challenge
-const CHALLENGE_TYPE_HTTP_01: &str = "http-01";
-
-/// TLS-ALPN-01 challenge
-const CHALLENGE_TYPE_TLS_ALPN_01: &str = "tls-alpn-01";
-
-/// Challenge type
+/// Challenge type for ACME.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ChallengeType {
-    /// HTTP-01 challenge
+    /// HTTP-01 challenge.
     ///
     /// Reference: <https://letsencrypt.org/docs/challenge-types/#http-01-challenge>
     Http01,
-    /// TLS-ALPN-01
+    /// TLS-ALPN-01 challenge.
     ///
     /// Reference: <https://letsencrypt.org/docs/challenge-types/#tls-alpn-01>
     TlsAlpn01,
-}
-impl Display for ChallengeType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Http01 => f.write_str(CHALLENGE_TYPE_HTTP_01),
-            Self::TlsAlpn01 => f.write_str(CHALLENGE_TYPE_TLS_ALPN_01),
-        }
-    }
+    /// DNS-01 challenge.
+    ///
+    /// Reference: <https://letsencrypt.org/docs/challenge-types/#dns-01-challenge>
+    Dns01,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct Directory {
-    pub(crate) new_nonce: String,
-    pub(crate) new_account: String,
-    pub(crate) new_order: String,
-}
+// ---------------------------------------------------------------------------
+// HTTP-01 challenge handler (Salvo Handler implementation)
+// ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct Identifier {
-    #[serde(rename = "type")]
-    pub(crate) kind: String,
-    pub(crate) value: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct Problem {
-    pub(crate) detail: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct Challenge {
-    #[serde(rename = "type")]
-    pub(crate) kind: String,
-    pub(crate) url: String,
-    pub(crate) token: String,
-}
-
-/// Handler for `HTTP-01` challenge.
-pub(crate) struct Http01Handler {
+/// Handler for HTTP-01 ACME challenges.
+///
+/// Reads challenge tokens from a shared map that is populated by the ACME
+/// issuance flow. This handler should be registered on the router at
+/// `/.well-known/acme-challenge/{token}`.
+pub struct Http01Handler {
     pub(crate) keys: Arc<RwLock<HashMap<String, String>>>,
+}
+impl std::fmt::Debug for Http01Handler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Http01Handler").finish()
+    }
 }
 
 #[async_trait]
@@ -171,30 +156,41 @@ impl Handler for Http01Handler {
         _ctrl: &mut FlowCtrl,
     ) {
         if let Some(token) = req.params().get("token") {
-            let keys = self.keys.read();
+            // First check our local map.
+            let keys = self.keys.read().await;
             if let Some(value) = keys.get(token) {
                 res.render(value);
-            } else {
-                tracing::error!(token, "keys not found for token");
-                res.render(token);
+                return;
             }
+            drop(keys);
+
+            // Fall back to certon's global active challenge map.
+            if let Some(value) = certon::solvers::get_active_challenge(token) {
+                res.render(value);
+                return;
+            }
+
+            tracing::error!(token, "key not found for ACME challenge token");
+            res.render(token);
         } else {
-            res.render(StatusError::not_found().brief("Token is not provide."));
+            res.render(StatusError::not_found().brief("Token is not provided."));
         }
     }
 }
 
 /// Extension trait for Listener to support ACME.
-pub trait ListenerAcmeExt<T> {
+pub trait AcmeListener {
     /// Enable ACME support for the listener.
-    fn acme(self) -> AcmeListener<T>;
+    fn acme(self) -> AcmeListenerBuilder<Self>
+    where
+        Self: Sized;
 }
 
-impl<T> ListenerAcmeExt<Self> for TcpListener<T>
+impl<T> AcmeListener for TcpListener<T>
 where
     T: ToSocketAddrs + Send + 'static,
 {
-    fn acme(self) -> AcmeListener<Self> {
-        AcmeListener::new(self)
+    fn acme(self) -> AcmeListenerBuilder<Self> {
+        AcmeListenerBuilder::new(self)
     }
 }

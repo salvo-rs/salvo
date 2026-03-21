@@ -1,9 +1,14 @@
 use std::fmt::{self, Debug, Formatter};
 use std::io::Result as IoResult;
 use std::path::PathBuf;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
+use certon::crypto::KeyType;
+use certon::handshake::CertResolver;
+use certon::solvers::Solver;
+use certon::storage::Storage;
+use certon::{AcmeIssuer, FileStorage, OcspConfig, OnDemandConfig, ZeroSslIssuer};
 use salvo_core::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use salvo_core::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
 use salvo_core::fuse::ArcFuseFactory;
@@ -12,19 +17,11 @@ use salvo_core::http::uri::Scheme;
 use salvo_core::{Result as CoreResult, Router};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
-#[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
-use tokio_rustls::rustls::crypto::aws_lc_rs::sign::any_ecdsa_type;
-#[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
-use tokio_rustls::rustls::pki_types::pem::PemObject;
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
-use super::resolver::{ACME_TLS_ALPN_NAME, ResolveServerCert};
-use super::{AcmeCache, AcmeClient, ChallengeType, Http01Handler, WELL_KNOWN_PATH};
+use super::{ChallengeType, Http01Handler, WELL_KNOWN_PATH};
 
 cfg_feature! {
     #![feature = "quinn"]
@@ -33,19 +30,23 @@ cfg_feature! {
     use salvo_core::conn::quinn::QuinnListener;
     use futures_util::stream::BoxStream;
 }
-/// A wrapper around an underlying listener which implements the ACME.
-pub struct AcmeListener<T> {
+
+/// ACME TLS-ALPN-01 protocol name.
+const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
+
+/// A wrapper around an underlying listener which implements ACME.
+pub struct AcmeListenerBuilder<T> {
     inner: T,
     config_builder: AcmeConfigBuilder,
     check_duration: Duration,
 }
 
-impl<T> Debug for AcmeListener<T>
+impl<T> Debug for AcmeListenerBuilder<T>
 where
     T: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("AcmeListener")
+        f.debug_struct("AcmeListenerBuilder")
             .field("inner", &self.inner)
             .field("config_builder", &self.config_builder)
             .field("check_duration", &self.check_duration)
@@ -53,8 +54,8 @@ where
     }
 }
 
-impl<T> AcmeListener<T> {
-    /// Create `AcmeListener`
+impl<T> AcmeListenerBuilder<T> {
+    /// Create `AcmeListenerBuilder`.
     #[inline]
     #[must_use]
     pub fn new(inner: T) -> Self {
@@ -67,7 +68,7 @@ impl<T> AcmeListener<T> {
 
     /// Sets the directory.
     ///
-    /// Defaults to lets encrypt.
+    /// Defaults to Let's Encrypt production.
     #[inline]
     #[must_use]
     pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
@@ -86,6 +87,7 @@ impl<T> AcmeListener<T> {
             ..self
         }
     }
+
     /// Add a domain.
     #[inline]
     #[must_use]
@@ -105,6 +107,7 @@ impl<T> AcmeListener<T> {
             ..self
         }
     }
+
     /// Add a contact email for the ACME account.
     #[inline]
     #[must_use]
@@ -115,7 +118,7 @@ impl<T> AcmeListener<T> {
         }
     }
 
-    /// Create an handler for HTTP-01 challenge
+    /// Create an handler for HTTP-01 challenge.
     #[must_use]
     pub fn http01_challenge(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challenge();
@@ -135,12 +138,23 @@ impl<T> AcmeListener<T> {
             ..self
         }
     }
-    /// Create an handler for HTTP-01 challenge
+
+    /// Create an handler for TLS-ALPN-01 challenge.
     #[inline]
     #[must_use]
     pub fn tls_alpn01_challenge(self) -> Self {
         Self {
             config_builder: self.config_builder.tls_alpn01_challenge(),
+            ..self
+        }
+    }
+
+    /// Configure DNS-01 challenge with a custom solver.
+    #[inline]
+    #[must_use]
+    pub fn dns01_challenge(self, solver: Arc<dyn Solver>) -> Self {
+        Self {
+            config_builder: self.config_builder.dns01_challenge(solver),
             ..self
         }
     }
@@ -158,6 +172,69 @@ impl<T> AcmeListener<T> {
             ..self
         }
     }
+
+    /// Sets the key type for certificate private keys.
+    ///
+    /// Available types: `EcdsaP256` (default), `EcdsaP384`, `EcdsaP521`,
+    /// `Rsa2048`, `Rsa4096`, `Rsa8192`, `Ed25519`.
+    #[inline]
+    #[must_use]
+    pub fn key_type(self, key_type: KeyType) -> Self {
+        Self {
+            config_builder: self.config_builder.key_type(key_type),
+            ..self
+        }
+    }
+
+    /// Sets the OCSP stapling configuration.
+    #[inline]
+    #[must_use]
+    pub fn ocsp(self, ocsp: OcspConfig) -> Self {
+        Self {
+            config_builder: self.config_builder.ocsp(ocsp),
+            ..self
+        }
+    }
+
+    /// Configures on-demand TLS.
+    #[inline]
+    #[must_use]
+    pub fn on_demand(self, on_demand: Arc<OnDemandConfig>) -> Self {
+        Self {
+            config_builder: self.config_builder.on_demand(on_demand),
+            ..self
+        }
+    }
+
+    /// Configures ZeroSSL as an additional issuer.
+    #[inline]
+    #[must_use]
+    pub fn zerossl_api_key(self, api_key: impl Into<String>) -> Self {
+        Self {
+            config_builder: self.config_builder.zerossl_api_key(api_key),
+            ..self
+        }
+    }
+
+    /// Adds a custom certificate issuer.
+    #[must_use]
+    pub fn add_issuer(self, issuer: Arc<dyn certon::CertIssuer>) -> Self {
+        Self {
+            config_builder: self.config_builder.add_issuer(issuer),
+            ..self
+        }
+    }
+
+    /// Sets a custom persistent storage backend.
+    #[inline]
+    #[must_use]
+    pub fn storage(self, storage: Arc<dyn Storage>) -> Self {
+        Self {
+            config_builder: self.config_builder.storage(storage),
+            ..self
+        }
+    }
+
     cfg_feature! {
         #![feature = "quinn"]
         /// Enable Http3 using quinn.
@@ -168,57 +245,111 @@ impl<T> AcmeListener<T> {
             AcmeQuinnListener::new(self, local_addr)
         }
     }
-    async fn build_server_config(
-        acme_config: &AcmeConfig,
-    ) -> CoreResult<(ServerConfig, Arc<ResolveServerCert>)> {
-        let mut cached_key = None;
-        let mut cached_certs = None;
-        if let Some(cache_path) = &acme_config.cache_path {
-            let key_data = cache_path
-                .read_key(&acme_config.directory_name, &acme_config.domains)
-                .await?;
-            if let Some(key_data) = key_data {
-                tracing::debug!("load private key from cache");
-                match PrivateKeyDer::from_pem_slice(&key_data) {
-                    Ok(key) => {
-                        cached_key = Some(key);
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = ?e, "parse cached private key failed");
-                    }
-                }
-            }
-            let cert_data = cache_path
-                .read_cert(&acme_config.directory_name, &acme_config.domains)
-                .await?;
-            if let Some(cert_data) = cert_data {
-                tracing::debug!("load certificate from cache");
-                match CertificateDer::pem_slice_iter(&cert_data).collect::<Result<Vec<_>, _>>() {
-                    Ok(certs) => {
-                        if !certs.is_empty() {
-                            cached_certs = Some(certs);
-                        } else {
-                            tracing::warn!("parse cached tls certificates failed")
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = ?e, "parse cached tls certificates failed");
-                    }
-                }
-            }
+
+    /// Build a certon Config from our AcmeConfig.
+    async fn build_certon_config(config: &AcmeConfig) -> CoreResult<certon::Config> {
+        // Determine storage backend.
+        let storage: Arc<dyn Storage> = if let Some(ref s) = config.storage {
+            s.clone()
+        } else if let Some(ref path) = config.cache_path {
+            Arc::new(FileStorage::new(path))
+        } else {
+            Arc::new(FileStorage::default())
         };
 
-        let cert_resolver = Arc::new(ResolveServerCert::default());
-        if let (Some(cached_certs), Some(cached_key)) = (cached_certs, cached_key) {
-            let certs = cached_certs
-                .into_iter()
-                .collect::<Vec<CertificateDer<'static>>>();
-            tracing::debug!("using cached tls certificates");
-            *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
-                certs,
-                any_ecdsa_type(&cached_key).expect("parse private key failed"),
-            )));
+        // Build the ACME issuer via builder pattern.
+        let mut acme_builder = AcmeIssuer::builder()
+            .ca(&config.directory_url)
+            .agreed(config.agree_to_tos)
+            .storage(storage.clone());
+
+        // Configure contacts.
+        if !config.contacts.is_empty() {
+            acme_builder = acme_builder.email(config.contacts.join(","));
         }
+
+        // Configure challenge solver based on challenge type.
+        match config.challenge_type {
+            ChallengeType::Http01 => {
+                if let Some(ref solver) = config.http01_solver {
+                    acme_builder = acme_builder.http01_solver(solver.clone());
+                }
+                // If no custom solver, the Http01Handler serves challenges
+                // through salvo's router — certon's global active_challenges
+                // map is used as fallback.
+            }
+            ChallengeType::TlsAlpn01 => {
+                if let Some(ref solver) = config.tls_alpn01_solver {
+                    acme_builder = acme_builder.tlsalpn01_solver(solver.clone());
+                }
+            }
+            ChallengeType::Dns01 => {
+                if let Some(ref solver) = config.dns01_solver {
+                    acme_builder = acme_builder.dns01_solver(solver.clone());
+                }
+            }
+        }
+
+        let acme_issuer = acme_builder.build();
+
+        let mut issuers: Vec<Arc<dyn certon::CertIssuer>> = Vec::new();
+
+        // Add custom issuers first.
+        if let Some(ref custom_issuers) = config.issuers {
+            issuers.extend(custom_issuers.iter().cloned());
+        }
+
+        // Add ZeroSSL issuer if configured.
+        if let Some(ref api_key) = config.zerossl_api_key {
+            match ZeroSslIssuer::builder()
+                .api_key(api_key)
+                .storage(storage.clone())
+                .build()
+                .await
+            {
+                Ok(zerossl) => {
+                    issuers.push(Arc::new(zerossl));
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "failed to initialize ZeroSSL issuer; skipping");
+                }
+            }
+        }
+
+        // Add the default ACME issuer.
+        issuers.push(Arc::new(acme_issuer));
+
+        let mut certon_builder = certon::Config::builder()
+            .storage(storage)
+            .issuers(issuers)
+            .key_type(config.key_type)
+            .ocsp(config.ocsp.clone());
+
+        if let Some(ref on_demand) = config.on_demand {
+            certon_builder = certon_builder.on_demand(on_demand.clone());
+        }
+
+        Ok(certon_builder.build())
+    }
+
+    /// Build the rustls ServerConfig backed by certon's CertResolver.
+    async fn build_server_config(
+        config: &AcmeConfig,
+    ) -> CoreResult<(ServerConfig, Arc<CertResolver>, certon::Config)> {
+        let certon_config: certon::Config = Self::build_certon_config(config).await?;
+
+        // Attempt to load/obtain certificates for configured domains.
+        if let Err(e) = certon_config.manage_sync(&config.domains).await {
+            tracing::warn!(error = ?e, "initial certificate management failed; will retry in background");
+        }
+
+        // Build the cert resolver backed by certon's cache.
+        let cert_resolver = if let Some(ref on_demand) = config.on_demand {
+            CertResolver::with_on_demand(certon_config.cache.clone(), on_demand.clone())
+        } else {
+            CertResolver::new(certon_config.cache.clone())
+        };
+        let cert_resolver = Arc::new(cert_resolver);
 
         let mut server_config = ServerConfig::builder()
             .with_no_client_auth()
@@ -226,16 +357,17 @@ impl<T> AcmeListener<T> {
 
         server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
 
-        if acme_config.challenge_type == ChallengeType::TlsAlpn01 {
+        if config.challenge_type == ChallengeType::TlsAlpn01 {
             server_config
                 .alpn_protocols
                 .push(ACME_TLS_ALPN_NAME.to_vec());
         }
-        Ok((server_config, cert_resolver))
+
+        Ok((server_config, cert_resolver, certon_config))
     }
 }
 
-impl<T> Listener for AcmeListener<T>
+impl<T> Listener for AcmeListenerBuilder<T>
 where
     T: Listener + Send + 'static,
     T::Acceptor: Send + 'static,
@@ -247,37 +379,33 @@ where
         let Self {
             inner,
             config_builder,
-            check_duration,
             ..
         } = self;
 
         let acme_config = config_builder.build()?;
-        let (server_config, cert_resolver) = Self::build_server_config(&acme_config).await?;
+        let (server_config, _cert_resolver, certon_config) =
+            Self::build_server_config(&acme_config).await?;
         let server_config = Arc::new(server_config);
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
         let inner = inner.try_bind().await?;
-        let acceptor = AcmeAcceptor::new(
-            acme_config,
-            server_config,
-            cert_resolver,
-            inner,
-            tls_acceptor,
-            check_duration,
-        )
-        .await?;
+
+        // Start certon's background maintenance for renewal + OCSP.
+        let _maintenance_handle = certon::start_maintenance(&certon_config);
+
+        let acceptor = AcmeAcceptor::new(acme_config, server_config, inner, tls_acceptor);
         Ok(acceptor)
     }
 }
 
 cfg_feature! {
     #![feature = "quinn"]
-    /// A wrapper around an underlying listener which implements the ACME and Quinn.
+    /// A wrapper around an underlying listener which implements ACME and Quinn.
     pub struct AcmeQuinnListener<T, A> {
-        acme: AcmeListener<T>,
+        acme: AcmeListenerBuilder<T>,
         local_addr: A,
     }
 
-    impl<T:Debug, A:Debug> Debug for AcmeQuinnListener<T, A> {
+    impl<T: Debug, A: Debug> Debug for AcmeQuinnListener<T, A> {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             f.debug_struct("AcmeQuinnListener")
                 .field("acme", &self.acme)
@@ -286,12 +414,12 @@ cfg_feature! {
         }
     }
 
-    impl <T, A> AcmeQuinnListener<T, A>
+    impl<T, A> AcmeQuinnListener<T, A>
     where
         A: std::net::ToSocketAddrs + Send,
     {
         /// Create `AcmeQuinnListener`.
-        pub fn new(acme: AcmeListener<T>, local_addr: A) -> Self {
+        pub fn new(acme: AcmeListenerBuilder<T>, local_addr: A) -> Self {
             Self { acme, local_addr }
         }
     }
@@ -305,7 +433,7 @@ cfg_feature! {
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, salvo_core::conn::quinn::ServerConfig>, salvo_core::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-        async fn try_bind(self) -> CoreResult<Self::Acceptor>{
+        async fn try_bind(self) -> CoreResult<Self::Acceptor> {
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
@@ -321,8 +449,7 @@ cfg_feature! {
 
 /// Acceptor for ACME.
 pub struct AcmeAcceptor<T> {
-    config: Arc<AcmeConfig>,
-    server_config: Arc<ServerConfig>,
+    pub(crate) server_config: Arc<ServerConfig>,
     inner: T,
     holdings: Vec<Holding>,
     tls_acceptor: tokio_rustls::TlsAcceptor,
@@ -330,7 +457,6 @@ pub struct AcmeAcceptor<T> {
 impl<T> Debug for AcmeAcceptor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("AcmeAcceptor")
-            .field("config", &self.config)
             .field("server_config", &self.server_config)
             .field("holdings", &self.holdings)
             .finish()
@@ -342,17 +468,12 @@ where
     T: Acceptor + Send + 'static,
     T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    pub(crate) async fn new(
-        config: impl Into<Arc<AcmeConfig>> + Send,
-        server_config: impl Into<Arc<ServerConfig>> + Send,
-        cert_resolver: Arc<ResolveServerCert>,
+    pub(crate) fn new(
+        _config: AcmeConfig,
+        server_config: Arc<ServerConfig>,
         inner: T,
         tls_acceptor: TlsAcceptor,
-        check_duration: Duration,
-    ) -> CoreResult<Self>
-    where
-        T: Send,
-    {
+    ) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -372,33 +493,12 @@ where
             })
             .collect();
 
-        let acceptor = Self {
-            config: config.into(),
-            server_config: server_config.into(),
+        Self {
+            server_config,
             inner,
             holdings,
             tls_acceptor,
-        };
-        let config = acceptor.config.clone();
-        let weak_cert_resolver = Arc::downgrade(&cert_resolver);
-        let mut client = AcmeClient::new(
-            &config.directory_url,
-            config.key_pair.clone(),
-            config.contacts.clone(),
-        )
-        .await?;
-        tokio::spawn(async move {
-            while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
-                if cert_resolver.will_expired(config.before_expired)
-                    && let Err(e) =
-                        super::issuer::issue_cert(&mut client, &config, &cert_resolver).await
-                {
-                    tracing::error!(error = ?e, "issue certificate failed");
-                }
-                tokio::time::sleep(check_duration).await;
-            }
-        });
-        Ok(acceptor)
+        }
     }
 
     /// Returns the config of this acceptor.
