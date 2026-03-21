@@ -47,7 +47,7 @@ salvo-craft = { version = "0.89.3", path = "crates/craft", default-features = fa
 salvo-craft-macros = { version = "0.89.3", path = "crates/craft-macros", default-features = false }
 salvo-tus = { version = "0.89.3", path = "crates/tus", default-features = false }
 
-certon = { git = "https://github.com/salvo-rs/certon.git" }
+certon = "0.1.2"
 
 aead = "0.5"
 aes-gcm = "0.10"
