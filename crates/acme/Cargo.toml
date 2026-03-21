@@ -19,8 +19,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
-full = ["quinn"]
+default = ["ring"]
+full = ["quinn", "ring"]
+aws-lc-rs = ["tokio-rustls/aws-lc-rs", "quinn?/rustls-aws-lc-rs"]
+ring = ["tokio-rustls/ring", "quinn?/rustls-ring"]
 quinn = ["salvo_core/quinn", "dep:futures-util", "dep:quinn"]
 
 [dependencies]
@@ -31,7 +33,7 @@ quinn = { workspace = true, optional = true, default-features = false, features 
 ] }
 salvo_core = { workspace = true, features = ["http1", "http2"] }
 tokio = { workspace = true }
-tokio-rustls = { workspace = true, features = ["logging", "ring"] }
+tokio-rustls = { workspace = true, features = ["logging"] }
 tracing = { workspace = true }
 
 [dev-dependencies]

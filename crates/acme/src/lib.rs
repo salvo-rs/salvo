@@ -88,13 +88,12 @@ cfg_feature! {
 
 /// Re-export the entire `certon` crate for advanced configuration.
 pub use certon;
-
 pub use certon::{
     AcmeIssuer, AcmeIssuerBuilder, CertCache, CertIssuer, CertResolver, Certificate,
-    Config as CertonConfig, ConfigBuilder as CertonConfigBuilder, DnsProvider,
-    Dns01Solver, DistributedSolver, FileStorage, Http01Solver, IssuedCertificate,
-    IssuerPolicy, KeyType, Manager, MaintenanceConfig, OcspConfig, OnDemandConfig,
-    PreChecker, Revoker, Solver, Storage, TlsAlpn01Solver, ZeroSslIssuer,
+    Config as CertonConfig, ConfigBuilder as CertonConfigBuilder, DistributedSolver, Dns01Solver,
+    DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
+    MaintenanceConfig, Manager, OcspConfig, OnDemandConfig, PreChecker, Revoker, Solver, Storage,
+    TlsAlpn01Solver, ZeroSslIssuer,
 };
 
 // ---------------------------------------------------------------------------
@@ -182,7 +181,9 @@ impl Handler for Http01Handler {
 /// Extension trait for Listener to support ACME.
 pub trait AcmeListener {
     /// Enable ACME support for the listener.
-    fn acme(self) -> AcmeListenerBuilder<Self> where Self: Sized;
+    fn acme(self) -> AcmeListenerBuilder<Self>
+    where
+        Self: Sized;
 }
 
 impl<T> AcmeListener for TcpListener<T>

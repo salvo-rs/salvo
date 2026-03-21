@@ -392,12 +392,7 @@ where
         // Start certon's background maintenance for renewal + OCSP.
         let _maintenance_handle = certon::start_maintenance(&certon_config);
 
-        let acceptor = AcmeAcceptor::new(
-            acme_config,
-            server_config,
-            inner,
-            tls_acceptor,
-        );
+        let acceptor = AcmeAcceptor::new(acme_config, server_config, inner, tls_acceptor);
         Ok(acceptor)
     }
 }
