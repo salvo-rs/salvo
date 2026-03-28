@@ -76,7 +76,7 @@ h3-datagram = "0.0.2"
 headers = "0.4"
 http = "1"
 http-body-util = "0.1"
-hmac = "0.12"
+hmac = "0.13.0-rc.6"
 hex = "0.4"
 hostname-validator = "1"
 hyper = { version = "1", features = ["full"] }
