@@ -29,9 +29,9 @@ categories = [
 anyhow = "1.0.100"
 diesel = { version = "2.3.5" }
 r2d2 = "0.8.10"
-rbatis = "4.6.14"
-rbdc = "4.6.2"
-rbdc-mysql = "4.6.2"
+rbatis = "4.8"
+rbdc = "4.7"
+rbdc-mysql = "4.7"
 rbs = "4.5"
 async-trait = "0.1.89"
 sea-orm = "1.1.19"

@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use rbatis::RBatis;
+use rbs::value;
 use rbdc_mysql::driver::MysqlDriver;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -16,9 +17,8 @@ pub struct User {
     pub password: String,
 }
 
-// Implement select query for User model
-// Generates SQL: SELECT * FROM user WHERE id = #{id} LIMIT 1
-rbatis::impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 1`"});
+// Generate CRUD methods for User model
+rbatis::crud!(User{});
 
 // Handler for retrieving a user by ID from the database
 #[handler]
@@ -26,7 +26,8 @@ pub async fn get_user(req: &mut Request, res: &mut Response) {
     // Extract user ID from query parameters
     let uid = req.query::<i64>("uid").unwrap();
     // Execute select query and get user data
-    let data = User::select_by_id(&*RB, uid.to_string()).await.unwrap();
+    let data: Vec<User> = User::select_by_map(&*RB, value!{"id": uid}).await.unwrap();
+    let data = data.into_iter().next();
     println!("{data:?}");
     // Return user data as JSON response
     res.render(serde_json::to_string(&data).unwrap());
