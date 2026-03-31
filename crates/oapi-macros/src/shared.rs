@@ -336,7 +336,7 @@ impl AnyValue {
     }
 
     pub(crate) fn parse_any(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(Lit) {
+        if input.peek(Token![-]) || input.peek(Lit) {
             let punct = input.parse::<Option<Token![-]>>()?;
             let lit = input.parse::<Lit>().expect("parse_any: parse `Lit` failed");
 

@@ -22,26 +22,55 @@ use crate::schema_type::SchemaType;
 use crate::type_tree::TypeTree;
 use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens, parse_utils};
 
-/// Parse `LitInt` from parse stream
+/// Parse `LitInt` from parse stream, supporting an optional leading `-` for negative values.
 fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
 where
     <T as FromStr>::Err: Display,
 {
-    parse_utils::parse_next(input, || input.parse::<LitInt>()?.base10_parse())
+    parse_utils::parse_next(input, || {
+        let minus = input.parse::<Option<syn::Token![-]>>()?;
+        let lit = input.parse::<LitInt>()?;
+        if minus.is_some() {
+            let value_str = format!("-{}", lit);
+            value_str
+                .parse::<T>()
+                .map_err(|e| syn::Error::new(lit.span(), e))
+        } else {
+            lit.base10_parse()
+        }
+    })
 }
 
-/// Parse any `number`. Tries to parse `LitInt` or `LitFloat` from parse stream.
+/// Parse any `number`. Tries to parse `LitInt` or `LitFloat` from parse stream,
+/// supporting an optional leading `-` for negative values.
 fn parse_number<T>(input: ParseStream) -> syn::Result<T>
 where
     T: FromStr,
     <T as FromStr>::Err: Display,
 {
     parse_utils::parse_next(input, || {
+        let minus = input.parse::<Option<syn::Token![-]>>()?;
         let lookup = input.lookahead1();
         if lookup.peek(LitInt) {
-            input.parse::<LitInt>()?.base10_parse()
+            let lit = input.parse::<LitInt>()?;
+            if minus.is_some() {
+                let value_str = format!("-{}", lit);
+                value_str
+                    .parse::<T>()
+                    .map_err(|e| syn::Error::new(lit.span(), e))
+            } else {
+                lit.base10_parse()
+            }
         } else if lookup.peek(LitFloat) {
-            input.parse::<LitFloat>()?.base10_parse()
+            let lit = input.parse::<LitFloat>()?;
+            if minus.is_some() {
+                let value_str = format!("-{}", lit);
+                value_str
+                    .parse::<T>()
+                    .map_err(|e| syn::Error::new(lit.span(), e))
+            } else {
+                lit.base10_parse()
+            }
         } else {
             Err(lookup.error())
         }
