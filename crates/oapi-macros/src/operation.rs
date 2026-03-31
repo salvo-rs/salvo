@@ -35,22 +35,49 @@ pub(crate) struct Operation<'a> {
 
 impl<'a> Operation<'a> {
     pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
-        let split_comment = attr
-            .doc_comments
-            .as_ref()
-            .and_then(|comments| comments.split_first())
-            .map(|(summary, description)| {
-                // Skip all whitespace lines
-                let start_pos = description
-                    .iter()
-                    .position(|s| !s.chars().all(char::is_whitespace));
+        // Split doc comments into paragraphs separated by empty lines.
+        // The first paragraph becomes the summary, the rest become the description.
+        let split_comment = attr.doc_comments.as_ref().and_then(|comments| {
+            if comments.is_empty() {
+                return None;
+            }
 
-                let trimmed = start_pos
-                    .and_then(|pos| description.get(pos..))
-                    .unwrap_or(description);
+            // Split into paragraphs by empty lines
+            let mut paragraphs: Vec<Vec<&str>> = Vec::new();
+            let mut current: Vec<&str> = Vec::new();
 
-                (summary, trimmed)
-            });
+            for line in comments.iter() {
+                if line.trim().is_empty() {
+                    if !current.is_empty() {
+                        paragraphs.push(std::mem::take(&mut current));
+                    }
+                } else {
+                    current.push(line.as_str());
+                }
+            }
+            if !current.is_empty() {
+                paragraphs.push(current);
+            }
+
+            if paragraphs.is_empty() {
+                return None;
+            }
+
+            let summary = paragraphs[0].join("\n");
+            let description = if paragraphs.len() > 1 {
+                Some(
+                    paragraphs[1..]
+                        .iter()
+                        .map(|p| p.join("\n"))
+                        .collect::<Vec<_>>()
+                        .join("\n\n"),
+                )
+            } else {
+                None
+            };
+
+            Some((summary, description))
+        });
 
         let summary = attr
             .summary
@@ -59,7 +86,7 @@ impl<'a> Operation<'a> {
             .or_else(|| {
                 split_comment
                     .as_ref()
-                    .map(|(summary, _)| Summary::Str(summary))
+                    .map(|(summary, _)| Summary::String(summary.clone()))
             });
 
         let description = attr
@@ -69,7 +96,7 @@ impl<'a> Operation<'a> {
             .or_else(|| {
                 split_comment
                     .as_ref()
-                    .map(|(_, description)| Description::Vec(description))
+                    .and_then(|(_, description)| description.clone().map(Description::String))
             });
 
         Self {
@@ -217,13 +244,13 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
 #[derive(Debug)]
 enum Description<'a> {
     LitStrOrExpr(&'a LitStrOrExpr),
-    Vec(&'a [String]),
+    String(String),
 }
 impl Description<'_> {
     fn is_empty(&self) -> bool {
         match self {
             Self::LitStrOrExpr(value) => value.is_empty(),
-            Self::Vec(value) => value.iter().all(|s| s.is_empty()),
+            Self::String(value) => value.is_empty(),
         }
     }
 }
@@ -236,11 +263,9 @@ impl ToTokens for Description<'_> {
                     value.to_tokens(tokens)
                 }
             }
-            Self::Vec(value) => {
-                let description = value.join("\n\n");
-
-                if !description.is_empty() {
-                    description.to_tokens(tokens)
+            Self::String(value) => {
+                if !value.is_empty() {
+                    value.to_tokens(tokens)
                 }
             }
         }
@@ -250,13 +275,13 @@ impl ToTokens for Description<'_> {
 #[derive(Debug)]
 enum Summary<'a> {
     LitStrOrExpr(&'a LitStrOrExpr),
-    Str(&'a str),
+    String(String),
 }
 impl Summary<'_> {
     pub(crate) fn is_empty(&self) -> bool {
         match self {
             Self::LitStrOrExpr(value) => value.is_empty(),
-            Self::Str(value) => value.is_empty(),
+            Self::String(value) => value.is_empty(),
         }
     }
 }
@@ -269,7 +294,7 @@ impl ToTokens for Summary<'_> {
                     value.to_tokens(tokens)
                 }
             }
-            Self::Str(value) => {
+            Self::String(value) => {
                 if !value.is_empty() {
                     value.to_tokens(tokens)
                 }
