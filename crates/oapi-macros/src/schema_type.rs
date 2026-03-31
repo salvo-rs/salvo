@@ -629,9 +629,13 @@ impl ToTokens for Variant {
         let oapi = crate::oapi_crate();
         match self {
             #[cfg(feature = "non-strict-integers")]
-            Self::Int8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
+            Self::Int8 => tokens.extend(
+                quote! {#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int8)},
+            ),
             #[cfg(feature = "non-strict-integers")]
-            Self::Int16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
+            Self::Int16 => tokens.extend(
+                quote! {#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int16)},
+            ),
 
             Self::Int32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Int32
@@ -640,16 +644,20 @@ impl ToTokens for Variant {
                 #oapi::oapi::KnownFormat::Int64
             ))),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt8 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
+            Self::UInt8 => tokens.extend(
+                quote! {#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt8)},
+            ),
             #[cfg(feature = "non-strict-integers")]
-            Self::UInt16 => tokens.extend(quote! {#oapi::oapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
+            Self::UInt16 => tokens.extend(
+                quote! {#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt16)},
+            ),
             #[cfg(feature = "non-strict-integers")]
             Self::UInt32 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::UInt32
+                #oapi::oapi::KnownFormat::UInt32
             ))),
             #[cfg(feature = "non-strict-integers")]
             Self::UInt64 => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::UInt64
+                #oapi::oapi::KnownFormat::UInt64
             ))),
             Self::Float => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Float
