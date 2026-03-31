@@ -11,7 +11,8 @@ use super::{PropMap, RefOr, Schema};
 #[non_exhaustive]
 pub struct Content {
     /// Schema used in response body or request body.
-    pub schema: RefOr<Schema>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<RefOr<Schema>>,
 
     /// Example for request body or response body.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -41,7 +42,7 @@ impl Content {
     #[must_use]
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
         Self {
-            schema: schema.into(),
+            schema: Some(schema.into()),
             ..Self::default()
         }
     }
@@ -49,7 +50,7 @@ impl Content {
     /// Add schema.
     #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        self.schema = component.into();
+        self.schema = Some(component.into());
         self
     }
 
@@ -107,7 +108,7 @@ impl Content {
 impl From<RefOr<Schema>> for Content {
     fn from(schema: RefOr<Schema>) -> Self {
         Self {
-            schema,
+            schema: Some(schema),
             ..Self::default()
         }
     }
