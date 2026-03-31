@@ -35,7 +35,7 @@ cfg_feature! {
     pub mod redoc;
 }
 
-use std::collections::{BTreeMap, HashMap, LinkedList};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::marker::PhantomData;
 
 use salvo_core::extract::Extractible;
@@ -251,6 +251,64 @@ impl<T: ToSchema> ToSchema for Vec<T> {
 impl<T: ToSchema> ToSchema for LinkedList<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] LinkedList<T>).into()
+    }
+}
+
+impl<T: ToSchema> ToSchema for HashSet<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema::Array::new()
+            .items(T::to_schema(components))
+            .unique_items(true)
+            .into()
+    }
+}
+
+impl<T: ToSchema> ToSchema for BTreeSet<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema::Array::new()
+            .items(T::to_schema(components))
+            .unique_items(true)
+            .into()
+    }
+}
+
+#[cfg(feature = "indexmap")]
+impl<T: ToSchema> ToSchema for indexmap::IndexSet<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema::Array::new()
+            .items(T::to_schema(components))
+            .unique_items(true)
+            .into()
+    }
+}
+
+impl<T: ToSchema> ToSchema for Box<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        T::to_schema(components)
+    }
+}
+
+impl<T: ToSchema + ToOwned> ToSchema for std::borrow::Cow<'_, T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        T::to_schema(components)
+    }
+}
+
+impl<T: ToSchema> ToSchema for std::cell::RefCell<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        T::to_schema(components)
+    }
+}
+
+impl<T: ToSchema> ToSchema for std::rc::Rc<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        T::to_schema(components)
+    }
+}
+
+impl<T: ToSchema> ToSchema for std::sync::Arc<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        T::to_schema(components)
     }
 }
 
