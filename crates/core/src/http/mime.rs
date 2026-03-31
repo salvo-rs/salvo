@@ -43,10 +43,10 @@ pub fn detect_text_mime(buffer: &[u8]) -> Option<Mime> {
 #[inline]
 #[must_use]
 pub fn detect_text_charset(buffer: &[u8]) -> Option<String> {
-    let mut detector = chardetng::EncodingDetector::new();
+    let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
     detector.feed(buffer, buffer.len() < 1024);
 
-    let (encoding, _) = detector.guess_assess(None, true);
+    let encoding = detector.guess(None, chardetng::Utf8Detection::Allow);
     if encoding.name().eq_ignore_ascii_case("utf-8") {
         Some("utf-8".into())
     } else {
