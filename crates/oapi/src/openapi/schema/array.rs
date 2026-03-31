@@ -55,6 +55,20 @@ pub struct Array {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xml: Option<Xml>,
 
+    /// The `content_encoding` keyword specifies the encoding used to store the contents, as
+    /// specified in [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+    ///
+    /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_encoding: Option<String>,
+
+    /// The _`content_media_type`_ keyword specifies the MIME type of the contents of a string,
+    /// as described in [RFC 2046](https://tools.ietf.org/html/rfc2046).
+    ///
+    /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_media_type: Option<String>,
+
     /// Optional extensions `x-something`.
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
@@ -74,6 +88,8 @@ impl Default for Array {
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
+            content_encoding: Default::default(),
+            content_media_type: Default::default(),
             extensions: Default::default(),
         }
     }
@@ -186,6 +202,22 @@ impl Array {
     #[must_use]
     pub fn xml(mut self, xml: Xml) -> Self {
         self.xml = Some(xml);
+        self
+    }
+
+    /// Set or change [`Array::content_encoding`]. Typically left empty but could be `base64` for
+    /// example.
+    #[must_use]
+    pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
+        self.content_encoding = Some(content_encoding.into());
+        self
+    }
+
+    /// Set or change [`Array::content_media_type`]. Value must be valid MIME type e.g.
+    /// `application/json`.
+    #[must_use]
+    pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
+        self.content_media_type = Some(content_media_type.into());
         self
     }
 

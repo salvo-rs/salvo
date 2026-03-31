@@ -535,6 +535,15 @@ pub(crate) enum Variant {
     Ulid,
     #[cfg(feature = "uuid")]
     Uuid,
+    Duration,
+    Email,
+    IdnEmail,
+    Hostname,
+    IdnHostname,
+    UriTemplate,
+    JsonPointer,
+    RelativeJsonPointer,
+    Regex,
     Custom(String),
 }
 
@@ -550,6 +559,15 @@ impl Parse for Variant {
             "Date",
             "DateTime",
             "Password",
+            "Duration",
+            "Email",
+            "IdnEmail",
+            "Hostname",
+            "IdnHostname",
+            "UriTemplate",
+            "JsonPointer",
+            "RelativeJsonPointer",
+            "Regex",
             #[cfg(feature = "uuid")]
             "Uuid",
             #[cfg(feature = "ulid")]
@@ -610,6 +628,15 @@ impl Parse for Variant {
                 "Uuid" => Ok(Self::Uuid),
                 #[cfg(feature = "ulid")]
                 "Ulid" => Ok(Self::Ulid),
+                "Duration" => Ok(Self::Duration),
+                "Email" => Ok(Self::Email),
+                "IdnEmail" => Ok(Self::IdnEmail),
+                "Hostname" => Ok(Self::Hostname),
+                "IdnHostname" => Ok(Self::IdnHostname),
+                "UriTemplate" => Ok(Self::UriTemplate),
+                "JsonPointer" => Ok(Self::JsonPointer),
+                "RelativeJsonPointer" => Ok(Self::RelativeJsonPointer),
+                "Regex" => Ok(Self::Regex),
                 _ => Err(Error::new(
                     format.span(),
                     format!("unexpected format: {name}, expected one of: {formats}"),
@@ -683,6 +710,33 @@ impl ToTokens for Variant {
             #[cfg(feature = "url")]
             Self::Url => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Url
+            ))),
+            Self::Duration => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Duration
+            ))),
+            Self::Email => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Email
+            ))),
+            Self::IdnEmail => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::IdnEmail
+            ))),
+            Self::Hostname => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Hostname
+            ))),
+            Self::IdnHostname => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::IdnHostname
+            ))),
+            Self::UriTemplate => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::UriTemplate
+            ))),
+            Self::JsonPointer => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::JsonPointer
+            ))),
+            Self::RelativeJsonPointer => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::RelativeJsonPointer
+            ))),
+            Self::Regex => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Regex
             ))),
             Self::Custom(value) => tokens.extend(quote!(#oapi::oapi::SchemaFormat::Custom(
                 String::from(#value)
