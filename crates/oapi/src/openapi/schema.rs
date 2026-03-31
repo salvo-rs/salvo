@@ -5,6 +5,7 @@
 mod all_of;
 mod any_of;
 mod array;
+mod number;
 mod object;
 mod one_of;
 
@@ -13,6 +14,7 @@ use std::ops::{Deref, DerefMut};
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
 pub use array::{Array, ArrayItems};
+pub use number::Number;
 pub use object::Object;
 pub use one_of::OneOf;
 use serde::{Deserialize, Serialize};

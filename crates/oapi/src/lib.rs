@@ -754,32 +754,32 @@ mod tests {
             (
                 "u8",
                 u8::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint8", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint8", "minimum": 0}),
             ),
             (
                 "u16",
                 u16::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint16", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint16", "minimum": 0}),
             ),
             (
                 "u32",
                 u32::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint32", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint32", "minimum": 0}),
             ),
             (
                 "u64",
                 u64::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint64", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint64", "minimum": 0}),
             ),
             (
                 "u128",
                 u128::to_schema(&mut components),
-                json!({"type": "integer", "minimum": 0.0}),
+                json!({"type": "integer", "minimum": 0}),
             ),
             (
                 "usize",
                 usize::to_schema(&mut components),
-                json!({"type": "integer", "minimum": 0.0 }),
+                json!({"type": "integer", "minimum": 0}),
             ),
             (
                 "bool",
