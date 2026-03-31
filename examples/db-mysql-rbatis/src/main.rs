@@ -1,7 +1,3 @@
-#[macro_use]
-extern crate rbatis;
-extern crate rbdc;
-
 use std::sync::LazyLock;
 
 use rbatis::RBatis;
@@ -22,7 +18,7 @@ pub struct User {
 
 // Implement select query for User model
 // Generates SQL: SELECT * FROM user WHERE id = #{id} LIMIT 1
-impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 1`"});
+rbatis::impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 1`"});
 
 // Handler for retrieving a user by ID from the database
 #[handler]
