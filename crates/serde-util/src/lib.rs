@@ -75,6 +75,13 @@ impl SerdeValue {
                         };
                     }
                     TokenTree::Ident(ident) if ident == "default" => value.is_default = true,
+                    TokenTree::Ident(ident) if ident == "with" => {
+                        if let Some((literal, _)) = parse_next_lit_str(next) {
+                            if literal.contains("double_option") {
+                                value.double_option = true;
+                            }
+                        }
+                    }
                     _ => (),
                 }
 
