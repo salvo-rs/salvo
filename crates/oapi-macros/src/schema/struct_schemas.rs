@@ -153,7 +153,8 @@ impl NamedStructSchema<'_> {
 impl TryToTokens for NamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let container_rules = serde_util::parse_container(self.attributes);
+        let container_rules =
+            serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
 
         let field_values = self
             .fields
@@ -170,7 +171,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     return Ok(None);
                 }
 
-                let field_rule = serde_util::parse_value(&field.attrs);
+                let field_rule = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
 
                 if is_not_skipped(field_rule.as_ref()) && !is_flatten(field_rule.as_ref()) {
                     Ok(Some((field, field_rule)))
@@ -239,10 +240,14 @@ impl TryToTokens for NamedStructSchema<'_> {
         let flatten_fields: Vec<&Field> = self
             .fields
             .iter()
-            .filter(|field| {
-                let field_rule = serde_util::parse_value(&field.attrs);
-                is_flatten(field_rule.as_ref())
+            .map(|field| {
+                let field_rule = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                Ok((field, field_rule))
             })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .filter(|(_, field_rule)| is_flatten(field_rule.as_ref()))
+            .map(|(field, _)| field)
             .collect();
 
         let all_of = if !flatten_fields.is_empty() {

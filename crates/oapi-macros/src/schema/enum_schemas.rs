@@ -297,31 +297,38 @@ impl ReprEnum<'_> {
 #[cfg(feature = "repr")]
 impl TryToTokens for ReprEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
-        let container_rules = serde_util::parse_container(self.attributes);
+        let container_rules =
+            serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
+
+        let variant_tokens = self
+            .variants
+            .iter()
+            .map(|variant| {
+                let variant_rules =
+                    serde_util::parse_value(&variant.attrs).map_err(Diagnostic::from)?;
+                Ok((variant, variant_rules))
+            })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .filter_map(|(variant, variant_rules)| {
+                let variant_type = &variant.ident;
+                if is_not_skipped(variant_rules.as_ref()) {
+                    let repr_type = &self.enum_type;
+                    Some(enum_variant::ReprVariant {
+                        value: quote! { Self::#variant_type as #repr_type },
+                        type_path: repr_type,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>();
 
         regular_enum_to_tokens(
             tokens,
             container_rules.as_ref(),
             &self.enum_features,
-            || {
-                self.variants
-                    .iter()
-                    .filter_map(|variant| {
-                        let variant_type = &variant.ident;
-                        let variant_rules = serde_util::parse_value(&variant.attrs);
-
-                        if is_not_skipped(variant_rules.as_ref()) {
-                            let repr_type = &self.enum_type;
-                            Some(enum_variant::ReprVariant {
-                                value: quote! { Self::#variant_type as #repr_type },
-                                type_path: repr_type,
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>()
-            },
+            || variant_tokens,
         )
     }
 }
@@ -368,52 +375,59 @@ impl SimpleEnum<'_> {
 
 impl TryToTokens for SimpleEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
-        let container_rules = serde_util::parse_container(self.attributes);
+        let container_rules =
+            serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
+
+        let variant_tokens = self
+            .variants
+            .iter()
+            .map(|variant| {
+                let variant_rules =
+                    serde_util::parse_value(&variant.attrs).map_err(Diagnostic::from)?;
+                Ok((variant, variant_rules))
+            })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .filter_map(|(variant, variant_rules)| {
+                if is_not_skipped(variant_rules.as_ref()) {
+                    Some((variant, variant_rules))
+                } else {
+                    None
+                }
+            })
+            .flat_map(|(variant, variant_rules)| {
+                let name = &*variant.ident.to_string();
+                let mut variant_features =
+                    feature::parse_schema_features_with(&variant.attrs, |input| {
+                        Ok(parse_features!(input as Rename))
+                    })
+                    .ok()?
+                    .unwrap_or_default();
+                let variant_name = rename_enum_variant(
+                    name,
+                    &mut variant_features,
+                    variant_rules.as_ref(),
+                    container_rules.as_ref(),
+                    self.rename_all,
+                );
+
+                variant_name
+                    .map(|name| SimpleEnumVariant {
+                        value: name.to_token_stream(),
+                    })
+                    .or_else(|| {
+                        Some(SimpleEnumVariant {
+                            value: name.to_token_stream(),
+                        })
+                    })
+            })
+            .collect::<Vec<SimpleEnumVariant<TokenStream>>>();
 
         regular_enum_to_tokens(
             tokens,
             container_rules.as_ref(),
             &self.enum_features,
-            || {
-                self.variants
-                    .iter()
-                    .filter_map(|variant| {
-                        let variant_rules = serde_util::parse_value(&variant.attrs);
-
-                        if is_not_skipped(variant_rules.as_ref()) {
-                            Some((variant, variant_rules))
-                        } else {
-                            None
-                        }
-                    })
-                    .flat_map(|(variant, variant_rules)| {
-                        let name = &*variant.ident.to_string();
-                        let mut variant_features =
-                            feature::parse_schema_features_with(&variant.attrs, |input| {
-                                Ok(parse_features!(input as Rename))
-                            })
-                            .ok()?
-                            .unwrap_or_default();
-                        let variant_name = rename_enum_variant(
-                            name,
-                            &mut variant_features,
-                            variant_rules.as_ref(),
-                            container_rules.as_ref(),
-                            self.rename_all,
-                        );
-
-                        variant_name
-                            .map(|name| SimpleEnumVariant {
-                                value: name.to_token_stream(),
-                            })
-                            .or_else(|| {
-                                Some(SimpleEnumVariant {
-                                    value: name.to_token_stream(),
-                                })
-                            })
-                    })
-                    .collect::<Vec<SimpleEnumVariant<TokenStream>>>()
-            },
+            || variant_tokens,
         )
     }
 }
@@ -1057,7 +1071,7 @@ impl ComplexEnum<'_> {
 impl TryToTokens for ComplexEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let attributes = &self.attributes;
-        let container_rules = serde_util::parse_container(attributes);
+        let container_rules = serde_util::parse_container(attributes).map_err(Diagnostic::from)?;
 
         let enum_repr = container_rules
             .as_ref()
@@ -1073,14 +1087,14 @@ impl TryToTokens for ComplexEnum<'_> {
         let ts = self
             .variants
             .iter()
-            .filter_map(|variant: &Variant| {
-                let variant_serde_rules = serde_util::parse_value(&variant.attrs);
-                if is_not_skipped(variant_serde_rules.as_ref()) {
-                    Some((variant, variant_serde_rules))
-                } else {
-                    None
-                }
+            .map(|variant: &Variant| {
+                let variant_serde_rules =
+                    serde_util::parse_value(&variant.attrs).map_err(Diagnostic::from)?;
+                Ok((variant, variant_serde_rules))
             })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .filter(|(_, variant_serde_rules)| is_not_skipped(variant_serde_rules.as_ref()))
             .map(|(variant, variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
 
