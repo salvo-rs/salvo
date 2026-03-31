@@ -38,8 +38,8 @@ pub struct Object {
     pub default_value: Option<Value>,
 
     /// Enum variants of fields that can be represented as `unit` type `enums`
-    #[serde(default, rename = "enum", skip_serializing_if = "Vec::is_empty")]
-    pub enum_values: Vec<Value>,
+    #[serde(default, rename = "enum", skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<Value>>,
 
     /// Vector of required field names.
     #[serde(default, skip_serializing_if = "IndexSet::is_empty")]
@@ -259,10 +259,12 @@ impl Object {
         I: IntoIterator<Item = E>,
         E: Into<Value>,
     {
-        self.enum_values = enum_values
-            .into_iter()
-            .map(|enum_value| enum_value.into())
-            .collect();
+        self.enum_values = Some(
+            enum_values
+                .into_iter()
+                .map(|enum_value| enum_value.into())
+                .collect(),
+        );
         self
     }
 
