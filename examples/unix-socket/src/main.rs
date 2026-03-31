@@ -1,4 +1,4 @@
-#[cfg(unix)]
+#[cfg(all(feature = "unix", unix))]
 #[tokio::main]
 async fn main() {
     use salvo::prelude::*;
@@ -8,7 +8,7 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 
-#[cfg(not(unix))]
+#[cfg(not(all(feature = "unix", unix)))]
 #[tokio::main]
 async fn main() {
     println!("This example requires the 'unix' feature and must be run on a Unix system (Linux, macOS, BSD)");
