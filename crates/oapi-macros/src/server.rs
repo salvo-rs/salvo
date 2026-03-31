@@ -64,10 +64,11 @@ impl Parse for Server {
 impl ToTokens for Server {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let url = &self.url;
+        let oapi = crate::oapi_crate();
         let description = &self
             .description
             .as_ref()
-            .map(|description| quote! { .description(Some(#description)) });
+            .map(|description| quote! { .description(#description) });
 
         let parameters = self
             .variables
@@ -78,15 +79,15 @@ impl ToTokens for Server {
                 let description = &variable
                     .description
                     .as_ref()
-                    .map(|description| quote! { .description(Some(#description)) });
+                    .map(|description| quote! { .description(#description) });
                 let enum_values = &variable.enum_values.as_ref().map(|enum_values| {
                     let enum_values = enum_values.iter().collect::<Array<&LitStr>>();
 
-                    quote! { .enum_values(Some(#enum_values)) }
+                    quote! { .enum_values(#enum_values) }
                 });
 
                 quote! {
-                    .parameter(#name, utoipa::openapi::server::ServerVariableBuilder::new()
+                    .add_variable(#name, #oapi::oapi::server::ServerVariable::new()
                         .default_value(#default_value)
                         #description
                         #enum_values
@@ -96,11 +97,9 @@ impl ToTokens for Server {
             .collect::<TokenStream>();
 
         tokens.extend(quote! {
-            utoipa::openapi::server::ServerBuilder::new()
-                .url(#url)
+            #oapi::oapi::server::Server::new(#url)
                 #description
                 #parameters
-                .build()
         })
     }
 }

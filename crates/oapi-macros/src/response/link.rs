@@ -129,15 +129,15 @@ impl ToTokens for Link {
             .as_ref()
             .map(|server| quote! { .server(Some(#server)) });
 
+        let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            utoipa::openapi::link::Link::builder()
+            #oapi::oapi::link::Link::default()
                 #operation_ref
                 #operation_id
                 #parameters
                 #request_body
                 #description
                 #server
-                .build()
         })
     }
 }
