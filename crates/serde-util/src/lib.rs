@@ -229,71 +229,85 @@ impl SerdeContainer {
 }
 
 /// Parse value.
-#[must_use]
-pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
+///
+/// Returns `Ok(Some(SerdeValue))` if attributes are successfully parsed (even if no serde
+/// attributes are present, in which case a default `SerdeValue` is returned),
+/// or `Err` if parsing any serde attribute fails.
+pub fn parse_value(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Error> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse))
-        .try_fold(SerdeValue::default(), |mut acc, value| {
-            let Ok(value) = value else {
-                return Some(acc);
-            };
-            if value.skip {
-                acc.skip = value.skip;
-            }
-            if value.skip_serializing_if {
-                acc.skip_serializing_if = value.skip_serializing_if;
-            }
-            if value.rename.is_some() {
-                acc.rename = value.rename;
-            }
-            acc.aliases.extend(value.aliases);
-            if value.flatten {
-                acc.flatten = value.flatten;
-            }
-            if value.is_default {
-                acc.is_default = value.is_default;
-            }
-            if value.double_option {
-                acc.double_option = value.double_option;
-            }
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parsed| {
+            Some(
+                parsed
+                    .into_iter()
+                    .fold(SerdeValue::default(), |mut acc, value| {
+                        if value.skip {
+                            acc.skip = value.skip;
+                        }
+                        if value.skip_serializing_if {
+                            acc.skip_serializing_if = value.skip_serializing_if;
+                        }
+                        if value.rename.is_some() {
+                            acc.rename = value.rename;
+                        }
+                        acc.aliases.extend(value.aliases);
+                        if value.flatten {
+                            acc.flatten = value.flatten;
+                        }
+                        if value.is_default {
+                            acc.is_default = value.is_default;
+                        }
+                        if value.double_option {
+                            acc.double_option = value.double_option;
+                        }
 
-            Some(acc)
+                        acc
+                    }),
+            )
         })
 }
 
 /// Parse container.
-#[must_use]
-pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
+///
+/// Returns `Ok(Some(SerdeContainer))` if attributes are successfully parsed (even if no serde
+/// attributes are present, in which case a default `SerdeContainer` is returned),
+/// or `Err` if parsing any serde attribute fails.
+pub fn parse_container(attributes: &[Attribute]) -> Result<Option<SerdeContainer>, Error> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse))
-        .try_fold(SerdeContainer::default(), |mut acc, value| {
-            let Ok(value) = value else {
-                return Some(acc);
-            };
-            if value.is_default {
-                acc.is_default = value.is_default;
-            }
-            if value.deny_unknown_fields {
-                acc.deny_unknown_fields = value.deny_unknown_fields;
-            }
-            match value.enum_repr {
-                SerdeEnumRepr::ExternallyTagged => {}
-                SerdeEnumRepr::Untagged
-                | SerdeEnumRepr::InternallyTagged { .. }
-                | SerdeEnumRepr::AdjacentlyTagged { .. }
-                | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                    acc.enum_repr = value.enum_repr;
-                }
-            }
-            if value.rename_all.is_some() {
-                acc.rename_all = value.rename_all;
-            }
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parsed| {
+            Some(
+                parsed
+                    .into_iter()
+                    .fold(SerdeContainer::default(), |mut acc, value| {
+                        if value.is_default {
+                            acc.is_default = value.is_default;
+                        }
+                        if value.deny_unknown_fields {
+                            acc.deny_unknown_fields = value.deny_unknown_fields;
+                        }
+                        match value.enum_repr {
+                            SerdeEnumRepr::ExternallyTagged => {}
+                            SerdeEnumRepr::Untagged
+                            | SerdeEnumRepr::InternallyTagged { .. }
+                            | SerdeEnumRepr::AdjacentlyTagged { .. }
+                            | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                                acc.enum_repr = value.enum_repr;
+                            }
+                        }
+                        if value.rename_all.is_some() {
+                            acc.rename_all = value.rename_all;
+                        }
 
-            Some(acc)
+                        acc
+                    }),
+            )
         })
 }
 
@@ -329,7 +343,7 @@ mod tests {
             skip_serializing_if_attribute,
         ];
 
-        let result = parse_value(attributes).unwrap();
+        let result = parse_value(attributes).unwrap().unwrap();
         assert!(result.skip);
         assert_eq!(result.rename.unwrap(), "new_name");
         assert!(result.is_default);
@@ -364,7 +378,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).unwrap().unwrap();
         assert_eq!(expected.is_default, result.is_default);
         assert_eq!(expected.deny_unknown_fields, result.deny_unknown_fields);
     }
@@ -383,7 +397,7 @@ mod tests {
         };
         let attributes: &[Attribute] = &[rename_all_attribute];
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).unwrap().unwrap();
         assert_eq!(result.rename_all, Some(RenameRule::CamelCase));
     }
 
@@ -394,7 +408,7 @@ mod tests {
         };
         let attributes: &[Attribute] = &[untagged_attribute];
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).unwrap().unwrap();
         assert_eq!(result.enum_repr, super::SerdeEnumRepr::Untagged);
     }
 
@@ -405,7 +419,7 @@ mod tests {
         };
         let attributes: &[Attribute] = &[tag_attribute];
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).unwrap().unwrap();
         assert_eq!(
             result.enum_repr,
             super::SerdeEnumRepr::InternallyTagged {
@@ -421,7 +435,7 @@ mod tests {
         };
         let attributes: &[Attribute] = &[tag_attribute];
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).unwrap().unwrap();
         assert_eq!(
             result.enum_repr,
             super::SerdeEnumRepr::AdjacentlyTagged {

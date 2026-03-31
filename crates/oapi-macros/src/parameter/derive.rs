@@ -90,7 +90,7 @@ impl TryToTokens for ToParameters {
             .collect::<Result<Vec<_>, Diagnostic>>()?
             .into_iter()
             .reduce(|acc, item| acc.merge(item));
-        let serde_container = serde_util::parse_container(&self.attrs);
+        let serde_container = serde_util::parse_container(&self.attrs).map_err(Diagnostic::from)?;
 
         // #[param] is only supported over fields
         if self.attrs.iter().any(|attr| {
@@ -135,37 +135,37 @@ impl TryToTokens for ToParameters {
         let params = self
             .get_struct_fields(names.as_ref())?
             .enumerate()
-            .filter_map(|(index, field)| {
-                let field_serde_params = serde_util::parse_value(&field.attrs);
+            .map(|(index, field)| {
+                let field_serde_params = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
                 if matches!(&field_serde_params, Some(params) if !params.skip) {
-                    Some((index, field, field_serde_params))
+                    Ok(Some(Parameter {
+                        field,
+                        field_serde_params,
+                        container_attributes: FieldParameterContainerAttributes {
+                            rename_all: rename_all.as_ref().and_then(|feature| {
+                                match feature {
+                                    Feature::RenameAll(rename_all) => Some(*rename_all),
+                                    _ => None
+                                }
+                            }),
+                            default_style: &default_style,
+                            default_parameter_in: &default_parameter_in,
+                            name: names.as_ref().map(|names| names.get(index).ok_or_else(||  Diagnostic::spanned(
+                                ident.span(),
+                                DiagLevel::Error,
+                                format!("There is no name specified in the names(...) container attribute for tuple struct field {index}")
+                            ))).transpose()?,
+                        },
+                        serde_container: serde_container.as_ref(),
+                    }))
                 } else {
-                    None
+                    Ok(None)
                 }
             })
-            .map(|(index, field, field_serde_params)|{
-                Ok(Parameter {
-                    field,
-                    field_serde_params,
-                    container_attributes: FieldParameterContainerAttributes {
-                        rename_all: rename_all.as_ref().and_then(|feature| {
-                            match feature {
-                                Feature::RenameAll(rename_all) => Some(*rename_all),
-                                _ => None
-                            }
-                        }),
-                        default_style: &default_style,
-                        default_parameter_in: &default_parameter_in,
-                        name: names.as_ref().map(|names| names.get(index).ok_or_else(||  Diagnostic::spanned(
-                            ident.span(),
-                            DiagLevel::Error,
-                            format!("There is no name specified in the names(...) container attribute for tuple struct field {index}")
-                        ))).transpose()?,
-                    },
-                    serde_container: serde_container.as_ref(),
-                })
-            })
-            .collect::<DiagResult<Vec<Parameter>>>()?;
+            .collect::<DiagResult<Vec<Option<Parameter>>>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<Parameter>>();
 
         let extract_fields = if self.is_named_struct() {
             params
