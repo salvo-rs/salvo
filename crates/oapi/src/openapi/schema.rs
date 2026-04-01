@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 
 pub use all_of::AllOf;
 pub use any_of::AnyOf;
-pub use array::Array;
+pub use array::{Array, ArrayItems};
 pub use object::Object;
 pub use one_of::OneOf;
 use serde::{Deserialize, Serialize};
