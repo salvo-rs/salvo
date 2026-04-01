@@ -338,7 +338,9 @@ impl AnyValue {
     pub(crate) fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Token![-]) || input.peek(Lit) {
             let punct = input.parse::<Option<Token![-]>>()?;
-            let lit = input.parse::<Lit>().expect("parse_any: parse `Lit` failed");
+            let lit = input
+                .parse::<Lit>()
+                .map_err(|e| syn::Error::new(e.span(), "expected a literal value after `-`"))?;
 
             Ok(Self::Json(quote! { #punct #lit}))
         } else {
