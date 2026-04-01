@@ -3,7 +3,7 @@ use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
-use crate::feature::attributes::{Description, Nullable};
+use crate::feature::attributes::{Description, Inline, Nullable};
 use crate::feature::validation::Minimum;
 use crate::feature::{Feature, FeaturesExt, IsInline, TryToTokensExt, Validatable, pop_feature};
 use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
@@ -214,6 +214,25 @@ impl ComponentSchema {
             .map(|f| f.try_to_token_stream())
             .transpose()?;
 
+        // Generate property_names from the map key type (first child)
+        let children = type_tree
+            .children
+            .as_ref()
+            .expect("ComponentSchema Map type should have children");
+        let key_type = children
+            .first()
+            .expect("ComponentSchema Map type should have 2 children, getting first");
+        let mut property_name_features = features.clone();
+        property_name_features.push(Feature::Inline(Inline(true)));
+        let property_names_schema = Self::new(ComponentSchemaProps {
+            type_tree: key_type,
+            features: Some(property_name_features),
+            description: None,
+            deprecated: None,
+            object_name,
+        })?
+        .to_token_stream();
+
         let additional_properties =
             if let Some(additional_properties) = additional_properties.as_ref() {
                 Some(additional_properties.try_to_token_stream()?)
@@ -223,12 +242,9 @@ impl ComponentSchema {
                 // Maps have 2 child schemas and we are interested in the second one of them
                 // which is used to determine the additional properties.
                 let schema_property = Self::new(ComponentSchemaProps {
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema Map type should have children")
+                    type_tree: children
                         .get(1)
-                        .expect("ComponentSchema Map type should have 2 child"),
+                        .expect("ComponentSchema Map type should have 2 children"),
                     features: Some(features),
                     description: None,
                     deprecated: None,
@@ -244,6 +260,7 @@ impl ComponentSchema {
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
                 #schema_type
+                .property_names(#property_names_schema)
                 #additional_properties
                 #description_stream
                 #deprecated_stream

@@ -59,6 +59,11 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<Box<AdditionalProperties<Schema>>>,
 
+    /// Schema to describe property names of an object such as a map.
+    /// See <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub property_names: Option<Box<RefOr<Schema>>>,
+
     /// Changes the [`Object`] deprecated status.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
@@ -213,6 +218,14 @@ impl Object {
         additional_properties: I,
     ) -> Self {
         self.additional_properties = Some(Box::new(additional_properties.into()));
+        self
+    }
+
+    /// Add [`Schema`] to describe property names of an object such as a map.
+    /// See <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+    #[must_use]
+    pub fn property_names(mut self, property_names: impl Into<RefOr<Schema>>) -> Self {
+        self.property_names = Some(Box::new(property_names.into()));
         self
     }
 
