@@ -1365,12 +1365,6 @@ mod tests {
         let router = Router::with_path("/cities").get(get_all_cities);
         let doc = doc.merge_router(&router);
 
-        eprintln!(
-            "ACTUAL JSON:\n{}",
-            serde_json::to_string_pretty(&Value::from_str(&doc.to_json().unwrap()).unwrap())
-                .unwrap()
-        );
-
         assert_eq!(
             json! {{
                 "openapi": "3.1.0",
@@ -1511,7 +1505,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "int32",
+                                    "format": "uint16",
                                     "minimum": 0.0
                                 },
                                 "detail": {

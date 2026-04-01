@@ -740,9 +740,11 @@ impl ToTokens for Variant {
             Self::JsonPointer => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::JsonPointer
             ))),
-            Self::RelativeJsonPointer => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
-                #oapi::oapi::KnownFormat::RelativeJsonPointer
-            ))),
+            Self::RelativeJsonPointer => {
+                tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                    #oapi::oapi::KnownFormat::RelativeJsonPointer
+                )))
+            }
             Self::Regex => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Regex
             ))),
