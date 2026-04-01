@@ -76,9 +76,9 @@ pub enum ParseError {
     #[error("invalid range")]
     InvalidRange,
 
-    /// An multer error.
-    #[error("multer error: {0}")]
-    Multer(#[from] multer::Error),
+    /// A multra error. Variant name is kept for backward compatibility.
+    #[error("multra error: {0}")]
+    Multer(#[from] multra::Error),
 
     /// An I/O error.
     #[error("I/O error: {0}")]
