@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
 use syn::parse::Parse;
@@ -5,6 +7,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Paren;
 use syn::{Error, Token, parenthesized};
 
+use super::encoding::Encoding;
 use super::example::Example;
 use super::{PathType, PathTypeTree};
 use crate::component::ComponentSchema;
@@ -56,12 +59,12 @@ pub(crate) struct RequestBodyAttr<'r> {
     pub(crate) description: Option<parse_utils::LitStrOrExpr>,
     pub(crate) example: Option<AnyValue>,
     pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
+    pub(crate) encoding: BTreeMap<String, Encoding>,
 }
 
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description, examples";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: content, content_type, description, examples, encoding";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -104,6 +107,24 @@ impl Parse for RequestBodyAttr<'_> {
                     "examples" => {
                         request_body_attr.examples =
                             Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                    }
+                    "encoding" => {
+                        // Parse encoding("field_name" = (content_type = "...", ...))
+                        // The outer parentheses contain comma-separated key-value pairs
+                        // where each pair is ("field_name" = (encoding_attrs))
+                        let enc_content;
+                        parenthesized!(enc_content in group);
+
+                        while !enc_content.is_empty() {
+                            let field_name = enc_content.parse::<syn::LitStr>()?.value();
+                            enc_content.parse::<Token![=]>()?;
+                            let encoding = enc_content.parse::<Encoding>()?;
+                            request_body_attr.encoding.insert(field_name, encoding);
+
+                            if !enc_content.is_empty() {
+                                enc_content.parse::<Token![,]>()?;
+                            }
+                        }
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
@@ -173,6 +194,11 @@ impl TryToTokens for RequestBodyAttr<'_> {
                 content.extend(quote!(
                     .extend_examples(#examples)
                 ))
+            }
+            for (field_name, encoding) in &self.encoding {
+                content.extend(quote!(
+                    .encoding(#field_name, #encoding)
+                ));
             }
 
             match body_type {
