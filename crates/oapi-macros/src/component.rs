@@ -3,12 +3,12 @@ use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
-use crate::feature::attributes::{AdditionalProperties, Description, Nullable};
+use crate::feature::attributes::{Description, Nullable};
 use crate::feature::validation::Minimum;
 use crate::feature::{Feature, FeaturesExt, IsInline, TryToTokensExt, Validatable, pop_feature};
 use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
-use crate::{Deprecated, DiagResult, Diagnostic, IntoInner, TryToTokens};
+use crate::{Deprecated, DiagResult, IntoInner, TryToTokens};
 
 #[derive(Debug)]
 pub(crate) struct ComponentSchemaProps<'c> {
@@ -66,17 +66,14 @@ impl ComponentSchema {
         let deprecated_stream = Self::get_deprecated(deprecated);
 
         match type_tree.generic_type {
-            Some(GenericType::Map) => {
-                features.push(AdditionalProperties(true).into());
-                Self::map_to_tokens(
-                    &mut tokens,
-                    features,
-                    type_tree,
-                    object_name,
-                    description,
-                    deprecated_stream,
-                )?
-            }
+            Some(GenericType::Map) => Self::map_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description,
+                deprecated_stream,
+            )?,
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 Self::vec_to_tokens(
                     &mut tokens,
@@ -195,15 +192,14 @@ impl ComponentSchema {
             .map(|f| f.try_to_token_stream())
             .transpose()?;
 
-        let additional_properties = additional_properties
-            .as_ref()
-            .map(TryToTokens::try_to_token_stream)
-            .transpose()
-            .or_else(|_| {
+        let additional_properties =
+            if let Some(additional_properties) = additional_properties.as_ref() {
+                Some(additional_properties.try_to_token_stream()?)
+            } else {
                 // Maps are treated as generic objects with no named properties and
-                // additionalProperties denoting the type
-                // maps have 2 child schemas and we are interested the second one of them
-                // which is used to determine the additional properties
+                // additionalProperties denoting the type.
+                // Maps have 2 child schemas and we are interested in the second one of them
+                // which is used to determine the additional properties.
                 let schema_property = Self::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
@@ -218,8 +214,8 @@ impl ComponentSchema {
                 })?
                 .to_token_stream();
 
-                Ok::<_, Diagnostic>(Some(quote! { .additional_properties(#schema_property) }))
-            })?;
+                Some(quote! { .additional_properties(#schema_property) })
+            };
 
         let schema_type = Self::get_schema_type_override(nullable, SchemaTypeInner::Object);
 
