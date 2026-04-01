@@ -183,6 +183,11 @@ impl Components {
             .security_schemes
             .retain(|name, _| !self.security_schemes.contains_key(name));
         self.security_schemes.append(&mut other.security_schemes);
+
+        other
+            .extensions
+            .retain(|name, _| !self.extensions.contains_key(name));
+        self.extensions.append(&mut other.extensions);
     }
 
     /// Add openapi extensions (`x-something`) for [`Components`].

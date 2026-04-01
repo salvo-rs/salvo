@@ -142,6 +142,10 @@ impl PathItem {
         if other.summary.is_some() {
             self.summary = other.summary.take();
         }
+        other
+            .extensions
+            .retain(|name, _| !self.extensions.contains_key(name));
+        self.extensions.append(&mut other.extensions);
     }
 
     /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
