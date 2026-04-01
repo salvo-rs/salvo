@@ -15,7 +15,7 @@ use super::feature::{
     self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures, FromAttributes,
 };
-use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
+use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_flatten, is_not_skipped};
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
@@ -774,12 +774,35 @@ impl ComplexEnum<'_> {
                         .unwrap_or(Cow::Borrowed(name))
                         .to_token_stream(),
                 }]);
-                Ok(Some(quote! {
-                    #named_enum
-                        #title
-                        .property(#tag, #variant_name_tokens)
-                        .required(#tag)
-                }))
+
+                // Check if any named field has #[serde(flatten)], which causes
+                // NamedStructSchema to produce an AllOf. In that case we cannot
+                // call .property()/.required() directly on the AllOf; instead we
+                // wrap the tag property in a new Object and append it as an item.
+                let has_flatten = named_fields.named.iter().any(|field| {
+                    let rule = serde_util::parse_value(&field.attrs).ok().flatten();
+                    is_flatten(rule.as_ref())
+                });
+
+                if has_flatten {
+                    let tag_object = quote! {
+                        #oapi::oapi::Object::new()
+                            #title
+                            .property(#tag, #variant_name_tokens)
+                            .required(#tag)
+                    };
+                    Ok(Some(quote! {
+                        #named_enum
+                            .item(#tag_object)
+                    }))
+                } else {
+                    Ok(Some(quote! {
+                        #named_enum
+                            #title
+                            .property(#tag, #variant_name_tokens)
+                            .required(#tag)
+                    }))
+                }
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
