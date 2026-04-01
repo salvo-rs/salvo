@@ -101,7 +101,7 @@ impl NamedStructSchema<'_> {
             .map(|rules| rules.is_default)
             .unwrap_or(false);
 
-        if schema_default || serde_default {
+        if (schema_default || serde_default) && !flatten {
             let features_inner = field_features.get_or_insert(vec![]);
             if !features_inner
                 .iter()
@@ -183,6 +183,15 @@ impl TryToTokens for NamedStructSchema<'_> {
         let oapi = crate::oapi_crate();
         let container_rules =
             serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
+        let schema_default = self
+            .features
+            .as_ref()
+            .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
+            .unwrap_or(false);
+        let serde_default = container_rules
+            .as_ref()
+            .map(|rules| rules.is_default)
+            .unwrap_or(false);
 
         let field_values = self
             .fields
@@ -368,6 +377,102 @@ impl TryToTokens for NamedStructSchema<'_> {
             tokens.extend(object_tokens);
             false
         };
+
+        if all_of && (schema_default || serde_default) {
+            let struct_ident = format_ident!("{}", &self.struct_name);
+            let mut default_value_tokens = TokenStream::new();
+
+            for field in self.fields {
+                let field_rule = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                if !is_not_skipped(field_rule.as_ref()) {
+                    continue;
+                }
+
+                let field_ident = field.ident.as_ref().expect("field ident should be exists");
+                let mut field_name = field_ident.to_string();
+                if field_name.starts_with("r#") {
+                    field_name = field_name[2..].to_owned();
+                }
+
+                let NamedStructFieldOptions {
+                    rename_field_value,
+                    ignore,
+                    ..
+                } = self.field_as_schema_property(
+                    field,
+                    is_flatten(field_rule.as_ref()),
+                    container_rules.as_ref(),
+                )?;
+
+                let maybe_guard = match &ignore {
+                    Some(crate::parse_utils::LitBoolOrExprPath::LitBool(lit)) if lit.value() => {
+                        continue;
+                    }
+                    Some(crate::parse_utils::LitBoolOrExprPath::ExprPath(path)) => {
+                        Some(quote! { if !#path() })
+                    }
+                    _ => None,
+                };
+
+                if is_flatten(field_rule.as_ref()) {
+                    let insert_tokens = quote! {
+                        if let #oapi::oapi::__private::serde_json::Value::Object(__flattened) =
+                            #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+                        {
+                            __default.extend(__flattened);
+                        }
+                    };
+                    if let Some(guard_tokens) = maybe_guard {
+                        default_value_tokens.extend(quote! {
+                            #guard_tokens {
+                                #insert_tokens
+                            }
+                        });
+                    } else {
+                        default_value_tokens.extend(insert_tokens);
+                    }
+                } else {
+                    let rename_to = field_rule
+                        .as_ref()
+                        .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
+                        .or(rename_field_value);
+                    let rename_all = container_rules
+                        .as_ref()
+                        .and_then(|container_rule| container_rule.rename_all)
+                        .or_else(|| {
+                            self.rename_all
+                                .as_ref()
+                                .map(|rename_all| rename_all.to_rename_rule())
+                        });
+                    let name = crate::rename::<FieldRename>(&field_name, rename_to, rename_all)
+                        .unwrap_or_else(|| Cow::Borrowed(field_name.as_str()))
+                        .into_owned();
+                    let insert_tokens = quote! {
+                        __default.insert(
+                            #name.to_owned(),
+                            #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap(),
+                        );
+                    };
+                    if let Some(guard_tokens) = maybe_guard {
+                        default_value_tokens.extend(quote! {
+                            #guard_tokens {
+                                #insert_tokens
+                            }
+                        });
+                    } else {
+                        default_value_tokens.extend(insert_tokens);
+                    }
+                }
+            }
+
+            tokens.extend(quote! {
+                .default_value({
+                    let mut __default = #oapi::oapi::__private::serde_json::Map::new();
+                    #default_value_tokens
+                    #oapi::oapi::__private::serde_json::Value::Object(__default)
+                })
+            });
+        }
 
         if !all_of
             && container_rules
