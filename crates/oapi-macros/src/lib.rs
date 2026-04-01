@@ -548,14 +548,14 @@ mod tests {
                                     .required(salvo::oapi::Required::False)
                                     .schema(
                                         salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::from_iter([salvo::oapi::schema::BasicType::String, salvo::oapi::schema::BasicType::Null]))
+                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
                                     ),
                                 salvo::oapi::parameter::Parameter::new("age")
                                     .description("Age of pet")
                                     .required(salvo::oapi::Required::False)
                                     .schema(
                                         salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::from_iter([salvo::oapi::schema::BasicType::Integer, salvo::oapi::schema::BasicType::Null]))
+                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
                                             .format(salvo::oapi::SchemaFormat::KnownFormat(
                                                 salvo::oapi::KnownFormat::Int32
                                             ))
