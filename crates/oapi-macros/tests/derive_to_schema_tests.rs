@@ -80,7 +80,7 @@ fn test_derive_to_schema_generics() {
                     "value": {
                         "type": "integer",
                         "format": "uint64",
-                        "minimum": 0.0
+                        "minimum": 0
                     }
                 }
             }
@@ -330,12 +330,12 @@ fn test_derive_to_schema_new_type_struct() {
             "ExclusiveMaximumType": {
                 "type": "integer",
                 "format": "int64",
-                "exclusiveMaximum": 100.0
+                "exclusiveMaximum": 100
             },
             "ExclusiveMinimumType": {
                 "type": "integer",
                 "format": "int64",
-                "exclusiveMinimum": -100.0
+                "exclusiveMinimum": -100
             },
             "MaxItemsType": {
                 "type": "array",
@@ -351,8 +351,8 @@ fn test_derive_to_schema_new_type_struct() {
             "MaximumType": {
                 "type": "integer",
                 "format": "uint32",
-                "maximum": 100.0,
-                "minimum": 0.0
+                "maximum": 100,
+                "minimum": 0
             },
             "MinItemsType": {
                 "type": "array",
@@ -368,12 +368,12 @@ fn test_derive_to_schema_new_type_struct() {
             "MinimumType": {
                 "type": "integer",
                 "format": "int32",
-                "minimum": -100.0
+                "minimum": -100
             },
             "MultipleOfType": {
                 "type": "integer",
                 "format": "int32",
-                "multipleOf": 5.0
+                "multipleOf": 5
             },
             "PatternType": {
                 "type": "string",
