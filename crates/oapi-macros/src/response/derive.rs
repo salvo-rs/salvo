@@ -316,6 +316,7 @@ impl NamedStructResponse<'_> {
             struct_name: Cow::Owned(ident.to_string()),
             name: None,
             inline: None,
+            compose_context: None,
         };
 
         let ty = Self::to_type(ident);
@@ -402,6 +403,7 @@ impl ToResponseNamedStructResponse<'_> {
             rename_all: None,
             name: None,
             inline: None,
+            compose_context: None,
         };
         let response_type = PathType::InlineSchema(inline_schema.try_to_token_stream()?, ty);
 
