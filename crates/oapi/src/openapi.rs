@@ -41,8 +41,8 @@ pub use self::path::{PathItem, PathItemType, Paths};
 pub use self::request_body::RequestBody;
 pub use self::response::{Response, Responses};
 pub use self::schema::{
-    Array, ArrayItems, BasicType, Discriminator, KnownFormat, Number, Object, Ref, Schema, SchemaFormat,
-    SchemaType, Schemas,
+    Array, ArrayItems, BasicType, Discriminator, KnownFormat, Number, Object, Ref, Schema,
+    SchemaFormat, SchemaType, Schemas,
 };
 pub use self::security::{SecurityRequirement, SecurityScheme};
 pub use self::server::{Server, ServerVariable, ServerVariables, Servers};
