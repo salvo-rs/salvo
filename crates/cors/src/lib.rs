@@ -1,9 +1,39 @@
-//! Library adds CORS protection for Salvo web framework.
+//! CORS (Cross-Origin Resource Sharing) protection for Salvo web framework.
+//!
+//! # Important
+//!
+//! The CORS handler must be added to [`Service`](salvo_core::Service) via `.hoop()`,
+//! **not** to [`Router`](salvo_core::Router). This is because browsers send
+//! `OPTIONS` preflight requests that don't match any route, and only
+//! `Service`-level middleware can intercept them.
+//!
+//! ```no_run
+//! use salvo_core::prelude::*;
+//! use salvo_cors::Cors;
+//!
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "Hello World"
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let cors = Cors::new()
+//!         .allow_origin("http://localhost:3000")
+//!         .allow_methods(vec!["GET", "POST", "DELETE"])
+//!         .allow_headers("authorization")
+//!         .into_handler();
+//!
+//!     let router = Router::new().get(hello);
+//!     // CORS must be on Service, NOT on Router
+//!     let service = Service::new(router).hoop(cors);
+//!
+//!     let acceptor = TcpListener::new("0.0.0.0:7878").bind().await;
+//!     Server::new(acceptor).serve(service).await;
+//! }
+//! ```
 //!
 //! [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-//!
-//! # Docs
-//! Find the docs here: <https://salvo.rs/book/features/cors.html>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -59,6 +89,11 @@ where
 }
 
 /// [`Cors`] middleware which adds headers for [CORS][mdn].
+///
+/// After building, call [`.into_handler()`](Cors::into_handler) and add the
+/// resulting handler to [`Service`](salvo_core::Service) via `.hoop()`.
+/// Do **not** add it to `Router` — preflight `OPTIONS` requests won't reach
+/// router-level middleware.
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 #[derive(Clone, Debug)]
