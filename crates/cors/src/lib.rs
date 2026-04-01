@@ -8,6 +8,7 @@
 //! `Service`-level middleware can intercept them.
 //!
 //! ```no_run
+//! use salvo_core::http::Method;
 //! use salvo_core::prelude::*;
 //! use salvo_cors::Cors;
 //!
@@ -16,20 +17,16 @@
 //!     "Hello World"
 //! }
 //!
-//! #[tokio::main]
-//! async fn main() {
+//! fn main() {
 //!     let cors = Cors::new()
 //!         .allow_origin("http://localhost:3000")
-//!         .allow_methods(vec!["GET", "POST", "DELETE"])
+//!         .allow_methods([Method::GET, Method::POST, Method::DELETE])
 //!         .allow_headers("authorization")
 //!         .into_handler();
 //!
 //!     let router = Router::new().get(hello);
 //!     // CORS must be on Service, NOT on Router
-//!     let service = Service::new(router).hoop(cors);
-//!
-//!     let acceptor = TcpListener::new("0.0.0.0:7878").bind().await;
-//!     Server::new(acceptor).serve(service).await;
+//!     let _service = Service::new(router).hoop(cors);
 //! }
 //! ```
 //!
