@@ -134,7 +134,22 @@ impl OneOf {
         self
     }
 
-    /// Add or change example shown in UI of the value for richer documentation.
+    /// Add an example shown in UI of the value for richer documentation.
+    #[must_use]
+    pub fn example<V: Into<Value>>(mut self, example: V) -> Self {
+        self.examples.push(example.into());
+        self
+    }
+
+    /// Set examples shown in UI of the value for richer documentation.
+    #[must_use]
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        self.examples = examples.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Add an example shown in UI of the value for richer documentation.
+    #[deprecated = "Use `example` instead"]
     #[must_use]
     pub fn add_example<V: Into<Value>>(mut self, example: V) -> Self {
         self.examples.push(example.into());
@@ -187,8 +202,8 @@ mod tests {
             .title("title")
             .description("description")
             .default_value(Value::String("default".to_owned()))
-            .add_example(Value::String("example1".to_owned()))
-            .add_example(Value::String("example2".to_owned()))
+            .example(Value::String("example1".to_owned()))
+            .example(Value::String("example2".to_owned()))
             .discriminator(Discriminator::new("discriminator".to_owned()));
 
         assert_eq!(one_of.items.len(), 0);

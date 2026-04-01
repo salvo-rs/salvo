@@ -539,3 +539,114 @@ fn test_issue_1342_flatten_default_generates_composed_default() {
         })
     );
 }
+
+/// Test that `#[serde(flatten)]` with struct-level `example` compiles and produces
+/// correct schema. Regression test for #1076 and #1342.
+#[test]
+fn test_derive_to_schema_flatten_with_example() {
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    struct Base {
+        name: String,
+    }
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(
+        example = json!({"name": "Alice", "age": 30})
+    ))]
+    struct Extended {
+        age: u32,
+        #[serde(flatten)]
+        base: Base,
+    }
+
+    #[endpoint]
+    async fn use_extended(body: JsonBody<Extended>) -> String {
+        format!("{body:?}")
+    }
+
+    salvo::oapi::naming::set_namer(
+        salvo::oapi::naming::FlexNamer::new()
+            .short_mode(true)
+            .generic_delimiter('_', '_'),
+    );
+
+    let router = Router::new().push(Router::with_path("test").post(use_extended));
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+    let value = serde_json::to_value(&doc).unwrap();
+    let schemas = value.pointer("/components/schemas").unwrap();
+
+    let extended = &schemas["Extended"];
+    // Should be an allOf (because of flatten) with examples
+    assert!(
+        extended.get("allOf").is_some(),
+        "Extended should use allOf due to #[serde(flatten)]"
+    );
+    // The example should be present
+    let examples = extended.get("examples").unwrap().as_array().unwrap();
+    assert_eq!(examples.len(), 1);
+    assert_json_eq!(examples[0], json!({"name": "Alice", "age": 30}));
+
+    // The allOf should contain both the flattened Base ref and the Extended object
+    let all_of = extended["allOf"].as_array().unwrap();
+    assert!(all_of.len() >= 2, "allOf should have at least 2 items");
+
+    // One item should be the $ref to Base
+    let has_base_ref = all_of
+        .iter()
+        .any(|item| item.get("$ref").and_then(|r| r.as_str()) == Some("#/components/schemas/Base"));
+    assert!(has_base_ref, "allOf should contain $ref to Base");
+
+    // One item should be an object with the "age" property
+    let has_age = all_of
+        .iter()
+        .any(|item| item.get("properties").and_then(|p| p.get("age")).is_some());
+    assert!(has_age, "allOf should contain object with 'age' property");
+}
+
+/// Test that `#[serde(flatten)]` with struct-level `examples` (plural) works.
+#[test]
+fn test_derive_to_schema_flatten_with_examples() {
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    struct Info {
+        detail: String,
+    }
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    #[salvo(schema(
+        examples(
+            json!({"detail": "a", "code": 1}),
+            json!({"detail": "b", "code": 2})
+        )
+    ))]
+    struct Combined {
+        code: i32,
+        #[serde(flatten)]
+        info: Info,
+    }
+
+    #[endpoint]
+    async fn use_combined(body: JsonBody<Combined>) -> String {
+        format!("{body:?}")
+    }
+
+    salvo::oapi::naming::set_namer(
+        salvo::oapi::naming::FlexNamer::new()
+            .short_mode(true)
+            .generic_delimiter('_', '_'),
+    );
+
+    let router = Router::new().push(Router::with_path("test").post(use_combined));
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+    let value = serde_json::to_value(&doc).unwrap();
+    let schemas = value.pointer("/components/schemas").unwrap();
+
+    let combined = &schemas["Combined"];
+    assert!(
+        combined.get("allOf").is_some(),
+        "Combined should use allOf due to #[serde(flatten)]"
+    );
+    let examples = combined.get("examples").unwrap().as_array().unwrap();
+    assert_eq!(examples.len(), 2);
+    assert_json_eq!(examples[0], json!({"detail": "a", "code": 1}));
+    assert_json_eq!(examples[1], json!({"detail": "b", "code": 2}));
+}
