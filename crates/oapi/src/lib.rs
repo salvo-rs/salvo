@@ -720,16 +720,30 @@ mod tests {
     #[test]
     fn test_primitive_schema() {
         let mut components = Components::new();
+
+        // Format expectations differ based on whether "non-strict-integers" feature is enabled.
+        // With the feature: each integer type gets its own format (int8, uint8, int16, etc.)
+        // Without: smaller integers collapse to int32/int64 per OpenAPI convention.
+        let non_strict = cfg!(feature = "non-strict-integers");
+
         for (name, schema, value) in [
             (
                 "i8",
                 i8::to_schema(&mut components),
-                json!({"type": "integer", "format": "int8"}),
+                if non_strict {
+                    json!({"type": "integer", "format": "int8"})
+                } else {
+                    json!({"type": "integer", "format": "int32"})
+                },
             ),
             (
                 "i16",
                 i16::to_schema(&mut components),
-                json!({"type": "integer", "format": "int16"}),
+                if non_strict {
+                    json!({"type": "integer", "format": "int16"})
+                } else {
+                    json!({"type": "integer", "format": "int32"})
+                },
             ),
             (
                 "i32",
@@ -754,32 +768,48 @@ mod tests {
             (
                 "u8",
                 u8::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint8", "minimum": 0.0}),
+                if non_strict {
+                    json!({"type": "integer", "format": "uint8", "minimum": 0})
+                } else {
+                    json!({"type": "integer", "format": "int32", "minimum": 0})
+                },
             ),
             (
                 "u16",
                 u16::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint16", "minimum": 0.0}),
+                if non_strict {
+                    json!({"type": "integer", "format": "uint16", "minimum": 0})
+                } else {
+                    json!({"type": "integer", "format": "int32", "minimum": 0})
+                },
             ),
             (
                 "u32",
                 u32::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint32", "minimum": 0.0}),
+                if non_strict {
+                    json!({"type": "integer", "format": "uint32", "minimum": 0})
+                } else {
+                    json!({"type": "integer", "format": "int32", "minimum": 0})
+                },
             ),
             (
                 "u64",
                 u64::to_schema(&mut components),
-                json!({"type": "integer", "format": "uint64", "minimum": 0.0}),
+                if non_strict {
+                    json!({"type": "integer", "format": "uint64", "minimum": 0})
+                } else {
+                    json!({"type": "integer", "format": "int64", "minimum": 0})
+                },
             ),
             (
                 "u128",
                 u128::to_schema(&mut components),
-                json!({"type": "integer", "minimum": 0.0}),
+                json!({"type": "integer", "minimum": 0}),
             ),
             (
                 "usize",
                 usize::to_schema(&mut components),
-                json!({"type": "integer", "minimum": 0.0 }),
+                json!({"type": "integer", "minimum": 0}),
             ),
             (
                 "bool",

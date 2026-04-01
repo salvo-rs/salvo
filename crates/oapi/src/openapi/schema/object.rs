@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::AdditionalProperties;
+use super::number::Number;
 use crate::{Array, Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType, Xml};
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
@@ -87,27 +88,27 @@ pub struct Object {
     /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
     /// divided by the _`multiple_of`_ value results an integer.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub multiple_of: Option<f64>,
+    pub multiple_of: Option<Number>,
 
     /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
     /// it is equal or less than the _`maximum`_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub maximum: Option<f64>,
+    pub maximum: Option<Number>,
 
     /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
     /// valid if it is equal or greater than the _`minimum`_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub minimum: Option<f64>,
+    pub minimum: Option<Number>,
 
     /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
     /// valid if it is strictly less than _`exclusive_maximum`_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exclusive_maximum: Option<f64>,
+    pub exclusive_maximum: Option<Number>,
 
     /// Specify exclusive lower limit for the [`Object`]'s value. Number value is considered
     /// valid if it is strictly above the _`exclusive_minimum`_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exclusive_minimum: Option<f64>,
+    pub exclusive_minimum: Option<Number>,
 
     /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
     /// value. Value is considered valid if content length is equal or less than the
@@ -318,36 +319,36 @@ impl Object {
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
     #[must_use]
-    pub fn multiple_of(mut self, multiple_of: f64) -> Self {
-        self.multiple_of = Some(multiple_of);
+    pub fn multiple_of<N: Into<Number>>(mut self, multiple_of: N) -> Self {
+        self.multiple_of = Some(multiple_of.into());
         self
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
     #[must_use]
-    pub fn maximum(mut self, maximum: f64) -> Self {
-        self.maximum = Some(maximum);
+    pub fn maximum<N: Into<Number>>(mut self, maximum: N) -> Self {
+        self.maximum = Some(maximum.into());
         self
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
     #[must_use]
-    pub fn minimum(mut self, minimum: f64) -> Self {
-        self.minimum = Some(minimum);
+    pub fn minimum<N: Into<Number>>(mut self, minimum: N) -> Self {
+        self.minimum = Some(minimum.into());
         self
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
     #[must_use]
-    pub fn exclusive_maximum(mut self, exclusive_maximum: f64) -> Self {
-        self.exclusive_maximum = Some(exclusive_maximum);
+    pub fn exclusive_maximum<N: Into<Number>>(mut self, exclusive_maximum: N) -> Self {
+        self.exclusive_maximum = Some(exclusive_maximum.into());
         self
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
     #[must_use]
-    pub fn exclusive_minimum(mut self, exclusive_minimum: f64) -> Self {
-        self.exclusive_minimum = Some(exclusive_minimum);
+    pub fn exclusive_minimum<N: Into<Number>>(mut self, exclusive_minimum: N) -> Self {
+        self.exclusive_minimum = Some(exclusive_minimum.into());
         self
     }
 
@@ -487,11 +488,11 @@ mod tests {
                 "readOnly": true,
                 "writeOnly": false,
                 "xml": {},
-                "multipleOf": 10.0,
-                "minimum": 0.0,
-                "maximum": 1000.0,
-                "exclusiveMinimum": 0.0,
-                "exclusiveMaximum": 1000.0
+                "multipleOf": 10,
+                "minimum": 0,
+                "maximum": 1000,
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1000
             })
         );
     }
