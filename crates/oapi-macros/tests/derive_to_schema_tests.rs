@@ -462,3 +462,80 @@ fn test_derive_to_schema_new_type_struct() {
         })
     );
 }
+
+#[test]
+fn test_issue_1342_flatten_default_generates_composed_default() {
+    #[derive(Serialize, Deserialize, ToSchema, Debug, Default)]
+    struct User {
+        name: String,
+        age: i32,
+    }
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug, Default)]
+    struct UserExt {
+        title: String,
+    }
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug, Default)]
+    #[serde(default)]
+    struct UserResponse {
+        test_id: i32,
+        #[serde(flatten)]
+        user: User,
+        ext: Option<UserExt>,
+    }
+
+    #[endpoint]
+    async fn create_user(body: JsonBody<UserResponse>) -> String {
+        format!("{body:?}")
+    }
+
+    salvo::oapi::naming::set_namer(
+        salvo::oapi::naming::FlexNamer::new()
+            .short_mode(true)
+            .generic_delimiter('_', '_'),
+    );
+
+    let router = Router::new().push(Router::with_path("users").post(create_user));
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+    let value = serde_json::to_value(&doc).unwrap();
+    let schema = value.pointer("/components/schemas/UserResponse").unwrap();
+
+    assert_json_eq!(
+        schema,
+        json!({
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/User"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "ext": {
+                            "default": null,
+                            "oneOf": [
+                                {
+                                    "type": "null"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/UserExt"
+                                }
+                            ]
+                        },
+                        "test_id": {
+                            "default": 0,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                }
+            ],
+            "default": {
+                "age": 0,
+                "ext": null,
+                "name": "",
+                "test_id": 0
+            }
+        })
+    );
+}
