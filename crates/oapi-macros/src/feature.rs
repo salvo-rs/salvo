@@ -118,6 +118,7 @@ pub(crate) enum Feature {
     Bound(Bound),
     ContentEncoding(ContentEncoding),
     ContentMediaType(ContentMediaType),
+    Discriminator(Discriminator),
 }
 
 impl Feature {
@@ -252,6 +253,14 @@ impl TryToTokens for Feature {
             Self::ContentMediaType(content_media_type) => {
                 quote! { .content_media_type(#content_media_type) }
             }
+            Self::Discriminator(_) => {
+                return Err(Diagnostic::spanned(
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "Discriminator does not support `TryToTokens` directly",
+                )
+                .help("Discriminator is applied to the composite schema (OneOf/AnyOf/AllOf) during enum schema generation."));
+            }
             Self::RenameAll(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
@@ -336,6 +345,7 @@ impl Display for Feature {
             Self::Bound(bound) => bound.fmt(f),
             Self::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Self::ContentMediaType(content_media_type) => content_media_type.fmt(f),
+            Self::Discriminator(discriminator) => discriminator.fmt(f),
         }
     }
 }
@@ -389,6 +399,7 @@ impl Validatable for Feature {
             Self::Bound(bound) => bound.is_validatable(),
             Self::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Self::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
+            Self::Discriminator(discriminator) => discriminator.is_validatable(),
         }
     }
 }

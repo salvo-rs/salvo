@@ -869,3 +869,99 @@ impl From<ContentMediaType> for Feature {
 }
 
 impl_get_name!(ContentMediaType = "content_media_type");
+
+/// Discriminator feature for enum schemas.
+///
+/// Parses: `discriminator(property_name = "type", mapping(("variant1" =
+/// "#/components/schemas/Variant1"), ...))`
+#[derive(Clone, Debug)]
+pub(crate) struct Discriminator {
+    pub(crate) property_name: String,
+    pub(crate) mapping: Vec<(String, String)>,
+}
+
+impl Parse for Discriminator {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
+        let content;
+        parenthesized!(content in input);
+
+        let mut property_name = String::new();
+        let mut mapping = Vec::new();
+
+        while !content.is_empty() {
+            let ident = content.parse::<Ident>()?;
+            let name = ident.to_string();
+
+            match name.as_str() {
+                "property_name" => {
+                    content.parse::<Token![=]>()?;
+                    property_name = content.parse::<LitStr>()?.value();
+                }
+                "mapping" => {
+                    let mapping_content;
+                    parenthesized!(mapping_content in content);
+                    let pairs: Punctuated<(String, String), Token![,]> =
+                        Punctuated::parse_terminated_with(&mapping_content, |inner| {
+                            let key = inner.parse::<LitStr>()?.value();
+                            inner.parse::<Token![=]>()?;
+                            let value = inner.parse::<LitStr>()?.value();
+                            Ok((key, value))
+                        })?;
+                    mapping = pairs.into_iter().collect();
+                }
+                unexpected => {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        format!(
+                            "unexpected identifier `{}`, expected one of: property_name, mapping",
+                            unexpected
+                        ),
+                    ));
+                }
+            }
+
+            if !content.is_empty() {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(Self {
+            property_name,
+            mapping,
+        })
+    }
+}
+
+impl ToTokens for Discriminator {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let oapi = crate::oapi_crate();
+        let property_name = &self.property_name;
+
+        if self.mapping.is_empty() {
+            tokens.extend(quote! {
+                #oapi::oapi::schema::Discriminator::new(#property_name)
+            });
+        } else {
+            let mapping_inserts = self.mapping.iter().map(|(key, value)| {
+                quote! {
+                    __discriminator.mapping.insert(#key.to_owned(), #value.to_owned());
+                }
+            });
+
+            tokens.extend(quote! {
+                {
+                    let mut __discriminator = #oapi::oapi::schema::Discriminator::new(#property_name);
+                    #(#mapping_inserts)*
+                    __discriminator
+                }
+            });
+        }
+    }
+}
+
+impl From<Discriminator> for Feature {
+    fn from(value: Discriminator) -> Self {
+        Self::Discriminator(value)
+    }
+}
+impl_get_name!(Discriminator = "discriminator");

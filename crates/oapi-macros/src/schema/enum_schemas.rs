@@ -19,7 +19,7 @@ use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_ski
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
-    Alias, Bound, Example, Name, Rename, RenameAll, SkipBound, Title,
+    Alias, Bound, Discriminator, Example, Name, Rename, RenameAll, SkipBound, Title,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
@@ -186,6 +186,8 @@ impl<'e> EnumSchema<'e> {
             let inline: Option<Inline> =
                 pop_feature_as_inner!(enum_features => Feature::Inline(_v));
             let description = pop_feature!(enum_features => Feature::Description(_)).into_inner();
+            let discriminator: Option<Discriminator> =
+                pop_feature_as_inner!(enum_features => Feature::Discriminator(_v));
             Ok(Self {
                 schema_type: EnumSchemaType::Complex(ComplexEnum {
                     enum_name,
@@ -194,6 +196,7 @@ impl<'e> EnumSchema<'e> {
                     variants,
                     rename_all,
                     enum_features,
+                    discriminator,
                 }),
                 name,
                 aliases,
@@ -467,6 +470,7 @@ pub(super) struct ComplexEnum<'a> {
     enum_name: Cow<'a, str>,
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
+    discriminator: Option<Discriminator>,
 }
 
 impl ComplexEnum<'_> {
@@ -1120,7 +1124,14 @@ impl TryToTokens for ComplexEnum<'_> {
             .into_iter()
             .flatten()
             .collect::<CustomEnum<'_, TokenStream>>();
-        if let Some(tag) = tag {
+        if self.discriminator.is_some() {
+            // User-provided discriminator attribute takes precedence
+            let discriminator_tokens = self.discriminator.as_ref().unwrap().to_token_stream();
+            ts.to_tokens(tokens);
+            tokens.extend(quote! {
+                .discriminator(#discriminator_tokens)
+            });
+        } else if let Some(tag) = tag {
             ts.discriminator(Cow::Borrowed(tag.as_str()))
                 .to_tokens(tokens);
         } else {
