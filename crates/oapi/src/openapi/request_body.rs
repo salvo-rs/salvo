@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{Content, Required};
+use crate::PropMap;
 
 /// Implements [OpenAPI Request Body][request_body].
 ///
@@ -24,6 +25,10 @@ pub struct RequestBody {
     /// Determines whether request body is required in the request or not.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<Required>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl RequestBody {
@@ -54,12 +59,20 @@ impl RequestBody {
         self
     }
 
+    /// Add openapi extensions (`x-something`) for [`RequestBody`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
+    }
+
     /// Fill [`RequestBody`] with values from another [`RequestBody`].
     pub fn merge(&mut self, other: Self) {
         let Self {
             description,
             contents,
             required,
+            extensions,
         } = other;
         if let Some(description) = description
             && !description.is_empty()
@@ -70,6 +83,7 @@ impl RequestBody {
         if let Some(required) = required {
             self.required = Some(required);
         }
+        self.extensions.extend(extensions);
     }
 }
 

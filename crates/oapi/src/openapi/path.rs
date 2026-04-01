@@ -112,6 +112,10 @@ pub struct PathItem {
     /// per [`PathItemType`].
     #[serde(flatten)]
     pub operations: Operations,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl PathItem {
@@ -138,6 +142,10 @@ impl PathItem {
         if other.summary.is_some() {
             self.summary = other.summary.take();
         }
+        other
+            .extensions
+            .retain(|name, _| !self.extensions.contains_key(name));
+        self.extensions.append(&mut other.extensions);
     }
 
     /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
@@ -179,6 +187,13 @@ impl PathItem {
     #[must_use]
     pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
         self.parameters = Parameters(parameters.into_iter().collect());
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`PathItem`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }

@@ -35,6 +35,10 @@ pub struct Content {
     /// multipart or `application/x-www-form-urlencoded`.
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub encoding: PropMap<String, Encoding>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Content {
@@ -83,6 +87,13 @@ impl Content {
                 .map(|(name, example)| (name.into(), example.into())),
         );
 
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Content`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 

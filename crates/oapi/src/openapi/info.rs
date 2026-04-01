@@ -144,6 +144,10 @@ pub struct Contact {
     /// Email of the contact person or the organization of the API.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Contact {
@@ -172,6 +176,13 @@ impl Contact {
         self.email = Some(email.into());
         self
     }
+
+    /// Add openapi extensions (`x-something`) for [`Contact`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
+    }
 }
 
 /// OpenAPI [License][license] information of the API.
@@ -187,6 +198,10 @@ pub struct License {
     /// Optional url pointing to the license.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl License {
@@ -211,6 +226,13 @@ impl License {
     #[must_use]
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`License`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }

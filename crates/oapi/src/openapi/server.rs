@@ -97,12 +97,14 @@ impl Servers {
             let Server {
                 description,
                 mut variables,
+                extensions,
                 ..
             } = server;
             exist_server.variables.append(&mut variables);
             if description.is_some() {
                 exist_server.description = description;
             }
+            exist_server.extensions.extend(extensions);
             self.0.remove(&exist_server);
             self.0.insert(exist_server);
         } else {
@@ -156,6 +158,10 @@ pub struct Server {
     /// Optional map of variable name and its substitution value used in [`Server::url`].
     #[serde(skip_serializing_if = "ServerVariables::is_empty")]
     pub variables: ServerVariables,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Ord for Server {
@@ -228,6 +234,13 @@ impl Server {
         variable: V,
     ) -> Self {
         self.variables.insert(name.into(), variable.into());
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Server`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
@@ -324,6 +337,10 @@ pub struct ServerVariable {
     /// the [`ServerVariable::default_value`] must contain one of the enum values.
     #[serde(rename = "enum", skip_serializing_if = "BTreeSet::is_empty")]
     enum_values: BTreeSet<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl ServerVariable {
@@ -354,6 +371,13 @@ impl ServerVariable {
         enum_values: I,
     ) -> Self {
         self.enum_values = enum_values.into_iter().map(|value| value.into()).collect();
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`ServerVariable`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }

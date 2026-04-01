@@ -191,6 +191,10 @@ pub struct Discriminator {
     /// validation.
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub mapping: PropMap<String, String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Discriminator {
@@ -207,7 +211,14 @@ impl Discriminator {
         Self {
             property_name: property_name.into(),
             mapping: PropMap::new(),
+            extensions: PropMap::new(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Discriminator`].
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 

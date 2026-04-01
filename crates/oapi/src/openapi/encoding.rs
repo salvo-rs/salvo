@@ -46,6 +46,10 @@ pub struct Encoding {
     /// `application/x-www-form-urlencoded`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_reserved: Option<bool>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Encoding {
@@ -77,6 +81,12 @@ impl Encoding {
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
         self.allow_reserved = Some(allow_reserved);
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Encoding`].
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
