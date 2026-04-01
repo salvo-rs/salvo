@@ -535,18 +535,15 @@ impl ComponentSchema {
                     })
                     .transpose()?
                     .map(|children| {
-                        let all_of = children.into_iter().fold(
-                            quote! { #oapi::oapi::schema::AllOf::new() },
-                            |mut all_of, child_tokens| {
-                                all_of.extend(quote!( .item(#child_tokens) ));
-
-                                all_of
-                            },
-                        );
+                        let prefix_items = children.into_iter().collect::<Vec<_>>();
                         let nullable_schema_type =
                             Self::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
                         quote! {
-                            #oapi::oapi::schema::Array::new().items(#all_of)
+                            #oapi::oapi::schema::Array::new()
+                                .items(#oapi::oapi::schema::ArrayItems::False)
+                                .prefix_items([#(
+                                    Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#prefix_items)
+                                ),*])
                                 #nullable_schema_type
                                 #description_stream
                                 #deprecated_stream
