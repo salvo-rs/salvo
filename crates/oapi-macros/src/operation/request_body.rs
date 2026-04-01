@@ -169,6 +169,7 @@ impl TryToTokens for RequestBodyAttr<'_> {
                         description: None,
                         deprecated: None,
                         object_name: "",
+                        compose_context: None,
                     })?
                     .to_token_stream()
                 }

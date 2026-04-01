@@ -10,6 +10,18 @@ use crate::schema_type::{SchemaFormat, SchemaType, SchemaTypeInner};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::{Deprecated, DiagResult, IntoInner, TryToTokens};
 
+/// Context for `ComposeSchema` code generation.
+///
+/// Tracks which type parameters are generic params of the outer struct,
+/// so that compose mode can replace them with lookups into the `generics` vector.
+#[derive(Debug, Clone)]
+pub(crate) struct ComposeContext {
+    /// The identifier for the generics vector parameter (e.g., `__compose_generics`).
+    pub(crate) generics_ident: proc_macro2::Ident,
+    /// Generic type parameter names in declaration order (e.g., `["T", "U"]`).
+    pub(crate) params: Vec<String>,
+}
+
 #[derive(Debug)]
 pub(crate) struct ComponentSchemaProps<'c> {
     pub(crate) type_tree: &'c TypeTree<'c>,
@@ -17,6 +29,7 @@ pub(crate) struct ComponentSchemaProps<'c> {
     pub(crate) description: Option<&'c ComponentDescription<'c>>,
     pub(crate) deprecated: Option<&'c Deprecated>,
     pub(crate) object_name: &'c str,
+    pub(crate) compose_context: Option<&'c ComposeContext>,
 }
 
 #[derive(Debug)]
@@ -72,6 +85,7 @@ impl ComponentSchema {
             description,
             deprecated,
             object_name,
+            compose_context,
         }: ComponentSchemaProps,
         option_is_nullable: bool,
     ) -> DiagResult<Self> {
@@ -87,6 +101,7 @@ impl ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                compose_context,
             )?,
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 Self::vec_to_tokens(
@@ -96,6 +111,7 @@ impl ComponentSchema {
                     object_name,
                     description,
                     deprecated_stream,
+                    compose_context,
                 )?
             }
             #[cfg(feature = "smallvec")]
@@ -106,6 +122,7 @@ impl ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                compose_context,
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -131,6 +148,7 @@ impl ComponentSchema {
                         description,
                         deprecated,
                         object_name,
+                        compose_context,
                     },
                     option_is_nullable,
                 )?
@@ -156,6 +174,7 @@ impl ComponentSchema {
                         description,
                         deprecated,
                         object_name,
+                        compose_context,
                     },
                     option_is_nullable,
                 )?
@@ -168,6 +187,7 @@ impl ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                compose_context,
             )?,
         }
 
@@ -204,6 +224,7 @@ impl ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        compose_context: Option<&ComposeContext>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
@@ -230,6 +251,7 @@ impl ComponentSchema {
             description: None,
             deprecated: None,
             object_name,
+            compose_context,
         })?
         .to_token_stream();
 
@@ -249,6 +271,7 @@ impl ComponentSchema {
                     description: None,
                     deprecated: None,
                     object_name,
+                    compose_context,
                 })?
                 .to_token_stream();
 
@@ -280,6 +303,7 @@ impl ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        compose_context: Option<&ComposeContext>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let example = pop_feature!(features => Feature::Example(_));
@@ -308,6 +332,7 @@ impl ComponentSchema {
             description: None,
             deprecated: None,
             object_name,
+            compose_context,
         })?
         .to_token_stream();
 
@@ -373,6 +398,7 @@ impl ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        compose_context: Option<&ComposeContext>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let nullable_feat: Option<Nullable> =
@@ -380,6 +406,66 @@ impl ComponentSchema {
         let nullable = nullable_feat
             .map(|nullable| nullable.value())
             .unwrap_or_default();
+
+        // In compose mode, check if this type is a generic param that should
+        // be looked up from the compose generics vector.
+        if let Some(ctx) = compose_context {
+            if let Some(idx) = type_tree
+                .path
+                .as_ref()
+                .and_then(|p| p.segments.last())
+                .and_then(|seg| {
+                    if p_is_single_segment(type_tree.path.as_ref()) {
+                        ctx.params.iter().position(|p| *p == seg.ident.to_string())
+                    } else {
+                        None
+                    }
+                })
+            {
+                let generics_ident = &ctx.generics_ident;
+                let nullable_item = if nullable {
+                    Some(
+                        quote! { .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::BasicType::Null)) },
+                    )
+                } else {
+                    None
+                };
+                let default = pop_feature!(features => Feature::Default(_))
+                    .map(|feature| feature.try_to_token_stream())
+                    .transpose()?;
+                let title = pop_feature!(features => Feature::Title(_))
+                    .map(|feature| feature.try_to_token_stream())
+                    .transpose()?;
+                let description_tokens = description_stream.to_token_stream();
+                let has_description = !description_tokens.is_empty();
+
+                let schema = quote! { #generics_ident[#idx].clone() };
+
+                let schema = if default.is_some() || nullable {
+                    quote! {
+                        #oapi::oapi::schema::OneOf::new()
+                            #nullable_item
+                            .item(#schema)
+                            #default
+                    }
+                } else {
+                    schema
+                };
+
+                let schema = if title.is_some() || has_description {
+                    quote! {
+                        #oapi::oapi::schema::AllOf::new()
+                            .item(#schema)
+                            .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
+                    }
+                } else {
+                    schema
+                };
+
+                schema.to_tokens(tokens);
+                return Ok(());
+            }
+        }
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -600,6 +686,7 @@ impl ComponentSchema {
                                     description: None,
                                     deprecated: None,
                                     object_name,
+                                    compose_context,
                                 })
                             })
                             .collect::<DiagResult<Vec<_>>>()
@@ -637,4 +724,10 @@ impl ToTokens for ComponentSchema {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.tokens.to_tokens(tokens)
     }
+}
+
+/// Check if a path has only a single segment (e.g., `T` vs `std::string::String`).
+fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
+    path.map(|p| p.segments.len() == 1 && p.leading_colon.is_none())
+        .unwrap_or(false)
 }

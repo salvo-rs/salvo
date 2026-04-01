@@ -40,6 +40,7 @@ pub(crate) struct NamedStructSchema<'a> {
     pub(crate) name: Option<Name>,
     pub(crate) aliases: Option<Punctuated<Alias, Token![,]>>,
     pub(crate) inline: Option<Inline>,
+    pub(crate) compose_context: Option<crate::component::ComposeContext>,
 }
 
 struct NamedStructFieldOptions<'a> {
@@ -161,6 +162,7 @@ impl NamedStructSchema<'_> {
                     description: Some(description),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    compose_context: self.compose_context.as_ref(),
                 };
                 if flatten && type_tree.is_map() {
                     Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
@@ -409,6 +411,7 @@ pub(super) struct UnnamedStructSchema<'a> {
     pub(super) name: Option<Name>,
     pub(super) aliases: Option<Punctuated<Alias, Comma>>,
     pub(super) inline: Option<Inline>,
+    pub(super) compose_context: Option<crate::component::ComposeContext>,
 }
 impl UnnamedStructSchema<'_> {
     pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
@@ -509,6 +512,7 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                     description: description.as_ref(),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    compose_context: self.compose_context.as_ref(),
                 })?
                 .to_token_stream(),
             );

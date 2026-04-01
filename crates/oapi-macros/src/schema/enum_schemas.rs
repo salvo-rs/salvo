@@ -550,6 +550,7 @@ impl ComplexEnum<'_> {
                             name: None,
                             aliases: None,
                             inline: None,
+                            compose_context: None,
                         }
                         .try_to_token_stream()?,
                     },
@@ -597,6 +598,7 @@ impl ComplexEnum<'_> {
                             name: None,
                             aliases: None,
                             inline: None,
+                            compose_context: None,
                         }
                         .try_to_token_stream()?,
                     },
@@ -674,6 +676,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
+                    compose_context: None,
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -698,6 +701,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
+                    compose_context: None,
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -766,6 +770,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
+                    compose_context: None,
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -838,6 +843,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
+                        compose_context: None,
                     }
                     .try_to_token_stream()?;
 
@@ -970,6 +976,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
+                    compose_context: None,
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -1022,6 +1029,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
+                        compose_context: None,
                     }
                     .try_to_token_stream()?;
 

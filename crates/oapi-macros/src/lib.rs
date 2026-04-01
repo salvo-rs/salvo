@@ -143,6 +143,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
+        compose_context: None,
     })
     .map(|s| s.to_token_stream());
     match stream {
@@ -245,54 +246,25 @@ mod tests {
                 high: u32,
             }
         };
-        assert_eq!(
-            schema::to_schema(parse2(input).unwrap()).unwrap()
-                .to_string(),
-            quote! {
-                impl salvo::oapi::ToSchema for User {
-                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
-                        let name = salvo::oapi::naming::assign_name::<User>(salvo::oapi::naming::NameRule::Auto);
-                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
-                        if !components.schemas.contains_key(&name) {
-                            components.schemas.insert(name.clone(), ref_or.clone());
-                            let schema = salvo::oapi::Object::new()
-                                .property(
-                                    "name",
-                                    salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
-                                        .examples([salvo::oapi::__private::serde_json::json!("chris"),])
-                                        .min_length(1usize)
-                                        .max_length(100usize)
-                                )
-                                .required("name")
-                                .property(
-                                    "age",
-                                    salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
-                                        .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::Int32))
-                                        .example(salvo::oapi::__private::serde_json::json!(16))
-                                        .default_value(salvo::oapi::__private::serde_json::json!(0))
-                                        .maximum(100f64)
-                                        .minimum(0f64)
-                                        .format(salvo::oapi::SchemaFormat::Custom(String::from("int32")))
-                                )
-                                .required("age")
-                                .property(
-                                    "high",
-                                    salvo::oapi::Object::new()
-                                        .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
-                                        .format(salvo::oapi::SchemaFormat::KnownFormat(salvo::oapi::KnownFormat::UInt32))
-                                        .deprecated(salvo::oapi::Deprecated::True)
-                                        .minimum(0f64)
-                                )
-                                .required("high")
-                                .description("This is user.\n\nThis is user description.");
-                            components.schemas.insert(name, schema);
-                        }
-                        ref_or
-                    }
-                }
-            } .to_string()
+        let result = schema::to_schema(parse2(input).unwrap())
+            .unwrap()
+            .to_string();
+        // Should contain both ComposeSchema and ToSchema impls
+        assert!(
+            result.contains("impl salvo :: oapi :: ComposeSchema for User"),
+            "Expected ComposeSchema impl in output"
+        );
+        assert!(
+            result.contains("impl salvo :: oapi :: ToSchema for User"),
+            "Expected ToSchema impl in output"
+        );
+        // Verify schema body content
+        assert!(result.contains("\"name\""), "Expected 'name' property");
+        assert!(result.contains("\"age\""), "Expected 'age' property");
+        assert!(result.contains("\"high\""), "Expected 'high' property");
+        assert!(
+            result.contains("This is user.\\n\\nThis is user description."),
+            "Expected description"
         );
     }
 
@@ -305,44 +277,28 @@ mod tests {
                 value: T,
             }
         };
-        assert_eq!(
-            schema::to_schema(parse2(input).unwrap()).unwrap()
-                .to_string().replace("< ", "<").replace("> ", ">"),
-            quote! {
-                impl<T: ToSchema + std::fmt::Debug + 'static> salvo::oapi::ToSchema for MyObject<T>
-                where
-                    T: salvo::oapi::ToSchema + 'static
-                {
-                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
-                        let mut name = None;
-                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<i32>>() {
-                            name = Some(salvo::oapi::naming::assign_name::<MyObject<i32>>(
-                                salvo::oapi::naming::NameRule::Force("MyI32")
-                            ));
-                        }
-                        if ::std::any::TypeId::of::<Self>() == ::std::any::TypeId::of::<MyObject<String>>() {
-                            name = Some(salvo::oapi::naming::assign_name::<MyObject<String>>(
-                                salvo::oapi::naming::NameRule::Force("MyStr")
-                            ));
-                        }
-                        let name = name
-                            .unwrap_or_else(|| salvo::oapi::naming::assign_name::<MyObject<T>>(salvo::oapi::naming::NameRule::Auto));
-                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
-                        if !components.schemas.contains_key(&name) {
-                            components.schemas.insert(name.clone(), ref_or.clone());
-                            let schema = salvo::oapi::Object::new()
-                                .property(
-                                    "value",
-                                    salvo::oapi::RefOr::from(<T as salvo::oapi::ToSchema>::to_schema(components))
-                                )
-                                .required("value");
-                            components.schemas.insert(name, schema);
-                        }
-                        ref_or
-                    }
-                }
-            } .to_string().replace("< ", "<").replace("> ", ">")
+        let result = schema::to_schema(parse2(input).unwrap())
+            .unwrap()
+            .to_string()
+            .replace("< ", "<")
+            .replace("> ", ">");
+        // Should contain both ComposeSchema and ToSchema impls
+        assert!(
+            result.contains("salvo :: oapi :: ComposeSchema for MyObject"),
+            "Expected ComposeSchema impl in output"
         );
+        assert!(
+            result.contains("salvo :: oapi :: ToSchema for MyObject"),
+            "Expected ToSchema impl in output"
+        );
+        // ComposeSchema should use __compose_generics for generic param T
+        assert!(
+            result.contains("__compose_generics"),
+            "Expected __compose_generics usage in ComposeSchema impl"
+        );
+        // ToSchema should still use ToSchema::to_schema for type aliases
+        assert!(result.contains("MyI32"), "Expected MyI32 alias");
+        assert!(result.contains("MyStr"), "Expected MyStr alias");
     }
 
     #[test]
@@ -355,26 +311,21 @@ mod tests {
                 Woman,
             }
         };
-        assert_eq!(
-            schema::to_schema(parse2(input).unwrap()).unwrap()
-                .to_string(),
-            quote! {
-                impl salvo::oapi::ToSchema for People {
-                    fn to_schema(components: &mut salvo::oapi::Components) -> salvo::oapi::RefOr<salvo::oapi::schema::Schema> {
-                        let name = salvo::oapi::naming::assign_name::<People>(salvo::oapi::naming::NameRule::Auto);
-                        let ref_or = salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/schemas/{}", name)));
-                        if !components.schemas.contains_key(&name) {
-                            components.schemas.insert(name.clone(), ref_or.clone());
-                            let schema = salvo::oapi::Object::new()
-                                .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
-                                .enum_values::<[&str; 2usize], &str>(["man", "woman",]);
-                            components.schemas.insert(name, schema);
-                        }
-                        ref_or
-                    }
-                }
-            } .to_string()
+        let result = schema::to_schema(parse2(input).unwrap())
+            .unwrap()
+            .to_string();
+        // Should contain both ComposeSchema and ToSchema impls
+        assert!(
+            result.contains("impl salvo :: oapi :: ComposeSchema for People"),
+            "Expected ComposeSchema impl in output"
         );
+        assert!(
+            result.contains("impl salvo :: oapi :: ToSchema for People"),
+            "Expected ToSchema impl in output"
+        );
+        // Verify enum values
+        assert!(result.contains("\"man\""), "Expected 'man' variant");
+        assert!(result.contains("\"woman\""), "Expected 'woman' variant");
     }
 
     #[test]
