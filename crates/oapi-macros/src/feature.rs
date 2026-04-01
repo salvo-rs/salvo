@@ -148,6 +148,7 @@ pub(crate) enum Feature {
     ContentEncoding(ContentEncoding),
     ContentMediaType(ContentMediaType),
     Discriminator(Discriminator),
+    Ignore(Ignore),
 }
 
 impl Feature {
@@ -290,6 +291,7 @@ impl TryToTokens for Feature {
                 )
                 .help("Discriminator is applied to the composite schema (OneOf/AnyOf/AllOf) during enum schema generation."));
             }
+            Self::Ignore(_) => TokenStream::new(),
             Self::RenameAll(_) => {
                 return Err(Diagnostic::spanned(
                     Span::call_site(),
@@ -375,6 +377,7 @@ impl Display for Feature {
             Self::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Self::ContentMediaType(content_media_type) => content_media_type.fmt(f),
             Self::Discriminator(discriminator) => discriminator.fmt(f),
+            Self::Ignore(ignore) => ignore.fmt(f),
         }
     }
 }
@@ -429,6 +432,7 @@ impl Validatable for Feature {
             Self::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Self::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
             Self::Discriminator(discriminator) => discriminator.is_validatable(),
+            Self::Ignore(ignore) => ignore.is_validatable(),
         }
     }
 }

@@ -14,7 +14,7 @@ use super::{
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
-    self, Alias, Bound, Default, Name, RenameAll, Required, SkipBound,
+    self, Alias, Bound, Default, Ignore, Name, RenameAll, Required, SkipBound,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
@@ -47,6 +47,7 @@ struct NamedStructFieldOptions<'a> {
     rename_field_value: Option<Cow<'a, str>>,
     required: Option<Required>,
     is_option: bool,
+    ignore: Option<crate::parse_utils::LitBoolOrExprPath>,
 }
 
 impl NamedStructSchema<'_> {
@@ -123,6 +124,10 @@ impl NamedStructSchema<'_> {
         let description = &ComponentDescription::CommentAttributes(&comments);
         let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
+        let ignore = match pop_feature!(field_features => Feature::Ignore(_)) {
+            Some(Feature::Ignore(Ignore(bool_or_exp))) => Some(bool_or_exp),
+            _ => None,
+        };
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
         let is_option = type_tree.is_option();
 
@@ -146,6 +151,7 @@ impl NamedStructSchema<'_> {
             rename_field_value: rename_field,
             required,
             is_option,
+            ignore,
         })
     }
 }
@@ -201,7 +207,17 @@ impl TryToTokens for NamedStructSchema<'_> {
                 rename_field_value,
                 required,
                 is_option,
+                ignore,
             } = self.field_as_schema_property(field, false, container_rules.as_ref())?;
+
+            // Handle ignore: if ignore is LitBool(true), skip this field entirely
+            match &ignore {
+                Some(crate::parse_utils::LitBoolOrExprPath::LitBool(lit)) if lit.value() => {
+                    continue;
+                }
+                _ => {}
+            }
+
             let rename_to = field_rule
                 .as_ref()
                 .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
@@ -219,9 +235,6 @@ impl TryToTokens for NamedStructSchema<'_> {
                 .unwrap_or(Cow::Borrowed(field_name));
 
             let property = property.try_to_token_stream()?;
-            object_tokens.extend(quote! {
-                .property(#name, #property)
-            });
 
             let component_required =
                 !is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref());
@@ -230,10 +243,36 @@ impl TryToTokens for NamedStructSchema<'_> {
                 (None, component_required) => component_required,
             };
 
+            let mut property_tokens = quote! {
+                .property(#name, #property)
+            };
+
             if required {
-                object_tokens.extend(quote! {
+                property_tokens.extend(quote! {
                     .required(#name)
                 })
+            }
+
+            match &ignore {
+                Some(crate::parse_utils::LitBoolOrExprPath::ExprPath(path)) => {
+                    // Wrap in a runtime conditional: only add the property if the function returns
+                    // false (i.e., the field is NOT ignored)
+                    // We need to switch to a block-based approach for this object
+                    object_tokens = quote! {
+                        {
+                            let __obj = #object_tokens;
+                            if !#path() {
+                                __obj #property_tokens
+                            } else {
+                                __obj
+                            }
+                        }
+                    };
+                }
+                _ => {
+                    // LitBool(false) or None: include the field normally
+                    object_tokens.extend(property_tokens);
+                }
             }
         }
 

@@ -965,3 +965,36 @@ impl From<Discriminator> for Feature {
     }
 }
 impl_get_name!(Discriminator = "discriminator");
+
+/// Ignore feature parsed from macro attributes.
+#[derive(Clone, Debug)]
+pub(crate) struct Ignore(pub(crate) parse_utils::LitBoolOrExprPath);
+
+impl Parse for Ignore {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_bool_or_call(input).map(Self)
+    }
+}
+
+impl ToTokens for Ignore {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Ignore> for Feature {
+    fn from(value: Ignore) -> Self {
+        Self::Ignore(value)
+    }
+}
+
+impl From<bool> for Ignore {
+    fn from(value: bool) -> Self {
+        Self(value.into())
+    }
+}
+
+impl_get_name!(Ignore = "ignore");
