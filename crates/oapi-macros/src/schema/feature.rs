@@ -3,8 +3,8 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 
 use crate::feature::attributes::{
     AdditionalProperties, Aliases, Bound, ContentEncoding, ContentMediaType, Default, Deprecated,
-    Description, Example, Examples, Format, Inline, Name, Nullable, ReadOnly, Rename, RenameAll,
-    Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
+    Description, Discriminator, Example, Examples, Format, Inline, Name, Nullable, ReadOnly,
+    Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType, WriteOnly, XmlAttr,
 };
 use crate::feature::validation::{
     ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, MaxProperties, Maximum, MinItems,
@@ -117,6 +117,7 @@ impl Parse for ComplexEnumFeatures {
             Description,
             Bound,
             SkipBound,
+            Discriminator,
         )))
     }
 }
