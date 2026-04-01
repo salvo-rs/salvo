@@ -237,7 +237,7 @@ impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
 }
 #[cfg(feature = "indexmap")]
 impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
-    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] indexmap::IndexMap<K, V>).into()
     }
 }
@@ -296,13 +296,13 @@ impl<T> ToSchema for PhantomData<T> {
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
-    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
-    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }
 }
@@ -362,7 +362,7 @@ impl ToSchema for serde_json::Value {
 }
 impl ToSchema for serde_json::Map<String, serde_json::Value> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        schema!(#[inline]HashMap<K, V>).into()
+        Schema::Object(Box::new(schema::Object::new())).into()
     }
 }
 

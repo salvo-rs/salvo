@@ -252,6 +252,12 @@ impl From<Ref> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<OneOf> for AdditionalProperties<Schema> {
+    fn from(value: OneOf) -> Self {
+        Self::RefOr(RefOr::Type(Schema::OneOf(value)))
+    }
+}
+
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
 /// reusable components such as [`Schema`]s or [`Response`](super::Response)s.
 ///
