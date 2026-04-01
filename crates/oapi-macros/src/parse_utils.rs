@@ -4,7 +4,7 @@ use proc_macro2::{Group, Ident, TokenStream};
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Expr, LitBool, LitStr, Path, Token, parenthesized};
+use syn::{Expr, ExprPath, LitBool, LitStr, Path, Token, parenthesized};
 
 #[derive(Clone, Debug)]
 pub(crate) enum LitStrOrExpr {
@@ -148,6 +148,64 @@ pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
         Ok(lit.value())
     } else {
         Err(syn::Error::new(input.span(), "invalid indent or lit str"))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum LitBoolOrExprPath {
+    LitBool(LitBool),
+    ExprPath(ExprPath),
+}
+
+impl From<bool> for LitBoolOrExprPath {
+    fn from(value: bool) -> Self {
+        Self::LitBool(LitBool::new(value, proc_macro2::Span::call_site()))
+    }
+}
+
+impl Default for LitBoolOrExprPath {
+    fn default() -> Self {
+        Self::LitBool(LitBool::new(false, proc_macro2::Span::call_site()))
+    }
+}
+
+impl Parse for LitBoolOrExprPath {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitBool) {
+            Ok(LitBoolOrExprPath::LitBool(input.parse::<LitBool>()?))
+        } else {
+            let expr = input.parse::<Expr>()?;
+
+            match expr {
+                Expr::Path(expr_path) => Ok(LitBoolOrExprPath::ExprPath(expr_path)),
+                _ => Err(syn::Error::new(
+                    input.span(),
+                    format!(
+                        "expected literal bool or path to a function that returns bool, found: {}",
+                        quote::quote! {#expr}
+                    ),
+                )),
+            }
+        }
+    }
+}
+
+impl ToTokens for LitBoolOrExprPath {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::LitBool(bool_lit) => bool_lit.to_tokens(tokens),
+            Self::ExprPath(call) => call.to_tokens(tokens),
+        }
+    }
+}
+
+pub(crate) fn parse_next_literal_bool_or_call(
+    input: ParseStream,
+) -> syn::Result<LitBoolOrExprPath> {
+    if input.peek(Token![=]) {
+        parse_next(input, || LitBoolOrExprPath::parse(input))
+    } else {
+        Ok(LitBoolOrExprPath::from(true))
     }
 }
 
