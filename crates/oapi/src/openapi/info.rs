@@ -233,6 +233,7 @@ impl License {
     #[must_use]
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
+        self.identifier = None;
         self
     }
 
@@ -243,6 +244,7 @@ impl License {
     #[must_use]
     pub fn identifier<S: Into<String>>(mut self, identifier: S) -> Self {
         self.identifier = Some(identifier.into());
+        self.url = None;
         self
     }
 
