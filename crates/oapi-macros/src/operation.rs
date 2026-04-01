@@ -315,14 +315,28 @@ pub(crate) enum PathType<'p> {
 impl Parse for PathType<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let fork = input.fork();
+
+        // Check for `ref(...)` syntax. The `ref` keyword may appear as either
+        // a Rust keyword token (`Token![ref]`) or an identifier depending on
+        // the tokenization context (e.g., inside proc_macro attributes).
         let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
+            fork.peek(Paren)
+        } else if fork
+            .parse::<Option<Ident>>()?
+            .is_some_and(|ident| ident == "ref")
+        {
             fork.peek(Paren)
         } else {
             false
         };
 
         if is_ref {
-            input.parse::<Token![ref]>()?;
+            // Consume the `ref` token — try keyword first, then identifier
+            if input.peek(Token![ref]) {
+                input.parse::<Token![ref]>()?;
+            } else {
+                input.parse::<Ident>()?;
+            }
             let ref_stream;
             parenthesized!(ref_stream in input);
             Ok(Self::RefPath(ref_stream.parse::<ExprPath>()?.path))

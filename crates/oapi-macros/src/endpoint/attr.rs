@@ -163,4 +163,25 @@ mod tests {
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert!(attr.summary.is_some());
     }
+
+    #[test]
+    fn test_parse_request_body_ref() {
+        use crate::operation::PathType;
+        // ref(...) with a Rust type path should parse correctly.
+        // Regression test for #994 where `ref` keyword caused parse failures.
+        let result = parse_str::<PathType>("ref(my_schemas::PetSchema)");
+        assert!(
+            result.is_ok(),
+            "PathType should parse ref(path): {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_request_body_ref_in_endpoint() {
+        // Full endpoint attribute with ref() syntax
+        let input = "request_body = ref(PetSchema)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert!(attr.request_body.is_some());
+    }
 }
