@@ -52,7 +52,20 @@ pub(crate) struct ComponentSchema {
 }
 
 impl ComponentSchema {
-    pub(crate) fn new(
+    pub(crate) fn new(schema_props: ComponentSchemaProps) -> DiagResult<Self> {
+        Self::new_inner(schema_props, true)
+    }
+
+    /// Create a `ComponentSchema` for use in parameter contexts.
+    ///
+    /// When used for parameters, `Option<T>` means the parameter is optional (not required),
+    /// NOT that the parameter value is nullable. The `required` status is handled separately
+    /// by the parameter derive code.
+    pub(crate) fn for_params(schema_props: ComponentSchemaProps) -> DiagResult<Self> {
+        Self::new_inner(schema_props, false)
+    }
+
+    fn new_inner(
         ComponentSchemaProps {
             type_tree,
             features,
@@ -60,6 +73,7 @@ impl ComponentSchema {
             deprecated,
             object_name,
         }: ComponentSchemaProps,
+        option_is_nullable: bool,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
@@ -95,26 +109,31 @@ impl ComponentSchema {
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
-                if !features
-                    .iter()
-                    .any(|feature| matches!(feature, Feature::Nullable(_)))
+                // UNLESS we are in a parameter context where Option means "not required".
+                if option_is_nullable
+                    && !features
+                        .iter()
+                        .any(|feature| matches!(feature, Feature::Nullable(_)))
                 {
                     features.push(Nullable::new().into());
                 }
 
-                Self::new(ComponentSchemaProps {
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema generic container type should have children")
-                        .iter()
-                        .next()
-                        .expect("ComponentSchema generic container type should have 1 child"),
-                    features: Some(features),
-                    description,
-                    deprecated,
-                    object_name,
-                })?
+                Self::new_inner(
+                    ComponentSchemaProps {
+                        type_tree: type_tree
+                            .children
+                            .as_ref()
+                            .expect("ComponentSchema generic container type should have children")
+                            .iter()
+                            .next()
+                            .expect("ComponentSchema generic container type should have 1 child"),
+                        features: Some(features),
+                        description,
+                        deprecated,
+                        object_name,
+                    },
+                    option_is_nullable,
+                )?
                 .to_tokens(&mut tokens);
             }
             Some(
@@ -124,19 +143,22 @@ impl ComponentSchema {
                 | GenericType::Rc
                 | GenericType::RefCell,
             ) => {
-                Self::new(ComponentSchemaProps {
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema generic container type should have children")
-                        .iter()
-                        .next()
-                        .expect("ComponentSchema generic container type should have 1 child"),
-                    features: Some(features),
-                    description,
-                    deprecated,
-                    object_name,
-                })?
+                Self::new_inner(
+                    ComponentSchemaProps {
+                        type_tree: type_tree
+                            .children
+                            .as_ref()
+                            .expect("ComponentSchema generic container type should have children")
+                            .iter()
+                            .next()
+                            .expect("ComponentSchema generic container type should have 1 child"),
+                        features: Some(features),
+                        description,
+                        deprecated,
+                        object_name,
+                    },
+                    option_is_nullable,
+                )?
                 .to_tokens(&mut tokens);
             }
             None => Self::non_generic_to_tokens(

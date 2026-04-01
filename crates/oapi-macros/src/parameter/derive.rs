@@ -613,7 +613,7 @@ impl TryToTokens for Parameter<'_> {
             });
             tokens.extend(param_features.try_to_token_stream()?);
 
-            let schema = ComponentSchema::new(component::ComponentSchemaProps {
+            let schema = ComponentSchema::for_params(component::ComponentSchemaProps {
                 type_tree: &component,
                 features: Some(schema_features),
                 description: None,
