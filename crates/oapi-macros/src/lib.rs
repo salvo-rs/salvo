@@ -563,7 +563,7 @@ mod tests {
                                 salvo::oapi::parameter::Parameter::new("kind")
                                     .description("Kind of pet")
                                     .required(salvo::oapi::Required::True)
-                                    .schema(<PetKind as salvo::oapi::ToSchema>::to_schema(components)),
+                                    .schema(salvo::oapi::RefOr::from(<PetKind as salvo::oapi::ToSchema>::to_schema(components))),
                             ]
                             .to_vec()
                         )

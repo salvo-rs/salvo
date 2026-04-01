@@ -414,6 +414,14 @@ impl ComponentSchema {
                     } else {
                         None
                     };
+                    // Only inline primitive types (String, i32, bool, etc.).
+                    // Non-primitive types (structs, enums) should use $ref
+                    // to avoid schema duplication.
+                    let schema_type = SchemaType {
+                        path: type_path,
+                        nullable,
+                    };
+                    let is_inline = is_inline && schema_type.is_primitive();
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_))
                             .map(|feature| feature.try_to_token_stream())
