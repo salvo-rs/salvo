@@ -36,6 +36,10 @@ pub struct Components {
     /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub security_schemes: PropMap<String, SecurityScheme>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Components {
@@ -181,9 +185,19 @@ impl Components {
         self.security_schemes.append(&mut other.security_schemes);
     }
 
+    /// Add openapi extensions (`x-something`) for [`Components`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
+    }
+
     /// Returns `true` if instance contains no elements.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.schemas.is_empty() && self.responses.is_empty() && self.security_schemes.is_empty()
+        self.schemas.is_empty()
+            && self.responses.is_empty()
+            && self.security_schemes.is_empty()
+            && self.extensions.is_empty()
     }
 }

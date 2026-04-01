@@ -182,6 +182,10 @@ pub struct ApiKeyValue {
     /// Description of the [`ApiKey`] [`SecurityScheme`]. Supports markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl ApiKeyValue {
@@ -198,6 +202,7 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: None,
+            extensions: Default::default(),
         }
     }
 
@@ -214,7 +219,15 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: Some(description.into()),
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`ApiKeyValue`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -236,6 +249,10 @@ pub struct Http {
     /// Optional description of [`Http`] [`SecurityScheme`] supporting markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Http {
@@ -256,6 +273,7 @@ impl Http {
             scheme,
             bearer_format: None,
             description: None,
+            extensions: Default::default(),
         }
     }
     /// Add or change http authentication scheme used.
@@ -290,6 +308,13 @@ impl Http {
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
 
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Http`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
@@ -336,6 +361,10 @@ pub struct OpenIdConnect {
     /// Description of [`OpenIdConnect`] [`SecurityScheme`] supporting markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl OpenIdConnect {
@@ -351,6 +380,7 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: None,
+            extensions: Default::default(),
         }
     }
 
@@ -367,7 +397,15 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: Some(description.into()),
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`OpenIdConnect`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -519,6 +557,10 @@ pub struct Implicit {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Implicit {
@@ -551,6 +593,7 @@ impl Implicit {
             authorization_url: authorization_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -579,7 +622,15 @@ impl Implicit {
             authorization_url: authorization_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Implicit`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -600,6 +651,10 @@ pub struct AuthorizationCode {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl AuthorizationCode {
@@ -642,6 +697,7 @@ impl AuthorizationCode {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -673,7 +729,15 @@ impl AuthorizationCode {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`AuthorizationCode`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -692,6 +756,10 @@ pub struct Password {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Password {
@@ -724,6 +792,7 @@ impl Password {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -751,7 +820,15 @@ impl Password {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`Password`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -770,6 +847,10 @@ pub struct ClientCredentials {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl ClientCredentials {
@@ -802,6 +883,7 @@ impl ClientCredentials {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -829,7 +911,15 @@ impl ClientCredentials {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`ClientCredentials`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 

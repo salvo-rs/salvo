@@ -3,6 +3,8 @@
 //! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
 use serde::{Deserialize, Serialize};
 
+use crate::PropMap;
+
 /// Reference of external resource allowing extended documentation.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
@@ -12,6 +14,10 @@ pub struct ExternalDocs {
     pub url: String,
     /// Additional description supporting markdown syntax of the external documentation.
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl ExternalDocs {
@@ -44,6 +50,13 @@ impl ExternalDocs {
     #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    /// Add openapi extensions (`x-something`) for [`ExternalDocs`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
         self
     }
 }
