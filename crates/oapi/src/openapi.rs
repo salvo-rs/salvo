@@ -234,7 +234,13 @@ impl OpenApi {
     /// ```
     #[must_use]
     pub fn nest<P: Into<String>>(self, path: P, other: Self) -> Self {
-        self.nest_with_path_composer(path, other, |base, item_path| format!("{base}{item_path}"))
+        self.nest_with_path_composer(path, other, |base, item_path| {
+            format!(
+                "{}/{}",
+                base.trim_end_matches('/'),
+                item_path.trim_start_matches('/')
+            )
+        })
     }
 
     /// Nest another [`OpenApi`] document with a custom path composer.
