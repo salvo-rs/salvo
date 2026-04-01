@@ -998,3 +998,28 @@ impl From<bool> for Ignore {
 }
 
 impl_get_name!(Ignore = "ignore");
+
+// Nothing to parse, it is considered to be set when attribute itself is parsed via
+// `parse_features!`.
+#[derive(Clone, Debug)]
+pub(crate) struct NoRecursion;
+
+impl Parse for NoRecursion {
+    fn parse(_: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl ToTokens for NoRecursion {
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+}
+
+impl From<NoRecursion> for Feature {
+    fn from(value: NoRecursion) -> Self {
+        Self::NoRecursion(value)
+    }
+}
+impl_get_name!(NoRecursion = "no_recursion");

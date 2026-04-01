@@ -3,8 +3,8 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 
 use crate::feature::attributes::{
     AdditionalProperties, Aliases, Bound, ContentEncoding, ContentMediaType, Default, Deprecated,
-    Description, Discriminator, Example, Examples, Format, Ignore, Inline, Name, Nullable,
-    ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType,
+    Description, Discriminator, Example, Examples, Format, Ignore, Inline, Name, NoRecursion,
+    Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Skip, SkipBound, Title, ValueType,
     WriteOnly, XmlAttr,
 };
 use crate::feature::validation::{
@@ -35,7 +35,8 @@ impl Parse for NamedFieldStructFeatures {
             Description,
             Skip,
             Bound,
-            SkipBound
+            SkipBound,
+            NoRecursion
         )))
     }
 }
@@ -71,7 +72,8 @@ impl Parse for UnnamedFieldStructFeatures {
             MinLength,
             Pattern,
             MaxItems,
-            MinItems
+            MinItems,
+            NoRecursion
         )))
     }
 }
@@ -104,7 +106,8 @@ impl Parse for EnumFeatures {
             Deprecated,
             Description,
             Bound,
-            SkipBound
+            SkipBound,
+            NoRecursion
         )))
     }
 }
@@ -129,6 +132,7 @@ impl Parse for ComplexEnumFeatures {
             Bound,
             SkipBound,
             Discriminator,
+            NoRecursion,
         )))
     }
 }
@@ -168,7 +172,8 @@ impl Parse for NamedFieldFeatures {
             Skip,
             Ignore,
             ContentEncoding,
-            ContentMediaType
+            ContentMediaType,
+            NoRecursion
         )))
     }
 }
