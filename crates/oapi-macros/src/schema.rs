@@ -24,9 +24,11 @@ pub(crate) use self::flattened_map_schema::*;
 pub(crate) use self::struct_schemas::*;
 pub(crate) use self::xml::XmlAttr;
 use super::{ComponentSchema, FieldRename, VariantRename};
+use crate::component::ComponentDescription;
+use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{Alias, Bound, Description, Inline, Name, SkipBound};
-use crate::feature::{Feature, FeaturesExt, pop_feature, pop_feature_as_inner};
-use crate::schema::feature::EnumFeatures;
+use crate::feature::{Feature, FeaturesExt, TryToTokensExt, pop_feature, pop_feature_as_inner};
+use crate::schema::feature::{EnumFeatures, UnitStructFeatures};
 use crate::serde_util::SerdeValue;
 use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens, bound};
 
@@ -277,7 +279,7 @@ impl<'a> SchemaVariant<'a> {
                         inline,
                     }))
                 }
-                Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
+                Fields::Unit => Ok(Self::Unit(UnitStructVariant::new(attributes)?)),
             },
             Data::Enum(content) => {
                 let mut enum_features: Option<Vec<Feature>> =
@@ -356,14 +358,43 @@ impl TryToTokens for SchemaVariant<'_> {
 }
 
 #[derive(Debug)]
-struct UnitStructVariant;
+struct UnitStructVariant(TokenStream);
+
+impl UnitStructVariant {
+    fn new(attributes: &[Attribute]) -> DiagResult<Self> {
+        let oapi = crate::oapi_crate();
+        let mut tokens = quote! {
+            #oapi::oapi::Object::new()
+                .schema_type(#oapi::oapi::schema::SchemaType::AnyValue)
+                .default_value(#oapi::oapi::__private::serde_json::Value::Null)
+        };
+
+        let mut features = attributes
+            .parse_features::<UnitStructFeatures>()?
+            .into_inner()
+            .unwrap_or_default();
+
+        let description = pop_feature!(features => Feature::Description(_)).and_then(|f| match f {
+            Feature::Description(d) => Some(d),
+            _ => None,
+        });
+
+        let comments = CommentAttributes::from_attributes(attributes);
+        let description = description
+            .as_ref()
+            .map(ComponentDescription::Description)
+            .or(Some(ComponentDescription::CommentAttributes(&comments)));
+
+        description.to_tokens(&mut tokens);
+        tokens.extend(features.try_to_token_stream()?);
+
+        Ok(Self(tokens))
+    }
+}
 
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let oapi = crate::oapi_crate();
-        tokens.extend(quote! {
-            #oapi::oapi::schema::empty()
-        });
+        self.0.to_tokens(tokens);
     }
 }
 

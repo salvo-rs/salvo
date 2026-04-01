@@ -77,6 +77,16 @@ impl Parse for UnnamedFieldStructFeatures {
 
 impl_into_inner!(UnnamedFieldStructFeatures);
 
+pub(crate) struct UnitStructFeatures(Vec<Feature>);
+
+impl Parse for UnitStructFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(parse_features!(input as Title, Description)))
+    }
+}
+
+impl_into_inner!(UnitStructFeatures);
+
 pub(crate) struct EnumFeatures(Vec<Feature>);
 
 impl Parse for EnumFeatures {
@@ -229,6 +239,7 @@ impl FromAttributes for Vec<Attribute> {
 impl_merge!(
     NamedFieldStructFeatures,
     UnnamedFieldStructFeatures,
+    UnitStructFeatures,
     EnumFeatures,
     ComplexEnumFeatures,
     NamedFieldFeatures,
