@@ -516,7 +516,7 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
         }
     }
     let redirect_uri = builder.build().expect("Invalid uri");
-    res.render(crate::writing::Redirect::found(redirect_uri));
+    res.render(crate::writing::Redirect::found(redirect_uri.to_string()));
 }
 
 /// Check if a path component is a Windows reserved device name.

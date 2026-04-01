@@ -168,7 +168,7 @@ impl Handler for TrailingSlash {
             if let Some(new_uri) = new_uri {
                 ctrl.skip_rest();
                 res.body(ResBody::None);
-                match Redirect::with_status_code(self.redirect_code, new_uri) {
+                match Redirect::with_status_code(self.redirect_code, new_uri.to_string()) {
                     Ok(redirect) => {
                         res.render(redirect);
                     }

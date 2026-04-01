@@ -120,7 +120,7 @@ impl Handler for ForceHttps {
             }
             if let Ok(uri) = builder.build() {
                 res.body(ResBody::None);
-                res.render(Redirect::permanent(uri));
+                res.render(Redirect::permanent(uri.to_string()));
                 ctrl.skip_rest();
             }
         }
