@@ -447,7 +447,7 @@ impl ComponentSchema {
                             quote! {
                                 #oapi::oapi::schema::AllOf::new()
                                     .item(#schema)
-                                    .item(#oapi::oapi::Object::new() #title #description_stream)
+                                    .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
                             }
                         } else {
                             schema
@@ -483,7 +483,7 @@ impl ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         .item(#schema)
-                                        .item(#oapi::oapi::Object::new() #title #description_stream)
+                                        .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
                                 }
                             } else {
                                 schema
@@ -494,7 +494,7 @@ impl ComponentSchema {
                             quote! {
                                 #oapi::oapi::schema::AllOf::new()
                                     .item(#schema)
-                                    .item(#oapi::oapi::Object::new() #title #description_stream)
+                                    .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
                             }
                         } else {
                             quote! {
