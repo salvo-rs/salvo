@@ -780,7 +780,7 @@ impl ComplexEnum<'_> {
                 // call .property()/.required() directly on the AllOf; instead we
                 // wrap the tag property in a new Object and append it as an item.
                 let has_flatten = named_fields.named.iter().any(|field| {
-                    let rule = serde_util::parse_value(&field.attrs);
+                    let rule = serde_util::parse_value(&field.attrs).ok().flatten();
                     is_flatten(rule.as_ref())
                 });
 
