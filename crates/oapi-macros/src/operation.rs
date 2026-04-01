@@ -14,6 +14,7 @@ use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
 use crate::{Array, DiagResult, TryToTokens};
 
+pub(crate) mod encoding;
 pub(crate) mod example;
 pub(crate) mod request_body;
 pub(crate) use self::request_body::RequestBodyAttr;

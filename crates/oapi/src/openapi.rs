@@ -30,6 +30,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use self::components::Components;
 pub use self::content::Content;
+pub use self::encoding::Encoding;
 pub use self::example::Example;
 pub use self::external_docs::ExternalDocs;
 pub use self::header::Header;
