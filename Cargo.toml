@@ -89,7 +89,7 @@ local-ip-address = "0.6.5"
 mime = "0.3"
 mime-infer = "4"
 moka = "0.12"
-multer = "3"
+multra = "1"
 multimap = "0.10"
 native-tls = "0.2"
 nix = { version = "0.31", default-features = false }
