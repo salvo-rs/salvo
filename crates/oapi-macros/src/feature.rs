@@ -148,7 +148,10 @@ pub(crate) enum Feature {
     ContentEncoding(ContentEncoding),
     ContentMediaType(ContentMediaType),
     Discriminator(Discriminator),
+
     Ignore(Ignore),
+
+    NoRecursion(NoRecursion),
 }
 
 impl Feature {
@@ -309,8 +312,8 @@ impl TryToTokens for Feature {
                     "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.",
                 ));
             }
-            Self::Inline(_) | Self::SkipBound(_) | Self::Bound(_) => {
-                // inline， skip_bound and bound feature is ignored by `TryToTokens`
+            Self::Inline(_) | Self::SkipBound(_) | Self::Bound(_) | Self::NoRecursion(_) => {
+                // inline, skip_bound, bound and no_recursion features are ignored by `TryToTokens`
                 TokenStream::new()
             }
             Self::ToParametersNames(_) => {
@@ -377,7 +380,10 @@ impl Display for Feature {
             Self::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Self::ContentMediaType(content_media_type) => content_media_type.fmt(f),
             Self::Discriminator(discriminator) => discriminator.fmt(f),
+
             Self::Ignore(ignore) => ignore.fmt(f),
+
+            Self::NoRecursion(no_recursion) => no_recursion.fmt(f),
         }
     }
 }
@@ -432,7 +438,10 @@ impl Validatable for Feature {
             Self::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Self::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
             Self::Discriminator(discriminator) => discriminator.is_validatable(),
+
             Self::Ignore(ignore) => ignore.is_validatable(),
+
+            Self::NoRecursion(no_recursion) => no_recursion.is_validatable(),
         }
     }
 }

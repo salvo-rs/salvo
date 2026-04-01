@@ -14,7 +14,10 @@ use super::{
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
+
     self, Alias, Bound, Default, Ignore, Name, RenameAll, Required, SkipBound,
+
+    self, Alias, Bound, Default, Name, NoRecursion, RenameAll, Required, SkipBound,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
@@ -69,6 +72,26 @@ impl NamedStructSchema<'_> {
             .attrs
             .parse_features::<NamedFieldFeatures>()?
             .into_inner();
+
+        // Propagate no_recursion from struct-level features to field-level features
+        if self
+            .features
+            .as_ref()
+            .map(|features| {
+                features
+                    .iter()
+                    .any(|f| matches!(f, Feature::NoRecursion(_)))
+            })
+            .unwrap_or(false)
+        {
+            let features_inner = field_features.get_or_insert(vec![]);
+            if !features_inner
+                .iter()
+                .any(|f| matches!(f, Feature::NoRecursion(_)))
+            {
+                features_inner.push(Feature::NoRecursion(NoRecursion));
+            }
+        }
 
         let schema_default = self
             .features

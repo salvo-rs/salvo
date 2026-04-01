@@ -419,6 +419,8 @@ impl ComponentSchema {
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
                     feature.validate(&schema_type, type_tree)?;
                 }
+                // primitive types are not recursive, consume no_recursion
+                let _ = pop_feature!(features => Feature::NoRecursion(_));
                 tokens.extend(features.try_to_token_stream()?);
             }
             ValueType::Value => {
@@ -434,6 +436,7 @@ impl ComponentSchema {
             }
             ValueType::Object => {
                 let is_inline = features.is_inline();
+                let no_recursion = pop_feature!(features => Feature::NoRecursion(_)).is_some();
 
                 if type_tree.is_object() {
                     let oapi = crate::oapi_crate();
@@ -453,6 +456,33 @@ impl ComponentSchema {
                     } else {
                         None
                     };
+
+                    if no_recursion {
+                        // When no_recursion is set, emit a $ref without calling to_schema()
+                        // to prevent infinite recursion in schema generation.
+                        let default = pop_feature!(features => Feature::Default(_))
+                            .map(|feature| feature.try_to_token_stream())
+                            .transpose()?;
+
+                        let schema = quote! {
+                            {
+                                let name = #oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto);
+                                #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", name)))
+                            }
+                        };
+
+                        let schema = if default.is_some() || nullable {
+                            quote! {
+                                #oapi::oapi::schema::OneOf::new()
+                                    #nullable_item
+                                    .item(#schema)
+                                    #default
+                            }
+                        } else {
+                            schema
+                        };
+                        schema.to_tokens(tokens);
+                    } else {
                     // Only inline primitive types (String, i32, bool, etc.).
                     // Non-primitive types (structs, enums) should use $ref
                     // to avoid schema duplication.
@@ -545,6 +575,7 @@ impl ComponentSchema {
                             }
                         };
                         schema.to_tokens(tokens);
+                    }
                     }
                 }
             }
