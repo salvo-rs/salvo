@@ -483,76 +483,40 @@ impl ComponentSchema {
                         };
                         schema.to_tokens(tokens);
                     } else {
-                    // Only inline primitive types (String, i32, bool, etc.).
-                    // Non-primitive types (structs, enums) should use $ref
-                    // to avoid schema duplication.
-                    let schema_type = SchemaType {
-                        path: type_path,
-                        nullable,
-                    };
-                    let is_inline = is_inline && schema_type.is_primitive();
-                    if is_inline {
-                        let default = pop_feature!(features => Feature::Default(_))
-                            .map(|feature| feature.try_to_token_stream())
-                            .transpose()?;
-                        let title = pop_feature!(features => Feature::Title(_))
-                            .map(|feature| feature.try_to_token_stream())
-                            .transpose()?;
-                        let description_tokens = description_stream.to_token_stream();
-                        let has_description = !description_tokens.is_empty();
-
-                        let schema = if default.is_some() || nullable {
-                            quote_spanned! {type_path.span()=>
-                                #oapi::oapi::schema::OneOf::new()
-                                    #nullable_item
-                                    .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
-                                #default
-                            }
-                        } else {
-                            quote_spanned! {type_path.span() =>
-                                <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
-                            }
+                        // Only inline primitive types (String, i32, bool, etc.).
+                        // Non-primitive types (structs, enums) should use $ref
+                        // to avoid schema duplication.
+                        let schema_type = SchemaType {
+                            path: type_path,
+                            nullable,
                         };
+                        let is_inline = is_inline && schema_type.is_primitive();
+                        if is_inline {
+                            let default = pop_feature!(features => Feature::Default(_))
+                                .map(|feature| feature.try_to_token_stream())
+                                .transpose()?;
+                            let title = pop_feature!(features => Feature::Title(_))
+                                .map(|feature| feature.try_to_token_stream())
+                                .transpose()?;
+                            let description_tokens = description_stream.to_token_stream();
+                            let has_description = !description_tokens.is_empty();
 
-                        // If the inlined field has a title or description, wrap in allOf
-                        // to attach the metadata without violating the OpenAPI spec.
-                        let schema = if title.is_some() || has_description {
-                            quote! {
-                                #oapi::oapi::schema::AllOf::new()
-                                    .item(#schema)
-                                    .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
-                            }
-                        } else {
-                            schema
-                        };
-
-                        schema.to_tokens(tokens);
-                    } else {
-                        let default = pop_feature!(features => Feature::Default(_))
-                            .map(|feature| feature.try_to_token_stream())
-                            .transpose()?;
-                        let title = pop_feature!(features => Feature::Title(_))
-                            .map(|feature| feature.try_to_token_stream())
-                            .transpose()?;
-                        let description_tokens = description_stream.to_token_stream();
-                        let has_description = !description_tokens.is_empty();
-
-                        let schema = quote! {
-                            #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
-                        };
-
-                        // TODO: refs support `summary` field but currently there is no such field
-                        // on schemas more over there is no way to distinct the `summary` from
-                        // `description` of the ref. Should we consider supporting the summary?
-                        let schema = if default.is_some() || nullable {
-                            let schema = quote! {
-                                #oapi::oapi::schema::OneOf::new()
-                                    #nullable_item
-                                    .item(#schema)
+                            let schema = if default.is_some() || nullable {
+                                quote_spanned! {type_path.span()=>
+                                    #oapi::oapi::schema::OneOf::new()
+                                        #nullable_item
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                     #default
+                                }
+                            } else {
+                                quote_spanned! {type_path.span() =>
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                                }
                             };
-                            // If $ref has title or description, wrap further in allOf
-                            if title.is_some() || has_description {
+
+                            // If the inlined field has a title or description, wrap in allOf
+                            // to attach the metadata without violating the OpenAPI spec.
+                            let schema = if title.is_some() || has_description {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         .item(#schema)
@@ -560,22 +524,59 @@ impl ComponentSchema {
                                 }
                             } else {
                                 schema
-                            }
-                        } else if title.is_some() || has_description {
-                            // Wrap $ref in allOf to attach title/description without
-                            // violating the OpenAPI spec (no extra properties on $ref).
-                            quote! {
-                                #oapi::oapi::schema::AllOf::new()
-                                    .item(#schema)
-                                    .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
-                            }
+                            };
+
+                            schema.to_tokens(tokens);
                         } else {
-                            quote! {
-                                #schema
-                            }
-                        };
-                        schema.to_tokens(tokens);
-                    }
+                            let default = pop_feature!(features => Feature::Default(_))
+                                .map(|feature| feature.try_to_token_stream())
+                                .transpose()?;
+                            let title = pop_feature!(features => Feature::Title(_))
+                                .map(|feature| feature.try_to_token_stream())
+                                .transpose()?;
+                            let description_tokens = description_stream.to_token_stream();
+                            let has_description = !description_tokens.is_empty();
+
+                            let schema = quote! {
+                                #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                            };
+
+                            // TODO: refs support `summary` field but currently there is no such
+                            // field on schemas more over there is no
+                            // way to distinct the `summary` from
+                            // `description` of the ref. Should we consider supporting the summary?
+                            let schema = if default.is_some() || nullable {
+                                let schema = quote! {
+                                    #oapi::oapi::schema::OneOf::new()
+                                        #nullable_item
+                                        .item(#schema)
+                                        #default
+                                };
+                                // If $ref has title or description, wrap further in allOf
+                                if title.is_some() || has_description {
+                                    quote! {
+                                        #oapi::oapi::schema::AllOf::new()
+                                            .item(#schema)
+                                            .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
+                                    }
+                                } else {
+                                    schema
+                                }
+                            } else if title.is_some() || has_description {
+                                // Wrap $ref in allOf to attach title/description without
+                                // violating the OpenAPI spec (no extra properties on $ref).
+                                quote! {
+                                    #oapi::oapi::schema::AllOf::new()
+                                        .item(#schema)
+                                        .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
+                                }
+                            } else {
+                                quote! {
+                                    #schema
+                                }
+                            };
+                            schema.to_tokens(tokens);
+                        }
                     }
                 }
             }

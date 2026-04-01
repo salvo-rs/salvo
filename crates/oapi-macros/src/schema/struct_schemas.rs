@@ -14,10 +14,7 @@ use super::{
 use crate::component::{ComponentDescription, ComponentSchemaProps};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
-
-    self, Alias, Bound, Default, Ignore, Name, RenameAll, Required, SkipBound,
-
-    self, Alias, Bound, Default, Name, NoRecursion, RenameAll, Required, SkipBound,
+    self, Alias, Bound, Default, Ignore, Name, NoRecursion, RenameAll, Required, SkipBound,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,

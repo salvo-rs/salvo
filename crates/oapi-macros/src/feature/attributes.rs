@@ -966,7 +966,6 @@ impl From<Discriminator> for Feature {
 }
 impl_get_name!(Discriminator = "discriminator");
 
-
 /// Ignore feature parsed from macro attributes.
 #[derive(Clone, Debug)]
 pub(crate) struct Ignore(pub(crate) parse_utils::LitBoolOrExprPath);
