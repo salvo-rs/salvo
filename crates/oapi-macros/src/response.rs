@@ -331,6 +331,7 @@ impl TryToTokens for ResponseTuple<'_> {
                                 description: None,
                                 deprecated: None,
                                 object_name: "",
+                                compose_context: None,
                             })?
                             .to_token_stream()
                         }
@@ -906,6 +907,7 @@ impl TryToTokens for Header {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                compose_context: None,
             })?
             .to_token_stream();
 

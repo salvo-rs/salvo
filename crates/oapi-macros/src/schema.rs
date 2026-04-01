@@ -75,13 +75,34 @@ impl TryToTokens for ToSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let ident = self.ident;
-        let mut variant = SchemaVariant::new(
+        let has_generics = self.generics.type_params().count() > 0;
+
+        // Build compose context for generic types
+        let compose_context = if has_generics {
+            Some(crate::component::ComposeContext {
+                generics_ident: quote::format_ident!("__compose_generics"),
+                params: self
+                    .generics
+                    .type_params()
+                    .map(|tp| tp.ident.to_string())
+                    .collect(),
+            })
+        } else {
+            None
+        };
+
+        // Generate the schema variant for ComposeSchema (with compose context)
+        let mut compose_variant = SchemaVariant::new_with_compose(
             self.data,
             self.attributes,
             ident,
             self.generics,
-            // None::<Vec<(TypeTree, &TypeTree)>>,
+            compose_context.clone(),
         )?;
+
+        // Also generate the standard schema variant (without compose context) for non-generic
+        // ToSchema use
+        let mut variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics)?;
 
         let aliases = variant.aliases();
 
@@ -114,19 +135,37 @@ impl TryToTokens for ToSchema<'_> {
             variant.pop_bound().map(|b| b.0)
         };
 
+        // Also pop skip_bound/bound from compose variant to keep it in sync
+        let _ = compose_variant.pop_skip_bound();
+        let _ = compose_variant.pop_bound();
+
         let mut generics = bound::without_defaults(self.generics);
         if skip_bound != Some(SkipBound(true)) {
             generics = match bound {
-                Some(predicates) => bound::with_where_predicates(&generics, &predicates),
+                Some(ref predicates) => bound::with_where_predicates(&generics, predicates),
                 None => bound::with_bound(
                     self.data,
                     &generics,
-                    &parse_quote!(#oapi::oapi::ToSchema + 'static),
+                    &parse_quote!(#oapi::oapi::ToSchema + #oapi::oapi::ComposeSchema + 'static),
                 ),
             };
         }
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        // Build ComposeSchema generics (uses ComposeSchema bound instead of ToSchema)
+        let mut compose_generics = bound::without_defaults(self.generics);
+        if skip_bound != Some(SkipBound(true)) {
+            compose_generics = match bound {
+                Some(predicates) => bound::with_where_predicates(&compose_generics, &predicates),
+                None => bound::with_bound(
+                    self.data,
+                    &compose_generics,
+                    &parse_quote!(#oapi::oapi::ComposeSchema),
+                ),
+            };
+        }
+        let (compose_impl_generics, _, compose_where_clause) = compose_generics.split_for_impl();
 
         let name_rule = if inline {
             None
@@ -135,10 +174,10 @@ impl TryToTokens for ToSchema<'_> {
         } else {
             Some(quote! { #oapi::oapi::naming::NameRule::Auto })
         };
-        let variant = variant.try_to_token_stream()?;
+        let variant_tokens = variant.try_to_token_stream()?;
+        let compose_variant_tokens = compose_variant.try_to_token_stream()?;
 
         // Generate code to ensure generic type parameters are registered before assign_name
-        // This ensures that resolve_generic_names can find their custom names
         let generic_type_registrations: TokenStream = self
             .generics
             .type_params()
@@ -150,10 +189,27 @@ impl TryToTokens for ToSchema<'_> {
             })
             .collect();
 
+        // Generate ComposeSchema impl
+        let compose_body = quote! {
+            #compose_variant_tokens.into()
+        };
+
+        tokens.extend(quote! {
+            impl #compose_impl_generics #oapi::oapi::ComposeSchema for #ident #ty_generics #compose_where_clause {
+                fn compose(
+                    components: &mut #oapi::oapi::Components,
+                    __compose_generics: Vec<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>,
+                ) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
+                    #compose_body
+                }
+            }
+        });
+
+        // Generate ToSchema impl
         let body = match name_rule {
             None => {
                 quote! {
-                    #variant.into()
+                    #variant_tokens.into()
                 }
             }
             Some(name_rule) => {
@@ -165,8 +221,6 @@ impl TryToTokens for ToSchema<'_> {
                     }
                 } else {
                     quote! {
-                        // First, ensure all generic type parameters are registered
-                        // so their custom names can be resolved
                         #generic_type_registrations
                         let name = #oapi::oapi::naming::assign_name::<#ident #ty_generics>(#name_rule);
                     }
@@ -176,7 +230,7 @@ impl TryToTokens for ToSchema<'_> {
                     let ref_or = #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", name)));
                     if !components.schemas.contains_key(&name) {
                         components.schemas.insert(name.clone(), ref_or.clone());
-                        let schema = #variant;
+                        let schema = #variant_tokens;
                         components.schemas.insert(name, schema);
                     }
                     ref_or
@@ -210,6 +264,16 @@ impl<'a> SchemaVariant<'a> {
         ident: &'a Ident,
         generics: &'a Generics,
     ) -> DiagResult<Self> {
+        Self::new_with_compose(data, attributes, ident, generics, None)
+    }
+
+    pub(crate) fn new_with_compose(
+        data: &'a Data,
+        attributes: &'a [Attribute],
+        ident: &'a Ident,
+        generics: &'a Generics,
+        compose_context: Option<crate::component::ComposeContext>,
+    ) -> DiagResult<Self> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
@@ -242,6 +306,7 @@ impl<'a> SchemaVariant<'a> {
                         name,
                         aliases: aliases.map(|a| a.0),
                         inline,
+                        compose_context: compose_context.clone(),
                     }))
                 }
                 Fields::Named(fields) => {
@@ -277,6 +342,7 @@ impl<'a> SchemaVariant<'a> {
                         name,
                         aliases: aliases.map(|a| a.0),
                         inline,
+                        compose_context: compose_context.clone(),
                     }))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant::new(attributes)?)),

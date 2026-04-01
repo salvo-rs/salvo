@@ -17,6 +17,7 @@ impl FlattenedMapSchema {
             description,
             deprecated,
             object_name,
+            compose_context,
         }: ComponentSchemaProps,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
@@ -49,6 +50,7 @@ impl FlattenedMapSchema {
             description: None,
             deprecated: None,
             object_name,
+            compose_context,
         })?;
 
         tokens.extend(quote! {

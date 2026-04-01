@@ -127,14 +127,119 @@ pub trait ToSchema {
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema>;
+}
 
-    // /// Optional set of alias schemas for the [`ToSchema::schema`].
-    // ///
-    // /// Typically there is no need to manually implement this method but it is instead
-    // implemented /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    // fn aliases() -> Vec<schema::Schema> {
-    //     Vec::new()
-    // }
+/// Trait for composing schemas with generic type parameters.
+///
+/// `ComposeSchema` enables generic types to compose their schemas from externally-provided
+/// generic parameter schemas. This separates schema structure generation (compose) from
+/// naming and registration (ToSchema).
+///
+/// For non-generic types, the `generics` parameter is ignored and the schema is generated
+/// directly. For generic types, each element in `generics` corresponds to a type parameter's
+/// schema, in declaration order.
+///
+/// # Examples
+///
+/// Manual implementation for a generic wrapper type:
+/// ```
+/// use salvo_oapi::{BasicType, Components, ComposeSchema, Object, RefOr, Schema};
+///
+/// struct Page<T> {
+///     items: Vec<T>,
+///     total: u64,
+/// }
+///
+/// impl<T: ComposeSchema> ComposeSchema for Page<T> {
+///     fn compose(components: &mut Components, generics: Vec<RefOr<Schema>>) -> RefOr<Schema> {
+///         let t_schema = generics
+///             .first()
+///             .cloned()
+///             .unwrap_or_else(|| T::compose(components, vec![]));
+///         Object::new()
+///             .property("items", salvo_oapi::schema::Array::new().items(t_schema))
+///             .required("items")
+///             .property("total", Object::new().schema_type(BasicType::Integer))
+///             .required("total")
+///             .into()
+///     }
+/// }
+/// ```
+pub trait ComposeSchema {
+    /// Compose a schema using the provided generic parameter schemas.
+    ///
+    /// The `components` parameter allows registering nested schemas.
+    /// The `generics` vector contains pre-resolved schemas for each type parameter,
+    /// in the order they appear in the type definition.
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema>;
+}
+
+/// Tracks schema references for generic type resolution.
+///
+/// `SchemaReference` represents a schema and its generic parameter references,
+/// enabling recursive schema composition for generic types.
+#[derive(Debug, Clone, Default)]
+pub struct SchemaReference {
+    /// The schema name.
+    pub name: std::borrow::Cow<'static, str>,
+    /// Whether this schema should be inlined rather than referenced.
+    pub inline: bool,
+    /// Child references for generic type parameters.
+    pub references: Vec<SchemaReference>,
+}
+
+impl SchemaReference {
+    /// Create a new `SchemaReference` with the given name.
+    pub fn new(name: impl Into<std::borrow::Cow<'static, str>>) -> Self {
+        Self {
+            name: name.into(),
+            inline: false,
+            references: Vec::new(),
+        }
+    }
+
+    /// Set whether this schema should be inlined.
+    pub fn inline(mut self, inline: bool) -> Self {
+        self.inline = inline;
+        self
+    }
+
+    /// Add a child reference for a generic type parameter.
+    pub fn reference(mut self, reference: SchemaReference) -> Self {
+        self.references.push(reference);
+        self
+    }
+
+    /// Get the composed name including generic parameters.
+    ///
+    /// For example, `Page` with child `User` produces `Page<User>`.
+    pub fn compose_name(&self) -> String {
+        if self.references.is_empty() {
+            self.name.to_string()
+        } else {
+            let generic_names: Vec<String> =
+                self.references.iter().map(|r| r.compose_name()).collect();
+            format!("{}<{}>", self.name, generic_names.join(", "))
+        }
+    }
+
+    /// Get the schemas for the direct generic type parameters.
+    pub fn compose_generics(&self) -> &[SchemaReference] {
+        &self.references
+    }
+
+    /// Collect all child references recursively (depth-first).
+    pub fn compose_child_references(&self) -> Vec<&SchemaReference> {
+        let mut result = Vec::new();
+        for reference in &self.references {
+            result.push(reference);
+            result.extend(reference.compose_child_references());
+        }
+        result
+    }
 }
 
 /// Represents _`nullable`_ type.
@@ -149,6 +254,14 @@ impl ToSchema for TupleUnit {
         schema::empty().into()
     }
 }
+impl ComposeSchema for TupleUnit {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        schema::empty().into()
+    }
+}
 
 macro_rules! impl_to_schema {
     ($ty:path) => {
@@ -160,6 +273,11 @@ macro_rules! impl_to_schema {
     (@impl_schema $($tt:tt)*) => {
         impl ToSchema for $($tt)* {
             fn to_schema(_components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
+                 schema!( $($tt)* ).into()
+            }
+        }
+        impl ComposeSchema for $($tt)* {
+            fn compose(_components: &mut Components, _generics: Vec<crate::RefOr<crate::schema::Schema>>) -> crate::RefOr<crate::schema::Schema> {
                  schema!( $($tt)* ).into()
             }
         }
@@ -203,12 +321,29 @@ impl ToSchema for std::net::IpAddr {
         ))
     }
 }
+impl ComposeSchema for std::net::IpAddr {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Self::to_schema(components)
+    }
+}
 
 #[cfg(feature = "chrono")]
 impl_to_schema_primitive!(chrono::NaiveDate, chrono::Duration, chrono::NaiveDateTime);
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] DateTime<T>).into()
+    }
+}
+#[cfg(feature = "chrono")]
+impl<T: chrono::TimeZone> ComposeSchema for chrono::DateTime<T> {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
         schema!(#[inline] DateTime<T>).into()
     }
 }
@@ -235,10 +370,36 @@ impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
         schema!(#[inline] smallvec::SmallVec<T>).into()
     }
 }
+#[cfg(feature = "smallvec")]
+impl<T: ComposeSchema + smallvec::Array> ComposeSchema for smallvec::SmallVec<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
+    }
+}
 #[cfg(feature = "indexmap")]
 impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] indexmap::IndexMap<K, V>).into()
+    }
+}
+#[cfg(feature = "indexmap")]
+impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for indexmap::IndexMap<K, V> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let v_schema = generics
+            .get(1)
+            .cloned()
+            .unwrap_or_else(|| V::compose(components, vec![]));
+        schema::Object::new().additional_properties(v_schema).into()
     }
 }
 
@@ -247,10 +408,34 @@ impl<T: ToSchema> ToSchema for Vec<T> {
         schema!(#[inline] Vec<T>).into()
     }
 }
+impl<T: ComposeSchema> ComposeSchema for Vec<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
+    }
+}
 
 impl<T: ToSchema> ToSchema for LinkedList<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] LinkedList<T>).into()
+    }
+}
+impl<T: ComposeSchema> ComposeSchema for LinkedList<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
     }
 }
 
@@ -262,11 +447,41 @@ impl<T: ToSchema> ToSchema for HashSet<T> {
             .into()
     }
 }
+impl<T: ComposeSchema> ComposeSchema for HashSet<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new()
+            .items(t_schema)
+            .unique_items(true)
+            .into()
+    }
+}
 
 impl<T: ToSchema> ToSchema for BTreeSet<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema::Array::new()
             .items(T::to_schema(components))
+            .unique_items(true)
+            .into()
+    }
+}
+impl<T: ComposeSchema> ComposeSchema for BTreeSet<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new()
+            .items(t_schema)
             .unique_items(true)
             .into()
     }
@@ -281,10 +496,34 @@ impl<T: ToSchema> ToSchema for indexmap::IndexSet<T> {
             .into()
     }
 }
+#[cfg(feature = "indexmap")]
+impl<T: ComposeSchema> ComposeSchema for indexmap::IndexSet<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new()
+            .items(t_schema)
+            .unique_items(true)
+            .into()
+    }
+}
 
 impl<T: ToSchema> ToSchema for Box<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         T::to_schema(components)
+    }
+}
+impl<T: ComposeSchema> ComposeSchema for Box<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        T::compose(components, generics)
     }
 }
 
@@ -293,10 +532,26 @@ impl<T: ToSchema + ToOwned> ToSchema for std::borrow::Cow<'_, T> {
         T::to_schema(components)
     }
 }
+impl<T: ComposeSchema + ToOwned> ComposeSchema for std::borrow::Cow<'_, T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        T::compose(components, generics)
+    }
+}
 
 impl<T: ToSchema> ToSchema for std::cell::RefCell<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         T::to_schema(components)
+    }
+}
+impl<T: ComposeSchema> ComposeSchema for std::cell::RefCell<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        T::compose(components, generics)
     }
 }
 
@@ -305,10 +560,26 @@ impl<T: ToSchema> ToSchema for std::rc::Rc<T> {
         T::to_schema(components)
     }
 }
+impl<T: ComposeSchema> ComposeSchema for std::rc::Rc<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        T::compose(components, generics)
+    }
+}
 
 impl<T: ToSchema> ToSchema for std::sync::Arc<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         T::to_schema(components)
+    }
+}
+impl<T: ComposeSchema> ComposeSchema for std::sync::Arc<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        T::compose(components, generics)
     }
 }
 
@@ -321,6 +592,19 @@ impl<T: ToSchema> ToSchema for [T] {
         .into()
     }
 }
+impl<T: ComposeSchema> ComposeSchema for [T] {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
+    }
+}
+
 impl<T: ToSchema, const N: usize> ToSchema for [T; N] {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
@@ -328,6 +612,18 @@ impl<T: ToSchema, const N: usize> ToSchema for [T; N] {
             [T; N]
         )
         .into()
+    }
+}
+impl<T: ComposeSchema, const N: usize> ComposeSchema for [T; N] {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
     }
 }
 
@@ -340,15 +636,50 @@ impl<T: ToSchema> ToSchema for &[T] {
         .into()
     }
 }
+impl<T: ComposeSchema> ComposeSchema for &[T] {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::Array::new().items(t_schema).into()
+    }
+}
 
 impl<T: ToSchema> ToSchema for Option<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
+impl<T: ComposeSchema> ComposeSchema for Option<T> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        schema::OneOf::new()
+            .item(t_schema)
+            .item(schema::Object::new().schema_type(schema::BasicType::Null))
+            .into()
+    }
+}
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Box::default()).into()
+    }
+}
+impl<T> ComposeSchema for PhantomData<T> {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
         Schema::Object(Box::default()).into()
     }
 }
@@ -358,10 +689,34 @@ impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
+impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for BTreeMap<K, V> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let v_schema = generics
+            .get(1)
+            .cloned()
+            .unwrap_or_else(|| V::compose(components, vec![]));
+        schema::Object::new().additional_properties(v_schema).into()
+    }
+}
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
+    }
+}
+impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for HashMap<K, V> {
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let v_schema = generics
+            .get(1)
+            .cloned()
+            .unwrap_or_else(|| V::compose(components, vec![]));
+        schema::Object::new().additional_properties(v_schema).into()
     }
 }
 
@@ -388,9 +743,26 @@ impl ToSchema for StatusError {
         ref_or
     }
 }
+impl ComposeSchema for StatusError {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Self::to_schema(components)
+    }
+}
+
 impl ToSchema for salvo_core::Error {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         StatusError::to_schema(components)
+    }
+}
+impl ComposeSchema for salvo_core::Error {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Self::to_schema(components)
     }
 }
 
@@ -412,14 +784,51 @@ where
         ref_or
     }
 }
+impl<T, E> ComposeSchema for Result<T, E>
+where
+    T: ComposeSchema,
+    E: ComposeSchema,
+{
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let t_schema = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| T::compose(components, vec![]));
+        let e_schema = generics
+            .get(1)
+            .cloned()
+            .unwrap_or_else(|| E::compose(components, vec![]));
+        OneOf::new().item(t_schema).item(e_schema).into()
+    }
+}
 
 impl ToSchema for serde_json::Value {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         Schema::Object(Box::default()).into()
     }
 }
+impl ComposeSchema for serde_json::Value {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Schema::Object(Box::default()).into()
+    }
+}
+
 impl ToSchema for serde_json::Map<String, serde_json::Value> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Box::new(schema::Object::new())).into()
+    }
+}
+impl ComposeSchema for serde_json::Map<String, serde_json::Value> {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
         Schema::Object(Box::new(schema::Object::new())).into()
     }
 }
