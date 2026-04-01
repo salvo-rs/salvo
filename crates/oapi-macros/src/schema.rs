@@ -366,7 +366,7 @@ impl UnitStructVariant {
         let mut tokens = quote! {
             #oapi::oapi::Object::new()
                 .schema_type(#oapi::oapi::schema::SchemaType::AnyValue)
-                .default_value(serde_json::Value::Null)
+                .default_value(#oapi::oapi::__private::serde_json::Value::Null)
         };
 
         let mut features = attributes
