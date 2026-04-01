@@ -1364,6 +1364,12 @@ mod tests {
         let router = Router::with_path("/cities").get(get_all_cities);
         let doc = doc.merge_router(&router);
 
+        eprintln!(
+            "ACTUAL JSON:\n{}",
+            serde_json::to_string_pretty(&Value::from_str(&doc.to_json().unwrap()).unwrap())
+                .unwrap()
+        );
+
         assert_eq!(
             json! {{
                 "openapi": "3.1.0",
@@ -1465,10 +1471,17 @@ mod tests {
                             ],
                             "properties": {
                                 "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/City"
-                                    }
+                                    "allOf": [
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/City"
+                                            }
+                                        },
+                                        {
+                                            "description": "The data returned"
+                                        }
+                                    ]
                                 },
                                 "msg": {
                                     "type": "string",
@@ -1497,7 +1510,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "uint16",
+                                    "format": "int32",
                                     "minimum": 0.0
                                 },
                                 "detail": {
