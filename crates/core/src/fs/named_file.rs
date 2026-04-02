@@ -11,7 +11,7 @@ use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use mime::Mime;
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{
@@ -235,18 +235,25 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let file = File::open(&path).await?;
+        let mut file = File::open(&path).await?;
+        let metadata = file.metadata().await?;
+        let modified = metadata.modified().ok();
+
         let content_type =
             if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
                 if is_charset_required_mime(&mime) {
-                    let mut buffer: Vec<u8> = vec![];
-                    let _ = file.take(1024).read(&mut buffer).await;
+                    let mut buffer = vec![0u8; 1024];
+                    let n = file.read(&mut buffer).await.unwrap_or(0);
+                    buffer.truncate(n);
                     fill_mime_charset_if_need(&mut mime, &buffer);
+                    file.seek(std::io::SeekFrom::Start(0)).await?;
                 }
                 mime
             } else if path.extension().is_none() {
-                let mut buffer: Vec<u8> = vec![];
-                let _ = file.take(1024).read(&mut buffer).await;
+                let mut buffer = vec![0u8; 1024];
+                let n = file.read(&mut buffer).await.unwrap_or(0);
+                buffer.truncate(n);
+                file.seek(std::io::SeekFrom::Start(0)).await?;
                 if let Some(mime) = detect_text_mime(&buffer) {
                     mime
                 } else {
@@ -255,10 +262,6 @@ impl NamedFileBuilder {
             } else {
                 mime::APPLICATION_OCTET_STREAM
             };
-
-        let file = File::open(&path).await?;
-        let metadata = file.metadata().await?;
-        let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(
                 content_encoding
