@@ -414,13 +414,12 @@ impl Response {
         P: Into<PathBuf> + Send,
     {
         let path = path.into();
-        if !path.exists() {
-            self.render(StatusError::not_found());
-        } else {
-            match NamedFile::builder(path).build().await {
-                Ok(file) => file.send(req_headers, self).await,
-                Err(_) => self.render(StatusError::internal_server_error()),
+        match NamedFile::builder(path).build().await {
+            Ok(file) => file.send(req_headers, self).await,
+            Err(Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+                self.render(StatusError::not_found());
             }
+            Err(_) => self.render(StatusError::internal_server_error()),
         }
     }
 
