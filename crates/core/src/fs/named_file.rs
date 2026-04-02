@@ -241,7 +241,8 @@ impl NamedFileBuilder {
 
         let content_type =
             if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
-                if is_charset_required_mime(&mime) {
+                // Only detect charset if the mime type requires it AND doesn't already have one
+                if is_charset_required_mime(&mime) && mime.get_param("charset").is_none() {
                     let mut buffer = vec![0u8; 1024];
                     let n = file.read(&mut buffer).await.unwrap_or(0);
                     buffer.truncate(n);

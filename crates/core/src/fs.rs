@@ -133,9 +133,10 @@ where
                 ) as usize;
                 let offset = self.offset;
                 let fut = tokio::task::spawn_blocking(move || {
-                    let mut buf = Vec::with_capacity(max_bytes);
+                    let mut buf = vec![0u8; max_bytes];
                     file.seek(io::SeekFrom::Start(offset))?;
-                    let bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
+                    let bytes = file.read(&mut buf)?;
+                    buf.truncate(bytes);
                     if bytes == 0 {
                         return Err(ErrorKind::UnexpectedEof.into());
                     }
