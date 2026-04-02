@@ -41,6 +41,7 @@ cfg_feature! {
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::fs::FileBackend;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -50,6 +51,7 @@ mod tests {
     async fn test_serve_static_dir() {
         let router = Router::with_path("{*path}").get(
             StaticDir::new(vec!["test/static"])
+                .backend(FileBackend::Tokio)
                 .include_dot_files(false)
                 .auto_list(true)
                 .defaults("index.html"),
@@ -145,11 +147,15 @@ mod tests {
     async fn test_serve_static_file() {
         let router = Router::new()
             .push(
-                Router::with_path("test1.txt")
-                    .get(StaticFile::new("test/static/test1.txt").chunk_size(1024)),
+                Router::with_path("test1.txt").get(
+                    StaticFile::new("test/static/test1.txt")
+                        .backend(FileBackend::Tokio)
+                        .chunk_size(1024),
+                ),
             )
             .push(
-                Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")),
+                Router::with_path("notexist.txt")
+                    .get(StaticFile::new("test/static/notexist.txt").backend(FileBackend::Tokio)),
             );
         let service = Service::new(router);
 

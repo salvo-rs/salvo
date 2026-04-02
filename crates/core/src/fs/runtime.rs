@@ -1,11 +1,33 @@
 //! Runtime-specific filesystem adapters used by [`super::ChunkedFile`].
 
 use std::io::{self, ErrorKind, SeekFrom};
+use std::path::Path;
 
 use bytes::Bytes;
 use futures_util::future::BoxFuture;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+/// Filesystem backend used for async file IO.
+///
+/// The default backend uses Tokio's file APIs. Future Linux-only `io_uring`
+/// support will extend this enum without changing higher-level file-serving
+/// builders.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum FileBackend {
+    /// Tokio-based async file operations.
+    #[default]
+    Tokio,
+}
+
+impl FileBackend {
+    pub(crate) async fn open(self, path: &Path) -> io::Result<File> {
+        match self {
+            Self::Tokio => File::open(path).await,
+        }
+    }
+}
 
 /// Boxed future returned by [`ChunkRead`] implementations.
 pub type ChunkFuture<T> = BoxFuture<'static, io::Result<(T, Bytes)>>;

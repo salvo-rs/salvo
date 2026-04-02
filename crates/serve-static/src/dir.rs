@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use salvo_core::fs::NamedFile;
+use salvo_core::fs::{FileBackend, NamedFile};
 use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError, mime};
@@ -147,6 +147,8 @@ where
 pub struct StaticDir {
     /// Static root directories to search for files
     pub roots: Vec<PathBuf>,
+    /// Filesystem backend used to open files
+    pub backend: FileBackend,
     /// Chunk size for file reading (in bytes)
     pub chunk_size: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
@@ -165,6 +167,7 @@ impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("StaticDir")
             .field("roots", &self.roots)
+            .field("backend", &self.backend)
             .field("chunk_size", &self.chunk_size)
             .field("include_dot_files", &self.include_dot_files)
             .field("auto_list", &self.auto_list)
@@ -186,6 +189,7 @@ impl StaticDir {
 
         Self {
             roots: roots.collect(),
+            backend: FileBackend::default(),
             chunk_size: None,
             include_dot_files: false,
             exclude_filters: vec![],
@@ -194,6 +198,14 @@ impl StaticDir {
             defaults: vec![],
             fallback: None,
         }
+    }
+
+    /// Sets filesystem backend used when opening files.
+    #[inline]
+    #[must_use]
+    pub fn backend(mut self, backend: FileBackend) -> Self {
+        self.backend = backend;
+        self
     }
 
     /// Sets include_dot_files.
@@ -454,7 +466,7 @@ impl Handler for StaticDir {
             };
 
             let builder = {
-                let mut builder = NamedFile::builder(named_path);
+                let mut builder = NamedFile::builder(named_path).backend(self.backend);
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);
                 }

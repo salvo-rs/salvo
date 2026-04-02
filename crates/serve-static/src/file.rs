@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use salvo_core::fs::{NamedFile, NamedFileBuilder};
+use salvo_core::fs::{FileBackend, NamedFile, NamedFileBuilder};
 use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, Writer, async_trait};
 
@@ -43,6 +43,13 @@ impl StaticFile {
     #[must_use]
     pub fn chunk_size(self, size: u64) -> Self {
         Self(self.0.buffer_size(size))
+    }
+
+    /// Select the filesystem backend used to open the file.
+    #[inline]
+    #[must_use]
+    pub fn backend(self, backend: FileBackend) -> Self {
+        Self(self.0.backend(backend))
     }
 }
 

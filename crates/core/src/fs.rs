@@ -54,7 +54,7 @@ use bytes::Bytes;
 use futures_util::future::BoxFuture;
 use futures_util::stream::Stream;
 pub use named_file::*;
-pub use runtime::{ChunkFuture, ChunkRead};
+pub use runtime::{ChunkFuture, ChunkRead, FileBackend};
 
 /// Internal state machine for [`ChunkedFile`].
 pub(crate) enum ChunkedState<T> {
@@ -225,6 +225,7 @@ mod test {
         // println!("current path: {:?}", std::env::current_dir());
         // println!("current current_exe: {:?}", std::env::current_exe());
         let file = NamedFile::builder(src)
+            .backend(FileBackend::Tokio)
             .attached_name("attach.file")
             .buffer_size(8888)
             .content_type(Mime::from_str("text/html").unwrap())

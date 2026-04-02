@@ -13,7 +13,7 @@ use mime::Mime;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use super::ChunkedFile;
+use super::{ChunkedFile, FileBackend};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
@@ -125,6 +125,7 @@ pub struct NamedFile {
 #[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,
+    backend: FileBackend,
     attached_name: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
@@ -133,6 +134,14 @@ pub struct NamedFileBuilder {
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
+    /// Sets filesystem backend and returns `Self`.
+    #[inline]
+    #[must_use]
+    pub fn backend(mut self, backend: FileBackend) -> Self {
+        self.backend = backend;
+        self
+    }
+
     /// Sets attached filename and returns `Self`.
     #[inline]
     #[must_use]
@@ -226,6 +235,7 @@ impl NamedFileBuilder {
     pub async fn build(self) -> Result<NamedFile> {
         let Self {
             path,
+            backend,
             content_type,
             content_encoding,
             buffer_size,
@@ -234,7 +244,7 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let mut file = File::open(&path).await?;
+        let mut file = backend.open(&path).await?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
 
@@ -335,6 +345,7 @@ impl NamedFile {
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
             path: path.into(),
+            backend: FileBackend::default(),
             attached_name: None,
             disposition_type: None,
             content_type: None,
