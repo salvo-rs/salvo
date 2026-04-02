@@ -244,4 +244,16 @@ mod test {
             ))
         );
     }
+
+    #[cfg(all(feature = "io-uring", target_os = "linux"))]
+    #[tokio::test]
+    async fn test_named_file_builder_io_uring_backend() {
+        let src = "Cargo.toml";
+        let file = NamedFile::builder(src)
+            .backend(FileBackend::IoUring)
+            .build()
+            .await
+            .unwrap();
+        assert_eq!(file.path(), Path::new(src));
+    }
 }

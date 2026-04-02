@@ -8,6 +8,12 @@ use futures_util::future::BoxFuture;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
+#[cfg(all(feature = "io-uring", target_os = "linux"))]
+#[path = "runtime_io_uring.rs"]
+mod runtime_io_uring;
+#[cfg(all(feature = "io-uring", target_os = "linux"))]
+use runtime_io_uring::IoUringFile;
+
 /// Filesystem backend used for async file IO.
 ///
 /// The default backend uses Tokio's file APIs. Future Linux-only `io_uring`
@@ -19,6 +25,9 @@ pub enum FileBackend {
     /// Tokio-based async file operations.
     #[default]
     Tokio,
+    /// Linux-only `io_uring` worker for positional file reads.
+    #[cfg(all(feature = "io-uring", target_os = "linux"))]
+    IoUring,
 }
 
 impl FileBackend {
@@ -27,6 +36,14 @@ impl FileBackend {
             Self::Tokio => {
                 let file = File::open(path).await?;
                 let reader = RuntimeFile::Tokio(file.try_clone().await?);
+                Ok(OpenedFile { file, reader })
+            }
+            #[cfg(all(feature = "io-uring", target_os = "linux"))]
+            Self::IoUring => {
+                let file = File::open(path).await?;
+                let reader = RuntimeFile::IoUring(
+                    IoUringFile::from_std(file.try_clone().await?.into_std().await).await?,
+                );
                 Ok(OpenedFile { file, reader })
             }
         }
@@ -43,6 +60,8 @@ pub(crate) struct OpenedFile {
 #[derive(Debug)]
 pub(crate) enum RuntimeFile {
     Tokio(File),
+    #[cfg(all(feature = "io-uring", target_os = "linux"))]
+    IoUring(IoUringFile),
 }
 
 /// Boxed future returned by [`ChunkRead`] implementations.
@@ -80,6 +99,11 @@ impl ChunkRead for RuntimeFile {
             Self::Tokio(file) => Box::pin(async move {
                 let (file, bytes) = file.read_chunk(offset, max_bytes).await?;
                 Ok((Self::Tokio(file), bytes))
+            }),
+            #[cfg(all(feature = "io-uring", target_os = "linux"))]
+            Self::IoUring(file) => Box::pin(async move {
+                let (file, bytes) = file.read_chunk(offset, max_bytes).await?;
+                Ok((Self::IoUring(file), bytes))
             }),
         }
     }

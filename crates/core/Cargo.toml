@@ -73,6 +73,7 @@ test = [
 socket2 = ["dep:socket2"]
 matched-path = []
 tls12 = ["tokio-rustls?/tls12"]
+io-uring = ["dep:tokio-uring"]
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
@@ -129,6 +130,7 @@ tokio = { workspace = true, features = [
     "macros",
     "net",
     "rt-multi-thread",
+    "sync",
 ] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
@@ -143,6 +145,9 @@ zstd = { workspace = true, optional = true, features = ["default"] }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, optional = true, features = ["fs", "user"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-uring = { workspace = true, optional = true }
 
 [dev-dependencies]
 fastrand = { workspace = true }

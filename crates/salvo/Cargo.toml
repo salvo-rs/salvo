@@ -132,6 +132,7 @@ ring = ["salvo_core/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path"]
 tls12 = ["salvo_core/tls12"]
 tus = ["dep:salvo-tus"]
+io-uring = ["salvo_core/io-uring", "salvo-serve-static?/io-uring"]
 
 [dependencies]
 salvo_core = { workspace = true }
