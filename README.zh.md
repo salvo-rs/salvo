@@ -168,4 +168,4 @@ Salvo 在 Rust Web 框架中性能名列前茅：
 
 ## 开源协议
 
-基于 [Apache License 2.0](LICENSE-APACHE) 或 [MIT license](LICENSE-MIT) 双协议授权。
+基于 [Apache License 2.0](LICENSE) 授权。

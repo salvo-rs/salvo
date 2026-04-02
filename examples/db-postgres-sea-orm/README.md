@@ -5,7 +5,7 @@
 [![Database-PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![SeaORM](https://img.shields.io/badge/ORM-Sea--ORM-2E7D32?style=flat&logo=rust&logoColor=white)](https://www.sea-ql.org/SeaORM/)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 A clean and ready-to-use boilerplate for building high-performance asynchronous web services using **Salvo** 🦀 and **PostgreSQL** 🐘. This template helps you quickly start developing Rust-based APIs with database integration and migrations powered by **Sea-ORM**.
 

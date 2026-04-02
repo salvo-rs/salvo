@@ -158,4 +158,4 @@ If you find Salvo useful, consider [buying me a coffee](https://ko-fi.com/chrisl
 
 ## License
 
-Licensed under either of [Apache License 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT).
+Licensed under [Apache License 2.0](LICENSE).
