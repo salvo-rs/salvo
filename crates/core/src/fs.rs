@@ -42,22 +42,26 @@
 //! The [`ChunkedFile`] struct implements [`Stream`](futures_util::stream::Stream),
 //! yielding [`Bytes`](bytes::Bytes) chunks as they are read.
 mod named_file;
+mod runtime;
+
 use std::cmp;
 use std::fmt::{self, Debug, Formatter};
-use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
+use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
+use futures_util::future::BoxFuture;
 use futures_util::stream::Stream;
 pub use named_file::*;
+pub use runtime::{ChunkFuture, ChunkRead, FileBackend};
 
 /// Internal state machine for [`ChunkedFile`].
 pub(crate) enum ChunkedState<T> {
     /// Holding the file, ready to start the next read operation.
     File(Option<T>),
-    /// Waiting for a blocking read operation to complete.
-    Future(tokio::task::JoinHandle<IoResult<(T, Bytes)>>),
+    /// Waiting for the next asynchronous chunk to complete.
+    Future(BoxFuture<'static, IoResult<(T, Bytes)>>),
 }
 
 /// A streaming file reader that yields data in configurable chunks.
@@ -68,23 +72,23 @@ pub(crate) enum ChunkedState<T> {
 ///
 /// # How It Works
 ///
-/// 1. Reading is performed in a blocking thread pool via `spawn_blocking`
+/// 1. Reading is delegated to a runtime-specific [`ChunkRead`] implementation
 /// 2. Each read operation yields a chunk of up to `buffer_size` bytes
 /// 3. The stream completes when `total_size` bytes have been read
 ///
 /// # Type Parameter
 ///
-/// - `T`: The file type, which must implement [`Read`], [`Seek`], [`Unpin`], and [`Send`]
+/// - `T`: The file type, which must implement [`ChunkRead`]
 ///
 /// # Example
 ///
 /// ```ignore
 /// use salvo_core::fs::ChunkedFile;
 /// use futures_util::StreamExt;
-/// use std::fs::File;
+/// use tokio::fs::File;
 ///
-/// let file = File::open("large_file.bin").unwrap();
-/// let metadata = file.metadata().unwrap();
+/// let file = File::open("large_file.bin").await.unwrap();
+/// let metadata = file.metadata().await.unwrap();
 ///
 /// let mut stream = ChunkedFile::new(file, metadata.len(), 65536);
 ///
@@ -113,45 +117,58 @@ impl<T> Debug for ChunkedFile<T> {
     }
 }
 
+impl<T> ChunkedFile<T>
+where
+    T: ChunkRead,
+{
+    /// Create a new [`ChunkedFile`] starting from offset 0.
+    #[must_use]
+    pub fn new(file: T, total_size: u64, buffer_size: u64) -> Self {
+        Self::with_offset(file, total_size, buffer_size, 0)
+    }
+
+    #[must_use]
+    pub(crate) fn with_offset(file: T, total_size: u64, buffer_size: u64, offset: u64) -> Self {
+        Self {
+            total_size,
+            read_size: 0,
+            buffer_size,
+            offset,
+            state: ChunkedState::File(Some(file)),
+        }
+    }
+}
+
 impl<T> Stream for ChunkedFile<T>
 where
-    T: Read + Seek + Unpin + Send + 'static,
+    T: ChunkRead + Unpin,
 {
     type Item = IoResult<Bytes>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        if self.total_size == self.read_size {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+
+        if this.total_size == this.read_size {
             return Poll::Ready(None);
         }
 
-        match self.state {
-            ChunkedState::File(ref mut file) => {
-                let mut file = file.take().expect("`ChunkedFile` polled after completion");
+        match &mut this.state {
+            ChunkedState::File(file) => {
+                let file = file.take().expect("`ChunkedFile` polled after completion");
                 let max_bytes = cmp::min(
-                    self.total_size.saturating_sub(self.read_size),
-                    self.buffer_size,
+                    this.total_size.saturating_sub(this.read_size),
+                    this.buffer_size,
                 ) as usize;
-                let offset = self.offset;
-                let fut = tokio::task::spawn_blocking(move || {
-                    let mut buf = Vec::with_capacity(max_bytes);
-                    file.seek(io::SeekFrom::Start(offset))?;
-                    let bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
-                    if bytes == 0 {
-                        return Err(ErrorKind::UnexpectedEof.into());
-                    }
-                    Ok((file, Bytes::from(buf)))
-                });
-
-                self.state = ChunkedState::Future(fut);
-                self.poll_next(cx)
+                let offset = this.offset;
+                this.state = ChunkedState::Future(file.read_chunk(offset, max_bytes));
+                Pin::new(this).poll_next(cx)
             }
-            ChunkedState::Future(ref mut fut) => {
-                let (file, bytes) = ready!(Pin::new(fut).poll(cx))
-                    .map_err(|_| IoError::other("`ChunkedFile` block error"))??;
-                self.state = ChunkedState::File(Some(file));
+            ChunkedState::Future(fut) => {
+                let (file, bytes) = ready!(fut.as_mut().poll(cx))?;
+                this.state = ChunkedState::File(Some(file));
 
-                self.offset += bytes.len() as u64;
-                self.read_size += bytes.len() as u64;
+                this.offset += bytes.len() as u64;
+                this.read_size += bytes.len() as u64;
 
                 Poll::Ready(Some(Ok(bytes)))
             }
@@ -161,7 +178,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::io::Cursor;
+    use std::io::{Cursor, ErrorKind, Read, Seek};
     use std::path::Path;
     use std::str::FromStr;
 
@@ -172,18 +189,27 @@ mod test {
     use super::*;
     use crate::http::header::HeaderValue;
 
+    impl ChunkRead for Cursor<Vec<u8>> {
+        fn read_chunk(self, offset: u64, max_bytes: usize) -> ChunkFuture<Self> {
+            Box::pin(async move {
+                let mut file = self;
+                let mut buf = Vec::with_capacity(max_bytes);
+                file.seek(std::io::SeekFrom::Start(offset))?;
+                let bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
+                if bytes == 0 {
+                    return Err(ErrorKind::UnexpectedEof.into());
+                }
+                Ok((file, Bytes::from(buf)))
+            })
+        }
+    }
+
     #[tokio::test]
     async fn test_chunk_read() {
         const SIZE: u64 = 1024 * 1024 * 5;
         let mock = Cursor::new((0..SIZE).map(|_| fastrand::u8(..)).collect::<Vec<_>>());
 
-        let mut chunk = ChunkedFile {
-            total_size: SIZE,
-            read_size: 0,
-            buffer_size: 65535,
-            offset: 0,
-            state: ChunkedState::File(Some(mock.clone())),
-        };
+        let mut chunk = ChunkedFile::new(mock.clone(), SIZE, 65535);
 
         let mut result = BytesMut::with_capacity(SIZE as usize);
 
@@ -199,6 +225,7 @@ mod test {
         // println!("current path: {:?}", std::env::current_dir());
         // println!("current current_exe: {:?}", std::env::current_exe());
         let file = NamedFile::builder(src)
+            .backend(FileBackend::Tokio)
             .attached_name("attach.file")
             .buffer_size(8888)
             .content_type(Mime::from_str("text/html").unwrap())
@@ -216,5 +243,17 @@ mod test {
                 r#"attachment; filename="attach.file""#
             ))
         );
+    }
+
+    #[cfg(all(feature = "io-uring", target_os = "linux"))]
+    #[tokio::test]
+    async fn test_named_file_builder_io_uring_backend() {
+        let src = "Cargo.toml";
+        let file = NamedFile::builder(src)
+            .backend(FileBackend::IoUring)
+            .build()
+            .await
+            .unwrap();
+        assert_eq!(file.path(), Path::new(src));
     }
 }

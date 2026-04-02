@@ -19,6 +19,7 @@
 //! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
 //! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
 //! | `unix` | Listener based on Unix socket | ❌ |
+//! | `io-uring` | Linux-only filesystem backend for file streaming | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

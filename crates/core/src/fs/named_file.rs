@@ -13,7 +13,8 @@ use mime::Mime;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use super::{ChunkedFile, ChunkedState};
+use super::runtime::RuntimeFile;
+use super::{ChunkedFile, FileBackend};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
@@ -90,6 +91,7 @@ pub(crate) enum Flag {
 pub struct NamedFile {
     path: PathBuf,
     file: File,
+    reader: RuntimeFile,
     modified: Option<SystemTime>,
     buffer_size: u64,
     metadata: Metadata,
@@ -125,6 +127,7 @@ pub struct NamedFile {
 #[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,
+    backend: FileBackend,
     attached_name: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
@@ -133,6 +136,14 @@ pub struct NamedFileBuilder {
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
+    /// Sets filesystem backend and returns `Self`.
+    #[inline]
+    #[must_use]
+    pub fn backend(mut self, backend: FileBackend) -> Self {
+        self.backend = backend;
+        self
+    }
+
     /// Sets attached filename and returns `Self`.
     #[inline]
     #[must_use]
@@ -213,13 +224,12 @@ impl NamedFileBuilder {
 
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
-        if !self.path.exists() {
-            res.render(StatusError::not_found());
-        } else {
-            match self.build().await {
-                Ok(file) => file.send(req_headers, res).await,
-                Err(_) => res.render(StatusError::internal_server_error()),
+        match self.build().await {
+            Ok(file) => file.send(req_headers, res).await,
+            Err(Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+                res.render(StatusError::not_found());
             }
+            Err(_) => res.render(StatusError::internal_server_error()),
         }
     }
 
@@ -227,6 +237,7 @@ impl NamedFileBuilder {
     pub async fn build(self) -> Result<NamedFile> {
         let Self {
             path,
+            backend,
             content_type,
             content_encoding,
             buffer_size,
@@ -235,7 +246,9 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let mut file = File::open(&path).await?;
+        let opened = backend.open(&path).await?;
+        let mut file = opened.file;
+        let reader = opened.reader;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
 
@@ -283,6 +296,7 @@ impl NamedFileBuilder {
         Ok(NamedFile {
             path,
             file,
+            reader,
             content_type,
             content_disposition,
             metadata,
@@ -336,6 +350,7 @@ impl NamedFile {
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
             path: path.into(),
+            backend: FileBackend::default(),
             attached_name: None,
             disposition_type: None,
             content_type: None,
@@ -598,25 +613,14 @@ impl NamedFile {
                     tracing::error!(error = ?e, "set file's content range failed");
                 }
             }
-            let reader = ChunkedFile {
-                offset,
-                total_size: cmp::min(length, self.metadata.len()),
-                read_size: 0,
-                state: ChunkedState::File(Some(self.file.into_std().await)),
-                buffer_size: self.buffer_size,
-            };
-            res.headers_mut()
-                .typed_insert(ContentLength(reader.total_size));
+            let total_size = cmp::min(length, self.metadata.len());
+            let reader =
+                ChunkedFile::with_offset(self.reader, total_size, self.buffer_size, offset);
+            res.headers_mut().typed_insert(ContentLength(total_size));
             res.stream(reader);
         } else {
             res.status_code(StatusCode::OK);
-            let reader = ChunkedFile {
-                offset,
-                state: ChunkedState::File(Some(self.file.into_std().await)),
-                total_size: length,
-                read_size: 0,
-                buffer_size: self.buffer_size,
-            };
+            let reader = ChunkedFile::with_offset(self.reader, length, self.buffer_size, offset);
             res.headers_mut().typed_insert(ContentLength(length));
             res.stream(reader);
         }

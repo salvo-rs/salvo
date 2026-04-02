@@ -22,6 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 full = ["embed"]
 embed = ["dep:rust-embed", "dep:hex"]
+io-uring = ["salvo_core/io-uring"]
 
 [dependencies]
 hex = { workspace = true, optional = true }
