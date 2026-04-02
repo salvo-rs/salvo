@@ -13,6 +13,7 @@ use mime::Mime;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
+use super::runtime::RuntimeFile;
 use super::{ChunkedFile, FileBackend};
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
@@ -90,6 +91,7 @@ pub(crate) enum Flag {
 pub struct NamedFile {
     path: PathBuf,
     file: File,
+    reader: RuntimeFile,
     modified: Option<SystemTime>,
     buffer_size: u64,
     metadata: Metadata,
@@ -244,7 +246,9 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let mut file = backend.open(&path).await?;
+        let opened = backend.open(&path).await?;
+        let mut file = opened.file;
+        let reader = opened.reader;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
 
@@ -292,6 +296,7 @@ impl NamedFileBuilder {
         Ok(NamedFile {
             path,
             file,
+            reader,
             content_type,
             content_disposition,
             metadata,
@@ -609,12 +614,13 @@ impl NamedFile {
                 }
             }
             let total_size = cmp::min(length, self.metadata.len());
-            let reader = ChunkedFile::with_offset(self.file, total_size, self.buffer_size, offset);
+            let reader =
+                ChunkedFile::with_offset(self.reader, total_size, self.buffer_size, offset);
             res.headers_mut().typed_insert(ContentLength(total_size));
             res.stream(reader);
         } else {
             res.status_code(StatusCode::OK);
-            let reader = ChunkedFile::with_offset(self.file, length, self.buffer_size, offset);
+            let reader = ChunkedFile::with_offset(self.reader, length, self.buffer_size, offset);
             res.headers_mut().typed_insert(ContentLength(length));
             res.stream(reader);
         }

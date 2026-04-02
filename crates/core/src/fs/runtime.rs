@@ -22,11 +22,27 @@ pub enum FileBackend {
 }
 
 impl FileBackend {
-    pub(crate) async fn open(self, path: &Path) -> io::Result<File> {
+    pub(crate) async fn open(self, path: &Path) -> io::Result<OpenedFile> {
         match self {
-            Self::Tokio => File::open(path).await,
+            Self::Tokio => {
+                let file = File::open(path).await?;
+                let reader = RuntimeFile::Tokio(file.try_clone().await?);
+                Ok(OpenedFile { file, reader })
+            }
         }
     }
+}
+
+/// Opened file handles used by higher-level HTTP file serving.
+pub(crate) struct OpenedFile {
+    pub(crate) file: File,
+    pub(crate) reader: RuntimeFile,
+}
+
+/// Runtime-specific streaming file handle.
+#[derive(Debug)]
+pub(crate) enum RuntimeFile {
+    Tokio(File),
 }
 
 /// Boxed future returned by [`ChunkRead`] implementations.
@@ -55,5 +71,16 @@ impl ChunkRead for File {
             buf.truncate(bytes);
             Ok((file, Bytes::from(buf)))
         })
+    }
+}
+
+impl ChunkRead for RuntimeFile {
+    fn read_chunk(self, offset: u64, max_bytes: usize) -> ChunkFuture<Self> {
+        match self {
+            Self::Tokio(file) => Box::pin(async move {
+                let (file, bytes) = file.read_chunk(offset, max_bytes).await?;
+                Ok((Self::Tokio(file), bytes))
+            }),
+        }
     }
 }
