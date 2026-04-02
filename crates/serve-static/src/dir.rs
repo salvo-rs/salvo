@@ -21,7 +21,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::OffsetDateTime;
 use time::macros::format_description;
-use tokio::io::AsyncReadExt;
 
 use super::join_path;
 
@@ -419,16 +418,7 @@ impl Handler for StaticDir {
                 .map(|ext| self.is_compressed_ext(ext))
                 .unwrap_or(false);
             let mut content_encoding = None;
-            let mut content_type = mime_infer::from_path(&abs_path).first();
-
-            if let Some(content_type) = &mut content_type
-                && mime::is_charset_required_mime(content_type)
-                && let Ok(file) = tokio::fs::File::open(&abs_path).await
-            {
-                let mut buffer: Vec<u8> = vec![];
-                let _ = file.take(1024).read(&mut buffer).await;
-                mime::fill_mime_charset_if_need(content_type, &buffer);
-            }
+            let content_type = mime_infer::from_path(&abs_path).first();
 
             let named_path = if !is_compressed_ext {
                 if !self.compressed_variations.is_empty() {
