@@ -1,19 +1,23 @@
 use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
+use std::io::Read as StdRead;
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use mime::Mime;
 use tokio::fs::File;
+#[allow(unused_imports)]
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use super::{ChunkedFile, ChunkedState};
+use crate::http::body::ResBody;
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
 };
@@ -97,6 +101,8 @@ pub struct NamedFile {
     content_type: mime::Mime,
     content_disposition: Option<HeaderValue>,
     content_encoding: Option<HeaderValue>,
+    /// Pre-read content for small files, avoiding ChunkedFile + spawn_blocking overhead.
+    preread: Option<Bytes>,
 }
 
 /// Builder for constructing [`NamedFile`] instances with custom configuration.
@@ -235,34 +241,75 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let mut file = File::open(&path).await?;
-        let metadata = file.metadata().await?;
-        let modified = metadata.modified().ok();
+        let buf_size = buffer_size.unwrap_or(CHUNK_SIZE);
 
-        let content_type =
-            if let Some(mut mime) = content_type.or_else(|| mime_infer::from_path(&path).first()) {
-                // Only detect charset if the mime type requires it AND doesn't already have one
-                if is_charset_required_mime(&mime) && mime.get_param("charset").is_none() {
-                    let mut buffer = vec![0u8; 1024];
-                    let n = file.read(&mut buffer).await.unwrap_or(0);
-                    buffer.truncate(n);
-                    fill_mime_charset_if_need(&mut mime, &buffer);
-                    file.seek(std::io::SeekFrom::Start(0)).await?;
-                }
-                mime
-            } else if path.extension().is_none() {
-                let mut buffer = vec![0u8; 1024];
-                let n = file.read(&mut buffer).await.unwrap_or(0);
-                buffer.truncate(n);
-                file.seek(std::io::SeekFrom::Start(0)).await?;
-                if let Some(mime) = detect_text_mime(&buffer) {
-                    mime
-                } else {
-                    mime::APPLICATION_OCTET_STREAM
-                }
+        // Determine what charset detection is needed before the blocking call.
+        let inferred_mime = content_type
+            .clone()
+            .or_else(|| mime_infer::from_path(&path).first());
+        let needs_charset = inferred_mime
+            .as_ref()
+            .map(|m| is_charset_required_mime(m) && m.get_param("charset").is_none())
+            .unwrap_or(false);
+        let needs_detect = content_type.is_none() && path.extension().is_none();
+
+        // Single spawn_blocking: open + metadata + optional preread.
+        // This replaces 3-7 separate spawn_blocking calls with just 1.
+        struct FileInfo {
+            file: std::fs::File,
+            metadata: Metadata,
+            preread: Option<Vec<u8>>,
+        }
+        let blocking_path = path.clone();
+        let info = tokio::task::spawn_blocking(move || -> std::io::Result<FileInfo> {
+            let mut file = std::fs::File::open(&blocking_path)?;
+            let metadata = file.metadata()?;
+            let file_size = metadata.len();
+
+            // For small files (size <= buffer_size), read the entire content now.
+            // This avoids ChunkedFile's spawn_blocking + into_std overhead later.
+            let preread = if file_size <= buf_size {
+                let mut buf = vec![0u8; file_size as usize];
+                file.read_exact(&mut buf)?;
+                Some(buf)
             } else {
-                mime::APPLICATION_OCTET_STREAM
+                None
             };
+
+            Ok(FileInfo {
+                file,
+                metadata,
+                preread,
+            })
+        })
+        .await
+        .map_err(|e| Error::other(format!("spawn_blocking: {e}")))?
+        .map_err(Error::Io)?;
+
+        let file = File::from_std(info.file);
+
+        // Resolve content type, using preread bytes for charset detection if needed.
+        let content_type = if let Some(mut mime) = inferred_mime {
+            if needs_charset {
+                let sample = match &info.preread {
+                    Some(buf) => &buf[..cmp::min(1024, buf.len())],
+                    None => &[],
+                };
+                fill_mime_charset_if_need(&mut mime, sample);
+            }
+            mime
+        } else if needs_detect {
+            let sample = match &info.preread {
+                Some(buf) => &buf[..cmp::min(1024, buf.len())],
+                None => &[],
+            };
+            detect_text_mime(sample).unwrap_or(mime::APPLICATION_OCTET_STREAM)
+        } else {
+            mime::APPLICATION_OCTET_STREAM
+        };
+
+        let preread = info.preread.map(Bytes::from);
+
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(
                 content_encoding
@@ -286,11 +333,12 @@ impl NamedFileBuilder {
             file,
             content_type,
             content_disposition,
-            metadata,
-            modified,
+            modified: info.metadata.modified().ok(),
+            metadata: info.metadata,
             content_encoding,
-            buffer_size: buffer_size.unwrap_or(CHUNK_SIZE),
+            buffer_size: buf_size,
             flags,
+            preread,
         })
     }
 }
@@ -590,6 +638,7 @@ impl NamedFile {
         }
 
         if offset != 0 || length != self.metadata.len() || range.is_some() {
+            // Range request
             res.status_code(StatusCode::PARTIAL_CONTENT);
             match ContentRange::bytes(offset..offset + length, self.metadata.len()) {
                 Ok(content_range) => {
@@ -599,27 +648,42 @@ impl NamedFile {
                     tracing::error!(error = ?e, "set file's content range failed");
                 }
             }
-            let reader = ChunkedFile {
-                offset,
-                total_size: cmp::min(length, self.metadata.len()),
-                read_size: 0,
-                state: ChunkedState::File(Some(self.file.into_std().await)),
-                buffer_size: self.buffer_size,
-            };
-            res.headers_mut()
-                .typed_insert(ContentLength(reader.total_size));
-            res.stream(reader);
+            let total_size = cmp::min(length, self.metadata.len());
+            res.headers_mut().typed_insert(ContentLength(total_size));
+
+            // Fast path: slice from preread bytes if available
+            if let Some(preread) = self.preread {
+                let end = cmp::min((offset + length) as usize, preread.len());
+                let start = cmp::min(offset as usize, end);
+                res.replace_body(ResBody::Once(preread.slice(start..end)));
+            } else {
+                let reader = ChunkedFile {
+                    offset,
+                    total_size,
+                    read_size: 0,
+                    state: ChunkedState::File(Some(self.file.into_std().await)),
+                    buffer_size: self.buffer_size,
+                };
+                res.stream(reader);
+            }
         } else {
+            // Full file response
             res.status_code(StatusCode::OK);
-            let reader = ChunkedFile {
-                offset,
-                state: ChunkedState::File(Some(self.file.into_std().await)),
-                total_size: length,
-                read_size: 0,
-                buffer_size: self.buffer_size,
-            };
             res.headers_mut().typed_insert(ContentLength(length));
-            res.stream(reader);
+
+            // Fast path: send preread bytes directly — zero spawn_blocking calls
+            if let Some(preread) = self.preread {
+                res.replace_body(ResBody::Once(preread));
+            } else {
+                let reader = ChunkedFile {
+                    offset,
+                    state: ChunkedState::File(Some(self.file.into_std().await)),
+                    total_size: length,
+                    read_size: 0,
+                    buffer_size: self.buffer_size,
+                };
+                res.stream(reader);
+            }
         }
     }
 }
