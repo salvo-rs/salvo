@@ -85,7 +85,7 @@ use futures_util::sink::{Sink, SinkExt};
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::{FutureExt, TryFutureExt, future};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
+use salvo_core::http::header::{SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade,
 };
@@ -114,6 +114,8 @@ use tokio_tungstenite::tungstenite::protocol::{self, WebSocketConfig};
 #[allow(missing_debug_implementations)]
 pub struct WebSocketUpgrade {
     config: Option<WebSocketConfig>,
+    protocols: Vec<String>,
+    accept_any: bool,
 }
 
 impl Default for WebSocketUpgrade {
@@ -128,7 +130,7 @@ impl WebSocketUpgrade {
     #[inline]
     #[must_use]
     pub fn new() -> Self {
-        Self { config: None }
+        Self { config: None, protocols: Vec::new(), accept_any: false }
     }
 
     /// Create new `WebSocketUpgrade` with config.
@@ -137,7 +139,59 @@ impl WebSocketUpgrade {
     pub fn with_config(config: WebSocketConfig) -> Self {
         Self {
             config: Some(config),
+            protocols: Vec::new(),
+            accept_any: false,
         }
+    }
+
+    /// Set the list of supported `Sec-WebSocket-Protocol` values.
+    ///
+    /// During the upgrade handshake, the server will select the first protocol
+    /// from the client's `Sec-WebSocket-Protocol` header that also appears in this
+    /// list, and include it in the `101 Switching Protocols` response.
+    ///
+    /// If no overlap is found, no `Sec-WebSocket-Protocol` header is set in the response,
+    /// and the connection still proceeds. This follows [RFC 6455 §4.2.2].
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// WebSocketUpgrade::new()
+    ///     .protocols(&["graphql-ws", "graphql-transport-ws"])
+    ///     .upgrade(req, res, |ws| async move { /* ... */ })
+    ///     .await
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn protocols(mut self, protocols: &[&str]) -> Self {
+        self.protocols = protocols.iter().map(|s| s.to_string()).collect();
+        self
+    }
+
+    /// Accept any `Sec-WebSocket-Protocol` offered by the client without validation.
+    ///
+    /// The first protocol value from the client's `Sec-WebSocket-Protocol` header will
+    /// be echoed back in the `101 Switching Protocols` response as-is.
+    ///
+    /// This is useful when the server does not need to validate protocol values, such as
+    /// when the subprotocol carries authentication tokens or other dynamic content.
+    ///
+    /// If the client does not send a `Sec-WebSocket-Protocol` header, no header is set
+    /// in the response and the connection proceeds normally.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// WebSocketUpgrade::new()
+    ///     .accept_any_protocol()
+    ///     .upgrade(req, res, |ws| async move { /* ... */ })
+    ///     .await
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn accept_any_protocol(mut self) -> Self {
+        self.accept_any = true;
+        self
     }
 
     /// The target minimum size of the write buffer to reach before writing the data
@@ -264,6 +318,28 @@ impl WebSocketUpgrade {
         res.headers_mut().typed_insert(Upgrade::websocket());
         res.headers_mut()
             .typed_insert(SecWebsocketAccept::from(sec_ws_key));
+
+        // Negotiate subprotocol
+        let selected: Option<&str> = if self.accept_any {
+            // Echo the first protocol from the client without validation
+            let mut first: Option<&str> = None;
+            for value in req_headers.get_all(SEC_WEBSOCKET_PROTOCOL) {
+                if let Ok(value) = value.to_str() {
+                    if let Some(protocol) = value.split(',').next().map(str::trim).filter(|s| !s.is_empty()) {
+                        first = Some(protocol);
+                        break;
+                    }
+                }
+            }
+            first
+        } else {
+            select_protocol(req_headers, &self.protocols)
+        };
+        if let Some(selected) = selected
+            && let Ok(value) = selected.parse()
+        {
+            res.headers_mut().insert(SEC_WEBSOCKET_PROTOCOL, value);
+        }
 
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config;
@@ -523,6 +599,31 @@ impl Into<Vec<u8>> for Message {
     }
 }
 
+/// Select the first protocol from the client's `Sec-WebSocket-Protocol` header(s) that also
+/// appears in the server's supported `protocols` list.
+///
+/// Returns `None` if there is no overlap (per RFC 6455 §4.2.2, the server may proceed
+/// without a subprotocol header in the response).
+fn select_protocol<'a>(
+    req_headers: &'a salvo_core::http::HeaderMap,
+    protocols: &[String],
+) -> Option<&'a str> {
+    for value in req_headers.get_all(SEC_WEBSOCKET_PROTOCOL) {
+        let Ok(value) = value.to_str() else {
+            continue;
+        };
+        for requested in value.split(',').map(str::trim) {
+            if requested.is_empty() {
+                continue;
+            }
+            if protocols.iter().any(|supported| supported == requested) {
+                return Some(requested);
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use salvo_core::conn::{Acceptor, Listener};
@@ -535,6 +636,26 @@ mod tests {
     #[handler]
     async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
         WebSocketUpgrade::new()
+            .upgrade(req, res, |mut ws| async move {
+                while let Some(msg) = ws.recv().await {
+                    let msg = if let Ok(msg) = msg {
+                        msg
+                    } else {
+                        return;
+                    };
+
+                    if ws.send(msg).await.is_err() {
+                        return;
+                    }
+                }
+            })
+            .await
+    }
+
+    #[handler]
+    async fn connect_with_protocols(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
+        WebSocketUpgrade::new()
+            .protocols(&["chat.v1", "chat.v2"])
             .upgrade(req, res, |mut ws| async move {
                 while let Some(msg) = ws.recv().await {
                     let msg = if let Ok(msg) = msg {
@@ -589,5 +710,133 @@ mod tests {
         let res = sender.send_request(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
+    }
+
+    #[tokio::test]
+    async fn test_websocket_with_protocol_match() {
+        let router = Router::new().goal(connect_with_protocols);
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+
+        tokio::spawn(async move {
+            Server::new(acceptor).serve(router).await;
+        });
+
+        let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
+            .await
+            .unwrap();
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                println!("Connection failed: {err:?}");
+            }
+        });
+
+        let req = hyper::Request::builder()
+            .uri(format!("http://{addr}"))
+            .header(UPGRADE, "websocket")
+            .header(CONNECTION, "Upgrade")
+            .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
+            .header(SEC_WEBSOCKET_VERSION, "13")
+            .header(SEC_WEBSOCKET_PROTOCOL, "chat.v2, chat.v1")
+            .body(http_body_util::Empty::<hyper::body::Bytes>::new())
+            .unwrap();
+
+        let res = sender.send_request(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
+        // Should select "chat.v2" — first supported protocol in client's list
+        assert_eq!(
+            res.headers().get(SEC_WEBSOCKET_PROTOCOL),
+            Some(&HeaderValue::from_static("chat.v2")),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_websocket_with_protocol_no_match() {
+        let router = Router::new().goal(connect_with_protocols);
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+
+        tokio::spawn(async move {
+            Server::new(acceptor).serve(router).await;
+        });
+
+        let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
+            .await
+            .unwrap();
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                println!("Connection failed: {err:?}");
+            }
+        });
+
+        let req = hyper::Request::builder()
+            .uri(format!("http://{addr}"))
+            .header(UPGRADE, "websocket")
+            .header(CONNECTION, "Upgrade")
+            .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
+            .header(SEC_WEBSOCKET_VERSION, "13")
+            .header(SEC_WEBSOCKET_PROTOCOL, "unknown-protocol")
+            .body(http_body_util::Empty::<hyper::body::Bytes>::new())
+            .unwrap();
+
+        let res = sender.send_request(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
+        // No overlap — response should not contain Sec-WebSocket-Protocol
+        assert!(res.headers().get(SEC_WEBSOCKET_PROTOCOL).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_websocket_without_protocol() {
+        let router = Router::new().goal(connect_with_protocols);
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+
+        tokio::spawn(async move {
+            Server::new(acceptor).serve(router).await;
+        });
+
+        let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
+            .await
+            .unwrap();
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                println!("Connection failed: {err:?}");
+            }
+        });
+
+        let req = hyper::Request::builder()
+            .uri(format!("http://{addr}"))
+            .header(UPGRADE, "websocket")
+            .header(CONNECTION, "Upgrade")
+            .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
+            .header(SEC_WEBSOCKET_VERSION, "13")
+            .body(http_body_util::Empty::<hyper::body::Bytes>::new())
+            .unwrap();
+
+        let res = sender.send_request(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
+        // Client didn't send any protocol — response should not contain one
+        assert!(res.headers().get(SEC_WEBSOCKET_PROTOCOL).is_none());
     }
 }
