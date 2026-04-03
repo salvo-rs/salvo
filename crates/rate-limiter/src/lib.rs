@@ -393,18 +393,15 @@ where
         if self.add_headers {
             res.headers_mut().insert(
                 "X-RateLimit-Limit",
-                HeaderValue::from_str(&guard.limit(&quota).await.to_string())
-                    .expect("Invalid header value"),
+                HeaderValue::from(guard.limit(&quota).await as u64),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Remaining",
-                HeaderValue::from_str(&(guard.remaining(&quota).await).to_string())
-                    .expect("Invalid header value"),
+                HeaderValue::from(guard.remaining(&quota).await as u64),
             );
             res.headers_mut().insert(
                 "X-RateLimit-Reset",
-                HeaderValue::from_str(&guard.reset(&quota).await.to_string())
-                    .expect("Invalid header value"),
+                HeaderValue::from(guard.reset(&quota).await),
             );
         }
         if !verified {
