@@ -97,7 +97,7 @@ impl TryToTokens for ToSchema<'_> {
             self.attributes,
             ident,
             self.generics,
-            compose_context.clone(),
+            compose_context,
         )?;
 
         // Also generate the standard schema variant (without compose context) for non-generic
@@ -306,7 +306,7 @@ impl<'a> SchemaVariant<'a> {
                         name,
                         aliases: aliases.map(|a| a.0),
                         inline,
-                        compose_context: compose_context.clone(),
+                        compose_context,
                     }))
                 }
                 Fields::Named(fields) => {
@@ -342,7 +342,7 @@ impl<'a> SchemaVariant<'a> {
                         name,
                         aliases: aliases.map(|a| a.0),
                         inline,
-                        compose_context: compose_context.clone(),
+                        compose_context,
                     }))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant::new(attributes)?)),

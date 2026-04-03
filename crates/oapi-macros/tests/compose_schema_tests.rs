@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unwrap_used)]
 
 use assert_json_diff::assert_json_eq;
 use salvo::oapi::extract::*;
@@ -340,7 +340,7 @@ fn test_compose_schema_direct_call() {
         .into();
 
     let composed =
-        <Container<String> as ComposeSchema>::compose(&mut components, vec![custom_schema.clone()]);
+        <Container<String> as ComposeSchema>::compose(&mut components, vec![custom_schema]);
 
     // The composed schema should use the provided generic schema
     let value = serde_json::to_value(&composed).unwrap();

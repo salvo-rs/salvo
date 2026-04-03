@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn test_debug() {
         let b = ReqBody::None;
-        let s = format!("{:?}", b);
+        let s = format!("{b:?}");
         assert!(s.contains("ReqBody::None"));
     }
 

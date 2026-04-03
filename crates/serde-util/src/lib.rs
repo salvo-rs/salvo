@@ -4,6 +4,7 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 use proc_macro2::{Ident, Span, TokenTree};
 use syn::buffer::Cursor;
@@ -76,10 +77,10 @@ impl SerdeValue {
                     }
                     TokenTree::Ident(ident) if ident == "default" => value.is_default = true,
                     TokenTree::Ident(ident) if ident == "with" => {
-                        if let Some((literal, _)) = parse_next_lit_str(next) {
-                            if literal.contains("double_option") {
-                                value.double_option = true;
-                            }
+                        if let Some((literal, _)) = parse_next_lit_str(next)
+                            && literal.contains("double_option")
+                        {
+                            value.double_option = true;
                         }
                     }
                     _ => (),
@@ -430,7 +431,7 @@ mod tests {
         assert_eq!(
             result.enum_repr,
             super::SerdeEnumRepr::InternallyTagged {
-                tag: "t".to_string()
+                tag: "t".to_owned()
             }
         );
     }
@@ -446,8 +447,8 @@ mod tests {
         assert_eq!(
             result.enum_repr,
             super::SerdeEnumRepr::AdjacentlyTagged {
-                tag: "t".to_string(),
-                content: "c".to_string()
+                tag: "t".to_owned(),
+                content: "c".to_owned()
             }
         );
     }

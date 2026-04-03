@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Extra middleware and utilities for the Salvo web framework.
 //!
 //! This crate provides a collection of commonly-needed web features as middleware

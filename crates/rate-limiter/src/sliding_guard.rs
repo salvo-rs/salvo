@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn test_sliding_guard_debug() {
         let guard = SlidingGuard::new();
-        let debug_str = format!("{:?}", guard);
+        let debug_str = format!("{guard:?}");
         assert!(debug_str.contains("SlidingGuard"));
         assert!(debug_str.contains("cell_inst"));
         assert!(debug_str.contains("counts"));

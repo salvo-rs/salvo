@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_debug() {
         let b = ResBody::None;
-        let s = format!("{:?}", b);
+        let s = format!("{b:?}");
         assert!(s.contains("ResBody::None"));
     }
 

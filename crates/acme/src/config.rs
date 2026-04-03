@@ -391,8 +391,8 @@ mod tests {
 
     #[test]
     fn test_acme_config_builder() {
-        let domains = vec!["example.com".to_string(), "example.org".to_string()];
-        let contacts = vec!["mailto:admin@example.com".to_string()];
+        let domains = vec!["example.com".to_owned(), "example.org".to_owned()];
+        let contacts = vec!["mailto:admin@example.com".to_owned()];
 
         let acme_config = AcmeConfig::builder()
             .directory("test_directory", "https://test-directory-url.com")
@@ -477,7 +477,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let debug_str = format!("{:?}", config);
+        let debug_str = format!("{config:?}");
         assert!(debug_str.contains("AcmeConfig"));
         assert!(debug_str.contains("directory_name"));
     }

@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_fixed_guard_debug() {
         let guard = FixedGuard::new();
-        let debug_str = format!("{:?}", guard);
+        let debug_str = format!("{guard:?}");
         assert!(debug_str.contains("FixedGuard"));
         assert!(debug_str.contains("reset"));
         assert!(debug_str.contains("count"));

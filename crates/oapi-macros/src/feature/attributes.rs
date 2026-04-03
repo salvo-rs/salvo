@@ -913,8 +913,7 @@ impl Parse for Discriminator {
                     return Err(syn::Error::new(
                         ident.span(),
                         format!(
-                            "unexpected identifier `{}`, expected one of: property_name, mapping",
-                            unexpected
+                            "unexpected identifier `{unexpected}`, expected one of: property_name, mapping"
                         ),
                     ));
                 }

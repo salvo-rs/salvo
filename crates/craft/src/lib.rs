@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Modular handler crafting for Salvo web framework.
 //!
 //! This crate provides the `#[craft]` attribute macro that enables a more

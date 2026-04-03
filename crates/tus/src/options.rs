@@ -514,8 +514,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_tus_options_get_configured_max_size_fixed() {
-        let mut options = TusOptions::default();
-        options.max_size = Some(MaxSize::Fixed(5000));
+        let options = TusOptions {
+            max_size: Some(MaxSize::Fixed(5000)),
+            ..Default::default()
+        };
 
         let req = salvo_core::Request::default();
         let size = options.get_configured_max_size(&req, None).await;
@@ -524,8 +526,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_tus_options_get_configured_max_size_none() {
-        let mut options = TusOptions::default();
-        options.max_size = None;
+        let options = TusOptions {
+            max_size: None,
+            ..Default::default()
+        };
 
         let req = salvo_core::Request::default();
         let size = options.get_configured_max_size(&req, None).await;

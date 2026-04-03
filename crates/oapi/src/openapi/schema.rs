@@ -218,6 +218,7 @@ impl Discriminator {
     }
 
     /// Add openapi extensions (`x-something`) for [`Discriminator`].
+    #[must_use]
     pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
         self.extensions = extensions;
         self

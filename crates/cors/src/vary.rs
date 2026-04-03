@@ -50,8 +50,7 @@ impl From<Vec<HeaderName>> for Vary {
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header::{
-        self, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, HeaderName,
-        HeaderValue, ORIGIN,
+        self, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, HeaderValue, ORIGIN,
     };
 
     use super::{Vary, preflight_request_headers};
@@ -105,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_preflight_request_headers() {
-        let mut headers = preflight_request_headers().map(HeaderName::from);
+        let mut headers = preflight_request_headers();
         assert_eq!(headers.next(), Some(ORIGIN));
         assert_eq!(headers.next(), Some(ACCESS_CONTROL_REQUEST_METHOD));
         assert_eq!(headers.next(), Some(ACCESS_CONTROL_REQUEST_HEADERS));

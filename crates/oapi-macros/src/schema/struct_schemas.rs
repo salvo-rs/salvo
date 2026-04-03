@@ -445,7 +445,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                                 .map(|rename_all| rename_all.to_rename_rule())
                         });
                     let name = crate::rename::<FieldRename>(&field_name, rename_to, rename_all)
-                        .unwrap_or_else(|| Cow::Borrowed(field_name.as_str()))
+                        .unwrap_or(Cow::Borrowed(field_name.as_str()))
                         .into_owned();
                     let insert_tokens = quote! {
                         __default.insert(

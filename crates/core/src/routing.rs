@@ -452,6 +452,7 @@ pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
 
 #[inline]
 #[doc(hidden)]
+#[must_use]
 pub fn decode_url_path(path: &str) -> String {
     percent_encoding::percent_decode_str(path)
         .decode_utf8_lossy()
@@ -460,6 +461,7 @@ pub fn decode_url_path(path: &str) -> String {
 
 #[inline]
 #[doc(hidden)]
+#[must_use]
 pub fn encode_url_path(path: &str) -> String {
     let mut result = String::with_capacity(path.len());
     for (i, s) in path.split('/').enumerate() {
@@ -472,6 +474,7 @@ pub fn encode_url_path(path: &str) -> String {
 }
 
 #[doc(hidden)]
+#[must_use]
 pub fn normalize_url_path(path: &str) -> String {
     let final_slash = if path.ends_with('/') { "/" } else { "" };
     let mut used_parts = Vec::with_capacity(8);
@@ -489,7 +492,6 @@ pub fn normalize_url_path(path: &str) -> String {
             used_parts.pop();
         } else if cfg!(windows) && is_windows_reserved_name(part) {
             // Skip Windows reserved device names
-            continue;
         } else {
             used_parts.push(part);
         }

@@ -332,20 +332,16 @@ mod tests {
 
             let res = HttpRange::parse(header, size);
 
-            if res.is_err() {
-                if expected.is_empty() {
-                    continue;
-                } else {
-                    panic!(
-                        "parse({}, {}) returned error {:?}",
-                        header,
-                        size,
-                        res.unwrap_err()
-                    );
+            let got = match res {
+                Err(e) => {
+                    if expected.is_empty() {
+                        continue;
+                    } else {
+                        panic!("parse({header}, {size}) returned error {e:?}");
+                    }
                 }
-            }
-
-            let got = res.unwrap();
+                Ok(v) => v,
+            };
 
             if got.len() != expected.len() {
                 panic!(

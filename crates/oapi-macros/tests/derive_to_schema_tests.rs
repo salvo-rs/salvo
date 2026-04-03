@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unwrap_used)]
 use assert_json_diff::assert_json_eq;
 use salvo::oapi::extract::*;
 use salvo::prelude::*;

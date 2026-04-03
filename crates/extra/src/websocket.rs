@@ -666,9 +666,7 @@ mod tests {
         WebSocketUpgrade::new()
             .upgrade(req, res, |mut ws| async move {
                 while let Some(msg) = ws.recv().await {
-                    let msg = if let Ok(msg) = msg {
-                        msg
-                    } else {
+                    let Ok(msg) = msg else {
                         return;
                     };
 
@@ -686,9 +684,7 @@ mod tests {
             .protocols(&["chat.v1", "chat.v2"])
             .upgrade(req, res, |mut ws| async move {
                 while let Some(msg) = ws.recv().await {
-                    let msg = if let Ok(msg) = msg {
-                        msg
-                    } else {
+                    let Ok(msg) = msg else {
                         return;
                     };
 
@@ -706,9 +702,7 @@ mod tests {
             .accept_any_protocol()
             .upgrade(req, res, |mut ws| async move {
                 while let Some(msg) = ws.recv().await {
-                    let msg = if let Ok(msg) = msg {
-                        msg
-                    } else {
+                    let Ok(msg) = msg else {
                         return;
                     };
 

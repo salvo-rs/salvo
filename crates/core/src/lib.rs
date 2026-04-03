@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! The core crate of Salvo web framework.
 //!
 //! `salvo_core` uses a set of [feature flags] to reduce the amount of compiled and

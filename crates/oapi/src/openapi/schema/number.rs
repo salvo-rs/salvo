@@ -146,6 +146,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_serialize_float() {
         let n = Number::Float(3.14);
         assert_eq!(serde_json::to_string(&n).unwrap(), "3.14");
@@ -194,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_deserialize_float() {
         let n: Number = serde_json::from_str("3.14").unwrap();
         assert_eq!(n, Number::Float(3.14));

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Flash messages middleware for the Salvo web framework.
 //!
 //! Flash messages are temporary notifications that persist across a single redirect,
@@ -476,7 +477,7 @@ mod tests {
     fn test_flash_debug() {
         let mut flash = Flash::default();
         flash.info("test message");
-        let debug_str = format!("{:?}", flash);
+        let debug_str = format!("{flash:?}");
         assert!(debug_str.contains("Flash"));
         assert!(debug_str.contains("test message"));
     }
@@ -602,7 +603,7 @@ mod tests {
     #[test]
     fn test_flash_message_debug_trait() {
         let msg = FlashMessage::info("test");
-        let debug_str = format!("{:?}", msg);
+        let debug_str = format!("{msg:?}");
         assert!(debug_str.contains("FlashMessage"));
         assert!(debug_str.contains("test"));
     }
@@ -699,7 +700,7 @@ mod tests {
         #[cfg(feature = "cookie-store")]
         {
             let handler = FlashHandler::new(CookieStore::new());
-            let debug_str = format!("{:?}", handler);
+            let debug_str = format!("{handler:?}");
             assert!(debug_str.contains("FlashHandler"));
             assert!(debug_str.contains("store"));
         }

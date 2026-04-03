@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Provides JWT (JSON Web Token) authentication support for the Salvo web framework.
 //!
 //! This crate helps you implement JWT-based authentication in your Salvo web applications.
@@ -464,7 +465,7 @@ mod tests {
     fn test_const_decoder_new() {
         let key = DecodingKey::from_secret(b"test_secret");
         let decoder = ConstDecoder::new(key);
-        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+        assert!(format!("{decoder:?}").contains("ConstDecoder"));
     }
 
     #[test]
@@ -473,13 +474,13 @@ mod tests {
         let mut validation = Validation::default();
         validation.validate_exp = false;
         let decoder = ConstDecoder::with_validation(key, validation);
-        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+        assert!(format!("{decoder:?}").contains("ConstDecoder"));
     }
 
     #[test]
     fn test_const_decoder_from_secret() {
         let decoder = ConstDecoder::from_secret(b"my_secret_key");
-        assert!(format!("{:?}", decoder).contains("ConstDecoder"));
+        assert!(format!("{decoder:?}").contains("ConstDecoder"));
     }
 
     #[test]
@@ -738,7 +739,7 @@ mod tests {
     fn test_jwt_auth_debug() {
         let decoder = ConstDecoder::from_secret(b"secret");
         let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
-        let debug_str = format!("{:?}", auth);
+        let debug_str = format!("{auth:?}");
         assert!(debug_str.contains("JwtAuth"));
         assert!(debug_str.contains("force_passed"));
     }
@@ -896,7 +897,7 @@ mod tests {
         async fn hello(depot: &mut Depot) -> String {
             match depot.jwt_auth_data::<JwtClaims>() {
                 Some(data) => format!("user:{}", data.claims.user),
-                None => "no_data".to_string(),
+                None => "no_data".to_owned(),
             }
         }
 

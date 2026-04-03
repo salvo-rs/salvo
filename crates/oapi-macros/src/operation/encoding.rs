@@ -23,7 +23,7 @@ impl Parse for Encoding {
         let content;
         parenthesized!(content in input);
 
-        let mut encoding = Encoding::default();
+        let mut encoding = Self::default();
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>()?;

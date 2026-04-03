@@ -1054,14 +1054,14 @@ mod tests {
     #[test]
     fn test_variant_clone() {
         let original = Variant::Int32;
-        let cloned = original.clone();
+        let cloned = original;
         assert!(matches!(cloned, Variant::Int32));
     }
 
     #[test]
     fn test_variant_debug() {
         let variant = Variant::Float;
-        let debug = format!("{:?}", variant);
+        let debug = format!("{variant:?}");
         assert_eq!(debug, "Float");
     }
 
@@ -1098,7 +1098,7 @@ mod tests {
     #[test]
     fn test_schema_format_debug() {
         let format = SchemaFormat::Variant(Variant::Double);
-        let debug = format!("{:?}", format);
+        let debug = format!("{format:?}");
         assert!(debug.contains("Variant"));
         assert!(debug.contains("Double"));
     }

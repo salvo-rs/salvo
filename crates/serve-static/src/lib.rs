@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Serve static files and directories for Salvo web framework.
 //!
 //! This crate provides handlers for serving static content:

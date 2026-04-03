@@ -409,62 +409,61 @@ impl ComponentSchema {
 
         // In compose mode, check if this type is a generic param that should
         // be looked up from the compose generics vector.
-        if let Some(ctx) = compose_context {
-            if let Some(idx) = type_tree
+        if let Some(ctx) = compose_context
+            && let Some(idx) = type_tree
                 .path
                 .as_ref()
                 .and_then(|p| p.segments.last())
                 .and_then(|seg| {
                     if p_is_single_segment(type_tree.path.as_ref()) {
-                        ctx.params.iter().position(|p| *p == seg.ident.to_string())
+                        ctx.params.iter().position(|p| seg.ident == *p)
                     } else {
                         None
                     }
                 })
-            {
-                let generics_ident = &ctx.generics_ident;
-                let nullable_item = if nullable {
-                    Some(
-                        quote! { .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::BasicType::Null)) },
-                    )
-                } else {
-                    None
-                };
-                let default = pop_feature!(features => Feature::Default(_))
-                    .map(|feature| feature.try_to_token_stream())
-                    .transpose()?;
-                let title = pop_feature!(features => Feature::Title(_))
-                    .map(|feature| feature.try_to_token_stream())
-                    .transpose()?;
-                let description_tokens = description_stream.to_token_stream();
-                let has_description = !description_tokens.is_empty();
+        {
+            let generics_ident = &ctx.generics_ident;
+            let nullable_item = if nullable {
+                Some(
+                    quote! { .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::BasicType::Null)) },
+                )
+            } else {
+                None
+            };
+            let default = pop_feature!(features => Feature::Default(_))
+                .map(|feature| feature.try_to_token_stream())
+                .transpose()?;
+            let title = pop_feature!(features => Feature::Title(_))
+                .map(|feature| feature.try_to_token_stream())
+                .transpose()?;
+            let description_tokens = description_stream.to_token_stream();
+            let has_description = !description_tokens.is_empty();
 
-                let schema = quote! { #generics_ident[#idx].clone() };
+            let schema = quote! { #generics_ident[#idx].clone() };
 
-                let schema = if default.is_some() || nullable {
-                    quote! {
-                        #oapi::oapi::schema::OneOf::new()
-                            #nullable_item
-                            .item(#schema)
-                            #default
-                    }
-                } else {
-                    schema
-                };
+            let schema = if default.is_some() || nullable {
+                quote! {
+                    #oapi::oapi::schema::OneOf::new()
+                        #nullable_item
+                        .item(#schema)
+                        #default
+                }
+            } else {
+                schema
+            };
 
-                let schema = if title.is_some() || has_description {
-                    quote! {
-                        #oapi::oapi::schema::AllOf::new()
-                            .item(#schema)
-                            .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
-                    }
-                } else {
-                    schema
-                };
+            let schema = if title.is_some() || has_description {
+                quote! {
+                    #oapi::oapi::schema::AllOf::new()
+                        .item(#schema)
+                        .item(#oapi::oapi::Object::new().schema_type(#oapi::oapi::schema::SchemaType::AnyValue) #title #description_stream)
+                }
+            } else {
+                schema
+            };
 
-                schema.to_tokens(tokens);
-                return Ok(());
-            }
+            schema.to_tokens(tokens);
+            return Ok(());
         }
 
         match type_tree.value_type {

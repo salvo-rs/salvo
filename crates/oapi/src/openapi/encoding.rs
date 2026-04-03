@@ -54,12 +54,14 @@ pub struct Encoding {
 
 impl Encoding {
     /// Set the content type. See [`Encoding::content_type`].
+    #[must_use]
     pub fn content_type<S: Into<String>>(mut self, content_type: S) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
 
     /// Add a [`Header`]. See [`Encoding::headers`].
+    #[must_use]
     pub fn header<S: Into<String>, H: Into<Header>>(mut self, header_name: S, header: H) -> Self {
         self.headers.insert(header_name.into(), header.into());
 
@@ -67,24 +69,28 @@ impl Encoding {
     }
 
     /// Set the style [`ParameterStyle`]. See [`Encoding::style`].
+    #[must_use]
     pub fn style(mut self, style: ParameterStyle) -> Self {
         self.style = Some(style);
         self
     }
 
     /// Set the explode. See [`Encoding::explode`].
+    #[must_use]
     pub fn explode(mut self, explode: bool) -> Self {
         self.explode = Some(explode);
         self
     }
 
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
+    #[must_use]
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
         self.allow_reserved = Some(allow_reserved);
         self
     }
 
     /// Add openapi extensions (`x-something`) for [`Encoding`].
+    #[must_use]
     pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
         self.extensions = extensions;
         self

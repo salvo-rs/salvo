@@ -29,7 +29,7 @@ fn normalize_oapi_path(path: &str) -> String {
         let mut escaping = false;
         let mut param_end = None;
 
-        while let Some((idx, current)) = chars.next() {
+        for (idx, current) in chars.by_ref() {
             if escaping {
                 escaping = false;
                 continue;

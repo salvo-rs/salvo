@@ -355,10 +355,7 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::Other(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "detail message",
-        )));
+        let e = Error::Other(Box::new(std::io::Error::other("detail message")));
         e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
@@ -367,7 +364,7 @@ mod tests {
     fn test_error_from() {
         use std::io;
 
-        let err: Error = io::Error::new(io::ErrorKind::Other, "oh no!").into();
+        let err: Error = io::Error::other("oh no!").into();
         assert!(matches!(err, Error::Io(_)));
 
         let err: Error = ParseError::ParseFromStr.into();
@@ -384,10 +381,7 @@ mod tests {
         let err: Error = http::Uri::from_str("ht tp://host.com").unwrap_err().into();
         assert!(matches!(err, Error::InvalidUri(_)));
 
-        let err: Error = Error::other(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "custom error",
-        )));
+        let err: Error = Error::other(Box::new(std::io::Error::other("custom error")));
         assert!(matches!(err, Error::Other(_)));
     }
 
@@ -395,14 +389,14 @@ mod tests {
     fn test_error_display() {
         use std::io;
 
-        let err: Error = io::Error::new(io::ErrorKind::Other, "io error").into();
-        assert_eq!(format!("{}", err), "io error");
+        let err: Error = io::Error::other("io error").into();
+        assert_eq!(format!("{err}"), "io error");
 
         let err: Error = ParseError::ParseFromStr.into();
-        assert_eq!(format!("{}", err), "Parse error when parse from str.");
+        assert_eq!(format!("{err}"), "Parse error when parse from str.");
 
         let err: Error = StatusError::bad_request().brief("status error").into();
-        assert!(format!("{}", err).contains("status error"));
+        assert!(format!("{err}").contains("status error"));
     }
 
     #[tokio::test]
@@ -416,7 +410,7 @@ mod tests {
         assert_eq!(res.status_code, Some(StatusCode::BAD_REQUEST));
 
         let mut res = Response::default();
-        let e = std::io::Error::new(std::io::ErrorKind::Other, "io error");
+        let e = std::io::Error::other("io error");
         Error::from(e).write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }

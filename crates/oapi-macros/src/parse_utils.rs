@@ -172,12 +172,12 @@ impl Default for LitBoolOrExprPath {
 impl Parse for LitBoolOrExprPath {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitBool) {
-            Ok(LitBoolOrExprPath::LitBool(input.parse::<LitBool>()?))
+            Ok(Self::LitBool(input.parse::<LitBool>()?))
         } else {
             let expr = input.parse::<Expr>()?;
 
             match expr {
-                Expr::Path(expr_path) => Ok(LitBoolOrExprPath::ExprPath(expr_path)),
+                Expr::Path(expr_path) => Ok(Self::ExprPath(expr_path)),
                 _ => Err(syn::Error::new(
                     input.span(),
                     format!(
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_lit_str_or_expr_from_string() {
-        let result = LitStrOrExpr::from("test".to_string());
+        let result = LitStrOrExpr::from("test".to_owned());
         assert!(matches!(result, LitStrOrExpr::LitStr(_)));
     }
 
@@ -229,13 +229,13 @@ mod tests {
 
     #[test]
     fn test_lit_str_or_expr_is_empty_true() {
-        let result = LitStrOrExpr::from("".to_string());
+        let result = LitStrOrExpr::from("".to_owned());
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_lit_str_or_expr_is_empty_false() {
-        let result = LitStrOrExpr::from("not empty".to_string());
+        let result = LitStrOrExpr::from("not empty".to_owned());
         assert!(!result.is_empty());
     }
 
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_lit_str_or_expr_to_tokens() {
-        let lit = LitStrOrExpr::from("test".to_string());
+        let lit = LitStrOrExpr::from("test".to_owned());
         let mut tokens = TokenStream::new();
         lit.to_tokens(&mut tokens);
         assert!(!tokens.is_empty());
@@ -261,29 +261,29 @@ mod tests {
 
     #[test]
     fn test_lit_str_or_expr_display_lit_str() {
-        let lit = LitStrOrExpr::from("display test".to_string());
-        let display = format!("{}", lit);
+        let lit = LitStrOrExpr::from("display test".to_owned());
+        let display = format!("{lit}");
         assert_eq!(display, "display test");
     }
 
     #[test]
     fn test_lit_str_or_expr_display_expr() {
         let result: LitStrOrExpr = syn::parse_str("my_var").unwrap();
-        let display = format!("{}", result);
+        let display = format!("{result}");
         assert!(display.contains("my_var"));
     }
 
     #[test]
     fn test_lit_str_or_expr_debug() {
-        let lit = LitStrOrExpr::from("test".to_string());
-        let debug = format!("{:?}", lit);
+        let lit = LitStrOrExpr::from("test".to_owned());
+        let debug = format!("{lit:?}");
         assert!(debug.contains("LitStr"));
     }
 
     #[test]
     fn test_lit_str_or_expr_clone() {
-        let original = LitStrOrExpr::from("clone test".to_string());
-        let cloned = original.clone();
+        let original = LitStrOrExpr::from("clone test".to_owned());
+        let cloned = original;
         assert!(matches!(cloned, LitStrOrExpr::LitStr(_)));
     }
 

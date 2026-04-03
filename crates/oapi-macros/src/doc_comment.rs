@@ -18,14 +18,13 @@ impl CommentAttributes {
                 if !matches!(attr.path().get_ident(), Some(ident) if ident == DOC_ATTRIBUTE_TYPE) {
                     return None;
                 }
-                if let Meta::NameValue(name_value) = &attr.meta {
-                    if let Expr::Lit(ref doc_comment) = name_value.value {
-                        if let Lit::Str(ref doc) = doc_comment.lit {
-                            let mut doc = doc.value();
-                            doc.truncate(doc.trim_end().len());
-                            return Some(doc);
-                        }
-                    }
+                if let Meta::NameValue(name_value) = &attr.meta
+                    && let Expr::Lit(ref doc_comment) = name_value.value
+                    && let Lit::Str(ref doc) = doc_comment.lit
+                {
+                    let mut doc = doc.value();
+                    doc.truncate(doc.trim_end().len());
+                    return Some(doc);
                 }
                 None
             })
@@ -162,7 +161,7 @@ mod tests {
             struct Foo;
         });
         let comments = CommentAttributes::from_attributes(&attrs);
-        let debug_str = format!("{:?}", comments);
+        let debug_str = format!("{comments:?}");
         assert!(debug_str.contains("CommentAttributes"));
     }
 }

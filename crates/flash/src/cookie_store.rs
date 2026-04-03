@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_cookie_store_debug() {
         let store = CookieStore::new();
-        let debug_str = format!("{:?}", store);
+        let debug_str = format!("{store:?}");
         assert!(debug_str.contains("CookieStore"));
         assert!(debug_str.contains("max_age"));
         assert!(debug_str.contains("same_site"));

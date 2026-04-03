@@ -2,6 +2,7 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 #[macro_use]
 mod cfg;
@@ -188,7 +189,7 @@ pub struct SchemaReference {
     /// Whether this schema should be inlined rather than referenced.
     pub inline: bool,
     /// Child references for generic type parameters.
-    pub references: Vec<SchemaReference>,
+    pub references: Vec<Self>,
 }
 
 impl SchemaReference {
@@ -202,13 +203,15 @@ impl SchemaReference {
     }
 
     /// Set whether this schema should be inlined.
+    #[must_use]
     pub fn inline(mut self, inline: bool) -> Self {
         self.inline = inline;
         self
     }
 
     /// Add a child reference for a generic type parameter.
-    pub fn reference(mut self, reference: SchemaReference) -> Self {
+    #[must_use]
+    pub fn reference(mut self, reference: Self) -> Self {
         self.references.push(reference);
         self
     }
@@ -216,6 +219,7 @@ impl SchemaReference {
     /// Get the composed name including generic parameters.
     ///
     /// For example, `Page` with child `User` produces `Page<User>`.
+    #[must_use]
     pub fn compose_name(&self) -> String {
         if self.references.is_empty() {
             self.name.to_string()
@@ -227,12 +231,14 @@ impl SchemaReference {
     }
 
     /// Get the schemas for the direct generic type parameters.
-    pub fn compose_generics(&self) -> &[SchemaReference] {
+    #[must_use]
+    pub fn compose_generics(&self) -> &[Self] {
         &self.references
     }
 
     /// Collect all child references recursively (depth-first).
-    pub fn compose_child_references(&self) -> Vec<&SchemaReference> {
+    #[must_use]
+    pub fn compose_child_references(&self) -> Vec<&Self> {
         let mut result = Vec::new();
         for reference in &self.references {
             result.push(reference);

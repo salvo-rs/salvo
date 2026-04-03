@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! [`Salvo`](https://github.com/salvo-rs/salvo) `Handler` modular craft macros.
 
 mod craft;

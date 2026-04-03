@@ -381,7 +381,7 @@ mod tests {
         // Simulate registering CityDTO as "City"
         let city_type_name = "test_module::CityDTO";
         set_name_type_info(
-            "City".to_string(),
+            "City".to_owned(),
             TypeId::of::<()>(), // dummy TypeId
             city_type_name,
         );
@@ -480,8 +480,7 @@ mod tests {
         // The base type will have full path, but CityDTO should be resolved to City
         assert!(
             wrapper_name.contains("<City>"),
-            "Expected wrapper name to contain '<City>', got: {}",
-            wrapper_name
+            "Expected wrapper name to contain '<City>', got: {wrapper_name}"
         );
     }
 
@@ -508,8 +507,7 @@ mod tests {
             assign_name::<Response<Vec<String>>>(NameRule::Force("ResponseVec"));
         assert!(
             response_vec_name.contains("<String>"),
-            "Expected name to contain '<String>', got: {}",
-            response_vec_name
+            "Expected name to contain '<String>', got: {response_vec_name}"
         );
     }
 }

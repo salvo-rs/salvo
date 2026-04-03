@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! CORS (Cross-Origin Resource Sharing) protection for Salvo web framework.
 //!
 //! # Important

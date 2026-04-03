@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! OpenTelemetry integration for the Salvo web framework.
 //!
 //! This crate provides middleware for collecting metrics and distributed traces

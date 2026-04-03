@@ -1,4 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 //! Compression middleware for the Salvo web framework.
 //!
@@ -778,7 +779,7 @@ mod tests {
     #[test]
     fn test_compression_level_debug() {
         let level = CompressionLevel::Fastest;
-        let debug_str = format!("{:?}", level);
+        let debug_str = format!("{level:?}");
         assert!(debug_str.contains("Fastest"));
     }
 
@@ -829,28 +830,28 @@ mod tests {
     #[test]
     fn test_compression_algo_gzip_display() {
         let algo = CompressionAlgo::Gzip;
-        assert_eq!(format!("{}", algo), "gzip");
+        assert_eq!(format!("{algo}"), "gzip");
     }
 
     #[cfg(feature = "brotli")]
     #[test]
     fn test_compression_algo_brotli_display() {
         let algo = CompressionAlgo::Brotli;
-        assert_eq!(format!("{}", algo), "br");
+        assert_eq!(format!("{algo}"), "br");
     }
 
     #[cfg(feature = "deflate")]
     #[test]
     fn test_compression_algo_deflate_display() {
         let algo = CompressionAlgo::Deflate;
-        assert_eq!(format!("{}", algo), "deflate");
+        assert_eq!(format!("{algo}"), "deflate");
     }
 
     #[cfg(feature = "zstd")]
     #[test]
     fn test_compression_algo_zstd_display() {
         let algo = CompressionAlgo::Zstd;
-        assert_eq!(format!("{}", algo), "zstd");
+        assert_eq!(format!("{algo}"), "zstd");
     }
 
     #[cfg(feature = "gzip")]
@@ -866,7 +867,7 @@ mod tests {
         #[cfg(feature = "gzip")]
         {
             let algo = CompressionAlgo::Gzip;
-            let debug_str = format!("{:?}", algo);
+            let debug_str = format!("{algo:?}");
             assert!(debug_str.contains("Gzip"));
         }
     }
@@ -1005,7 +1006,7 @@ mod tests {
     #[test]
     fn test_compression_debug() {
         let comp = Compression::new();
-        let debug_str = format!("{:?}", comp);
+        let debug_str = format!("{comp:?}");
         assert!(debug_str.contains("Compression"));
         assert!(debug_str.contains("algos"));
         assert!(debug_str.contains("content_types"));

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Response caching middleware for the Salvo web framework.
 //!
 //! This middleware intercepts HTTP responses and caches them for subsequent
@@ -548,7 +549,7 @@ mod tests {
     #[test]
     fn test_request_issuer_debug() {
         let issuer = RequestIssuer::new();
-        let debug_str = format!("{:?}", issuer);
+        let debug_str = format!("{issuer:?}");
         assert!(debug_str.contains("RequestIssuer"));
         assert!(debug_str.contains("use_scheme"));
     }
@@ -636,11 +637,11 @@ mod tests {
     #[test]
     fn test_cached_body_debug() {
         let body = CachedBody::None;
-        let debug_str = format!("{:?}", body);
+        let debug_str = format!("{body:?}");
         assert!(debug_str.contains("None"));
 
         let body = CachedBody::Once(Bytes::from("test"));
-        let debug_str = format!("{:?}", body);
+        let debug_str = format!("{body:?}");
         assert!(debug_str.contains("Once"));
     }
 
@@ -695,7 +696,7 @@ mod tests {
     #[test]
     fn test_cached_entry_debug() {
         let entry = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
-        let debug_str = format!("{:?}", entry);
+        let debug_str = format!("{entry:?}");
         assert!(debug_str.contains("CachedEntry"));
         assert!(debug_str.contains("status"));
     }
@@ -716,13 +717,13 @@ mod tests {
     #[test]
     fn test_cache_new() {
         let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
-        assert!(format!("{:?}", cache).contains("Cache"));
+        assert!(format!("{cache:?}").contains("Cache"));
     }
 
     #[test]
     fn test_cache_debug() {
         let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
-        let debug_str = format!("{:?}", cache);
+        let debug_str = format!("{cache:?}");
         assert!(debug_str.contains("Cache"));
         assert!(debug_str.contains("store"));
         assert!(debug_str.contains("issuer"));

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! TUS (Resumable Upload Protocol) implementation for the Salvo web framework.
 //!
 //! [TUS](https://tus.io/) is an open protocol for resumable file uploads over HTTP.
@@ -352,7 +353,7 @@ mod tests {
     #[test]
     fn test_cancellation_reason_clone_copy() {
         let reason = CancellationReason::Abort;
-        let cloned = reason.clone();
+        let cloned = reason;
         let copied = reason;
         assert_eq!(reason, cloned);
         assert_eq!(reason, copied);

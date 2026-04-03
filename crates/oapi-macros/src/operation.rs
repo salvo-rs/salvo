@@ -319,11 +319,10 @@ impl Parse for PathType<'_> {
         // Check for `ref(...)` syntax. The `ref` keyword may appear as either
         // a Rust keyword token (`Token![ref]`) or an identifier depending on
         // the tokenization context (e.g., inside proc_macro attributes).
-        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
-            fork.peek(Paren)
-        } else if fork
-            .parse::<Option<Ident>>()?
-            .is_some_and(|ident| ident == "ref")
+        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some()
+            || fork
+                .parse::<Option<Ident>>()?
+                .is_some_and(|ident| ident == "ref")
         {
             fork.peek(Paren)
         } else {

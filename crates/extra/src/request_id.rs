@@ -220,7 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_generator() {
-        let handler = RequestId::new().generator(|| "custom-id".to_string());
+        let handler = RequestId::new().generator(|| "custom-id".to_owned());
         let router = Router::new().hoop(handler).get(endpoint);
         let service = Service::new(router);
 
@@ -237,7 +237,7 @@ mod tests {
         #[handler]
         async fn depot_checker(depot: &mut Depot, res: &mut Response) {
             let id = depot.get::<HeaderValue>(REQUEST_ID_KEY).unwrap().clone();
-            res.render(Text::Plain(id.to_str().unwrap().to_string()));
+            res.render(Text::Plain(id.to_str().unwrap().to_owned()));
         }
         let router = Router::new().hoop(handler).get(depot_checker);
         let service = Service::new(router);
@@ -251,8 +251,7 @@ mod tests {
             .get("x-request-id")
             .unwrap()
             .to_str()
-            .unwrap()
-            .to_string();
+            .unwrap().to_owned();
         let body = response.take_string().await.unwrap();
         assert_eq!(header_id, body);
     }

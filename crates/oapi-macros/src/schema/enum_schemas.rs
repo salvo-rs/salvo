@@ -1169,9 +1169,9 @@ impl TryToTokens for ComplexEnum<'_> {
             .into_iter()
             .flatten()
             .collect::<CustomEnum<'_, TokenStream>>();
-        if self.discriminator.is_some() {
+        if let Some(discriminator) = &self.discriminator {
             // User-provided discriminator attribute takes precedence
-            let discriminator_tokens = self.discriminator.as_ref().unwrap().to_token_stream();
+            let discriminator_tokens = discriminator.to_token_stream();
             ts.to_tokens(tokens);
             tokens.extend(quote! {
                 .discriminator(#discriminator_tokens)

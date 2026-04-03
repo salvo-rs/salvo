@@ -1024,14 +1024,14 @@ mod tests {
         }
         let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
         let mut depot = Depot::new();
-        depot.insert("user_id", "12345".to_string());
-        depot.insert("username", "alice".to_string());
+        depot.insert("user_id", "12345".to_owned());
+        depot.insert("username", "alice".to_owned());
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
             RequestData {
-                user_id: "12345".to_string(),
-                username: "alice".to_string()
+                user_id: "12345".to_owned(),
+                username: "alice".to_owned()
             }
         );
     }
@@ -1046,12 +1046,12 @@ mod tests {
         }
         let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
         let mut depot = Depot::new();
-        depot.insert("uid", "12345".to_string());
+        depot.insert("uid", "12345".to_owned());
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
             RequestData {
-                user_id: "12345".to_string()
+                user_id: "12345".to_owned()
             }
         );
     }
@@ -1067,18 +1067,19 @@ mod tests {
         }
         let mut req = TestClient::get("http://127.0.0.1:8698/test?page=5").build();
         let mut depot = Depot::new();
-        depot.insert("user_id", "12345".to_string());
+        depot.insert("user_id", "12345".to_owned());
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
             RequestData {
-                user_id: "12345".to_string(),
+                user_id: "12345".to_owned(),
                 page: 5
             }
         );
     }
 
     #[tokio::test]
+    #[allow(clippy::approx_constant)]
     async fn test_de_request_from_depot_with_primitives() {
         #[derive(Deserialize, Extractible, PartialEq, Debug)]
         #[salvo(extract(default_source(from = "depot")))]
@@ -1120,7 +1121,7 @@ mod tests {
         assert_eq!(
             data,
             RequestData {
-                message: "hello world".to_string()
+                message: "hello world".to_owned()
             }
         );
     }
@@ -1137,14 +1138,14 @@ mod tests {
         }
         let mut req = TestClient::get("http://127.0.0.1:8698/test").build();
         let mut depot = Depot::new();
-        depot.insert("user_id", Arc::new("12345".to_string()));
+        depot.insert("user_id", Arc::new("12345".to_owned()));
         depot.insert("username", Arc::<str>::from("alice"));
         let data: RequestData = req.extract(&mut depot).await.unwrap();
         assert_eq!(
             data,
             RequestData {
-                user_id: "12345".to_string(),
-                username: "alice".to_string()
+                user_id: "12345".to_owned(),
+                username: "alice".to_owned()
             }
         );
     }

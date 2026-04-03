@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! # Salvo Session Support
 //!
 //! Salvo's session middleware is built on top of
@@ -161,7 +162,7 @@ where
     #[inline]
     #[must_use]
     pub fn new(store: S, secret: &[u8]) -> Self {
-        Self::try_new(store, secret).unwrap()
+        Self::try_new(store, secret).expect("secret key must be at least 32 bytes")
     }
 
     /// Try creating new `HandlerBuilder`
@@ -537,10 +538,10 @@ mod tests {
         #[handler]
         pub async fn home(depot: &mut Depot, res: &mut Response) {
             let mut content = r#"home"#.into();
-            if let Some(session) = depot.session_mut() {
-                if let Some(username) = session.get::<String>("username") {
-                    content = username;
-                }
+            if let Some(session) = depot.session_mut()
+                && let Some(username) = session.get::<String>("username")
+            {
+                content = username;
             }
             res.render(Text::Html(content));
         }
@@ -664,7 +665,7 @@ mod tests {
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         )
         .cookie_domain("example.com");
-        assert_eq!(builder.cookie_domain, Some("example.com".to_string()));
+        assert_eq!(builder.cookie_domain, Some("example.com".to_owned()));
     }
 
     #[test]
@@ -712,7 +713,7 @@ mod tests {
             MemoryStore::new(),
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         );
-        let debug_str = format!("{:?}", builder);
+        let debug_str = format!("{builder:?}");
         assert!(debug_str.contains("HandlerBuilder"));
         assert!(debug_str.contains("cookie_path"));
         assert!(debug_str.contains("cookie_name"));
@@ -735,7 +736,7 @@ mod tests {
 
         assert_eq!(handler.cookie_path, "/app");
         assert_eq!(handler.cookie_name, "app_session");
-        assert_eq!(handler.cookie_domain, Some("app.example.com".to_string()));
+        assert_eq!(handler.cookie_domain, Some("app.example.com".to_owned()));
         assert_eq!(handler.session_ttl, Some(Duration::from_secs(7200)));
         assert!(!handler.save_unchanged);
         assert_eq!(handler.same_site_policy, SameSite::Strict);
@@ -761,7 +762,7 @@ mod tests {
         )
         .build()
         .unwrap();
-        let debug_str = format!("{:?}", handler);
+        let debug_str = format!("{handler:?}");
         assert!(debug_str.contains("SessionHandler"));
         assert!(debug_str.contains("cookie_path"));
     }
@@ -804,7 +805,7 @@ mod tests {
         }
 
         if let Some(session) = depot.session() {
-            assert_eq!(session.get::<String>("key"), Some("value".to_string()));
+            assert_eq!(session.get::<String>("key"), Some("value".to_owned()));
         }
     }
 
@@ -886,7 +887,7 @@ mod tests {
             } else {
                 0
             };
-            res.render(format!("{}", counter));
+            res.render(format!("{counter}"));
         }
 
         let session_handler = SessionHandler::builder(

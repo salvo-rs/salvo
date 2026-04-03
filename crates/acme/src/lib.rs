@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Automatic HTTPS/TLS certificate management for Salvo via the ACME protocol.
 //!
 //! This crate integrates [certon](https://crates.io/crates/certon) — a

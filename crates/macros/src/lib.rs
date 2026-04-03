@@ -4,6 +4,7 @@
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 use proc_macro::TokenStream;
 use syn::{DeriveInput, Item, parse_macro_input};

@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_extension_clone_and_copy() {
         let ext = Extension::Creation;
-        let cloned = ext.clone();
+        let cloned = ext;
         let copied = ext;
         assert_eq!(ext, cloned);
         assert_eq!(ext, copied);

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Provide HTTP proxy capabilities for the Salvo web framework.
 //!
 //! This crate allows you to easily forward requests to upstream servers,
@@ -610,39 +611,39 @@ mod tests {
 
         assert_eq!(
             default_host_header_getter(&uri, &req, &depot),
-            Some("host.tld".to_string())
+            Some("host.tld".to_owned())
         );
 
         let uri_with_port = Uri::from_str("http://host.tld:8080/test").unwrap();
         assert_eq!(
             rfc2616_host_header_getter(&uri_with_port, &req, &depot),
-            Some("host.tld:8080".to_string())
+            Some("host.tld:8080".to_owned())
         );
 
         let uri_with_http_port = Uri::from_str("http://host.tld:80/test").unwrap();
         assert_eq!(
             rfc2616_host_header_getter(&uri_with_http_port, &req, &depot),
-            Some("host.tld".to_string())
+            Some("host.tld".to_owned())
         );
 
         let uri_with_https_port = Uri::from_str("https://host.tld:443/test").unwrap();
         assert_eq!(
             rfc2616_host_header_getter(&uri_with_https_port, &req, &depot),
-            Some("host.tld".to_string())
+            Some("host.tld".to_owned())
         );
 
         let uri_with_non_https_scheme_and_https_port =
             Uri::from_str("http://host.tld:443/test").unwrap();
         assert_eq!(
             rfc2616_host_header_getter(&uri_with_non_https_scheme_and_https_port, &req, &depot),
-            Some("host.tld:443".to_string())
+            Some("host.tld:443".to_owned())
         );
 
         req.headers_mut()
             .insert(HOST, HeaderValue::from_static("test.host.tld"));
         assert_eq!(
             preserve_original_host_header_getter(&uri, &req, &depot),
-            Some("test.host.tld".to_string())
+            Some("test.host.tld".to_owned())
         );
     }
 
@@ -651,50 +652,50 @@ mod tests {
         let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
 
         let mut request = Request::new();
-        let mut depot = Depot::new();
+        let depot = Depot::new();
 
         // Test functionality not broken
         let proxy_without_forwarding =
             Proxy::new(vec!["http://example.com"], HyperClient::default());
 
-        assert_eq!(proxy_without_forwarding.client_ip_forwarding_enabled, false);
+        assert!(!proxy_without_forwarding.client_ip_forwarding_enabled);
 
         let proxy_with_forwarding = proxy_without_forwarding.client_ip_forwarding(true);
 
-        assert_eq!(proxy_with_forwarding.client_ip_forwarding_enabled, true);
+        assert!(proxy_with_forwarding.client_ip_forwarding_enabled);
 
         let proxy =
             Proxy::with_client_ip_forwarding(vec!["http://example.com"], HyperClient::default());
-        assert_eq!(proxy.client_ip_forwarding_enabled, true);
+        assert!(proxy.client_ip_forwarding_enabled);
 
-        match proxy.build_proxied_request(&mut request, &mut depot).await {
+        match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("101.102.103.104"))
             ),
-            _ => assert!(false),
+            _ => panic!("expected Ok"),
         }
 
         // Test choosing correct IP version depending on remote address
         *request.remote_addr_mut() =
             SocketAddr::from(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 12345, 0, 0));
 
-        match proxy.build_proxied_request(&mut request, &mut depot).await {
+        match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("1:2:3:4:5:6:7:8"))
             ),
-            _ => assert!(false),
+            _ => panic!("expected Ok"),
         }
 
         *request.remote_addr_mut() = SocketAddr::Unknown;
 
-        match proxy.build_proxied_request(&mut request, &mut depot).await {
+        match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static("101.102.103.104"))
             ),
-            _ => assert!(false),
+            _ => panic!("expected Ok"),
         }
 
         // Test IP prepending when XFF header already exists in initial request.
@@ -705,14 +706,14 @@ mod tests {
         *request.remote_addr_mut() =
             SocketAddr::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 12345));
 
-        match proxy.build_proxied_request(&mut request, &mut depot).await {
+        match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
                 Some(&HeaderValue::from_static(
                     "101.102.103.104, 10.72.0.1, 127.0.0.1"
                 ))
             ),
-            _ => assert!(false),
+            _ => panic!("expected Ok"),
         }
     }
 

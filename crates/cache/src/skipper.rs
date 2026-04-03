@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_method_skipper_debug() {
         let skipper = MethodSkipper::new().skip_get(true);
-        let debug_str = format!("{:?}", skipper);
+        let debug_str = format!("{skipper:?}");
         assert!(debug_str.contains("MethodSkipper"));
         assert!(debug_str.contains("skipped_methods"));
     }

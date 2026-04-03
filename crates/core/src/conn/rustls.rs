@@ -13,7 +13,7 @@ pub use listener::{RustlsAcceptor, RustlsListener};
 pub(crate) fn read_trust_anchor(trust_anchor: &[u8]) -> IoResult<RootCertStore> {
     let certs = CertificateDer::pem_slice_iter(trust_anchor)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| IoError::other(format!("failed to parse PEM: {}", e)))?;
+        .map_err(|e| IoError::other(format!("failed to parse PEM: {e}")))?;
 
     let mut store = RootCertStore::empty();
     for cert in certs {

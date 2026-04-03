@@ -323,7 +323,7 @@ mod tests {
     #[test]
     fn test_tus_result_type() {
         let success: TusResult<i32> = Ok(42);
-        assert_eq!(success.unwrap(), 42);
+        assert!(matches!(success, Ok(42)));
 
         let failure: TusResult<i32> = Err(TusError::NotFound);
         assert!(failure.is_err());

@@ -98,7 +98,7 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_default() {
         let metrics = Metrics::default();
-        assert_eq!(format!("{:?}", metrics).contains("Metrics"), true);
+        assert!(format!("{metrics:?}").contains("Metrics"));
     }
 
     #[handler]

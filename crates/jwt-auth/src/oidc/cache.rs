@@ -35,11 +35,10 @@ impl CachePolicy {
         // Initialize the default config of polling every second
         let mut config = Self::default();
 
-        if let Some(value) = value {
-            if let Ok(value) = value.to_str() {
+        if let Some(value) = value
+            && let Ok(value) = value.to_str() {
                 config.parse_str(value);
             }
-        }
         config
     }
 

@@ -31,7 +31,7 @@ where
         let minus = input.parse::<Option<syn::Token![-]>>()?;
         let lit = input.parse::<LitInt>()?;
         if minus.is_some() {
-            let value_str = format!("-{}", lit);
+            let value_str = format!("-{lit}");
             value_str
                 .parse::<T>()
                 .map_err(|e| syn::Error::new(lit.span(), e))
@@ -54,7 +54,7 @@ where
         if lookup.peek(LitInt) {
             let lit = input.parse::<LitInt>()?;
             if minus.is_some() {
-                let value_str = format!("-{}", lit);
+                let value_str = format!("-{lit}");
                 value_str
                     .parse::<T>()
                     .map_err(|e| syn::Error::new(lit.span(), e))
@@ -64,7 +64,7 @@ where
         } else if lookup.peek(LitFloat) {
             let lit = input.parse::<LitFloat>()?;
             if minus.is_some() {
-                let value_str = format!("-{}", lit);
+                let value_str = format!("-{lit}");
                 value_str
                     .parse::<T>()
                     .map_err(|e| syn::Error::new(lit.span(), e))

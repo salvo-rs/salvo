@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 //! CSRF middleware for Salvo web framework.
 //!
 //! CSRF middleware for Salvo that provides CSRF (Cross-Site Request Forgery) protection.
