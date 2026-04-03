@@ -461,10 +461,14 @@ pub fn decode_url_path(path: &str) -> String {
 #[inline]
 #[doc(hidden)]
 pub fn encode_url_path(path: &str) -> String {
-    path.split('/')
-        .map(|s| utf8_percent_encode(s, HTML_ENCODE_SET).to_string())
-        .collect::<Vec<_>>()
-        .join("/")
+    let mut result = String::with_capacity(path.len());
+    for (i, s) in path.split('/').enumerate() {
+        if i > 0 {
+            result.push('/');
+        }
+        result.extend(utf8_percent_encode(s, HTML_ENCODE_SET));
+    }
+    result
 }
 
 #[doc(hidden)]
@@ -515,8 +519,15 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
             builder = builder.path_and_query(format!("{}/", path_and_query.path()));
         }
     }
-    let redirect_uri = builder.build().expect("Invalid uri");
-    res.render(crate::writing::Redirect::found(redirect_uri.to_string()));
+    match builder.build() {
+        Ok(redirect_uri) => {
+            res.render(crate::writing::Redirect::found(redirect_uri.to_string()));
+        }
+        Err(e) => {
+            tracing::error!(error = ?e, "failed to build redirect URI");
+            res.status_code(crate::http::StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 
 /// Check if a path component is a Windows reserved device name.
