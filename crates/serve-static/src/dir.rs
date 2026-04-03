@@ -351,6 +351,7 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
+        let mut abs_is_file = false;
         if self.include_dot_files || !is_dot_file {
             for root in &self.roots {
                 let raw_path = join_path!(root, &rel_path);
@@ -380,6 +381,7 @@ impl Handler for StaticDir {
                                 .unwrap_or(false)
                             {
                                 abs_path = Some(ipath);
+                                abs_is_file = true;
                                 break;
                             }
                         }
@@ -392,6 +394,7 @@ impl Handler for StaticDir {
                         }
                     } else if meta.is_file() {
                         abs_path = Some(path);
+                        abs_is_file = true;
                     }
                 }
             }
@@ -410,6 +413,7 @@ impl Handler for StaticDir {
                     .unwrap_or(false)
                 {
                     abs_path = Some(path);
+                    abs_is_file = true;
                     break;
                 }
             }
@@ -420,9 +424,7 @@ impl Handler for StaticDir {
             return;
         };
 
-        // Use async metadata to check file vs dir, avoiding blocking is_file()
-        let abs_meta = tokio::fs::symlink_metadata(&abs_path).await;
-        let is_file = abs_meta.as_ref().map(|m| m.is_file()).unwrap_or(false);
+        let is_file = abs_is_file;
 
         if is_file {
             let ext = abs_path
@@ -454,7 +456,8 @@ impl Handler for StaticDir {
                             if accept_algos.contains(algo) {
                                 for zip_ext in exts {
                                     let mut path = abs_path.clone();
-                                    path.as_mut_os_string().push(&*format!(".{zip_ext}"));
+                                    path.as_mut_os_string().push(".");
+                                    path.as_mut_os_string().push(zip_ext.as_str());
                                     if tokio::fs::symlink_metadata(&path)
                                         .await
                                         .map(|m| m.is_file())
@@ -495,7 +498,7 @@ impl Handler for StaticDir {
             } else {
                 res.render(StatusError::internal_server_error().brief("Read file failed."));
             }
-        } else if abs_meta.as_ref().map(|m| m.is_dir()).unwrap_or(false) {
+        } else if !is_file {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
                 while let Ok(Some(entry)) = entries.next_entry().await {
@@ -659,9 +662,28 @@ fn list_html(current: &CurrentInfo) -> String {
     );
     ftxt
 }
-#[inline]
 fn list_text(current: &CurrentInfo) -> String {
-    json!(current).to_string()
+    use std::fmt::Write;
+    let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+    let mut txt = format!("Directory: {}\n\n", current.path);
+    for dir in &current.dirs {
+        let _ = writeln!(
+            txt,
+            "[DIR]  {}  {}",
+            dir.modified.format(&format).expect("format time failed"),
+            dir.name,
+        );
+    }
+    for file in &current.files {
+        let _ = writeln!(
+            txt,
+            "{:>10}  {}  {}",
+            human_size(file.size),
+            file.modified.format(&format).expect("format time failed"),
+            file.name,
+        );
+    }
+    txt
 }
 
 const HTML_STYLE: &str = r#"
