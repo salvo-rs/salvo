@@ -160,10 +160,12 @@ impl Service {
             local_addr,
             remote_addr,
             http_scheme,
-            router: self.router.clone(),
-            catcher: self.catcher.clone(),
-            hoops: self.hoops.clone(),
-            allowed_media_types: self.allowed_media_types.clone(),
+            state: Arc::new(HyperHandlerState {
+                router: self.router.clone(),
+                catcher: self.catcher.clone(),
+                hoops: self.hoops.clone(),
+                allowed_media_types: self.allowed_media_types.clone(),
+            }),
             fusewire,
             alt_svc_h3,
         }
@@ -217,15 +219,20 @@ static DEFAULT_STATUS_OK_HANDLER: LazyLock<Arc<dyn Handler>> =
     LazyLock::new(|| Arc::new(DefaultStatusOK));
 
 #[doc(hidden)]
+pub(crate) struct HyperHandlerState {
+    pub(crate) router: Arc<Router>,
+    pub(crate) catcher: Option<Arc<Catcher>>,
+    pub(crate) hoops: Vec<Arc<dyn Handler>>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+}
+
+#[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
     pub(crate) local_addr: SocketAddr,
     pub(crate) remote_addr: SocketAddr,
     pub(crate) http_scheme: Scheme,
-    pub(crate) router: Arc<Router>,
-    pub(crate) catcher: Option<Arc<Catcher>>,
-    pub(crate) hoops: Vec<Arc<dyn Handler>>,
-    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) state: Arc<HyperHandlerState>,
     pub(crate) fusewire: Option<ArcFusewire>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
@@ -235,9 +242,9 @@ impl Debug for HyperHandler {
             .field("local_addr", &self.local_addr)
             .field("remote_addr", &self.remote_addr)
             .field("http_scheme", &self.http_scheme)
-            .field("router", &self.router)
-            .field("catcher", &self.catcher)
-            .field("allowed_media_types", &self.allowed_media_types)
+            .field("router", &self.state.router)
+            .field("catcher", &self.state.catcher)
+            .field("allowed_media_types", &self.state.allowed_media_types)
             .field("alt_svc_h3", &self.alt_svc_h3)
             .finish()
     }
@@ -245,8 +252,7 @@ impl Debug for HyperHandler {
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> + 'static {
-        let catcher = self.catcher.clone();
-        let allowed_media_types = self.allowed_media_types.clone();
+        let state = self.state.clone();
         req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
         #[cfg(not(feature = "cookie"))]
@@ -260,11 +266,9 @@ impl HyperHandler {
         }
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
-        let router = self.router.clone();
 
-        let hoops = self.hoops.clone();
         async move {
-            if let Some(dm) = router.detect(&mut req, &mut path_state).await {
+            if let Some(dm) = state.router.detect(&mut req, &mut path_state).await {
                 req.params = path_state.params;
                 #[cfg(feature = "matched-path")]
                 {
@@ -272,21 +276,18 @@ impl HyperHandler {
                 }
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
-                let mut ctrl = FlowCtrl::new(
-                    [
-                        &hoops[..],
-                        &dm.hoops[..],
-                        std::slice::from_ref(&*DEFAULT_STATUS_OK_HANDLER),
-                        &[dm.goal],
-                    ]
-                    .concat(),
-                );
+                let mut handlers = Vec::with_capacity(state.hoops.len() + dm.hoops.len() + 2);
+                handlers.extend(state.hoops.iter().cloned());
+                handlers.extend(dm.hoops);
+                handlers.push(DEFAULT_STATUS_OK_HANDLER.clone());
+                handlers.push(dm.goal);
+                let mut ctrl = FlowCtrl::new(handlers);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() {
                     res.status_code = Some(StatusCode::OK);
                 }
-            } else if !hoops.is_empty() {
+            } else if !state.hoops.is_empty() {
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
@@ -295,7 +296,7 @@ impl HyperHandler {
                 } else {
                     res.status_code = Some(StatusCode::NOT_FOUND);
                 }
-                let mut ctrl = FlowCtrl::new(hoops);
+                let mut ctrl = FlowCtrl::new(state.hoops.clone());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() && path_state.once_ended {
@@ -312,7 +313,7 @@ impl HyperHandler {
                 StatusCode::NOT_FOUND
             };
 
-            if !allowed_media_types.is_empty()
+            if !state.allowed_media_types.is_empty()
                 && let Some(ctype) = res
                     .headers()
                     .get(CONTENT_TYPE)
@@ -320,7 +321,7 @@ impl HyperHandler {
                     .and_then(|c| c.parse::<Mime>().ok())
             {
                 let mut is_allowed = false;
-                for mime in &*allowed_media_types {
+                for mime in &*state.allowed_media_types {
                     if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
                         is_allowed = true;
                         break;
@@ -351,7 +352,7 @@ impl HyperHandler {
                 && (res.body.is_none() || res.body.is_error())
                 && has_error
             {
-                if let Some(catcher) = catcher {
+                if let Some(catcher) = &state.catcher {
                     catcher.catch(&mut req, &mut depot, &mut res).await;
                 } else {
                     write_error_default(&req, &mut res, None);
