@@ -6,7 +6,7 @@ resolver = "3"
 version = "0.90.1"
 authors = ["chrislearn <chris@acroidea.com>"]
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.92"
 description = """
 Salvo is a powerful web framework that can make your work easier.
 """

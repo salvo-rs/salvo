@@ -70,7 +70,6 @@ mod case;
 use std::fmt::Debug;
 
 pub use case::RenameRule;
-use futures_util::FutureExt;
 
 use crate::http::{ParseError, Request};
 use crate::{Depot, Writer};
@@ -113,7 +112,7 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract(req: &'ex mut Request, depot: &'ex mut Depot) -> Result<Self, ParseError> {
-        Ok(T::extract(req, depot).boxed().await.ok())
+        Ok(T::extract(req, depot).await.ok())
     }
 }
 
