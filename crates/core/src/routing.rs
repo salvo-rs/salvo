@@ -535,33 +535,15 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 fn is_windows_reserved_name(name: &str) -> bool {
     // Get the base name without extension
     let base = name.split('.').next().unwrap_or(name);
-    let upper = base.to_ascii_uppercase();
 
-    matches!(
-        upper.as_str(),
-        "CON"
-            | "PRN"
-            | "AUX"
-            | "NUL"
-            | "COM1"
-            | "COM2"
-            | "COM3"
-            | "COM4"
-            | "COM5"
-            | "COM6"
-            | "COM7"
-            | "COM8"
-            | "COM9"
-            | "LPT1"
-            | "LPT2"
-            | "LPT3"
-            | "LPT4"
-            | "LPT5"
-            | "LPT6"
-            | "LPT7"
-            | "LPT8"
-            | "LPT9"
-    )
+    base.eq_ignore_ascii_case("CON")
+        || base.eq_ignore_ascii_case("PRN")
+        || base.eq_ignore_ascii_case("AUX")
+        || base.eq_ignore_ascii_case("NUL")
+        || (base.len() == 4
+            && (base[..3].eq_ignore_ascii_case("COM") || base[..3].eq_ignore_ascii_case("LPT"))
+            && base.as_bytes()[3].is_ascii_digit()
+            && base.as_bytes()[3] != b'0')
 }
 
 #[cfg(test)]
