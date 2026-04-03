@@ -385,6 +385,7 @@ where
         ctrl: &mut FlowCtrl,
     ) {
         if self.skipper.skipped(req, depot) {
+            ctrl.call_next(req, depot, res).await;
             return;
         }
         let Some(key) = self.issuer.issue(req, depot).await else {
