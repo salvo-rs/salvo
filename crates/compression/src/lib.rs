@@ -63,11 +63,12 @@
 
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue, VARY,
 };
 use salvo_core::http::{self, Mime, StatusCode, mime};
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
@@ -191,6 +192,18 @@ pub struct Compression {
     pub force_priority: bool,
 }
 
+static DEFAULT_CONTENT_TYPES: LazyLock<Vec<Mime>> = LazyLock::new(|| {
+    vec![
+        mime::TEXT_STAR,
+        mime::APPLICATION_JAVASCRIPT,
+        mime::APPLICATION_JSON,
+        mime::IMAGE_SVG,
+        "application/wasm".parse().expect("invalid mime type"),
+        "application/xml".parse().expect("invalid mime type"),
+        "application/rss+xml".parse().expect("invalid mime type"),
+    ]
+});
+
 impl Default for Compression {
     fn default() -> Self {
         #[allow(unused_mut)]
@@ -205,16 +218,8 @@ impl Default for Compression {
         algos.insert(CompressionAlgo::Brotli, CompressionLevel::Default);
         Self {
             algos,
-            content_types: vec![
-                mime::TEXT_STAR,
-                mime::APPLICATION_JAVASCRIPT,
-                mime::APPLICATION_JSON,
-                mime::IMAGE_SVG,
-                "application/wasm".parse().expect("invalid mime type"),
-                "application/xml".parse().expect("invalid mime type"),
-                "application/rss+xml".parse().expect("invalid mime type"),
-            ],
-            min_length: 0,
+            content_types: DEFAULT_CONTENT_TYPES.clone(),
+            min_length: 1024,
             force_priority: false,
         }
     }
@@ -311,8 +316,8 @@ impl Compression {
         self
     }
 
-    /// Sets minimum compression size, if body is less than this value, no compression
-    /// default is 1kb
+    /// Sets minimum compression size, if body is less than this value, no compression.
+    /// Default is 1kb.
     #[inline]
     #[must_use]
     pub fn min_length(mut self, size: usize) -> Self {
@@ -340,10 +345,6 @@ impl Compression {
         req: &Request,
         res: &Response,
     ) -> Option<(CompressionAlgo, CompressionLevel)> {
-        if req.headers().contains_key(&CONTENT_ENCODING) {
-            return None;
-        }
-
         if !self.content_types.is_empty() {
             let content_type = res
                 .headers()
@@ -373,37 +374,34 @@ impl Compression {
 
         let wildcard_q = accept_list.iter().find(|(a, _)| a == "*").map(|(_, q)| *q);
 
-        // Algorithms accept q > 0 and sorted by q-value descending.
-        let accept_algos = accept_list
-            .iter()
-            .filter(|(_, q)| *q > 0)
-            .filter_map(|(algo, q)| algo.parse::<CompressionAlgo>().ok().map(|a| (a, *q)))
-            .collect::<Vec<_>>();
-
-        // Algorithms to explicitly rejected when q = 0
-        let rejected = accept_list
-            .iter()
-            .filter(|(_, q)| *q == 0)
-            .filter_map(|(algo, _)| algo.parse::<CompressionAlgo>().ok())
-            .collect::<Vec<_>>();
+        let is_accepted = |algo: &CompressionAlgo| -> bool {
+            accept_list
+                .iter()
+                .filter(|(_, q)| *q > 0)
+                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
+        };
+        let is_rejected = |algo: &CompressionAlgo| -> bool {
+            accept_list
+                .iter()
+                .filter(|(_, q)| *q == 0)
+                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
+        };
 
         if self.force_priority {
             // Server preference: pick the highest-priority server algo the client accepts.
             self.algos
                 .iter()
                 .find(|(algo, _)| {
-                    if rejected.contains(algo) {
-                        return false;
-                    }
-                    accept_algos.iter().any(|(a, _)| a == *algo)
-                        || wildcard_q.is_some_and(|q| q > 0)
+                    !is_rejected(algo) && (is_accepted(algo) || wildcard_q.is_some_and(|q| q > 0))
                 })
                 .map(|(algo, level)| (*algo, *level))
         } else {
             // Client preference: pick the highest q-value algo the server supports.
-            let result = accept_algos
+            let result = accept_list
                 .iter()
-                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
+                .filter(|(_, q)| *q > 0)
+                .filter_map(|(algo, _)| algo.parse::<CompressionAlgo>().ok())
+                .find_map(|algo| self.algos.get(&algo).map(|level| (algo, *level)));
 
             if result.is_some() {
                 return result;
@@ -413,7 +411,7 @@ impl Compression {
             if wildcard_q.is_some_and(|q| q > 0) {
                 self.algos
                     .iter()
-                    .find(|(algo, _)| !rejected.contains(algo))
+                    .find(|(algo, _)| !is_rejected(algo))
                     .map(|(algo, level)| (*algo, *level))
             } else {
                 None
@@ -498,6 +496,8 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
+        res.headers_mut()
+            .append(VARY, HeaderValue::from_static("accept-encoding"));
     }
 }
 
@@ -898,7 +898,7 @@ mod tests {
         let comp = Compression::new();
         assert!(!comp.algos.is_empty());
         assert!(!comp.content_types.is_empty());
-        assert_eq!(comp.min_length, 0);
+        assert_eq!(comp.min_length, 1024);
         assert!(!comp.force_priority);
     }
 
