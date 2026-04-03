@@ -414,7 +414,7 @@ impl Response {
         P: Into<PathBuf> + Send,
     {
         let path = path.into();
-        if !path.exists() {
+        if tokio::fs::metadata(&path).await.is_err() {
             self.render(StatusError::not_found());
         } else {
             match NamedFile::builder(path).build().await {
