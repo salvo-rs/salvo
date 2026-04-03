@@ -116,6 +116,25 @@ static STATUS_ERROR_SETS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
         "never_cause",
     ])
 });
+
+/// Cached parsed `SALVO_STATUS_ERROR` environment variable options.
+static PARSED_ENV_SETS: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    env::var("SALVO_STATUS_ERROR")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|s| {
+            let s = s.trim().to_lowercase();
+            if STATUS_ERROR_SETS.contains(s.as_str()) {
+                Some(s)
+            } else if s.is_empty() {
+                None
+            } else {
+                tracing::warn!("unknown SALVO_STATUS_ERROR option: {}", s);
+                None
+            }
+        })
+        .collect::<HashSet<_>>()
+});
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 /// `Catcher` is used to catch errors.
@@ -417,21 +436,7 @@ pub fn status_error_bytes(
         prefer_format.clone()
     };
 
-    let env_sets = env::var("SALVO_STATUS_ERROR")
-        .unwrap_or_default()
-        .split(',')
-        .filter_map(|s| {
-            let s = s.trim().to_lowercase();
-            if STATUS_ERROR_SETS.contains(s.as_str()) {
-                Some(s)
-            } else if s.is_empty() {
-                None
-            } else {
-                tracing::warn!("unknown SALVO_STATUS_ERROR option: {}", s);
-                None
-            }
-        })
-        .collect::<HashSet<_>>();
+    let env_sets = &*PARSED_ENV_SETS;
 
     let detail = if !env_sets.contains("never_detail")
         && (env_sets.contains("force_detail")
