@@ -186,7 +186,7 @@ impl RequestIssuer {
 impl CacheIssuer for RequestIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
-        let mut key = String::new();
+        let mut key = String::with_capacity(req.uri().path().len() + 16);
         if self.use_scheme
             && let Some(scheme) = req.uri().scheme_str()
         {
