@@ -206,13 +206,9 @@ impl Response {
     /// should be skipped.
     #[inline]
     pub fn is_stamped(&self) -> bool {
-        if let Some(code) = self.status_code
-            && (code.is_client_error() || code.is_server_error() || code.is_redirection())
-        {
-            true
-        } else {
-            false
-        }
+        self.status_code.is_some_and(|code| {
+            code.is_client_error() || code.is_server_error() || code.is_redirection()
+        })
     }
 
     /// Convert to hyper response.
