@@ -359,11 +359,9 @@ impl HyperHandler {
                 }
             }
 
-            #[cfg(debug_assertions)]
             if Method::HEAD == *req.method() && !res.body.is_none() {
-                tracing::warn!(
-                    "request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD"
-                );
+                tracing::debug!("stripping response body for HEAD request per RFC 9110 §9.3.2");
+                res.take_body();
             }
             #[cfg(feature = "quinn")]
             {
