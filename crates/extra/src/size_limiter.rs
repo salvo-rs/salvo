@@ -69,8 +69,9 @@
 //! </html>
 //! "#;
 //! ```
+use http_body_util::{BodyExt, Limited};
 use salvo_core::http::StatusError;
-use salvo_core::http::{Body, Request, Response};
+use salvo_core::http::{Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxSize limit for request size.
@@ -79,17 +80,37 @@ pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        let size_hint = req.body().size_hint().upper();
-        if let Some(upper) = size_hint {
-            if upper > self.0 {
+        // Fast path: reject early if Content-Length header already exceeds the limit.
+        if let Some(content_length) = req
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+        {
+            if content_length > self.0 {
                 res.render(StatusError::payload_too_large());
                 ctrl.skip_rest();
-            } else {
+                return;
+            }
+        }
+
+        // Enforce the limit by actually reading the body bytes.
+        // This catches chunked bodies and clients that lie about Content-Length.
+        let body = req.take_body();
+        let limit = self.0.min(usize::MAX as u64) as usize;
+        match Limited::new(body, limit).collect().await {
+            Ok(collected) => {
+                req.replace_body(collected.to_bytes().into());
                 ctrl.call_next(req, depot, res).await;
             }
-        } else {
-            res.render(StatusError::bad_request().brief("Request body size is unknown."));
-            ctrl.skip_rest();
+            Err(e) => {
+                if e.is::<http_body_util::LengthLimitError>() {
+                    res.render(StatusError::payload_too_large());
+                } else {
+                    res.render(StatusError::internal_server_error());
+                }
+                ctrl.skip_rest();
+            }
         }
     }
 }
