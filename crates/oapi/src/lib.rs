@@ -839,6 +839,20 @@ impl ComposeSchema for serde_json::Map<String, serde_json::Value> {
     }
 }
 
+impl ToSchema for serde_json::value::RawValue {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Box::default()).into()
+    }
+}
+impl ComposeSchema for serde_json::value::RawValue {
+    fn compose(
+        _components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Schema::Object(Box::default()).into()
+    }
+}
+
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query`
