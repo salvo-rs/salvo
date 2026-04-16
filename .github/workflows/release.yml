@@ -6,95 +6,128 @@ permissions:
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v*.*.*"
+
+env:
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        package:
-          - crate: salvo-serde-util
-            path: crates/serde-util
-          - crate: salvo_macros
-            path: crates/macros
-          - crate: salvo_core
-            path: crates/core
-          - crate: salvo_extra
-            path: crates/extra
-          - crate: salvo-proxy
-            path: crates/proxy
-          - crate: salvo-compression
-            path: crates/compression
-          - crate: salvo-jwt-auth
-            path: crates/jwt-auth
-          - crate: salvo-session
-            path: crates/session
-          - crate: salvo-flash
-            path: crates/flash
-          - crate: salvo-cors
-            path: crates/cors
-          - crate: salvo-csrf
-            path: crates/csrf
-          - crate: salvo-cache
-            path: crates/cache
-          - crate: salvo-rate-limiter
-            path: crates/rate-limiter
-          - crate: salvo-serve-static
-            path: crates/serve-static
-          - crate: salvo-otel
-            path: crates/otel
-          - crate: salvo-oapi-macros
-            path: crates/oapi-macros
-          - crate: salvo-oapi
-            path: crates/oapi
-          - crate: salvo-craft-macros
-            path: crates/craft-macros
-          - crate: salvo-craft
-            path: crates/craft
-          - crate: salvo-acme
-            path: crates/acme
-          - crate: salvo-tus
-            path: crates/tus
-          - crate: salvo
-            path: crates/salvo
     steps:
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Get releasing version
-        working-directory: ${{ matrix.package.path }}
-        run: echo NEXT_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Check published version
-        run: echo PREV_VERSION=$(cargo search ${{ matrix.package.crate }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
-
-      - name: Cargo login
-        if: env.NEXT_VERSION != env.PREV_VERSION
-        run: cargo login ${{ secrets.CRATES_TOKEN }}
-
-      - name: Cargo package
-        if: env.NEXT_VERSION != env.PREV_VERSION
-        working-directory: ${{ matrix.package.path }}
+      - name: Publish crates in dependency order
+        shell: bash
         run: |
-          echo "Releasing version: $NEXT_VERSION"
-          echo "Published version: $PREV_VERSION"
-          echo "Cargo Packaging..."
-          cargo package
+          set -euo pipefail
 
-      - name: Publish ${{ matrix.package.name }}
-        if: env.NEXT_VERSION != env.PREV_VERSION
-        working-directory: ${{ matrix.package.path }}
-        run: |
-          echo "Cargo Publishing..."
-          cargo publish --no-verify
-          echo "New version $NEXT_VERSION has been published"
+          crates=(
+            "salvo-serde-util:crates/serde-util"
+            "salvo_macros:crates/macros"
+            "salvo_core:crates/core"
+            "salvo_extra:crates/extra"
+            "salvo-proxy:crates/proxy"
+            "salvo-compression:crates/compression"
+            "salvo-jwt-auth:crates/jwt-auth"
+            "salvo-session:crates/session"
+            "salvo-flash:crates/flash"
+            "salvo-cors:crates/cors"
+            "salvo-csrf:crates/csrf"
+            "salvo-cache:crates/cache"
+            "salvo-rate-limiter:crates/rate-limiter"
+            "salvo-serve-static:crates/serve-static"
+            "salvo-otel:crates/otel"
+            "salvo-oapi-macros:crates/oapi-macros"
+            "salvo-oapi:crates/oapi"
+            "salvo-craft-macros:crates/craft-macros"
+            "salvo-craft:crates/craft"
+            "salvo-acme:crates/acme"
+            "salvo-tus:crates/tus"
+            "salvo:crates/salvo"
+          )
+
+          crate_is_published() {
+            local crate="$1"
+            local version="$2"
+            curl --silent --show-error --fail \
+              "https://crates.io/api/v1/crates/${crate}/${version}" \
+              >/dev/null
+          }
+
+          wait_for_crate() {
+            local crate="$1"
+            local version="$2"
+
+            for attempt in {1..30}; do
+              if crate_is_published "$crate" "$version"; then
+                echo "${crate} ${version} is visible on crates.io"
+                return 0
+              fi
+
+              echo "Waiting for ${crate} ${version} to become visible on crates.io (attempt ${attempt}/30)"
+              sleep 10
+            done
+
+            echo "Timed out waiting for ${crate} ${version} to appear on crates.io" >&2
+            return 1
+          }
+
+          publish_crate() {
+            local crate="$1"
+            local path="$2"
+            local version
+
+            version="$(
+              python - <<'PY' "$path/Cargo.toml"
+import pathlib
+import sys
+
+cargo_toml = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+for line in cargo_toml.splitlines():
+    stripped = line.strip()
+    if stripped.startswith("version = "):
+        value = stripped.split("=", 1)[1].strip().strip('"')
+        if "{ workspace = true }" not in value:
+            print(value)
+            break
+else:
+    root = pathlib.Path("Cargo.toml").read_text(encoding="utf-8")
+    in_workspace_package = False
+    for line in root.splitlines():
+        stripped = line.strip()
+        if stripped == "[workspace.package]":
+            in_workspace_package = True
+            continue
+        if in_workspace_package and stripped.startswith("["):
+            break
+        if in_workspace_package and stripped.startswith("version = "):
+            print(stripped.split("=", 1)[1].strip().strip('"'))
+            break
+PY
+            )"
+
+            echo "Processing ${crate} ${version}"
+
+            if crate_is_published "$crate" "$version"; then
+              echo "${crate} ${version} already published, skipping"
+              return 0
+            fi
+
+            cargo publish --locked --dry-run --manifest-path "${path}/Cargo.toml"
+            cargo publish --locked --manifest-path "${path}/Cargo.toml"
+            wait_for_crate "$crate" "$version"
+          }
+
+          for item in "${crates[@]}"; do
+            crate="${item%%:*}"
+            path="${item#*:}"
+            publish_crate "$crate" "$path"
+          done
 
   release:
     needs: publish
