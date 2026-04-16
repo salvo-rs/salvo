@@ -213,10 +213,6 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
-            return Err(IoError::other("native_tls: no active tls config"));
-        };
-
         let Accepted {
             coupler: _,
             stream,
@@ -225,6 +221,9 @@ where
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("native_tls: no active tls config"));
+        };
         let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
         Ok(Accepted {
             coupler: TcpCoupler::new(),

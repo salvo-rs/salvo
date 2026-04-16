@@ -204,10 +204,6 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
-            return Err(IoError::other("rustls: no active tls config"));
-        };
-
         let Accepted {
             coupler: _,
             stream,
@@ -216,6 +212,9 @@ where
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("rustls: no active tls config"));
+        };
         Ok(Accepted {
             coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire.clone()),

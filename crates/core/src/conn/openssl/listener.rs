@@ -203,10 +203,6 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
-            return Err(IoError::other("openssl: no active tls config"));
-        };
-
         let Accepted {
             coupler: _,
             stream,
@@ -215,6 +211,9 @@ where
             remote_addr,
             ..
         } = self.inner.accept(fuse_factory).await?;
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("openssl: no active tls config"));
+        };
         let conn = async move {
             let ssl = Ssl::new(tls_acceptor.context()).map_err(IoError::other)?;
             let mut tls_stream = SslStream::new(ssl, stream).map_err(IoError::other)?;

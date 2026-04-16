@@ -28,7 +28,6 @@ cfg_feature! {
     use salvo_core::conn::quinn::QuinnAcceptor;
     use salvo_core::conn::JoinedAcceptor;
     use salvo_core::conn::quinn::QuinnListener;
-    use futures_util::stream::BoxStream;
 }
 
 /// ACME TLS-ALPN-01 protocol name.
@@ -431,7 +430,7 @@ cfg_feature! {
         <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         A: std::net::ToSocketAddrs + Send + 'static,
     {
-        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, salvo_core::conn::quinn::ServerConfig>, salvo_core::conn::quinn::ServerConfig, std::convert::Infallible>>;
+        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor>;
 
         async fn try_bind(self) -> CoreResult<Self::Acceptor> {
             let Self { acme, local_addr } = self;
