@@ -2,18 +2,19 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
-use std::marker::PhantomData;
-use std::task::{Context, Poll};
+use std::sync::Arc;
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
-use futures_util::task::noop_waker_ref;
+use arc_swap::ArcSwapOption;
+use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
+use tokio_util::sync::CancellationToken;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
+use crate::Error;
 
 use super::Identity;
 
@@ -21,7 +22,7 @@ use super::Identity;
 pub struct NativeTlsListener<S, C, T, E> {
     config_stream: S,
     inner: T,
-    _phantom: PhantomData<(C, E)>,
+    _phantom: std::marker::PhantomData<(C, E)>,
 }
 impl<S, C, T: Debug, E> Debug for NativeTlsListener<S, C, T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -43,7 +44,7 @@ where
         Self {
             config_stream,
             inner,
-            _phantom: PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -57,41 +58,97 @@ where
     <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
-    type Acceptor = NativeTlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
+    type Acceptor = NativeTlsAcceptor<T::Acceptor>;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(NativeTlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.try_bind().await?,
-        ))
+        let mut config_stream = self.config_stream.into_stream().boxed();
+        let initial = config_stream
+            .next()
+            .await
+            .ok_or_else(|| Error::other("native_tls: config stream ended before yielding an initial tls config"))?;
+        let identity = initial
+            .try_into()
+            .map_err(|err| IoError::other(err.to_string()))?;
+        let acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity)
+            .map_err(|err| IoError::other(err.to_string()))?;
+        let current_acceptor = Arc::new(ArcSwapOption::from(Some(Arc::new(
+            tokio_native_tls::TlsAcceptor::from(acceptor),
+        ))));
+        let inner = self.inner.try_bind().await?;
+        let cancel_reload = CancellationToken::new();
+
+        tracing::info!("tls config loaded.");
+        tokio::spawn(reload_configs(
+            config_stream,
+            Arc::clone(&current_acceptor),
+            cancel_reload.clone(),
+        ));
+
+        Ok(NativeTlsAcceptor::new(inner, current_acceptor, cancel_reload))
+    }
+}
+
+async fn reload_configs<C, E>(
+    mut config_stream: BoxStream<'static, C>,
+    current_acceptor: Arc<ArcSwapOption<tokio_native_tls::TlsAcceptor>>,
+    cancel_reload: CancellationToken,
+) where
+    C: TryInto<Identity, Error = E> + Send + 'static,
+    E: StdError + Send + 'static,
+{
+    loop {
+        tokio::select! {
+            _ = cancel_reload.cancelled() => break,
+            next = config_stream.next() => {
+                let Some(config) = next else {
+                    break;
+                };
+                match config.try_into() {
+                    Ok(identity) => match tokio_native_tls::native_tls::TlsAcceptor::new(identity) {
+                        Ok(acceptor) => {
+                            current_acceptor.store(Some(Arc::new(tokio_native_tls::TlsAcceptor::from(
+                                acceptor,
+                            ))));
+                            tracing::info!("tls config changed.");
+                        }
+                        Err(err) => {
+                            tracing::error!(error = ?err, "native_tls: invalid tls config, keeping previous config");
+                        }
+                    },
+                    Err(err) => {
+                        tracing::error!(error = ?err, "native_tls: invalid tls config, keeping previous config");
+                    }
+                }
+            }
+        }
     }
 }
 
 /// NativeTlsAcceptor
-pub struct NativeTlsAcceptor<S, C, T, E> {
-    config_stream: S,
+pub struct NativeTlsAcceptor<T> {
     inner: T,
     holdings: Vec<Holding>,
-    tls_acceptor: Option<tokio_native_tls::TlsAcceptor>,
-    _phantom: PhantomData<(C, E)>,
+    current_acceptor: Arc<ArcSwapOption<tokio_native_tls::TlsAcceptor>>,
+    cancel_reload: CancellationToken,
 }
-impl<S, C, T: Debug, E> Debug for NativeTlsAcceptor<S, C, T, E> {
+impl<T: Debug> Debug for NativeTlsAcceptor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("NativeTlsAcceptor")
             .field("inner", &self.inner)
             .finish()
     }
 }
-impl<S, C, T, E> NativeTlsAcceptor<S, C, T, E>
+impl<T> NativeTlsAcceptor<T>
 where
-    S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<Identity, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
-    E: StdError + Send + 'static,
 {
     /// Create a new `NativeTlsAcceptor`.
-    pub fn new(config_stream: S, inner: T) -> Self {
+    pub fn new(
+        inner: T,
+        current_acceptor: Arc<ArcSwapOption<tokio_native_tls::TlsAcceptor>>,
+        cancel_reload: CancellationToken,
+    ) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -114,11 +171,10 @@ where
             })
             .collect();
         Self {
-            config_stream,
             inner,
             holdings,
-            tls_acceptor: None,
-            _phantom: PhantomData,
+            current_acceptor,
+            cancel_reload,
         }
     }
 
@@ -133,13 +189,16 @@ where
     }
 }
 
-impl<S, C, T, E> Acceptor for NativeTlsAcceptor<S, C, T, E>
+impl<T> Drop for NativeTlsAcceptor<T> {
+    fn drop(&mut self) {
+        self.cancel_reload.cancel();
+    }
+}
+
+impl<T> Acceptor for NativeTlsAcceptor<T>
 where
-    S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<Identity, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send,
-    E: StdError + Send,
 {
     type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
@@ -154,38 +213,10 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let config = {
-            let mut config = None;
-            while let Poll::Ready(Some(item)) = self
-                .config_stream
-                .poll_next_unpin(&mut Context::from_waker(noop_waker_ref()))
-            {
-                config = Some(item);
-            }
-            config
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("native_tls: no active tls config"));
         };
-        if let Some(config) = config {
-            let identity = config
-                .try_into()
-                .map_err(|e| IoError::other(e.to_string()))?;
-            let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity);
-            match tls_acceptor {
-                Ok(tls_acceptor) => {
-                    if self.tls_acceptor.is_some() {
-                        tracing::info!("TLS config changed.");
-                    } else {
-                        tracing::info!("TLS config loaded.");
-                    }
-                    self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(tls_acceptor));
-                }
-                Err(e) => tracing::error!(error = ?e, "native_tls: invalid TLS config"),
-            }
-        }
 
-        let tls_acceptor = match &self.tls_acceptor {
-            Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::other("native_tls: invalid TLS config")),
-        };
         let Accepted {
             coupler: _,
             stream,
@@ -193,7 +224,7 @@ where
             local_addr,
             remote_addr,
             ..
-        } = self.inner.accept(fuse_factory.clone()).await?;
+        } = self.inner.accept(fuse_factory).await?;
         let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
         Ok(Accepted {
             coupler: TcpCoupler::new(),

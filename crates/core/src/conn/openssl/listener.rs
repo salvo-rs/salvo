@@ -2,28 +2,28 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
-use std::marker::PhantomData;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
-use futures_util::task::noop_waker_ref;
+use arc_swap::ArcSwapOption;
+use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
-use tokio_openssl::SslStream;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_openssl::SslStream;
+use tokio_util::sync::CancellationToken;
 
 use super::SslAcceptorBuilder;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
+use crate::Error;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
     config_stream: S,
     inner: T,
-    _phantom: PhantomData<(C, E)>,
+    _phantom: std::marker::PhantomData<(C, E)>,
 }
 impl<S, C, T: Debug, E> Debug for OpensslListener<S, C, T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -46,7 +46,7 @@ where
         Self {
             config_stream,
             inner,
-            _phantom: PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -60,41 +60,86 @@ where
     <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
-    type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
+    type Acceptor = OpensslAcceptor<T::Acceptor>;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(OpensslAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.try_bind().await?,
-        ))
+        let mut config_stream = self.config_stream.into_stream().boxed();
+        let initial = config_stream
+            .next()
+            .await
+            .ok_or_else(|| Error::other("openssl: config stream ended before yielding an initial tls config"))?;
+        let builder: SslAcceptorBuilder = initial
+            .try_into()
+            .map_err(|err| IoError::other(err.to_string()))?;
+        let current_acceptor = Arc::new(ArcSwapOption::from(Some(Arc::new(builder.build()))));
+        let inner = self.inner.try_bind().await?;
+        let cancel_reload = CancellationToken::new();
+
+        tracing::info!("tls config loaded.");
+        tokio::spawn(reload_configs(
+            config_stream,
+            Arc::clone(&current_acceptor),
+            cancel_reload.clone(),
+        ));
+
+        Ok(OpensslAcceptor::new(inner, current_acceptor, cancel_reload))
+    }
+}
+
+async fn reload_configs<C, E>(
+    mut config_stream: BoxStream<'static, C>,
+    current_acceptor: Arc<ArcSwapOption<SslAcceptor>>,
+    cancel_reload: CancellationToken,
+) where
+    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
+    E: StdError + Send + 'static,
+{
+    loop {
+        tokio::select! {
+            _ = cancel_reload.cancelled() => break,
+            next = config_stream.next() => {
+                let Some(config) = next else {
+                    break;
+                };
+                match config.try_into() {
+                    Ok(builder) => {
+                        current_acceptor.store(Some(Arc::new(builder.build())));
+                        tracing::info!("tls config changed.");
+                    }
+                    Err(err) => {
+                        tracing::error!(error = ?err, "openssl: invalid tls config, keeping previous config");
+                    }
+                }
+            }
+        }
     }
 }
 
 /// OpensslAcceptor
-pub struct OpensslAcceptor<S, C, T, E> {
-    config_stream: S,
+pub struct OpensslAcceptor<T> {
     inner: T,
     holdings: Vec<Holding>,
-    tls_acceptor: Option<Arc<SslAcceptor>>,
-    _phantom: PhantomData<(C, E)>,
+    current_acceptor: Arc<ArcSwapOption<SslAcceptor>>,
+    cancel_reload: CancellationToken,
 }
-impl<S, C, T, E> Debug for OpensslAcceptor<S, C, T, E> {
+impl<T> Debug for OpensslAcceptor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OpensslAcceptor")
             .field("holdings", &self.holdings)
             .finish()
     }
 }
-impl<S, C, T, E> OpensslAcceptor<S, C, T, E>
+impl<T> OpensslAcceptor<T>
 where
-    S: Stream<Item = C> + Unpin + Send + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    E: StdError + Send + 'static,
 {
     /// Create new OpensslAcceptor.
-    pub fn new(config_stream: S, inner: T) -> Self {
+    pub fn new(
+        inner: T,
+        current_acceptor: Arc<ArcSwapOption<SslAcceptor>>,
+        cancel_reload: CancellationToken,
+    ) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -117,11 +162,10 @@ where
             })
             .collect();
         Self {
-            config_stream,
             inner,
             holdings,
-            tls_acceptor: None,
-            _phantom: PhantomData,
+            current_acceptor,
+            cancel_reload,
         }
     }
 
@@ -136,13 +180,16 @@ where
     }
 }
 
-impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
+impl<T> Drop for OpensslAcceptor<T> {
+    fn drop(&mut self) {
+        self.cancel_reload.cancel();
+    }
+}
+
+impl<T> Acceptor for OpensslAcceptor<T>
 where
-    S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    E: StdError + Send,
 {
     type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<SslStream<T::Stream>>;
@@ -156,32 +203,8 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let config = {
-            let mut config = None;
-            while let Poll::Ready(Some(item)) = self
-                .config_stream
-                .poll_next_unpin(&mut Context::from_waker(noop_waker_ref()))
-            {
-                config = Some(item);
-            }
-            config
-        };
-        if let Some(config) = config {
-            match config.try_into() {
-                Ok(builder) => {
-                    if self.tls_acceptor.is_some() {
-                        tracing::info!("tls config changed.");
-                    } else {
-                        tracing::info!("tls config loaded.");
-                    }
-                    self.tls_acceptor = Some(Arc::new(builder.build()));
-                }
-                Err(e) => tracing::error!(error = ?e, "openssl: invalid tls config."),
-            }
-        }
-        let tls_acceptor = match &self.tls_acceptor {
-            Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::other("openssl: tls_acceptor is none.")),
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("openssl: no active tls config"));
         };
 
         let Accepted {

@@ -5,20 +5,19 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::vec;
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
-use futures_util::task::noop_waker_ref;
+use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
 use salvo_http3::quinn::{self, Endpoint};
+use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
 use crate::http::Version;
+use crate::Error;
 
 /// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
@@ -57,7 +56,7 @@ where
     T: ToSocketAddrs + Send + 'static,
     E: StdError + Send + 'static,
 {
-    type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
+    type Acceptor = QuinnAcceptor;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let Self {
@@ -69,23 +68,67 @@ where
             .to_socket_addrs()?
             .next()
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
-        Ok(QuinnAcceptor::new(
-            config_stream.into_stream().boxed(),
-            socket,
-        ))
+
+        let mut config_stream = config_stream.into_stream().boxed();
+        let initial = config_stream
+            .next()
+            .await
+            .ok_or_else(|| Error::other("quinn: config stream ended before yielding an initial tls config"))?;
+        let initial = initial
+            .try_into()
+            .map_err(|err| IoError::other(err.to_string()))?;
+        let endpoint = Endpoint::server(initial, socket)?;
+        let cancel_reload = CancellationToken::new();
+
+        tracing::info!("quinn config loaded.");
+        tokio::spawn(reload_configs(
+            config_stream,
+            endpoint.clone(),
+            cancel_reload.clone(),
+        ));
+
+        Ok(QuinnAcceptor::new(endpoint, socket, cancel_reload))
+    }
+}
+
+async fn reload_configs<C, E>(
+    mut config_stream: BoxStream<'static, C>,
+    endpoint: Endpoint,
+    cancel_reload: CancellationToken,
+) where
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
+    E: StdError + Send + 'static,
+{
+    loop {
+        tokio::select! {
+            _ = cancel_reload.cancelled() => break,
+            next = config_stream.next() => {
+                let Some(config) = next else {
+                    break;
+                };
+                match config.try_into() {
+                    Ok(config) => {
+                        endpoint.set_server_config(Some(config));
+                        tracing::info!("quinn config changed.");
+                    }
+                    Err(err) => {
+                        tracing::error!(error = ?err, "quinn: invalid tls config, keeping previous config");
+                    }
+                }
+            }
+        }
     }
 }
 
 /// A wrapper of `Acceptor` with quinn.
-pub struct QuinnAcceptor<S, C, E> {
-    config_stream: S,
+pub struct QuinnAcceptor {
     socket: SocketAddr,
     holdings: Vec<Holding>,
-    endpoint: Option<Endpoint>,
-    _phantom: PhantomData<(C, E)>,
+    endpoint: Endpoint,
+    cancel_reload: CancellationToken,
 }
 
-impl<S, C, E> Debug for QuinnAcceptor<S, C, E> {
+impl Debug for QuinnAcceptor {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("QuinnAcceptor")
             .field("socket", &self.socket)
@@ -95,35 +138,30 @@ impl<S, C, E> Debug for QuinnAcceptor<S, C, E> {
     }
 }
 
-impl<S, C, E> QuinnAcceptor<S, C, E>
-where
-    S: Stream<Item = C> + Send + 'static,
-    C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    E: StdError + Send,
-{
+impl QuinnAcceptor {
     /// Create a new `QuinnAcceptor`.
-    pub fn new(config_stream: S, socket: SocketAddr) -> Self {
+    pub fn new(endpoint: Endpoint, socket: SocketAddr, cancel_reload: CancellationToken) -> Self {
         let holding = Holding {
             local_addr: socket.into(),
             http_versions: vec![Version::HTTP_3],
             http_scheme: Scheme::HTTPS,
         };
         Self {
-            config_stream,
             socket,
             holdings: vec![holding],
-            endpoint: None,
-            _phantom: PhantomData,
+            endpoint,
+            cancel_reload,
         }
     }
 }
 
-impl<S, C, E> Acceptor for QuinnAcceptor<S, C, E>
-where
-    S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    E: StdError + Send,
-{
+impl Drop for QuinnAcceptor {
+    fn drop(&mut self) {
+        self.cancel_reload.cancel();
+    }
+}
+
+impl Acceptor for QuinnAcceptor {
     type Coupler = QuinnCoupler;
     type Stream = QuinnConnection;
 
@@ -135,32 +173,7 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let config = {
-            let mut config = None;
-            while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
-                .poll_next(&mut Context::from_waker(noop_waker_ref()))
-            {
-                config = Some(item);
-            }
-            config
-        };
-        if let Some(config) = config {
-            let config = config
-                .try_into()
-                .map_err(|e| IoError::other(e.to_string()))?;
-            let endpoint = Endpoint::server(config, self.socket)?;
-            if self.endpoint.is_some() {
-                tracing::info!("quinn config changed.");
-            } else {
-                tracing::info!("quinn config loaded.");
-            }
-            self.endpoint = Some(endpoint);
-        }
-        let Some(endpoint) = &self.endpoint else {
-          return Err(IoError::other("quinn: invalid quinn config."));
-        };
-
-        if let Some(new_conn) = endpoint.accept().await {
+        if let Some(new_conn) = self.endpoint.accept().await {
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
             match new_conn.await {
@@ -174,10 +187,7 @@ where
                     });
                     return Ok(Accepted {
                         coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(
-                            quinn::Connection::new(conn),
-                            fusewire.clone(),
-                        ),
+                        stream: QuinnConnection::new(quinn::Connection::new(conn), fusewire.clone()),
                         fusewire,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),

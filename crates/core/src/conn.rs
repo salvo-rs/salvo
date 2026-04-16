@@ -119,13 +119,18 @@ cfg_feature! {
 ///
 /// This trait enables dynamic TLS configuration updates at runtime.
 /// Implementations can provide a stream of configuration values that
-/// will be applied to new connections as they arrive.
+/// will be consumed by a background reload task and applied to subsequent
+/// connections without waiting for new traffic to drive the stream forward.
 ///
 /// # Use Cases
 ///
 /// - Hot-reloading TLS certificates without server restart
 /// - Rotating certificates on a schedule
 /// - Loading certificates from external sources (e.g., HashiCorp Vault)
+///
+/// The first item yielded by the stream is used as the initial TLS config
+/// during bind. Later items replace the active config only after they are
+/// successfully converted into the backend-specific TLS acceptor state.
 ///
 /// # Example
 ///

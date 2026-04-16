@@ -2,20 +2,19 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
-use std::marker::PhantomData;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream, StreamExt};
-use futures_util::task::noop_waker_ref;
+use arc_swap::ArcSwapOption;
+use futures_util::stream::{BoxStream, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::sync::CancellationToken;
 use tokio_rustls::server::TlsStream;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFuseFactory;
 use crate::http::uri::Scheme;
+use crate::Error;
 
 use super::ServerConfig;
 
@@ -23,7 +22,7 @@ use super::ServerConfig;
 pub struct RustlsListener<S, C, T, E> {
     config_stream: S,
     inner: T,
-    _phantom: PhantomData<(C, E)>,
+    _phantom: std::marker::PhantomData<(C, E)>,
 }
 
 impl<S, C, T, E> Debug for RustlsListener<S, C, T, E> {
@@ -45,7 +44,7 @@ where
         Self {
             config_stream,
             inner,
-            _phantom: PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -59,41 +58,90 @@ where
     <T::Acceptor as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     E: StdError + Send + 'static,
 {
-    type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
+    type Acceptor = RustlsAcceptor<T::Acceptor>;
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
-        Ok(RustlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.try_bind().await?,
-        ))
+        let mut config_stream = self.config_stream.into_stream().boxed();
+        let initial = config_stream
+            .next()
+            .await
+            .ok_or_else(|| Error::other("rustls: config stream ended before yielding an initial tls config"))?;
+        let initial: ServerConfig = initial
+            .try_into()
+            .map_err(|err| IoError::other(err.to_string()))?;
+        let current_acceptor = Arc::new(ArcSwapOption::from(Some(Arc::new(
+            tokio_rustls::TlsAcceptor::from(Arc::new(initial)),
+        ))));
+        let inner = self.inner.try_bind().await?;
+        let cancel_reload = CancellationToken::new();
+
+        tracing::info!("tls config loaded.");
+        tokio::spawn(reload_configs(
+            config_stream,
+            Arc::clone(&current_acceptor),
+            cancel_reload.clone(),
+        ));
+
+        Ok(RustlsAcceptor::new(inner, current_acceptor, cancel_reload))
+    }
+}
+
+async fn reload_configs<C, E>(
+    mut config_stream: BoxStream<'static, C>,
+    current_acceptor: Arc<ArcSwapOption<tokio_rustls::TlsAcceptor>>,
+    cancel_reload: CancellationToken,
+) where
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
+    E: StdError + Send + 'static,
+{
+    loop {
+        tokio::select! {
+            _ = cancel_reload.cancelled() => break,
+            next = config_stream.next() => {
+                let Some(config) = next else {
+                    break;
+                };
+                match config.try_into() {
+                    Ok(config) => {
+                        current_acceptor.store(Some(Arc::new(tokio_rustls::TlsAcceptor::from(Arc::new(
+                            config,
+                        )))));
+                        tracing::info!("tls config changed.");
+                    }
+                    Err(err) => {
+                        tracing::error!(error = ?err, "rustls: invalid tls config, keeping previous config");
+                    }
+                }
+            }
+        }
     }
 }
 
 /// A wrapper of `Acceptor` with rustls.
-pub struct RustlsAcceptor<S, C, T, E> {
-    config_stream: S,
+pub struct RustlsAcceptor<T> {
     inner: T,
     holdings: Vec<Holding>,
-    tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
-    _phantom: PhantomData<(C, E)>,
+    current_acceptor: Arc<ArcSwapOption<tokio_rustls::TlsAcceptor>>,
+    cancel_reload: CancellationToken,
 }
 
-impl<S, C, T, E> Debug for RustlsAcceptor<S, C, T, E> {
+impl<T> Debug for RustlsAcceptor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("RustlsAcceptor").finish()
     }
 }
 
-impl<S, C, T, E> RustlsAcceptor<S, C, T, E>
+impl<T> RustlsAcceptor<T>
 where
-    S: Stream<Item = C> + Unpin + Send + 'static,
-    C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    E: StdError + Send + 'static,
 {
     /// Create a new `RustlsAcceptor`.
-    pub fn new(config_stream: S, inner: T) -> Self {
+    pub fn new(
+        inner: T,
+        current_acceptor: Arc<ArcSwapOption<tokio_rustls::TlsAcceptor>>,
+        cancel_reload: CancellationToken,
+    ) -> Self {
         let holdings = inner
             .holdings()
             .iter()
@@ -116,11 +164,10 @@ where
             })
             .collect();
         Self {
-            config_stream,
             inner,
             holdings,
-            tls_acceptor: None,
-            _phantom: PhantomData,
+            current_acceptor,
+            cancel_reload,
         }
     }
 
@@ -135,13 +182,16 @@ where
     }
 }
 
-impl<S, C, T, E> Acceptor for RustlsAcceptor<S, C, T, E>
+impl<T> Drop for RustlsAcceptor<T> {
+    fn drop(&mut self) {
+        self.cancel_reload.cancel();
+    }
+}
+
+impl<T> Acceptor for RustlsAcceptor<T>
 where
-    S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    E: StdError + Send,
 {
     type Coupler = TcpCoupler<Self::Stream>;
     type Stream = HandshakeStream<TlsStream<T::Stream>>;
@@ -154,29 +204,8 @@ where
         &mut self,
         fuse_factory: Option<ArcFuseFactory>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        let config = {
-            let mut config = None;
-            while let Poll::Ready(Some(item)) = Pin::new(&mut self.config_stream)
-                .poll_next(&mut Context::from_waker(noop_waker_ref()))
-            {
-                config = Some(item);
-            }
-            config
-        };
-        if let Some(config) = config {
-            let config: ServerConfig = config
-                .try_into()
-                .map_err(|e| IoError::other(e.to_string()))?;
-            let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
-            if self.tls_acceptor.is_some() {
-                tracing::info!("tls config changed.");
-            } else {
-                tracing::info!("tls config loaded.");
-            }
-            self.tls_acceptor = Some(tls_acceptor);
-        }
-        let Some(tls_acceptor) = &self.tls_acceptor else {
-            return Err(IoError::other("rustls: invalid tls config."));
+        let Some(tls_acceptor) = self.current_acceptor.load_full() else {
+            return Err(IoError::other("rustls: no active tls config"));
         };
 
         let Accepted {

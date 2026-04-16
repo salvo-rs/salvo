@@ -51,6 +51,7 @@ certon = "0.1.2"
 
 aead = "0.5"
 aes-gcm = "0.10"
+arc-swap = "1.9"
 anyhow = "1"
 async-trait = "0.1"
 assert-json-diff = "2"
