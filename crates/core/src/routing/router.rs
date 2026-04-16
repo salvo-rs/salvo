@@ -103,8 +103,7 @@ impl Router {
                         let hoops = if self.hoops.is_empty() {
                             dm.hoops
                         } else {
-                            let mut hoops =
-                                Vec::with_capacity(self.hoops.len() + dm.hoops.len());
+                            let mut hoops = Vec::with_capacity(self.hoops.len() + dm.hoops.len());
                             hoops.extend_from_slice(&self.hoops);
                             hoops.extend_from_slice(&dm.hoops);
                             hoops

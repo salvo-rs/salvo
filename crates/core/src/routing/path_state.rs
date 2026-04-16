@@ -73,9 +73,7 @@ impl PathState {
             } else {
                 let rest = &self.parts[self.cursor.0 + 1..];
                 let trailing = usize::from(self.end_slash);
-                let cap = picked.len()
-                    + rest.iter().map(|s| s.len() + 1).sum::<usize>()
-                    + trailing;
+                let cap = picked.len() + rest.iter().map(|s| s.len() + 1).sum::<usize>() + trailing;
                 let mut buf = String::with_capacity(cap);
                 buf.push_str(picked);
                 for part in rest {
