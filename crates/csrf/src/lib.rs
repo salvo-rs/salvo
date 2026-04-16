@@ -3,9 +3,21 @@
 //!
 //! CSRF middleware for Salvo that provides CSRF (Cross-Site Request Forgery) protection.
 //!
-//! Data can be saved in Cookies via [`CookieStore`](struct.CookieStore.html) or in session
-//! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need
-//! to work with `salvo-session` crate.
+//! CSRF token systems commonly use one of two rotation strategies:
+//!
+//! - [`CsrfRotationPolicy::PerSession`]: reuse the same token until it expires or disappears from
+//!   the configured store. This is the default because it works well with page refreshes, browser
+//!   back or forward navigation, and multiple tabs.
+//! - [`CsrfRotationPolicy::PerRequest`]: rotate the token after every accepted request. This
+//!   shortens the lifetime of each token, but clients must always submit the latest token from the
+//!   most recent response.
+//!
+//! Rotation policy is independent from storage. Tokens can be saved in cookies via
+//! [`CookieStore`](struct.CookieStore.html) or in session via
+//! [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need to
+//! work with `salvo-session` crate.
+//!
+//! Use [`Csrf::rotation_policy`] to opt into request-level rotation when needed.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -157,6 +169,17 @@ cfg_feature! {
 /// key used to insert auth decoded data to depot.
 pub const CSRF_TOKEN_KEY: &str = "salvo.csrf.token";
 
+/// Controls when a CSRF token is rotated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum CsrfRotationPolicy {
+    /// Reuse the same token until it expires or disappears from the configured store.
+    #[default]
+    PerSession,
+    /// Generate a new token for every accepted request.
+    PerRequest,
+}
+
 fn default_skipper(req: &mut Request, _depot: &Depot) -> bool {
     !matches!(
         *req.method(),
@@ -218,6 +241,7 @@ pub struct Csrf<C, S> {
     store: S,
     skipper: Box<dyn Skipper>,
     finders: Vec<Box<dyn CsrfTokenFinder>>,
+    rotation_policy: CsrfRotationPolicy,
 }
 
 impl<C, S> Debug for Csrf<C, S>
@@ -229,6 +253,7 @@ where
         f.debug_struct("Csrf")
             .field("cipher", &self.cipher)
             .field("store", &self.store)
+            .field("rotation_policy", &self.rotation_policy)
             .finish()
     }
 }
@@ -243,6 +268,7 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
             store,
             skipper: Box::new(default_skipper),
             finders: vec![Box::new(finder)],
+            rotation_policy: CsrfRotationPolicy::PerSession,
         }
     }
 
@@ -251,6 +277,14 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
     #[must_use]
     pub fn add_finder(mut self, finder: impl CsrfTokenFinder) -> Self {
         self.finders.push(Box::new(finder));
+        self
+    }
+
+    /// Sets the token rotation policy. Defaults to [`CsrfRotationPolicy::PerSession`].
+    #[inline]
+    #[must_use]
+    pub fn rotation_policy(mut self, policy: CsrfRotationPolicy) -> Self {
+        self.rotation_policy = policy;
         self
     }
 
@@ -276,6 +310,20 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
         }
         None
     }
+
+    async fn issue_token(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+    ) -> String {
+        let (token, proof) = self.cipher.generate();
+        if let Err(e) = self.store.save(req, depot, res, &token, &proof).await {
+            tracing::error!(error = ?e, "csrf token save failed");
+        }
+        tracing::debug!("new csrf token generated");
+        token
+    }
 }
 
 #[async_trait]
@@ -287,11 +335,10 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
+        let skipped = self.skipper.skipped(req, depot);
         match self.store.load(req, depot, &self.cipher).await {
-            Some((token, proof)) => {
-                depot.insert(CSRF_TOKEN_KEY, token);
-
-                if !self.skipper.skipped(req, depot) {
+            Some((current_token, proof)) => {
+                if !skipped {
                     if let Some(token) = &self.find_token(req).await {
                         tracing::debug!("csrf token found in request");
                         if !self.cipher.verify(token, &proof) {
@@ -311,19 +358,22 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                         return;
                     }
                 }
+
+                let token = if matches!(self.rotation_policy, CsrfRotationPolicy::PerRequest) {
+                    self.issue_token(req, depot, res).await
+                } else {
+                    current_token
+                };
+                depot.insert(CSRF_TOKEN_KEY, token);
                 ctrl.call_next(req, depot, res).await;
             }
             None => {
-                if !self.skipper.skipped(req, depot) {
+                if !skipped {
                     tracing::debug!("rejecting request due to missing csrf token",);
                     res.status_code(StatusCode::FORBIDDEN);
                     ctrl.skip_rest();
                 } else {
-                    let (token, proof) = self.cipher.generate();
-                    if let Err(e) = self.store.save(req, depot, res, &token, &proof).await {
-                        tracing::error!(error = ?e, "csrf token save failed");
-                    }
-                    tracing::debug!("new csrf token generated");
+                    let token = self.issue_token(req, depot, res).await;
                     depot.insert(CSRF_TOKEN_KEY, token);
                     ctrl.call_next(req, depot, res).await;
                 }
@@ -346,6 +396,10 @@ mod tests {
     #[handler]
     async fn post_index() -> &'static str {
         "POST"
+    }
+    #[handler]
+    async fn post_token(depot: &mut Depot) -> String {
+        depot.csrf_token().unwrap().to_owned()
     }
 
     #[tokio::test]
@@ -374,6 +428,117 @@ mod tests {
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
         assert_ne!(res.take_string().await.unwrap(), "");
         assert_ne!(res.cookie("salvo.csrf"), None);
+    }
+
+    #[tokio::test]
+    async fn test_per_session_reuses_token_across_safe_requests() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
+        let router = Router::new().hoop(csrf).get(get_index);
+        let service = Service::new(router);
+
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token1 = res.take_string().await.unwrap();
+        let cookie = res.cookie("salvo.csrf").unwrap();
+        let cookie_header = cookie.to_string();
+
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .add_header("cookie", cookie_header, true)
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token2 = res.take_string().await.unwrap();
+
+        assert_eq!(token1, token2);
+    }
+
+    #[tokio::test]
+    async fn test_per_request_rotates_token_across_safe_requests() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        )
+        .rotation_policy(CsrfRotationPolicy::PerRequest);
+        let router = Router::new().hoop(csrf).get(get_index);
+        let service = Service::new(router);
+
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token1 = res.take_string().await.unwrap();
+        let cookie = res.cookie("salvo.csrf").unwrap();
+        let cookie_header = cookie.to_string();
+
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .add_header("cookie", cookie_header, true)
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token2 = res.take_string().await.unwrap();
+        let rotated_cookie = res.cookie("salvo.csrf").unwrap();
+        let rotated_token = rotated_cookie.value().split_once('.').unwrap().0;
+
+        assert_ne!(token1, token2);
+        assert_eq!(token2, rotated_token);
+    }
+
+    #[tokio::test]
+    async fn test_per_request_rotates_token_after_successful_unsafe_request() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        )
+        .rotation_policy(CsrfRotationPolicy::PerRequest);
+        let router = Router::new().hoop(csrf).get(get_index).post(post_token);
+        let service = Service::new(router);
+
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token1 = res.take_string().await.unwrap();
+        let cookie1 = res.cookie("salvo.csrf").unwrap();
+        let cookie1_header = cookie1.to_string();
+
+        let mut res = TestClient::post("http://127.0.0.1:5801")
+            .add_header("x-csrf-token", token1.clone(), true)
+            .add_header("cookie", cookie1_header, true)
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token2 = res.take_string().await.unwrap();
+        let cookie2 = res.cookie("salvo.csrf").unwrap();
+        let cookie2_header = cookie2.to_string();
+        let rotated_token = cookie2.value().split_once('.').unwrap().0;
+
+        assert_ne!(token1, token2);
+        assert_eq!(token2, rotated_token);
+
+        let res = TestClient::post("http://127.0.0.1:5801")
+            .add_header("x-csrf-token", token1, true)
+            .add_header("cookie", cookie2_header.clone(), true)
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
+
+        let mut res = TestClient::post("http://127.0.0.1:5801")
+            .add_header("x-csrf-token", token2.clone(), true)
+            .add_header("cookie", cookie2_header, true)
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token3 = res.take_string().await.unwrap();
+
+        assert_ne!(token2, token3);
     }
 
     #[tokio::test]

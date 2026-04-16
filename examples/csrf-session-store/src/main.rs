@@ -21,11 +21,11 @@ pub async fn home(res: &mut Response) {
     res.render(Text::Html(html));
 }
 
-// Handler for GET requests that displays a form with CSRF token
+// Handler for GET requests that displays a form with the current CSRF token
 #[handler]
 pub async fn get_page(depot: &mut Depot, res: &mut Response) {
-    let new_token = depot.csrf_token().unwrap_or_default();
-    res.render(Text::Html(get_page_html(new_token, "")));
+    let csrf_token = depot.csrf_token().unwrap_or_default();
+    res.render(Text::Html(get_page_html(csrf_token, "")));
 }
 
 // Handler for POST requests that processes form submission with CSRF validation
@@ -41,10 +41,10 @@ pub async fn post_page(req: &mut Request, depot: &mut Depot, res: &mut Response)
     let data = req.parse_form::<Data>().await.unwrap();
     // Log the received form data for debugging
     tracing::info!("posted data: {:?}", data);
-    // Generate a new CSRF token for the next request
-    let new_token = depot.csrf_token().unwrap_or_default();
-    // Generate HTML response with the new token and display the submitted data
-    let html = get_page_html(new_token, &format!("{data:#?}"));
+    // Read the token that should be embedded into the response form.
+    let csrf_token = depot.csrf_token().unwrap_or_default();
+    // Generate HTML response with the current token and display the submitted data
+    let html = get_page_html(csrf_token, &format!("{data:#?}"));
     // Send the HTML response back to the client
     res.render(Text::Html(html));
 }
