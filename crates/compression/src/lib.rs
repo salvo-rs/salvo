@@ -17,17 +17,20 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use salvo_compression::{Compression, CompressionLevel};
 //! use salvo_core::prelude::*;
 //!
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "hello"
+//! }
+//!
 //! let compression = Compression::new()
 //!     .enable_gzip(CompressionLevel::Default)
-//!     .min_length(1024);  // Only compress responses > 1KB
+//!     .min_length(1024); // Only compress responses > 1KB
 //!
-//! let router = Router::new()
-//!     .hoop(compression)
-//!     .get(my_handler);
+//! let _router = Router::new().hoop(compression).get(hello);
 //! ```
 //!
 //! # Algorithm Negotiation

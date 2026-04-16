@@ -16,10 +16,17 @@
 //!
 //! Add a default catcher to your service:
 //!
-//! ```ignore
+//! ```no_run
+//! use salvo_core::catcher::Catcher;
 //! use salvo_core::prelude::*;
 //!
-//! let service = Service::new(router).catcher(Catcher::default());
+//! #[handler]
+//! async fn hello() -> &'static str {
+//!     "hello"
+//! }
+//!
+//! let router = Router::new().get(hello);
+//! let _service = Service::new(router).catcher(Catcher::default());
 //! ```
 //!
 //! # Custom Error Handlers
@@ -31,28 +38,38 @@
 //! use salvo_core::prelude::*;
 //!
 //! #[handler]
-//! async fn handle404(&self, res: &mut Response, ctrl: &mut FlowCtrl) {
+//! async fn handle404(res: &mut Response, ctrl: &mut FlowCtrl) {
 //!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
-//!         res.render("Custom 404 Error Page");
-//!         ctrl.skip_rest(); // Skip remaining handlers
+//!         res.render("custom 404 error page");
+//!         ctrl.skip_rest();
 //!     }
 //! }
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     Service::new(Router::new()).catcher(Catcher::default().hoop(handle404));
-//! }
+//! let _service = Service::new(Router::new()).catcher(Catcher::default().hoop(handle404));
 //! ```
 //!
 //! # Multiple Error Handlers
 //!
 //! Chain multiple handlers for different error types:
 //!
-//! ```ignore
+//! ```
+//! use salvo_core::catcher::Catcher;
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn handle404(_res: &mut Response) {}
+//!
+//! #[handler]
+//! async fn handle500(_res: &mut Response) {}
+//!
+//! #[handler]
+//! async fn handle_api_errors(_res: &mut Response) {}
+//!
 //! let catcher = Catcher::default()
 //!     .hoop(handle404)
 //!     .hoop(handle500)
 //!     .hoop(handle_api_errors);
+//! let _ = catcher;
 //! ```
 //!
 //! Handlers are called in order. Use [`FlowCtrl::skip_rest()`] to stop processing.
