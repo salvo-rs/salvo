@@ -95,7 +95,18 @@ impl RequestId {
 
     fn generate_id(&self, req: &mut Request, depot: &mut Depot) -> HeaderValue {
         let id = self.generator.generate(req, depot);
-        HeaderValue::from_str(&id).expect("invalid header value")
+        match HeaderValue::from_str(&id) {
+            Ok(header_value) => header_value,
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    generated_id = %id,
+                    "request id generator returned an invalid header value; falling back to ULID"
+                );
+                HeaderValue::from_str(&Ulid::new().to_string())
+                    .expect("ULID should always be a valid header value")
+            }
+        }
     }
 }
 
@@ -229,6 +240,26 @@ mod tests {
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.headers.get("x-request-id").unwrap(), "custom-id");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_custom_generator_falls_back() {
+        let handler = RequestId::new().generator(|| "bad\r\nvalue".to_owned());
+        let router = Router::new().hoop(handler).get(endpoint);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        let request_id = response
+            .headers
+            .get("x-request-id")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_ne!(request_id, "bad\r\nvalue");
+        assert_eq!(request_id.len(), 26);
     }
 
     #[tokio::test]
