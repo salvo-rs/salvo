@@ -431,6 +431,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_session_store_without_session_middleware_does_not_panic() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            SessionStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
+        let router = Router::new().hoop(csrf).get(get_index);
+
+        let mut res = TestClient::get("http://127.0.0.1:5801").send(router).await;
+
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_ne!(res.take_string().await.unwrap(), "");
+    }
+
+    #[tokio::test]
     async fn test_per_session_reuses_token_across_safe_requests() {
         let csrf = Csrf::new(
             BcryptCipher::new(),

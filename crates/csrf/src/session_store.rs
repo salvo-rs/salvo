@@ -40,10 +40,12 @@ impl CsrfStore for SessionStore {
         token: &str,
         proof: &str,
     ) -> Result<(), Self::Error> {
-        depot
-            .session_mut()
-            .expect("session must be exist")
-            .insert(&self.name, format!("{token}.{proof}"))?;
+        let Some(session) = depot.session_mut() else {
+            return Err(Error::other(
+                "session is not available in depot; add SessionHandler before Csrf<_, SessionStore>",
+            ));
+        };
+        session.insert(&self.name, format!("{token}.{proof}"))?;
         Ok(())
     }
 }
