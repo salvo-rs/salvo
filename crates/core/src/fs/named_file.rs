@@ -614,7 +614,9 @@ impl NamedFile {
         let range = req_headers.get(RANGE);
         if let Some(range) = range {
             if let Ok(range) = range.to_str() {
-                if let Ok(range) = HttpRange::parse(range, length) {
+                if let Ok(range) = HttpRange::parse(range, length)
+                    && !range.is_empty()
+                {
                     length = range[0].length;
                     offset = range[0].start;
                 } else {
