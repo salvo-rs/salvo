@@ -515,7 +515,7 @@ impl PathWisp for NamedWisp {
                 return false;
             }
             if !rest.is_empty() || !self.0.starts_with("*+") {
-                let rest = rest.to_string();
+                let rest = rest.into_owned();
                 state.params.insert(&self.0, rest);
                 state.cursor.0 = state.parts.len();
                 #[cfg(feature = "matched-path")]

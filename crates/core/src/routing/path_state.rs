@@ -71,12 +71,21 @@ impl PathState {
                     Some(Cow::Borrowed(picked))
                 }
             } else {
-                let last = self.parts[self.cursor.0 + 1..].join("/");
-                if self.end_slash {
-                    Some(Cow::Owned(format!("{picked}/{last}/")))
-                } else {
-                    Some(Cow::Owned(format!("{picked}/{last}")))
+                let rest = &self.parts[self.cursor.0 + 1..];
+                let trailing = usize::from(self.end_slash);
+                let cap = picked.len()
+                    + rest.iter().map(|s| s.len() + 1).sum::<usize>()
+                    + trailing;
+                let mut buf = String::with_capacity(cap);
+                buf.push_str(picked);
+                for part in rest {
+                    buf.push('/');
+                    buf.push_str(part);
                 }
+                if self.end_slash {
+                    buf.push('/');
+                }
+                Some(Cow::Owned(buf))
             }
         } else {
             None

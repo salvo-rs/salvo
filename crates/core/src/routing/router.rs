@@ -100,9 +100,15 @@ impl Router {
                 let original_matched_parts_len = path_state.matched_parts.len();
                 for child in &self.routers {
                     if let Some(dm) = child.detect(req, path_state).await {
-                        let mut hoops = Vec::with_capacity(self.hoops.len() + dm.hoops.len());
-                        hoops.extend_from_slice(&self.hoops);
-                        hoops.extend_from_slice(&dm.hoops);
+                        let hoops = if self.hoops.is_empty() {
+                            dm.hoops
+                        } else {
+                            let mut hoops =
+                                Vec::with_capacity(self.hoops.len() + dm.hoops.len());
+                            hoops.extend_from_slice(&self.hoops);
+                            hoops.extend_from_slice(&dm.hoops);
+                            hoops
+                        };
                         return Some(DetectMatched {
                             hoops,
                             goal: dm.goal.clone(),
