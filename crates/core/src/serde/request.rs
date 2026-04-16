@@ -77,14 +77,12 @@ where
     // Ensure body is parsed correctly.
     if let Some(ctype) = req.content_type() {
         match ctype.subtype() {
-            mime::WWW_FORM_URLENCODED | mime::FORM_DATA
-                if metadata.has_body_required() => {
-                    let _ = req.form_data().await;
-                }
-            mime::JSON
-                if metadata.has_body_required() => {
-                    let _ = req.payload().await;
-                }
+            mime::WWW_FORM_URLENCODED | mime::FORM_DATA if metadata.has_body_required() => {
+                let _ = req.form_data().await;
+            }
+            mime::JSON if metadata.has_body_required() => {
+                let _ = req.payload().await;
+            }
             _ => {}
         }
     }
