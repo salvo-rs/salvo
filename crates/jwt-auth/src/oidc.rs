@@ -39,6 +39,16 @@ fn default_http_client() -> Result<HyperClient, JwtAuthError> {
     Ok(Client::builder(TokioExecutor::new()).build(https))
 }
 
+fn resolve_or_else<T, E>(
+    provided: Option<T>,
+    build_default: impl FnOnce() -> Result<T, E>,
+) -> Result<T, E> {
+    match provided {
+        Some(value) => Ok(value),
+        None => build_default(),
+    }
+}
+
 /// ConstDecoder will decode token with a static secret.
 #[derive(Clone)]
 pub struct OidcDecoder {
@@ -143,10 +153,7 @@ where
                 validation,
             )));
             let cache_state = Arc::new(CacheState::new());
-            let http_client = match http_client {
-                Some(http_client) => http_client,
-                None => default_http_client()?,
-            };
+            let http_client = resolve_or_else(http_client, default_http_client)?;
             let decoder = OidcDecoder {
                 issuer,
                 http_client,
@@ -445,30 +452,12 @@ mod tests {
 
     #[test]
     fn test_uses_provided_http_client_without_building_default_client() {
-        let https = HttpsConnectorBuilder::new()
-            .with_native_roots()
-            .expect("test requires native roots")
-            .https_only()
-            .enable_http1()
-            .build();
-        let provided = Client::builder(TokioExecutor::new()).build(https);
-
-        fn resolve_http_client_for_test(
-            provided: Option<HyperClient>,
-            build_default: impl FnOnce() -> Result<HyperClient, JwtAuthError>,
-        ) -> Result<HyperClient, JwtAuthError> {
-            match provided {
-                Some(client) => Ok(client),
-                None => build_default(),
-            }
-        }
-
-        let resolved = resolve_http_client_for_test(Some(provided.clone()), || {
+        let resolved = resolve_or_else(Some("provided-client"), || -> Result<&str, JwtAuthError> {
             panic!("default HTTP client should not be built when a custom client is supplied")
         })
         .unwrap();
 
-        assert_eq!(format!("{resolved:?}"), format!("{provided:?}"));
+        assert_eq!(resolved, "provided-client");
     }
 
     #[test]
