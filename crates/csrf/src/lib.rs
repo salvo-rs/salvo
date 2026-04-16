@@ -430,6 +430,7 @@ mod tests {
         assert_ne!(res.cookie("salvo.csrf"), None);
     }
 
+    #[cfg(feature = "session-store")]
     #[tokio::test]
     async fn test_session_store_without_session_middleware_does_not_panic() {
         let csrf = Csrf::new(
