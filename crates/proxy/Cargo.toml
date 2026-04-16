@@ -36,6 +36,7 @@ hyper = { workspace = true, features = ["server", "http1", "http2"] }
 hyper-rustls = { workspace = true, optional = true, features = [
     "native-tokio",
     "rustls-native-certs",
+    "webpki-roots",
     "http1",
     "http2",
     "tls12",

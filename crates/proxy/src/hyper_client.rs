@@ -1,3 +1,5 @@
+use std::io;
+
 use hyper::upgrade::OnUpgrade;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::Client as HyperUtilClient;
@@ -19,16 +21,42 @@ pub struct HyperClient<C> {
     inner: HyperUtilClient<C, ReqBody>,
 }
 
+fn build_default_https_connector_with(
+    native_roots: impl FnOnce() -> io::Result<HttpsConnector<HttpConnector>>,
+    webpki_roots: impl FnOnce() -> HttpsConnector<HttpConnector>,
+) -> HttpsConnector<HttpConnector> {
+    match native_roots() {
+        Ok(connector) => connector,
+        Err(error) => {
+            tracing::warn!(
+                error = ?error,
+                "failed to load native root certificates for proxy hyper client; falling back to webpki roots"
+            );
+            webpki_roots()
+        }
+    }
+}
+
 impl Default for HyperClient<HttpsConnector<HttpConnector>> {
     fn default() -> Self {
         #[cfg(feature = "ring")]
         let _ = rustls::crypto::ring::default_provider().install_default();
-        let https = HttpsConnectorBuilder::new()
-            .with_native_roots()
-            .expect("no native root CA certificates found")
-            .https_or_http()
-            .enable_all_versions()
-            .build();
+        let https = build_default_https_connector_with(
+            || {
+                Ok(HttpsConnectorBuilder::new()
+                    .with_native_roots()?
+                    .https_or_http()
+                    .enable_all_versions()
+                    .build())
+            },
+            || {
+                HttpsConnectorBuilder::new()
+                    .with_webpki_roots()
+                    .https_or_http()
+                    .enable_all_versions()
+                    .build()
+            },
+        );
         Self {
             inner: HyperUtilClient::builder(TokioExecutor::new()).build(https),
         }
@@ -114,11 +142,32 @@ where
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use salvo_core::prelude::*;
     use salvo_core::test::*;
 
     use super::*;
     use crate::{Proxy, Upstreams};
+
+    #[test]
+    fn test_default_connector_falls_back_to_webpki_roots() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider()
+            .install_default();
+
+        let connector = build_default_https_connector_with(
+            || Err(io::Error::other("missing native roots")),
+            || {
+                HttpsConnectorBuilder::new()
+                    .with_webpki_roots()
+                    .https_or_http()
+                    .enable_all_versions()
+                    .build()
+            },
+        );
+
+        let _client = HyperClient::new(HyperUtilClient::builder(TokioExecutor::new()).build(connector));
+    }
 
     #[tokio::test]
     async fn test_upstreams_elect() {
