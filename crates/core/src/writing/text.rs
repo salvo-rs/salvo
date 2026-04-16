@@ -103,7 +103,7 @@ impl Scribe for Text<&String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.try_set_header(res);
-        let _ = res.write_body(content.as_bytes().to_vec());
+        let _ = res.write_body(content.clone());
     }
 }
 impl<C: Debug> Debug for Text<C> {

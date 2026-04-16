@@ -115,7 +115,7 @@ impl Scribe for &String {
             CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
-        let _ = res.write_body(self.as_bytes().to_vec());
+        let _ = res.write_body(self.clone());
     }
 }
 impl Scribe for String {
