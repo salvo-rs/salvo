@@ -656,6 +656,7 @@ mod tests {
     use salvo_core::conn::{Acceptor, Listener};
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::rt::tokio::TokioIo;
 
     use super::*;
@@ -751,6 +752,45 @@ mod tests {
         let res = sender.send_request(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
+    }
+
+    #[tokio::test]
+    async fn test_websocket_missing_connection_upgrade_returns_consistent_message() {
+        let router = Router::new().goal(connect);
+
+        let mut response = TestClient::get("http://127.0.0.1:5801")
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert!(
+            response
+                .take_string()
+                .await
+                .unwrap()
+                .contains("missing connection upgrade")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_websocket_missing_sec_websocket_key_returns_consistent_message() {
+        let router = Router::new().goal(connect);
+
+        let mut response = TestClient::get("http://127.0.0.1:5801")
+            .add_header(UPGRADE, "websocket", true)
+            .add_header(CONNECTION, "Upgrade", true)
+            .add_header(SEC_WEBSOCKET_VERSION, "13", true)
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert!(
+            response
+                .take_string()
+                .await
+                .unwrap()
+                .contains("missing sec-websocket-key header")
+        );
     }
 
     #[tokio::test]
@@ -971,4 +1011,3 @@ mod tests {
         );
     }
 }
-
