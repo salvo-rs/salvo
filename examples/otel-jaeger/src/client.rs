@@ -46,10 +46,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let cx = Context::current();
         let span = cx.span();
 
-        span.add_event("Send request to server1".to_string(), vec![]);
+        span.add_event("Send request to server1".to_owned(), vec![]);
         let resp = client.execute(req).await.unwrap();
         span.add_event(
-            "Got response from server1!".to_string(),
+            "Got response from server1!".to_owned(),
             vec![KeyValue::new("status", resp.status().to_string())],
         );
         println!("{}", resp.text().await.unwrap());

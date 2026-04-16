@@ -6,7 +6,7 @@ use crate::error::ProtocolError;
 pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
     let v = v.ok_or(ProtocolError::MissingTusResumable)?;
     if v != TUS_VERSION {
-        return Err(ProtocolError::UnsupportedTusVersion(v.to_string()));
+        return Err(ProtocolError::UnsupportedTusVersion(v.to_owned()));
     }
     Ok(())
 }
@@ -19,14 +19,14 @@ pub fn parse_u64(v: Option<&str>, name: &'static str) -> Result<u64, ProtocolErr
 
 pub fn normalize_path(p: &str) -> String {
     if p.is_empty() {
-        return "/".to_string();
+        return "/".to_owned();
     }
-    let mut out = p.to_string();
+    let mut out = p.to_owned();
     if !out.starts_with('/') {
         out = format!("/{}", out);
     }
     if out.len() > 1 {
-        out = out.trim_end_matches('/').to_string();
+        out = out.trim_end_matches('/').to_owned();
     }
     out
 }

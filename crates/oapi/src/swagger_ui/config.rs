@@ -180,7 +180,10 @@ impl<'a> Config<'a> {
     }
 
     fn new_config_with_multiple_urls(urls: Vec<Url<'a>>) -> Self {
-        let primary_name = urls.iter().find(|url| url.primary).map(|url| url.name.to_string());
+        let primary_name = urls
+            .iter()
+            .find(|url| url.primary)
+            .map(|url| url.name.as_ref().to_owned());
 
         Self {
             urls_primary_name: primary_name,
@@ -202,12 +205,16 @@ impl<'a> Config<'a> {
 
     fn new_config_with_single_url(mut urls: Vec<Url<'a>>) -> Self {
         let url = urls.get_mut(0).map(std::mem::take).expect("urls should not be empty");
-        let primary_name = if url.primary { Some(url.name.to_string()) } else { None };
+        let primary_name = if url.primary {
+            Some(url.name.as_ref().to_owned())
+        } else {
+            None
+        };
 
         Self {
             urls_primary_name: primary_name,
             url: if url.name.is_empty() {
-                Some(url.url.to_string())
+                Some(url.url.as_ref().to_owned())
             } else {
                 None
             },

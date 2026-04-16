@@ -158,7 +158,7 @@ impl TusOptions {
 
         re.captures(path)
             .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str().to_string())
+            .map(|m| m.as_str().to_owned())
             .ok_or(TusError::FileIdError)
     }
 
@@ -280,7 +280,7 @@ impl TusOptions {
 impl Default for TusOptions {
     fn default() -> Self {
         TusOptions {
-            path: "/tus-files".to_string(),
+            path: "/tus-files".to_owned(),
             max_size: Some(MaxSize::Fixed(2 * 1024 * 1024 * 1024)), // Default max size 2GiB
             relative_location: true,
             respect_forwarded_headers: false,

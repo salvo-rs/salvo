@@ -502,7 +502,7 @@ impl Handler for StaticDir {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
                 while let Ok(Some(entry)) = entries.next_entry().await {
-                    let file_name = entry.file_name().to_string_lossy().to_string();
+                    let file_name = entry.file_name().to_string_lossy().into_owned();
                     if self.include_dot_files || !file_name.starts_with('.') {
                         let raw_path = join_path!(&abs_path, &file_name);
                         if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {

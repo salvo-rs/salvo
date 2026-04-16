@@ -164,7 +164,7 @@ impl WebSocketUpgrade {
     #[inline]
     #[must_use]
     pub fn protocols(mut self, protocols: &[&str]) -> Self {
-        self.protocols = protocols.iter().map(|s| s.to_string()).collect();
+        self.protocols = protocols.iter().map(|s| (*s).to_owned()).collect();
         self
     }
 

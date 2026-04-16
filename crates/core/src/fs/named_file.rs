@@ -365,7 +365,7 @@ fn build_content_disposition(
             None => file_path
                 .as_ref()
                 .file_name()
-                .map(|file_name| file_name.to_string_lossy().to_string())
+                .map(|file_name| file_name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "file".into())
                 .into(),
         };

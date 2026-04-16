@@ -219,7 +219,7 @@ pub fn get_name<T: 'static>() -> String {
 
 fn type_generic_part(type_name: &str) -> String {
     if let Some(pos) = type_name.find('<') {
-        type_name[pos..].to_string()
+        type_name[pos..].to_owned()
     } else {
         String::new()
     }
@@ -238,7 +238,7 @@ fn resolve_and_format_generic_part(type_name: &str, short_mode: bool) -> String 
     // Apply formatting (:: -> . for non-short mode, or strip module paths for short mode)
     if short_mode {
         let re = Regex::new(r"([^<>, ]*::)+").expect("Invalid regex");
-        re.replace_all(&resolved, "").to_string()
+        re.replace_all(&resolved, "").into_owned()
     } else {
         resolved.replace("::", ".")
     }
@@ -285,7 +285,7 @@ impl Namer for FlexNamer {
 
                 let mut base = if self.short_mode {
                     let re = Regex::new(r"([^<>, ]*::)+").expect("Invalid regex");
-                    re.replace_all(&resolved_type_name, "").to_string()
+                    re.replace_all(&resolved_type_name, "").into_owned()
                 } else {
                     resolved_type_name.replace("::", ".")
                 };

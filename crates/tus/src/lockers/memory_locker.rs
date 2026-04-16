@@ -27,7 +27,7 @@ impl MemoryLocker {
 
         map.retain(|_, lock| Arc::strong_count(lock) > 1);
         let lock = Arc::new(RwLock::new(()));
-        map.insert(id.to_string(), lock.clone());
+        map.insert(id.to_owned(), lock.clone());
         lock
     }
 }

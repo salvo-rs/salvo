@@ -274,7 +274,7 @@ async fn delete_users(
         if row_affected == 0 {
             res.status_code(StatusCode::NOT_FOUND);
             res.render(Json(ErrorResponseModel {
-                detail: "❌ User not found".to_string(),
+                detail: "❌ User not found".to_owned(),
             }));
             return;
         } else {

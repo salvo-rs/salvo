@@ -122,7 +122,7 @@ mod tests {
             "missing tus-resumable"
         );
         assert_eq!(
-            ProtocolError::UnsupportedTusVersion("2.0.0".to_string()).to_string(),
+            ProtocolError::UnsupportedTusVersion("2.0.0".to_owned()).to_string(),
             "unsupported tus version: 2.0.0"
         );
         assert_eq!(
@@ -201,7 +201,7 @@ mod tests {
             "file no longer exists"
         );
         assert_eq!(
-            TusError::Internal("test error".to_string()).to_string(),
+            TusError::Internal("test error".to_owned()).to_string(),
             "internal: test error"
         );
     }
@@ -315,7 +315,7 @@ mod tests {
             StatusCode::INTERNAL_SERVER_ERROR
         );
         assert_eq!(
-            TusError::Internal("error".to_string()).status(),
+            TusError::Internal("error".to_owned()).status(),
             StatusCode::INTERNAL_SERVER_ERROR
         );
     }

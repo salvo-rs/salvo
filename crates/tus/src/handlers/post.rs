@@ -134,7 +134,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     };
 
     let max_file_size = opts
-        .get_configured_max_size(req, Some(upload_id.to_string()))
+        .get_configured_max_size(req, Some(upload_id.to_owned()))
         .await;
 
     if let Some(size) = upload_length_value

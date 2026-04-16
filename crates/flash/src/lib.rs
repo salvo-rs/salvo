@@ -438,7 +438,7 @@ mod tests {
         .build()
         .unwrap();
 
-        let session_name = "my-custom-session-name".to_string();
+        let session_name = "my-custom-session-name".to_owned();
         let router = Router::new()
             .hoop(session_handler)
             .hoop(SessionStore::new().name(&session_name).into_handler())

@@ -50,10 +50,10 @@ async fn index(req: &mut Request, depot: &mut Depot) -> String {
         let cx = opentelemetry::Context::current();
         let span = cx.span();
 
-        span.add_event("Send request to server2".to_string(), vec![]);
+        span.add_event("Send request to server2".to_owned(), vec![]);
         let resp = client.execute(req).await.unwrap();
         span.add_event(
-            "Got response from server2!".to_string(),
+            "Got response from server2!".to_owned(),
             vec![KeyValue::new("status", resp.status().to_string())],
         );
         resp

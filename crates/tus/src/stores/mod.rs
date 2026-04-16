@@ -183,12 +183,12 @@ mod tests {
     #[test]
     fn test_upload_info_get_size_is_deferred_true() {
         let info = UploadInfo {
-            id: "test".to_string(),
+            id: "test".to_owned(),
             size: None,
             offset: Some(0),
             metadata: None,
             storage: None,
-            creation_date: "2024-01-01".to_string(),
+            creation_date: "2024-01-01".to_owned(),
         };
         assert!(info.get_size_is_deferred());
     }
@@ -196,12 +196,12 @@ mod tests {
     #[test]
     fn test_upload_info_get_size_is_deferred_false() {
         let info = UploadInfo {
-            id: "test".to_string(),
+            id: "test".to_owned(),
             size: Some(1024),
             offset: Some(0),
             metadata: None,
             storage: None,
-            creation_date: "2024-01-01".to_string(),
+            creation_date: "2024-01-01".to_owned(),
         };
         assert!(!info.get_size_is_deferred());
     }
@@ -209,16 +209,16 @@ mod tests {
     #[test]
     fn test_upload_info_clone() {
         let info = UploadInfo {
-            id: "test-id".to_string(),
+            id: "test-id".to_owned(),
             size: Some(2048),
             offset: Some(512),
             metadata: None,
             storage: Some(StoreInfo {
-                type_name: "disk".to_string(),
-                path: "/uploads/test.bin".to_string(),
+                type_name: "disk".to_owned(),
+                path: "/uploads/test.bin".to_owned(),
                 bucket: None,
             }),
-            creation_date: "2024-01-01T00:00:00Z".to_string(),
+            creation_date: "2024-01-01T00:00:00Z".to_owned(),
         };
 
         let cloned = info.clone();
@@ -234,15 +234,15 @@ mod tests {
     #[test]
     fn test_store_info_clone() {
         let info = StoreInfo {
-            type_name: "s3".to_string(),
-            path: "uploads/file.bin".to_string(),
-            bucket: Some("my-bucket".to_string()),
+            type_name: "s3".to_owned(),
+            path: "uploads/file.bin".to_owned(),
+            bucket: Some("my-bucket".to_owned()),
         };
 
         let cloned = info.clone();
         assert_eq!(cloned.type_name, "s3");
         assert_eq!(cloned.path, "uploads/file.bin");
-        assert_eq!(cloned.bucket, Some("my-bucket".to_string()));
+        assert_eq!(cloned.bucket, Some("my-bucket".to_owned()));
     }
 
     #[test]
@@ -252,23 +252,20 @@ mod tests {
         use crate::handlers::Metadata;
 
         let mut map = HashMap::new();
-        map.insert("filename".to_string(), Some("test.txt".to_string()));
+        map.insert("filename".to_owned(), Some("test.txt".to_owned()));
 
         let info = UploadInfo {
-            id: "test".to_string(),
+            id: "test".to_owned(),
             size: Some(100),
             offset: Some(0),
             metadata: Some(Metadata(map)),
             storage: None,
-            creation_date: "2024-01-01".to_string(),
+            creation_date: "2024-01-01".to_owned(),
         };
 
         assert!(info.metadata.is_some());
         let metadata = info.metadata.unwrap();
-        assert_eq!(
-            metadata.get("filename"),
-            Some(&Some("test.txt".to_string()))
-        );
+        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
     }
 
     #[test]
@@ -281,8 +278,8 @@ mod tests {
     #[test]
     fn test_store_info_debug() {
         let info = StoreInfo {
-            type_name: "disk".to_string(),
-            path: "/uploads/test.bin".to_string(),
+            type_name: "disk".to_owned(),
+            path: "/uploads/test.bin".to_owned(),
             bucket: None,
         };
         let debug_str = format!("{:?}", info);
@@ -293,12 +290,12 @@ mod tests {
     #[test]
     fn test_upload_info_debug() {
         let info = UploadInfo {
-            id: "abc123".to_string(),
+            id: "abc123".to_owned(),
             size: Some(1024),
             offset: Some(512),
             metadata: None,
             storage: None,
-            creation_date: "2024-01-01".to_string(),
+            creation_date: "2024-01-01".to_owned(),
         };
         let debug_str = format!("{:?}", info);
         assert!(debug_str.contains("abc123"));

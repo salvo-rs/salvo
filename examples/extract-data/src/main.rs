@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 async fn inject_user(depot: &mut Depot) {
     // Simulate injecting authenticated user data into depot
     depot.insert("user_id", 42i64);
-    depot.insert("user_role", "admin".to_string());
+    depot.insert("user_role", "admin".to_owned());
     depot.insert("is_verified", true);
 }
 

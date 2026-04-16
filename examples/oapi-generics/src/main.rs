@@ -53,7 +53,7 @@ async fn get_city() -> Json<ApiResponse<CityDTO>> {
         code: 200,
         data: CityDTO {
             id: 1,
-            name: "Beijing".to_string(),
+            name: "Beijing".to_owned(),
         },
     })
 }
@@ -63,7 +63,7 @@ async fn get_city() -> Json<ApiResponse<CityDTO>> {
 async fn get_message() -> Json<ApiResponse<String>> {
     Json(ApiResponse {
         code: 200,
-        data: "Hello, World!".to_string(),
+        data: "Hello, World!".to_owned(),
     })
 }
 

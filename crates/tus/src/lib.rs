@@ -552,7 +552,7 @@ mod tests {
     #[tokio::test]
     async fn test_tus_with_upload_id_naming_function() {
         let tus = Tus::new().with_upload_id_naming_function(|_req, _meta| async move {
-            Ok("custom-id".to_string())
+            Ok("custom-id".to_owned())
         });
 
         // Verify the function is set by calling it
@@ -587,7 +587,7 @@ mod tests {
 
         assert!(tus.options.on_incoming_request.is_some());
         let req = Request::default();
-        (tus.options.on_incoming_request.unwrap())(&req, "test-id".to_string()).await;
+        (tus.options.on_incoming_request.unwrap())(&req, "test-id".to_owned()).await;
         assert!(called.load(Ordering::SeqCst));
     }
 

@@ -431,7 +431,7 @@ mod tests {
         server_variables_extend:
         {
             let mut variables = ServerVariables::new().server_variable("version", ServerVariable::new().default_value("v1"));
-            variables.extend(vec![("username".to_string(), ServerVariable::new().default_value("the_user"))]);
+            variables.extend(vec![("username".to_owned(), ServerVariable::new().default_value("the_user"))]);
             variables
         };
         r###"{

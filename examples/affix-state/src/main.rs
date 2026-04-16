@@ -38,8 +38,8 @@ async fn main() {
 
     // Create a Config instance with default username and password
     let config = Config {
-        username: "root".to_string(),
-        password: "pwd".to_string(),
+        username: "root".to_owned(),
+        password: "pwd".to_owned(),
     };
 
     // Set up the router with state injection and custom data

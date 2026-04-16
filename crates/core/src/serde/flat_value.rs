@@ -238,7 +238,7 @@ impl<'de> Iterator for FlatParser<'de> {
                 '"' | '\'' => {
                     in_next = true;
                     if quote == Some(c) {
-                        let item = Cow::Owned(self.input[self.start..end].to_string());
+                        let item = Cow::Owned(self.input[self.start..end].to_owned());
                         self.start = end + 2;
                         return Some(CowValue(item));
                     } else {
@@ -248,7 +248,7 @@ impl<'de> Iterator for FlatParser<'de> {
                 }
                 ',' | ']' => {
                     if quote.is_none() && in_next {
-                        let item = Cow::Owned(self.input[self.start..end].to_string());
+                        let item = Cow::Owned(self.input[self.start..end].to_owned());
                         self.start = end + 1;
                         return Some(CowValue(item));
                     }

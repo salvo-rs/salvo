@@ -222,7 +222,7 @@ impl SchemaReference {
     #[must_use]
     pub fn compose_name(&self) -> String {
         if self.references.is_empty() {
-            self.name.to_string()
+            self.name.as_ref().to_owned()
         } else {
             let generic_names: Vec<String> =
                 self.references.iter().map(|r| r.compose_name()).collect();

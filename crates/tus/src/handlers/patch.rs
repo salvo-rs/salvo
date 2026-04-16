@@ -70,9 +70,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
 
-    let max_file_size = opts
-        .get_configured_max_size(req, Some(id.to_string()))
-        .await;
+    let max_file_size = opts.get_configured_max_size(req, Some(id.to_owned())).await;
     let _lock = match opts
         .acquire_write_lock(req, &id, CancellationContext::new())
         .await

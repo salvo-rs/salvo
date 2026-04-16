@@ -82,7 +82,7 @@ fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
                 "Invalid socket path: directory traversal ('..') is not allowed.",
             ));
         }
-        let mut request_path = full_path[sock_path_end..].to_string();
+        let mut request_path = full_path[sock_path_end..].to_owned();
         if request_path.is_empty() {
             request_path = "/".to_owned();
         }

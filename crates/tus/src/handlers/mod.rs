@@ -65,12 +65,12 @@ impl Metadata {
             }
 
             let key = tokens[0];
-            if !validate_key(key) || !seen.insert(key.to_string()) {
+            if !validate_key(key) || !seen.insert(key.to_owned()) {
                 return Err(ProtocolError::InvalidMetadata);
             }
 
             if tokens.len() == 1 {
-                map.insert(key.to_string(), None);
+                map.insert(key.to_owned(), None);
                 continue;
             }
 
@@ -82,9 +82,9 @@ impl Metadata {
             let decoded = base64::engine::general_purpose::STANDARD
                 .decode(value)
                 .map_err(|_| ProtocolError::InvalidMetadata)?;
-            let decoded_value = String::from_utf8_lossy(&decoded).to_string();
+            let decoded_value = String::from_utf8_lossy(&decoded).into_owned();
 
-            map.insert(key.to_string(), Some(decoded_value));
+            map.insert(key.to_owned(), Some(decoded_value));
         }
 
         Ok(Metadata(map))
@@ -100,7 +100,7 @@ impl Metadata {
                         base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
                     format!("{} {}", key, encoded)
                 }
-                None => key.to_string(),
+                None => key.to_owned(),
             })
             .collect::<Vec<_>>()
             .join(", ")
@@ -156,23 +156,17 @@ mod tests {
     fn test_metadata_parse_single_key_value() {
         let raw = "filename dGVzdC50eHQ="; // "test.txt" in base64
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(
-            metadata.get("filename"),
-            Some(&Some("test.txt".to_string()))
-        );
+        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
     }
 
     #[test]
     fn test_metadata_parse_multiple_key_values() {
         let raw = "filename dGVzdC50eHQ=,filetype dGV4dC9wbGFpbg=="; // "test.txt", "text/plain"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(
-            metadata.get("filename"),
-            Some(&Some("test.txt".to_string()))
-        );
+        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
         assert_eq!(
             metadata.get("filetype"),
-            Some(&Some("text/plain".to_string()))
+            Some(&Some("text/plain".to_owned()))
         );
     }
 
@@ -187,12 +181,9 @@ mod tests {
     fn test_metadata_parse_mixed_keys() {
         let raw = "filename dGVzdC50eHQ=,is_private,size MTAyNA=="; // "test.txt", no value, "1024"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(
-            metadata.get("filename"),
-            Some(&Some("test.txt".to_string()))
-        );
+        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
         assert_eq!(metadata.get("is_private"), Some(&None));
-        assert_eq!(metadata.get("size"), Some(&Some("1024".to_string())));
+        assert_eq!(metadata.get("size"), Some(&Some("1024".to_owned())));
     }
 
     #[test]
@@ -236,7 +227,7 @@ mod tests {
         let raw = "file,name dGVzdA==";
         let result = Metadata::parse_metadata(raw).unwrap();
         assert_eq!(result.get("file"), Some(&None));
-        assert_eq!(result.get("name"), Some(&Some("test".to_string())));
+        assert_eq!(result.get("name"), Some(&Some("test".to_owned())));
     }
 
     #[test]
@@ -267,7 +258,7 @@ mod tests {
     #[test]
     fn test_metadata_stringify_single_key_value() {
         let mut metadata = Metadata::default();
-        metadata.insert("filename".to_string(), Some("test.txt".to_string()));
+        metadata.insert("filename".to_owned(), Some("test.txt".to_owned()));
         let result = Metadata::stringify(metadata);
         assert_eq!(result, "filename dGVzdC50eHQ=");
     }
@@ -275,7 +266,7 @@ mod tests {
     #[test]
     fn test_metadata_stringify_key_without_value() {
         let mut metadata = Metadata::default();
-        metadata.insert("is_private".to_string(), None);
+        metadata.insert("is_private".to_owned(), None);
         let result = Metadata::stringify(metadata);
         assert_eq!(result, "is_private");
     }
@@ -283,8 +274,8 @@ mod tests {
     #[test]
     fn test_metadata_stringify_multiple_keys() {
         let mut metadata = Metadata::default();
-        metadata.insert("filename".to_string(), Some("test.txt".to_string()));
-        metadata.insert("is_private".to_string(), None);
+        metadata.insert("filename".to_owned(), Some("test.txt".to_owned()));
+        metadata.insert("is_private".to_owned(), None);
         let result = Metadata::stringify(metadata);
         // Order may vary due to HashMap, so check both parts are present
         assert!(result.contains("filename dGVzdC50eHQ="));
@@ -310,14 +301,14 @@ mod tests {
     #[test]
     fn test_metadata_deref() {
         let mut metadata = Metadata::default();
-        metadata.insert("key".to_string(), Some("value".to_string()));
+        metadata.insert("key".to_owned(), Some("value".to_owned()));
 
         // Test Deref
         assert!(metadata.contains_key("key"));
         assert_eq!(metadata.len(), 1);
 
         // Test DerefMut
-        metadata.insert("key2".to_string(), None);
+        metadata.insert("key2".to_owned(), None);
         assert_eq!(metadata.len(), 2);
     }
 
@@ -326,7 +317,7 @@ mod tests {
         // "文件" (Chinese for "file") in base64
         let raw = "name 5paH5Lu2";
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("name"), Some(&Some("文件".to_string())));
+        assert_eq!(metadata.get("name"), Some(&Some("文件".to_owned())));
     }
 
     #[test]
@@ -336,7 +327,7 @@ mod tests {
         let metadata = Metadata::parse_metadata(raw).unwrap();
         assert_eq!(
             metadata.get("content"),
-            Some(&Some("hello\nworld".to_string()))
+            Some(&Some("hello\nworld".to_owned()))
         );
     }
 
