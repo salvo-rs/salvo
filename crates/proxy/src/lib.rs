@@ -244,9 +244,9 @@ pub fn preserve_original_host_header_getter(
     _depot: &Depot,
 ) -> Option<String> {
     if let Some(host_header) = req.headers().get(HOST)
-        && let Ok(host) = String::from_utf8(host_header.as_bytes().to_vec())
+        && let Ok(host) = host_header.to_str()
     {
-        return Some(host);
+        return Some(host.to_owned());
     }
 
     default_host_header_getter(forward_uri, req, _depot)
