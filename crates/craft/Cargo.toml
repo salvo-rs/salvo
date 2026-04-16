@@ -22,6 +22,8 @@ authors = ["Andeya Lee <andeyalee@outlook.com>"]
 salvo-craft-macros = { workspace = true }
 
 [dev-dependencies]
+salvo_core = { workspace = true, features = ["http1", "test", "aws-lc-rs"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 salvo = { path = "../salvo", default-features = false, features = ["oapi"] }
 
 [lints]
