@@ -99,14 +99,14 @@ where
     ) {
         let mut svc = self.0.clone();
         if svc.ready().await.is_err() {
-            tracing::error!("tower service not ready.");
-            res.render(StatusError::internal_server_error().cause("tower service not ready."));
+            tracing::error!("tower service not ready");
+            res.render(StatusError::internal_server_error().cause("tower service not ready"));
             return;
         }
         let Ok(hyper_req) = req.strip_to_hyper::<QB>() else {
-            tracing::error!("strip request to hyper failed.");
+            tracing::error!("strip request to hyper failed");
             res.render(
-                StatusError::internal_server_error().cause("strip request to hyper failed."),
+                StatusError::internal_server_error().cause("strip request to hyper failed"),
             );
             return;
         };
@@ -255,15 +255,15 @@ where
     ) {
         let mut svc = self.0.clone();
         if svc.ready().await.is_err() {
-            tracing::error!("tower service not ready.");
-            res.render(StatusError::internal_server_error().cause("tower service not ready."));
+            tracing::error!("tower service not ready");
+            res.render(StatusError::internal_server_error().cause("tower service not ready"));
             return;
         }
 
         let Ok(mut hyper_req) = req.strip_to_hyper::<QB>() else {
-            tracing::error!("strip request to hyper failed.");
+            tracing::error!("strip request to hyper failed");
             res.render(
-                StatusError::internal_server_error().cause("strip request to hyper failed."),
+                StatusError::internal_server_error().cause("strip request to hyper failed"),
             );
             return;
         };
@@ -373,3 +373,4 @@ mod tests {
         );
     }
 }
+

@@ -366,14 +366,14 @@ where
             return;
         }
         let Some(key) = self.issuer.issue(req, depot).await else {
-            res.render(StatusError::bad_request().brief("Invalid identifier."));
+            res.render(StatusError::bad_request().brief("invalid identifier"));
             ctrl.skip_rest();
             return;
         };
         let quota = match self.quota_getter.get(&key).await {
             Ok(quota) => quota,
             Err(e) => {
-                tracing::error!(error = ?e, "RateLimiter error: {}", e);
+                tracing::error!(error = ?e, "rate limiter error: {}", e);
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
@@ -382,7 +382,7 @@ where
         let mut guard = match self.store.load_guard(&key, &self.guard).await {
             Ok(guard) => guard,
             Err(e) => {
-                tracing::error!(error = ?e, "RateLimiter error: {}", e);
+                tracing::error!(error = ?e, "rate limiter error: {}", e);
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
@@ -409,7 +409,7 @@ where
             ctrl.skip_rest();
         }
         if let Err(e) = self.store.save_guard(key, guard).await {
-            tracing::error!(error = ?e, "RateLimiter save guard failed");
+            tracing::error!(error = ?e, "rate limiter save guard failed");
         }
     }
 }

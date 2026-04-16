@@ -91,7 +91,7 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
-        panic!("query parameter can not be extracted from request")
+        panic!("query parameter cannot be extracted from request")
     }
     #[allow(refining_impl_trait)]
     async fn extract_with_arg(
@@ -117,7 +117,7 @@ where
     }
     #[allow(refining_impl_trait)]
     async fn extract(_req: &'ex mut Request, _depot: &'ex mut Depot) -> Result<Self, ParseError> {
-        panic!("query parameter can not be extracted from request")
+        panic!("query parameter cannot be extracted from request")
     }
     #[allow(refining_impl_trait)]
     async fn extract_with_arg(

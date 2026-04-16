@@ -496,7 +496,7 @@ impl Handler for StaticDir {
                 let headers = req.headers();
                 named_file.send(headers, res).await;
             } else {
-                res.render(StatusError::internal_server_error().brief("Read file failed."));
+                res.render(StatusError::internal_server_error().brief("read file failed"));
             }
         } else if !is_file {
             // list the dir

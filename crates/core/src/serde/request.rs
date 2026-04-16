@@ -208,7 +208,7 @@ impl<'de> RequestDeserializer<'de> {
                 .metadata
                 .fields
                 .get(self.field_index as usize)
-                .expect("field must exist.");
+                .expect("field must exist");
             let metadata = field.metadata.expect("field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,

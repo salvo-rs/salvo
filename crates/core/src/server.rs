@@ -276,7 +276,7 @@ impl<A: Acceptor + Send> Server<A> {
                     alt_svc_h3 = Some(
                         format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
-                            .expect("Parse alt-svc header should not failed."),
+                            .expect("parsing alt-svc header should not fail"),
                     );
                 }
             }
@@ -385,7 +385,7 @@ impl<A: Acceptor + Send> Server<A> {
                     alt_svc_h3 = Some(
                         format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
-                            .expect("Parse alt-svc header should not failed."),
+                            .expect("parsing alt-svc header should not fail"),
                     );
                 }
             }
@@ -636,3 +636,4 @@ mod tests {
         };
     }
 }
+

@@ -293,7 +293,7 @@ impl WebSocketUpgrade {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            return Err(StatusError::bad_request().brief("Missing connection upgrade."));
+            return Err(StatusError::bad_request().brief("missing connection upgrade"));
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -301,9 +301,9 @@ impl WebSocketUpgrade {
             .map(|v| v.to_lowercase() == "websocket")
             .unwrap_or(false);
         if !matched {
-            tracing::debug!("missing upgrade header or it is not equal websocket");
+            tracing::debug!("missing upgrade header or it is not websocket");
             return Err(StatusError::bad_request()
-                .brief("Missing upgrade header or it is not equal websocket."));
+                .brief("missing upgrade header or it is not websocket"));
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -311,13 +311,12 @@ impl WebSocketUpgrade {
             .map(|v| v == "13")
             .unwrap_or(false);
         if matched {
-            tracing::debug!("websocket version is not equal 13");
-            return Err(StatusError::bad_request().brief("Websocket version is not equal 13."));
+            tracing::debug!("websocket version is not 13");
+            return Err(StatusError::bad_request().brief("websocket version is not 13"));
         }
         let Some(sec_ws_key) = req_headers.typed_get::<SecWebsocketKey>() else {
-            tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(StatusError::bad_request()
-                .brief("sec_websocket_key is not exist in request headers."));
+            tracing::debug!("missing sec-websocket-key header");
+            return Err(StatusError::bad_request().brief("missing sec-websocket-key header"));
         };
 
         res.status_code(StatusCode::SWITCHING_PROTOCOLS);
@@ -363,9 +362,9 @@ impl WebSocketUpgrade {
             });
             Ok(())
         } else {
-            tracing::debug!("websocket couldn't be upgraded since no upgrade state was present");
+            tracing::debug!("websocket cannot be upgraded because no upgrade state was present");
             Err(StatusError::bad_request()
-                .brief("Websocket couldn't be upgraded since no upgrade state was present."))
+                .brief("websocket cannot be upgraded because no upgrade state was present"))
         }
     }
 }
@@ -792,7 +791,7 @@ mod tests {
         let res = sender.send_request(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
-        // Should select "chat.v2" — first supported protocol in client's list
+        // Should select "chat.v2", the first supported protocol in the client's list
         assert_eq!(
             res.headers().get(SEC_WEBSOCKET_PROTOCOL),
             Some(&HeaderValue::from_static("chat.v2")),
@@ -837,7 +836,7 @@ mod tests {
         let res = sender.send_request(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
-        // No overlap — response should not contain Sec-WebSocket-Protocol
+        // No overlap, so the response should not contain Sec-WebSocket-Protocol
         assert!(res.headers().get(SEC_WEBSOCKET_PROTOCOL).is_none());
     }
 
@@ -878,7 +877,7 @@ mod tests {
         let res = sender.send_request(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
-        // Client didn't send any protocol — response should not contain one
+        // Client did not send any protocol, so the response should not contain one
         assert!(res.headers().get(SEC_WEBSOCKET_PROTOCOL).is_none());
     }
 
@@ -972,3 +971,4 @@ mod tests {
         );
     }
 }
+

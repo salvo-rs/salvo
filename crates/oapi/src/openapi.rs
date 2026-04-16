@@ -130,7 +130,7 @@ pub struct OpenApi {
     pub external_docs: Option<ExternalDocs>,
 
     /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
-    /// “<https://spec.openapis.org/oas/3.1/dialect/base>”.
+    /// `<https://spec.openapis.org/oas/3.1/dialect/base>`.
     ///
     /// All the references and individual files could use their own schema dialect.
     #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
@@ -521,7 +521,7 @@ impl OpenApi {
                     .skip(1)
                     .map(|capture| {
                         capture
-                            .expect("Regex captures should not be None.")
+                            .expect("regex captures should not be None")
                             .as_str()
                             .to_owned()
                     })
@@ -1325,7 +1325,7 @@ mod tests {
 
         assert_eq!(
             res.content_type()
-                .expect("content type should exists")
+                .expect("content type should exist")
                 .to_string(),
             "application/json; charset=utf-8".to_owned()
         );
@@ -1357,7 +1357,7 @@ mod tests {
 
         assert_eq!(
             res.content_type()
-                .expect("content type should exists")
+                .expect("content type should exist")
                 .to_string(),
             "application/json; charset=utf-8".to_owned()
         );

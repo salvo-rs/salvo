@@ -89,7 +89,7 @@ impl Client for ReqwestClient {
                                 )
                                 .await
                                 {
-                                    tracing::error!(error = ?e, "coping between upgraded connections failed");
+                                    tracing::error!(error = ?e, "copying between upgraded connections failed");
                                 }
                             }
                             Err(e) => {

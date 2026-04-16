@@ -78,7 +78,7 @@ impl<T: Display> Display for CookieParam<T, true> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0
             .as_ref()
-            .expect("`CookieParam<T, true>` value should not be None.")
+            .expect("`CookieParam<T, true>` value should not be None")
             .fmt(f)
     }
 }

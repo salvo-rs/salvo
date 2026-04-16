@@ -92,16 +92,16 @@ where
                                 )
                                 .await
                                 {
-                                    tracing::error!(error = ?e, "coping between upgraded connections failed.");
+                                    tracing::error!(error = ?e, "copying between upgraded connections failed");
                                 }
                             }
                             Err(e) => {
-                                tracing::error!(error = ?e, "upgrade request failed.");
+                                tracing::error!(error = ?e, "upgrade request failed");
                             }
                         }
                     });
                 } else {
-                    return Err(Error::other("request does not have an upgrade extension."));
+                    return Err(Error::other("request does not have an upgrade extension"));
                 }
             } else {
                 return Err(Error::other("upgrade type mismatch"));
@@ -159,3 +159,4 @@ mod tests {
         assert_eq!(handler.upstreams_mut().len(), 1);
     }
 }
+

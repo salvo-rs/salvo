@@ -100,11 +100,11 @@ impl Handler for MaxConcurrency {
                         "Max concurrency semaphore is never closed, acquire should never fail: {}",
                         e
                     );
-                    res.render(StatusError::payload_too_large().brief("Max concurrency reached."));
+                    res.render(StatusError::payload_too_large().brief("max concurrency reached"));
                 }
                 TryAcquireError::NoPermits => {
-                    tracing::error!("NoPermits : {}", e);
-                    res.render(StatusError::too_many_requests().brief("Max concurrency reached."));
+                    tracing::error!("no permits: {}", e);
+                    res.render(StatusError::too_many_requests().brief("max concurrency reached"));
                 }
             },
         }
@@ -117,3 +117,4 @@ impl Handler for MaxConcurrency {
         semaphore: Semaphore::new(size),
     }
 }
+

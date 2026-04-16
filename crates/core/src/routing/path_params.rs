@@ -43,7 +43,7 @@ impl PathParams {
         #[cfg(debug_assertions)]
         {
             if self.greedy {
-                panic!("only one wildcard param is allowed and it must be the last one.");
+                panic!("only one wildcard param is allowed and it must be the last one");
             }
         }
         if name.starts_with('*') {

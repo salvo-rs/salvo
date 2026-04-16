@@ -75,7 +75,7 @@ where
         let inner = self.inner.try_bind().await?;
         let cancel_reload = CancellationToken::new();
 
-        tracing::info!("tls config loaded.");
+        tracing::info!("tls config loaded");
         tokio::spawn(reload_configs(
             config_stream,
             Arc::clone(&current_acceptor),
@@ -104,7 +104,7 @@ async fn reload_configs<C, E>(
                 match config.try_into() {
                     Ok(builder) => {
                         current_acceptor.store(Some(Arc::new(builder.build())));
-                        tracing::info!("tls config changed.");
+                        tracing::info!("tls config changed");
                     }
                     Err(err) => {
                         tracing::error!(error = ?err, "openssl: invalid tls config, keeping previous config");
@@ -234,3 +234,4 @@ where
         })
     }
 }
+

@@ -90,7 +90,7 @@ impl<T: Display> Display for HeaderParam<T, true> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0
             .as_ref()
-            .expect("HeaderParam value should not None.")
+            .expect("HeaderParam value should not be None")
             .fmt(f)
     }
 }

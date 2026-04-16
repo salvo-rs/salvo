@@ -68,7 +68,8 @@ impl Timeout {
         Self {
             value,
             error: Box::new(|| {
-                StatusError::service_unavailable().brief("Server process the request timeout.")
+                StatusError::service_unavailable()
+                    .brief("server timed out while processing the request")
             }),
         }
     }
@@ -76,7 +77,7 @@ impl Timeout {
     /// Custom error returned when timeout.
     ///
     /// By default, a `503 Service Unavailable` error is returned. You can set this function to other error types,
-    /// such as `403 Request Timeout`, but the 403 error code may cause the browser to automatically resend the
+    /// such as `408 Request Timeout`, but the 408 error code may cause the browser to automatically resend the
     /// request multiple times.
     #[must_use]
     pub fn error(mut self, error: impl Fn() -> StatusError + Send + Sync + 'static) -> Self {
@@ -136,7 +137,7 @@ mod tests {
             .take_string()
             .await
             .unwrap();
-        assert!(content.contains("timeout"));
+        assert!(content.contains("timed out while processing the request"));
 
         let content = TestClient::get("http://127.0.0.1:5801/fast")
             .send(&service)
@@ -147,3 +148,4 @@ mod tests {
         assert!(content.contains("hello"));
     }
 }
+

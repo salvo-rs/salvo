@@ -47,8 +47,8 @@ where
         // TODO: Will remove after opentelemetry_http updated
         let mut headers = HeaderMap::with_capacity(req.headers().len());
         headers.extend(req.headers().into_iter().map(|(name, value)| {
-            let name = HeaderName::from_bytes(name.as_ref()).expect("Invalid header name");
-            let value = HeaderValue::from_bytes(value.as_ref()).expect("Invalid header value");
+            let name = HeaderName::from_bytes(name.as_ref()).expect("invalid header name");
+            let value = HeaderValue::from_bytes(value.as_ref()).expect("invalid header value");
             (name, value)
         }));
 
@@ -91,7 +91,7 @@ where
             let span = cx.span();
 
             let status = res.status_code.unwrap_or_else(|| {
-                tracing::info!("[otel::Tracing] Treat status_code=none as 200(OK).");
+                tracing::info!("[otel::Tracing] Treat status_code=none as 200(OK)");
                 StatusCode::OK
             });
             let event = if status.is_client_error() || status.is_server_error() {

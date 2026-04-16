@@ -88,7 +88,7 @@ impl Handler for MaxSize {
                 ctrl.call_next(req, depot, res).await;
             }
         } else {
-            res.render(StatusError::bad_request().brief("Request body size is unknown."));
+            res.render(StatusError::bad_request().brief("request body size is unknown"));
             ctrl.skip_rest();
         }
     }
@@ -135,3 +135,4 @@ mod tests {
         assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }
+

@@ -53,7 +53,7 @@ impl Handler for CatchPanic {
             tracing::error!(error = ?e, "panic occurred");
             res.render(
                 StatusError::internal_server_error()
-                    .brief("Panic occurred on server.")
+                    .brief("panic occurred on server")
                     .cause(Error::other(format!("{e:#?}"))),
             );
         }
@@ -89,3 +89,4 @@ mod tests {
         assert!(logs_contain("panic occurred"));
     }
 }
+

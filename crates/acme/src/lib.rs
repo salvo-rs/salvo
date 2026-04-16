@@ -1,8 +1,8 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Automatic HTTPS/TLS certificate management for Salvo via the ACME protocol.
 //!
-//! This crate integrates [certon](https://crates.io/crates/certon) — a
-//! production-grade ACME client — with Salvo's listener/acceptor system.
+//! This crate integrates [certon](https://crates.io/crates/certon), a
+//! production-grade ACME client, with Salvo's listener/acceptor system.
 //!
 //! ## Features
 //!
@@ -14,7 +14,7 @@
 //! - **Persistent storage**: pluggable storage backend via [`certon::Storage`].
 //! - **Background renewal**: automatic certificate renewal and OCSP refresh.
 //!
-//! ## Quick Start — HTTP-01
+//! ## Quick Start - HTTP-01
 //!
 //! ```ignore
 //! use salvo_acme::AcmeListener;
@@ -38,7 +38,7 @@
 //! }
 //! ```
 //!
-//! ## Quick Start — TLS-ALPN-01
+//! ## Quick Start - TLS-ALPN-01
 //!
 //! ```ignore
 //! use salvo_acme::AcmeListener;
@@ -174,7 +174,7 @@ impl Handler for Http01Handler {
             tracing::error!(token, "key not found for ACME challenge token");
             res.render(token);
         } else {
-            res.render(StatusError::not_found().brief("Token is not provided."));
+            res.render(StatusError::not_found().brief("missing token"));
         }
     }
 }

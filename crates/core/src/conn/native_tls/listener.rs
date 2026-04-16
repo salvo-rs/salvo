@@ -77,7 +77,7 @@ where
         let inner = self.inner.try_bind().await?;
         let cancel_reload = CancellationToken::new();
 
-        tracing::info!("tls config loaded.");
+        tracing::info!("tls config loaded");
         tokio::spawn(reload_configs(
             config_stream,
             Arc::clone(&current_acceptor),
@@ -109,7 +109,7 @@ async fn reload_configs<C, E>(
                             current_acceptor.store(Some(Arc::new(tokio_native_tls::TlsAcceptor::from(
                                 acceptor,
                             ))));
-                            tracing::info!("tls config changed.");
+                            tracing::info!("tls config changed");
                         }
                         Err(err) => {
                             tracing::error!(error = ?err, "native_tls: invalid tls config, keeping previous config");
@@ -235,3 +235,4 @@ where
         })
     }
 }
+

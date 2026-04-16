@@ -80,7 +80,7 @@ where
         let endpoint = Endpoint::server(initial, socket)?;
         let cancel_reload = CancellationToken::new();
 
-        tracing::info!("quinn config loaded.");
+        tracing::info!("quinn config loaded");
         tokio::spawn(reload_configs(
             config_stream,
             endpoint.clone(),
@@ -109,7 +109,7 @@ async fn reload_configs<C, E>(
                 match config.try_into() {
                     Ok(config) => {
                         endpoint.set_server_config(Some(config));
-                        tracing::info!("quinn config changed.");
+                        tracing::info!("quinn config changed");
                     }
                     Err(err) => {
                         tracing::error!(error = ?err, "quinn: invalid tls config, keeping previous config");
@@ -200,3 +200,4 @@ impl Acceptor for QuinnAcceptor {
         Err(IoError::other("quinn accept error"))
     }
 }
+
