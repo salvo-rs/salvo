@@ -92,6 +92,9 @@ jobs:
       - name: check release build
         run: cargo check --all --bins --examples --tests --release
 
+      - name: check doctests
+        run: cargo test --workspace --doc
+
       - name: Cargo test
         timeout-minutes: 40
         run: cargo test --all --all-features --no-fail-fast -- --nocapture
