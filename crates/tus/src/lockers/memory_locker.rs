@@ -21,9 +21,14 @@ impl MemoryLocker {
 
     async fn get_lock(&self, id: &str) -> Arc<RwLock<()>> {
         let mut map = self.inner.lock().await;
-        map.entry(id.to_string())
-            .or_insert_with(|| Arc::new(RwLock::new(())))
-            .clone()
+        if let Some(lock) = map.get(id) {
+            return lock.clone();
+        }
+
+        map.retain(|_, lock| Arc::strong_count(lock) > 1);
+        let lock = Arc::new(RwLock::new(()));
+        map.insert(id.to_string(), lock.clone());
+        lock
     }
 }
 
@@ -236,7 +241,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_memory_locker_locks_persist() {
+    async fn test_memory_locker_evicts_unused_locks() {
         let locker = MemoryLocker::new();
 
         // Create and release a lock
@@ -244,9 +249,9 @@ mod tests {
             let _guard = locker.write_lock("test-id").await.unwrap();
         }
 
-        // The lock entry should still exist in the map
+        let _ = locker.get_lock("other-id").await;
         let map = locker.inner.lock().await;
-        assert!(map.contains_key("test-id"));
+        assert!(!map.contains_key("test-id"));
     }
 
     #[tokio::test]
