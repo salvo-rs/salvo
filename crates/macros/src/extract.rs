@@ -207,18 +207,16 @@ impl ExtractibleArgs {
                 let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
                 for meta in nested {
                     match meta {
-                        Meta::List(meta) => {
-                            if meta.path.is_ident("default_source") {
+                        Meta::List(meta)
+                            if meta.path.is_ident("default_source") => {
                                 default_sources.push(meta.parse_args()?);
                             }
-                        }
-                        Meta::NameValue(meta) => {
-                            if meta.path.is_ident("rename_all") {
+                        Meta::NameValue(meta)
+                            if meta.path.is_ident("rename_all") => {
                                 rename_all = Some(
                                     parse_path_or_lit_str(&meta.value)?.parse::<RenameRule>()?,
                                 );
                             }
-                        }
                         _ => {}
                     }
                 }

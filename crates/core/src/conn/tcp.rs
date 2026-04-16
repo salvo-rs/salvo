@@ -398,7 +398,7 @@ impl DynTcpAcceptor for DynTcpAcceptors {
                 let fuse_factory = fuse_factory.clone();
                 set.push(async move { inner.accept(fuse_factory).await }.boxed());
             }
-            futures_util::future::select_all(set.into_iter()).await.0
+            futures_util::future::select_all(set).await.0
         }
         .boxed()
     }
