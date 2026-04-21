@@ -1,0 +1,50 @@
+[package]
+name = "salvo-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+base64 = "0.22"
+libfuzzer-sys = "0.4"
+salvo-tus = { path = "../crates/tus" }
+salvo_core = { path = "../crates/core", default-features = false }
+salvo_extra = { path = "../crates/extra", default-features = false, features = ["basic-auth", "websocket"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "path_filter"
+path = "fuzz_targets/path_filter.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "basic_auth"
+path = "fuzz_targets/basic_auth.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tus_options"
+path = "fuzz_targets/tus_options.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "websocket_upgrade"
+path = "fuzz_targets/websocket_upgrade.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
