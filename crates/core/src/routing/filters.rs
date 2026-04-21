@@ -132,9 +132,22 @@ pub fn port(port: u16) -> PortFilter {
 }
 
 /// Filter request use `PathFilter`.
+///
+/// Invalid path patterns are logged and converted into a filter that never matches.
+/// Use [`try_path`] to handle malformed patterns explicitly.
 #[inline]
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)
+}
+
+/// Try building a `PathFilter`.
+///
+/// # Errors
+///
+/// Returns an error when the path pattern is malformed.
+#[inline]
+pub fn try_path(path: impl Into<String>) -> Result<PathFilter, String> {
+    PathFilter::try_new(path)
 }
 /// Filter request, only allow get method.
 #[inline]

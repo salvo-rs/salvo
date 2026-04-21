@@ -42,6 +42,8 @@ static WISP_BUILDERS: LazyLock<WispBuilderMap> = LazyLock::new(|| {
     map.insert("hex".into(), Arc::new(CharsWispBuilder::new(is_hex)));
     RwLock::new(map)
 });
+static NEVER_MATCH_PATH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("^$").expect("path filter fallback regex should compile"));
 
 #[inline]
 fn is_num(ch: char) -> bool {
@@ -1024,10 +1026,8 @@ impl Filter for PathFilter {
     }
 }
 impl PathFilter {
-    /// Create new `PathFilter`.
     #[inline]
-    pub fn new(value: impl Into<String>) -> Self {
-        let raw_value = value.into();
+    fn parse(raw_value: String) -> Result<Self, String> {
         if raw_value.is_empty() {
             tracing::warn!("you should not add empty string as path filter");
         } else if raw_value == "/" {
@@ -1037,14 +1037,55 @@ impl PathFilter {
         let path_wisps = match parser.parse() {
             Ok(path_wisps) => path_wisps,
             Err(e) => {
-                panic!("{e}, raw_value: {raw_value}");
+                return Err(format!("{e}, raw_value: {raw_value}"));
             }
         };
-        Self {
+        Ok(Self {
             raw_value,
             path_wisps,
+        })
+    }
+
+    #[inline]
+    fn invalid(raw_value: String) -> Self {
+        Self {
+            raw_value,
+            path_wisps: vec![
+                RegexWisp {
+                    name: "__salvo_invalid_path_filter".into(),
+                    regex: NEVER_MATCH_PATH_REGEX.clone(),
+                }
+                .into(),
+            ],
         }
     }
+
+    /// Create new `PathFilter`.
+    ///
+    /// Invalid path patterns are logged and converted into a filter that never matches.
+    /// Use [`PathFilter::try_new`] to handle malformed patterns explicitly.
+    #[inline]
+    pub fn new(value: impl Into<String>) -> Self {
+        let raw_value = value.into();
+        match Self::parse(raw_value.clone()) {
+            Ok(filter) => filter,
+            Err(error) => {
+                tracing::error!(error = %error, "invalid path filter pattern");
+                Self::invalid(raw_value)
+            }
+        }
+    }
+
+    /// Try creating new `PathFilter`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the path pattern is malformed.
+    #[inline]
+    pub fn try_new(value: impl Into<String>) -> Result<Self, String> {
+        Self::parse(value.into())
+    }
+
     /// Register new path wisp builder.
     #[inline]
     pub fn register_wisp_builder<B>(name: impl Into<String>, builder: B)
@@ -1407,5 +1448,30 @@ mod tests {
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned(), "{*?rest}".to_owned()]
         );
+    }
+
+    #[test]
+    fn test_try_new_invalid_pattern_returns_err() {
+        let payload = [
+            0x2f, 0x75, 0x73, 0xe5, 0x72, 0x73, 0x2f, 0x3c, 0x01, 0x00, 0x7d, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x0a,
+        ];
+        let pattern = String::from_utf8_lossy(&payload);
+        let error = PathFilter::try_new(pattern.as_ref()).unwrap_err();
+        assert!(error.contains("const part is empty string"));
+    }
+
+    #[test]
+    fn test_new_invalid_pattern_never_matches() {
+        let payload = [
+            0x2f, 0x75, 0x73, 0xe5, 0x72, 0x73, 0x2f, 0x3c, 0x01, 0x00, 0x7d, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x0a,
+        ];
+        let pattern = String::from_utf8_lossy(&payload);
+        let filter = std::panic::catch_unwind(|| PathFilter::new(pattern.as_ref()))
+            .expect("PathFilter::new should not panic on malformed patterns");
+
+        let mut state = PathState::new("/users/29/emails");
+        assert!(!filter.detect(&mut state));
     }
 }
