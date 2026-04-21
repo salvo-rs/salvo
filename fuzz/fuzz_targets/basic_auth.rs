@@ -9,7 +9,7 @@ use salvo_extra::basic_auth::parse_credentials;
 
 fuzz_target!(|data: &[u8]| {
     let mode = data.first().copied().unwrap_or_default();
-    let payload = &data[1..];
+    let payload = data.get(1..).unwrap_or_default();
 
     let header_name = if mode & 1 == 0 {
         AUTHORIZATION

@@ -7,7 +7,8 @@ use salvo_tus::options::TusOptions;
 
 fuzz_target!(|data: &[u8]| {
     let flags = data.first().copied().unwrap_or_default();
-    let parts = salvo_fuzz::split_even(&data[1..], 6);
+    let payload = data.get(1..).unwrap_or_default();
+    let parts = salvo_fuzz::split_even(payload, 6);
 
     let request_path = salvo_fuzz::safe_uri_path(parts[0], 128);
     let option_path = salvo_fuzz::safe_route_path(parts[1], 64);

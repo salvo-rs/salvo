@@ -23,7 +23,8 @@ fn runtime() -> &'static tokio::runtime::Runtime {
 
 fuzz_target!(|data: &[u8]| {
     let flags = data.first().copied().unwrap_or_default();
-    let parts = salvo_fuzz::split_even(&data[1..], 4);
+    let payload = data.get(1..).unwrap_or_default();
+    let parts = salvo_fuzz::split_even(payload, 4);
 
     let mut req = Request::new();
     if let Ok(uri) = "/ws".parse() {
