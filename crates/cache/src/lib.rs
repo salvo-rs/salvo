@@ -70,6 +70,12 @@
 //!     .skipper(|req, _depot| req.uri().path().starts_with("/api/"));
 //! ```
 //!
+//! # Concurrent Misses
+//!
+//! Concurrent misses for the same cache key are coalesced. One request populates
+//! the cache, and other in-flight requests reuse the generated cache entry when
+//! the response is cacheable.
+//!
 //! # Limitations
 //!
 //! - Streaming responses ([`ResBody::Stream`]) cannot be cached
@@ -81,15 +87,17 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::borrow::Borrow;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{HeaderMap, ResBody, StatusCode};
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use tokio::sync::Notify;
 
 mod skipper;
 pub use skipper::MethodSkipper;
@@ -235,6 +243,135 @@ pub trait CacheStore: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
+fn mutex_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+struct InFlight<K> {
+    entries: Mutex<HashMap<K, Arc<Flight>>>,
+}
+
+impl<K> Default for InFlight<K> {
+    fn default() -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+impl<K> InFlight<K>
+where
+    K: Hash + Eq + Clone,
+{
+    fn enter(self: &Arc<Self>, key: K) -> FlightPermit<K> {
+        let mut entries = mutex_lock(&self.entries);
+        if let Some(flight) = entries.get(&key) {
+            return FlightPermit::Follower(flight.clone());
+        }
+
+        let flight = Arc::new(Flight::default());
+        entries.insert(key.clone(), flight.clone());
+        FlightPermit::Leader(FlightGuard {
+            key: Some(key),
+            flight,
+            in_flight: self.clone(),
+        })
+    }
+}
+
+impl<K> InFlight<K>
+where
+    K: Hash + Eq,
+{
+    fn remove(&self, key: &K, flight: &Arc<Flight>) {
+        let mut entries = mutex_lock(&self.entries);
+        if entries
+            .get(key)
+            .is_some_and(|current| Arc::ptr_eq(current, flight))
+        {
+            entries.remove(key);
+        }
+    }
+}
+
+enum FlightPermit<K>
+where
+    K: Hash + Eq,
+{
+    Leader(FlightGuard<K>),
+    Follower(Arc<Flight>),
+}
+
+struct FlightGuard<K>
+where
+    K: Hash + Eq,
+{
+    key: Option<K>,
+    flight: Arc<Flight>,
+    in_flight: Arc<InFlight<K>>,
+}
+
+impl<K> FlightGuard<K>
+where
+    K: Hash + Eq,
+{
+    fn finish(mut self, entry: Option<CachedEntry>) {
+        self.complete(entry);
+    }
+
+    fn complete(&mut self, entry: Option<CachedEntry>) {
+        if let Some(key) = self.key.take() {
+            self.flight.finish(entry);
+            self.in_flight.remove(&key, &self.flight);
+        }
+    }
+}
+
+impl<K> Drop for FlightGuard<K>
+where
+    K: Hash + Eq,
+{
+    fn drop(&mut self) {
+        self.complete(None);
+    }
+}
+
+#[derive(Default)]
+struct Flight {
+    state: Mutex<FlightState>,
+    notify: Notify,
+}
+
+#[derive(Default)]
+struct FlightState {
+    done: bool,
+    entry: Option<CachedEntry>,
+}
+
+impl Flight {
+    async fn wait(&self) {
+        loop {
+            let notified = self.notify.notified();
+            if mutex_lock(&self.state).done {
+                return;
+            }
+            notified.await;
+        }
+    }
+
+    fn finish(&self, entry: Option<CachedEntry>) {
+        *mutex_lock(&self.state) = FlightState { done: true, entry };
+        self.notify.notify_waiters();
+    }
+
+    fn entry(&self) -> Option<CachedEntry> {
+        mutex_lock(&self.state).entry.clone()
+    }
+}
+
 /// `CachedBody` is used to save the response body to `CacheStore`.
 ///
 /// [`ResBody`] has a Stream type, which is not `Send + Sync`, so we need to convert it to
@@ -330,17 +467,21 @@ impl CachedEntry {
 /// let router = Router::new().hoop(cache);
 /// ```
 #[non_exhaustive]
-pub struct Cache<S, I> {
+pub struct Cache<S, I>
+where
+    S: CacheStore,
+{
     /// Cache store.
     pub store: S,
     /// Cache issuer.
     pub issuer: I,
     /// Skipper.
     pub skipper: Box<dyn Skipper>,
+    in_flight: Arc<InFlight<S::Key>>,
 }
 impl<S, I> Debug for Cache<S, I>
 where
-    S: Debug,
+    S: CacheStore + Debug,
     I: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -351,7 +492,10 @@ where
     }
 }
 
-impl<S, I> Cache<S, I> {
+impl<S, I> Cache<S, I>
+where
+    S: CacheStore,
+{
     /// Create a new `Cache`.
     #[inline]
     #[must_use]
@@ -361,6 +505,7 @@ impl<S, I> Cache<S, I> {
             store,
             issuer,
             skipper: Box::new(skipper),
+            in_flight: Arc::new(InFlight::default()),
         }
     }
     /// Sets skipper and returns a new `Cache`.
@@ -372,11 +517,46 @@ impl<S, I> Cache<S, I> {
     }
 }
 
+async fn call_next_and_cache<S>(
+    store: &S,
+    key: S::Key,
+    req: &mut Request,
+    depot: &mut Depot,
+    res: &mut Response,
+    ctrl: &mut FlowCtrl,
+) -> Option<CachedEntry>
+where
+    S: CacheStore,
+{
+    ctrl.call_next(req, depot, res).await;
+    let cached_data = cached_response(res)?;
+    if let Err(e) = store.save_entry(key, cached_data.clone()).await {
+        tracing::error!(error = ?e, "cache failed");
+    }
+    Some(cached_data)
+}
+
+fn cached_response(res: &Response) -> Option<CachedEntry> {
+    if res.body.is_stream() || res.body.is_error() {
+        return None;
+    }
+    let headers = res.headers().clone();
+    let body = match TryInto::<CachedBody>::try_into(&res.body) {
+        Ok(body) => body,
+        Err(e) => {
+            tracing::error!(error = ?e, "cache failed");
+            return None;
+        }
+    };
+    Some(CachedEntry::new(res.status_code, headers, body))
+}
+
 #[async_trait]
 impl<S, I> Handler for Cache<S, I>
 where
     S: CacheStore<Key = I::Key>,
     I: CacheIssuer,
+    I::Key: Clone,
 {
     async fn handle(
         &self,
@@ -393,39 +573,47 @@ where
             return;
         };
         let Some(cache) = self.store.load_entry(&key).await else {
-            ctrl.call_next(req, depot, res).await;
-            if !res.body.is_stream() && !res.body.is_error() {
-                let headers = res.headers().clone();
-                let body = TryInto::<CachedBody>::try_into(&res.body);
-                match body {
-                    Ok(body) => {
-                        let cached_data = CachedEntry::new(res.status_code, headers, body);
-                        if let Err(e) = self.store.save_entry(key, cached_data).await {
-                            tracing::error!(error = ?e, "cache failed");
-                        }
+            match self.in_flight.enter(key.clone()) {
+                FlightPermit::Leader(guard) => {
+                    let cached_data =
+                        call_next_and_cache(&self.store, key, req, depot, res, ctrl).await;
+                    guard.finish(cached_data);
+                }
+                FlightPermit::Follower(flight) => {
+                    flight.wait().await;
+                    if let Some(cache) = flight.entry() {
+                        respond_from_cache(res, cache);
+                        ctrl.skip_rest();
+                    } else {
+                        call_next_and_cache(&self.store, key, req, depot, res, ctrl).await;
                     }
-                    Err(e) => tracing::error!(error = ?e, "cache failed"),
                 }
             }
             return;
         };
-        let CachedEntry {
-            status,
-            headers,
-            body,
-        } = cache;
-        if let Some(status) = status {
-            res.status_code(status);
-        }
-        *res.headers_mut() = headers;
-        *res.body_mut() = body.into();
+        respond_from_cache(res, cache);
         ctrl.skip_rest();
     }
+}
+
+fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
+    let CachedEntry {
+        status,
+        headers,
+        body,
+    } = cache;
+    if let Some(status) = status {
+        res.status_code(status);
+    }
+    *res.headers_mut() = headers;
+    *res.body_mut() = body.into();
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::VecDeque;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use bytes::Bytes;
     use salvo_core::http::HeaderMap;
@@ -441,6 +629,26 @@ mod tests {
             "Hello World, my birth time is {}",
             OffsetDateTime::now_utc()
         )
+    }
+
+    #[derive(Debug)]
+    struct SlowCached {
+        calls: Arc<AtomicUsize>,
+    }
+
+    #[async_trait]
+    impl Handler for SlowCached {
+        async fn handle(
+            &self,
+            _req: &mut Request,
+            _depot: &mut Depot,
+            res: &mut Response,
+            _ctrl: &mut FlowCtrl,
+        ) {
+            let call = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            res.render(format!("backend call {call}"));
+        }
     }
 
     #[tokio::test]
@@ -752,5 +960,39 @@ mod tests {
 
         // Same path should return cached content
         assert_eq!(content1, content2);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_cache_coalesces_concurrent_misses() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let cache = Cache::new(
+            MokaStore::builder()
+                .time_to_live(std::time::Duration::from_secs(60))
+                .build(),
+            RequestIssuer::default(),
+        );
+        let router = Arc::new(Router::new().hoop(cache).goal(SlowCached {
+            calls: calls.clone(),
+        }));
+        let barrier = Arc::new(tokio::sync::Barrier::new(16));
+
+        let mut tasks = Vec::new();
+        for _ in 0..16 {
+            let router = router.clone();
+            let barrier = barrier.clone();
+            tasks.push(tokio::spawn(async move {
+                barrier.wait().await;
+                let mut res = TestClient::get("http://127.0.0.1:5801").send(router).await;
+                res.take_string().await.unwrap()
+            }));
+        }
+
+        let mut bodies = Vec::new();
+        for task in tasks {
+            bodies.push(task.await.unwrap());
+        }
+
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(bodies.iter().all(|body| body == &bodies[0]));
     }
 }
