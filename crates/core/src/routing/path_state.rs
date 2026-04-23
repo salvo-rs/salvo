@@ -54,7 +54,7 @@ impl PathState {
                     let row = self.cursor.0 + 1;
                     self.parts.get(row).map(|s| &**s)
                 } else {
-                    Some(&part[self.cursor.1..])
+                    part.get(self.cursor.1..)
                 }
             }
         }

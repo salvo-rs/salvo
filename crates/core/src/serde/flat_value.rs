@@ -27,10 +27,10 @@ macro_rules! forward_url_query_parsed_value {
 
 fn looks_like_list(value: &CowValue<'_>) -> bool {
     let raw = value.0.as_ref().trim();
-    if !(raw.starts_with('[') && raw.ends_with(']')) {
+    let Some(inner) = raw.strip_prefix('[').and_then(|raw| raw.strip_suffix(']')) else {
         return false;
-    }
-    let inner = raw[1..raw.len() - 1].trim();
+    };
+    let inner = inner.trim();
     if inner.is_empty() {
         return false;
     }
@@ -218,9 +218,12 @@ impl<'de> Iterator for FlatParser<'de> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut quote = None;
         let mut in_escape = false;
-        let mut end = self.start;
         let mut in_next = false;
-        for c in self.input[self.start..].chars() {
+        let base_start = self.start;
+        let mut item_start = base_start;
+        let rest = self.input.get(base_start..)?;
+        for (offset, c) in rest.char_indices() {
+            let current = base_start + offset;
             if in_escape {
                 in_escape = false;
                 continue;
@@ -232,24 +235,24 @@ impl<'de> Iterator for FlatParser<'de> {
                 }
                 ' ' => {
                     if quote.is_none() {
-                        self.start += 1;
+                        item_start = current + c.len_utf8();
                     }
                 }
                 '"' | '\'' => {
                     in_next = true;
                     if quote == Some(c) {
-                        let item = Cow::Owned(self.input[self.start..end].to_owned());
-                        self.start = end + 2;
+                        let item = Cow::Owned(self.input.get(item_start..current)?.to_owned());
+                        self.start = current + c.len_utf8() + 1;
                         return Some(CowValue(item));
                     } else {
                         quote = Some(c);
-                        self.start += 1;
+                        item_start = current + c.len_utf8();
                     }
                 }
                 ',' | ']' => {
                     if quote.is_none() && in_next {
-                        let item = Cow::Owned(self.input[self.start..end].to_owned());
-                        self.start = end + 1;
+                        let item = Cow::Owned(self.input.get(item_start..current)?.to_owned());
+                        self.start = current + c.len_utf8();
                         return Some(CowValue(item));
                     }
                 }
@@ -257,7 +260,6 @@ impl<'de> Iterator for FlatParser<'de> {
                     in_next = true;
                 }
             }
-            end += 1;
         }
         None
     }
@@ -282,6 +284,15 @@ mod tests {
         assert_eq!(iter.next().unwrap().0, "2");
         assert_eq!(iter.next().unwrap().0, "11");
         assert_eq!(iter.next().unwrap().0, "1,2");
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_flat_parser_utf8() {
+        let parser = super::FlatParser::new("[\"\u{4E2D}\u{6587}\",\"\u{1F600}\"]".into());
+        let mut iter = parser.into_iter();
+        assert_eq!(iter.next().unwrap().0, "\u{4E2D}\u{6587}");
+        assert_eq!(iter.next().unwrap().0, "\u{1F600}");
         assert!(iter.next().is_none());
     }
 }

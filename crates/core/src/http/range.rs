@@ -11,7 +11,6 @@ pub struct HttpRange {
 }
 
 static PREFIX: &str = "bytes=";
-const PREFIX_LEN: usize = 6;
 
 impl HttpRange {
     /// Parses Range HTTP header string as per RFC 2616.
@@ -22,14 +21,14 @@ impl HttpRange {
         if header.is_empty() {
             return Ok(Vec::new());
         }
-        if !header.starts_with(PREFIX) {
+        let Some(ranges_header) = header.strip_prefix(PREFIX) else {
             return Err(ParseError::InvalidRange);
-        }
+        };
 
         let size_sig = size as i64;
         let mut no_overlap = false;
 
-        let all_ranges: Vec<Option<Self>> = header[PREFIX_LEN..]
+        let all_ranges: Vec<Option<Self>> = ranges_header
             .split(',')
             .map(|x| x.trim())
             .filter(|x| !x.is_empty())

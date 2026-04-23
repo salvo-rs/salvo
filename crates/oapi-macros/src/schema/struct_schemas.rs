@@ -229,8 +229,8 @@ impl TryToTokens for NamedStructSchema<'_> {
                 .expect("field ident should be exists")
                 .to_string();
 
-            if field_name.starts_with("r#") {
-                field_name = &field_name[2..];
+            if let Some(stripped) = field_name.strip_prefix("r#") {
+                field_name = stripped;
             }
 
             let NamedStructFieldOptions {
@@ -390,8 +390,8 @@ impl TryToTokens for NamedStructSchema<'_> {
 
                 let field_ident = field.ident.as_ref().expect("field ident should be exists");
                 let mut field_name = field_ident.to_string();
-                if field_name.starts_with("r#") {
-                    field_name = field_name[2..].to_owned();
+                if let Some(stripped) = field_name.strip_prefix("r#") {
+                    field_name = stripped.to_owned();
                 }
 
                 let NamedStructFieldOptions {

@@ -49,10 +49,15 @@ fn normalize_oapi_path(path: &str) -> String {
         }
 
         if let Some(param_end) = param_end {
-            let content = &path[content_start..param_end];
+            let Some(content) = path.get(content_start..param_end) else {
+                break;
+            };
             if let Some(name_end) = content.find([':', '|']) {
                 normalized.push('{');
-                normalized.push_str(&content[..name_end]);
+                let Some(name) = content.get(..name_end) else {
+                    break;
+                };
+                normalized.push_str(name);
                 normalized.push('}');
             } else {
                 normalized.push('{');
@@ -60,7 +65,9 @@ fn normalize_oapi_path(path: &str) -> String {
                 normalized.push('}');
             }
         } else {
-            normalized.push_str(&path[start..]);
+            if let Some(rest) = path.get(start..) {
+                normalized.push_str(rest);
+            }
             break;
         }
     }

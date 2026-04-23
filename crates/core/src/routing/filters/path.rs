@@ -439,7 +439,10 @@ impl PathWisp for CombWisp {
                     #[cfg(feature = "matched-path")]
                     {
                         if value.start() > start {
-                            matched_part.push_str(&picked[start..value.start()]);
+                            let Some(literal) = picked.get(start..value.start()) else {
+                                return false;
+                            };
+                            matched_part.push_str(literal);
                         }
                         matched_part.push_str(&format!("{{{name}}}"));
                         start = value.end();
@@ -451,7 +454,10 @@ impl PathWisp for CombWisp {
             #[cfg(feature = "matched-path")]
             {
                 if start < picked.len() {
-                    matched_part.push_str(&picked[start..]);
+                    let Some(literal) = picked.get(start..) else {
+                        return false;
+                    };
+                    matched_part.push_str(literal);
                 }
                 if !matched_part.is_empty() {
                     state.matched_parts.push(matched_part);

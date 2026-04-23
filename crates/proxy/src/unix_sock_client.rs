@@ -72,7 +72,9 @@ fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
     // Assume the path contains a unix socket path ending with ".sock"
     if let Some(sock_end_index) = full_path.find(".sock") {
         let sock_path_end = sock_end_index + ".sock".len();
-        let sock_path_str = &full_path[..sock_path_end];
+        let sock_path_str = full_path.get(..sock_path_end).ok_or_else(|| {
+            Error::other("Invalid URI path: socket path boundary is not valid UTF-8.")
+        })?;
         let sock_path = PathBuf::from(sock_path_str);
         if sock_path
             .components()
@@ -82,7 +84,12 @@ fn extract_unix_paths(uri: &hyper::Uri) -> Result<(String, String), Error> {
                 "Invalid socket path: directory traversal ('..') is not allowed.",
             ));
         }
-        let mut request_path = full_path[sock_path_end..].to_owned();
+        let mut request_path = full_path
+            .get(sock_path_end..)
+            .ok_or_else(|| {
+                Error::other("Invalid URI path: request path boundary is not valid UTF-8.")
+            })?
+            .to_owned();
         if request_path.is_empty() {
             request_path = "/".to_owned();
         }

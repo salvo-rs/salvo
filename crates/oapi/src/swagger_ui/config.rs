@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use serde::Serialize;
 
 use super::oauth;
@@ -191,7 +189,7 @@ impl<'a> Config<'a> {
                 .into_iter()
                 .map(|mut url| {
                     if url.name.is_empty() {
-                        url.name = Cow::Owned(String::from(&url.url[..]));
+                        url.name = url.url.clone();
 
                         url
                     } else {

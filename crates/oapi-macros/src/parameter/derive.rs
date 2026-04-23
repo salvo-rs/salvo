@@ -533,8 +533,8 @@ impl TryToTokens for Parameter<'_> {
                 )
             })?;
 
-        if name.starts_with("r#") {
-            name = &name[2..];
+        if let Some(stripped) = name.strip_prefix("r#") {
+            name = stripped;
         }
 
         let (schema_features, mut param_features) = self.resolve_field_features()?;

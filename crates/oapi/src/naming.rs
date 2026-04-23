@@ -98,8 +98,12 @@ pub fn resolve_generic_names(type_name: &str) -> String {
     };
 
     // Extract base type and generic part
-    let base_type = &type_name[..generic_start];
-    let generic_part = &type_name[generic_start..];
+    let Some(base_type) = type_name.get(..generic_start) else {
+        return type_name.to_owned();
+    };
+    let Some(generic_part) = type_name.get(generic_start..) else {
+        return type_name.to_owned();
+    };
 
     // Parse and resolve each generic parameter
     let resolved_generic = resolve_generic_part(generic_part);
@@ -114,7 +118,12 @@ fn resolve_generic_part(generic_part: &str) -> String {
     }
 
     // Remove outer < and >
-    let inner = &generic_part[1..generic_part.len() - 1];
+    let Some(inner) = generic_part
+        .strip_prefix('<')
+        .and_then(|generic_part| generic_part.strip_suffix('>'))
+    else {
+        return generic_part.to_owned();
+    };
 
     // Split by top-level commas (not nested in <>)
     let params = split_generic_params(inner);
@@ -151,7 +160,9 @@ fn split_generic_params(s: &str) -> Vec<&str> {
             '<' => depth += 1,
             '>' => depth -= 1,
             ',' if depth == 0 => {
-                result.push(&s[start..i]);
+                if let Some(param) = s.get(start..i) {
+                    result.push(param);
+                }
                 start = i + 1;
             }
             _ => {}
@@ -159,8 +170,10 @@ fn split_generic_params(s: &str) -> Vec<&str> {
     }
 
     // Don't forget the last segment
-    if start < s.len() {
-        result.push(&s[start..]);
+    if start < s.len()
+        && let Some(param) = s.get(start..)
+    {
+        result.push(param);
     }
 
     result
@@ -176,7 +189,7 @@ fn short_type_name(type_name: &str) -> &str {
     // Find the last `::` and return everything after it
     type_name
         .rfind("::")
-        .map(|pos| &type_name[pos + 2..])
+        .and_then(|pos| type_name.get(pos + 2..))
         .unwrap_or(type_name)
 }
 
@@ -219,7 +232,7 @@ pub fn get_name<T: 'static>() -> String {
 
 fn type_generic_part(type_name: &str) -> String {
     if let Some(pos) = type_name.find('<') {
-        type_name[pos..].to_owned()
+        type_name.get(pos..).unwrap_or_default().to_owned()
     } else {
         String::new()
     }

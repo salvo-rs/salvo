@@ -96,7 +96,7 @@ impl RenameRule {
             LowerCase => variant.to_ascii_lowercase(),
             UpperCase => variant.to_ascii_uppercase(),
             PascalCase => variant.to_owned(),
-            CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],
+            CamelCase => lowercase_first_char(variant),
             SnakeCase => {
                 let mut snake = String::new();
                 for (i, ch) in variant.char_indices() {
@@ -138,11 +138,23 @@ impl RenameRule {
             }
             CamelCase => {
                 let pascal = PascalCase.apply_to_field(field);
-                pascal[..1].to_ascii_lowercase() + &pascal[1..]
+                lowercase_first_char(&pascal)
             }
             KebabCase => field.replace('_', "-"),
             ScreamingKebabCase => ScreamingSnakeCase.apply_to_field(field).replace('_', "-"),
         }
+    }
+}
+
+fn lowercase_first_char(value: &str) -> String {
+    let mut chars = value.chars();
+    if let Some(first) = chars.next() {
+        let mut value = String::with_capacity(value.len());
+        value.push(first.to_ascii_lowercase());
+        value.push_str(chars.as_str());
+        value
+    } else {
+        String::new()
     }
 }
 
@@ -177,6 +189,8 @@ fn rename_variants() {
             screaming_kebab
         );
     }
+    assert_eq!(CamelCase.apply_to_variant("\u{00C9}clair"), "\u{00C9}clair");
+    assert_eq!(CamelCase.apply_to_variant(""), "");
 }
 
 #[test]
@@ -205,4 +219,6 @@ fn rename_fields() {
         assert_eq!(KebabCase.apply_to_field(original), kebab);
         assert_eq!(ScreamingKebabCase.apply_to_field(original), screaming_kebab);
     }
+    assert_eq!(CamelCase.apply_to_field("\u{00E9}clair"), "\u{00E9}clair");
+    assert_eq!(CamelCase.apply_to_field(""), "");
 }

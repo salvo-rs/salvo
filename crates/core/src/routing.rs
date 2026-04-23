@@ -441,8 +441,12 @@ impl Debug for DetectMatched {
 }
 
 pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
-    if name.starts_with("*+") || name.starts_with("*?") || name.starts_with("**") {
-        (&name[0..2], &name[2..])
+    if let Some(stripped) = name.strip_prefix("*+") {
+        ("*+", stripped)
+    } else if let Some(stripped) = name.strip_prefix("*?") {
+        ("*?", stripped)
+    } else if let Some(stripped) = name.strip_prefix("**") {
+        ("**", stripped)
     } else if let Some(stripped) = name.strip_prefix('*') {
         ("*", stripped)
     } else {
@@ -537,15 +541,23 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 fn is_windows_reserved_name(name: &str) -> bool {
     // Get the base name without extension
     let base = name.split('.').next().unwrap_or(name);
+    let is_numbered_device = match base.as_bytes() {
+        [first, second, third, digit] => {
+            let prefix = [
+                first.to_ascii_uppercase(),
+                second.to_ascii_uppercase(),
+                third.to_ascii_uppercase(),
+            ];
+            (prefix == *b"COM" || prefix == *b"LPT") && digit.is_ascii_digit() && *digit != b'0'
+        }
+        _ => false,
+    };
 
     base.eq_ignore_ascii_case("CON")
         || base.eq_ignore_ascii_case("PRN")
         || base.eq_ignore_ascii_case("AUX")
         || base.eq_ignore_ascii_case("NUL")
-        || (base.len() == 4
-            && (base[..3].eq_ignore_ascii_case("COM") || base[..3].eq_ignore_ascii_case("LPT"))
-            && base.as_bytes()[3].is_ascii_digit()
-            && base.as_bytes()[3] != b'0')
+        || is_numbered_device
 }
 
 #[cfg(test)]
@@ -692,6 +704,13 @@ mod tests {
         assert_eq!(normalize_url_path("NUL"), "");
         assert_eq!(normalize_url_path("COM1"), "");
         assert_eq!(normalize_url_path("LPT1"), "");
+
+        let cyrillic = "\u{0413}\u{0413}";
+        assert_eq!(normalize_url_path(cyrillic), cyrillic);
+        assert_eq!(
+            normalize_url_path("a/\u{0413}\u{0413}/b"),
+            "a/\u{0413}\u{0413}/b"
+        );
     }
 
     #[test]
@@ -714,6 +733,8 @@ mod tests {
         assert!(!is_windows_reserved_name("CONSOLE"));
         assert!(!is_windows_reserved_name("COM10"));
         assert!(!is_windows_reserved_name("LPT10"));
+        assert!(!is_windows_reserved_name("\u{0413}\u{0413}"));
+        assert!(!is_windows_reserved_name("\u{1F600}"));
         assert!(!is_windows_reserved_name(""));
     }
 }
