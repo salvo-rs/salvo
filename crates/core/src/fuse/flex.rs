@@ -26,7 +26,7 @@
 //!     });
 //! ```
 use std::fmt::{self, Debug, Formatter};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use tokio::sync::Notify;
 use tokio::time::Duration;
@@ -122,6 +122,22 @@ pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
     }
 }
 
+#[derive(Debug, Default)]
+struct TimeoutWatchState {
+    armed: bool,
+    generation: u64,
+    // A cancellation token records disarm even if the watcher starts polling later.
+    cancel_token: Option<CancellationToken>,
+}
+
+#[derive(Debug)]
+struct TimeoutWatch {
+    generation: u64,
+    cancel_token: CancellationToken,
+}
+
+type TimeoutWatchStateRef = Arc<Mutex<TimeoutWatchState>>;
+
 /// A flexible, configurable fusewire implementation.
 ///
 /// `FlexFusewire` monitors a single connection and terminates it if any of
@@ -173,11 +189,11 @@ pub struct FlexFusewire {
 
     tcp_frame_timeout: Duration,
     tcp_frame_token: CancellationToken,
-    tcp_frame_notify: Arc<Notify>,
+    tcp_frame_timeout_state: TimeoutWatchStateRef,
 
     tls_handshake_timeout: Duration,
     tls_handshake_token: CancellationToken,
-    tls_handshake_notify: Arc<Notify>,
+    tls_handshake_timeout_state: TimeoutWatchStateRef,
 }
 
 impl Debug for FlexFusewire {
@@ -203,6 +219,97 @@ impl FlexFusewire {
     #[must_use]
     pub fn builder() -> FlexFactory {
         FlexFactory::new()
+    }
+
+    fn arm_timeout(state: &TimeoutWatchStateRef) -> Option<TimeoutWatch> {
+        let mut state = Self::lock_timeout_state(state);
+        if state.armed {
+            None
+        } else {
+            state.armed = true;
+            Self::advance_generation(&mut state);
+            let cancel_token = CancellationToken::new();
+            state.cancel_token = Some(cancel_token.clone());
+            Some(TimeoutWatch {
+                generation: state.generation,
+                cancel_token,
+            })
+        }
+    }
+
+    fn disarm_timeout(state: &TimeoutWatchStateRef) -> bool {
+        let (was_armed, cancel_token) = {
+            let mut state = Self::lock_timeout_state(state);
+            if state.armed {
+                state.armed = false;
+                Self::advance_generation(&mut state);
+                (true, state.cancel_token.take())
+            } else {
+                (false, None)
+            }
+        };
+        if let Some(cancel_token) = cancel_token {
+            cancel_token.cancel();
+        }
+        was_armed
+    }
+
+    fn finish_timeout(state: &TimeoutWatchStateRef, generation: u64) -> bool {
+        let mut state = Self::lock_timeout_state(state);
+        if state.armed && state.generation == generation {
+            state.armed = false;
+            Self::advance_generation(&mut state);
+            state.cancel_token.take();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn arm_timeout_task(
+        timeout: Duration,
+        fuse_token: CancellationToken,
+        timeout_state: TimeoutWatchStateRef,
+    ) {
+        let Some(watch) = Self::arm_timeout(&timeout_state) else {
+            return;
+        };
+        Self::spawn_timeout_task(timeout, fuse_token, timeout_state, watch);
+    }
+
+    fn spawn_timeout_task(
+        timeout: Duration,
+        fuse_token: CancellationToken,
+        timeout_state: TimeoutWatchStateRef,
+        watch: TimeoutWatch,
+    ) {
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timeout) => {
+                    if Self::finish_timeout(&timeout_state, watch.generation) {
+                        fuse_token.cancel();
+                    }
+                }
+                _ = watch.cancel_token.cancelled() => {}
+            }
+        });
+    }
+
+    #[cfg(test)]
+    fn timeout_state_is_armed(state: &TimeoutWatchStateRef) -> bool {
+        Self::lock_timeout_state(state).armed
+    }
+
+    fn lock_timeout_state<'a>(
+        state: &'a TimeoutWatchStateRef,
+    ) -> MutexGuard<'a, TimeoutWatchState> {
+        state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn advance_generation(state: &mut TimeoutWatchState) {
+        state.generation = state.generation.wrapping_add(1);
     }
     /// Get the timeout for close the idle tcp connection.
     #[must_use]
@@ -238,42 +345,24 @@ impl Fusewire for FlexFusewire {
         self.tcp_idle_notify.notify_waiters();
         match event {
             FuseEvent::TlsHandshaking => {
-                let tls_handshake_notify = self.tls_handshake_notify.clone();
-                let tls_handshake_timeout = self.tls_handshake_timeout;
-                let tls_handshake_token = self.tls_handshake_token.clone();
-                tokio::spawn(async move {
-                    loop {
-                        if tokio::time::timeout(
-                            tls_handshake_timeout,
-                            tls_handshake_notify.notified(),
-                        )
-                        .await
-                        .is_err()
-                        {
-                            tls_handshake_token.cancel();
-                            break;
-                        }
-                    }
-                });
+                Self::arm_timeout_task(
+                    self.tls_handshake_timeout,
+                    self.tls_handshake_token.clone(),
+                    self.tls_handshake_timeout_state.clone(),
+                );
             }
             FuseEvent::TlsHandshaked => {
-                self.tls_handshake_notify.notify_waiters();
+                Self::disarm_timeout(&self.tls_handshake_timeout_state);
             }
             FuseEvent::WaitFrame => {
-                let tcp_frame_notify = self.tcp_frame_notify.clone();
-                let tcp_frame_timeout = self.tcp_frame_timeout;
-                let tcp_frame_token = self.tcp_frame_token.clone();
-                tokio::spawn(async move {
-                    if tokio::time::timeout(tcp_frame_timeout, tcp_frame_notify.notified())
-                        .await
-                        .is_err()
-                    {
-                        tcp_frame_token.cancel();
-                    }
-                });
+                Self::arm_timeout_task(
+                    self.tcp_frame_timeout,
+                    self.tcp_frame_token.clone(),
+                    self.tcp_frame_timeout_state.clone(),
+                );
             }
             FuseEvent::GainFrame => {
-                self.tcp_frame_notify.notify_waiters();
+                Self::disarm_timeout(&self.tcp_frame_timeout_state);
             }
             _ => {}
         }
@@ -432,11 +521,11 @@ impl FlexFactory {
 
             tcp_frame_timeout,
             tcp_frame_token: CancellationToken::new(),
-            tcp_frame_notify: Arc::new(Notify::new()),
+            tcp_frame_timeout_state: Arc::new(Mutex::new(TimeoutWatchState::default())),
 
             tls_handshake_timeout,
             tls_handshake_token: CancellationToken::new(),
-            tls_handshake_notify: Arc::new(Notify::new()),
+            tls_handshake_timeout_state: Arc::new(Mutex::new(TimeoutWatchState::default())),
         }
     }
 }
@@ -444,5 +533,137 @@ impl FlexFactory {
 impl FuseFactory for FlexFactory {
     fn create(&self, info: FuseInfo) -> ArcFusewire {
         Arc::new(self.build(info))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::fuse::TransProto;
+
+    fn test_info() -> FuseInfo {
+        FuseInfo {
+            trans_proto: TransProto::Tcp,
+            remote_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 4000)).into(),
+            local_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 8080)).into(),
+        }
+    }
+
+    async fn wait_for_timeout_state_owners(state: &TimeoutWatchStateRef, expected_count: usize) {
+        tokio::time::timeout(Duration::from_millis(100), async {
+            while Arc::strong_count(state) != expected_count {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn wait_frame_reuses_a_single_timeout_task() {
+        let fusewire = FlexFactory::new()
+            .tcp_frame_timeout(Duration::from_secs(1))
+            .build(test_info());
+
+        for _ in 0..8 {
+            fusewire.event(FuseEvent::WaitFrame);
+        }
+        tokio::task::yield_now().await;
+
+        assert_eq!(Arc::strong_count(&fusewire.tcp_frame_timeout_state), 2);
+        assert!(FlexFusewire::timeout_state_is_armed(
+            &fusewire.tcp_frame_timeout_state
+        ));
+
+        fusewire.event(FuseEvent::GainFrame);
+        wait_for_timeout_state_owners(&fusewire.tcp_frame_timeout_state, 1).await;
+
+        assert!(!FlexFusewire::timeout_state_is_armed(
+            &fusewire.tcp_frame_timeout_state
+        ));
+    }
+
+    #[tokio::test]
+    async fn wait_frame_can_rearm_without_losing_the_new_timeout() {
+        let fusewire = FlexFactory::new()
+            .tcp_frame_timeout(Duration::from_millis(20))
+            .build(test_info());
+
+        fusewire.event(FuseEvent::WaitFrame);
+        tokio::task::yield_now().await;
+
+        fusewire.event(FuseEvent::GainFrame);
+        fusewire.event(FuseEvent::WaitFrame);
+        tokio::task::yield_now().await;
+
+        assert!(FlexFusewire::timeout_state_is_armed(
+            &fusewire.tcp_frame_timeout_state
+        ));
+
+        tokio::select! {
+            _ = fusewire.fused() => {}
+            _ = tokio::time::sleep(Duration::from_millis(60)) => {
+                panic!("re-armed frame timeout should still be able to fuse the connection")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn disarm_before_timeout_task_polls_is_observed() {
+        let fusewire = FlexFactory::new()
+            .tcp_frame_timeout(Duration::from_secs(60))
+            .build(test_info());
+
+        let watch = FlexFusewire::arm_timeout(&fusewire.tcp_frame_timeout_state)
+            .expect("first generation should arm");
+        assert!(FlexFusewire::disarm_timeout(
+            &fusewire.tcp_frame_timeout_state
+        ));
+        FlexFusewire::spawn_timeout_task(
+            fusewire.tcp_frame_timeout,
+            fusewire.tcp_frame_token.clone(),
+            fusewire.tcp_frame_timeout_state.clone(),
+            watch,
+        );
+        wait_for_timeout_state_owners(&fusewire.tcp_frame_timeout_state, 1).await;
+        assert!(!FlexFusewire::timeout_state_is_armed(
+            &fusewire.tcp_frame_timeout_state
+        ));
+
+        tokio::select! {
+            _ = fusewire.fused() => panic!("disarmed timeout watcher must not fuse the connection"),
+            _ = tokio::time::sleep(Duration::from_millis(20)) => {}
+        }
+    }
+
+    #[tokio::test]
+    async fn tls_handshake_completion_stops_its_timeout_task() {
+        let fusewire = FlexFactory {
+            tls_handshake_timeout: Duration::from_millis(20),
+            ..FlexFactory::new()
+        }
+        .build(test_info());
+
+        fusewire.event(FuseEvent::TlsHandshaking);
+        tokio::task::yield_now().await;
+
+        assert_eq!(Arc::strong_count(&fusewire.tls_handshake_timeout_state), 2);
+        assert!(FlexFusewire::timeout_state_is_armed(
+            &fusewire.tls_handshake_timeout_state
+        ));
+
+        fusewire.event(FuseEvent::TlsHandshaked);
+        wait_for_timeout_state_owners(&fusewire.tls_handshake_timeout_state, 1).await;
+
+        tokio::select! {
+            _ = fusewire.fused() => panic!("completed handshakes must not trip the timeout"),
+            _ = tokio::time::sleep(Duration::from_millis(40)) => {}
+        }
+
+        assert!(!FlexFusewire::timeout_state_is_armed(
+            &fusewire.tls_handshake_timeout_state
+        ));
     }
 }
