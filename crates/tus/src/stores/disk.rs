@@ -9,7 +9,9 @@ use tracing::warn;
 
 use crate::error::{TusError, TusResult};
 use crate::handlers::Metadata;
-use crate::stores::{ByteStream, DataStore, Extension, StoreInfo, UploadInfo};
+use crate::stores::{
+    ByteStream, DataStore, Extension, StoreInfo, UploadInfo, is_upload_size_limit_error,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetaStoreInfo {
@@ -363,7 +365,14 @@ impl DataStore for DiskStore {
         let mut written: u64 = 0;
         let mut stream = stream;
         while let Some(item) = stream.next().await {
-            let chunk = item.map_err(|e| TusError::Internal(e.to_string()))?;
+            let chunk = match item {
+                Ok(chunk) => chunk,
+                Err(e) if is_upload_size_limit_error(&e) => {
+                    let _ = file.set_len(original_offset).await;
+                    return Err(TusError::PayloadTooLarge);
+                }
+                Err(e) => return Err(TusError::Internal(e.to_string())),
+            };
             if let Some(size) = meta.size
                 && original_offset + written + chunk.len() as u64 > size
             {
@@ -989,6 +998,46 @@ mod tests {
         let result = store.write("test-write-large", 0, stream).await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), TusError::PayloadTooLarge));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_limited_payload_too_large_deferred_size() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = UploadInfo {
+            id: "test-write-limited".to_owned(),
+            size: None,
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01".to_owned(),
+        };
+
+        store.create(upload_info).await.unwrap();
+
+        let chunks = vec![
+            Ok::<_, std::io::Error>(Bytes::from_static(b"12345")),
+            Ok(Bytes::from_static(b"6")),
+        ];
+        let stream: ByteStream = Box::pin(stream::iter(chunks));
+
+        let result = store
+            .write_limited("test-write-limited", 0, stream, Some(5))
+            .await;
+        assert!(matches!(result, Err(TusError::PayloadTooLarge)));
+
+        let info = store
+            .get_upload_file_info("test-write-limited")
+            .await
+            .unwrap();
+        assert_eq!(info.offset, Some(0));
+
+        let meta = store.read_meta("test-write-limited").await.unwrap();
+        let data_path = store.resolve_data_path("test-write-limited", &meta.storage);
+        let data_len = fs::metadata(data_path).await.unwrap().len();
+        assert_eq!(data_len, 0);
     }
 
     #[tokio::test]

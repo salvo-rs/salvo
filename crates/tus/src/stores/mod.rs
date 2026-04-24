@@ -1,18 +1,55 @@
 mod disk;
 
 use std::collections::HashSet;
+use std::io;
 use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
 pub use disk::*;
-use futures_util::Stream;
+use futures_util::{Stream, StreamExt};
 use salvo_core::async_trait;
 use salvo_core::http::HeaderValue;
 
-use crate::error::TusResult;
+use crate::error::{TusError, TusResult};
 use crate::handlers::Metadata;
 
 pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
+const UPLOAD_SIZE_LIMIT_EXCEEDED: &str = "tus upload size limit exceeded";
+
+fn upload_size_limit_error() -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, UPLOAD_SIZE_LIMIT_EXCEEDED)
+}
+
+fn is_upload_size_limit_error(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::InvalidData && error.to_string() == UPLOAD_SIZE_LIMIT_EXCEEDED
+}
+
+fn limit_stream(
+    stream: ByteStream,
+    max_bytes: Option<u64>,
+    exceeded: Arc<AtomicBool>,
+) -> ByteStream {
+    let Some(max_bytes) = max_bytes else {
+        return stream;
+    };
+
+    let mut received = 0u64;
+    Box::pin(stream.map(move |item| {
+        let chunk = item?;
+        let Some(next) = received.checked_add(chunk.len() as u64) else {
+            exceeded.store(true, Ordering::Relaxed);
+            return Err(upload_size_limit_error());
+        };
+        if next > max_bytes {
+            exceeded.store(true, Ordering::Relaxed);
+            return Err(upload_size_limit_error());
+        }
+        received = next;
+        Ok(chunk)
+    }))
+}
 
 // #[derive(Debug, Clone)]
 // pub enum StoreType {
@@ -96,6 +133,20 @@ pub trait DataStore: Send + Sync + 'static {
     async fn create(&self, file: UploadInfo) -> TusResult<UploadInfo>;
     async fn remove(&self, id: &str) -> TusResult<()>;
     async fn write(&self, id: &str, offset: u64, stream: ByteStream) -> TusResult<u64>;
+    async fn write_limited(
+        &self,
+        id: &str,
+        offset: u64,
+        stream: ByteStream,
+        max_bytes: Option<u64>,
+    ) -> TusResult<u64> {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let stream = limit_stream(stream, max_bytes, exceeded.clone());
+        match self.write(id, offset, stream).await {
+            Err(_) if exceeded.load(Ordering::Relaxed) => Err(TusError::PayloadTooLarge),
+            result => result,
+        }
+    }
     async fn get_upload_file_info(&self, id: &str) -> TusResult<UploadInfo>;
     async fn declare_upload_length(&self, id: &str, length: u64) -> TusResult<()>;
 

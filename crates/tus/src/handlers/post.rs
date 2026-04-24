@@ -229,7 +229,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
             let body = req.take_body();
             let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
-            let written = match store.write(&upload_id, 0, Box::pin(stream)).await {
+            let written = match store
+                .write_limited(&upload_id, 0, Box::pin(stream), max_allowed)
+                .await
+            {
                 Ok(written) => written,
                 Err(e) => {
                     res.status_code = Some(e.status());
