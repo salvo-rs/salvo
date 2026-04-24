@@ -18,7 +18,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
-    apply_common_headers(&mut res.headers);
+    apply_common_headers(req, opts, &mut res.headers);
 
     let id = match opts.get_file_id_from_request(req) {
         Ok(id) => id,

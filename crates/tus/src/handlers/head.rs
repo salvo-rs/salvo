@@ -16,7 +16,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
-    let headers = apply_common_headers(&mut res.headers);
+    let headers = apply_common_headers(req, opts, &mut res.headers);
 
     if let Err(e) = check_tus_version(
         req.headers()
