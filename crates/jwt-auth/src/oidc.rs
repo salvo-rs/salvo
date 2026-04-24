@@ -164,13 +164,14 @@ where
                 validation,
                 audiences,
             } = self;
-            let issuer = issuer.as_ref().trim_end_matches('/').to_owned();
+            let raw_issuer = issuer.as_ref();
 
             //Create an empty JWKS to initialize our Cache
             let jwks = JwkSet { keys: Vec::new() };
 
             let validation =
-                configure_oidc_validation(validation.unwrap_or_default(), &issuer, audiences)?;
+                configure_oidc_validation(validation.unwrap_or_default(), raw_issuer, audiences)?;
+            let issuer = raw_issuer.trim_end_matches('/').to_owned();
             let cache = Arc::new(RwLock::new(JwkSetStore::new(
                 jwks,
                 CachePolicy::default(),
@@ -563,5 +564,28 @@ mod tests {
         );
         assert!(validation.required_spec_claims.contains("iss"));
         assert!(validation.required_spec_claims.contains("aud"));
+    }
+
+    #[test]
+    fn test_oidc_validation_preserves_trailing_slash_issuer() {
+        let validation = configure_oidc_validation(
+            Validation::default(),
+            "https://issuer.example/",
+            Some(vec!["client-id".to_owned()]),
+        )
+        .unwrap();
+
+        assert!(
+            validation
+                .iss
+                .as_ref()
+                .is_some_and(|iss| iss.contains("https://issuer.example/"))
+        );
+        assert!(
+            validation
+                .iss
+                .as_ref()
+                .is_some_and(|iss| !iss.contains("https://issuer.example"))
+        );
     }
 }
