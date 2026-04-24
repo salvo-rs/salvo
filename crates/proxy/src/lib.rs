@@ -82,6 +82,16 @@ type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
 
 const X_FORWARDER_FOR_HEADER_NAME: &str = "x-forwarded-for";
+const HOP_BY_HOP_HEADERS: &[&str] = &[
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+];
 
 const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b' ')
@@ -418,9 +428,22 @@ where
         let mut build = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
+        let connection_headers = connection_header_names(req.headers());
+        let upgrade_type = get_upgrade_type(req.headers()).map(str::to_owned);
         for (key, value) in req.headers() {
-            if key != HOST {
+            if key != HOST && !is_hop_by_hop_header(key, &connection_headers) {
                 build = build.header(key, value);
+            }
+        }
+        if let Some(upgrade_type) = upgrade_type {
+            build = build.header(CONNECTION, HeaderValue::from_static("upgrade"));
+            match HeaderValue::from_str(&upgrade_type) {
+                Ok(upgrade_type) => {
+                    build = build.header(UPGRADE, upgrade_type);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "invalid upgrade header value");
+                }
             }
         }
         if let Some(host_value) = (self.host_header_getter)(&forward_url, req, depot) {
@@ -539,6 +562,24 @@ where
         }
     }
 }
+
+fn connection_header_names(headers: &HeaderMap) -> Vec<HeaderName> {
+    headers
+        .get_all(CONNECTION)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .filter_map(|name| HeaderName::from_bytes(name.trim().as_bytes()).ok())
+        .collect()
+}
+
+fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) -> bool {
+    HOP_BY_HOP_HEADERS
+        .iter()
+        .any(|hop_header| name.as_str().eq_ignore_ascii_case(hop_header))
+        || connection_headers.iter().any(|header| header == name)
+}
+
 #[inline]
 #[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
@@ -549,7 +590,7 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
                 .to_str()
                 .unwrap_or_default()
                 .split(',')
-                .any(|e| e.trim() == UPGRADE)
+                .any(|e| e.trim().eq_ignore_ascii_case(UPGRADE.as_str()))
         })
         .unwrap_or(false)
         && let Some(upgrade_value) = headers.get(&UPGRADE)
@@ -603,6 +644,18 @@ mod tests {
     }
 
     #[test]
+    fn test_connection_header_names() {
+        let mut headers = HeaderMap::new();
+        headers.append(CONNECTION, HeaderValue::from_static("keep-alive, x-remove"));
+        headers.append(CONNECTION, HeaderValue::from_static("x-second"));
+
+        let names = connection_header_names(&headers);
+        assert!(names.contains(&HeaderName::from_static("keep-alive")));
+        assert!(names.contains(&HeaderName::from_static("x-remove")));
+        assert!(names.contains(&HeaderName::from_static("x-second")));
+    }
+
+    #[test]
     fn test_host_header_handling() {
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         let uri = Uri::from_str("http://host.tld/test").unwrap();
@@ -644,6 +697,113 @@ mod tests {
         assert_eq!(
             preserve_original_host_header_getter(&uri, &req, &depot),
             Some("test.host.tld".to_owned())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_strips_hop_by_hop_headers() {
+        let proxy = Proxy::new(vec!["http://example.com"], HyperClient::default());
+        let mut request = Request::new();
+        let depot = Depot::new();
+
+        request
+            .headers_mut()
+            .insert(HOST, HeaderValue::from_static("client.example"));
+        request
+            .headers_mut()
+            .insert(CONNECTION, HeaderValue::from_static("keep-alive, x-remove"));
+        request.headers_mut().insert(
+            HeaderName::from_static("keep-alive"),
+            HeaderValue::from_static("timeout=5"),
+        );
+        request.headers_mut().insert(
+            HeaderName::from_static("x-remove"),
+            HeaderValue::from_static("secret"),
+        );
+        request.headers_mut().insert(
+            HeaderName::from_static("te"),
+            HeaderValue::from_static("trailers"),
+        );
+        request.headers_mut().insert(
+            HeaderName::from_static("transfer-encoding"),
+            HeaderValue::from_static("chunked"),
+        );
+        request.headers_mut().insert(
+            HeaderName::from_static("x-keep"),
+            HeaderValue::from_static("ok"),
+        );
+
+        let proxied = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+
+        assert!(proxied.headers().get(CONNECTION).is_none());
+        assert!(
+            proxied
+                .headers()
+                .get(HeaderName::from_static("keep-alive"))
+                .is_none()
+        );
+        assert!(
+            proxied
+                .headers()
+                .get(HeaderName::from_static("x-remove"))
+                .is_none()
+        );
+        assert!(
+            proxied
+                .headers()
+                .get(HeaderName::from_static("te"))
+                .is_none()
+        );
+        assert!(
+            proxied
+                .headers()
+                .get(HeaderName::from_static("transfer-encoding"))
+                .is_none()
+        );
+        assert_eq!(
+            proxied.headers().get(HeaderName::from_static("x-keep")),
+            Some(&HeaderValue::from_static("ok"))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_regenerates_upgrade_headers() {
+        let proxy = Proxy::new(vec!["http://example.com"], HyperClient::default());
+        let mut request = Request::new();
+        let depot = Depot::new();
+
+        request
+            .headers_mut()
+            .insert(CONNECTION, HeaderValue::from_static("x-remove, Upgrade"));
+        request
+            .headers_mut()
+            .insert(UPGRADE, HeaderValue::from_static("websocket"));
+        request.headers_mut().insert(
+            HeaderName::from_static("x-remove"),
+            HeaderValue::from_static("secret"),
+        );
+
+        let proxied = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            proxied.headers().get(CONNECTION),
+            Some(&HeaderValue::from_static("upgrade"))
+        );
+        assert_eq!(
+            proxied.headers().get(UPGRADE),
+            Some(&HeaderValue::from_static("websocket"))
+        );
+        assert!(
+            proxied
+                .headers()
+                .get(HeaderName::from_static("x-remove"))
+                .is_none()
         );
     }
 
