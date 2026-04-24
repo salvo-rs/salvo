@@ -60,6 +60,36 @@ This is an official crate, so you can enable it in `Cargo.toml` like this:
 salvo = { version = "*", features = ["proxy"] }
 ```
 
+### Path forwarding
+
+The default path getter forwards the wildcard tail captured by routes such as
+`Router::with_path("api/{**rest}")`. If the upstream is `http://backend`, the
+gateway path `/api/users` is forwarded to `http://backend/users`. If the backend
+also expects the `/api` prefix, configure the upstream with that base path:
+`http://backend/api`.
+
+`Proxy` normalizes literal `.` and `..` path segments before forwarding. When
+the proxy is used as an access-control boundary and the upstream may perform an
+additional URL decode pass, enable strict path normalization to reject ambiguous
+encoded path characters:
+
+```rust
+use salvo::prelude::*;
+use salvo::proxy::Proxy;
+
+let router = Router::with_path("api/{**rest}").goal(
+    Proxy::use_hyper_client("http://backend/api")
+        .strict_path_normalization(true),
+);
+```
+
+Strict path normalization rejects percent-encoded `.`, `/`, `\`, and `%`
+characters in the proxied path tail, including cases such as `%2e%2e`,
+`%2f`, `%5c`, and double-encoded forms that remain percent-encoded after
+Salvo routing extracts the tail. Backends should still validate and normalize
+their own routes and file paths; this option only prevents common proxy/backend
+path interpretation mismatches.
+
 [![Docs](https://docs.rs/salvo-proxy/badge.svg)](https://docs.rs/salvo-proxy)
 
 ## ☕ Donate

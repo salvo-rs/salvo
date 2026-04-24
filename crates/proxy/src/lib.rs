@@ -201,6 +201,36 @@ pub type HostHeaderGetter =
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.params().tail().map(str::to_owned)
 }
+
+fn contains_ambiguous_path_escape(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    let mut index = 0;
+    while index + 2 < bytes.len() {
+        if bytes[index] == b'%' {
+            if let (Some(high), Some(low)) =
+                (hex_value(bytes[index + 1]), hex_value(bytes[index + 2]))
+            {
+                let decoded = high << 4 | low;
+                if matches!(decoded, b'.' | b'/' | b'\\' | b'%') {
+                    return true;
+                }
+                index += 3;
+                continue;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
 /// Default url query getter. This getter just return the query string from request uri.
 pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.uri().query().map(Into::into)
@@ -281,6 +311,8 @@ where
     pub host_header_getter: HostHeaderGetter,
     /// Flag to enable x-forwarded-for header.
     pub client_ip_forwarding_enabled: bool,
+    /// Flag to reject ambiguous percent-encoded path characters before proxying.
+    pub strict_path_normalization_enabled: bool,
 }
 
 impl<U, C> Debug for Proxy<U, C>
@@ -309,6 +341,7 @@ where
             url_query_getter: Box::new(default_url_query_getter),
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: false,
+            strict_path_normalization_enabled: false,
         }
     }
 
@@ -321,6 +354,7 @@ where
             url_query_getter: Box::new(default_url_query_getter),
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: true,
+            strict_path_normalization_enabled: false,
         }
     }
 
@@ -354,6 +388,19 @@ where
         G: Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static,
     {
         self.host_header_getter = Box::new(host_header_getter);
+        self
+    }
+
+    /// Enable or disable strict path normalization.
+    ///
+    /// When enabled, the proxy rejects paths that still contain percent-encoded `.`, `/`, `\`,
+    /// or `%` characters after Salvo routing has extracted the path tail. This is useful when the
+    /// proxy is used as a security boundary and the upstream server may perform another decode
+    /// pass.
+    #[inline]
+    #[must_use]
+    pub fn strict_path_normalization(mut self, enable: bool) -> Self {
+        self.strict_path_normalization_enabled = enable;
         self
     }
 
@@ -404,6 +451,9 @@ where
         }
 
         let path = (self.url_path_getter)(req, depot).unwrap_or_default();
+        if self.strict_path_normalization_enabled && contains_ambiguous_path_escape(&path) {
+            return Err(Error::other("ambiguous percent-encoded path"));
+        }
         let path = encode_url_path(&normalize_url_path(&path));
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
@@ -662,6 +712,16 @@ mod tests {
             default_url_path_getter(&request, &depot).as_deref(),
             Some("guide/../index.html")
         );
+    }
+
+    #[test]
+    fn test_contains_ambiguous_path_escape() {
+        assert!(contains_ambiguous_path_escape("%2e%2e/admin"));
+        assert!(contains_ambiguous_path_escape("api%2Fadmin"));
+        assert!(contains_ambiguous_path_escape("api%5cadmin"));
+        assert!(contains_ambiguous_path_escape("%252e%252e/admin"));
+        assert!(!contains_ambiguous_path_escape("guide.v1/index.html"));
+        assert!(!contains_ambiguous_path_escape("files/%20space"));
     }
 
     #[test]
@@ -1017,5 +1077,43 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
             proxied_request.uri().to_string(),
             "http://example.com/api/guide/index.html"
         );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_preserves_encoded_tail_by_default() {
+        let mut request = Request::new();
+        request
+            .params_mut()
+            .insert("**rest", "%2e%2e/secrets/.env".to_owned());
+        let depot = Depot::new();
+        let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
+
+        let proxied_request = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+        assert_eq!(
+            proxied_request.uri().to_string(),
+            "http://example.com/api/%2e%2e/secrets/.env"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_strict_path_normalization_rejects_ambiguous_escapes() {
+        for path in [
+            "%2e%2e/secrets/.env",
+            "api%2fadmin",
+            "api%5cadmin",
+            "%252e%252e/secrets/.env",
+        ] {
+            let mut request = Request::new();
+            request.params_mut().insert("**rest", path.to_owned());
+            let depot = Depot::new();
+            let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default())
+                .strict_path_normalization(true);
+
+            let err = proxy.build_proxied_request(&mut request, &depot).await;
+            assert!(err.is_err(), "path should be rejected: {path}");
+        }
     }
 }
