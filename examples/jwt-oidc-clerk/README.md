@@ -13,6 +13,6 @@ This repository shows how to use [Clerk](https://clerk.dev?utm_source=github&utm
 echo "VITE_CLERK_PUBLISHABLE_KEY=CLERK_PUBLISHABLE_KEY" >> app/.env.local
 ```
 
-5. Run `cargo run`
-6. Run the app: `cd app && npm run dev`
-
+5. Set `CLERK_JWT_AUDIENCE` to the audience configured for the Clerk JWT template.
+6. Run `cargo run`
+7. Run the app: `cd app && npm run dev`

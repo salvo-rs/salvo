@@ -5,6 +5,7 @@ use salvo::proxy::HyperClient;
 use serde::{Deserialize, Serialize};
 
 const ISSUER_URL: &str = "https://coherent-gopher-0.clerk.accounts.dev";
+const AUDIENCE_ENV: &str = "CLERK_JWT_AUDIENCE";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JwtClaims {
@@ -17,7 +18,11 @@ pub struct JwtClaims {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let decoder = OidcDecoder::new(ISSUER_URL.to_owned()).await.unwrap();
+    let audience =
+        std::env::var(AUDIENCE_ENV).expect("CLERK_JWT_AUDIENCE must match the JWT audience");
+    let decoder = OidcDecoder::new(ISSUER_URL.to_owned(), audience)
+        .await
+        .unwrap();
     let auth_handler: JwtAuth<JwtClaims, OidcDecoder> = JwtAuth::new(decoder)
         .finders(vec![Box::new(HeaderFinder::new())])
         .force_passed(true);

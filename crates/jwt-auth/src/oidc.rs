@@ -98,12 +98,15 @@ where
     pub http_client: Option<HyperClient>,
     /// The validation options for the decoder.
     pub validation: Option<Validation>,
+    /// The expected OIDC token audiences.
+    pub audiences: Option<Vec<String>>,
 }
 impl<T: AsRef<str>> Debug for DecoderBuilder<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DecoderBuilder")
             .field("http_client", &self.http_client)
             .field("validation", &self.validation)
+            .field("audiences", &self.audiences)
             .finish()
     }
 }
@@ -118,6 +121,7 @@ where
             issuer,
             http_client: None,
             validation: None,
+            audiences: None,
         }
     }
     /// Set the http client for the decoder.
@@ -133,6 +137,24 @@ where
         self
     }
 
+    /// Set the expected OIDC token audience.
+    #[must_use]
+    pub fn audience(mut self, audience: impl Into<String>) -> Self {
+        self.audiences = Some(vec![audience.into()]);
+        self
+    }
+
+    /// Set the expected OIDC token audiences.
+    #[must_use]
+    pub fn audiences<I, S>(mut self, audiences: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.audiences = Some(audiences.into_iter().map(Into::into).collect());
+        self
+    }
+
     /// Build a `OidcDecoder`.
     pub fn build(self) -> impl Future<Output = Result<OidcDecoder, JwtAuthError>> {
         async move {
@@ -140,13 +162,15 @@ where
                 issuer,
                 http_client,
                 validation,
+                audiences,
             } = self;
             let issuer = issuer.as_ref().trim_end_matches('/').to_owned();
 
             //Create an empty JWKS to initialize our Cache
             let jwks = JwkSet { keys: Vec::new() };
 
-            let validation = validation.unwrap_or_default();
+            let validation =
+                configure_oidc_validation(validation.unwrap_or_default(), &issuer, audiences)?;
             let cache = Arc::new(RwLock::new(JwkSetStore::new(
                 jwks,
                 CachePolicy::default(),
@@ -169,8 +193,11 @@ where
 
 impl OidcDecoder {
     /// Create a new `OidcDecoder`.
-    pub fn new(issuer: impl AsRef<str>) -> impl Future<Output = Result<Self, JwtAuthError>> {
-        Self::builder(issuer).build()
+    pub fn new(
+        issuer: impl AsRef<str>,
+        audience: impl Into<String>,
+    ) -> impl Future<Output = Result<Self, JwtAuthError>> {
+        Self::builder(issuer).audience(audience).build()
     }
 
     /// Create a new `DecoderBuilder`.
@@ -328,6 +355,33 @@ impl OidcDecoder {
     }
 }
 
+fn configure_oidc_validation(
+    mut validation: Validation,
+    issuer: &str,
+    audiences: Option<Vec<String>>,
+) -> Result<Validation, JwtAuthError> {
+    if validation.iss.is_none() {
+        validation.set_issuer(&[issuer]);
+    }
+    validation.required_spec_claims.insert("iss".to_owned());
+
+    if let Some(audiences) = audiences {
+        if audiences.is_empty() {
+            return Err(JwtAuthError::MissingOidcAudience);
+        }
+        validation.set_audience(&audiences);
+        validation.validate_aud = true;
+    }
+    if validation.validate_aud {
+        if validation.aud.is_none() {
+            return Err(JwtAuthError::MissingOidcAudience);
+        }
+        validation.required_spec_claims.insert("aud".to_owned());
+    }
+
+    Ok(validation)
+}
+
 /// Struct used to store the computed information needed to decode a JWT
 /// Intended to be cached inside of [`JwkSetStore`] to prevent decoding information about the same JWK more than once
 pub struct DecodingInfo {
@@ -350,11 +404,14 @@ impl DecodingInfo {
         validation.aud.clone_from(&validation_settings.aud);
         validation.iss.clone_from(&validation_settings.iss);
         validation.leeway = validation_settings.leeway;
+        validation.reject_tokens_expiring_in_less_than =
+            validation_settings.reject_tokens_expiring_in_less_than;
         validation
             .required_spec_claims
             .clone_from(&validation_settings.required_spec_claims);
 
         validation.sub.clone_from(&validation_settings.sub);
+        validation.validate_aud = validation_settings.validate_aud;
         validation.validate_exp = validation_settings.validate_exp;
         validation.validate_nbf = validation_settings.validate_nbf;
 
@@ -452,10 +509,11 @@ mod tests {
 
     #[test]
     fn test_uses_provided_http_client_without_building_default_client() {
-        let resolved = resolve_or_else(Some("provided-client"), || -> Result<&str, JwtAuthError> {
-            panic!("default HTTP client should not be built when a custom client is supplied")
-        })
-        .unwrap();
+        let resolved =
+            resolve_or_else(Some("provided-client"), || -> Result<&str, JwtAuthError> {
+                panic!("default HTTP client should not be built when a custom client is supplied")
+            })
+            .unwrap();
 
         assert_eq!(resolved, "provided-client");
     }
@@ -472,5 +530,38 @@ mod tests {
         let validation = Validation::new(Algorithm::RS256);
         let result = decode_jwk(&jwk, &validation);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_oidc_validation_requires_audience() {
+        let result =
+            configure_oidc_validation(Validation::default(), "https://issuer.example", None);
+
+        assert!(matches!(result, Err(JwtAuthError::MissingOidcAudience)));
+    }
+
+    #[test]
+    fn test_oidc_validation_sets_issuer_and_audience_claims() {
+        let validation = configure_oidc_validation(
+            Validation::default(),
+            "https://issuer.example",
+            Some(vec!["client-id".to_owned()]),
+        )
+        .unwrap();
+
+        assert!(
+            validation
+                .iss
+                .as_ref()
+                .is_some_and(|iss| iss.contains("https://issuer.example"))
+        );
+        assert!(
+            validation
+                .aud
+                .as_ref()
+                .is_some_and(|aud| aud.contains("client-id"))
+        );
+        assert!(validation.required_spec_claims.contains("iss"));
+        assert!(validation.required_spec_claims.contains("aud"));
     }
 }
