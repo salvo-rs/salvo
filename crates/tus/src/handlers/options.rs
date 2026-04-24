@@ -3,7 +3,7 @@ use std::sync::Arc;
 use salvo_core::http::{HeaderValue, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
-use crate::handlers::apply_options_headers;
+use crate::handlers::{DEFAULT_ALLOW_HEADERS, apply_options_headers, insert_joined_header};
 use crate::stores::Extension;
 use crate::{
     H_ACCESS_CONTROL_ALLOW_HEADERS, H_ACCESS_CONTROL_ALLOW_METHODS, H_ACCESS_CONTROL_MAX_AGE,
@@ -18,7 +18,7 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let store = &state.store;
     let opts = &state.options;
     let max_size = opts.get_configured_max_size(req, None).await;
-    let headers = apply_options_headers(&mut res.headers);
+    let headers = apply_options_headers(req, opts, &mut res.headers);
 
     headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
     if let Some(ext_header) = Extension::to_header_value(&store.extensions()) {
@@ -37,7 +37,14 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         HeaderValue::from_static("OPTIONS, POST, HEAD, PATCH, DELETE, GET"),
     );
 
-    if let Some(h) = req
+    if !opts.allowed_headers.is_empty() {
+        insert_joined_header(
+            headers,
+            H_ACCESS_CONTROL_ALLOW_HEADERS,
+            DEFAULT_ALLOW_HEADERS,
+            &opts.allowed_headers,
+        );
+    } else if let Some(h) = req
         .headers()
         .get(H_ACCESS_CONTROL_REQUEST_HEADERS)
         .and_then(|v| v.to_str().ok())
@@ -49,9 +56,7 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         // fallback allow list
         headers.insert(
             H_ACCESS_CONTROL_ALLOW_HEADERS,
-            HeaderValue::from_static(
-                "Tus-Resumable, Upload-Length, Upload-Offset, Upload-Metadata, Content-Type, Content-Length",
-            ),
+            HeaderValue::from_static(DEFAULT_ALLOW_HEADERS),
         );
     }
 

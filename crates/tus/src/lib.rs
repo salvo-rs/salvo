@@ -233,6 +233,38 @@ impl Tus {
         self
     }
 
+    pub fn allowed_origins<I, S>(mut self, origins: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.options.allowed_origins = origins.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn allowed_headers<I, S>(mut self, headers: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.options.allowed_headers = headers.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn exposed_headers<I, S>(mut self, headers: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.options.exposed_headers = headers.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn allow_credentials(mut self, yes: bool) -> Self {
+        self.options.allowed_credentials = yes;
+        self
+    }
+
     pub fn with_store(mut self, store: impl DataStore) -> Self {
         self.store = Arc::new(store);
         self
@@ -502,6 +534,26 @@ mod tests {
 
         let tus = Tus::new().relative_location(true);
         assert!(tus.options.relative_location);
+    }
+
+    #[test]
+    fn test_tus_cors_options() {
+        let tus = Tus::new()
+            .allowed_origins(["https://app.example.com"])
+            .allowed_headers(["X-Upload-Token"])
+            .exposed_headers(["X-Upload-Id"])
+            .allow_credentials(true);
+
+        assert_eq!(
+            tus.options.allowed_origins,
+            vec!["https://app.example.com".to_owned()]
+        );
+        assert_eq!(
+            tus.options.allowed_headers,
+            vec!["X-Upload-Token".to_owned()]
+        );
+        assert_eq!(tus.options.exposed_headers, vec!["X-Upload-Id".to_owned()]);
+        assert!(tus.options.allowed_credentials);
     }
 
     #[test]

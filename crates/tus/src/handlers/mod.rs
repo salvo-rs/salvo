@@ -16,34 +16,103 @@ pub use head::head_handler;
 pub use options::options_handler;
 pub use patch::patch_handler;
 pub use post::post_handler;
+use salvo_core::Request;
 use salvo_core::http::{HeaderMap, HeaderValue};
 
 use crate::error::ProtocolError;
+use crate::options::TusOptions;
 use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
+pub(crate) const DEFAULT_ALLOW_HEADERS: &str =
+    "Tus-Resumable, Upload-Length, Upload-Offset, Upload-Metadata, Content-Type, Content-Length";
 
-pub(crate) fn apply_common_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
+pub(crate) fn apply_common_headers<'a>(
+    req: &Request,
+    opts: &TusOptions,
+    headers: &'a mut HeaderMap,
+) -> &'a mut HeaderMap {
     headers.insert(H_TUS_RESUMABLE, HeaderValue::from_static(TUS_VERSION));
-    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert(
-        "access-control-expose-headers",
-        HeaderValue::from_static(EXPOSE_HEADERS),
-    );
+    apply_cors_headers(req, opts, headers);
     headers.insert("cache-control", HeaderValue::from_static("no-store"));
 
     headers
 }
 
-pub(crate) fn apply_options_headers(headers: &mut HeaderMap) -> &mut HeaderMap {
-    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert(
-        "access-control-expose-headers",
-        HeaderValue::from_static(EXPOSE_HEADERS),
-    );
+pub(crate) fn apply_options_headers<'a>(
+    req: &Request,
+    opts: &TusOptions,
+    headers: &'a mut HeaderMap,
+) -> &'a mut HeaderMap {
+    apply_cors_headers(req, opts, headers);
     headers.insert("cache-control", HeaderValue::from_static("no-store"));
 
     headers
+}
+
+fn apply_cors_headers(req: &Request, opts: &TusOptions, headers: &mut HeaderMap) {
+    if let Some(origin) = cors_allow_origin(req, opts) {
+        headers.insert("access-control-allow-origin", origin);
+        if opts.allowed_credentials {
+            headers.insert(
+                "access-control-allow-credentials",
+                HeaderValue::from_static("true"),
+            );
+        }
+    }
+    if opts.allowed_credentials || !opts.allowed_origins.is_empty() {
+        headers.insert("vary", HeaderValue::from_static("Origin"));
+    }
+    insert_joined_header(
+        headers,
+        "access-control-expose-headers",
+        EXPOSE_HEADERS,
+        &opts.exposed_headers,
+    );
+}
+
+fn cors_allow_origin(req: &Request, opts: &TusOptions) -> Option<HeaderValue> {
+    let origin = req
+        .headers()
+        .get("origin")
+        .and_then(|value| value.to_str().ok());
+    if opts.allowed_origins.is_empty() {
+        if opts.allowed_credentials {
+            return origin.and_then(|origin| HeaderValue::from_str(origin).ok());
+        }
+        return Some(HeaderValue::from_static("*"));
+    }
+
+    if opts.allowed_origins.iter().any(|allowed| allowed == "*") {
+        if opts.allowed_credentials {
+            return origin.and_then(|origin| HeaderValue::from_str(origin).ok());
+        }
+        return Some(HeaderValue::from_static("*"));
+    }
+
+    let origin = origin?;
+    if opts.allowed_origins.iter().any(|allowed| allowed == origin) {
+        HeaderValue::from_str(origin).ok()
+    } else {
+        None
+    }
+}
+
+pub(crate) fn insert_joined_header(
+    headers: &mut HeaderMap,
+    name: &'static str,
+    default_values: &str,
+    extra_values: &[String],
+) {
+    if extra_values.is_empty() {
+        headers.insert(name, HeaderValue::from_str(default_values).unwrap());
+        return;
+    }
+
+    let value = format!("{default_values}, {}", extra_values.join(", "));
+    if let Ok(value) = HeaderValue::from_str(&value) {
+        headers.insert(name, value);
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -363,8 +432,10 @@ mod tests {
 
     #[test]
     fn test_apply_common_headers() {
+        let req = Request::new();
+        let opts = TusOptions::default();
         let mut headers = HeaderMap::new();
-        apply_common_headers(&mut headers);
+        apply_common_headers(&req, &opts, &mut headers);
 
         assert_eq!(headers.get(H_TUS_RESUMABLE).unwrap(), TUS_VERSION);
         assert_eq!(headers.get("access-control-allow-origin").unwrap(), "*");
@@ -381,8 +452,10 @@ mod tests {
 
     #[test]
     fn test_apply_options_headers() {
+        let req = Request::new();
+        let opts = TusOptions::default();
         let mut headers = HeaderMap::new();
-        apply_options_headers(&mut headers);
+        apply_options_headers(&req, &opts, &mut headers);
 
         assert_eq!(headers.get("access-control-allow-origin").unwrap(), "*");
         assert!(
@@ -396,6 +469,61 @@ mod tests {
         assert_eq!(headers.get("cache-control").unwrap(), "no-store");
         // Should NOT have tus-resumable header
         assert!(headers.get(H_TUS_RESUMABLE).is_none());
+    }
+
+    #[test]
+    fn test_apply_common_headers_uses_cors_allowlist() {
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            "origin",
+            HeaderValue::from_static("https://app.example.com"),
+        );
+        let opts = TusOptions {
+            allowed_origins: vec!["https://app.example.com".to_owned()],
+            allowed_credentials: true,
+            exposed_headers: vec!["X-Upload-Id".to_owned()],
+            ..TusOptions::default()
+        };
+        let mut headers = HeaderMap::new();
+
+        apply_common_headers(&req, &opts, &mut headers);
+
+        assert_eq!(
+            headers.get("access-control-allow-origin").unwrap(),
+            "https://app.example.com"
+        );
+        assert_eq!(
+            headers.get("access-control-allow-credentials").unwrap(),
+            "true"
+        );
+        assert_eq!(headers.get("vary").unwrap(), "Origin");
+        assert!(
+            headers
+                .get("access-control-expose-headers")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("X-Upload-Id")
+        );
+    }
+
+    #[test]
+    fn test_apply_common_headers_rejects_unlisted_origin() {
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            "origin",
+            HeaderValue::from_static("https://evil.example.com"),
+        );
+        let opts = TusOptions {
+            allowed_origins: vec!["https://app.example.com".to_owned()],
+            ..TusOptions::default()
+        };
+        let mut headers = HeaderMap::new();
+
+        apply_common_headers(&req, &opts, &mut headers);
+
+        assert!(headers.get("access-control-allow-origin").is_none());
+        assert_eq!(headers.get("vary").unwrap(), "Origin");
     }
 
     #[test]
