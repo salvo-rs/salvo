@@ -10,6 +10,7 @@ use tracing::warn;
 use crate::error::{TusError, TusResult};
 use crate::handlers::Metadata;
 use crate::stores::{ByteStream, DataStore, Extension, StoreInfo, UploadInfo};
+use crate::utils::sanitize_path_component;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetaStoreInfo {
@@ -145,11 +146,8 @@ impl DiskStore {
 
     fn extension_from_filetype(meta: &MetaUpload) -> Option<String> {
         let filetype = Self::metadata_value(meta, "filetype")?;
-        let subtype = filetype.split('/').nth(1)?.trim();
-        if subtype.is_empty() {
-            return None;
-        }
-        Some(subtype.to_owned())
+        let subtype = filetype.split_once('/')?.1;
+        sanitize_path_component(subtype).map(str::to_owned)
     }
 
     fn desired_filename(meta: &MetaUpload) -> Option<String> {
@@ -617,6 +615,30 @@ mod tests {
             creation_date: "2024-01-01".to_owned(),
         };
         assert_eq!(DiskStore::extension_from_filetype(&meta), None);
+    }
+
+    #[test]
+    fn test_extension_from_filetype_rejects_path_components() {
+        for filetype in [
+            "image/..\\..\\target",
+            "image/../../target",
+            "image/C:target",
+            "image/png\0target",
+        ] {
+            let meta = MetaUpload {
+                id: "test-id".to_owned(),
+                size: Some(1024),
+                offset: 0,
+                metadata: Some({
+                    let mut m = HashMap::new();
+                    m.insert("filetype".to_owned(), Some(filetype.to_owned()));
+                    m
+                }),
+                storage: None,
+                creation_date: "2024-01-01".to_owned(),
+            };
+            assert_eq!(DiskStore::extension_from_filetype(&meta), None);
+        }
     }
 
     #[test]
