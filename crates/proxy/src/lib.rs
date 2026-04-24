@@ -583,16 +583,9 @@ fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) ->
 #[inline]
 #[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
-    if headers
-        .get(&CONNECTION)
-        .map(|value| {
-            value
-                .to_str()
-                .unwrap_or_default()
-                .split(',')
-                .any(|e| e.trim().eq_ignore_ascii_case(UPGRADE.as_str()))
-        })
-        .unwrap_or(false)
+    if connection_header_names(headers)
+        .iter()
+        .any(|name| name == UPGRADE)
         && let Some(upgrade_value) = headers.get(&UPGRADE)
     {
         tracing::debug!(
@@ -640,6 +633,18 @@ mod tests {
         headers.insert(CONNECTION, HeaderValue::from_static("upgrade"));
         headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
         let upgrade_type = get_upgrade_type(&headers);
+        assert_eq!(upgrade_type, Some("websocket"));
+    }
+
+    #[test]
+    fn test_get_upgrade_type_checks_all_connection_headers() {
+        let mut headers = HeaderMap::new();
+        headers.append(CONNECTION, HeaderValue::from_static("keep-alive"));
+        headers.append(CONNECTION, HeaderValue::from_static("Upgrade"));
+        headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
+
+        let upgrade_type = get_upgrade_type(&headers);
+
         assert_eq!(upgrade_type, Some("websocket"));
     }
 
