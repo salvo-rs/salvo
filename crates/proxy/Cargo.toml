@@ -57,8 +57,11 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+futures-util = { workspace = true, features = ["sink"] }
 salvo_core = { workspace = true, features = ["http1", "server", "test"] }
 rustls ={ workspace = true, features = ["aws-lc-rs"]}
+salvo_extra = { workspace = true, features = ["websocket"] }
+tokio-tungstenite = { workspace = true }
 
 [lints]
 workspace = true

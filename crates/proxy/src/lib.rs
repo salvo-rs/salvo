@@ -604,7 +604,44 @@ mod tests {
     use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
     use std::str::FromStr;
 
+    use futures_util::{SinkExt, StreamExt};
+    use salvo_core::conn::{Acceptor, Listener};
+    use salvo_core::prelude::{Router, Server, StatusError, TcpListener, handler};
+    use salvo_extra::websocket::WebSocketUpgrade;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio_tungstenite::tungstenite::Message;
+    use tokio_tungstenite::tungstenite::protocol::Role;
+
     use super::*;
+
+    #[handler]
+    async fn websocket_echo(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
+        WebSocketUpgrade::new()
+            .upgrade(req, res, |mut ws| async move {
+                while let Some(message) = ws.recv().await {
+                    let Ok(message) = message else {
+                        return;
+                    };
+                    if ws.send(message).await.is_err() {
+                        return;
+                    }
+                }
+            })
+            .await
+    }
+
+    async fn spawn_server(router: Router) -> (std::net::SocketAddr, tokio::task::JoinHandle<()>) {
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let handle = tokio::spawn(async move {
+            Server::new(acceptor).serve(router).await;
+        });
+        (addr, handle)
+    }
 
     #[test]
     fn test_encode_url_path() {
@@ -810,6 +847,73 @@ mod tests {
                 .get(HeaderName::from_static("x-remove"))
                 .is_none()
         );
+    }
+
+    #[tokio::test]
+    async fn test_proxy_websocket_connection_with_split_connection_headers() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
+        let upstream_router = Router::with_path("ws").goal(websocket_echo);
+        let (upstream_addr, upstream_server) = spawn_server(upstream_router).await;
+
+        let proxy_router = Router::with_path("{**rest}").goal(Proxy::new(
+            vec![format!("http://{upstream_addr}")],
+            HyperClient::default(),
+        ));
+        let (proxy_addr, proxy_server) = spawn_server(proxy_router).await;
+
+        let mut stream = tokio::net::TcpStream::connect(proxy_addr).await.unwrap();
+        let request = format!(
+            "\
+GET /ws HTTP/1.1\r\n\
+Host: {proxy_addr}\r\n\
+Connection: keep-alive\r\n\
+Connection: Upgrade\r\n\
+Upgrade: websocket\r\n\
+Sec-WebSocket-Version: 13\r\n\
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+\r\n"
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+
+        let mut response = Vec::new();
+        let mut buffer = [0; 1024];
+        let header_end = loop {
+            let read = stream.read(&mut buffer).await.unwrap();
+            assert_ne!(
+                read, 0,
+                "server closed before websocket handshake completed"
+            );
+            response.extend_from_slice(&buffer[..read]);
+            if let Some(position) = response.windows(4).position(|window| window == b"\r\n\r\n") {
+                break position + 4;
+            }
+        };
+        let extra = response.split_off(header_end);
+        let response_head = String::from_utf8_lossy(&response);
+        assert!(
+            response_head.starts_with("HTTP/1.1 101"),
+            "unexpected websocket handshake response: {response_head}"
+        );
+
+        let mut websocket = tokio_tungstenite::WebSocketStream::from_partially_read(
+            stream,
+            extra,
+            Role::Client,
+            None,
+        )
+        .await;
+
+        websocket
+            .send(Message::text("proxied websocket"))
+            .await
+            .unwrap();
+        let echoed = websocket.next().await.unwrap().unwrap();
+        assert_eq!(echoed.into_text().unwrap(), "proxied websocket");
+
+        websocket.close(None).await.unwrap();
+        proxy_server.abort();
+        upstream_server.abort();
     }
 
     #[tokio::test]
