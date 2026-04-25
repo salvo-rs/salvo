@@ -28,7 +28,7 @@ impl BcryptCipher {
     /// Sets the length of the token.
     #[inline]
     #[must_use] pub fn token_size(mut self, token_size: usize) -> Self {
-        assert!((1..=72).contains(&token_size), "length must be between 1 and 72");
+        assert!((8..=72).contains(&token_size), "length must be between 8 and 72");
         self.token_size = token_size;
         self
     }
@@ -87,9 +87,21 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "length must be between 1 and 72")]
-    fn test_bcrypt_cipher_with_invalid_token_size() {
-        let _ = BcryptCipher::new().token_size(0);
+    fn test_bcrypt_cipher_with_min_token_size() {
+        let cipher = BcryptCipher::new().token_size(8);
+        assert_eq!(cipher.token_size, 8);
+    }
+
+    #[test]
+    #[should_panic(expected = "length must be between 8 and 72")]
+    fn test_bcrypt_cipher_with_too_small_token_size() {
+        let _ = BcryptCipher::new().token_size(7);
+    }
+
+    #[test]
+    #[should_panic(expected = "length must be between 8 and 72")]
+    fn test_bcrypt_cipher_with_too_large_token_size() {
+        let _ = BcryptCipher::new().token_size(73);
     }
 
     #[test]
