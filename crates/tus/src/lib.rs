@@ -613,6 +613,27 @@ mod tests {
         assert_eq!(result.unwrap(), "custom-id");
     }
 
+    #[tokio::test]
+    async fn test_tus_rejects_unsafe_generated_upload_id_as_bad_request() {
+        use salvo_core::Service;
+        use salvo_core::http::StatusCode;
+        use salvo_core::test::TestClient;
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let tus = Tus::new()
+            .with_store(stores::DiskStore::new().disk_root(temp_dir.path()))
+            .with_upload_id_naming_function(|_req, _meta| async move { Ok("file.txt".to_owned()) });
+        let service = Service::new(tus.into_router());
+
+        let response = TestClient::post("http://localhost/tus-files")
+            .add_header(H_TUS_RESUMABLE, TUS_VERSION, true)
+            .add_header(H_UPLOAD_LENGTH, "0", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code.unwrap(), StatusCode::BAD_REQUEST);
+    }
+
     #[test]
     fn test_tus_with_generate_url_function() {
         let tus = Tus::new().with_generate_url_function(|_req, ctx| {

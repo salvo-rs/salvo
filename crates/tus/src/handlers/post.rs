@@ -115,7 +115,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
     if !is_safe_upload_id(&upload_id) {
-        res.status_code = Some(TusError::GenerateIdError.status());
+        res.status_code = Some(TusError::FileIdError.status());
         return;
     }
 
