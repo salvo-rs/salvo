@@ -7,7 +7,7 @@ use salvo_core::{Depot, Request, Response, Router, handler};
 use crate::error::{ProtocolError, TusError};
 use crate::handlers::{Metadata, apply_common_headers};
 use crate::stores::{Extension, UploadInfo};
-use crate::utils::{check_tus_version, parse_u64};
+use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64};
 use crate::{
     CT_OFFSET_OCTET_STREAM, CancellationContext, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
     H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH,
@@ -114,6 +114,10 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             return;
         }
     };
+    if !is_safe_upload_id(&upload_id) {
+        res.status_code = Some(TusError::GenerateIdError.status());
+        return;
+    }
 
     let upload_length_value = match upload_length {
         Some(value) => match value.to_str() {

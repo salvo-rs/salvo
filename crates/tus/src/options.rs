@@ -11,6 +11,7 @@ use crate::error::{TusError, TusResult};
 use crate::handlers::{GenerateUrlCtx, HostProto, Metadata};
 use crate::lockers::{LockGuard, Locker, memory_locker};
 use crate::stores::UploadInfo;
+use crate::utils::is_safe_upload_id;
 
 pub type UploadId = Option<String>;
 
@@ -159,6 +160,7 @@ impl TusOptions {
         re.captures(path)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_owned())
+            .filter(|id| is_safe_upload_id(id))
             .ok_or(TusError::FileIdError)
     }
 
@@ -415,6 +417,26 @@ mod tests {
         // Single segment
         let captures = re.captures("/simple").unwrap();
         assert_eq!(captures.get(1).unwrap().as_str(), "simple");
+    }
+
+    #[test]
+    fn test_get_file_id_from_request_rejects_unsafe_id() {
+        let options = TusOptions::default();
+        let mut req = Request::default();
+        *req.uri_mut() = "/uploads/file.txt".parse().unwrap();
+
+        let result = options.get_file_id_from_request(&req);
+        assert!(matches!(result, Err(TusError::FileIdError)));
+    }
+
+    #[test]
+    fn test_get_file_id_from_request_accepts_safe_id() {
+        let options = TusOptions::default();
+        let mut req = Request::default();
+        *req.uri_mut() = "/uploads/abc-123_DEF".parse().unwrap();
+
+        let result = options.get_file_id_from_request(&req).unwrap();
+        assert_eq!(result, "abc-123_DEF");
     }
 
     #[test]

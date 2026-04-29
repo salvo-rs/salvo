@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use crate::handlers::Metadata;
 use crate::stores::{
     ByteStream, DataStore, Extension, StoreInfo, UploadInfo, is_upload_size_limit_error,
 };
-use crate::utils::sanitize_path_component;
+use crate::utils::{is_safe_upload_id, sanitize_path_component};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetaStoreInfo {
@@ -113,11 +113,113 @@ impl DiskStore {
         self.root.join(format!("{id}.json.tmp"))
     }
 
+    fn ensure_safe_upload_id(id: &str) -> TusResult<()> {
+        if is_safe_upload_id(id) {
+            Ok(())
+        } else {
+            Err(TusError::FileIdError)
+        }
+    }
+
+    fn absolute_normalized_path(path: &Path) -> Option<PathBuf> {
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir().ok()?.join(path)
+        };
+
+        let mut normalized = PathBuf::new();
+        for component in path.components() {
+            match component {
+                Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+                Component::RootDir => normalized.push(component.as_os_str()),
+                Component::CurDir => {}
+                Component::Normal(part) => normalized.push(part),
+                Component::ParentDir => {
+                    if !normalized.pop() {
+                        return None;
+                    }
+                }
+            }
+        }
+        Some(normalized)
+    }
+
+    fn path_is_within_root(&self, path: &Path) -> bool {
+        let Some(root) = Self::absolute_normalized_path(&self.root) else {
+            return false;
+        };
+        let Some(path) = Self::absolute_normalized_path(path) else {
+            return false;
+        };
+        path.starts_with(root)
+    }
+
     fn resolve_data_path(&self, id: &str, storage: &Option<MetaStoreInfo>) -> PathBuf {
-        storage
+        if let Some(path) = storage
             .as_ref()
             .map(|info| PathBuf::from(&info.path))
-            .unwrap_or_else(|| self.data_path(id))
+            .filter(|path| self.path_is_within_root(path))
+        {
+            path
+        } else {
+            if storage.is_some() {
+                warn!("ignored unsafe tus disk storage path: id={id}");
+            }
+            self.data_path(id)
+        }
+    }
+
+    async fn existing_path_is_within_root(&self, path: &Path) -> bool {
+        if !self.path_is_within_root(path) {
+            return false;
+        }
+
+        let metadata = match fs::symlink_metadata(path).await {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return true,
+            Err(_) => return false,
+        };
+        if metadata.file_type().is_symlink() {
+            return false;
+        }
+
+        let Ok(root) = fs::canonicalize(&self.root).await else {
+            return false;
+        };
+        let Ok(path) = fs::canonicalize(path).await else {
+            return false;
+        };
+        path.starts_with(root)
+    }
+
+    async fn resolve_existing_data_path(
+        &self,
+        id: &str,
+        storage: &Option<MetaStoreInfo>,
+    ) -> TusResult<PathBuf> {
+        let path = self.resolve_data_path(id, storage);
+        if self.existing_path_is_within_root(&path).await {
+            return Ok(path);
+        }
+
+        let fallback = self.data_path(id);
+        if fallback != path && self.existing_path_is_within_root(&fallback).await {
+            warn!("fell back from unsafe tus disk storage path: id={id}");
+            return Ok(fallback);
+        }
+
+        Err(TusError::Internal("unsafe disk storage path".into()))
+    }
+
+    async fn resolve_meta_data_path(&self, meta: &mut MetaUpload) -> TusResult<PathBuf> {
+        let path = self
+            .resolve_existing_data_path(&meta.id, &meta.storage)
+            .await?;
+        if let Some(storage) = &mut meta.storage {
+            storage.path = path.to_string_lossy().into_owned();
+        }
+        Ok(path)
     }
 
     fn metadata_value(meta: &MetaUpload, key: &str) -> Option<String> {
@@ -191,7 +293,16 @@ impl DiskStore {
             return;
         };
 
-        let current_path = self.resolve_data_path(&meta.id, &meta.storage);
+        let current_path = match self.resolve_meta_data_path(meta).await {
+            Ok(path) => path,
+            Err(err) => {
+                warn!(
+                    "finalize upload path validation failed: id={}, error={}",
+                    meta.id, err
+                );
+                return;
+            }
+        };
         let dir = current_path.parent().unwrap_or(self.root.as_path());
         let mut target_path = dir.join(&file_name);
         if target_path == current_path {
@@ -271,18 +382,17 @@ impl DataStore for DiskStore {
     }
 
     async fn create(&self, file: UploadInfo) -> TusResult<UploadInfo> {
+        Self::ensure_safe_upload_id(&file.id)?;
         self.ensure_root().await?;
 
-        let mut file = file;
-        if file.storage.is_none() {
-            file.storage = Some(StoreInfo {
-                type_name: "file".to_owned(),
-                path: self.data_path(&file.id).to_string_lossy().into_owned(),
-                bucket: None,
-            });
-        }
-
         let data_path = self.data_path(&file.id);
+        let mut file = file;
+        file.storage = Some(StoreInfo {
+            type_name: "file".to_owned(),
+            path: data_path.to_string_lossy().into_owned(),
+            bucket: None,
+        });
+
         fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -301,11 +411,12 @@ impl DataStore for DiskStore {
     }
 
     async fn remove(&self, id: &str) -> TusResult<()> {
+        Self::ensure_safe_upload_id(id)?;
         self.ensure_root().await?;
 
-        let meta = self.read_meta(id).await.ok();
-        let data_path = match &meta {
-            Some(meta) => self.resolve_data_path(id, &meta.storage),
+        let mut meta = self.read_meta(id).await.ok();
+        let data_path = match &mut meta {
+            Some(meta) => self.resolve_meta_data_path(meta).await?,
             None => self.data_path(id),
         };
         let meta_path = self.meta_path(id);
@@ -335,6 +446,7 @@ impl DataStore for DiskStore {
 
         use futures_util::StreamExt;
 
+        Self::ensure_safe_upload_id(id)?;
         self.ensure_root().await?;
 
         let mut meta = self.read_meta(id).await?;
@@ -345,7 +457,7 @@ impl DataStore for DiskStore {
             });
         }
 
-        let path = self.resolve_data_path(id, &meta.storage);
+        let path = self.resolve_meta_data_path(&mut meta).await?;
         let mut file = fs::OpenOptions::new()
             .write(true)
             .open(path)
@@ -395,12 +507,15 @@ impl DataStore for DiskStore {
     }
 
     async fn get_upload_file_info(&self, id: &str) -> TusResult<UploadInfo> {
+        Self::ensure_safe_upload_id(id)?;
         self.ensure_root().await?;
-        let meta = self.read_meta(id).await?;
+        let mut meta = self.read_meta(id).await?;
+        self.resolve_meta_data_path(&mut meta).await?;
         Ok(meta.into())
     }
 
     async fn declare_upload_length(&self, id: &str, length: u64) -> TusResult<()> {
+        Self::ensure_safe_upload_id(id)?;
         self.ensure_root().await?;
         let mut meta = self.read_meta(id).await?;
 
@@ -747,14 +862,29 @@ mod tests {
 
     #[test]
     fn test_resolve_data_path_with_storage() {
-        let store = DiskStore::new().disk_root("/uploads");
+        let (store, temp_dir) = create_test_store();
+        let stored_path = temp_dir.path().join("file.bin");
         let storage = Some(MetaStoreInfo {
             type_name: "file".to_owned(),
-            path: "/custom/path/file.bin".to_owned(),
+            path: stored_path.to_string_lossy().into_owned(),
             bucket: None,
         });
         let path = store.resolve_data_path("test-id", &storage);
-        assert_eq!(path, PathBuf::from("/custom/path/file.bin"));
+        assert_eq!(path, stored_path);
+    }
+
+    #[test]
+    fn test_resolve_data_path_rejects_storage_outside_root() {
+        let (store, outside_dir) = create_test_store();
+        let outside_path = outside_dir.path().join("..").join("outside.bin");
+        let storage = Some(MetaStoreInfo {
+            type_name: "file".to_owned(),
+            path: outside_path.to_string_lossy().into_owned(),
+            bucket: None,
+        });
+
+        let path = store.resolve_data_path("test-id", &storage);
+        assert_eq!(path, store.data_path("test-id"));
     }
 
     #[test]
@@ -852,6 +982,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_disk_store_create_overwrites_custom_storage_path() {
+        let (store, _temp_dir) = create_test_store();
+        let outside_dir = TempDir::new().unwrap();
+        let outside_path = outside_dir.path().join("outside.bin");
+        let id = "test-create-storage";
+        let mut upload_info = create_test_upload_info(id);
+        upload_info.storage = Some(StoreInfo {
+            type_name: "file".to_owned(),
+            path: outside_path.to_string_lossy().into_owned(),
+            bucket: None,
+        });
+
+        let created = store.create(upload_info).await.unwrap();
+        assert_eq!(
+            created.storage.unwrap().path,
+            store.data_path(id).to_string_lossy().into_owned()
+        );
+
+        let meta = store.read_meta(id).await.unwrap();
+        assert_eq!(
+            meta.storage.unwrap().path,
+            store.data_path(id).to_string_lossy().into_owned()
+        );
+    }
+
+    #[tokio::test]
     async fn test_disk_store_create_with_deferred_size() {
         let (store, _temp_dir) = create_test_store();
         let upload_info = UploadInfo {
@@ -888,6 +1044,98 @@ mod tests {
         let result = store.remove("non-existent").await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_create_rejects_unsafe_upload_id() {
+        let (store, _temp_dir) = create_test_store();
+        let upload_info = create_test_upload_info("../escape");
+
+        let result = store.create(upload_info).await;
+        assert!(matches!(result, Err(TusError::FileIdError)));
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_get_info_sanitizes_tampered_storage_path() {
+        let (store, _temp_dir) = create_test_store();
+        let outside_dir = TempDir::new().unwrap();
+        let outside_path = outside_dir.path().join("outside.bin");
+        fs::write(&outside_path, b"outside").await.unwrap();
+
+        let id = "test-tamper-info";
+        store.create(create_test_upload_info(id)).await.unwrap();
+        let mut meta = store.read_meta(id).await.unwrap();
+        meta.storage.as_mut().unwrap().path = outside_path.to_string_lossy().into_owned();
+        store.write_meta_atomic(&meta).await.unwrap();
+
+        let info = store.get_upload_file_info(id).await.unwrap();
+        assert_eq!(
+            info.storage.unwrap().path,
+            store.data_path(id).to_string_lossy().into_owned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_write_ignores_tampered_storage_path() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _temp_dir) = create_test_store();
+        let outside_dir = TempDir::new().unwrap();
+        let outside_path = outside_dir.path().join("outside.bin");
+        fs::write(&outside_path, b"outside").await.unwrap();
+
+        let id = "test-tamper-write";
+        let mut upload_info = create_test_upload_info(id);
+        upload_info.size = Some(5);
+        store.create(upload_info).await.unwrap();
+
+        let mut meta = store.read_meta(id).await.unwrap();
+        meta.storage.as_mut().unwrap().path = outside_path.to_string_lossy().into_owned();
+        store.write_meta_atomic(&meta).await.unwrap();
+
+        let data = Bytes::from_static(b"hello");
+        let stream: ByteStream =
+            Box::pin(stream::once(async move { Ok::<_, std::io::Error>(data) }));
+        store.write(id, 0, stream).await.unwrap();
+
+        assert_eq!(
+            fs::read(&outside_path).await.unwrap().as_slice(),
+            b"outside"
+        );
+        assert_eq!(
+            fs::read(store.data_path(id)).await.unwrap().as_slice(),
+            b"hello"
+        );
+
+        let meta = store.read_meta(id).await.unwrap();
+        assert_eq!(
+            meta.storage.unwrap().path,
+            store.data_path(id).to_string_lossy().into_owned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_disk_store_remove_ignores_tampered_storage_path() {
+        let (store, _temp_dir) = create_test_store();
+        let outside_dir = TempDir::new().unwrap();
+        let outside_path = outside_dir.path().join("outside.bin");
+        fs::write(&outside_path, b"outside").await.unwrap();
+
+        let id = "test-tamper-remove";
+        store.create(create_test_upload_info(id)).await.unwrap();
+
+        let mut meta = store.read_meta(id).await.unwrap();
+        meta.storage.as_mut().unwrap().path = outside_path.to_string_lossy().into_owned();
+        store.write_meta_atomic(&meta).await.unwrap();
+
+        store.remove(id).await.unwrap();
+
+        assert_eq!(
+            fs::read(&outside_path).await.unwrap().as_slice(),
+            b"outside"
+        );
+        assert!(!store.data_path(id).exists());
     }
 
     #[tokio::test]
