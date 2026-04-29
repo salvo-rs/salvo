@@ -262,15 +262,40 @@ pub trait RateGuard: Clone + Send + Sync + 'static {
     fn limit(&self, quota: &Self::Quota) -> impl Future<Output = usize> + Send;
 }
 
+/// Result of a rate limit verification.
+#[derive(Debug, Clone)]
+pub struct RateLimitState<G> {
+    /// Whether the current request is allowed.
+    pub allowed: bool,
+    /// The guard state after verification.
+    pub guard: G,
+}
+
 /// `RateStore` is used to store rate limit data.
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
     type Error: StdError;
     /// Key
-    type Key: Hash + Eq + Send + Clone + 'static;
+    type Key: Hash + Eq + Send + Sync + Clone + 'static;
     /// Saved guard.
-    type Guard;
+    type Guard: RateGuard;
+
+    /// Atomically verify and update the guard for the given key.
+    ///
+    /// Store implementations should keep loading the current guard, calling
+    /// [`RateGuard::verify`], and saving the updated guard in the same atomic
+    /// domain for each key.
+    fn verify_guard(
+        &self,
+        key: Self::Key,
+        refer: &Self::Guard,
+        quota: &<Self::Guard as RateGuard>::Quota,
+    ) -> impl Future<Output = Result<RateLimitState<Self::Guard>, Self::Error>> + Send;
+
     /// Get the guard from the store.
+    ///
+    /// This is a low-level operation. Quota enforcement should use
+    /// [`RateStore::verify_guard`] so verification and update can be atomic.
     fn load_guard<Q>(
         &self,
         key: &Q,
@@ -280,6 +305,9 @@ pub trait RateStore: Send + Sync + 'static {
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
     /// Save the guard from the store.
+    ///
+    /// This is a low-level operation. Quota enforcement should use
+    /// [`RateStore::verify_guard`] so verification and update can be atomic.
     fn save_guard(
         &self,
         key: Self::Key,
@@ -379,8 +407,8 @@ where
                 return;
             }
         };
-        let mut guard = match self.store.load_guard(&key, &self.guard).await {
-            Ok(guard) => guard,
+        let state = match self.store.verify_guard(key, &self.guard, &quota).await {
+            Ok(state) => state,
             Err(e) => {
                 tracing::error!(error = ?e, "rate limiter error: {}", e);
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -388,7 +416,8 @@ where
                 return;
             }
         };
-        let verified = guard.verify(&quota).await;
+        let guard = state.guard;
+        let verified = state.allowed;
 
         if self.add_headers {
             res.headers_mut().insert(
@@ -407,9 +436,6 @@ where
         if !verified {
             res.status_code(StatusCode::TOO_MANY_REQUESTS);
             ctrl.skip_rest();
-        }
-        if let Err(e) = self.store.save_guard(key, guard).await {
-            tracing::error!(error = ?e, "rate limiter save guard failed");
         }
     }
 }
