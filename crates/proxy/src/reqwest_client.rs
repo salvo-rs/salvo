@@ -11,8 +11,8 @@ use crate::{BoxedError, Client, HyperRequest, HyperResponse, Proxy, Upstreams};
 /// A [`Client`] implementation based on [`reqwest::Client`].
 ///
 /// This client provides proxy capabilities using the Reqwest HTTP client.
-/// It supports all features of Reqwest including automatic redirect handling,
-/// connection pooling, and other HTTP client features.
+/// Redirect following is disabled by default for proxy safety. If you need to
+/// follow upstream redirects, pass a custom [`reqwest::Client`] to [`ReqwestClient::new`].
 #[derive(Clone, Debug)]
 pub struct ReqwestClient {
     inner: InnerClient,
@@ -35,7 +35,12 @@ impl Default for ReqwestClient {
     fn default() -> Self {
         #[cfg(feature = "ring")]
         let _ = rustls::crypto::ring::default_provider().install_default();
-        Self::new(InnerClient::builder().build().expect("failed to build reqwest client"))
+        Self::new(
+            InnerClient::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .expect("failed to build reqwest client"),
+        )
     }
 }
 

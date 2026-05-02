@@ -42,14 +42,9 @@
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
-#[cfg(test)]
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use hyper::upgrade::OnUpgrade;
-#[cfg(not(test))]
-use local_ip_address::{local_ip, local_ipv6};
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
-use salvo_core::conn::SocketAddr;
 use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
@@ -341,7 +336,7 @@ where
             url_query_getter: Box::new(default_url_query_getter),
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: false,
-            strict_path_normalization_enabled: false,
+            strict_path_normalization_enabled: true,
         }
     }
 
@@ -354,7 +349,7 @@ where
             url_query_getter: Box::new(default_url_query_getter),
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: true,
-            strict_path_normalization_enabled: false,
+            strict_path_normalization_enabled: true,
         }
     }
 
@@ -509,48 +504,16 @@ where
 
         if self.client_ip_forwarding_enabled {
             let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
-            let current_xff = req.headers().get(&xff_header_name);
-
-            #[cfg(test)]
-            let system_ip_addr = match req.remote_addr() {
-                SocketAddr::IPv6(_) => Some(IpAddr::from(Ipv6Addr::new(
-                    0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
-                ))),
-                _ => Some(IpAddr::from(Ipv4Addr::new(101, 102, 103, 104))),
-            };
-
-            #[cfg(not(test))]
-            let system_ip_addr = match req.remote_addr() {
-                SocketAddr::IPv6(_) => local_ipv6().ok(),
-                _ => local_ip().ok(),
-            };
-
-            if let Some(system_ip_addr) = system_ip_addr {
-                let forwarded_addr = system_ip_addr.to_string();
-
-                let xff_value = match current_xff {
-                    Some(current_xff) => match current_xff.to_str() {
-                        Ok(current_xff) => format!("{forwarded_addr}, {current_xff}"),
-                        _ => forwarded_addr.clone(),
-                    },
-                    None => forwarded_addr.clone(),
-                };
-
-                let xff_header_halue = match HeaderValue::from_str(xff_value.as_str()) {
-                    Ok(xff_header_halue) => Some(xff_header_halue),
-                    Err(_) => match HeaderValue::from_str(forwarded_addr.as_str()) {
-                        Ok(xff_header_halue) => Some(xff_header_halue),
-                        Err(e) => {
-                            tracing::error!(error = ?e, "invalid x-forwarded-for header value");
-                            None
+            if let Some(client_ip) = req.remote_addr().ip() {
+                match HeaderValue::from_str(&client_ip.to_string()) {
+                    Ok(xff) => {
+                        if let Some(headers) = build.headers_mut() {
+                            headers.insert(&xff_header_name, xff);
                         }
-                    },
-                };
-
-                if let Some(xff) = xff_header_halue
-                    && let Some(headers) = build.headers_mut()
-                {
-                    headers.insert(&xff_header_name, xff);
+                    }
+                    Err(e) => {
+                        tracing::error!(error = ?e, "invalid x-forwarded-for header value");
+                    }
                 }
             }
         }
@@ -592,11 +555,7 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        for name in headers.keys() {
-                            for value in headers.get_all(name) {
-                                res.headers.append(name, value.to_owned());
-                            }
-                        }
+                        append_end_to_end_headers(res.headers_mut(), &headers);
                         res.body(body);
                     }
                     Err(e) => {
@@ -630,6 +589,18 @@ fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) ->
         || connection_headers.iter().any(|header| header == name)
 }
 
+fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap) {
+    let connection_headers = connection_header_names(source);
+    for name in source.keys() {
+        if is_hop_by_hop_header(name, &connection_headers) {
+            continue;
+        }
+        for value in source.get_all(name) {
+            destination.append(name, value.to_owned());
+        }
+    }
+}
+
 #[inline]
 #[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
@@ -655,7 +626,7 @@ mod tests {
     use std::str::FromStr;
 
     use futures_util::{SinkExt, StreamExt};
-    use salvo_core::conn::{Acceptor, Listener};
+    use salvo_core::conn::{Acceptor, Listener, SocketAddr};
     use salvo_core::prelude::{Router, Server, StatusError, TcpListener, handler};
     use salvo_extra::websocket::WebSocketUpgrade;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -998,21 +969,29 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
         assert!(proxy.client_ip_forwarding_enabled);
 
         match proxy.build_proxied_request(&mut request, &depot).await {
+            Ok(req) => assert!(req.headers().get(&xff_header_name).is_none()),
+            _ => panic!("expected Ok"),
+        }
+
+        *request.remote_addr_mut() =
+            SocketAddr::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 12345));
+
+        match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
-                Some(&HeaderValue::from_static("101.102.103.104"))
+                Some(&HeaderValue::from_static("127.0.0.1"))
             ),
             _ => panic!("expected Ok"),
         }
 
-        // Test choosing correct IP version depending on remote address
+        // Test choosing correct IP version depending on remote address.
         *request.remote_addr_mut() =
             SocketAddr::from(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 12345, 0, 0));
 
         match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
-                Some(&HeaderValue::from_static("1:2:3:4:5:6:7:8"))
+                Some(&HeaderValue::from_static("::1"))
             ),
             _ => panic!("expected Ok"),
         }
@@ -1020,14 +999,11 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
         *request.remote_addr_mut() = SocketAddr::Unknown;
 
         match proxy.build_proxied_request(&mut request, &depot).await {
-            Ok(req) => assert_eq!(
-                req.headers().get(&xff_header_name),
-                Some(&HeaderValue::from_static("101.102.103.104"))
-            ),
+            Ok(req) => assert!(req.headers().get(&xff_header_name).is_none()),
             _ => panic!("expected Ok"),
         }
 
-        // Test IP prepending when XFF header already exists in initial request.
+        // Test incoming XFF is overwritten instead of preserving untrusted client input.
         request.headers_mut().insert(
             &xff_header_name,
             HeaderValue::from_static("10.72.0.1, 127.0.0.1"),
@@ -1038,9 +1014,7 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
         match proxy.build_proxied_request(&mut request, &depot).await {
             Ok(req) => assert_eq!(
                 req.headers().get(&xff_header_name),
-                Some(&HeaderValue::from_static(
-                    "101.102.103.104, 10.72.0.1, 127.0.0.1"
-                ))
+                Some(&HeaderValue::from_static("127.0.0.1"))
             ),
             _ => panic!("expected Ok"),
         }
@@ -1080,13 +1054,31 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
     }
 
     #[tokio::test]
-    async fn test_build_proxied_request_preserves_encoded_tail_by_default() {
+    async fn test_build_proxied_request_rejects_ambiguous_encoded_tail_by_default() {
         let mut request = Request::new();
         request
             .params_mut()
             .insert("**rest", "%2e%2e/secrets/.env".to_owned());
         let depot = Depot::new();
         let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
+
+        assert!(
+            proxy
+                .build_proxied_request(&mut request, &depot)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_can_opt_out_of_strict_path_normalization() {
+        let mut request = Request::new();
+        request
+            .params_mut()
+            .insert("**rest", "%2e%2e/secrets/.env".to_owned());
+        let depot = Depot::new();
+        let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default())
+            .strict_path_normalization(false);
 
         let proxied_request = proxy
             .build_proxied_request(&mut request, &depot)
@@ -1109,11 +1101,49 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
             let mut request = Request::new();
             request.params_mut().insert("**rest", path.to_owned());
             let depot = Depot::new();
-            let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default())
-                .strict_path_normalization(true);
+            let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
 
             let err = proxy.build_proxied_request(&mut request, &depot).await;
             assert!(err.is_err(), "path should be rejected: {path}");
         }
+    }
+
+    #[test]
+    fn test_append_end_to_end_headers_strips_response_hop_by_hop_headers() {
+        let mut source = HeaderMap::new();
+        source.insert(CONNECTION, HeaderValue::from_static("x-remove"));
+        source.insert(UPGRADE, HeaderValue::from_static("websocket"));
+        source.insert(
+            HeaderName::from_static("transfer-encoding"),
+            HeaderValue::from_static("chunked"),
+        );
+        source.insert(
+            HeaderName::from_static("x-remove"),
+            HeaderValue::from_static("secret"),
+        );
+        source.insert(
+            HeaderName::from_static("x-keep"),
+            HeaderValue::from_static("ok"),
+        );
+
+        let mut destination = HeaderMap::new();
+        append_end_to_end_headers(&mut destination, &source);
+
+        assert!(destination.get(CONNECTION).is_none());
+        assert!(destination.get(UPGRADE).is_none());
+        assert!(
+            destination
+                .get(HeaderName::from_static("transfer-encoding"))
+                .is_none()
+        );
+        assert!(
+            destination
+                .get(HeaderName::from_static("x-remove"))
+                .is_none()
+        );
+        assert_eq!(
+            destination.get(HeaderName::from_static("x-keep")),
+            Some(&HeaderValue::from_static("ok"))
+        );
     }
 }

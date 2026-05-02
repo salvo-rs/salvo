@@ -48,7 +48,6 @@ hyper-util = { workspace = true, optional = true, features = [
     "http2",
     "client-legacy",
 ] }
-local-ip-address = { workspace = true }
 percent-encoding = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["charset", "http2", "stream"] }
 salvo_core = { workspace = true, default-features = false }
