@@ -170,4 +170,22 @@ mod tests {
         let loaded = cookie_store.load(&mut req, &mut depot, &cipher).await;
         assert_eq!(loaded, Some((token, proof)));
     }
+
+    #[tokio::test]
+    async fn test_cookie_store_infers_secure_from_https_scheme() {
+        let cipher = BcryptCipher::new();
+        let cookie_store = CookieStore::new().name("test_cookie");
+        let mut req = TestClient::get("https://example.com/test").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        let (token, proof) = cipher.generate();
+        cookie_store
+            .save(&mut req, &mut depot, &mut res, &token, &proof)
+            .await
+            .unwrap();
+
+        let cookie = res.cookies().get("test_cookie").unwrap();
+        assert_eq!(cookie.secure(), Some(true));
+    }
 }

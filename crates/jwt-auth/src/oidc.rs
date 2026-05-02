@@ -471,13 +471,16 @@ async fn collect_limited_body(
     max_size: usize,
 ) -> Result<Bytes, JwtAuthError> {
     let limited = Limited::new(body, max_size);
-    let collected = limited.collect().await.map_err(|error| {
-        if error.is::<http_body_util::LengthLimitError>() {
-            JwtAuthError::OidcResponseTooLarge(max_size)
-        } else {
-            JwtAuthError::OidcBodyRead(error.to_string())
-        }
-    })?;
+    let collected = timeout(OIDC_HTTP_TIMEOUT, limited.collect())
+        .await
+        .map_err(|_| JwtAuthError::OidcHttpTimeout)?
+        .map_err(|error| {
+            if error.is::<http_body_util::LengthLimitError>() {
+                JwtAuthError::OidcResponseTooLarge(max_size)
+            } else {
+                JwtAuthError::OidcBodyRead(error.to_string())
+            }
+        })?;
     Ok(collected.to_bytes())
 }
 
