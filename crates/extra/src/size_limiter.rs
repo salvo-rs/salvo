@@ -87,16 +87,17 @@ impl Handler for MaxSize {
             return;
         }
 
-        let Ok(max_size) = usize::try_from(self.0) else {
-            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            ctrl.skip_rest();
-            return;
-        };
-
+        let max_size = request_limit(self.0);
         req.limit_body(max_size);
         ctrl.call_next(req, depot, res).await;
     }
 }
+
+#[inline]
+fn request_limit(max_size: u64) -> usize {
+    max_size.min(usize::MAX as u64) as usize
+}
+
 /// Create a new `MaxSize`.
 #[inline]
 #[must_use] pub fn max_size(size: u64) -> MaxSize {
@@ -202,5 +203,11 @@ mod tests {
             .await;
 
         assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[test]
+    fn test_request_limit_clamps_to_platform_usize() {
+        assert_eq!(request_limit(4), 4);
+        assert_eq!(request_limit(u64::MAX), usize::MAX);
     }
 }
