@@ -3,11 +3,15 @@ use std::convert::Infallible;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use moka::future::Cache as MokaCache;
 use moka::ops::compute;
 
 use super::{RateGuard, RateLimitState, RateStore};
+
+const DEFAULT_MAX_CAPACITY: u64 = 100_000;
+const DEFAULT_TIME_TO_IDLE: Duration = Duration::from_secs(60 * 60);
 
 /// A simple in-memory store for rate limiter.
 #[derive(Debug)]
@@ -34,6 +38,32 @@ where
 {
     /// Create a new `MokaStore`.
     #[must_use] pub fn new() -> Self {
+        Self::with_capacity_and_time_to_idle(DEFAULT_MAX_CAPACITY, DEFAULT_TIME_TO_IDLE)
+    }
+
+    /// Create a new `MokaStore` with a maximum number of identifiers.
+    #[must_use]
+    pub fn with_max_capacity(max_capacity: u64) -> Self {
+        Self::with_capacity_and_time_to_idle(max_capacity, DEFAULT_TIME_TO_IDLE)
+    }
+
+    /// Create a new `MokaStore` with a maximum number of identifiers and idle eviction.
+    #[must_use]
+    pub fn with_capacity_and_time_to_idle(max_capacity: u64, time_to_idle: Duration) -> Self {
+        Self {
+            inner: MokaCache::builder()
+                .max_capacity(max_capacity)
+                .time_to_idle(time_to_idle)
+                .build(),
+        }
+    }
+
+    /// Create an unbounded `MokaStore`.
+    ///
+    /// Prefer [`MokaStore::new`] or [`MokaStore::with_max_capacity`] for public services where
+    /// attackers can create high-cardinality identifiers.
+    #[must_use]
+    pub fn unbounded() -> Self {
         Self {
             inner: MokaCache::new(u64::MAX),
         }
@@ -135,5 +165,11 @@ mod tests {
         }
 
         assert_eq!(allowed_count.load(Ordering::SeqCst), 10);
+    }
+
+    #[test]
+    fn new_uses_bounded_cache_defaults() {
+        let store = MokaStore::<String, FixedGuard>::new();
+        assert_eq!(store.inner.policy().max_capacity(), Some(DEFAULT_MAX_CAPACITY));
     }
 }

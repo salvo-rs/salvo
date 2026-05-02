@@ -69,7 +69,7 @@
 //! </html>
 //! "#;
 //! ```
-use salvo_core::http::StatusError;
+use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::http::{Body, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
@@ -79,18 +79,22 @@ pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        let size_hint = req.body().size_hint().upper();
-        if let Some(upper) = size_hint {
-            if upper > self.0 {
-                res.render(StatusError::payload_too_large());
-                ctrl.skip_rest();
-            } else {
-                ctrl.call_next(req, depot, res).await;
-            }
-        } else {
-            res.render(StatusError::bad_request().brief("request body size is unknown"));
+        if let Some(upper) = req.body().size_hint().upper()
+            && upper > self.0
+        {
+            res.render(StatusError::payload_too_large());
             ctrl.skip_rest();
+            return;
         }
+
+        let Ok(max_size) = usize::try_from(self.0) else {
+            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            ctrl.skip_rest();
+            return;
+        };
+
+        req.limit_body(max_size);
+        ctrl.call_next(req, depot, res).await;
     }
 }
 /// Create a new `MaxSize`.
@@ -135,4 +139,3 @@ mod tests {
         assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }
-

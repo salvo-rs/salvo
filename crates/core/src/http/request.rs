@@ -626,6 +626,26 @@ impl Request {
         self.secure_max_size = Some(size);
     }
 
+    /// Wraps the request body in a streaming size limit and also sets the
+    /// request's secure max size.
+    ///
+    /// This is useful for middleware that must enforce the limit even when a
+    /// downstream handler reads the body stream directly instead of using
+    /// [`payload()`](Request::payload) or [`form_data()`](Request::form_data).
+    #[inline]
+    pub fn limit_body(&mut self, max_size: usize) {
+        self.set_secure_max_size(max_size);
+        if self.body.is_none() {
+            return;
+        }
+
+        let body = self.take_body();
+        self.replace_body(ReqBody::Boxed {
+            inner: Box::pin(Limited::new(body, max_size)),
+            fusewire: None,
+        });
+    }
+
     /// Returns the maximum allowed body size for this request.
     ///
     /// Returns the request-specific limit if set via
