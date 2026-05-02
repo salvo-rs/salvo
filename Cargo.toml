@@ -101,7 +101,6 @@ opentelemetry-semantic-conventions = { version = "0.31", default-features = fals
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
-paste = "1"
 pin-project = "1"
 proc-macro-crate = { version = ">= 2, <= 4" }
 proc-macro2-diagnostics = { version = "0.10", default-features = true }

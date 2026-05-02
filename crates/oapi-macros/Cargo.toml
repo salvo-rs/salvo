@@ -52,7 +52,6 @@ chrono = { workspace = true, features = ["serde"] }
 assert-json-diff = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable"] }
 serde_with = { workspace = true }
-paste = { workspace = true }
 compact_str = { workspace = true, features = ["serde"] }
 
 [lints]
