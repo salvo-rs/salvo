@@ -393,10 +393,17 @@ fn build_content_disposition(
                 .into(),
         };
         let quoted_filename = escape_quoted_filename(&attached_name);
-        let encoded_filename = utf8_percent_encode(&attached_name, RFC5987_ATTR_CHAR_ENCODE_SET);
-        format!(r#"attachment; filename="{quoted_filename}"; filename*=UTF-8''{encoded_filename}"#)
-            .parse::<HeaderValue>()
-            .map_err(Error::other)?
+        if quoted_filename == attached_name {
+            format!(r#"attachment; filename="{quoted_filename}""#)
+        } else {
+            let encoded_filename =
+                utf8_percent_encode(&attached_name, RFC5987_ATTR_CHAR_ENCODE_SET);
+            format!(
+                r#"attachment; filename="{quoted_filename}"; filename*=UTF-8''{encoded_filename}"#
+            )
+        }
+        .parse::<HeaderValue>()
+        .map_err(Error::other)?
     } else {
         disposition_type
             .parse::<HeaderValue>()

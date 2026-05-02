@@ -14,7 +14,13 @@ pub(crate) fn escape_html(value: &str) -> String {
 }
 
 pub(crate) fn json_string(value: &str) -> String {
-    serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_owned())
+    serde_json::to_string(value)
+        .unwrap_or_else(|_| "\"\"".to_owned())
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
+        .replace('&', "\\u0026")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 pub(crate) fn keywords_meta(value: &str) -> String {
@@ -52,7 +58,11 @@ mod tests {
 
     #[test]
     fn test_json_string() {
-        assert_eq!(json_string(r#""</script>"#), r#""\"</script>""#);
+        assert_eq!(json_string(r#"""#), r#""\"""#);
+        assert_eq!(
+            json_string("</script>&\u{2028}\u{2029}"),
+            r#""\u003c/script\u003e\u0026\u2028\u2029""#
+        );
     }
 
     #[test]
