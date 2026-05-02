@@ -34,7 +34,7 @@ ring = ["hyper-rustls?/ring"]
 [dependencies]
 base64 = { workspace = true }
 bytes = { workspace = true, optional = true }
-jsonwebtoken = { workspace = true, features = ["aws-lc-rs"] }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs"] }
 http-body-util = { workspace = true, optional = true }
 hyper-rustls = { workspace = true, optional = true, features = [
     "native-tokio",
