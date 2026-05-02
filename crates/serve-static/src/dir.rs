@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 
@@ -400,7 +400,7 @@ impl Handler for StaticDir {
             }
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
-        if abs_path.is_none() && !fallback.is_empty() {
+        if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
             for root in &self.roots {
                 let raw_path = join_path!(root, fallback);
                 if !Path::new(&raw_path).starts_with(root) {
@@ -579,6 +579,14 @@ fn list_xml(current: &CurrentInfo) -> String {
     ftxt
 }
 
+fn is_safe_relative_path(path: &str) -> bool {
+    let path = Path::new(path);
+    !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
+}
+
 fn xml_escape(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for ch in value.chars() {
@@ -744,7 +752,7 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 
 #[cfg(test)]
 mod tests {
-    use crate::dir::{human_size, xml_escape};
+    use crate::dir::{human_size, is_safe_relative_path, xml_escape};
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
@@ -774,5 +782,14 @@ mod tests {
             xml_escape(r#"<script a="b">'&</script>"#),
             "&lt;script a=&quot;b&quot;&gt;&apos;&amp;&lt;/script&gt;"
         );
+    }
+
+    #[test]
+    fn test_fallback_path_must_stay_relative() {
+        assert!(is_safe_relative_path("index.html"));
+        assert!(is_safe_relative_path("./spa/index.html"));
+        assert!(!is_safe_relative_path("../secret.html"));
+        assert!(!is_safe_relative_path("spa/../../secret.html"));
+        assert!(!is_safe_relative_path("/var/www/index.html"));
     }
 }

@@ -23,6 +23,10 @@ pub(crate) fn json_string(value: &str) -> String {
         .replace('\u{2029}', "\\u2029")
 }
 
+pub(crate) fn style_text(value: &str) -> String {
+    value.replace("</", "<\\/")
+}
+
 pub(crate) fn keywords_meta(value: &str) -> String {
     let keywords = value
         .split(',')
@@ -62,6 +66,14 @@ mod tests {
         assert_eq!(
             json_string("</script>&\u{2028}\u{2029}"),
             r#""\u003c/script\u003e\u0026\u2028\u2029""#
+        );
+    }
+
+    #[test]
+    fn test_style_text_breaks_end_tags() {
+        assert_eq!(
+            style_text("body{color:red}</style><script>alert(1)</script>"),
+            "body{color:red}<\\/style><script>alert(1)<\\/script>"
         );
     }
 
