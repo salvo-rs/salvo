@@ -555,7 +555,7 @@ where
                             body,
                         ) = response.into_parts();
                         res.status_code(status);
-                        append_end_to_end_headers(res.headers_mut(), &headers);
+                        append_end_to_end_headers(res.headers_mut(), &headers, status);
                         res.body(body);
                     }
                     Err(e) => {
@@ -589,8 +589,13 @@ fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) ->
         || connection_headers.iter().any(|header| header == name)
 }
 
-fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap) {
+fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap, status: StatusCode) {
     let connection_headers = connection_header_names(source);
+    let upgrade_type = if status == StatusCode::SWITCHING_PROTOCOLS {
+        get_upgrade_type(source).map(str::to_owned)
+    } else {
+        None
+    };
     for name in source.keys() {
         if is_hop_by_hop_header(name, &connection_headers) {
             continue;
@@ -599,10 +604,20 @@ fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap) {
             destination.append(name, value.to_owned());
         }
     }
+    if let Some(upgrade_type) = upgrade_type {
+        destination.append(CONNECTION, HeaderValue::from_static("upgrade"));
+        match HeaderValue::from_str(&upgrade_type) {
+            Ok(upgrade_type) => {
+                destination.append(UPGRADE, upgrade_type);
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "invalid upgrade header value");
+            }
+        }
+    }
 }
 
 #[inline]
-#[allow(dead_code)]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if connection_header_names(headers)
         .iter()
@@ -926,6 +941,15 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
             response_head.starts_with("HTTP/1.1 101"),
             "unexpected websocket handshake response: {response_head}"
         );
+        let response_head_lower = response_head.to_ascii_lowercase();
+        assert!(
+            response_head_lower.contains("\r\nconnection: upgrade\r\n"),
+            "missing connection upgrade header: {response_head}"
+        );
+        assert!(
+            response_head_lower.contains("\r\nupgrade: websocket\r\n"),
+            "missing upgrade header: {response_head}"
+        );
 
         let mut websocket = tokio_tungstenite::WebSocketStream::from_partially_read(
             stream,
@@ -1127,10 +1151,55 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
         );
 
         let mut destination = HeaderMap::new();
-        append_end_to_end_headers(&mut destination, &source);
+        append_end_to_end_headers(&mut destination, &source, StatusCode::OK);
 
         assert!(destination.get(CONNECTION).is_none());
         assert!(destination.get(UPGRADE).is_none());
+        assert!(
+            destination
+                .get(HeaderName::from_static("transfer-encoding"))
+                .is_none()
+        );
+        assert!(
+            destination
+                .get(HeaderName::from_static("x-remove"))
+                .is_none()
+        );
+        assert_eq!(
+            destination.get(HeaderName::from_static("x-keep")),
+            Some(&HeaderValue::from_static("ok"))
+        );
+    }
+
+    #[test]
+    fn test_append_end_to_end_headers_preserves_upgrade_handshake_on_101() {
+        let mut source = HeaderMap::new();
+        source.insert(CONNECTION, HeaderValue::from_static("Upgrade, x-remove"));
+        source.insert(UPGRADE, HeaderValue::from_static("websocket"));
+        source.insert(
+            HeaderName::from_static("transfer-encoding"),
+            HeaderValue::from_static("chunked"),
+        );
+        source.insert(
+            HeaderName::from_static("x-remove"),
+            HeaderValue::from_static("secret"),
+        );
+        source.insert(
+            HeaderName::from_static("x-keep"),
+            HeaderValue::from_static("ok"),
+        );
+
+        let mut destination = HeaderMap::new();
+        append_end_to_end_headers(&mut destination, &source, StatusCode::SWITCHING_PROTOCOLS);
+
+        assert_eq!(
+            destination.get(CONNECTION),
+            Some(&HeaderValue::from_static("upgrade"))
+        );
+        assert_eq!(
+            destination.get(UPGRADE),
+            Some(&HeaderValue::from_static("websocket"))
+        );
         assert!(
             destination
                 .get(HeaderName::from_static("transfer-encoding"))
