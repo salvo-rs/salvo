@@ -9,6 +9,8 @@ use std::borrow::Cow;
 use salvo_core::writing::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 
+use crate::html::{description_meta, escape_html, keywords_meta};
+
 const INDEX_TMPL: &str = r#"
 <!doctype html>
 <html>
@@ -103,24 +105,19 @@ impl Handler for RapiDoc {
         let keywords = self
             .keywords
             .as_ref()
-            .map(|s| {
-                format!(
-                    "<meta name=\"keywords\" content=\"{}\">",
-                    s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
-                )
-            })
+            .map(|s| keywords_meta(s))
             .unwrap_or_default();
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
+            .map(|s| description_meta(s))
             .unwrap_or_default();
         let html = INDEX_TMPL
-            .replacen("{{spec_url}}", &self.spec_url, 1)
-            .replacen("{{lib_url}}", &self.lib_url, 1)
+            .replacen("{{spec_url}}", &escape_html(&self.spec_url), 1)
+            .replacen("{{lib_url}}", &escape_html(&self.lib_url), 1)
             .replacen("{{description}}", &description, 1)
             .replacen("{{keywords}}", &keywords, 1)
-            .replacen("{{title}}", &self.title, 1);
+            .replacen("{{title}}", &escape_html(&self.title), 1);
         res.render(Text::Html(html));
     }
 }

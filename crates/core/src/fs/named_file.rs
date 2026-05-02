@@ -12,6 +12,7 @@ use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use mime::Mime;
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use tokio::fs::File;
 #[allow(unused_imports)]
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -26,6 +27,28 @@ use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
+const RFC5987_ATTR_CHAR_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'%')
+    .add(b'\'')
+    .add(b'(')
+    .add(b')')
+    .add(b'*')
+    .add(b',')
+    .add(b'/')
+    .add(b':')
+    .add(b';')
+    .add(b'<')
+    .add(b'=')
+    .add(b'>')
+    .add(b'?')
+    .add(b'@')
+    .add(b'[')
+    .add(b'\\')
+    .add(b']')
+    .add(b'{')
+    .add(b'}');
 
 #[bitflags(default = Etag | LastModified | ContentDisposition)]
 #[repr(u8)]
@@ -369,7 +392,9 @@ fn build_content_disposition(
                 .unwrap_or_else(|| "file".into())
                 .into(),
         };
-        format!(r#"attachment; filename="{attached_name}""#)
+        let quoted_filename = escape_quoted_filename(&attached_name);
+        let encoded_filename = utf8_percent_encode(&attached_name, RFC5987_ATTR_CHAR_ENCODE_SET);
+        format!(r#"attachment; filename="{quoted_filename}"; filename*=UTF-8''{encoded_filename}"#)
             .parse::<HeaderValue>()
             .map_err(Error::other)?
     } else {
@@ -378,6 +403,22 @@ fn build_content_disposition(
             .map_err(Error::other)?
     };
     Ok(content_disposition)
+}
+
+fn escape_quoted_filename(filename: &str) -> String {
+    let mut escaped = String::with_capacity(filename.len());
+    for ch in filename.chars() {
+        match ch {
+            '"' | '\\' => {
+                escaped.push('\\');
+                escaped.push(ch);
+            }
+            '\t' => escaped.push(' '),
+            ch if ch.is_ascii_control() || !ch.is_ascii() => escaped.push('_'),
+            ch => escaped.push(ch),
+        }
+    }
+    escaped
 }
 impl NamedFile {
     /// Create new [`NamedFileBuilder`].
@@ -740,5 +781,42 @@ fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
                 true
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn content_disposition_escapes_quoted_filename() {
+        let value = build_content_disposition(
+            "ignored.txt",
+            &mime::APPLICATION_OCTET_STREAM,
+            None,
+            Some("report\"\\\r\n.txt"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            value.to_str().unwrap(),
+            r#"attachment; filename="report\"\\__.txt"; filename*=UTF-8''report%22%5C%0D%0A.txt"#
+        );
+    }
+
+    #[test]
+    fn content_disposition_preserves_non_ascii_with_filename_star() {
+        let value = build_content_disposition(
+            "ignored.txt",
+            &mime::APPLICATION_OCTET_STREAM,
+            None,
+            Some("报告.csv"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            value.to_str().unwrap(),
+            "attachment; filename=\"__.csv\"; filename*=UTF-8''%E6%8A%A5%E5%91%8A.csv"
+        );
     }
 }

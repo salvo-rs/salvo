@@ -79,6 +79,9 @@ pub struct TusOptions {
     /// Return a relative URL as the `Location` header.
     pub relative_location: bool,
 
+    /// Canonical origin used for absolute `Location` headers.
+    pub canonical_origin: Option<String>,
+
     /// Allow forwarded headers override Location
     pub respect_forwarded_headers: bool,
 
@@ -211,6 +214,13 @@ impl TusOptions {
             return Ok(format!("{path}/{upload_id}"));
         }
 
+        if let Some(origin) = &self.canonical_origin {
+            return Ok(format!(
+                "{}{path}/{upload_id}",
+                origin.trim_end_matches('/')
+            ));
+        }
+
         Ok(format!("{proto}://{host}{path}/{upload_id}"))
     }
 
@@ -285,6 +295,7 @@ impl Default for TusOptions {
             path: "/tus-files".to_owned(),
             max_size: Some(MaxSize::Fixed(2 * 1024 * 1024 * 1024)), // Default max size 2GiB
             relative_location: true,
+            canonical_origin: None,
             respect_forwarded_headers: false,
             allowed_headers: vec![],
             exposed_headers: vec![],
@@ -464,6 +475,7 @@ mod tests {
 
         assert_eq!(options.path, "/tus-files");
         assert!(options.relative_location);
+        assert!(options.canonical_origin.is_none());
         assert!(!options.respect_forwarded_headers);
         assert!(options.allowed_headers.is_empty());
         assert!(options.exposed_headers.is_empty());
@@ -671,6 +683,22 @@ mod tests {
         let cloned = options.clone();
         assert_eq!(cloned.path, options.path);
         assert_eq!(cloned.relative_location, options.relative_location);
+    }
+
+    #[test]
+    fn test_generate_upload_url_uses_canonical_origin_for_absolute_locations() {
+        let options = TusOptions {
+            relative_location: false,
+            canonical_origin: Some("https://uploads.example.com/base/".to_owned()),
+            ..TusOptions::default()
+        };
+        let mut req = Request::default();
+        req.headers_mut()
+            .insert(header::HOST, "attacker.example".parse().unwrap());
+
+        let url = options.generate_upload_url(&mut req, "abc123").unwrap();
+
+        assert_eq!(url, "https://uploads.example.com/base/tus-files/abc123");
     }
 
     #[tokio::test]

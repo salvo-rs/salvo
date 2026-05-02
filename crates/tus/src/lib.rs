@@ -233,6 +233,11 @@ impl Tus {
         self
     }
 
+    pub fn canonical_origin(mut self, origin: impl Into<String>) -> Self {
+        self.options.canonical_origin = Some(origin.into());
+        self
+    }
+
     pub fn allowed_origins<I, S>(mut self, origins: I) -> Self
     where
         I: IntoIterator<Item = S>,

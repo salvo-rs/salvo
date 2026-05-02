@@ -403,6 +403,9 @@ impl Handler for StaticDir {
         if abs_path.is_none() && !fallback.is_empty() {
             for root in &self.roots {
                 let raw_path = join_path!(root, fallback);
+                if !Path::new(&raw_path).starts_with(root) {
+                    continue;
+                }
                 if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
                     continue;
                 }
@@ -556,7 +559,7 @@ fn list_xml(current: &CurrentInfo) -> String {
             let _ = write!(
                 ftxt,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
-                dir.name,
+                xml_escape(&dir.name),
                 dir.modified.format(&format).expect("format time failed"),
                 encode_url_path(&dir.name),
             );
@@ -565,7 +568,7 @@ fn list_xml(current: &CurrentInfo) -> String {
             let _ = write!(
                 ftxt,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
-                file.name,
+                xml_escape(&file.name),
                 file.modified.format(&format).expect("format time failed"),
                 file.size,
                 encode_url_path(&file.name),
@@ -575,6 +578,22 @@ fn list_xml(current: &CurrentInfo) -> String {
     ftxt.push_str("</list>");
     ftxt
 }
+
+fn xml_escape(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&apos;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
 fn human_size(bytes: u64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
     let mut index = 0;
@@ -725,7 +744,7 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 
 #[cfg(test)]
 mod tests {
-    use crate::dir::human_size;
+    use crate::dir::{human_size, xml_escape};
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
@@ -747,5 +766,13 @@ mod tests {
 
         assert_eq!("1 PB", human_size(unit * unit * unit * unit * unit));
         assert_eq!("1 PB", human_size(unit * unit * unit * unit * unit - 1));
+    }
+
+    #[test]
+    fn test_xml_escape() {
+        assert_eq!(
+            xml_escape(r#"<script a="b">'&</script>"#),
+            "&lt;script a=&quot;b&quot;&gt;&apos;&amp;&lt;/script&gt;"
+        );
     }
 }

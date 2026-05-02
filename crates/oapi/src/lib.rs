@@ -7,6 +7,7 @@
 #[macro_use]
 mod cfg;
 
+mod html;
 mod openapi;
 pub use openapi::*;
 

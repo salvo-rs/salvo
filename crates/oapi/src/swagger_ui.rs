@@ -16,6 +16,8 @@ use salvo_core::routing::redirect_to_dir_url;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, Router, async_trait};
 use serde::Serialize;
 
+use crate::html::{description_meta, escape_html, keywords_meta};
+
 #[derive(RustEmbed)]
 #[folder = "src/swagger_ui/v5.32.4"]
 struct SwaggerUiDist;
@@ -223,17 +225,12 @@ impl Handler for SwaggerUi {
         let keywords = self
             .keywords
             .as_ref()
-            .map(|s| {
-                format!(
-                    "<meta name=\"keywords\" content=\"{}\">",
-                    s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
-                )
-            })
+            .map(|s| keywords_meta(s))
             .unwrap_or_default();
         let description = self
             .description
             .as_ref()
-            .map(|s| format!("<meta name=\"description\" content=\"{s}\">"))
+            .map(|s| description_meta(s))
             .unwrap_or_default();
         match serve(path, &self.title, &keywords, &description, &self.config) {
             Ok(Some(file)) => {
@@ -387,7 +384,7 @@ pub fn serve<'a>(
             .replacen("{{config}}", &config_json, 1)
             .replacen("{{description}}", description, 1)
             .replacen("{{keywords}}", keywords, 1)
-            .replacen("{{title}}", title, 1);
+            .replacen("{{title}}", &escape_html(title), 1);
 
         if let Some(oauth) = &config.oauth {
             let oauth_json = serde_json::to_string(oauth)?;
