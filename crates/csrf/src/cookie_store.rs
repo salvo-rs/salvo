@@ -19,6 +19,8 @@ pub struct CookieStore {
     pub path: String,
     /// CSRF cookie domain.
     pub domain: Option<String>,
+    /// Forced secure cookie attribute. If None, infer from request URI scheme.
+    pub secure: Option<bool>,
 }
 impl Default for CookieStore {
     #[inline]
@@ -36,6 +38,7 @@ impl CookieStore {
             name: "salvo.csrf".into(),
             path: "/".into(),
             domain: None,
+            secure: None,
         }
     }
     /// Sets cookie name.
@@ -65,6 +68,16 @@ impl CookieStore {
         self.domain = Some(domain.into());
         self
     }
+
+    /// Forces the `Secure` attribute for CSRF cookies.
+    ///
+    /// By default this is detected from the request URI scheme. Use this option in
+    /// production when TLS is terminated before the Salvo application.
+    #[must_use]
+    pub fn secure(mut self, secure: bool) -> Self {
+        self.secure = Some(secure);
+        self
+    }
 }
 impl CsrfStore for CookieStore {
     type Error = Error;
@@ -92,7 +105,9 @@ impl CsrfStore for CookieStore {
         token: &str,
         proof: &str,
     ) -> Result<(), Self::Error> {
-        let secure = req.uri().scheme() == Some(&Scheme::HTTPS);
+        let secure = self
+            .secure
+            .unwrap_or_else(|| req.uri().scheme() == Some(&Scheme::HTTPS));
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
         let cookie_builder = Cookie::build((self.name.clone(), format!("{token}.{proof}")))
             .http_only(true)
@@ -123,14 +138,16 @@ mod tests {
             .name("test_cookie")
             .ttl(Duration::days(1))
             .path("/test")
-            .domain("example.com");
+            .domain("example.com")
+            .secure(true);
 
         assert_eq!(cookie_store.name, "test_cookie");
         assert_eq!(cookie_store.ttl, Duration::days(1));
         assert_eq!(cookie_store.path, "/test");
         assert_eq!(cookie_store.domain.as_deref(), Some("example.com"));
+        assert_eq!(cookie_store.secure, Some(true));
 
-        let mut req = TestClient::get("https://example.com/test").build();
+        let mut req = TestClient::get("http://example.com/test").build();
         let mut depot = Depot::new();
         let mut res = Response::new();
 

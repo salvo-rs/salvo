@@ -120,6 +120,7 @@ pub struct HandlerBuilder<S> {
     session_ttl: Option<Duration>,
     save_unchanged: bool,
     same_site_policy: SameSite,
+    secure_cookie: Option<bool>,
     key: Key,
     fallback_keys: Vec<Key>,
 }
@@ -135,6 +136,7 @@ where
             .field("cookie_domain", &self.cookie_domain)
             .field("session_ttl", &self.session_ttl)
             .field("same_site_policy", &self.same_site_policy)
+            .field("secure_cookie", &self.secure_cookie)
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
@@ -187,6 +189,7 @@ where
             cookie_name: "salvo.session.id".into(),
             cookie_domain: None,
             same_site_policy: SameSite::Lax,
+            secure_cookie: None,
             session_ttl: Some(Duration::from_secs(24 * 60 * 60)),
             key,
             fallback_keys: vec![],
@@ -254,6 +257,17 @@ where
         self
     }
 
+    /// Forces the `Secure` attribute for session cookies.
+    ///
+    /// By default this is detected from the request URI scheme. Use this option in
+    /// production when TLS is terminated before the Salvo application.
+    #[inline]
+    #[must_use]
+    pub fn secure_cookie(mut self, secure: bool) -> Self {
+        self.secure_cookie = Some(secure);
+        self
+    }
+
     /// Sets the domain of the cookie.
     #[inline]
     #[must_use]
@@ -287,6 +301,7 @@ where
             cookie_domain,
             session_ttl,
             same_site_policy,
+            secure_cookie,
             key,
             fallback_keys,
         } = self;
@@ -305,6 +320,7 @@ where
             cookie_domain,
             session_ttl,
             same_site_policy,
+            secure_cookie,
             hmac,
             fallback_hmacs,
         })
@@ -320,6 +336,7 @@ pub struct SessionHandler<S> {
     session_ttl: Option<Duration>,
     save_unchanged: bool,
     same_site_policy: SameSite,
+    secure_cookie: Option<bool>,
     hmac: Hmac<Sha256>,
     fallback_hmacs: Vec<Hmac<Sha256>>,
 }
@@ -336,6 +353,7 @@ where
             .field("cookie_domain", &self.cookie_domain)
             .field("session_ttl", &self.session_ttl)
             .field("same_site_policy", &self.same_site_policy)
+            .field("secure_cookie", &self.secure_cookie)
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
@@ -380,7 +398,9 @@ where
             match self.store.store_session(session).await {
                 Ok(cookie_value) => {
                     if let Some(cookie_value) = cookie_value {
-                        let secure_cookie = req.uri().scheme() == Some(&Scheme::HTTPS);
+                        let secure_cookie = self
+                            .secure_cookie
+                            .unwrap_or_else(|| req.uri().scheme() == Some(&Scheme::HTTPS));
                         let cookie = self.build_cookie(secure_cookie, cookie_value);
                         res.add_cookie(cookie);
                     }
@@ -731,6 +751,7 @@ mod tests {
         .session_ttl(Some(Duration::from_secs(7200)))
         .save_unchanged(false)
         .same_site_policy(SameSite::Strict)
+        .secure_cookie(true)
         .build()
         .unwrap();
 
@@ -740,6 +761,7 @@ mod tests {
         assert_eq!(handler.session_ttl, Some(Duration::from_secs(7200)));
         assert!(!handler.save_unchanged);
         assert_eq!(handler.same_site_policy, SameSite::Strict);
+        assert_eq!(handler.secure_cookie, Some(true));
     }
 
     // Tests for SessionHandler
@@ -836,6 +858,36 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
+    }
+
+    #[tokio::test]
+    async fn test_session_can_force_secure_cookie_behind_tls_terminator() {
+        #[handler]
+        pub async fn index() -> &'static str {
+            "ok"
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .secure_cookie(true)
+        .build()
+        .unwrap();
+
+        let router = Router::new().hoop(session_handler).get(index);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
+        let cookie = response
+            .headers()
+            .get(SET_COOKIE)
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(cookie.contains("Secure"));
     }
 
     // Tests for session with save_unchanged = false

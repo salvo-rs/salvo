@@ -3,13 +3,12 @@
 use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
-use http_body_util::{BodyExt, Full};
+use http_body_util::{BodyExt, Full, Limited};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{Client, connect::HttpConnector};
 use hyper_util::rt::TokioExecutor;
@@ -20,6 +19,7 @@ use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::{Notify, RwLock};
+use tokio::time::timeout;
 
 use super::{JwtAuthDecoder, JwtAuthError};
 
@@ -28,6 +28,10 @@ mod cache;
 pub use cache::{CachePolicy, CacheState, JwkSetStore, UpdateAction};
 
 pub(super) type HyperClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>;
+
+const OIDC_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
+const OIDC_CONFIG_MAX_BYTES: usize = 64 * 1024;
+const OIDC_JWKS_MAX_BYTES: usize = 1024 * 1024;
 
 fn default_http_client() -> Result<HyperClient, JwtAuthError> {
     let https = HttpsConnectorBuilder::new()
@@ -213,11 +217,16 @@ impl OidcDecoder {
         format!("{}/.well-known/openid-configuration", &self.issuer)
     }
     async fn get_config(&self) -> Result<OidcConfig, JwtAuthError> {
-        let res = self
-            .http_client
-            .get(self.config_url().parse::<Uri>()?)
-            .await?;
-        let body = res.into_body().collect().await?.to_bytes();
+        let res = timeout(
+            OIDC_HTTP_TIMEOUT,
+            self.http_client.get(self.config_url().parse::<Uri>()?),
+        )
+        .await
+        .map_err(|_| JwtAuthError::OidcHttpTimeout)??;
+        if !res.status().is_success() {
+            return Err(JwtAuthError::OidcHttpStatus(res.status()));
+        }
+        let body = collect_limited_body(res.into_body(), OIDC_CONFIG_MAX_BYTES).await?;
         let config = serde_json::from_slice(&body)?;
         Ok(config)
     }
@@ -230,7 +239,12 @@ impl OidcDecoder {
         let uri = self.jwks_uri().await?.parse::<Uri>()?;
         // Get the jwks endpoint
         tracing::debug!("Requesting JWKS From Uri: {uri}");
-        let res = self.http_client.get(uri).await?;
+        let res = timeout(OIDC_HTTP_TIMEOUT, self.http_client.get(uri))
+            .await
+            .map_err(|_| JwtAuthError::OidcHttpTimeout)??;
+        if !res.status().is_success() {
+            return Err(JwtAuthError::OidcHttpStatus(res.status()));
+        }
 
         let cache_policy = {
             // Determine it from the cache_control header
@@ -238,7 +252,7 @@ impl OidcDecoder {
             let cache_policy = CachePolicy::from_header_val(cache_control);
             Some(cache_policy)
         };
-        let jwks = res.into_body().collect().await?.to_bytes();
+        let jwks = collect_limited_body(res.into_body(), OIDC_JWKS_MAX_BYTES).await?;
 
         let fetched_at = current_time();
         Ok(JwkSetFetch {
@@ -431,7 +445,7 @@ impl DecodingInfo {
         match jsonwebtoken::decode::<T>(token, &self.key, &self.validation) {
             Ok(data) => Ok(data),
             Err(e) => {
-                tracing::error!(error = ?e, token, "error decoding jwt token");
+                tracing::error!(error = ?e, "error decoding jwt token");
                 Err(JwtAuthError::from(e))
             }
         }
@@ -450,6 +464,21 @@ pub(crate) struct JwkSetFetch {
 #[derive(Debug, Deserialize)]
 struct OidcConfig {
     jwks_uri: String,
+}
+
+async fn collect_limited_body(
+    body: salvo_core::hyper::body::Incoming,
+    max_size: usize,
+) -> Result<Bytes, JwtAuthError> {
+    let limited = Limited::new(body, max_size);
+    let collected = limited.collect().await.map_err(|error| {
+        if error.is::<http_body_util::LengthLimitError>() {
+            JwtAuthError::OidcResponseTooLarge(max_size)
+        } else {
+            JwtAuthError::OidcBodyRead(error.to_string())
+        }
+    })?;
+    Ok(collected.to_bytes())
 }
 
 pub(crate) fn decode_jwk(

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use salvo_core::async_trait;
-use salvo_core::http::header::{AUTHORIZATION, HeaderName, PROXY_AUTHORIZATION};
+use salvo_core::http::header::{AUTHORIZATION, HeaderName};
 use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
@@ -24,7 +24,9 @@ pub trait JwtTokenFinder: Send + Sync {
 /// Extracts JWT tokens from HTTP request headers.
 ///
 /// By default, this finder looks for Bearer tokens in the `Authorization`
-/// and `Proxy-Authorization` headers for all HTTP methods.
+/// header for all HTTP methods. Add `Proxy-Authorization` explicitly with
+/// [`HeaderFinder::header_names`] if your deployment really uses it for origin
+/// application authentication.
 ///
 /// # Example
 ///
@@ -55,7 +57,7 @@ impl HeaderFinder {
     pub fn new() -> Self {
         Self {
             cared_methods: ALL_METHODS.to_vec(),
-            header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
+            header_names: vec![AUTHORIZATION],
         }
     }
 

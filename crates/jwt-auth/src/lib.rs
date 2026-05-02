@@ -143,7 +143,7 @@ use std::marker::PhantomData;
 pub use jsonwebtoken::{
     Algorithm, DecodingKey, TokenData, Validation, decode, errors::Error as JwtError,
 };
-use salvo_core::http::{Method, Request, Response, StatusError};
+use salvo_core::http::{Method, Request, Response, StatusCode, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
@@ -213,6 +213,26 @@ pub enum JwtAuthError {
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("Failed to load native root certificates for OIDC HTTP client: {0}")]
     NativeRootCerts(String),
+    /// OIDC endpoint returned a non-success HTTP status.
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
+    #[error("OIDC endpoint returned non-success status: {0}")]
+    OidcHttpStatus(StatusCode),
+    /// OIDC endpoint took too long to respond.
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
+    #[error("OIDC endpoint request timed out")]
+    OidcHttpTimeout,
+    /// OIDC response body could not be read.
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
+    #[error("OIDC response body read failed: {0}")]
+    OidcBodyRead(String),
+    /// OIDC response body exceeded the configured limit.
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
+    #[error("OIDC response exceeded {0} bytes")]
+    OidcResponseTooLarge(usize),
     /// OIDC audience must be configured.
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
@@ -545,7 +565,7 @@ mod tests {
     fn test_header_finder_new() {
         let finder = HeaderFinder::new();
         assert_eq!(finder.cared_methods.len(), 9); // All methods
-        assert_eq!(finder.header_names.len(), 2); // Authorization + Proxy-Authorization
+        assert_eq!(finder.header_names.len(), 1); // Authorization
     }
 
     #[test]
@@ -938,7 +958,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_jwt_auth_proxy_authorization_header() {
+    async fn test_jwt_auth_proxy_authorization_header_requires_explicit_opt_in() {
+        use salvo_core::http::header::{AUTHORIZATION, PROXY_AUTHORIZATION};
+
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
             JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
 
@@ -962,6 +984,24 @@ mod tests {
             &EncodingKey::from_secret(b"SECRET"),
         )
         .unwrap();
+
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header("Proxy-Authorization", format!("Bearer {token}"), true)
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).finders(vec![Box::new(
+                HeaderFinder::new().header_names(vec![AUTHORIZATION, PROXY_AUTHORIZATION]),
+            )]);
+        let router = Router::new()
+            .hoop(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
 
         let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Proxy-Authorization", format!("Bearer {token}"), true)
