@@ -105,6 +105,12 @@ impl Handler for MaxSize {
 
 #[cfg(test)]
 mod tests {
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use salvo_core::BoxedError;
+    use salvo_core::http::body::{Frame, ReqBody, SizeHint};
+    use salvo_core::http::ParseError;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -113,6 +119,45 @@ mod tests {
     #[handler]
     async fn hello() -> &'static str {
         "hello"
+    }
+
+    struct UnknownSizeBody {
+        frame: Option<Frame<salvo_core::hyper::body::Bytes>>,
+    }
+
+    impl UnknownSizeBody {
+        fn new(bytes: &'static [u8]) -> Self {
+            Self {
+                frame: Some(Frame::data(salvo_core::hyper::body::Bytes::from_static(
+                    bytes,
+                ))),
+            }
+        }
+    }
+
+    impl Body for UnknownSizeBody {
+        type Data = salvo_core::hyper::body::Bytes;
+        type Error = BoxedError;
+
+        fn poll_frame(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+            Poll::Ready(self.frame.take().map(Ok))
+        }
+
+        fn size_hint(&self) -> SizeHint {
+            SizeHint::new()
+        }
+    }
+
+    #[handler]
+    async fn read_payload(req: &mut Request, res: &mut Response) {
+        match req.payload().await {
+            Ok(_) => res.render("ok"),
+            Err(ParseError::PayloadTooLarge) => res.render(StatusError::payload_too_large()),
+            Err(error) => res.render(StatusError::bad_request().brief(error.to_string())),
+        }
     }
 
     #[tokio::test]
@@ -136,6 +181,26 @@ mod tests {
             .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
             .send(&service)
             .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn test_size_limiter_limits_unknown_length_streaming_body() {
+        let limit_handler = MaxSize(4);
+        let router = Router::new()
+            .hoop(limit_handler)
+            .push(Router::with_path("upload").post(read_payload));
+        let service = Service::new(router);
+        let body = ReqBody::Boxed {
+            inner: Box::pin(UnknownSizeBody::new(b"too large")),
+            fusewire: None,
+        };
+
+        let res = TestClient::post("http://127.0.0.1:5801/upload")
+            .body(body)
+            .send(&service)
+            .await;
+
         assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }

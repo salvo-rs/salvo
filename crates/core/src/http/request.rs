@@ -1138,7 +1138,7 @@ impl Request {
             .get_or_try_init(|| async {
                 let limited = Limited::new(body, max_size);
                 let collected = limited.collect().await.map_err(|e| {
-                    if e.is::<http_body_util::LengthLimitError>() {
+                    if is_length_limit_error(e.as_ref()) {
                         ParseError::PayloadTooLarge
                     } else {
                         ParseError::other(e)
@@ -1462,6 +1462,26 @@ impl Request {
         }
         Err(ParseError::InvalidContentType)
     }
+}
+
+fn is_length_limit_error(error: &(dyn StdError + 'static)) -> bool {
+    if error.is::<http_body_util::LengthLimitError>() {
+        return true;
+    }
+    if let Some(error) = error.downcast_ref::<std::io::Error>()
+        && let Some(inner) = error.get_ref()
+        && is_length_limit_error(inner)
+    {
+        return true;
+    }
+    let mut source = error.source();
+    while let Some(error) = source {
+        if error.is::<http_body_util::LengthLimitError>() {
+            return true;
+        }
+        source = error.source();
+    }
+    false
 }
 
 #[cfg(test)]
