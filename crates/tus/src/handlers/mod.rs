@@ -105,7 +105,9 @@ pub(crate) fn insert_joined_header(
     extra_values: &[String],
 ) {
     if extra_values.is_empty() {
-        headers.insert(name, HeaderValue::from_str(default_values).unwrap());
+        if let Ok(v) = HeaderValue::from_str(default_values) {
+            headers.insert(name, v);
+        }
         return;
     }
 
@@ -177,7 +179,14 @@ impl Metadata {
 }
 
 fn validate_key(key: &str) -> bool {
-    !key.is_empty() && !key.contains(' ') && !key.contains(',')
+    if key.is_empty() {
+        return false;
+    }
+    // The TUS spec requires Upload-Metadata keys to consist of ASCII characters,
+    // excluding spaces and commas. We additionally require visible ASCII so the
+    // value can be safely placed back into a response header without panics or
+    // header-injection (CR/LF/NUL/DEL/non-ASCII are rejected).
+    key.bytes().all(|b| (0x21..=0x7e).contains(&b) && b != b',')
 }
 
 fn validate_value(value: &str) -> bool {
@@ -285,6 +294,33 @@ mod tests {
     fn test_metadata_parse_key_with_space() {
         // Keys cannot contain spaces
         let result = Metadata::parse_metadata("file name dGVzdA==");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_metadata_parse_key_rejects_control_characters() {
+        // Keys with CR / LF / NUL / DEL must be rejected so they cannot later be
+        // round-tripped into a response `Upload-Metadata` header value (which
+        // would otherwise either panic during header construction or, if a
+        // future caller built the header without validation, allow header
+        // injection).
+        for raw in [
+            "foo\rbar dGVzdA==",
+            "foo\nbar dGVzdA==",
+            "foo\0bar dGVzdA==",
+            "foo\x7fbar dGVzdA==",
+            "foo\tbar dGVzdA==",
+        ] {
+            let result = Metadata::parse_metadata(raw);
+            assert!(result.is_err(), "expected reject for raw = {raw:?}");
+        }
+    }
+
+    #[test]
+    fn test_metadata_parse_key_rejects_non_ascii() {
+        // Non-ASCII keys are not valid header value bytes; reject at parse so
+        // we never try to re-emit them.
+        let result = Metadata::parse_metadata("名前 dGVzdA==");
         assert!(result.is_err());
     }
 

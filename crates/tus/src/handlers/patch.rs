@@ -246,10 +246,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
         if !is_finished {
             let expires_value = expires_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
-            res.headers.insert(
-                H_UPLOAD_EXPIRES,
-                HeaderValue::from_str(&expires_value).unwrap(),
-            );
+            if let Ok(v) = HeaderValue::from_str(&expires_value) {
+                res.headers.insert(H_UPLOAD_EXPIRES, v);
+            }
         }
     }
 
@@ -258,10 +257,8 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // The new offset MUST be the sum of the offset before the PATCH request and the number of bytes
     // received and processed or stored during the current PATCH request.
     res.status_code = Some(StatusCode::NO_CONTENT);
-    res.headers.insert(
-        H_UPLOAD_OFFSET,
-        HeaderValue::from_str(&new_offset.to_string()).unwrap(),
-    );
+    res.headers
+        .insert(H_UPLOAD_OFFSET, HeaderValue::from(new_offset));
 }
 
 pub fn patch_handler() -> Router {

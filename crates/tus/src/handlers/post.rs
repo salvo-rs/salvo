@@ -245,10 +245,8 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             };
 
             upload.offset = Some(written);
-            res.headers.insert(
-                H_UPLOAD_OFFSET,
-                HeaderValue::from_str(&written.to_string()).unwrap(),
-            );
+            res.headers
+                .insert(H_UPLOAD_OFFSET, HeaderValue::from(written));
         }
 
         upload.size.is_some_and(|x| x == 0) && !upload.get_size_is_deferred()
@@ -281,10 +279,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         {
             let expires = created_at.with_timezone(&chrono::Utc) + delta;
             let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
-            res.headers.insert(
-                H_UPLOAD_EXPIRES,
-                HeaderValue::from_str(&expires_value).unwrap(),
-            );
+            if let Ok(v) = HeaderValue::from_str(&expires_value) {
+                res.headers.insert(H_UPLOAD_EXPIRES, v);
+            }
         }
     }
 
@@ -322,9 +319,21 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // expires. If expiration is known at creation time, Upload-Expires header MUST be included
     // in the response
 
-    if res.status_code == Some(StatusCode::CREATED) || res.status_code.unwrap().is_redirection() {
-        res.headers
-            .insert("Location", HeaderValue::from_str(&url).unwrap());
+    let should_set_location = matches!(res.status_code, Some(StatusCode::CREATED))
+        || res.status_code.is_some_and(|s| s.is_redirection());
+    if should_set_location {
+        match HeaderValue::from_str(&url) {
+            Ok(v) => {
+                res.headers.insert("Location", v);
+            }
+            Err(_) => {
+                res.status_code = Some(
+                    TusError::Internal("Generated upload URL is not a valid header value".into())
+                        .status(),
+                );
+                return;
+            }
+        }
     }
 
     if res.body.is_none() {
