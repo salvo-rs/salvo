@@ -5,6 +5,7 @@ use aead::{Aead, KeyInit};
 use aes_gcm::Aes256Gcm;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use subtle::ConstantTimeEq;
 
 use super::CsrfCipher;
 
@@ -54,7 +55,13 @@ impl CsrfCipher for AesGcmCipher {
                 let nonce = GenericArray::from_slice(&proof[0..12]);
                 let aead = self.aead();
                 aead.decrypt(nonce, &proof[12..])
-                    .map(|p| p == token)
+                    .map(|p| {
+                        // Compare lengths first, then use constant-time compare
+                        // on the recovered plaintext vs. the client-supplied
+                        // token. Avoids leaking the prefix length of a valid
+                        // token through timing.
+                        p.len() == token.len() && bool::from(p.ct_eq(&token))
+                    })
                     .unwrap_or(false)
             }
         } else {

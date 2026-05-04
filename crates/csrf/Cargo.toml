@@ -32,8 +32,8 @@ cookie-store = ["salvo_core/cookie", "dep:cookie"]
 session-store = ["dep:salvo-session"]
 bcrypt-cipher = ["dep:bcrypt"]
 hmac-cipher = ["dep:hmac", "dep:sha2"]
-aes-gcm-cipher = ["dep:aead", "dep:aes-gcm"]
-ccp-cipher = ["dep:aead", "dep:chacha20poly1305"]
+aes-gcm-cipher = ["dep:aead", "dep:aes-gcm", "dep:subtle"]
+ccp-cipher = ["dep:aead", "dep:chacha20poly1305", "dep:subtle"]
 
 [dependencies]
 aead = { workspace = true, optional = true }
@@ -52,6 +52,7 @@ salvo_core = { workspace = true, default-features = false }
 salvo-session = { workspace = true, optional = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true, optional = true }
+subtle = { workspace = true, optional = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
