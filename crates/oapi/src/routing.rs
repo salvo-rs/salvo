@@ -110,7 +110,13 @@ impl NormNode {
                     node.path = Some(normalize_oapi_path(&path));
                 }
                 FilterInfo::Method(method) => {
-                    node.method = match method {
+                    // Only overwrite when the method maps to a known
+                    // `PathItemType`; unknown/extension methods leave any
+                    // previously recognized value in place so combining a
+                    // standard method filter with a custom one does not erase
+                    // the standard mapping (the previous string-parsing path
+                    // had the same behavior via its `_ => {}` arm).
+                    let item = match method {
                         Method::GET => Some(PathItemType::Get),
                         Method::POST => Some(PathItemType::Post),
                         Method::PUT => Some(PathItemType::Put),
@@ -122,6 +128,9 @@ impl NormNode {
                         Method::PATCH => Some(PathItemType::Patch),
                         _ => None,
                     };
+                    if item.is_some() {
+                        node.method = item;
+                    }
                 }
                 // Other filter kinds (Scheme/Host/Port/Other) do not carry
                 // information that maps to OpenAPI path items.
