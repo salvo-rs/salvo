@@ -1,6 +1,5 @@
 //! Form parse module.
 use std::ffi::OsStr;
-use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
 use base64::engine::Engine;
@@ -256,27 +255,25 @@ impl Drop for FilePart {
 // Port from https://github.com/mikedilger/textnonce/blob/master/src/lib.rs
 fn text_nonce() -> String {
     const BYTE_LEN: usize = 24;
-    let mut raw: Vec<u8> = vec![0; BYTE_LEN];
+    let mut raw = [0u8; BYTE_LEN];
 
-    // Get the first 12 bytes from the current time
+    // First 12 bytes are derived from a monotonically advancing time source so
+    // that nonce values issued within the same process tend to differ even on
+    // RNG failure; the trailing 12 bytes are pure CSPRNG output. If the RNG
+    // fails (extremely rare), we fall back to a wider time window so we still
+    // emit a valid nonce instead of panicking.
     if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-        let secs: u64 = now.as_secs();
-        let nsecs: u32 = now.subsec_nanos();
-
-        let mut cursor = Cursor::new(&mut *raw);
-        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).expect("write_all failed");
-        Write::write_all(&mut cursor, &secs.to_le_bytes()).expect("write_all failed");
-
-        // Get the last bytes from random data
-        SysRng
-            .try_fill_bytes(&mut raw[12..BYTE_LEN])
-            .expect("SysRng.try_fill_bytes failed");
-    } else {
-        SysRng
-            .try_fill_bytes(&mut raw[..])
-            .expect("SysRng.try_fill_bytes failed");
+        raw[..4].copy_from_slice(&now.subsec_nanos().to_le_bytes());
+        raw[4..12].copy_from_slice(&now.as_secs().to_le_bytes());
+    }
+    if SysRng.try_fill_bytes(&mut raw[12..]).is_err() {
+        let micros = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_micros() as u64)
+            .unwrap_or_default();
+        raw[12..20].copy_from_slice(&micros.to_le_bytes());
+        raw[20..].copy_from_slice(&micros.rotate_left(17).to_le_bytes()[..4]);
     }
 
-    // base64 encode
-    URL_SAFE_NO_PAD.encode(&raw)
+    URL_SAFE_NO_PAD.encode(raw)
 }

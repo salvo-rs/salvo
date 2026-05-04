@@ -747,16 +747,16 @@ impl Request {
     /// // types = [text/html, application/json]
     /// ```
     pub fn accept(&self) -> Vec<Mime> {
-        let mut list: Vec<Mime> = vec![];
-        if let Some(accept) = self.headers.get("accept").and_then(|h| h.to_str().ok()) {
-            let parts: Vec<&str> = accept.split(',').collect();
-            for part in parts {
-                if let Ok(mt) = part.parse() {
-                    list.push(mt);
-                }
-            }
-        }
-        list
+        self.headers
+            .get("accept")
+            .and_then(|h| h.to_str().ok())
+            .map(|accept| {
+                accept
+                    .split(',')
+                    .filter_map(|p| p.trim().parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Returns the first MIME type from the `Accept` header.
@@ -765,12 +765,10 @@ impl Request {
     /// Returns `None` if the `Accept` header is missing or empty.
     #[inline]
     pub fn first_accept(&self) -> Option<Mime> {
-        let mut accept = self.accept();
-        if !accept.is_empty() {
-            Some(accept.remove(0))
-        } else {
-            None
-        }
+        self.headers
+            .get("accept")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|accept| accept.split(',').find_map(|p| p.trim().parse().ok()))
     }
 
     /// Returns the `Content-Type` header value as a [`Mime`] type.

@@ -425,7 +425,7 @@ impl Response {
         match self.body_mut() {
             ResBody::Once(bytes) => {
                 let mut chunks = VecDeque::new();
-                chunks.push_back(bytes.clone());
+                chunks.push_back(std::mem::take(bytes));
                 chunks.push_back(data.into());
                 self.body = ResBody::Chunks(chunks);
             }
