@@ -10,7 +10,7 @@ use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::Extensions;
-use http::header::{AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{ACCEPT, AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
@@ -748,7 +748,7 @@ impl Request {
     /// ```
     pub fn accept(&self) -> Vec<Mime> {
         self.headers
-            .get("accept")
+            .get(ACCEPT)
             .and_then(|h| h.to_str().ok())
             .map(|accept| {
                 accept
@@ -766,7 +766,7 @@ impl Request {
     #[inline]
     pub fn first_accept(&self) -> Option<Mime> {
         self.headers
-            .get("accept")
+            .get(ACCEPT)
             .and_then(|h| h.to_str().ok())
             .and_then(|accept| accept.split(',').find_map(|p| p.trim().parse().ok()))
     }
