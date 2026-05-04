@@ -57,7 +57,10 @@ where
             let Ok(value) = HeaderValue::from_bytes(value.as_ref()) else {
                 continue;
             };
-            headers.insert(name, value);
+            // Use `append` so multi-value headers (e.g. `baggage`) keep all
+            // their values; `insert` would collapse them to the last one and
+            // produce an incomplete parent context for `HeaderExtractor`.
+            headers.append(name, value);
         }
 
         let parent_cx = global::get_text_map_propagator(|propagator| {
