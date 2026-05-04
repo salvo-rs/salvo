@@ -227,7 +227,7 @@ pub enum JwtAuthError {
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("OIDC response body read failed: {0}")]
-    OidcBodyRead(String),
+    OidcBodyRead(#[source] Box<dyn std::error::Error + Send + Sync>),
     /// OIDC response body exceeded the configured limit.
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]

@@ -478,7 +478,7 @@ async fn collect_limited_body(
             if error.is::<http_body_util::LengthLimitError>() {
                 JwtAuthError::OidcResponseTooLarge(max_size)
             } else {
-                JwtAuthError::OidcBodyRead(error.to_string())
+                JwtAuthError::OidcBodyRead(error)
             }
         })?;
     Ok(collected.to_bytes())

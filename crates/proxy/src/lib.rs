@@ -316,7 +316,16 @@ where
     C: Client,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Proxy").finish()
+        f.debug_struct("Proxy")
+            .field(
+                "client_ip_forwarding_enabled",
+                &self.client_ip_forwarding_enabled,
+            )
+            .field(
+                "strict_path_normalization_enabled",
+                &self.strict_path_normalization_enabled,
+            )
+            .finish_non_exhaustive()
     }
 }
 
