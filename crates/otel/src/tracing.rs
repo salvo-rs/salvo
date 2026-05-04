@@ -46,11 +46,19 @@ where
 
         // TODO: Will remove after opentelemetry_http updated
         let mut headers = HeaderMap::with_capacity(req.headers().len());
-        headers.extend(req.headers().into_iter().map(|(name, value)| {
-            let name = HeaderName::from_bytes(name.as_ref()).expect("invalid header name");
-            let value = HeaderValue::from_bytes(value.as_ref()).expect("invalid header value");
-            (name, value)
-        }));
+        for (name, value) in req.headers() {
+            // The names/values come from a `HeaderMap`, so they were already
+            // valid for `HeaderName`/`HeaderValue`. Skip silently in the
+            // unlikely event that round-tripping through bytes fails — losing
+            // a propagated header is preferable to panicking the request task.
+            let Ok(name) = HeaderName::from_bytes(name.as_ref()) else {
+                continue;
+            };
+            let Ok(value) = HeaderValue::from_bytes(value.as_ref()) else {
+                continue;
+            };
+            headers.insert(name, value);
+        }
 
         let parent_cx = global::get_text_map_propagator(|propagator| {
             propagator.extract(&HeaderExtractor(&headers))

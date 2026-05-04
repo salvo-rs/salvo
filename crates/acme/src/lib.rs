@@ -171,7 +171,13 @@ impl Handler for Http01Handler {
                 return;
             }
 
-            tracing::error!(token, "key not found for ACME challenge token");
+            // Log only the length, not the token itself, so log/APM/SIEM
+            // pipelines do not become a credential surface for the ACME
+            // challenge flow.
+            tracing::error!(
+                token_len = token.len(),
+                "key not found for ACME challenge token"
+            );
             res.render(token);
         } else {
             res.render(StatusError::not_found().brief("missing token"));

@@ -33,7 +33,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 use base64::engine::{Engine, general_purpose};
-use salvo_core::http::header::{AUTHORIZATION, HeaderName, PROXY_AUTHORIZATION};
+use salvo_core::http::header::{AUTHORIZATION, HeaderName, HeaderValue, PROXY_AUTHORIZATION};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{Depot, Error, FlowCtrl, Handler, async_trait};
 
@@ -146,12 +146,15 @@ where
 #[doc(hidden)]
 #[inline]
 pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
-    res.headers_mut().insert(
-        "WWW-Authenticate",
-        format!("Basic realm={:?}", realm.as_ref())
-            .parse()
-            .expect("parse WWW-Authenticate failed"),
-    );
+    // `{:?}` already escapes CR/LF, but a realm carrying other bytes that
+    // are not legal `HeaderValue` characters (anything outside visible ASCII)
+    // would still cause the parse to fail. Fall back to a bare challenge in
+    // that case so the request resolves with a 401 instead of panicking the
+    // request task.
+    let challenge = format!("Basic realm={:?}", realm.as_ref());
+    let value = HeaderValue::try_from(challenge)
+        .unwrap_or_else(|_| HeaderValue::from_static("Basic"));
+    res.headers_mut().insert("WWW-Authenticate", value);
     res.status_code(StatusCode::UNAUTHORIZED);
 }
 
