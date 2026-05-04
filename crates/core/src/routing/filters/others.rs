@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Formatter};
 use crate::async_trait;
 use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
-use crate::routing::{Filter, PathState};
+use crate::routing::{Filter, FilterInfo, PathState};
 
 /// Filter by request method
 #[derive(Clone, PartialEq, Eq)]
@@ -21,6 +21,10 @@ impl Filter for MethodFilter {
     #[inline]
     async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.method() == self.0
+    }
+    #[inline]
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Method(self.0.clone())
     }
 }
 impl Debug for MethodFilter {
@@ -64,6 +68,10 @@ impl Filter for SchemeFilter {
             .scheme()
             .map(|s| s == &self.scheme)
             .unwrap_or(self.lack)
+    }
+    #[inline]
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Scheme(self.scheme.clone())
     }
 }
 impl Debug for SchemeFilter {
@@ -123,6 +131,10 @@ impl Filter for HostFilter {
         .map(|h| h == self.host)
         .unwrap_or(self.lack)
     }
+    #[inline]
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Host(self.host.clone())
+    }
 }
 impl Debug for HostFilter {
     #[inline]
@@ -181,6 +193,10 @@ impl Filter for PortFilter {
         .and_then(|p| p.parse::<u16>().ok())
         .map(|p| p == self.port)
         .unwrap_or(self.lack)
+    }
+    #[inline]
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Port(self.port)
     }
 }
 impl Debug for PortFilter {

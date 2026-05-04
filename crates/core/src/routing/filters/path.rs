@@ -10,7 +10,7 @@ use regex::Regex;
 
 use crate::async_trait;
 use crate::http::Request;
-use crate::routing::{Filter, PathState};
+use crate::routing::{Filter, FilterInfo, PathState};
 
 /// PathWisp
 pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
@@ -1029,6 +1029,10 @@ impl Filter for PathFilter {
     #[inline]
     async fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
         self.detect(state)
+    }
+    #[inline]
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Path(self.raw_value.clone())
     }
 }
 impl PathFilter {

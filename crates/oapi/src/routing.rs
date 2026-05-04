@@ -3,6 +3,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{LazyLock, RwLock};
 
 use salvo_core::Router;
+use salvo_core::http::Method;
+use salvo_core::routing::FilterInfo;
 
 use crate::SecurityRequirement;
 use crate::path::PathItemType;
@@ -103,30 +105,27 @@ impl NormNode {
         }
 
         for filter in router.filters() {
-            let info = format!("{filter:?}");
-            if info.starts_with("path:") {
-                let path = info
-                    .split_once(':')
-                    .expect("split once by ':' should not be get `None`")
-                    .1;
-                node.path = Some(normalize_oapi_path(path));
-            } else if info.starts_with("method:") {
-                match info
-                    .split_once(':')
-                    .expect("split once by ':' should not be get `None`.")
-                    .1
-                {
-                    "GET" => node.method = Some(PathItemType::Get),
-                    "POST" => node.method = Some(PathItemType::Post),
-                    "PUT" => node.method = Some(PathItemType::Put),
-                    "DELETE" => node.method = Some(PathItemType::Delete),
-                    "HEAD" => node.method = Some(PathItemType::Head),
-                    "OPTIONS" => node.method = Some(PathItemType::Options),
-                    "CONNECT" => node.method = Some(PathItemType::Connect),
-                    "TRACE" => node.method = Some(PathItemType::Trace),
-                    "PATCH" => node.method = Some(PathItemType::Patch),
-                    _ => {}
+            match filter.info() {
+                FilterInfo::Path(path) => {
+                    node.path = Some(normalize_oapi_path(&path));
                 }
+                FilterInfo::Method(method) => {
+                    node.method = match method {
+                        Method::GET => Some(PathItemType::Get),
+                        Method::POST => Some(PathItemType::Post),
+                        Method::PUT => Some(PathItemType::Put),
+                        Method::DELETE => Some(PathItemType::Delete),
+                        Method::HEAD => Some(PathItemType::Head),
+                        Method::OPTIONS => Some(PathItemType::Options),
+                        Method::CONNECT => Some(PathItemType::Connect),
+                        Method::TRACE => Some(PathItemType::Trace),
+                        Method::PATCH => Some(PathItemType::Patch),
+                        _ => None,
+                    };
+                }
+                // Other filter kinds (Scheme/Host/Port/Other) do not carry
+                // information that maps to OpenAPI path items.
+                _ => {}
             }
         }
         node.handler_type_id = router.goal.as_ref().map(|h| h.type_id());

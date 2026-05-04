@@ -18,6 +18,32 @@ use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
 
+/// Structured description of a [`Filter`], used by `Router`'s `Debug`
+/// implementation and by `salvo-oapi` to introspect a routing tree.
+///
+/// Each built-in filter overrides [`Filter::info`] to return the matching
+/// variant. Custom filters fall back to [`FilterInfo::Other`] with the
+/// implementing type's name. Returning structured data instead of relying on
+/// the `Debug` string format keeps consumers from breaking when a filter's
+/// `Debug` representation changes.
+#[derive(Clone, Debug)]
+pub enum FilterInfo {
+    /// Path pattern (raw, unparsed) of a [`PathFilter`].
+    Path(String),
+    /// HTTP method matched by a [`MethodFilter`].
+    Method(Method),
+    /// URI scheme matched by a [`SchemeFilter`].
+    Scheme(Scheme),
+    /// Host name matched by a [`HostFilter`].
+    Host(String),
+    /// Port matched by a [`PortFilter`].
+    Port(u16),
+    /// Catch-all for filter types that do not expose structured info — typically
+    /// composite filters (`And`, `Or`, `AndThen`, `OrElse`), `FnFilter`, or
+    /// user-defined filters. Carries the implementor's type name.
+    Other(&'static str),
+}
+
 /// Trait for filter request.
 ///
 /// View [module level documentation](../index.html) for more details.
@@ -31,6 +57,16 @@ pub trait Filter: Debug + Send + Sync + 'static {
     #[doc(hidden)]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
+    }
+
+    /// Returns a structured description of what this filter matches.
+    ///
+    /// The default returns [`FilterInfo::Other`] with the implementing type's
+    /// name. Built-in filters override this to expose typed data so that
+    /// downstream code (router debug printing, OpenAPI introspection) does
+    /// not have to scrape the [`Debug`] output.
+    fn info(&self) -> FilterInfo {
+        FilterInfo::Other(self.type_name())
     }
     /// Create a new filter use `And` filter.
     #[inline]

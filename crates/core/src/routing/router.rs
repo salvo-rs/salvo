@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::filters::{self, FnFilter, PathFilter};
-use super::{DetectMatched, Filter, PathState};
+use super::{DetectMatched, Filter, FilterInfo, PathState};
 use crate::handler::{Handler, WhenHoop};
 use crate::http::uri::Scheme;
 use crate::{Depot, Request};
@@ -427,23 +427,19 @@ const SYMBOL_RIGHT: &str = "─";
 impl Debug for Router {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fn print(f: &mut Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
-            let mut path = "".to_owned();
+            let mut path = String::new();
             let mut others = Vec::with_capacity(router.filters.len());
             if router.filters.is_empty() {
                 "!NULL!".clone_into(&mut path);
             } else {
                 for filter in &router.filters {
-                    let info = format!("{filter:?}");
-                    if info.starts_with("path:") {
-                        info.split_once(':')
-                            .expect("`split_once` get `None`")
-                            .1
-                            .clone_into(&mut path)
-                    } else {
-                        let mut parts = info.splitn(2, ':').collect::<Vec<_>>();
-                        if !parts.is_empty() {
-                            others.push(parts.pop().expect("part should exists.").to_owned());
-                        }
+                    match filter.info() {
+                        FilterInfo::Path(p) => path = p,
+                        FilterInfo::Method(m) => others.push(format!("{m:?}")),
+                        FilterInfo::Scheme(s) => others.push(format!("{s:?}")),
+                        FilterInfo::Host(h) => others.push(format!("{h:?}")),
+                        FilterInfo::Port(p) => others.push(format!("{p:?}")),
+                        FilterInfo::Other(_) => others.push(format!("{filter:?}")),
                     }
                 }
             }
