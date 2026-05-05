@@ -5,6 +5,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
+use super::callback::Callback;
 use super::request_body::RequestBody;
 use super::response::{Response, Responses};
 use super::{Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server};
@@ -146,9 +147,13 @@ pub struct Operation {
     /// List of possible responses returned by the [`Operation`].
     pub responses: Responses,
 
-    /// Callback information.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub callbacks: Option<String>,
+    /// Map of possible out-of-band callbacks related to this [`Operation`].
+    ///
+    /// The key is a unique identifier for the [`Callback`]; each value describes a set of
+    /// requests that may be initiated by the API provider. Callbacks may be inlined or
+    /// referenced via [`RefOr::Ref`] when reusable callbacks are defined elsewhere.
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub callbacks: PropMap<String, RefOr<Callback>>,
 
     /// Define whether the operation is deprecated or not and thus should be avoided consuming.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -297,6 +302,32 @@ impl Operation {
         self
     }
 
+    /// Replace the [`Operation`]'s callbacks map and return `Self`.
+    #[must_use]
+    pub fn callbacks<I, K, V>(mut self, callbacks: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<RefOr<Callback>>,
+    {
+        self.callbacks = callbacks
+            .into_iter()
+            .map(|(name, callback)| (name.into(), callback.into()))
+            .collect();
+        self
+    }
+
+    /// Append a single named [`Callback`] to the [`Operation`] callbacks map and return `Self`.
+    #[must_use]
+    pub fn add_callback<K: Into<String>, V: Into<RefOr<Callback>>>(
+        mut self,
+        name: K,
+        callback: V,
+    ) -> Self {
+        self.callbacks.insert(name.into(), callback.into());
+        self
+    }
+
     /// For easy chaining of operations.
     #[must_use]
     pub fn then<F>(self, func: F) -> Self
@@ -315,7 +346,9 @@ mod tests {
     use super::{Operation, Operations};
     use crate::security::SecurityRequirement;
     use crate::server::Server;
-    use crate::{Deprecated, Parameter, PathItemType, RequestBody, Responses};
+    use crate::{
+        Callback, Deprecated, Parameter, PathItem, PathItemType, RefOr, RequestBody, Responses,
+    };
 
     #[test]
     fn operation_new() {
@@ -329,7 +362,7 @@ mod tests {
         assert!(operation.parameters.is_empty());
         assert!(operation.request_body.is_none());
         assert!(operation.responses.is_empty());
-        assert!(operation.callbacks.is_none());
+        assert!(operation.callbacks.is_empty());
         assert!(operation.deprecated.is_none());
         assert!(operation.securities.is_empty());
         assert!(operation.servers.is_empty());
@@ -427,6 +460,37 @@ mod tests {
         assert_eq!((PathItemType::Get, Operation::new()), iter.next().unwrap());
         assert_eq!((PathItemType::Post, Operation::new()), iter.next().unwrap());
         assert_eq!((PathItemType::Head, Operation::new()), iter.next().unwrap());
+    }
+
+    #[test]
+    fn operation_callbacks_serialize_as_per_spec() {
+        let callback = Callback::new().path(
+            "{$request.body#/callbackUrl}",
+            PathItem::new(PathItemType::Post, Operation::new()),
+        );
+        let operation = Operation::new()
+            .add_callback("orderShipped", callback)
+            .add_callback(
+                "orderRefunded",
+                RefOr::Ref(crate::Ref::new("#/components/callbacks/RefundEvent")),
+            );
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "responses": {},
+                "callbacks": {
+                    "orderShipped": {
+                        "{$request.body#/callbackUrl}": {
+                            "post": { "responses": {} }
+                        }
+                    },
+                    "orderRefunded": {
+                        "$ref": "#/components/callbacks/RefundEvent"
+                    }
+                }
+            })
+        );
     }
 
     #[test]

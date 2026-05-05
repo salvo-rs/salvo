@@ -1,5 +1,6 @@
 //! Rust implementation of Openapi Spec V3.1.
 
+mod callback;
 mod components;
 mod content;
 mod encoding;
@@ -28,6 +29,7 @@ use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};
 use serde::de::{Error, Expected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+pub use self::callback::Callback;
 pub use self::components::Components;
 pub use self::content::Content;
 pub use self::encoding::Encoding;

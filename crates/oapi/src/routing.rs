@@ -116,6 +116,10 @@ impl NormNode {
                     // standard method filter with a custom one does not erase
                     // the standard mapping (the previous string-parsing path
                     // had the same behavior via its `_ => {}` arm).
+                    //
+                    // CONNECT is intentionally not mapped: OpenAPI 3.1 does
+                    // not define a `connect` operation under Path Item, so
+                    // emitting one would produce an invalid document.
                     let item = match method {
                         Method::GET => Some(PathItemType::Get),
                         Method::POST => Some(PathItemType::Post),
@@ -123,13 +127,17 @@ impl NormNode {
                         Method::DELETE => Some(PathItemType::Delete),
                         Method::HEAD => Some(PathItemType::Head),
                         Method::OPTIONS => Some(PathItemType::Options),
-                        Method::CONNECT => Some(PathItemType::Connect),
                         Method::TRACE => Some(PathItemType::Trace),
                         Method::PATCH => Some(PathItemType::Patch),
                         _ => None,
                     };
                     if item.is_some() {
                         node.method = item;
+                    } else if method == Method::CONNECT {
+                        tracing::warn!(
+                            "HTTP CONNECT has no OpenAPI 3.1 mapping; the route will be \
+                             omitted from the generated document"
+                        );
                     }
                 }
                 // Other filter kinds (Scheme/Host/Port/Other) do not carry

@@ -104,8 +104,7 @@ pub struct PathItem {
     /// List of [`Parameter`]s common to all [`Operation`]s in this [`PathItem`]. Parameters cannot
     /// contain duplicate parameters. They can be overridden in [`Operation`] level but cannot be
     /// removed there.
-    #[serde(skip_serializing_if = "Parameters::is_empty")]
-    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Parameters::is_empty", default)]
     pub parameters: Parameters,
 
     /// Map of operations in this [`PathItem`]. Operations can hold only one operation
@@ -199,6 +198,12 @@ impl PathItem {
 }
 
 /// Path item operation type.
+///
+/// Mirrors the HTTP methods supported by the OpenAPI 3.1 [Path Item Object][path_item];
+/// note that the spec deliberately does not list `CONNECT`, so it is intentionally absent
+/// here as well.
+///
+/// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum PathItemType {
@@ -218,8 +223,6 @@ pub enum PathItemType {
     Patch,
     /// Type mapping for HTTP _TRACE_ request.
     Trace,
-    /// Type mapping for HTTP _CONNECT_ request.
-    Connect,
 }
 
 #[cfg(test)]
@@ -248,6 +251,30 @@ mod tests {
                 }
             })
         )
+    }
+
+    #[test]
+    fn path_item_parameters_serialize_as_named_field() {
+        use crate::Parameter;
+
+        let path_item = PathItem::new(PathItemType::Get, Operation::new())
+            .parameters([Parameter::new("id").parameter_in(crate::ParameterIn::Path)]);
+
+        assert_json_eq!(
+            path_item,
+            json!({
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "get": {
+                    "responses": {}
+                }
+            })
+        );
     }
 
     #[test]
