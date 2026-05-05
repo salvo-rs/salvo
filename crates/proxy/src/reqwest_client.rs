@@ -81,7 +81,7 @@ impl Client for ReqwestClient {
 
             // RFC 7230 §6.7 makes Upgrade tokens case-insensitive (`websocket`,
             // `WebSocket`, ... are all the same protocol). Compare without allocating.
-            if upgrade_types_match(request_upgrade_type.as_deref(), response_upgrade_type) {
+            if crate::upgrade_types_match(request_upgrade_type.as_deref(), response_upgrade_type) {
                 let mut response_upgraded = response.upgrade().await.map_err(|e| {
                     Error::other(format!("response does not have an upgrade extension. {e}"))
                 })?;
