@@ -103,12 +103,31 @@ const PATH_ENCODE_SET: &AsciiSet = &QUERY_ENCODE_SET
     .add(b'}');
 
 /// Encode url path. This can be used when build your custom url path getter.
+///
+/// Walks the segments separated by `/` and percent-encodes each one in place using
+/// [`PATH_ENCODE_SET`], without allocating an intermediate `Vec<String>` or a
+/// `String` per segment.
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
-    path.split('/')
-        .map(|s| utf8_percent_encode(s, PATH_ENCODE_SET).to_string())
-        .collect::<Vec<_>>()
-        .join("/")
+    use std::fmt::Write as _;
+
+    let mut out = String::with_capacity(path.len());
+    let mut first = true;
+    for segment in path.split('/') {
+        if first {
+            first = false;
+        } else {
+            out.push('/');
+        }
+        // `Display` for `PercentEncode` writes directly into the formatter, so this
+        // does not allocate a temporary `String` per segment.
+        let _ = write!(
+            &mut out,
+            "{}",
+            utf8_percent_encode(segment, PATH_ENCODE_SET)
+        );
+    }
+    out
 }
 
 /// Client trait for implementing different HTTP clients for proxying.
@@ -722,6 +741,21 @@ mod tests {
         assert!(!upgrade_types_match(Some("websocket"), Some("h2c")));
         assert!(!upgrade_types_match(Some("websocket"), None));
         assert!(!upgrade_types_match(None, Some("websocket")));
+    }
+
+    #[test]
+    fn test_encode_url_path_preserves_segments_and_escapes_unsafe_chars() {
+        // Empty input round-trips.
+        assert_eq!(encode_url_path(""), "");
+
+        // Leading and trailing slashes survive (they become empty segments).
+        assert_eq!(encode_url_path("/"), "/");
+        assert_eq!(encode_url_path("//a//b//"), "//a//b//");
+
+        // Unsafe path characters in `PATH_ENCODE_SET` get percent-encoded per
+        // segment; the slash separator itself is left intact.
+        assert_eq!(encode_url_path("a b/c d"), "a%20b/c%20d");
+        assert_eq!(encode_url_path("a/{b}/c"), "a/%7Bb%7D/c");
     }
 
     #[test]

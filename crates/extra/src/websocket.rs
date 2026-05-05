@@ -295,11 +295,12 @@ impl WebSocketUpgrade {
             tracing::debug!("missing connection upgrade");
             return Err(StatusError::bad_request().brief("missing connection upgrade"));
         }
+        // Per RFC 7230 §6.7 the Upgrade token is case-insensitive. Use the byte-level
+        // ASCII compare so we don't allocate a fresh `String` on every request.
         let matched = req_headers
             .get(UPGRADE)
             .and_then(|v| v.to_str().ok())
-            .map(|v| v.to_lowercase() == "websocket")
-            .unwrap_or(false);
+            .is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
         if !matched {
             tracing::debug!("missing upgrade header or it is not websocket");
             return Err(StatusError::bad_request()
