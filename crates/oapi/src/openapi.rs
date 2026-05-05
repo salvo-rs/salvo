@@ -129,12 +129,13 @@ pub struct OpenApi {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
 
-    /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
-    /// `<https://spec.openapis.org/oas/3.1/dialect/base>`.
+    /// The default value for the `$schema` keyword within Schema Objects contained in this
+    /// document. It defaults to `<https://spec.openapis.org/oas/3.1/dialect/base>` and, when
+    /// set, must be a URI.
     ///
-    /// All the references and individual files could use their own schema dialect.
-    #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
-    pub schema: String,
+    /// See <https://spec.openapis.org/oas/v3.1.0#openapi-object> for details.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub json_schema_dialect: String,
 
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
@@ -208,7 +209,7 @@ impl OpenApi {
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
     /// comparison.
     ///
-    /// **Note!** `info`, `openapi` and `external_docs` and `schema` will not be merged.
+    /// **Note!** `info`, `openapi`, `external_docs` and `json_schema_dialect` will not be merged.
     #[must_use]
     pub fn merge(mut self, mut other: Self) -> Self {
         self.servers.append(&mut other.servers);
@@ -460,18 +461,24 @@ impl OpenApi {
         self
     }
 
-    /// Override default `$schema` dialect for the Open API doc.
+    /// Override the default JSON Schema dialect for this OpenAPI document.
+    ///
+    /// Sets the [`jsonSchemaDialect`][spec] top-level field, which provides the default
+    /// `$schema` value used by Schema Objects contained in this document.
+    ///
+    /// [spec]: https://spec.openapis.org/oas/v3.1.0#openapi-object
     ///
     /// # Examples
     ///
     /// _**Override default schema dialect.**_
     /// ```rust
     /// # use salvo_oapi::OpenApi;
-    /// let _ = OpenApi::new("openapi", "0.1.0").schema("http://json-schema.org/draft-07/schema#");
+    /// let _ = OpenApi::new("openapi", "0.1.0")
+    ///     .json_schema_dialect("http://json-schema.org/draft-07/schema#");
     /// ```
     #[must_use]
-    pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
-        self.schema = schema.into();
+    pub fn json_schema_dialect<S: Into<String>>(mut self, dialect: S) -> Self {
+        self.json_schema_dialect = dialect.into();
         self
     }
 
@@ -1243,6 +1250,35 @@ mod tests {
             .tags(["tag1", "tag2"])
             .external_docs(ExternalDocs::default())
             .into_router("/openapi/doc");
+    }
+
+    #[test]
+    fn json_schema_dialect_serializes_under_spec_field_name() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("api", "0.1.0")
+            .json_schema_dialect("https://json-schema.org/draft/2020-12/schema");
+        let value: Value = serde_json::from_str(&doc.to_json()?)?;
+
+        assert_eq!(
+            value["jsonSchemaDialect"],
+            Value::String("https://json-schema.org/draft/2020-12/schema".to_owned()),
+            "expected top-level `jsonSchemaDialect` field per OpenAPI 3.1.0"
+        );
+        assert!(
+            value.get("$schema").is_none(),
+            "`$schema` is the JSON Schema keyword inside Schema Objects, not the OpenAPI \
+             document-level field"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn json_schema_dialect_omits_field_when_empty() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("api", "0.1.0");
+        let value: Value = serde_json::from_str(&doc.to_json()?)?;
+
+        assert!(value.get("jsonSchemaDialect").is_none());
+        assert!(value.get("$schema").is_none());
+        Ok(())
     }
 
     #[test]
