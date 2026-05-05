@@ -142,10 +142,19 @@ impl Handler for ForceHttps {
         let redirect_base_host = if let Some(host) = self.canonical_host.as_deref() {
             Some(Cow::Borrowed(host))
         } else if self.trust_host_header {
-            req.uri()
-                .authority()
-                .map(|authority| Cow::Owned(authority.as_str().to_owned()))
-                .or_else(|| req.header::<String>(header::HOST).map(Cow::Owned))
+            // Prefer the `Host` header: that is what trusted proxies validate
+            // and rewrite. Falling back to `req.uri().authority()` first would
+            // let an HTTP/1.1 absolute-form request like
+            // `GET http://evil.example/ HTTP/1.1` bypass a validated Host
+            // value and steer the redirect target. Fall back to `:authority`
+            // only when no `Host` header is present (HTTP/2 deployments).
+            req.header::<String>(header::HOST)
+                .map(Cow::Owned)
+                .or_else(|| {
+                    req.uri()
+                        .authority()
+                        .map(|authority| Cow::Owned(authority.as_str().to_owned()))
+                })
         } else {
             if !self.no_op_warned.swap(true, Ordering::Relaxed) {
                 tracing::warn!(
@@ -233,6 +242,26 @@ mod tests {
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert_eq!(response.headers().get(LOCATION), None);
         assert_eq!(response.take_string().await.unwrap(), "Hello World");
+    }
+
+    #[tokio::test]
+    async fn test_redirect_handler_prefers_host_over_uri_authority() {
+        // Simulate an HTTP/1.1 absolute-form request where the request-line
+        // authority points at an attacker-controlled host but the trusted
+        // proxy has validated/rewritten the `Host` header to a safe value.
+        // The redirect must follow the validated `Host`, not the URI.
+        let router =
+            Router::with_hoop(ForceHttps::new().trust_host_header(true)).goal(hello);
+        let response = TestClient::get("http://evil.example/")
+            .add_header(HOST, "public.example", true)
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(
+            response.headers().get(LOCATION),
+            Some(&"https://public.example/".parse().unwrap())
+        );
     }
 
     #[tokio::test]
