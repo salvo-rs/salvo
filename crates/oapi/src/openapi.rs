@@ -37,6 +37,7 @@ pub use self::example::Example;
 pub use self::external_docs::ExternalDocs;
 pub use self::header::Header;
 pub use self::info::{Contact, Info, License};
+pub use self::link::Link;
 pub use self::operation::{Operation, Operations};
 pub use self::parameter::{Parameter, ParameterIn, ParameterStyle, Parameters};
 pub use self::path::{PathItem, PathItemType, Paths};
