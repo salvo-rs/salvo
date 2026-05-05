@@ -1142,7 +1142,7 @@ mod tests {
                                    "name": "id",
                                    "in": "path",
                                    "description": "Pet database id to get Pet for",
-                                   "required": false
+                                   "required": true
                                 }
                              ],
                              "responses": {

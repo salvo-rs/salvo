@@ -53,7 +53,11 @@ impl Parameters {
     }
     /// Inserts a parameter into the instance.
     pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
-        let parameter = parameter.into();
+        let mut parameter = parameter.into();
+        // Per the OpenAPI 3.1 spec, path parameters MUST have `required: true`.
+        if parameter.parameter_in == ParameterIn::Path {
+            parameter.required = Required::True;
+        }
         let exist_item = self.0.iter_mut().find(|item| {
             item.name == parameter.name && item.parameter_in == parameter.parameter_in
         });
@@ -234,6 +238,10 @@ impl Parameter {
 
         if required != Required::Unset {
             self.required = required;
+        }
+        // Per the OpenAPI 3.1 spec, path parameters MUST have `required: true`.
+        if self.parameter_in == ParameterIn::Path {
+            self.required = Required::True;
         }
 
         if let Some(deprecated) = deprecated {
@@ -561,7 +569,13 @@ mod tests {
     fn test_parameters_into_iter() {
         let parameters = Parameters::new().parameter(Parameter::new("param"));
         let mut iter = parameters.into_iter();
-        assert_eq!(iter.next(), Some(Parameter::new("param")));
+        // `Parameters::insert` forces `required: True` for path parameters per spec, so the
+        // round-tripped item is not equal to a fresh `Parameter::new("param")` with
+        // `Required::Unset`.
+        assert_eq!(
+            iter.next(),
+            Some(Parameter::new("param").required(Required::True))
+        );
         assert!(iter.next().is_none());
     }
 
@@ -592,11 +606,13 @@ mod tests {
             json!([
                 {
                     "in": "path",
-                    "name": "param1"
+                    "name": "param1",
+                    "required": true
                 },
                 {
                     "in": "path",
-                    "name": "param2"
+                    "name": "param2",
+                    "required": true
                 }
             ])
         );
