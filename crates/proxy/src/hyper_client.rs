@@ -106,7 +106,9 @@ where
 
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
-            if request_upgrade_type == response_upgrade_type.map(|s| s.to_lowercase()) {
+            // RFC 7230 §6.7 makes Upgrade tokens case-insensitive (`websocket`,
+            // `WebSocket`, ... are all the same protocol). Compare without allocating.
+            if crate::upgrade_types_match(request_upgrade_type.as_deref(), response_upgrade_type) {
                 let response_upgraded = hyper::upgrade::on(&mut response).await?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {

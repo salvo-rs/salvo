@@ -643,6 +643,22 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     None
 }
 
+/// Compare two `Upgrade` token candidates from request and response.
+///
+/// Per RFC 7230 §6.7 the upgrade token is case-insensitive (`websocket`,
+/// `WebSocket`, `WEBSOCKET` are equivalent), so this helper compares with
+/// `eq_ignore_ascii_case`. Two missing tokens compare equal (the previous
+/// case-sensitive check matched too) so callers behave the same when neither
+/// side advertises an upgrade.
+#[inline]
+pub(crate) fn upgrade_types_match(request: Option<&str>, response: Option<&str>) -> bool {
+    match (request, response) {
+        (Some(req), Some(resp)) => req.eq_ignore_ascii_case(resp),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
@@ -693,6 +709,19 @@ mod tests {
         let path = "/test/path";
         let encoded_path = encode_url_path(path);
         assert_eq!(encoded_path, "/test/path");
+    }
+
+    #[test]
+    fn test_upgrade_types_match_is_case_insensitive() {
+        // RFC 7230 §6.7 — upgrade tokens are case-insensitive.
+        assert!(upgrade_types_match(Some("WebSocket"), Some("websocket")));
+        assert!(upgrade_types_match(Some("WEBSOCKET"), Some("WebSocket")));
+        assert!(upgrade_types_match(Some("h2c"), Some("h2c")));
+        assert!(upgrade_types_match(None, None));
+
+        assert!(!upgrade_types_match(Some("websocket"), Some("h2c")));
+        assert!(!upgrade_types_match(Some("websocket"), None));
+        assert!(!upgrade_types_match(None, Some("websocket")));
     }
 
     #[test]
