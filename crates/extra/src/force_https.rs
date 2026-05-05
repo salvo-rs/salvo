@@ -57,6 +57,7 @@ use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 pub struct ForceHttps {
     https_port: Option<u16>,
     canonical_host: Option<String>,
+    trust_host_header: bool,
     skipper: Option<Box<dyn Skipper>>,
 }
 
@@ -65,6 +66,7 @@ impl Debug for ForceHttps {
         f.debug_struct("ForceHttps")
             .field("https_port", &self.https_port)
             .field("canonical_host", &self.canonical_host)
+            .field("trust_host_header", &self.trust_host_header)
             .finish()
     }
 }
@@ -90,6 +92,19 @@ impl ForceHttps {
     pub fn canonical_host(self, host: impl Into<String>) -> Self {
         Self {
             canonical_host: Some(host.into()),
+            ..self
+        }
+    }
+
+    /// Trust the request `Host`/`:authority` value when building redirect locations.
+    ///
+    /// Prefer [`ForceHttps::canonical_host`] for public services. Enable this
+    /// only when a trusted proxy or edge layer validates and overwrites host
+    /// headers before requests reach the application.
+    #[must_use]
+    pub fn trust_host_header(self, trust: bool) -> Self {
+        Self {
+            trust_host_header: trust,
             ..self
         }
     }
@@ -126,7 +141,14 @@ impl Handler for ForceHttps {
             .canonical_host
             .as_deref()
             .map(Cow::Borrowed)
-            .or_else(|| req.header::<String>(header::HOST).map(Cow::Owned));
+            .or_else(|| {
+                self.trust_host_header.then(|| {
+                    req.uri()
+                        .authority()
+                        .map(|authority| Cow::Owned(authority.as_str().to_owned()))
+                        .or_else(|| req.header::<String>(header::HOST).map(Cow::Owned))
+                })?
+            });
 
         if let Some(host) = redirect_base_host {
             let host = redirect_host(&host, self.https_port);
@@ -156,7 +178,7 @@ fn redirect_host(host: &str, https_port: Option<u16>) -> Cow<'_, str> {
 mod tests {
     use salvo_core::http::header::{HOST, LOCATION};
     use salvo_core::prelude::*;
-    use salvo_core::test::TestClient;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -178,7 +200,9 @@ mod tests {
     }
     #[tokio::test]
     async fn test_redirect_handler() {
-        let router = Router::with_hoop(ForceHttps::new().https_port(1234)).goal(hello);
+        let router =
+            Router::with_hoop(ForceHttps::new().https_port(1234).trust_host_header(true))
+                .goal(hello);
         let response = TestClient::get("http://127.0.0.1:8698/")
             .add_header(HOST, "127.0.0.1:8698", true)
             .send(router)
@@ -188,6 +212,19 @@ mod tests {
             response.headers().get(LOCATION),
             Some(&"https://127.0.0.1:1234/".parse().unwrap())
         );
+    }
+
+    #[tokio::test]
+    async fn test_redirect_handler_does_not_trust_host_by_default() {
+        let router = Router::with_hoop(ForceHttps::new()).goal(hello);
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
+            .add_header(HOST, "attacker.example", true)
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.headers().get(LOCATION), None);
+        assert_eq!(response.take_string().await.unwrap(), "Hello World");
     }
 
     #[tokio::test]

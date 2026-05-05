@@ -46,7 +46,7 @@ impl CsrfCipher for HmacCipher {
             URL_SAFE_NO_PAD.decode(token.as_bytes()),
             URL_SAFE_NO_PAD.decode(proof.as_bytes()),
         ) {
-            if proof.len() != self.token_size {
+            if token.len() != self.token_size {
                 false
             } else {
                 let mut hmac = self.hmac();
@@ -94,6 +94,16 @@ mod tests {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
         let (token, proof) = hmac_cipher.generate();
+        assert!(hmac_cipher.verify(&token, &proof));
+    }
+
+    #[test]
+    fn test_verify_custom_token_size() {
+        let hmac_key = [0u8; 32];
+        let hmac_cipher = HmacCipher::new(hmac_key).token_size(16);
+        let (token, proof) = hmac_cipher.generate();
+        assert_eq!(URL_SAFE_NO_PAD.decode(token.as_bytes()).unwrap().len(), 16);
+        assert_eq!(URL_SAFE_NO_PAD.decode(proof.as_bytes()).unwrap().len(), 32);
         assert!(hmac_cipher.verify(&token, &proof));
     }
 

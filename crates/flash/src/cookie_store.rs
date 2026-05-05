@@ -1,11 +1,12 @@
+use std::fmt::{self, Debug, Formatter};
+
 use salvo_core::http::cookie::time::Duration;
-use salvo_core::http::cookie::{Cookie, SameSite};
+use salvo_core::http::cookie::{Cookie, CookieJar, Key, SameSite};
 use salvo_core::{Depot, Request, Response};
 
 use super::{Flash, FlashHandler, FlashStore};
 
 /// CookieStore is a `FlashStore` implementation that stores the flash messages in a cookie.
-#[derive(Debug)]
 #[non_exhaustive]
 pub struct CookieStore {
     /// The cookie max age.
@@ -18,6 +19,19 @@ pub struct CookieStore {
     pub path: String,
     /// The cookie name.
     pub name: String,
+    key: Key,
+}
+impl Debug for CookieStore {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CookieStore")
+            .field("max_age", &self.max_age)
+            .field("same_site", &self.same_site)
+            .field("http_only", &self.http_only)
+            .field("path", &self.path)
+            .field("name", &self.name)
+            .field("key", &"<redacted>")
+            .finish()
+    }
 }
 impl Default for CookieStore {
     fn default() -> Self {
@@ -35,6 +49,7 @@ impl CookieStore {
             http_only: true,
             path: "/".into(),
             name: "salvo.flash".into(),
+            key: Key::generate(),
         }
     }
 
@@ -73,15 +88,33 @@ impl CookieStore {
         self
     }
 
+    /// Sets the key used to sign flash cookies.
+    ///
+    /// Use a stable key shared by all application instances when flash messages
+    /// must survive restarts or load-balancing across multiple processes.
+    #[must_use]
+    pub fn key(mut self, key: Key) -> Self {
+        self.key = key;
+        self
+    }
+
     /// Into `FlashHandler`.
     #[must_use]
     pub fn into_handler(self) -> FlashHandler<Self> {
         FlashHandler::new(self)
     }
+
+    fn sign_cookie(&self, cookie: Cookie<'static>) -> Cookie<'static> {
+        let mut jar = CookieJar::new();
+        jar.signed_mut(&self.key).add(cookie);
+        jar.get(&self.name)
+            .cloned()
+            .expect("signed cookie should be present in jar")
+    }
 }
 impl FlashStore for CookieStore {
     async fn load_flash(&self, req: &mut Request, _depot: &mut Depot) -> Option<Flash> {
-        match req.cookie(&self.name) {
+        match req.cookies().signed(&self.key).get(&self.name) {
             None => None,
             Some(cookie) => match serde_json::from_str(cookie.value()) {
                 Ok(flash) => Some(flash),
@@ -99,17 +132,14 @@ impl FlashStore for CookieStore {
         res: &mut Response,
         flash: Flash,
     ) {
-        res.add_cookie(
-            Cookie::build((
-                self.name.clone(),
-                serde_json::to_string(&flash).unwrap_or_default(),
-            ))
+        let value = serde_json::to_string(&flash).unwrap_or_default();
+        let cookie = Cookie::build((self.name.clone(), value))
             .max_age(self.max_age)
             .path(self.path.clone())
             .same_site(self.same_site)
             .http_only(self.http_only)
-            .build(),
-        );
+            .build();
+        res.add_cookie(self.sign_cookie(cookie));
     }
     async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(
@@ -213,5 +243,42 @@ mod tests {
         assert!(debug_str.contains("http_only"));
         assert!(debug_str.contains("path"));
         assert!(debug_str.contains("name"));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_loads_signed_flash() {
+        let store = CookieStore::new().key(Key::generate());
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut flash = Flash::default();
+        flash.success("saved");
+
+        store
+            .save_flash(&mut req, &mut depot, &mut res, flash)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap().clone();
+        let mut next_req = Request::new();
+        next_req.cookies_mut().add(cookie);
+
+        let loaded = store.load_flash(&mut next_req, &mut depot).await.unwrap();
+        assert_eq!(loaded.0.len(), 1);
+        assert_eq!(loaded.0[0].value, "saved");
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_rejects_unsigned_flash_cookie() {
+        let store = CookieStore::new().key(Key::generate());
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut flash = Flash::default();
+        flash.success("forged");
+        req.cookies_mut().add(Cookie::new(
+            store.name.clone(),
+            serde_json::to_string(&flash).unwrap(),
+        ));
+
+        assert!(store.load_flash(&mut req, &mut depot).await.is_none());
     }
 }

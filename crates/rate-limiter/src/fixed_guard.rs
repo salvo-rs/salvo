@@ -51,7 +51,7 @@ impl RateGuard for FixedGuard {
     }
 
     async fn remaining(&self, quota: &Self::Quota) -> usize {
-        quota.limit - self.count
+        quota.limit.saturating_sub(self.count)
     }
 
     async fn reset(&self, _: &Self::Quota) -> i64 {
@@ -156,6 +156,15 @@ mod tests {
 
         guard.verify(&quota).await;
         assert_eq!(guard.remaining(&quota).await, 3);
+    }
+
+    #[tokio::test]
+    async fn test_fixed_guard_remaining_zero_quota_saturates() {
+        let mut guard = FixedGuard::new();
+        let quota = BasicQuota::per_second(0);
+
+        assert!(guard.verify(&quota).await);
+        assert_eq!(guard.remaining(&quota).await, 0);
     }
 
     #[tokio::test]

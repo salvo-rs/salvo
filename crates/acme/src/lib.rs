@@ -178,7 +178,7 @@ impl Handler for Http01Handler {
                 token_len = token.len(),
                 "key not found for ACME challenge token"
             );
-            res.render(token);
+            res.render(StatusError::not_found().brief("challenge token not found"));
         } else {
             res.render(StatusError::not_found().brief("missing token"));
         }
@@ -199,5 +199,45 @@ where
 {
     fn acme(self) -> AcmeListenerBuilder<Self> {
         AcmeListenerBuilder::new(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::StatusCode;
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn http01_handler_serves_known_token() {
+        let keys = Arc::new(RwLock::new(HashMap::from([(
+            "known".to_owned(),
+            "key-authorization".to_owned(),
+        )])));
+        let handler = Http01Handler { keys };
+        let router = Router::with_path(format!("{WELL_KNOWN_PATH}/{{token}}")).goal(handler);
+
+        let mut response = TestClient::get("http://127.0.0.1/.well-known/acme-challenge/known")
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "key-authorization");
+    }
+
+    #[tokio::test]
+    async fn http01_handler_rejects_unknown_token() {
+        let handler = Http01Handler {
+            keys: Arc::new(RwLock::new(HashMap::new())),
+        };
+        let router = Router::with_path(format!("{WELL_KNOWN_PATH}/{{token}}")).goal(handler);
+
+        let response = TestClient::get("http://127.0.0.1/.well-known/acme-challenge/unknown")
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
     }
 }

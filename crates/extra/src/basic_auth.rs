@@ -173,9 +173,13 @@ pub fn parse_credentials(
         }
     }
 
-    if authorization.starts_with("Basic")
-        && let Some((_, auth)) = authorization.split_once(' ')
+    if let Some((scheme, auth)) = authorization.split_once(' ')
+        && scheme.eq_ignore_ascii_case("Basic")
     {
+        let auth = auth.trim_start();
+        if auth.is_empty() {
+            return Err(Error::other("`authorization` has bad format"));
+        }
         let auth_bytes = general_purpose::STANDARD
             .decode(auth)
             .map_err(Error::other)?;
@@ -298,5 +302,28 @@ mod tests {
         let (username, password) = result.unwrap();
         assert_eq!(username, "用户");
         assert_eq!(password, "密码");
+    }
+
+    #[test]
+    fn test_parse_credentials_rejects_prefixed_scheme() {
+        let mut req = Request::new();
+        req.headers_mut().insert(
+            AUTHORIZATION,
+            "BasicX cm9vdDpwd2Q=".parse().unwrap(),
+        );
+
+        assert!(parse_credentials(&req, &[AUTHORIZATION]).is_err());
+    }
+
+    #[test]
+    fn test_parse_credentials_accepts_case_insensitive_scheme() {
+        let mut req = Request::new();
+        req.headers_mut()
+            .insert(AUTHORIZATION, "basic cm9vdDpwd2Q=".parse().unwrap());
+
+        assert_eq!(
+            parse_credentials(&req, &[AUTHORIZATION]).unwrap(),
+            ("root".to_owned(), "pwd".to_owned())
+        );
     }
 }
