@@ -44,6 +44,7 @@
 //! ```
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use salvo_core::handler::Skipper;
 use salvo_core::http::header;
@@ -59,6 +60,7 @@ pub struct ForceHttps {
     canonical_host: Option<String>,
     trust_host_header: bool,
     skipper: Option<Box<dyn Skipper>>,
+    no_op_warned: AtomicBool,
 }
 
 impl Debug for ForceHttps {
@@ -137,18 +139,24 @@ impl Handler for ForceHttps {
         {
             return;
         }
-        let redirect_base_host = self
-            .canonical_host
-            .as_deref()
-            .map(Cow::Borrowed)
-            .or_else(|| {
-                self.trust_host_header.then(|| {
-                    req.uri()
-                        .authority()
-                        .map(|authority| Cow::Owned(authority.as_str().to_owned()))
-                        .or_else(|| req.header::<String>(header::HOST).map(Cow::Owned))
-                })?
-            });
+        let redirect_base_host = if let Some(host) = self.canonical_host.as_deref() {
+            Some(Cow::Borrowed(host))
+        } else if self.trust_host_header {
+            req.uri()
+                .authority()
+                .map(|authority| Cow::Owned(authority.as_str().to_owned()))
+                .or_else(|| req.header::<String>(header::HOST).map(Cow::Owned))
+        } else {
+            if !self.no_op_warned.swap(true, Ordering::Relaxed) {
+                tracing::warn!(
+                    "ForceHttps has neither `canonical_host(...)` nor `trust_host_header(true)` \
+                     configured; non-HTTPS requests will not be redirected. Set \
+                     `canonical_host(...)` for public services, or call `trust_host_header(true)` \
+                     only when a trusted proxy validates the Host/:authority header."
+                );
+            }
+            None
+        };
 
         if let Some(host) = redirect_base_host {
             let host = redirect_host(&host, self.https_port);
