@@ -103,6 +103,15 @@ pub struct OpenApi {
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
     pub paths: Paths,
 
+    /// Incoming webhooks that may be received as part of this API.
+    ///
+    /// Each value is a [`PathItem`] (or a [`Ref`] to one) keyed by a unique name. Added in
+    /// OpenAPI 3.1.
+    ///
+    /// See more details at <https://spec.openapis.org/oas/v3.1.0#openapi-object>.
+    #[serde(skip_serializing_if = "PathMap::is_empty", default)]
+    pub webhooks: PathMap<String, RefOr<PathItem>>,
+
     /// Holds various reusable schemas for the OpenAPI document.
     ///
     /// Few of these elements are security schemas and object schemas.
@@ -201,12 +210,13 @@ impl OpenApi {
 
     /// Merge `other` [`OpenApi`] consuming it and resuming it's content.
     ///
-    /// Merge function will take all `self` nonexistent _`servers`, `paths`, `schemas`, `responses`,
-    /// `security_schemes`, `security_requirements` and `tags`_ from _`other`_ [`OpenApi`].
+    /// Merge function will take all `self` nonexistent _`servers`, `paths`, `webhooks`,
+    /// `schemas`, `responses`, `security_schemes`, `security_requirements` and `tags`_ from
+    /// _`other`_ [`OpenApi`].
     ///
-    /// This function performs a shallow comparison for `paths`, `schemas`, `responses` and
-    /// `security schemes` which means that only _`name`_ and _`path`_ is used for comparison. When
-    /// match occurs the exists item will be overwrite.
+    /// This function performs a shallow comparison for `paths`, `webhooks`, `schemas`,
+    /// `responses` and `security schemes` which means that only _`name`_ and _`path`_ is used
+    /// for comparison. When a match occurs the existing item will be overwritten.
     ///
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
     /// comparison.
@@ -216,6 +226,9 @@ impl OpenApi {
     pub fn merge(mut self, mut other: Self) -> Self {
         self.servers.append(&mut other.servers);
         self.paths.append(&mut other.paths);
+        for (name, item) in std::mem::take(&mut other.webhooks) {
+            self.webhooks.insert(name, item);
+        }
         self.components.append(&mut other.components);
         self.security.append(&mut other.security);
         self.tags.append(&mut other.tags);
@@ -311,6 +324,36 @@ impl OpenApi {
         I: Into<PathItem>,
     {
         self.paths.insert(path.into(), item.into());
+        self
+    }
+
+    /// Replace the incoming webhooks map and return `Self`.
+    ///
+    /// Webhooks were added in OpenAPI 3.1. See [`OpenApi::webhooks`].
+    #[must_use]
+    pub fn webhooks<I, K, V>(mut self, webhooks: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<RefOr<PathItem>>,
+    {
+        self.webhooks = webhooks
+            .into_iter()
+            .map(|(name, item)| (name.into(), item.into()))
+            .collect();
+        self
+    }
+
+    /// Insert a single named webhook and return `Self`.
+    ///
+    /// The value may be an inline [`PathItem`] or a [`Ref`] to one stored elsewhere.
+    #[must_use]
+    pub fn add_webhook<K: Into<String>, V: Into<RefOr<PathItem>>>(
+        mut self,
+        name: K,
+        webhook: V,
+    ) -> Self {
+        self.webhooks.insert(name.into(), webhook.into());
         self
     }
 
@@ -1281,6 +1324,73 @@ mod tests {
         assert!(value.get("jsonSchemaDialect").is_none());
         assert!(value.get("$schema").is_none());
         Ok(())
+    }
+
+    #[test]
+    fn webhooks_omits_field_when_empty() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("api", "0.1.0");
+        let value: Value = serde_json::from_str(&doc.to_json()?)?;
+
+        assert!(value.get("webhooks").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn webhooks_serializes_inline_path_item() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("api", "0.1.0").add_webhook(
+            "newPet",
+            PathItem::new(
+                PathItemType::Post,
+                Operation::new().add_response("200", Response::new("acknowledged")),
+            ),
+        );
+        let value: Value = serde_json::from_str(&doc.to_json()?)?;
+
+        assert_eq!(
+            value["webhooks"],
+            json!({
+                "newPet": {
+                    "post": {
+                        "responses": {
+                            "200": { "description": "acknowledged" }
+                        }
+                    }
+                }
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn webhooks_serializes_reference_object() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("api", "0.1.0").add_webhook(
+            "newPet",
+            RefOr::Ref(Ref::new("#/components/pathItems/NewPetWebhook")),
+        );
+        let value: Value = serde_json::from_str(&doc.to_json()?)?;
+
+        assert_eq!(
+            value["webhooks"]["newPet"],
+            json!({ "$ref": "#/components/pathItems/NewPetWebhook" })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn webhooks_merge_combines_entries() {
+        let api_a = OpenApi::new("a", "1.0").add_webhook(
+            "newPet",
+            PathItem::new(PathItemType::Post, Operation::new()),
+        );
+        let api_b = OpenApi::new("b", "1.0").add_webhook(
+            "deletedPet",
+            PathItem::new(PathItemType::Post, Operation::new()),
+        );
+
+        let merged = api_a.merge(api_b);
+
+        assert!(merged.webhooks.contains_key("newPet"));
+        assert!(merged.webhooks.contains_key("deletedPet"));
     }
 
     #[test]
