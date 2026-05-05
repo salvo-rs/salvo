@@ -541,55 +541,46 @@ impl OpenApi {
         if let Some(handler_type_id) = &node.handler_type_id
             && let Some(creator) = crate::EndpointRegistry::find(handler_type_id)
         {
-            let Endpoint {
-                mut operation,
-                mut components,
-            } = (creator)();
-            operation.tags.extend(node.metadata.tags.iter().cloned());
-            operation
-                .securities
-                .extend(node.metadata.securities.iter().cloned());
-            let methods = if let Some(method) = &node.method {
-                vec![*method]
-            } else {
-                vec![
-                    PathItemType::Get,
-                    PathItemType::Post,
-                    PathItemType::Put,
-                    PathItemType::Patch,
-                ]
-            };
-            let not_exist_parameters = operation
-                .parameters
-                .0
-                .iter()
-                .filter(|p| {
-                    p.parameter_in == ParameterIn::Path && !path_parameter_names.contains(&p.name)
-                })
-                .map(|p| &p.name)
-                .collect::<Vec<_>>();
-            if !not_exist_parameters.is_empty() {
-                tracing::warn!(parameters = ?not_exist_parameters, path, handler_name = node.handler_type_name, "information for not exist parameters");
-            }
-            #[cfg(debug_assertions)]
-            {
-                let meta_not_exist_parameters = path_parameter_names
+            if let Some(method) = node.method {
+                let Endpoint {
+                    mut operation,
+                    mut components,
+                } = (creator)();
+                operation.tags.extend(node.metadata.tags.iter().cloned());
+                operation
+                    .securities
+                    .extend(node.metadata.securities.iter().cloned());
+                let not_exist_parameters = operation
+                    .parameters
+                    .0
                     .iter()
-                    .filter(|name| {
-                        !name.starts_with('*')
-                            && !operation.parameters.0.iter().any(|parameter| {
-                                parameter.name == **name
-                                    && parameter.parameter_in == ParameterIn::Path
-                            })
+                    .filter(|p| {
+                        p.parameter_in == ParameterIn::Path
+                            && !path_parameter_names.contains(&p.name)
                     })
+                    .map(|p| &p.name)
                     .collect::<Vec<_>>();
-
-                if !meta_not_exist_parameters.is_empty() {
-                    tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
+                if !not_exist_parameters.is_empty() {
+                    tracing::warn!(parameters = ?not_exist_parameters, path, handler_name = node.handler_type_name, "information for not exist parameters");
                 }
-            }
-            let path_item = self.paths.entry(path.clone()).or_default();
-            for method in methods {
+                #[cfg(debug_assertions)]
+                {
+                    let meta_not_exist_parameters = path_parameter_names
+                        .iter()
+                        .filter(|name| {
+                            !name.starts_with('*')
+                                && !operation.parameters.0.iter().any(|parameter| {
+                                    parameter.name == **name
+                                        && parameter.parameter_in == ParameterIn::Path
+                                })
+                        })
+                        .collect::<Vec<_>>();
+
+                    if !meta_not_exist_parameters.is_empty() {
+                        tracing::warn!(parameters = ?meta_not_exist_parameters, path, handler_name = node.handler_type_name, "parameters information not provided");
+                    }
+                }
+                let path_item = self.paths.entry(path.clone()).or_default();
                 if path_item.operations.contains_key(&method) {
                     tracing::warn!(
                         "path `{}` already contains operation for method `{:?}`",
@@ -597,10 +588,21 @@ impl OpenApi {
                         method
                     );
                 } else {
-                    path_item.operations.insert(method, operation.clone());
+                    path_item.operations.insert(method, operation);
                 }
+                self.components.append(&mut components);
+            } else {
+                // No method filter on this route: OpenAPI 3.1 has no "any-method"
+                // operation slot, so attaching the same handler to GET/POST/PUT/PATCH
+                // would lie about the API. Skip and warn so the user can attach a
+                // method filter (`.get(handler)`, `.post(handler)`, ...) explicitly.
+                tracing::warn!(
+                    path,
+                    handler_name = node.handler_type_name,
+                    "endpoint has no HTTP method filter; skipping in OpenAPI document. \
+                     Add `.get()`, `.post()`, etc. to the router to include it"
+                );
             }
-            self.components.append(&mut components);
         }
 
         for child in &mut node.children {
@@ -1228,6 +1230,47 @@ mod tests {
 
         assert!(doc.paths.contains_key("/posts/{id}"));
         assert!(!doc.paths.contains_key("/posts/{id:num}"));
+    }
+
+    #[test]
+    fn merge_router_skips_route_without_method_filter() {
+        #[salvo_oapi::endpoint]
+        async fn any_handler() -> &'static str {
+            "ok"
+        }
+
+        // `goal()` does not attach a method filter; the route matches every HTTP method.
+        // OpenAPI 3.1 has no equivalent "any" operation, so the route should be skipped
+        // rather than fabricating four operations under it.
+        let router = Router::with_path("/no-method").goal(any_handler);
+        let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+
+        assert!(
+            !doc.paths.contains_key("/no-method"),
+            "expected no path entry when the route lacks a method filter; \
+             got: {:?}",
+            doc.paths.keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn merge_router_attaches_only_to_explicit_method() {
+        #[salvo_oapi::endpoint]
+        async fn delete_thing() -> &'static str {
+            "ok"
+        }
+
+        // Sanity check that explicit method filters still work and do not pull in
+        // sibling methods (a regression guard against the prior 4-method fan-out).
+        let router = Router::with_path("/thing").delete(delete_thing);
+        let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+
+        let path_item = doc.paths.get("/thing").expect("/thing entry should exist");
+        assert!(path_item.operations.contains_key(&PathItemType::Delete));
+        assert!(!path_item.operations.contains_key(&PathItemType::Get));
+        assert!(!path_item.operations.contains_key(&PathItemType::Post));
+        assert!(!path_item.operations.contains_key(&PathItemType::Put));
+        assert!(!path_item.operations.contains_key(&PathItemType::Patch));
     }
 
     #[test]
