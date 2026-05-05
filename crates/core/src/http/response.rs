@@ -58,20 +58,20 @@ where
             },
             body,
         ) = res.into_parts();
+        // Per RFC 6265 §3 each cookie is delivered in its own `Set-Cookie` header (folding
+        // is forbidden), and the parts after the first `;` are attributes — not separate
+        // cookies. Parse each `Set-Cookie` header value as one cookie.
         #[cfg(feature = "cookie")]
-        // Set the request cookies, if they exist.
-        let cookies = if let Some(header) = headers.get(http::header::SET_COOKIE) {
+        let cookies = {
             let mut cookie_jar = CookieJar::new();
-            if let Ok(header) = header.to_str() {
-                for cookie_str in header.split(';').map(|s| s.trim()) {
-                    if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
-                        cookie_jar.add(cookie);
-                    }
+            for header in headers.get_all(http::header::SET_COOKIE) {
+                if let Ok(header) = header.to_str()
+                    && let Ok(cookie) = Cookie::parse_encoded(header).map(|c| c.into_owned())
+                {
+                    cookie_jar.add(cookie);
                 }
             }
             cookie_jar
-        } else {
-            CookieJar::new()
         };
 
         Self {
@@ -211,6 +211,19 @@ impl Response {
         })
     }
 
+    /// Append every cookie in `cookies.delta()` to `headers` as a `Set-Cookie` header,
+    /// then drain the cookie jar so subsequent calls do not re-emit the same cookies.
+    #[cfg(feature = "cookie")]
+    fn flush_cookies_into(headers: &mut HeaderMap, cookies: &mut CookieJar) {
+        for cookie in cookies.delta() {
+            if let Ok(hv) = cookie.encoded().to_string().parse() {
+                headers.append(http::header::SET_COOKIE, hv);
+            }
+        }
+        // Reset the jar so a follow-up serialization does not duplicate `Set-Cookie`.
+        *cookies = CookieJar::new();
+    }
+
     /// Convert to hyper response.
     #[doc(hidden)]
     #[inline]
@@ -220,7 +233,7 @@ impl Response {
             #[cfg(feature = "cookie")]
             mut headers,
             #[cfg(feature = "cookie")]
-            cookies,
+            mut cookies,
             #[cfg(not(feature = "cookie"))]
             headers,
             body,
@@ -229,11 +242,7 @@ impl Response {
         } = self;
 
         #[cfg(feature = "cookie")]
-        for cookie in cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse() {
-                headers.append(http::header::SET_COOKIE, hv);
-            }
-        }
+        Self::flush_cookies_into(&mut headers, &mut cookies);
 
         let status_code = status_code.unwrap_or(match &body {
             ResBody::None => StatusCode::NOT_FOUND,
@@ -252,6 +261,11 @@ impl Response {
     #[doc(hidden)]
     #[inline]
     pub fn strip_to_hyper(&mut self) -> hyper::Response<ResBody> {
+        // Flush any cookies onto `self.headers` *before* we transfer them to the new
+        // hyper response so the tower-compat path does not silently lose `Set-Cookie`.
+        #[cfg(feature = "cookie")]
+        Self::flush_cookies_into(&mut self.headers, &mut self.cookies);
+
         let mut res = hyper::Response::new(std::mem::take(&mut self.body));
         *res.extensions_mut() = std::mem::take(&mut self.extensions);
         *res.headers_mut() = std::mem::take(&mut self.headers);
@@ -568,5 +582,66 @@ mod test {
         }
 
         assert_eq!("Hello World", &result)
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_from_hyper_response_preserves_multiple_set_cookie_headers() {
+        let hyper_res = hyper::Response::builder()
+            .status(StatusCode::OK)
+            .header(http::header::SET_COOKIE, "sid=abc123; Path=/; HttpOnly")
+            .header(http::header::SET_COOKIE, "lang=en-US; Path=/; SameSite=Lax")
+            .body(ResBody::None)
+            .expect("build hyper response");
+
+        let res = Response::from(hyper_res);
+
+        let names: Vec<_> = res.cookies.iter().map(|c| c.name().to_owned()).collect();
+        assert!(
+            names.contains(&"sid".to_owned()),
+            "missing sid cookie: {names:?}"
+        );
+        assert!(
+            names.contains(&"lang".to_owned()),
+            "missing lang cookie: {names:?}"
+        );
+        // Cookie *attributes* must not be parsed as separate cookies.
+        for ghost in ["Path", "HttpOnly", "SameSite"] {
+            assert!(
+                !names.iter().any(|n| n.eq_ignore_ascii_case(ghost)),
+                "cookie attribute leaked as a cookie: {ghost} in {names:?}"
+            );
+        }
+
+        // The single-cookie attributes should also be preserved.
+        let sid = res.cookies.get("sid").expect("sid cookie present");
+        assert_eq!(sid.value(), "abc123");
+        assert_eq!(sid.http_only(), Some(true));
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_strip_to_hyper_emits_set_cookie_for_jar_cookies() {
+        use cookie::Cookie;
+
+        let mut res = Response::new();
+        res.cookies.add(Cookie::new("sid", "abc"));
+        res.cookies.add(Cookie::new("theme", "dark"));
+
+        let hyper_res = res.strip_to_hyper();
+        let cookie_headers: Vec<_> = hyper_res
+            .headers()
+            .get_all(http::header::SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .collect();
+
+        assert_eq!(
+            cookie_headers.len(),
+            2,
+            "expected two Set-Cookie headers, got {cookie_headers:?}"
+        );
+        assert!(cookie_headers.iter().any(|v| v.starts_with("sid=abc")));
+        assert!(cookie_headers.iter().any(|v| v.starts_with("theme=dark")));
     }
 }
