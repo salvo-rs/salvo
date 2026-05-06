@@ -54,6 +54,16 @@ fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
 
+#[cfg(feature = "matched-path")]
+#[inline]
+fn push_named_part(matched_parts: &mut Vec<String>, name: &str) {
+    let mut s = String::with_capacity(name.len() + 2);
+    s.push('{');
+    s.push_str(name);
+    s.push('}');
+    matched_parts.push(s);
+}
+
 /// Enum of all wisp kinds.
 pub enum WispKind {
     /// ConstWisp.
@@ -269,7 +279,7 @@ impl PathWisp for CharsWisp {
                     state.forward(max_width);
                     state.params.insert(&self.name, chars.into_iter().collect());
                     #[cfg(feature = "matched-path")]
-                    state.matched_parts.push(format!("{{{}}}", self.name));
+                    push_named_part(&mut state.matched_parts, &self.name);
                     return true;
                 }
             }
@@ -277,7 +287,7 @@ impl PathWisp for CharsWisp {
                 state.forward(chars.len());
                 state.params.insert(&self.name, chars.into_iter().collect());
                 #[cfg(feature = "matched-path")]
-                state.matched_parts.push(format!("{{{}}}", self.name));
+                push_named_part(&mut state.matched_parts, &self.name);
                 true
             } else {
                 false
@@ -293,7 +303,7 @@ impl PathWisp for CharsWisp {
                 state.forward(chars.len());
                 state.params.insert(&self.name, chars.into_iter().collect());
                 #[cfg(feature = "matched-path")]
-                state.matched_parts.push(format!("{{{}}}", self.name));
+                push_named_part(&mut state.matched_parts, &self.name);
                 true
             } else {
                 false
@@ -414,11 +424,12 @@ impl PathWisp for CombWisp {
         let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
-        let mut wild_path = if self.wild_regex.is_some() {
-            state.all_rest().unwrap_or_default().to_string()
+        let wild_path_buf = if self.wild_regex.is_some() {
+            state.all_rest().unwrap_or_default().into_owned()
         } else {
-            "".to_owned()
+            String::new()
         };
+        let mut wild_path: &str = &wild_path_buf;
         let caps = self.comb_regex.captures(&picked);
         if let Some(caps) = caps {
             let take_count = if self.wild_regex.is_some() {
@@ -429,12 +440,12 @@ impl PathWisp for CombWisp {
             #[cfg(feature = "matched-path")]
             let mut start = 0;
             #[cfg(feature = "matched-path")]
-            let mut matched_part = "".to_owned();
+            let mut matched_part = String::new();
             for name in self.names.iter().take(take_count) {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
-                        wild_path = wild_path.trim_start_matches(value.as_str()).to_owned();
+                        wild_path = wild_path.trim_start_matches(value.as_str());
                     }
                     #[cfg(feature = "matched-path")]
                     {
@@ -444,7 +455,10 @@ impl PathWisp for CombWisp {
                             };
                             matched_part.push_str(literal);
                         }
-                        matched_part.push_str(&format!("{{{name}}}"));
+                        matched_part.reserve(name.len() + 2);
+                        matched_part.push('{');
+                        matched_part.push_str(name);
+                        matched_part.push('}');
                         start = value.end();
                     }
                 } else {
@@ -486,13 +500,13 @@ impl PathWisp for CombWisp {
                 return false;
             }
             if !wild_path.is_empty() || !wild_start.starts_with("*+") {
-                let cap = wild_regex.captures(&wild_path).and_then(|caps| caps.get(0));
+                let cap = wild_regex.captures(wild_path).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
                     state.params.insert(wild_name, cap);
                     #[cfg(feature = "matched-path")]
-                    state.matched_parts.push(format!("{{{wild_name}}}"));
+                    push_named_part(&mut state.matched_parts, wild_name);
                     true
                 } else {
                     false
@@ -527,7 +541,7 @@ impl PathWisp for NamedWisp {
                 state.params.insert(&self.0, rest);
                 state.cursor.0 = state.parts.len();
                 #[cfg(feature = "matched-path")]
-                state.matched_parts.push(format!("{{{}}}", self.0));
+                push_named_part(&mut state.matched_parts, &self.0);
                 true
             } else {
                 false
@@ -541,7 +555,7 @@ impl PathWisp for NamedWisp {
             state.forward(picked.len());
             state.params.insert(&self.0, picked);
             #[cfg(feature = "matched-path")]
-            state.matched_parts.push(format!("{{{}}}", self.0));
+            push_named_part(&mut state.matched_parts, &self.0);
             true
         }
     }
@@ -602,7 +616,7 @@ impl PathWisp for RegexWisp {
                     state.forward(cap.len());
                     state.params.insert(&self.name, cap);
                     #[cfg(feature = "matched-path")]
-                    state.matched_parts.push(format!("{{{}}}", self.name));
+                    push_named_part(&mut state.matched_parts, &self.name);
                     true
                 } else {
                     false
@@ -620,7 +634,7 @@ impl PathWisp for RegexWisp {
                 state.forward(cap.len());
                 state.params.insert(&self.name, cap);
                 #[cfg(feature = "matched-path")]
-                state.matched_parts.push(format!("{{{}}}", self.name));
+                push_named_part(&mut state.matched_parts, &self.name);
                 true
             } else {
                 false
