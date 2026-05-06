@@ -438,14 +438,16 @@ where
     /// verifies the signed value and returns it. If there's a problem, returns
     /// an `Err` with a string describing the issue.
     fn verify_signature(&self, cookie_value: &str) -> Result<String, Error> {
-        if cookie_value.len() < BASE64_DIGEST_LEN {
+        // Split [MAC | original-value] into its two parts.
+        //
+        // The digest prefix is always ASCII base64; if the cookie value's
+        // 44th byte falls inside a multi-byte UTF-8 codepoint, the value is
+        // malformed and we reject it instead of panicking via `split_at`.
+        let Some((digest_str, value)) = cookie_value.split_at_checked(BASE64_DIGEST_LEN) else {
             return Err(Error::Other(
                 "length of value is <= BASE64_DIGEST_LEN".into(),
             ));
-        }
-
-        // Split [MAC | original-value] into its two parts.
-        let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
+        };
         let digest = general_purpose::STANDARD
             .decode(digest_str)
             .map_err(|_| Error::Other("bad base64 digest".into()))?;
@@ -601,6 +603,36 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.take_string().await.unwrap(), "home");
+    }
+
+    #[test]
+    fn test_verify_signature_rejects_non_ascii_at_digest_boundary() {
+        // 43 ASCII bytes + a 2-byte UTF-8 codepoint puts byte 44 (the digest
+        // length) inside the multi-byte char. `split_at` would panic; the
+        // checked variant must reject the cookie cleanly.
+        let handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+
+        let malformed = "A".repeat(43) + "Ä" + "rest";
+        assert_eq!(malformed.len(), 43 + 2 + 4);
+        assert!(handler.verify_signature(&malformed).is_err());
+    }
+
+    #[test]
+    fn test_verify_signature_rejects_short_value() {
+        let handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+
+        assert!(handler.verify_signature("too-short").is_err());
+        assert!(handler.verify_signature("").is_err());
     }
 
     // Tests for HandlerBuilder
