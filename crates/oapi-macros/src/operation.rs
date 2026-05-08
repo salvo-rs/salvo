@@ -232,10 +232,16 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
             });
         }
         PathType::MediaType(inline) => {
-            let ty = &inline.ty;
-            modifiers.push(quote! {
-                let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
-            });
+            // When the user wrote `inline(Type)` we render the schema body
+            // directly, so registering the wrapper as a named component would
+            // pollute `components/schemas` with the very entry we are trying
+            // to inline away.
+            if !inline.is_inline {
+                let ty = &inline.ty;
+                modifiers.push(quote! {
+                    let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
+                });
+            }
         }
         _ => {}
     }

@@ -568,14 +568,6 @@ impl ComponentSchema {
                         };
                         schema.to_tokens(tokens);
                     } else {
-                        // Only inline primitive types (String, i32, bool, etc.).
-                        // Non-primitive types (structs, enums) should use $ref
-                        // to avoid schema duplication.
-                        let schema_type = SchemaType {
-                            path: type_path,
-                            nullable,
-                        };
-                        let is_inline = is_inline && schema_type.is_primitive();
                         if is_inline {
                             let default = pop_feature!(features => Feature::Default(_))
                                 .map(|feature| feature.try_to_token_stream())
@@ -586,17 +578,23 @@ impl ComponentSchema {
                             let description_tokens = description_stream.to_token_stream();
                             let has_description = !description_tokens.is_empty();
 
+                            // Use ComposeSchema::compose to emit the schema body directly
+                            // instead of registering a named component and returning a $ref.
+                            // Generic type arguments are recursively composed so they are
+                            // inlined as well, matching the documented `inline(...)` semantics.
+                            // Wrap the call in a block with `let` bindings so that the
+                            // recursive `components` reborrows do not overlap.
+                            let inline_call = build_inline_compose_block(type_tree, &oapi);
+
                             let schema = if default.is_some() || nullable {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::OneOf::new()
                                         #nullable_item
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                                        .item(#inline_call)
                                     #default
                                 }
                             } else {
-                                quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
-                                }
+                                inline_call
                             };
 
                             // If the inlined field has a title or description, wrap in allOf
@@ -729,4 +727,45 @@ impl ToTokens for ComponentSchema {
 fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
     path.map(|p| p.segments.len() == 1 && p.leading_colon.is_none())
         .unwrap_or(false)
+}
+
+/// Generate a block that calls `ComposeSchema::compose` for `type_tree`,
+/// recursively composing each generic argument first via `let` bindings so that
+/// the nested `&mut Components` reborrows do not overlap.
+fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Ident) -> TokenStream {
+    let Some(path) = type_tree.path.as_ref() else {
+        // Tuple / unit types do not have a path; fall back to an empty object.
+        return quote! { #oapi::oapi::RefOr::from(#oapi::oapi::Object::new()) };
+    };
+    let path = path.as_ref();
+    let children: &[TypeTree<'_>] = type_tree
+        .children
+        .as_deref()
+        .unwrap_or(&[]);
+    if children.is_empty() {
+        return quote_spanned! {path.span() =>
+            <#path as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())
+        };
+    }
+    let bindings: Vec<TokenStream> = children
+        .iter()
+        .enumerate()
+        .map(|(idx, child)| {
+            let ident = quote::format_ident!("__inline_arg_{}", idx);
+            let value = build_inline_compose_block(child, oapi);
+            quote! { let #ident = #value; }
+        })
+        .collect();
+    let arg_idents: Vec<_> = (0..children.len())
+        .map(|idx| quote::format_ident!("__inline_arg_{}", idx))
+        .collect();
+    quote_spanned! {path.span() =>
+        {
+            #(#bindings)*
+            <#path as #oapi::oapi::ComposeSchema>::compose(
+                components,
+                ::std::vec![#(#arg_idents),*],
+            )
+        }
+    }
 }

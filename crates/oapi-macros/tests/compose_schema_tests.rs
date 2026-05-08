@@ -428,3 +428,83 @@ fn test_compose_schema_multiple_instantiations() {
         json!({ "type": "boolean" })
     );
 }
+
+/// Test 11: `inline(Generic<Concrete>)` in a response definition fully inlines
+/// the schema body (no wrapper component) and recursively inlines the
+/// non-primitive generic argument.
+///
+/// Regression test for https://github.com/salvo-rs/salvo/pull/1367#issuecomment-4404560560
+#[test]
+fn test_response_inline_deep_inlines_generic_args() {
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    struct PrimaryData {
+        id: String,
+        value: u32,
+    }
+
+    #[derive(Serialize, Deserialize, ToSchema, Debug)]
+    struct ResponsePayload<T: ToSchema + ComposeSchema + 'static> {
+        data: Vec<T>,
+    }
+
+    #[endpoint(
+        responses(
+            (status_code = 200, body = inline(ResponsePayload<PrimaryData>))
+        )
+    )]
+    async fn list_data() -> &'static str {
+        "ok"
+    }
+
+    salvo::oapi::naming::set_namer(
+        salvo::oapi::naming::FlexNamer::new()
+            .short_mode(true)
+            .generic_delimiter('_', '_'),
+    );
+
+    let router = Router::new().push(Router::with_path("data").get(list_data));
+    let doc = OpenApi::new("test", "0.1.0").merge_router(&router);
+    let value = serde_json::to_value(&doc).unwrap();
+
+    // The wrapper schema must NOT be registered as a component when it is
+    // requested via `inline(...)`. Either `components/schemas` is missing
+    // entirely or it is an empty object.
+    let no_components = value.pointer("/components/schemas").is_none_or(|schemas| {
+        schemas.get("ResponsePayload_PrimaryData_").is_none()
+            && schemas.get("PrimaryData").is_none()
+    });
+    assert!(
+        no_components,
+        "no inlined wrapper or generic arg should appear under components/schemas, got: {value}"
+    );
+
+    // The 200 response schema is the inlined object body, including the
+    // recursively inlined PrimaryData.
+    let response_schema = value
+        .pointer("/paths/~1data/get/responses/200/content/application~1json/schema")
+        .unwrap();
+    assert_json_eq!(
+        response_schema,
+        json!({
+            "type": "object",
+            "required": ["data"],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["id", "value"],
+                        "properties": {
+                            "id": { "type": "string" },
+                            "value": {
+                                "type": "integer",
+                                "format": "uint32",
+                                "minimum": 0
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    );
+}
