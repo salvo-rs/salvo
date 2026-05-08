@@ -568,6 +568,17 @@ impl ComponentSchema {
                         };
                         schema.to_tokens(tokens);
                     } else {
+                        // Only inline primitive types (String, i32, bool, etc.) here.
+                        // Non-primitive types fall through to the `$ref` branch below to
+                        // avoid duplicating user-defined schemas. User-explicit
+                        // `inline(...)` syntax bypasses `ComponentSchema` entirely (see
+                        // [`build_inline_compose_block`]), so this override does not
+                        // affect those cases.
+                        let schema_type = SchemaType {
+                            path: type_path,
+                            nullable,
+                        };
+                        let is_inline = is_inline && schema_type.is_primitive();
                         if is_inline {
                             let default = pop_feature!(features => Feature::Default(_))
                                 .map(|feature| feature.try_to_token_stream())
@@ -578,23 +589,17 @@ impl ComponentSchema {
                             let description_tokens = description_stream.to_token_stream();
                             let has_description = !description_tokens.is_empty();
 
-                            // Use ComposeSchema::compose to emit the schema body directly
-                            // instead of registering a named component and returning a $ref.
-                            // Generic type arguments are recursively composed so they are
-                            // inlined as well, matching the documented `inline(...)` semantics.
-                            // Wrap the call in a block with `let` bindings so that the
-                            // recursive `components` reborrows do not overlap.
-                            let inline_call = build_inline_compose_block(type_tree, &oapi);
-
                             let schema = if default.is_some() || nullable {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::OneOf::new()
                                         #nullable_item
-                                        .item(#inline_call)
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                     #default
                                 }
                             } else {
-                                inline_call
+                                quote_spanned! {type_path.span() =>
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                                }
                             };
 
                             // If the inlined field has a title or description, wrap in allOf
@@ -732,7 +737,12 @@ fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
 /// Generate a block that calls `ComposeSchema::compose` for `type_tree`,
 /// recursively composing each generic argument first via `let` bindings so that
 /// the nested `&mut Components` reborrows do not overlap.
-fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Ident) -> TokenStream {
+///
+/// Used by the user-explicit `inline(...)` syntax in `responses(...)`,
+/// `request_body = ...`, parameters, and headers to fully inline the schema
+/// body — including non-primitive generic arguments — without registering a
+/// wrapper component or emitting a `$ref`.
+pub(crate) fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Ident) -> TokenStream {
     let Some(path) = type_tree.path.as_ref() else {
         // Tuple / unit types do not have a path; fall back to an empty object.
         return quote! { #oapi::oapi::RefOr::from(#oapi::oapi::Object::new()) };

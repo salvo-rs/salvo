@@ -372,7 +372,7 @@ impl_to_schema_primitive!(
     time::Duration
 );
 #[cfg(feature = "smallvec")]
-impl<T: ToSchema + ComposeSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
+impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] smallvec::SmallVec<T>).into()
     }
@@ -391,7 +391,7 @@ impl<T: ComposeSchema + smallvec::Array> ComposeSchema for smallvec::SmallVec<T>
     }
 }
 #[cfg(feature = "indexmap")]
-impl<K: ToSchema + ComposeSchema, V: ToSchema + ComposeSchema> ToSchema for indexmap::IndexMap<K, V> {
+impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] indexmap::IndexMap<K, V>).into()
     }
@@ -410,7 +410,7 @@ impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for indexmap::IndexMap<K,
     }
 }
 
-impl<T: ToSchema + ComposeSchema> ToSchema for Vec<T> {
+impl<T: ToSchema> ToSchema for Vec<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
@@ -428,7 +428,7 @@ impl<T: ComposeSchema> ComposeSchema for Vec<T> {
     }
 }
 
-impl<T: ToSchema + ComposeSchema> ToSchema for LinkedList<T> {
+impl<T: ToSchema> ToSchema for LinkedList<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] LinkedList<T>).into()
     }
@@ -590,7 +590,7 @@ impl<T: ComposeSchema> ComposeSchema for std::sync::Arc<T> {
     }
 }
 
-impl<T: ToSchema + ComposeSchema> ToSchema for [T] {
+impl<T: ToSchema> ToSchema for [T] {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -612,7 +612,7 @@ impl<T: ComposeSchema> ComposeSchema for [T] {
     }
 }
 
-impl<T: ToSchema + ComposeSchema, const N: usize> ToSchema for [T; N] {
+impl<T: ToSchema, const N: usize> ToSchema for [T; N] {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -634,7 +634,7 @@ impl<T: ComposeSchema, const N: usize> ComposeSchema for [T; N] {
     }
 }
 
-impl<T: ToSchema + ComposeSchema> ToSchema for &[T] {
+impl<T: ToSchema> ToSchema for &[T] {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -656,7 +656,7 @@ impl<T: ComposeSchema> ComposeSchema for &[T] {
     }
 }
 
-impl<T: ToSchema + ComposeSchema> ToSchema for Option<T> {
+impl<T: ToSchema> ToSchema for Option<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
@@ -691,7 +691,7 @@ impl<T> ComposeSchema for PhantomData<T> {
     }
 }
 
-impl<K: ToSchema + ComposeSchema, V: ToSchema + ComposeSchema> ToSchema for BTreeMap<K, V> {
+impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
@@ -709,7 +709,7 @@ impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for BTreeMap<K, V> {
     }
 }
 
-impl<K: ToSchema + ComposeSchema, V: ToSchema + ComposeSchema> ToSchema for HashMap<K, V> {
+impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }

@@ -163,15 +163,19 @@ impl TryToTokens for RequestBodyAttr<'_> {
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree()?;
-                    ComponentSchema::new(crate::component::ComponentSchemaProps {
-                        type_tree: &type_tree,
-                        features: Some(vec![Inline::from(body_type.is_inline).into()]),
-                        description: None,
-                        deprecated: None,
-                        object_name: "",
-                        compose_context: None,
-                    })?
-                    .to_token_stream()
+                    if body_type.is_inline {
+                        crate::component::build_inline_compose_block(&type_tree, &oapi)
+                    } else {
+                        ComponentSchema::new(crate::component::ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: Some(vec![Inline::from(body_type.is_inline).into()]),
+                            description: None,
+                            deprecated: None,
+                            object_name: "",
+                            compose_context: None,
+                        })?
+                        .to_token_stream()
+                    }
                 }
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };

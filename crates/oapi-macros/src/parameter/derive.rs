@@ -613,15 +613,23 @@ impl TryToTokens for Parameter<'_> {
             });
             tokens.extend(param_features.try_to_token_stream()?);
 
-            let schema = ComponentSchema::for_params(component::ComponentSchemaProps {
-                type_tree: &component,
-                features: Some(schema_features),
-                description: None,
-                deprecated: None,
-                object_name: "",
-                compose_context: None,
-            })?
-            .to_token_stream();
+            let user_explicit_inline = schema_features
+                .iter()
+                .any(|f| matches!(f, Feature::Inline(Inline(true))));
+            let schema = if user_explicit_inline {
+                let oapi = crate::oapi_crate();
+                crate::component::build_inline_compose_block(&component, &oapi)
+            } else {
+                ComponentSchema::for_params(component::ComponentSchemaProps {
+                    type_tree: &component,
+                    features: Some(schema_features),
+                    description: None,
+                    deprecated: None,
+                    object_name: "",
+                    compose_context: None,
+                })?
+                .to_token_stream()
+            };
 
             tokens.extend(quote! { .schema(#schema) });
         }

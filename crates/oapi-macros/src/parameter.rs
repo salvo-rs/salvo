@@ -118,21 +118,28 @@ impl TryToTokens for ParameterSchema<'_> {
             ParameterType::Parsed(inline_type) => {
                 let type_tree = inline_type.as_type_tree()?;
                 let required: Required = (!type_tree.is_option()).into();
-                let mut schema_features = Vec::<Feature>::new();
-                schema_features.clone_from(&self.features);
-                schema_features.push(Feature::Inline(inline_type.is_inline.into()));
+                if inline_type.is_inline {
+                    let oapi = crate::oapi_crate();
+                    let inline_call =
+                        crate::component::build_inline_compose_block(&type_tree, &oapi);
+                    tokens.extend(quote! { .schema(#inline_call).required(#required) });
+                } else {
+                    let mut schema_features = Vec::<Feature>::new();
+                    schema_features.clone_from(&self.features);
+                    schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
-                to_tokens(
-                    ComponentSchema::for_params(component::ComponentSchemaProps {
-                        type_tree: &type_tree,
-                        features: Some(schema_features),
-                        description: None,
-                        deprecated: None,
-                        object_name: "",
-                        compose_context: None,
-                    })?,
-                    required,
-                )
+                    to_tokens(
+                        ComponentSchema::for_params(component::ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: Some(schema_features),
+                            description: None,
+                            deprecated: None,
+                            object_name: "",
+                            compose_context: None,
+                        })?,
+                        required,
+                    )
+                }
             }
         }
         Ok(())
