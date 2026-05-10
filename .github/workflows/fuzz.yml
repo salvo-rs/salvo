@@ -27,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
+        run: cargo install cargo-fuzz
 
       - name: Run target
         working-directory: ./fuzz
