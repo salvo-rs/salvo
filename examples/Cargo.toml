@@ -46,7 +46,6 @@ opentelemetry-http = "0.32"
 opentelemetry-otlp = "0.32"
 opentelemetry_sdk = "0.32"
 opentelemetry-semantic-conventions = "0.32"
-tracing-opentelemetry = "0.32.1"
 
 argon2 = "0.5.3"
 dotenvy = "0.15.6"
