@@ -143,6 +143,16 @@ fn rewrite_method(
                 FnReceiver::Arc => (quote!(self: &::std::sync::Arc<Self>), quote!(self.clone())),
                 _ => unreachable!(),
             };
+            // `#[endpoint]` on an `impl` block reads doc/deprecated attributes from the
+            // impl block itself (see oapi-macros `endpoint.rs`). Forward those attributes
+            // from the original method onto the generated impl block so the OpenAPI
+            // description and `deprecated` flag are picked up.
+            let forwarded_attrs: Vec<Attribute> = method
+                .attrs
+                .iter()
+                .filter(|a| a.path().is_ident("doc") || a.path().is_ident("deprecated"))
+                .cloned()
+                .collect();
             method.sig.inputs[0] = FnArg::Receiver(parse_quote!(&self));
             method.sig.ident = Ident::new("handle", Span::call_site());
             let where_clause = impl_generics.make_where_clause().clone();
@@ -167,6 +177,7 @@ fn rewrite_method(
                     }
                     #[allow(unused_imports)]
                     use ::std::ops::Deref as _;
+                    #(#forwarded_attrs)*
                     #macro_attr
                     impl #impl_generics handle #angle_bracketed #where_clause{
                         #method
