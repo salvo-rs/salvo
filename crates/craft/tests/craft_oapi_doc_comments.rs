@@ -25,6 +25,9 @@ impl DocService {
     /// Add with arc
     ///
     /// Same as `add_ref` but takes `Arc<Self>`.
+    // `#[doc(alias = ...)]` is valid on methods but not on impl blocks. The macro
+    // must not forward list-form `doc` attributes to the generated impl block.
+    #[doc(alias = "add-arc")]
     #[craft(endpoint)]
     fn add_arc(self: Arc<Self>, left: QueryParam<i64>, right: QueryParam<i64>) -> String {
         (self.base + *left + *right).to_string()
