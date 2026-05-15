@@ -12,6 +12,12 @@ pub struct MemoryLocker {
     inner: Arc<Mutex<HashMap<String, Arc<RwLock<()>>>>>,
 }
 
+impl Default for MemoryLocker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryLocker {
     pub fn new() -> Self {
         Self {

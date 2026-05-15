@@ -77,24 +77,27 @@
 //!
 //! Read more: <https://salvo.rs>
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::error::TusError;
 use crate::handlers::{GenerateUrlCtx, Metadata};
-use crate::lockers::Locker;
 use crate::options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch};
-use crate::stores::{DataStore, DiskStore, UploadInfo};
 use crate::utils::normalize_path;
 
-mod error;
 mod handlers;
-mod lockers;
-mod stores;
 
+pub mod error;
+pub mod lockers;
 pub mod options;
+pub mod stores;
 pub mod utils;
+
+pub use error::{ProtocolError, TusError, TusResult};
+pub use lockers::Locker;
+pub use lockers::memory_locker::MemoryLocker;
+pub use stores::{ByteStream, DataStore, DiskStore, Extension, StoreInfo, UploadInfo};
 
 use salvo_core::{Depot, Request, Router, handler};
 
@@ -273,6 +276,24 @@ impl Tus {
     pub fn with_store(mut self, store: impl DataStore) -> Self {
         self.store = Arc::new(store);
         self
+    }
+
+    /// Sets the local disk root directory used by the default [`DiskStore`].
+    ///
+    /// This is a convenience for the common case of just changing where uploaded
+    /// files are stored on disk. It replaces the current store with a fresh
+    /// [`DiskStore`] rooted at `root`, so call it before any [`Self::with_store`]
+    /// invocation if you want to combine it with a custom store.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use salvo_tus::Tus;
+    ///
+    /// let tus = Tus::new().storage_root("/var/uploads/tus");
+    /// ```
+    pub fn storage_root(self, root: impl Into<PathBuf>) -> Self {
+        self.with_store(DiskStore::new().disk_root(root))
     }
 
     pub fn with_locker(mut self, locker: impl Locker) -> Self {
@@ -575,6 +596,28 @@ mod tests {
         let tus = Tus::new().with_store(stores::DiskStore::new());
         // Just verify it compiles and doesn't panic
         assert!(Arc::strong_count(&tus.store) >= 1);
+    }
+
+    #[tokio::test]
+    async fn test_tus_storage_root_uses_custom_directory() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let tus = Tus::new().storage_root(temp_dir.path());
+
+        let info = UploadInfo {
+            id: "storage-root-test".to_owned(),
+            size: Some(0),
+            offset: Some(0),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01T00:00:00Z".to_owned(),
+        };
+
+        let created = tus.store.create(info).await.unwrap();
+        let stored_path = created.storage.unwrap().path;
+        assert!(
+            stored_path.starts_with(&*temp_dir.path().to_string_lossy()),
+            "expected upload to live under custom root, got {stored_path}"
+        );
     }
 
     #[test]

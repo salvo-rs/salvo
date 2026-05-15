@@ -82,6 +82,12 @@ pub struct DiskStore {
     root: PathBuf,
 }
 
+impl Default for DiskStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiskStore {
     pub fn new() -> Self {
         Self {
@@ -89,7 +95,9 @@ impl DiskStore {
         }
     }
 
-    #[allow(dead_code)]
+    /// Sets the local disk root directory where uploaded files are written.
+    ///
+    /// Defaults to `./tus-upload-files`.
     pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
         self.root = root.into();
         self
