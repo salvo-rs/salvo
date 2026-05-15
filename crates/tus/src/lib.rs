@@ -82,7 +82,6 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::handlers::{GenerateUrlCtx, Metadata};
 use crate::options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch};
 use crate::utils::normalize_path;
 
@@ -95,8 +94,9 @@ pub mod stores;
 pub mod utils;
 
 pub use error::{ProtocolError, TusError, TusResult};
-pub use lockers::Locker;
+pub use handlers::{GenerateUrlCtx, Metadata};
 pub use lockers::memory_locker::MemoryLocker;
+pub use lockers::{LockGuard, Locker};
 pub use stores::{ByteStream, DataStore, DiskStore, Extension, StoreInfo, UploadInfo};
 
 use salvo_core::{Depot, Request, Router, handler};

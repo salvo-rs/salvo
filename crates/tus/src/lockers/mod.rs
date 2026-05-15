@@ -24,6 +24,7 @@ pub struct LockGuard {
 enum LockGuardInner {
     Read(OwnedRwLockReadGuard<()>),
     Write(OwnedRwLockWriteGuard<()>),
+    Custom(Box<dyn Send + Sync>),
 }
 
 impl LockGuard {
@@ -36,6 +37,32 @@ impl LockGuard {
     pub(crate) fn write(guard: OwnedRwLockWriteGuard<()>) -> Self {
         Self {
             _guard: LockGuardInner::Write(guard),
+        }
+    }
+
+    /// Wraps any custom lock guard so it can be returned from a [`Locker`]
+    /// implementation outside this crate.
+    ///
+    /// The wrapped value is kept alive until the returned `LockGuard` is
+    /// dropped, so its `Drop` impl is what actually releases the lock.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::sync::Mutex;
+    /// use std::sync::MutexGuard;
+    ///
+    /// // Some custom lock that yields a guard on drop.
+    /// let mutex: &'static Mutex<()> = /* ... */;
+    /// let guard: MutexGuard<'static, ()> = mutex.lock().unwrap();
+    /// let lock_guard = salvo_tus::LockGuard::new(guard);
+    /// ```
+    pub fn new<G>(guard: G) -> Self
+    where
+        G: Send + Sync + 'static,
+    {
+        Self {
+            _guard: LockGuardInner::Custom(Box::new(guard)),
         }
     }
 }
@@ -57,6 +84,29 @@ mod tests {
         // Guard should exist and hold the lock
         drop(lock_guard);
         // Lock should be released after drop
+    }
+
+    #[tokio::test]
+    async fn test_lock_guard_new_releases_on_drop() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        // A custom drop-guard a downstream Locker impl might produce.
+        struct Releaser {
+            released: Arc<AtomicBool>,
+        }
+        impl Drop for Releaser {
+            fn drop(&mut self) {
+                self.released.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let released = Arc::new(AtomicBool::new(false));
+        let lock_guard = LockGuard::new(Releaser {
+            released: released.clone(),
+        });
+        assert!(!released.load(Ordering::SeqCst));
+        drop(lock_guard);
+        assert!(released.load(Ordering::SeqCst));
     }
 
     #[tokio::test]
