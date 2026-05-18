@@ -57,11 +57,14 @@ use std::task::{Context, Poll};
 use futures_util::future::{BoxFuture, FutureExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_util::sync::CancellationToken;
 
 use crate::fuse::{ArcFuseFactory, ArcFusewire};
 use crate::http::Version;
-use crate::service::HyperHandler;
+
+// Re-export types needed to implement custom Listeners and Acceptors outside
+// of salvo_core.
+pub use crate::service::HyperHandler;
+pub use tokio_util::sync::CancellationToken;
 
 mod proto;
 pub use proto::HttpBuilder;

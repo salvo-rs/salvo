@@ -29,6 +29,7 @@
 //! |---------|-------------|
 //! | [`basic-auth`](basic_auth) | HTTP Basic Authentication (RFC 7617) |
 //! | [`force-https`](force_https) | Redirect HTTP requests to HTTPS |
+//! | [`tls-detect`](tls_detect) | Serve HTTP and HTTPS on the same port |
 //!
 //! ## Request/Response Processing
 //!
@@ -131,6 +132,10 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "size-limiter"]
     pub mod size_limiter;
+}
+cfg_feature! {
+    #![feature = "tls-detect"]
+    pub mod tls_detect;
 }
 cfg_feature! {
     #![feature = "trailing-slash"]
