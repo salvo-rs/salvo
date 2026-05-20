@@ -67,23 +67,31 @@ static WILDCARD: HeaderValue = HeaderValue::from_static("*");
 #[must_use]
 pub struct Any;
 
-fn separated_by_commas<I>(mut iter: I) -> Option<HeaderValue>
+fn separated_by_commas<I>(iter: I) -> Option<HeaderValue>
 where
     I: Iterator<Item = HeaderValue>,
 {
-    match iter.next() {
-        Some(fst) => {
-            let mut result = BytesMut::from(fst.as_bytes());
-            for val in iter {
-                result.reserve(val.len() + 1);
-                result.put_u8(b',');
-                result.extend_from_slice(val.as_bytes());
-            }
+    // Materialise the iterator so we can size the output buffer in one
+    // shot. The previous implementation grew the `BytesMut` per entry via
+    // `reserve(val.len() + 1)`, which produced O(N) reallocations when
+    // joining many header values (e.g. a long `allow_headers` list).
+    let values: Vec<HeaderValue> = iter.collect();
+    let (first, rest) = values.split_first()?;
 
-            HeaderValue::from_maybe_shared(result.freeze()).ok()
-        }
-        None => None,
+    let total = first.len()
+        + rest
+            .iter()
+            .map(|v| v.len() + 1) // +1 for the leading comma
+            .sum::<usize>();
+
+    let mut result = BytesMut::with_capacity(total);
+    result.extend_from_slice(first.as_bytes());
+    for val in rest {
+        result.put_u8(b',');
+        result.extend_from_slice(val.as_bytes());
     }
+
+    HeaderValue::from_maybe_shared(result.freeze()).ok()
 }
 
 /// [`Cors`] middleware which adds headers for [CORS][mdn].
@@ -588,5 +596,23 @@ mod tests {
             "POST, GET, DELETE, OPTIONS"
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
+    }
+
+    #[test]
+    fn test_separated_by_commas_empty_iter_returns_none() {
+        let result = super::separated_by_commas(std::iter::empty::<HeaderValue>());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_separated_by_commas_joins_values() {
+        let values = vec![
+            HeaderValue::from_static("content-type"),
+            HeaderValue::from_static("authorization"),
+            HeaderValue::from_static("x-requested-with"),
+        ];
+
+        let joined = super::separated_by_commas(values.into_iter()).expect("non-empty");
+        assert_eq!(joined, "content-type,authorization,x-requested-with");
     }
 }
