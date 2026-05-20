@@ -105,7 +105,7 @@ impl ConstDecoder {
     /// If you have (n, e) RSA public key components as strings, use this.
     pub fn from_rsa_components(modulus: &str, exponent: &str) -> Result<Self, JwtError> {
         DecodingKey::from_rsa_components(modulus, exponent)
-            .map(|key| Self::with_validation(key, Validation::new(Algorithm::PS512)))
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::RS256)))
     }
 
     /// If you have (n, e) RSA public key components already decoded, use this.
@@ -113,7 +113,7 @@ impl ConstDecoder {
     pub fn from_rsa_raw_components(modulus: &[u8], exponent: &[u8]) -> Self {
         Self::with_validation(
             DecodingKey::from_rsa_raw_components(modulus, exponent),
-            Validation::new(Algorithm::PS512),
+            Validation::new(Algorithm::RS256),
         )
     }
 
@@ -168,6 +168,18 @@ impl ConstDecoder {
     pub fn from_ed_components(x: &str) -> Result<Self, JwtError> {
         DecodingKey::from_ed_components(x)
             .map(|key| Self::with_validation(key, Validation::new(Algorithm::EdDSA)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rsa_raw_components_default_to_rs256() {
+        let decoder = ConstDecoder::from_rsa_raw_components(&[1, 2, 3], &[1, 0, 1]);
+
+        assert_eq!(decoder.validation.algorithms, [Algorithm::RS256]);
     }
 }
 
