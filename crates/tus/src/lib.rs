@@ -302,6 +302,14 @@ impl Tus {
 
     pub fn into_router(self) -> Router {
         let base_path = normalize_path(&self.options.path);
+        if !self.options.relative_location && self.options.canonical_origin.is_none() {
+            tracing::warn!(
+                "Tus is configured with relative_location(false) but no canonical_origin; \
+                 absolute Location headers will be derived from the inbound Host / Forwarded \
+                 headers, which a misbehaving client or unauthenticated proxy can spoof. \
+                 Set Tus::canonical_origin(\"https://your.host\") to pin the origin."
+            );
+        }
         let state = Arc::new(self);
 
         Router::with_path(base_path)
@@ -405,6 +413,32 @@ mod tests {
         assert_eq!(CancellationReason::Abort, CancellationReason::Abort);
         assert_eq!(CancellationReason::Cancel, CancellationReason::Cancel);
         assert_ne!(CancellationReason::Abort, CancellationReason::Cancel);
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_into_router_warns_on_absolute_location_without_canonical_origin() {
+        let _ = Tus::new().relative_location(false).into_router();
+        assert!(logs_contain(
+            "no canonical_origin; absolute Location headers will be derived from"
+        ));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_into_router_does_not_warn_when_relative_location_is_true() {
+        let _ = Tus::new().relative_location(true).into_router();
+        assert!(!logs_contain("canonical_origin"));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_into_router_does_not_warn_when_canonical_origin_is_set() {
+        let _ = Tus::new()
+            .relative_location(false)
+            .canonical_origin("https://uploads.example.com")
+            .into_router();
+        assert!(!logs_contain("no canonical_origin"));
     }
 
     #[test]
