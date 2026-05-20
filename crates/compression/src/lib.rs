@@ -376,20 +376,28 @@ impl Compression {
 
         let accept_list = http::parse_accept_encoding(header);
 
-        let wildcard_q = accept_list.iter().find(|(a, _)| a == "*").map(|(_, q)| *q);
+        // Parse each `Accept-Encoding` entry once: drop tokens that map to
+        // neither a wildcard nor a known compression algorithm, so the
+        // `is_accepted` / `is_rejected` lookups below never have to call
+        // `.parse::<CompressionAlgo>()` again. The entries keep the order
+        // produced by `parse_accept_encoding` (descending q-value).
+        let mut wildcard_q: Option<u8> = None;
+        let parsed: smallvec::SmallVec<[(CompressionAlgo, u8); 4]> = accept_list
+            .iter()
+            .filter_map(|(name, q)| {
+                if name == "*" {
+                    wildcard_q = Some(*q);
+                    None
+                } else {
+                    name.parse::<CompressionAlgo>().ok().map(|algo| (algo, *q))
+                }
+            })
+            .collect();
 
-        let is_accepted = |algo: &CompressionAlgo| -> bool {
-            accept_list
-                .iter()
-                .filter(|(_, q)| *q > 0)
-                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
-        };
-        let is_rejected = |algo: &CompressionAlgo| -> bool {
-            accept_list
-                .iter()
-                .filter(|(_, q)| *q == 0)
-                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
-        };
+        let is_accepted =
+            |algo: &CompressionAlgo| -> bool { parsed.iter().any(|(a, q)| a == algo && *q > 0) };
+        let is_rejected =
+            |algo: &CompressionAlgo| -> bool { parsed.iter().any(|(a, q)| a == algo && *q == 0) };
 
         if self.force_priority {
             // Server preference: pick the highest-priority server algo the client accepts.
@@ -401,11 +409,10 @@ impl Compression {
                 .map(|(algo, level)| (*algo, *level))
         } else {
             // Client preference: pick the highest q-value algo the server supports.
-            let result = accept_list
+            let result = parsed
                 .iter()
                 .filter(|(_, q)| *q > 0)
-                .filter_map(|(algo, _)| algo.parse::<CompressionAlgo>().ok())
-                .find_map(|algo| self.algos.get(&algo).map(|level| (algo, *level)));
+                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
 
             if result.is_some() {
                 return result;
