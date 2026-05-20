@@ -92,7 +92,7 @@ impl FormData {
                     ParseError::Multer(e)
                 })? {
                     if let Some(name) = field.name().map(|s| s.to_owned()) {
-                        if field.headers().get(CONTENT_TYPE).is_some() {
+                        if field.file_name().is_some() {
                             form_data
                                 .files
                                 .insert(name, FilePart::create(&mut field).await?);
