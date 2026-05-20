@@ -158,6 +158,7 @@ pub struct JwkSetStore {
     /// The cache policy for this store
     pub cache_policy: CachePolicy,
     validation: Validation,
+    allow_symmetric_jwks: bool,
 }
 
 impl JwkSetStore {
@@ -168,16 +169,32 @@ impl JwkSetStore {
             decoding_map: HashMap::new(),
             cache_policy,
             validation,
+            allow_symmetric_jwks: false,
         }
+    }
+
+    /// Allow symmetric (`kty: "oct"` / HS*) JWKs from this JWKS endpoint.
+    ///
+    /// **Disabled by default.** OIDC JWKS endpoints normally publish only
+    /// asymmetric public keys (RSA / EC / OKP); accepting symmetric keys
+    /// widens the trust surface because a leaked or substituted secret
+    /// would let an attacker mint tokens the decoder accepts. Enable this
+    /// only when the issuer is known to publish HS* keys and is trusted to
+    /// keep them secret.
+    #[must_use]
+    pub fn with_allow_symmetric_jwks(mut self, allow: bool) -> Self {
+        self.allow_symmetric_jwks = allow;
+        self
     }
 
     fn update_jwks(&mut self, new_jwks: JwkSet) {
         self.jwks = new_jwks;
+        let allow_symmetric = self.allow_symmetric_jwks;
         let keys = self
             .jwks
             .keys
             .iter()
-            .filter_map(|i| decode_jwk(i, &self.validation).ok());
+            .filter_map(|i| decode_jwk(i, &self.validation, allow_symmetric).ok());
         // Clear our cache of decoding keys
         self.decoding_map.clear();
         // Load the keys back into our hashmap cache.
