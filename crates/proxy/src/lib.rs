@@ -45,7 +45,9 @@ use std::fmt::{self, Debug, Formatter};
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
-use salvo_core::http::header::{CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE};
+use salvo_core::http::header::{
+    AUTHORIZATION, CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE,
+};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::routing::normalize_url_path;
@@ -326,6 +328,8 @@ where
     pub client_ip_forwarding_enabled: bool,
     /// Flag to reject ambiguous percent-encoded path characters before proxying.
     pub strict_path_normalization_enabled: bool,
+    /// Flag to drop the inbound `Authorization` header before forwarding.
+    pub strip_authorization_header_enabled: bool,
 }
 
 impl<U, C> Debug for Proxy<U, C>
@@ -342,6 +346,10 @@ where
             .field(
                 "strict_path_normalization_enabled",
                 &self.strict_path_normalization_enabled,
+            )
+            .field(
+                "strip_authorization_header_enabled",
+                &self.strip_authorization_header_enabled,
             )
             .finish_non_exhaustive()
     }
@@ -364,6 +372,7 @@ where
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: false,
             strict_path_normalization_enabled: true,
+            strip_authorization_header_enabled: false,
         }
     }
 
@@ -377,6 +386,7 @@ where
             host_header_getter: Box::new(default_host_header_getter),
             client_ip_forwarding_enabled: true,
             strict_path_normalization_enabled: true,
+            strip_authorization_header_enabled: false,
         }
     }
 
@@ -456,6 +466,22 @@ where
         self
     }
 
+    /// Drop the inbound `Authorization` header before forwarding the
+    /// request upstream.
+    ///
+    /// Disabled by default to preserve the typical reverse-proxy
+    /// pass-through behaviour. Enable this when the proxy sits in
+    /// front of services that should not see the caller's credentials
+    /// — for example a public CORS gateway, a third-party API
+    /// bridge, or any deployment where the upstream is in a different
+    /// trust domain than the inbound client.
+    #[inline]
+    #[must_use]
+    pub fn strip_authorization_header(mut self, enable: bool) -> Self {
+        self.strip_authorization_header_enabled = enable;
+        self
+    }
+
     async fn build_proxied_request(
         &self,
         req: &mut Request,
@@ -503,9 +529,13 @@ where
         let connection_headers = connection_header_names(req.headers());
         let upgrade_type = get_upgrade_type(req.headers()).map(str::to_owned);
         for (key, value) in req.headers() {
-            if key != HOST && !is_hop_by_hop_header(key, &connection_headers) {
-                build = build.header(key, value);
+            if key == HOST || is_hop_by_hop_header(key, &connection_headers) {
+                continue;
             }
+            if self.strip_authorization_header_enabled && key == AUTHORIZATION {
+                continue;
+            }
+            build = build.header(key, value);
         }
         if let Some(upgrade_type) = upgrade_type {
             build = build.header(CONNECTION, HeaderValue::from_static("upgrade"));
@@ -961,6 +991,54 @@ mod tests {
                 .headers()
                 .get(HeaderName::from_static("x-remove"))
                 .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_forwards_authorization_by_default() {
+        let proxy = Proxy::new(vec!["http://example.com"], HyperClient::default());
+        let mut request = Request::new();
+        let depot = Depot::new();
+
+        request
+            .headers_mut()
+            .insert(AUTHORIZATION, HeaderValue::from_static("Bearer secret"));
+
+        let proxied = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            proxied.headers().get(AUTHORIZATION),
+            Some(&HeaderValue::from_static("Bearer secret"))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_strips_authorization_when_enabled() {
+        let proxy = Proxy::new(vec!["http://example.com"], HyperClient::default())
+            .strip_authorization_header(true);
+        let mut request = Request::new();
+        let depot = Depot::new();
+
+        request
+            .headers_mut()
+            .insert(AUTHORIZATION, HeaderValue::from_static("Bearer secret"));
+        request.headers_mut().insert(
+            HeaderName::from_static("x-keep"),
+            HeaderValue::from_static("ok"),
+        );
+
+        let proxied = proxy
+            .build_proxied_request(&mut request, &depot)
+            .await
+            .unwrap();
+
+        assert!(proxied.headers().get(AUTHORIZATION).is_none());
+        assert_eq!(
+            proxied.headers().get(HeaderName::from_static("x-keep")),
+            Some(&HeaderValue::from_static("ok"))
         );
     }
 
