@@ -72,31 +72,32 @@ impl FormData {
             }
             Some(ctype) if ctype.type_() == mime::MULTIPART => {
                 let mut form_data = Self::new();
-                if let Some(boundary) = headers
+                let Some(boundary) = headers
                     .get(CONTENT_TYPE)
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multra::parse_boundary(ct).ok())
-                {
-                    let mut multipart = Multipart::new(body, boundary);
-                    while let Some(mut field) = multipart.next_field().await.map_err(|e| {
-                        // Check if the multra error contains a LengthLimitError
-                        let mut source = std::error::Error::source(&e);
-                        while let Some(err) = source {
-                            if err.is::<http_body_util::LengthLimitError>() {
-                                return ParseError::PayloadTooLarge;
-                            }
-                            source = std::error::Error::source(err);
+                else {
+                    return Err(ParseError::InvalidContentType);
+                };
+                let mut multipart = Multipart::new(body, boundary);
+                while let Some(mut field) = multipart.next_field().await.map_err(|e| {
+                    // Check if the multra error contains a LengthLimitError
+                    let mut source = std::error::Error::source(&e);
+                    while let Some(err) = source {
+                        if err.is::<http_body_util::LengthLimitError>() {
+                            return ParseError::PayloadTooLarge;
                         }
-                        ParseError::Multer(e)
-                    })? {
-                        if let Some(name) = field.name().map(|s| s.to_owned()) {
-                            if field.headers().get(CONTENT_TYPE).is_some() {
-                                form_data
-                                    .files
-                                    .insert(name, FilePart::create(&mut field).await?);
-                            } else {
-                                form_data.fields.insert(name, field.text().await?);
-                            }
+                        source = std::error::Error::source(err);
+                    }
+                    ParseError::Multer(e)
+                })? {
+                    if let Some(name) = field.name().map(|s| s.to_owned()) {
+                        if field.file_name().is_some() {
+                            form_data
+                                .files
+                                .insert(name, FilePart::create(&mut field).await?);
+                        } else {
+                            form_data.fields.insert(name, field.text().await?);
                         }
                     }
                 }

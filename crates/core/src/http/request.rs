@@ -1586,6 +1586,33 @@ file content\r\n\
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
+
+        let mut req: Request = TestClient::post("http://127.0.0.1:8698/hello")
+            .add_header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundaryNoPartContentType",
+                true,
+            )
+            .body(
+                "------WebKitFormBoundaryNoPartContentType\r\n\
+Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\r\n\
+file content\r\n\
+------WebKitFormBoundaryNoPartContentType--\r\n",
+            )
+            .build();
+        let file = req.file("file1").await.unwrap();
+        assert_eq!(file.name().unwrap(), "err.txt");
+    }
+
+    #[tokio::test]
+    async fn test_form_data_multipart_requires_boundary() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/upload")
+            .add_header("content-type", "multipart/form-data", true)
+            .body("ignored")
+            .build();
+
+        let err = req.form_data().await.unwrap_err();
+        assert!(matches!(err, ParseError::InvalidContentType));
     }
 
     /// Test that `form_data()` works correctly after `payload()` has been accessed.
