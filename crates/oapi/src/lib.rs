@@ -7,7 +7,12 @@
 #[macro_use]
 mod cfg;
 
-#[cfg(any(feature = "swagger-ui", feature = "scalar", feature = "rapidoc", feature = "redoc"))]
+#[cfg(any(
+    feature = "swagger-ui",
+    feature = "scalar",
+    feature = "rapidoc",
+    feature = "redoc"
+))]
 mod html;
 mod openapi;
 pub use openapi::*;
