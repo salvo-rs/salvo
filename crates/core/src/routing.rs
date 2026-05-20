@@ -415,7 +415,7 @@ use std::sync::Arc;
 pub use flow_ctrl::FlowCtrl;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 
-use crate::http::uri::{Parts as UriParts, Uri};
+use crate::http::uri::Uri;
 use crate::{Handler, Response};
 
 const HTML_ENCODE_SET: &AsciiSet = &CONTROLS
@@ -505,35 +505,22 @@ pub fn normalize_url_path(path: &str) -> String {
 
 #[doc(hidden)]
 pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
-    let UriParts {
-        scheme,
-        authority,
-        path_and_query,
-        ..
-    } = req_uri.clone().into_parts();
-    let mut builder = Uri::builder();
-    if let Some(scheme) = scheme {
-        builder = builder.scheme(scheme);
+    let Some(path_and_query) = req_uri.path_and_query() else {
+        tracing::error!(uri = %req_uri, "failed to build redirect URI from path");
+        res.status_code(crate::http::StatusCode::INTERNAL_SERVER_ERROR);
+        return;
+    };
+    let path = path_and_query.path();
+    let mut redirect_uri = if path.ends_with('/') {
+        path.to_owned()
+    } else {
+        format!("{path}/")
+    };
+    if let Some(query) = path_and_query.query() {
+        redirect_uri.push('?');
+        redirect_uri.push_str(query);
     }
-    if let Some(authority) = authority {
-        builder = builder.authority(authority);
-    }
-    if let Some(path_and_query) = path_and_query {
-        if let Some(query) = path_and_query.query() {
-            builder = builder.path_and_query(format!("{}/?{}", path_and_query.path(), query));
-        } else {
-            builder = builder.path_and_query(format!("{}/", path_and_query.path()));
-        }
-    }
-    match builder.build() {
-        Ok(redirect_uri) => {
-            res.render(crate::writing::Redirect::found(redirect_uri.to_string()));
-        }
-        Err(e) => {
-            tracing::error!(error = ?e, "failed to build redirect URI");
-            res.status_code(crate::http::StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
+    res.render(crate::writing::Redirect::found(redirect_uri));
 }
 
 /// Check if a path component is a Windows reserved device name.
@@ -562,6 +549,8 @@ fn is_windows_reserved_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::http::header::LOCATION;
+    use crate::http::uri::Uri;
     use crate::prelude::*;
     use crate::routing::{is_windows_reserved_name, normalize_url_path};
     use crate::test::{ResponseExt, TestClient};
@@ -686,6 +675,16 @@ mod tests {
         // Empty parts
         assert_eq!(normalize_url_path("a//b"), "a/b");
         assert_eq!(normalize_url_path(""), "");
+    }
+
+    #[test]
+    fn test_redirect_to_dir_url_uses_origin_form_location() {
+        let uri: Uri = "http://attacker.example/assets?x=1".parse().unwrap();
+        let mut res = Response::new();
+
+        super::redirect_to_dir_url(&uri, &mut res);
+
+        assert_eq!(res.headers()[LOCATION], "/assets/?x=1");
     }
 
     #[test]
