@@ -502,10 +502,11 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
             footer,
         )
     };
-    res.headers_mut().insert(
-        header::CONTENT_TYPE,
-        format.to_string().parse().expect("invalid `Content-Type`"),
-    );
+    let content_type = format
+        .to_string()
+        .parse()
+        .unwrap_or_else(|_| header::HeaderValue::from_static("text/plain; charset=utf-8"));
+    res.headers_mut().insert(header::CONTENT_TYPE, content_type);
     let _ = res.write_body(data);
 }
 
