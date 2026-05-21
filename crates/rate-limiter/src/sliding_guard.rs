@@ -9,6 +9,7 @@ pub struct SlidingGuard {
     cell_span: Duration,
     counts: Vec<usize>,
     head: usize,
+    total: usize,
     quota: Option<CelledQuota>,
 }
 
@@ -26,8 +27,32 @@ impl SlidingGuard {
             cell_span: Duration::default(),
             counts: vec![],
             head: 0,
+            total: 0,
             quota: None,
         }
+    }
+
+    fn normalize_quota(quota: &CelledQuota) -> CelledQuota {
+        let mut quota = quota.clone();
+        if quota.limit == 0 {
+            quota.limit = 1;
+        }
+        if quota.cells == 0 {
+            quota.cells = 1;
+        }
+        if quota.cells > quota.limit {
+            quota.cells = quota.limit;
+        }
+        quota
+    }
+
+    fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
+        self.cell_inst = now;
+        self.cell_span = quota.period / (quota.cells as u32);
+        self.counts = vec![0; quota.cells];
+        self.head = 0;
+        self.counts[0] = 1;
+        self.total = 1;
     }
 }
 
@@ -35,48 +60,32 @@ impl RateGuard for SlidingGuard {
     type Quota = CelledQuota;
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
         let now = OffsetDateTime::now_utc();
-        if self.quota.is_none() || self.quota.as_ref() != Some(quota) {
-            let mut quota = quota.clone();
-            if quota.limit == 0 {
-                quota.limit = 1;
-            }
-            if quota.cells == 0 {
-                quota.cells = 1;
-            }
-            if quota.cells > quota.limit {
-                quota.cells = quota.limit;
-            }
-            self.cell_inst = now;
-            self.cell_span = quota.period / (quota.cells as u32);
-            self.counts = vec![0; quota.cells];
-            self.head = 0;
-            self.counts[0] = 1;
+        let quota = Self::normalize_quota(quota);
+        if self.quota.as_ref() != Some(&quota) {
+            self.reset_window(&quota, now);
             self.quota = Some(quota);
             return true;
         }
         let mut delta = now - self.cell_inst;
         if delta > quota.period {
-            self.counts = vec![0; quota.cells];
-            self.head = 0;
-            self.counts[0] = 1;
-            self.cell_inst = now;
+            self.reset_window(&quota, now);
             return true;
         } else {
             while delta > self.cell_span {
                 delta -= self.cell_span;
                 self.head = (self.head + 1) % self.counts.len();
+                self.total = self.total.saturating_sub(self.counts[self.head]);
                 self.counts[self.head] = 0;
             }
             self.counts[self.head] += 1;
+            self.total += 1;
             self.cell_inst = now;
         }
-        self.counts.iter().cloned().sum::<usize>() <= quota.limit
+        self.total <= quota.limit
     }
 
     async fn remaining(&self, quota: &Self::Quota) -> usize {
-        quota
-            .limit
-            .saturating_sub(self.counts.iter().cloned().sum::<usize>())
+        quota.limit.saturating_sub(self.total)
     }
 
     async fn reset(&self, quota: &Self::Quota) -> i64 {
@@ -97,6 +106,7 @@ mod tests {
         let guard = SlidingGuard::new();
         assert!(guard.counts.is_empty());
         assert_eq!(guard.head, 0);
+        assert_eq!(guard.total, 0);
         assert!(guard.quota.is_none());
     }
 
@@ -105,6 +115,7 @@ mod tests {
         let guard = SlidingGuard::default();
         assert!(guard.counts.is_empty());
         assert_eq!(guard.head, 0);
+        assert_eq!(guard.total, 0);
         assert!(guard.quota.is_none());
     }
 
@@ -123,6 +134,7 @@ mod tests {
         let cloned = guard.clone();
         assert_eq!(guard.head, cloned.head);
         assert_eq!(guard.counts, cloned.counts);
+        assert_eq!(guard.total, cloned.total);
     }
 
     #[tokio::test]
@@ -133,6 +145,7 @@ mod tests {
         let result = guard.verify(&quota).await;
         assert!(result);
         assert!(!guard.counts.is_empty());
+        assert_eq!(guard.total, 1);
         assert!(guard.quota.is_some());
     }
 
@@ -177,6 +190,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_sliding_guard_clamped_cells_keep_counting() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(3, 10, Duration::seconds(1));
+
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+        assert_eq!(guard.counts.len(), 3);
+        assert_eq!(guard.total, guard.counts.iter().sum::<usize>());
+    }
+
+    #[tokio::test]
     async fn test_sliding_guard_verify_reset_after_period() {
         let mut guard = SlidingGuard::new();
         let quota = CelledQuota::new(2, 2, Duration::milliseconds(100));
@@ -200,10 +226,12 @@ mod tests {
         guard.verify(&quota).await;
         let remaining = guard.remaining(&quota).await;
         assert!(remaining < 5);
+        assert_eq!(remaining, 4);
 
         guard.verify(&quota).await;
         let remaining2 = guard.remaining(&quota).await;
         assert!(remaining2 < remaining);
+        assert_eq!(remaining2, 3);
     }
 
     #[tokio::test]
@@ -283,6 +311,7 @@ mod tests {
                 guard.head,
                 guard.counts
             );
+            assert_eq!(guard.total, guard.counts.iter().sum::<usize>());
         }
     }
 }
