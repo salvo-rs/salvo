@@ -74,7 +74,9 @@
 //!
 //! Concurrent misses for the same cache key are coalesced. One request populates
 //! the cache, and other in-flight requests reuse the generated cache entry when
-//! the response is cacheable.
+//! the response is cacheable. At most [`DEFAULT_MAX_IN_FLIGHT`] distinct cache
+//! keys are coalesced at once by default; additional misses bypass coalescing and
+//! execute normally until an in-flight slot is released.
 //!
 //! # Limitations
 //!
@@ -251,15 +253,26 @@ fn mutex_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     }
 }
 
+/// Default maximum number of distinct cache keys tracked for concurrent miss coalescing.
+pub const DEFAULT_MAX_IN_FLIGHT: usize = 1024;
+
 struct InFlight<K> {
     entries: Mutex<HashMap<K, Arc<Flight>>>,
+    max_entries: usize,
+}
+
+impl<K> InFlight<K> {
+    fn new(max_entries: usize) -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            max_entries,
+        }
+    }
 }
 
 impl<K> Default for InFlight<K> {
     fn default() -> Self {
-        Self {
-            entries: Mutex::new(HashMap::new()),
-        }
+        Self::new(DEFAULT_MAX_IN_FLIGHT)
     }
 }
 
@@ -271,6 +284,9 @@ where
         let mut entries = mutex_lock(&self.entries);
         if let Some(flight) = entries.get(&key) {
             return FlightPermit::Follower(flight.clone());
+        }
+        if entries.len() >= self.max_entries {
+            return FlightPermit::Bypass;
         }
 
         let flight = Arc::new(Flight::default());
@@ -304,6 +320,7 @@ where
 {
     Leader(FlightGuard<K>),
     Follower(Arc<Flight>),
+    Bypass,
 }
 
 struct FlightGuard<K>
@@ -529,6 +546,17 @@ where
         self.cache_private = cache_private;
         self
     }
+
+    /// Sets the maximum number of distinct cache keys tracked for concurrent miss coalescing.
+    ///
+    /// When this limit is reached, misses for new keys bypass coalescing and execute normally.
+    /// Existing in-flight keys can still be followed. Set to `0` to disable miss coalescing.
+    #[inline]
+    #[must_use]
+    pub fn max_in_flight(mut self, max_in_flight: usize) -> Self {
+        self.in_flight = Arc::new(InFlight::new(max_in_flight));
+        self
+    }
 }
 
 async fn call_next_and_cache<S>(
@@ -649,6 +677,18 @@ where
                         )
                         .await;
                     }
+                }
+                FlightPermit::Bypass => {
+                    call_next_and_cache(
+                        &self.store,
+                        key,
+                        self.cache_private,
+                        req,
+                        depot,
+                        res,
+                        ctrl,
+                    )
+                    .await;
                 }
             }
             return;
@@ -988,6 +1028,32 @@ mod tests {
     fn test_cache_new() {
         let cache = Cache::new(MokaStore::<String>::new(100), RequestIssuer::default());
         assert!(format!("{cache:?}").contains("Cache"));
+    }
+
+    #[test]
+    fn in_flight_limit_bypasses_new_keys_when_full() {
+        let in_flight = Arc::new(InFlight::new(1));
+        let first = match in_flight.enter("a") {
+            FlightPermit::Leader(guard) => guard,
+            _ => panic!("first key should lead an in-flight request"),
+        };
+
+        assert!(matches!(in_flight.enter("a"), FlightPermit::Follower(_)));
+        assert!(matches!(in_flight.enter("b"), FlightPermit::Bypass));
+
+        drop(first);
+        assert!(matches!(in_flight.enter("b"), FlightPermit::Leader(_)));
+    }
+
+    #[test]
+    fn cache_max_in_flight_can_disable_coalescing() {
+        let cache =
+            Cache::new(MokaStore::<String>::new(100), RequestIssuer::default()).max_in_flight(0);
+
+        assert!(matches!(
+            cache.in_flight.enter("uncached".to_owned()),
+            FlightPermit::Bypass
+        ));
     }
 
     #[test]
