@@ -104,6 +104,9 @@ where
     pub validation: Option<Validation>,
     /// The expected OIDC token audiences.
     pub audiences: Option<Vec<String>>,
+    /// Whether to accept symmetric (`kty: "oct"` / HS*) keys served by
+    /// the JWKS endpoint. Disabled by default.
+    pub allow_symmetric_jwks: bool,
 }
 impl<T: AsRef<str>> Debug for DecoderBuilder<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -111,6 +114,7 @@ impl<T: AsRef<str>> Debug for DecoderBuilder<T> {
             .field("http_client", &self.http_client)
             .field("validation", &self.validation)
             .field("audiences", &self.audiences)
+            .field("allow_symmetric_jwks", &self.allow_symmetric_jwks)
             .finish()
     }
 }
@@ -126,6 +130,7 @@ where
             http_client: None,
             validation: None,
             audiences: None,
+            allow_symmetric_jwks: false,
         }
     }
     /// Set the http client for the decoder.
@@ -159,6 +164,21 @@ where
         self
     }
 
+    /// Allow symmetric (`kty: "oct"` / HS*) keys to be loaded from the
+    /// JWKS endpoint.
+    ///
+    /// **Disabled by default.** OIDC JWKS endpoints normally publish only
+    /// asymmetric public keys (RSA / EC / OKP). Accepting symmetric keys
+    /// widens the trust surface — a leaked or substituted shared secret
+    /// would let an attacker mint tokens the decoder accepts. Enable this
+    /// only when the issuer is known to publish HS* keys and is trusted
+    /// to keep them secret.
+    #[must_use]
+    pub fn allow_symmetric_jwks(mut self, allow: bool) -> Self {
+        self.allow_symmetric_jwks = allow;
+        self
+    }
+
     /// Build a `OidcDecoder`.
     pub async fn build(self) -> Result<OidcDecoder, JwtAuthError> {
         let Self {
@@ -166,6 +186,7 @@ where
             http_client,
             validation,
             audiences,
+            allow_symmetric_jwks,
         } = self;
         let raw_issuer = issuer.as_ref();
 
@@ -175,11 +196,10 @@ where
         let validation =
             configure_oidc_validation(validation.unwrap_or_default(), raw_issuer, audiences)?;
         let issuer = raw_issuer.trim_end_matches('/').to_owned();
-        let cache = Arc::new(RwLock::new(JwkSetStore::new(
-            jwks,
-            CachePolicy::default(),
-            validation,
-        )));
+        let cache = Arc::new(RwLock::new(
+            JwkSetStore::new(jwks, CachePolicy::default(), validation)
+                .with_allow_symmetric_jwks(allow_symmetric_jwks),
+        ));
         let cache_state = Arc::new(CacheState::new());
         let http_client = resolve_or_else(http_client, default_http_client)?;
         let decoder = OidcDecoder {
@@ -485,6 +505,7 @@ async fn collect_limited_body(
 pub(crate) fn decode_jwk(
     jwk: &Jwk,
     validation: &Validation,
+    allow_symmetric_jwks: bool,
 ) -> Result<(String, DecodingInfo), JwtAuthError> {
     let kid = jwk.common.key_id.clone();
     let alg = jwk.common.key_algorithm;
@@ -503,6 +524,14 @@ pub(crate) fn decode_jwk(
             DecodingKey::from_rsa_components(&params.n, &params.e).ok()
         }
         jsonwebtoken::jwk::AlgorithmParameters::OctetKey(ref params) => {
+            if !allow_symmetric_jwks {
+                tracing::warn!(
+                    kid = ?kid,
+                    "rejecting symmetric (oct) JWK; OIDC JWKS should publish public keys. \
+                     Enable allow_symmetric_jwks(true) on the decoder builder to opt in."
+                );
+                return Err(JwtAuthError::InvalidJwk);
+            }
             DecodingKey::from_base64_secret(&params.value).ok()
         }
         jsonwebtoken::jwk::AlgorithmParameters::OctetKeyPair(ref params) => {
@@ -559,8 +588,37 @@ mod tests {
         });
         let jwk: Jwk = serde_json::from_value(jwk_json).unwrap();
         let validation = Validation::new(Algorithm::RS256);
-        let result = decode_jwk(&jwk, &validation);
+        let result = decode_jwk(&jwk, &validation, false);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decode_jwk_rejects_symmetric_by_default() {
+        // valid base64url of "secret"
+        let jwk_json = json!({
+            "kty": "oct",
+            "kid": "test-oct",
+            "alg": "HS256",
+            "k": "c2VjcmV0"
+        });
+        let jwk: Jwk = serde_json::from_value(jwk_json).unwrap();
+        let validation = Validation::new(Algorithm::HS256);
+        let result = decode_jwk(&jwk, &validation, false);
+        assert!(matches!(result, Err(JwtAuthError::InvalidJwk)));
+    }
+
+    #[test]
+    fn test_decode_jwk_accepts_symmetric_when_opted_in() {
+        let jwk_json = json!({
+            "kty": "oct",
+            "kid": "test-oct",
+            "alg": "HS256",
+            "k": "c2VjcmV0"
+        });
+        let jwk: Jwk = serde_json::from_value(jwk_json).unwrap();
+        let validation = Validation::new(Algorithm::HS256);
+        let result = decode_jwk(&jwk, &validation, true);
+        assert!(result.is_ok());
     }
 
     #[test]
