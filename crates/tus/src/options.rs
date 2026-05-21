@@ -272,9 +272,10 @@ impl TusOptions {
             host = v.trim();
         }
 
-        // If we still haven't got proto, infer from scheme-ish headers
-        // (optional fallback)
-        if proto == "http"
+        // If forwarded headers are trusted and we still haven't got proto, infer from
+        // scheme-ish headers.
+        if respect_forwarded_headers
+            && proto == "http"
             && let Some(v) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok())
             && v.eq_ignore_ascii_case("on")
         {
@@ -659,10 +660,13 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert(header::HOST, "real.com".parse().unwrap());
         headers.insert("x-forwarded-host", "fake.com".parse().unwrap());
+        headers.insert("x-forwarded-proto", "https".parse().unwrap());
+        headers.insert("x-forwarded-ssl", "on".parse().unwrap());
 
-        // When respect_forwarded_headers is false, should use Host header
+        // When respect_forwarded_headers is false, should use Host and ignore forwarded hints.
         let result = TusOptions::extract_host_and_proto(&headers, false);
         assert_eq!(result.host, "real.com");
+        assert_eq!(result.proto, "http");
     }
 
     #[test]
