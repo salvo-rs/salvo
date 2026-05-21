@@ -18,13 +18,11 @@
 //!
 //! ## Issuers
 //! - [`RemoteIpIssuer`]: Identifies clients by their direct connection IP
-//! - [`RealIpIssuer`]: Unconditionally trusts `X-Forwarded-For` / `X-Real-IP`
-//!   (legacy; **use only when the application is unreachable except through a
-//!   header-rewriting proxy**)
-//! - [`TrustedProxyIssuer`]: Same idea as `RealIpIssuer`, but only honours the
-//!   forwarded headers when the request actually arrived from a configured
-//!   proxy IP. **This is the safer choice for any deployment that might also
-//!   accept direct connections.**
+//! - [`RealIpIssuer`]: Unconditionally trusts `X-Forwarded-For` / `X-Real-IP` (legacy; **use only
+//!   when the application is unreachable except through a header-rewriting proxy**)
+//! - [`TrustedProxyIssuer`]: Same idea as `RealIpIssuer`, but only honours the forwarded headers
+//!   when the request actually arrived from a configured proxy IP. **This is the safer choice for
+//!   any deployment that might also accept direct connections.**
 //!
 //! ## Guards (Algorithms)
 //! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)
@@ -243,15 +241,13 @@ impl RateIssuer for RealIpIssuer {
 ///
 /// # When to use it
 ///
-/// - Your application is normally reachable only through a reverse proxy /
-///   load balancer (nginx, Cloudflare, ELB, etc.), and that proxy rewrites
-///   the forwarded headers.
-/// - You cannot guarantee that **direct** connections to the application
-///   are impossible — for example a developer port-forward, a misrouted
-///   firewall rule, or a cloud security-group regression would briefly
-///   expose it. With [`RealIpIssuer`] those direct connections would let
-///   any client spoof their source IP; with `TrustedProxyIssuer` the
-///   spoofed header is silently ignored.
+/// - Your application is normally reachable only through a reverse proxy / load balancer (nginx,
+///   Cloudflare, ELB, etc.), and that proxy rewrites the forwarded headers.
+/// - You cannot guarantee that **direct** connections to the application are impossible — for
+///   example a developer port-forward, a misrouted firewall rule, or a cloud security-group
+///   regression would briefly expose it. With [`RealIpIssuer`] those direct connections would let
+///   any client spoof their source IP; with `TrustedProxyIssuer` the spoofed header is silently
+///   ignored.
 ///
 /// # Example
 ///
@@ -794,8 +790,7 @@ mod tests {
     #[tokio::test]
     async fn test_trusted_proxy_issuer_uses_xff_from_trusted_remote() {
         let issuer = TrustedProxyIssuer::new(["10.0.0.5".parse::<IpAddr>().unwrap()]);
-        let mut req =
-            make_req_from_proxy("10.0.0.5", Some("198.51.100.7, 10.0.0.5"), None);
+        let mut req = make_req_from_proxy("10.0.0.5", Some("198.51.100.7, 10.0.0.5"), None);
         let depot = Depot::new();
 
         let ip = issuer.issue(&mut req, &depot).await.expect("ip");
