@@ -376,20 +376,31 @@ impl Compression {
 
         let accept_list = http::parse_accept_encoding(header);
 
-        let wildcard_q = accept_list.iter().find(|(a, _)| a == "*").map(|(_, q)| *q);
+        // `parse_accept_encoding` sorts entries by descending q-value, so the
+        // first wildcard token is also the one with the highest q. Mirror the
+        // original `.find(...)` semantics rather than overwriting `wildcard_q`
+        // on every iteration — see https://github.com/salvo-rs/salvo/pull/1489
+        // for the multi-wildcard regression this guards against.
+        let wildcard_q: Option<u8> = accept_list
+            .iter()
+            .find(|(name, _)| name == "*")
+            .map(|(_, q)| *q);
 
-        let is_accepted = |algo: &CompressionAlgo| -> bool {
-            accept_list
-                .iter()
-                .filter(|(_, q)| *q > 0)
-                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
-        };
-        let is_rejected = |algo: &CompressionAlgo| -> bool {
-            accept_list
-                .iter()
-                .filter(|(_, q)| *q == 0)
-                .any(|(a, _)| a.parse::<CompressionAlgo>().ok().as_ref() == Some(algo))
-        };
+        // Parse each non-wildcard `Accept-Encoding` entry once, dropping tokens
+        // that do not name a known compression algorithm. The lookups below
+        // (`is_accepted` / `is_rejected` / client-preference) then never have
+        // to call `.parse::<CompressionAlgo>()` again. Entries keep the order
+        // produced by `parse_accept_encoding` (descending q-value).
+        let parsed: smallvec::SmallVec<[(CompressionAlgo, u8); 4]> = accept_list
+            .iter()
+            .filter(|(name, _)| name != "*")
+            .filter_map(|(name, q)| name.parse::<CompressionAlgo>().ok().map(|algo| (algo, *q)))
+            .collect();
+
+        let is_accepted =
+            |algo: &CompressionAlgo| -> bool { parsed.iter().any(|(a, q)| a == algo && *q > 0) };
+        let is_rejected =
+            |algo: &CompressionAlgo| -> bool { parsed.iter().any(|(a, q)| a == algo && *q == 0) };
 
         if self.force_priority {
             // Server preference: pick the highest-priority server algo the client accepts.
@@ -401,11 +412,10 @@ impl Compression {
                 .map(|(algo, level)| (*algo, *level))
         } else {
             // Client preference: pick the highest q-value algo the server supports.
-            let result = accept_list
+            let result = parsed
                 .iter()
                 .filter(|(_, q)| *q > 0)
-                .filter_map(|(algo, _)| algo.parse::<CompressionAlgo>().ok())
-                .find_map(|algo| self.algos.get(&algo).map(|level| (algo, *level)));
+                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
 
             if result.is_some() {
                 return result;
@@ -705,6 +715,25 @@ mod tests {
             .send(router)
             .await;
         assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+    }
+
+    #[tokio::test]
+    async fn test_multiple_wildcards_take_highest_q() {
+        // When the client lists multiple wildcards, the effective q-value
+        // is the highest one — matching the pre-refactor behaviour. With
+        // `*;q=1, *;q=0` (q-sorted by `parse_accept_encoding`, so the q=1
+        // wildcard comes first), wildcard compression must still be allowed.
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "*;q=1, *;q=0", true)
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
     }
 
     #[tokio::test]

@@ -33,6 +33,7 @@ flate2 = { workspace = true, optional = true, features = ["default"] }
 futures-util = { workspace = true }
 indexmap = { workspace = true }
 salvo_core = { workspace = true }
+smallvec = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
