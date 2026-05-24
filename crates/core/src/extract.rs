@@ -1,7 +1,8 @@
-//! Extract is a feature to let you deserialize request to custom type.
+//! Request extraction for deserializing request data into application types.
 //!
-//! You can easily get data from multiple different data sources and assemble it into the type you
-//! want. You can define a custom type first, then in `Handler` you can get the data like this:
+//! Extraction can collect values from multiple request sources, such as path
+//! parameters, query strings, headers, cookies, form bodies, and JSON bodies.
+//! Define an [`Extractible`] type, then ask the request to build it in a handler:
 //!
 //! ```
 //! # use salvo_core::prelude::*;
@@ -22,11 +23,12 @@
 //! #[handler]
 //! async fn edit(req: &mut Request, depot: &mut Depot) {
 //!     let good_man: GoodMan<'_> = req.extract(depot).await.unwrap();
+//!     let _ = good_man;
 //! }
 //! ```
 //!
-//! There is considerable flexibility in the definition of data types, and can even be resolved into
-//! nested structures as needed:
+//! Extracted types can be nested. Use `#[salvo(extract(flatten))]` or
+//! `#[serde(flatten)]` when a nested type should be parsed from the same request:
 //!
 //! ```
 //! # use salvo_core::prelude::*;
@@ -41,7 +43,7 @@
 //!     first_name: String,
 //!     last_name: String,
 //!     lovers: Vec<String>,
-//!     /// The nested field is completely reparsed from Request.
+//!     /// The nested field is parsed from the same request.
 //!     #[serde(flatten)]
 //!     nested: Nested<'a>,
 //! }
@@ -61,7 +63,9 @@
 //! }
 //! ```
 //!
-//! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+//! View the [full nested extraction example] in the repository.
+//!
+//! [full nested extraction example]: https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs
 
 /// Metadata types.
 pub mod metadata;
@@ -74,15 +78,19 @@ pub use case::RenameRule;
 use crate::http::{ParseError, Request};
 use crate::{Depot, Writer};
 
-/// If a type implements this trait, it will give a metadata, this will help request to extracts
-/// data to this type.
+/// Describes how to extract a type from a request.
+///
+/// Implementations provide metadata used by Salvo's extraction machinery and
+/// OpenAPI integration, then perform the actual extraction from [`Request`] and
+/// [`Depot`].
 pub trait Extractible<'ex> {
-    /// Metadata for Extractible type.
+    /// Metadata for this extractible type.
     fn metadata() -> &'static Metadata;
 
-    /// Extract data from request.
+    /// Extracts data from a request.
     ///
-    /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
+    /// **Note:** if extraction fails and the response does not already contain
+    /// an error status, Salvo renders the failure as `400 Bad Request`.
     fn extract(
         req: &'ex mut Request,
         depot: &'ex mut Depot,

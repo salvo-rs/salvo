@@ -7,11 +7,12 @@ use super::{Scribe, try_set_header};
 use crate::http::header::{CONTENT_TYPE, HeaderValue};
 use crate::http::{Response, StatusError};
 
-/// Write serializable content to response as json content.
+/// Writes serializable content to the response as JSON.
 ///
-/// It will set `content-type` to `application/json; charset=utf-8`.
+/// `Json<T>` sets `content-type` to `application/json; charset=utf-8` and
+/// serializes the wrapped value with `serde_json`.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use salvo_core::prelude::*;
@@ -26,6 +27,30 @@ use crate::http::{Response, StatusError};
 ///     Json(User {
 ///         name: "jobs".into(),
 ///     })
+/// }
+/// ```
+///
+/// It is commonly returned together with request parsing:
+///
+/// ```
+/// use salvo_core::http::ParseError;
+/// use salvo_core::prelude::*;
+/// use serde::{Deserialize, Serialize};
+///
+/// #[derive(Deserialize)]
+/// struct CreateUser {
+///     name: String,
+/// }
+///
+/// #[derive(Serialize)]
+/// struct User {
+///     name: String,
+/// }
+///
+/// #[handler]
+/// async fn create_user(req: &mut Request) -> Result<Json<User>, ParseError> {
+///     let input = req.parse_json::<CreateUser>().await?;
+///     Ok(Json(User { name: input.name }))
 /// }
 /// ```
 pub struct Json<T>(pub T);

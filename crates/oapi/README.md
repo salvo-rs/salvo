@@ -39,7 +39,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 # salvo-oapi
 
-## Provide a OpenAPI supports for Salvo.
+OpenAPI support for Salvo.
 
 This is an official crate, so you can enable it in `Cargo.toml` like this:
 
@@ -47,6 +47,35 @@ This is an official crate, so you can enable it in `Cargo.toml` like this:
 salvo = { version = "*", features = ["oapi"] }
 ```
 
+## Quick Start
+
+Change `#[handler]` to `#[endpoint]`, build an `OpenApi` document from the
+router, then mount the JSON document and a UI router.
+
+```rust
+use salvo::oapi::extract::QueryParam;
+use salvo::prelude::*;
+
+#[endpoint]
+async fn hello(name: QueryParam<String, false>) -> String {
+    format!("Hello, {}!", name.as_deref().unwrap_or("World"))
+}
+
+#[tokio::main]
+async fn main() {
+    let router = Router::new().push(Router::with_path("hello").get(hello));
+    let doc = OpenApi::new("hello api", "0.1.0").merge_router(&router);
+
+    let router = router
+        .unshift(doc.into_router("/api-doc/openapi.json"))
+        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
+Open `http://127.0.0.1:7878/swagger-ui` to inspect the generated API document.
 
 ## Documentation & Resources
 

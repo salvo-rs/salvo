@@ -45,6 +45,42 @@ This is an official crate, so you can enable it in `Cargo.toml` like this:
 salvo = { version = "*", features = ["cors"] }
 ```
 
+## Quick Start
+
+Add the CORS handler to `Service`, not to `Router`. Browsers send preflight
+`OPTIONS` requests before the real request, and those preflight requests may not
+match any router branch.
+
+```rust
+use salvo::cors::Cors;
+use salvo::http::Method;
+use salvo::prelude::*;
+
+#[handler]
+async fn hello() -> &'static str {
+    "Hello World"
+}
+
+#[tokio::main]
+async fn main() {
+    let cors = Cors::new()
+        .allow_origin("https://example.com")
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers("content-type")
+        .into_handler();
+
+    let router = Router::new().get(hello);
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+
+    Server::new(acceptor)
+        .serve(Service::new(router).hoop(cors))
+        .await;
+}
+```
+
+For development-only APIs you can use `Cors::permissive()`. For authenticated
+production APIs, prefer explicit origins and avoid `Cors::very_permissive()`.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-cors)
