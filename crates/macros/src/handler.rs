@@ -75,7 +75,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
         }
         _ => Err(syn::Error::new_spanned(
             input,
-            "#[handler] must added to `impl` or `fn`",
+            "#[handler] must be applied to an `impl` block or `fn`",
         )),
     }
 }

@@ -187,18 +187,18 @@ fn default_skipper(req: &mut Request, _depot: &Depot) -> bool {
     )
 }
 
-/// Store proof.
+/// Storage backend for CSRF `(token, proof)` pairs.
 pub trait CsrfStore: Send + Sync + 'static {
-    /// Error type for CsrfStore.
+    /// Error type produced by store operations.
     type Error: StdError + Send + Sync + 'static;
-    /// Get the proof from the store.
+    /// Load the previously saved `(token, proof)` pair from the store, if any.
     fn load<C: CsrfCipher>(
         &self,
         req: &mut Request,
         depot: &mut Depot,
         cipher: &C,
     ) -> impl Future<Output = Option<(String, String)>> + Send;
-    /// Save the proof from the store.
+    /// Save the `(token, proof)` pair to the store.
     fn save(
         &self,
         req: &mut Request,
@@ -209,14 +209,14 @@ pub trait CsrfStore: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
-/// Generate token and proof and valid token.
+/// Generates and verifies CSRF token / proof pairs.
 pub trait CsrfCipher: Send + Sync + 'static {
-    /// Verify token is valid.
+    /// Verify whether the given token matches the proof.
     fn verify(&self, token: &str, proof: &str) -> bool;
-    /// Generate new token and proof.
+    /// Generate a new `(token, proof)` pair.
     fn generate(&self) -> (String, String);
 
-    /// Generate a random bytes.
+    /// Generate `len` random bytes.
     fn random_bytes(&self, len: usize) -> Vec<u8> {
         rand::rng().sample_iter(StandardUniform).take(len).collect()
     }

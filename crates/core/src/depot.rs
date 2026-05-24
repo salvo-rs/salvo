@@ -2,10 +2,10 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
-/// Store temp data for current request.
+/// Store temporary data for the current request.
 ///
-/// A `Depot` created when server process a request from client. It will dropped when all process
-/// for this request done.
+/// A `Depot` is created when the server processes a request from a client, and dropped
+/// when all processing for the request is finished.
 ///
 /// # Example
 /// We set `current_user` value in function `set_user` , and then use this value in the following
@@ -89,17 +89,17 @@ impl Depot {
         self
     }
 
-    /// Obtain a reference to a value previous inject to the depot.
+    /// Obtain a reference to a value previously injected into the depot.
     ///
-    /// Returns `Err(None)` if value is not present in depot.
-    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// Returns `Err(None)` if the value is not present in the depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if the value is present but downcasting
     /// failed.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         self.get(&type_key::<T>())
     }
 
-    /// Obtain a mutable reference to a value previous inject to the depot.
+    /// Obtain a mutable reference to a value previously injected into the depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
@@ -122,15 +122,15 @@ impl Depot {
         self
     }
 
-    /// Check is there a value stored in depot with this key.
+    /// Check whether a value is stored in the depot under the given key.
     #[inline]
     #[must_use]
     pub fn contains_key(&self, key: &str) -> bool {
         self.map.contains_key(key)
     }
-    /// Check is there a value is injected to the depot.
+    /// Check whether a value of this type has been injected into the depot.
     ///
-    /// **Note**: This is only check injected value.
+    /// **Note**: Only checks values inserted via [`Depot::inject`].
     #[inline]
     #[must_use]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
@@ -176,8 +176,7 @@ impl Depot {
         }
     }
 
-    /// Remove value from depot and returning the value at the key if the key was previously in the
-    /// depot.
+    /// Remove the value at the given key from the depot and return it, if present.
     #[inline]
     pub fn remove<V: Any + Send + Sync>(
         &mut self,
@@ -196,7 +195,7 @@ impl Depot {
         self.map.remove(key).is_some()
     }
 
-    /// Remove value from depot and returning the value if the type was previously in the depot.
+    /// Remove the injected value of the given type from the depot and return it, if present.
     #[inline]
     pub fn scrape<T: Any + Send + Sync>(
         &mut self,

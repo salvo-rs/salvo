@@ -53,7 +53,7 @@ use salvo_core::http::{Request, ResBody, Response};
 use salvo_core::writing::Redirect;
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
-/// Middleware for force redirect to http uri.
+/// Middleware that redirects HTTP requests to their HTTPS equivalent.
 #[derive(Default)]
 pub struct ForceHttps {
     https_port: Option<u16>,

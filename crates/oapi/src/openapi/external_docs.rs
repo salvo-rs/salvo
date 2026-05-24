@@ -1,6 +1,6 @@
 //! Implements [OpenAPI External Docs Object][external_docs] types.
 //!
-//! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
+//! [external_docs]: https://spec.openapis.org/oas/latest.html#external-documentation-object
 use serde::{Deserialize, Serialize};
 
 use crate::PropMap;
@@ -10,7 +10,7 @@ use crate::PropMap;
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalDocs {
-    /// Target url for external documentation location.
+    /// Target URL for the external documentation location.
     pub url: String,
     /// Additional description supporting markdown syntax of the external documentation.
     pub description: Option<String>,

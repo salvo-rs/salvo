@@ -161,8 +161,8 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_reserved: Option<bool>,
 
-    /// Example of [`Parameter`]'s potential value. This examples will override example
-    /// within [`Parameter::schema`] if defined.
+    /// Example of the [`Parameter`]'s potential value. This example will override any
+    /// example defined within [`Parameter::schema`].
     #[serde(skip_serializing_if = "Option::is_none")]
     example: Option<Value>,
 
@@ -200,7 +200,7 @@ impl Parameter {
         self
     }
 
-    /// Add in of the [`Parameter`].
+    /// Set the location (`in`) of the [`Parameter`].
     #[must_use]
     pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
         self.parameter_in = parameter_in;
@@ -386,7 +386,8 @@ impl Parameter {
     }
 }
 
-/// In definition of [`Parameter`].
+/// Possible values for the OpenAPI parameter `in` field, indicating where the parameter
+/// is located in the request.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Default, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ParameterIn {

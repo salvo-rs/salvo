@@ -220,9 +220,9 @@ where
 
     /// Sets the name of the cookie that the session is stored with or in.
     ///
-    /// If you are running multiple tide applications on the same
+    /// If you are running multiple Salvo applications on the same
     /// domain, you will need different values for each
-    /// application. The default value is "salvo.session_id".
+    /// application. The default value is `"salvo.session_id"`.
     #[inline]
     #[must_use]
     pub fn cookie_name(mut self, cookie_name: impl Into<String>) -> Self {

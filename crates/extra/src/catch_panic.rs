@@ -1,7 +1,7 @@
-//! Middleware for catch panic in handlers.
+//! Middleware that catches panics in handlers.
 //!
-//! This middleware catches panics and write `500 Internal Server Error` into response.
-//! This middleware should be used as the first middleware.
+//! This middleware catches panics and writes a `500 Internal Server Error` response.
+//! It should be installed as the outermost middleware.
 //!
 //! # Example
 //!

@@ -153,11 +153,11 @@ pub struct Array {
     #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
     pub default_value: Option<Value>,
 
-    /// Max length of the array.
+    /// Maximum number of items allowed in the array.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_items: Option<usize>,
 
-    /// Min length of the array.
+    /// Minimum number of items allowed in the array.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_items: Option<usize>,
 

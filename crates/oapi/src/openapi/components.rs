@@ -98,9 +98,8 @@ impl Components {
 
     /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
-    /// [`SecurityScheme`].
+    /// Accepts two arguments: the name of the [`SecurityScheme`] (used later when referenced
+    /// by [`SecurityRequirement`][requirement]s) and the [`SecurityScheme`] itself.
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
@@ -117,9 +116,8 @@ impl Components {
 
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
     ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
-    /// [`SecurityScheme`].
+    /// Accepts two arguments: the name of the [`SecurityScheme`] (used later when referenced
+    /// by [`SecurityRequirement`][requirement]s) and the [`SecurityScheme`] itself.
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]

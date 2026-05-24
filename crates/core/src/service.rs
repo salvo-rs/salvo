@@ -106,9 +106,8 @@ impl Service {
         self
     }
 
-    /// Add a handler as middleware, it will run the handler when request received.
-    ///
-    /// This middleware is only effective when the filter returns true..
+    /// Add a handler as middleware. It runs the handler when a request is received,
+    /// but only when the filter returns `true`.
     #[inline]
     #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self

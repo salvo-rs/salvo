@@ -22,7 +22,7 @@ use crate::{BoxedError, Error, Scribe};
 /// Represents an HTTP response.
 #[non_exhaustive]
 pub struct Response {
-    /// The HTTP status code.WebTransportSession
+    /// The HTTP status code.
     pub status_code: Option<StatusCode>,
     /// The HTTP headers.
     pub headers: HeaderMap,

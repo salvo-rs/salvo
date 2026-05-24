@@ -197,7 +197,7 @@ impl FlashMessage {
             value: message.into(),
         }
     }
-    /// create a new `FlashMessage` with `FlashLevel::Error`.
+    /// Create a new `FlashMessage` with `FlashLevel::Error`.
     #[inline]
     pub fn error(message: impl Into<String>) -> Self {
         Self {
