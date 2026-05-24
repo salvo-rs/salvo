@@ -34,15 +34,15 @@ async fn main() {
     let tus = Tus::new().path("/files")
         .relative_location(true)
         .max_size(MaxSize::Fixed(2 * 1024 * 1024 * 1024)) // 2GBi
-        .with_on_incoming_request(|_req, id| async move {
+        .on_incoming_request(|_req, id| async move {
             info!("On Incoming Request: {}", id);
         })
-        .with_upload_id_naming_function(|_req, _metadata| async {
+        .upload_id_naming_function(|_req, _metadata| async {
             // Use nanoid
             let id = nanoid!();
             Ok(id)
         })
-        .with_on_incoming_request_sync(|_req, id| {
+        .on_incoming_request_sync(|_req, id| {
             info!("Current File ID: {}", id);
         });
 
