@@ -222,7 +222,7 @@ where
     ///
     /// If you are running multiple Salvo applications on the same
     /// domain, you will need different values for each
-    /// application. The default value is `"salvo.session_id"`.
+    /// application. The default value is `"salvo.session.id"`.
     #[inline]
     #[must_use]
     pub fn cookie_name(mut self, cookie_name: impl Into<String>) -> Self {
@@ -232,7 +232,7 @@ where
 
     /// Sets the `save_unchanged` value.
     ///
-    /// When `save_unchanged` is enabled, a session will cookie will always be set.
+    /// When `save_unchanged` is enabled, a session cookie will always be set.
     ///
     /// With `save_unchanged` disabled, the session data must be modified
     /// from the `Default` value in order for it to save. If a session

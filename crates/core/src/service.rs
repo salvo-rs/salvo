@@ -63,7 +63,7 @@ impl Service {
         self.router.clone()
     }
 
-    /// When the response code is 400-600 and the body is empty, capture and set the error page
+    /// When the response code is 400-599 and the body is empty, capture and set the error page
     /// content. If catchers is not set, the default error page will be used.
     ///
     /// # Example

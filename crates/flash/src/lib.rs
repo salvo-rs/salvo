@@ -246,7 +246,7 @@ impl Display for FlashLevel {
     }
 }
 
-/// `FlashStore` is for stores flash messages.
+/// `FlashStore` stores flash messages.
 pub trait FlashStore: Debug + Send + Sync + 'static {
     /// Get the flash messages from the store.
     fn load_flash(
