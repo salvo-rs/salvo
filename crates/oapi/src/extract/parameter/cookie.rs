@@ -146,7 +146,7 @@ where
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
-            .parameter_in(ParameterIn::Cookie)
+            .location(ParameterIn::Cookie)
             .description(format!("Get parameter `{arg}` from request cookie."))
             .schema(T::to_schema(components))
             .required(R);

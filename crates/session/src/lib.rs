@@ -157,9 +157,9 @@ where
     ///
     /// **Example of generating a secure key:**
     /// ```ignore
-    /// use rand::Rng;
+    /// use rand::RngCore;
     /// let mut key = [0u8; 64];
-    /// rand::rngs::SysRng.fill_bytes(&mut key);
+    /// rand::rngs::OsRng.fill_bytes(&mut key);
     /// ```
     #[inline]
     #[must_use]
@@ -175,9 +175,9 @@ where
     ///
     /// **Example of generating a secure key:**
     /// ```ignore
-    /// use rand::Rng;
+    /// use rand::RngCore;
     /// let mut key = [0u8; 64];
-    /// rand::rngs::SysRng.fill_bytes(&mut key);
+    /// rand::rngs::OsRng.fill_bytes(&mut key);
     /// ```
     #[inline]
     pub fn try_new(store: S, secret: &[u8]) -> Result<Self, KeyError> {

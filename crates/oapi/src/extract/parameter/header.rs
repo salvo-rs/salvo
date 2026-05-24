@@ -150,7 +150,7 @@ where
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
-            .parameter_in(ParameterIn::Header)
+            .location(ParameterIn::Header)
             .description(format!("Get parameter `{arg}` from request headers."))
             .schema(T::to_schema(components))
             .required(R);

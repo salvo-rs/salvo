@@ -200,14 +200,23 @@ impl Parameter {
         self
     }
 
-    /// Set the location (`in`) of the [`Parameter`].
+    /// Sets the location (`in`) of the [`Parameter`].
+    ///
+    /// If the location is [`ParameterIn::Path`], the parameter is also marked required.
     #[must_use]
-    pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
-        self.parameter_in = parameter_in;
+    pub fn location(mut self, location: ParameterIn) -> Self {
+        self.parameter_in = location;
         if self.parameter_in == ParameterIn::Path {
             self.required = Required::True;
         }
         self
+    }
+
+    /// Sets the location (`in`) of the [`Parameter`].
+    #[deprecated(since = "0.94.0", note = "use `Parameter::location` instead")]
+    #[must_use]
+    pub fn parameter_in(self, parameter_in: ParameterIn) -> Self {
+        self.location(parameter_in)
     }
 
     /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not
@@ -447,7 +456,7 @@ mod tests {
 
         let parameter = parameter
             .name("new name")
-            .parameter_in(ParameterIn::Query)
+            .location(ParameterIn::Query)
             .required(Required::True)
             .description("description")
             .deprecated(Deprecated::False)
@@ -621,7 +630,7 @@ mod tests {
 
     #[test]
     fn parameter_required_unset_is_omitted() {
-        let parameter = Parameter::new("filter").parameter_in(ParameterIn::Query);
+        let parameter = Parameter::new("filter").location(ParameterIn::Query);
         let value = serde_json::to_value(&parameter).expect("serialize");
         assert!(
             value.get("required").is_none(),
@@ -631,7 +640,7 @@ mod tests {
 
     #[test]
     fn parameter_required_true_is_emitted_for_path_in() {
-        let parameter = Parameter::new("id").parameter_in(ParameterIn::Path);
+        let parameter = Parameter::new("id").location(ParameterIn::Path);
         // parameter_in(Path) should force required=true (per spec) and serialize it.
         let value = serde_json::to_value(&parameter).expect("serialize");
         assert_eq!(value["required"], serde_json::Value::Bool(true));
@@ -642,7 +651,7 @@ mod tests {
         use crate::Example;
 
         let parameter = Parameter::new("filter")
-            .parameter_in(ParameterIn::Query)
+            .location(ParameterIn::Query)
             .add_example("first", Example::new().value(json!("foo")))
             .add_example("second", Example::new().value(json!("bar")));
 
@@ -659,7 +668,7 @@ mod tests {
     #[test]
     fn parameter_with_content_serializes_as_media_type_map() {
         let parameter = Parameter::new("filter")
-            .parameter_in(ParameterIn::Query)
+            .location(ParameterIn::Query)
             .content(
                 "application/json",
                 Content::new(RefOr::Ref(crate::Ref::from_schema_name("Filter"))),
@@ -679,7 +688,7 @@ mod tests {
     #[test]
     fn parameter_allow_empty_value_round_trips_under_camel_case() {
         let parameter = Parameter::new("flag")
-            .parameter_in(ParameterIn::Query)
+            .location(ParameterIn::Query)
             .allow_empty_value(true);
 
         let value = serde_json::to_value(&parameter).expect("serialize");

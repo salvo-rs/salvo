@@ -77,12 +77,19 @@ impl FlowCtrl {
         self.cursor < self.handlers.len() // && !self.handlers.is_empty()
     }
 
-    /// Calls the next handler.
+    /// Runs the next handler in the chain.
     ///
-    /// Returns `true` if a handler was found and executed, otherwise returns `false`.
+    /// Returns `true` if at least one handler ran, and `false` if there was no
+    /// remaining handler to dispatch to.
     ///
-    /// **NOTE**: If the response status code is an error or a redirection, all remaining
-    /// handlers will be skipped.
+    /// **NOTE**: If the response is already in a terminal state (an error or
+    /// redirection status code, as reported by [`Response::is_stamped`]) when this
+    /// method is called — or becomes terminal after a handler runs — the remaining
+    /// handlers are skipped. The first call to `call_next` latches whether catcher
+    /// mode is active, so subsequent calls behave consistently within the same
+    /// request.
+    ///
+    /// [`Response::is_stamped`]: crate::http::Response::is_stamped
     #[inline]
     pub async fn call_next(
         &mut self,

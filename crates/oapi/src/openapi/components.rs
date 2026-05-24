@@ -386,7 +386,7 @@ mod tests {
         let components = Components::new()
             .add_parameter(
                 "PageParam",
-                Parameter::new("page").parameter_in(ParameterIn::Query),
+                Parameter::new("page").location(ParameterIn::Query),
             )
             .add_example(
                 "PetExample",

@@ -111,9 +111,12 @@ pub const INCOMING_FLASH_KEY: &str = "::salvo::flash::incoming_flash";
 /// Key for outgoing flash messages in depot.
 pub const OUTGOING_FLASH_KEY: &str = "::salvo::flash::outgoing_flash";
 
-/// A flash is a list of messages.
+/// A flash is a list of messages carried between requests.
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
-pub struct Flash(pub Vec<FlashMessage>);
+pub struct Flash(
+    /// The ordered list of flash messages buffered for the current request/response cycle.
+    pub Vec<FlashMessage>,
+);
 impl Flash {
     /// Add a new message with level `Debug`.
     #[inline]
