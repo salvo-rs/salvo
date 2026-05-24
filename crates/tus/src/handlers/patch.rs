@@ -20,7 +20,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let store = &state.store;
     apply_common_headers(req, opts, &mut res.headers);
 
-    let id = match opts.get_file_id_from_request(req) {
+    let id = match opts.extract_file_id_from_request(req) {
         Ok(id) => id,
         Err(e) => {
             res.status_code = Some(e.status());

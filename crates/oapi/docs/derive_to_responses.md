@@ -23,7 +23,7 @@ type is expected to implement [`ToResponse`][to_response] trait.
 
 
 Enum decorated with [`derive@ToResponses`] will create a response for each variant of the _`enum`_.
-Each variant must have it's own _`#[salvo(response(...))]`_ definition. Unit variant will behave same
+Each variant must have its own _`#[salvo(response(...))]`_ definition. Unit variant will behave same
 as unit _`struct`_ by creating a response without content. Similarly named field variant and
 unnamed field variant behaves the same as it was named field _`struct`_ and unnamed field
 _`struct`_.

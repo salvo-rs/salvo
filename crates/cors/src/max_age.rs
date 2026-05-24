@@ -30,7 +30,7 @@ impl MaxAge {
         Self(MaxAgeInner::Exact(seconds.into()))
     }
 
-    /// Set the max-age by a async closure
+    /// Set the max-age by an async closure.
     ///
     /// See [`Cors::max_age`][super::Cors::max_age] for more details.
     pub fn dynamic<C>(c: C) -> Self
@@ -43,7 +43,7 @@ impl MaxAge {
         Self(MaxAgeInner::Dynamic(Arc::new(c)))
     }
 
-    /// Set the max-age by a async closure
+    /// Set the max-age by an async closure.
     ///
     /// See [`Cors::max_age`][super::Cors::max_age] for more details.
     pub fn dynamic_async<C, Fut>(c: C) -> Self

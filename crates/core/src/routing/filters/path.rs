@@ -22,11 +22,11 @@ pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    /// Validate the wisp. Panic if invalid.
+    /// Validate the wisp. Returns an error if invalid.
     fn validate(&self) -> Result<(), String> {
         Ok(())
     }
-    /// Detect is that path matched.
+    /// Return whether the path matches.
     fn detect(&self, state: &mut PathState) -> bool;
 }
 /// WispBuilder
@@ -1027,7 +1027,7 @@ impl PathParser {
     }
 }
 
-/// Filter request by it's path information.
+/// Filter requests by their path information.
 pub struct PathFilter {
     raw_value: String,
     path_wisps: Vec<WispKind>,

@@ -234,7 +234,7 @@ cfg_feature! {
         use crate::BoxedError;
         use crate::http::ReqBody;
 
-        /// Http3 request body.
+        /// HTTP/3 request body.
         pub struct H3ReqBody<S, B>
         where
             S: RecvStream + Send + Unpin,

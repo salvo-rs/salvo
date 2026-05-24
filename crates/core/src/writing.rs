@@ -1,4 +1,4 @@
-//! Writer trait and it's implements.
+//! Writer trait and its implementations.
 
 mod json;
 mod redirect;

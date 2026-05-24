@@ -30,7 +30,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    let id = match opts.get_file_id_from_request(req) {
+    let id = match opts.extract_file_id_from_request(req) {
         Ok(id) => id,
         Err(e) => {
             res.status_code(e.status());
@@ -97,7 +97,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     };
     headers.insert("Upload-Offset", HeaderValue::from(*offset));
 
-    if upload_info.get_size_is_deferred() {
+    if upload_info.is_size_deferred() {
         headers.insert("Upload-Defer-Length", HeaderValue::from_static("1"));
     } else if let Some(size) = &upload_info.size {
         headers.insert("Upload-Length", HeaderValue::from(*size));

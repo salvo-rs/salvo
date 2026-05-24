@@ -249,7 +249,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 .insert(H_UPLOAD_OFFSET, HeaderValue::from(written));
         }
 
-        upload.size.is_some_and(|x| x == 0) && !upload.get_size_is_deferred()
+        upload.size.is_some_and(|x| x == 0) && !upload.is_size_deferred()
             || creation_with_upload && upload.size.is_some_and(|x| x == upload.offset.unwrap_or(0))
     };
 

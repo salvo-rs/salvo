@@ -34,7 +34,7 @@ pub struct NewUser {
 
 #[derive(Serialize, Deserialize, Extractible, Debug, ToSchema)]
 #[salvo(extract(default_source(from = "body")))]
-pub struct UserCredentiel {
+pub struct UserCredentials {
     pub username: String,
     pub password: String,
 }
@@ -43,7 +43,7 @@ pub struct UserCredentiel {
 #[salvo(extract(default_source(from = "body")))]
 pub struct UserCreate {
     pub email: String,
-    pub fullname: String,
+    pub full_name: String,
     pub password: String,
 }
 
@@ -56,7 +56,7 @@ pub struct Token<'a> {
 #[derive(Serialize, Deserialize, Extractible, Debug, ToSchema)]
 #[salvo(extract(default_source(from = "body")))]
 pub struct UserUpdate {
-    pub fullname: String,
+    pub full_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

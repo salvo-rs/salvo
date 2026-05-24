@@ -165,13 +165,13 @@ static METADATA_REGISTRY: LazyLock<MetadataMap> = LazyLock::new(MetadataMap::def
 pub trait RouterExt {
     /// Add security requirement to the router.
     ///
-    /// All endpoints in the router and it's descents will inherit this security requirement.
+    /// All endpoints in the router and its descendants will inherit this security requirement.
     #[must_use]
     fn oapi_security(self, security: SecurityRequirement) -> Self;
 
     /// Add security requirements to the router.
     ///
-    /// All endpoints in the router and it's descents will inherit these security requirements.
+    /// All endpoints in the router and its descendants will inherit these security requirements.
     #[must_use]
     fn oapi_securities<I>(self, security: I) -> Self
     where
@@ -179,13 +179,13 @@ pub trait RouterExt {
 
     /// Add tag to the router.
     ///
-    /// All endpoints in the router and it's descents will inherit this tag.
+    /// All endpoints in the router and its descendants will inherit this tag.
     #[must_use]
     fn oapi_tag(self, tag: impl Into<String>) -> Self;
 
     /// Add tags to the router.
     ///
-    /// All endpoints in the router and it's descents will inherit these tags.
+    /// All endpoints in the router and its descendants will inherit these tags.
     #[must_use]
     fn oapi_tags<I, V>(self, tags: I) -> Self
     where

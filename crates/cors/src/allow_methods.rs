@@ -72,7 +72,7 @@ impl AllowMethods {
         Self(AllowMethodsInner::Dynamic(Arc::new(c)))
     }
 
-    /// Set allow methods by a async closure
+    /// Set allowed methods by an async closure.
     ///
     /// See [`Cors::allow_methods`] for more details.
     ///

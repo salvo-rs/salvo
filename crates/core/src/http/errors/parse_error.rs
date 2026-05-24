@@ -8,7 +8,7 @@ use thiserror::Error;
 use crate::http::{Request, Response, StatusError};
 use crate::{BoxedError, Depot, Writer, async_trait};
 
-/// Result type with `ParseError` has it's error type.
+/// Result type with `ParseError` as its error type.
 pub type ParseResult<T> = Result<T, ParseError>;
 
 /// Errors happened when read data from http request.

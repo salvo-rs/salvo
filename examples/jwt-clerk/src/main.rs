@@ -37,7 +37,7 @@ async fn welcome(depot: &mut Depot) -> Result<String, StatusError> {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
             Ok(format!(
-                "Hi {}, have logged in successfully!",
+                "Hi {}, you have logged in successfully!",
                 data.claims.sub
             ))
         }

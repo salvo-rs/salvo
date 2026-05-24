@@ -58,7 +58,7 @@ impl ExposeHeaders {
         Self(ExposeHeadersInner::Dynamic(Arc::new(c)))
     }
 
-    /// Allow custom headers by a async closure
+    /// Allow custom headers by an async closure.
     ///
     /// See [`Cors::allow_headers`] for more details.
     ///

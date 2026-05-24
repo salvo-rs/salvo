@@ -209,7 +209,7 @@ impl OpenApi {
         }
     }
 
-    /// Merge `other` [`OpenApi`] consuming it and resuming it's content.
+    /// Merge `other` [`OpenApi`] consuming it and resuming its content.
     ///
     /// Merge function will take all `self` nonexistent _`servers`, `paths`, `webhooks`,
     /// `schemas`, `responses`, `security_schemes`, `security_requirements` and `tags`_ from

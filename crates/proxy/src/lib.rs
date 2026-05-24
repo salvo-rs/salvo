@@ -104,7 +104,7 @@ const PATH_ENCODE_SET: &AsciiSet = &QUERY_ENCODE_SET
     .add(b'{')
     .add(b'}');
 
-/// Encode url path. This can be used when build your custom url path getter.
+/// Encode URL path. This can be used when building a custom URL path getter.
 ///
 /// Walks the segments separated by `/` and percent-encodes each one in place using
 /// [`PATH_ENCODE_SET`], without allocating an intermediate `Vec<String>` or a
@@ -203,17 +203,17 @@ where
     }
 }
 
-/// Url part getter. You can use this to get the proxied url path or query.
+/// URL part getter. You can use this to get the proxied URL path or query.
 pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
 /// Host header getter. You can use this to get the host header for the proxied request.
 pub type HostHeaderGetter =
     Box<dyn Fn(&Uri, &Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
-/// Default url path getter.
+/// Default URL path getter.
 ///
-/// This getter will get the last param as the rest url path from request.
-/// In most case you should use wildcard param, like `{**rest}`, `{*+rest}`.
+/// This getter gets the last param as the rest URL path from the request.
+/// In most cases you should use a wildcard param, like `{**rest}`, `{*+rest}`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.params().tail().map(str::to_owned)
 }
@@ -246,12 +246,12 @@ fn hex_value(byte: u8) -> Option<u8> {
         _ => None,
     }
 }
-/// Default url query getter. This getter just return the query string from request uri.
+/// Default URL query getter. This getter returns the query string from the request URI.
 pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String> {
     req.uri().query().map(Into::into)
 }
 
-/// Default host header getter. This getter will get the host header from request uri
+/// Default host header getter. This getter gets the host header from the request URI.
 pub fn default_host_header_getter(
     forward_uri: &Uri,
     _req: &Request,
@@ -264,9 +264,12 @@ pub fn default_host_header_getter(
     None
 }
 
-/// RFC2616 complieant host header getter. This getter will get the host header from request uri,
-/// and add port if it's not default port. Falls back to default upon any forward URI parse error.
-pub fn rfc2616_host_header_getter(
+/// Standards-compliant host header getter.
+///
+/// This getter gets the host header from the request URI and adds the port when it is not the
+/// default port for the scheme. This follows the Host header behavior specified by modern HTTP
+/// semantics (RFC 7230 and RFC 9110).
+pub fn standard_host_header_getter(
     forward_uri: &Uri,
     req: &Request,
     _depot: &Depot,
@@ -318,9 +321,9 @@ where
     pub upstreams: U,
     /// [`Client`] for proxy.
     pub client: C,
-    /// Url path getter.
+    /// URL path getter.
     pub url_path_getter: UrlPartGetter,
-    /// Url query getter.
+    /// URL query getter.
     pub url_query_getter: UrlPartGetter,
     /// Host header getter
     pub host_header_getter: HostHeaderGetter,
@@ -390,7 +393,7 @@ where
         }
     }
 
-    /// Set url path getter.
+    /// Set URL path getter.
     #[inline]
     #[must_use]
     pub fn url_path_getter<G>(mut self, url_path_getter: G) -> Self
@@ -401,7 +404,7 @@ where
         self
     }
 
-    /// Set url query getter.
+    /// Set URL query getter.
     #[inline]
     #[must_use]
     pub fn url_query_getter<G>(mut self, url_query_getter: G) -> Self
@@ -412,7 +415,7 @@ where
         self
     }
 
-    /// Set host header query getter.
+    /// Set host header getter.
     #[inline]
     #[must_use]
     pub fn host_header_getter<G>(mut self, host_header_getter: G) -> Self
@@ -856,26 +859,26 @@ mod tests {
 
         let uri_with_port = Uri::from_str("http://host.tld:8080/test").unwrap();
         assert_eq!(
-            rfc2616_host_header_getter(&uri_with_port, &req, &depot),
+            standard_host_header_getter(&uri_with_port, &req, &depot),
             Some("host.tld:8080".to_owned())
         );
 
         let uri_with_http_port = Uri::from_str("http://host.tld:80/test").unwrap();
         assert_eq!(
-            rfc2616_host_header_getter(&uri_with_http_port, &req, &depot),
+            standard_host_header_getter(&uri_with_http_port, &req, &depot),
             Some("host.tld".to_owned())
         );
 
         let uri_with_https_port = Uri::from_str("https://host.tld:443/test").unwrap();
         assert_eq!(
-            rfc2616_host_header_getter(&uri_with_https_port, &req, &depot),
+            standard_host_header_getter(&uri_with_https_port, &req, &depot),
             Some("host.tld".to_owned())
         );
 
         let uri_with_non_https_scheme_and_https_port =
             Uri::from_str("http://host.tld:443/test").unwrap();
         assert_eq!(
-            rfc2616_host_header_getter(&uri_with_non_https_scheme_and_https_port, &req, &depot),
+            standard_host_header_getter(&uri_with_non_https_scheme_and_https_port, &req, &depot),
             Some("host.tld:443".to_owned())
         );
 

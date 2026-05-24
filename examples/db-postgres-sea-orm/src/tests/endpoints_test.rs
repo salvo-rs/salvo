@@ -109,7 +109,7 @@ pub mod tests {
         let response = TestClient::post("http://localhost/users")
             .json(&serde_json::json!({
                 "email": "samanidarix@gmail.com",
-                // "fullname": "Darix SAMANI SIEWE",
+                // "full_name": "Darix SAMANI SIEWE",
                 "password": "Testpassword15$"
             }))
             .send(&service)
@@ -125,7 +125,7 @@ pub mod tests {
         let mut response = TestClient::post("http://localhost/users")
             .json(&serde_json::json!({
                 "email": "samanidarix@gmail.com",
-                "fullname": "Darix SAMANI SIEWE",
+                "full_name": "Darix SAMANI SIEWE",
                 "password": "Testpassword15$"
             }))
             .send(&service)
@@ -145,7 +145,7 @@ pub mod tests {
         let mut response = TestClient::post("http://localhost/users")
             .json(&serde_json::json!({
                 "email": "samanidarix@gmail.com",
-                "fullname": "Darix SAMANI SIEWE",
+                "full_name": "Darix SAMANI SIEWE",
                 "password": "Testpassword15$"
             }))
             .send(&service)
@@ -296,7 +296,7 @@ pub mod tests {
             TestClient::put(format!("http://localhost/users/{}", user_information.id))
                 .add_header("authentication", token.token, true)
                 .json(&serde_json::json!({
-                    "fullname": "Darix SAMANI"
+                    "full_name": "Darix SAMANI"
                 }))
                 .send(&service)
                 .await;

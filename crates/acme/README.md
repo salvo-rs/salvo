@@ -48,7 +48,7 @@ salvo = { version = "*", features = ["acme"] }
 
 ## Documentation & Resources
 
-- [API Documentation](https://docs.rs/salvo-cache)
+- [API Documentation](https://docs.rs/salvo-acme)
 - [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 
 

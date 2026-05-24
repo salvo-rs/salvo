@@ -175,7 +175,7 @@ impl SwaggerUi {
         self
     }
 
-    /// Add oauth [`oauth::Config`] into [`SwaggerUi`].
+    /// Add OAuth [`oauth::Config`] into [`SwaggerUi`].
     ///
     /// Method takes one argument which exposes the [`oauth::Config`] to the user.
     ///

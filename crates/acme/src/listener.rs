@@ -236,7 +236,7 @@ impl<T> AcmeListenerBuilder<T> {
 
     cfg_feature! {
         #![feature = "quinn"]
-        /// Enable Http3 using quinn.
+        /// Enable HTTP/3 using quinn.
         pub fn quinn<A>(self, local_addr: A) -> AcmeQuinnListener<T, A>
         where
             A: std::net::ToSocketAddrs + Send,

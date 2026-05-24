@@ -58,7 +58,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             JwtAuthState::Authorized => {
                 let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
                 res.render(Text::Plain(format!(
-                    "Hi {}, have logged in successfully!",
+                    "Hi {}, you have logged in successfully!",
                     data.claims.username
                 )));
             }

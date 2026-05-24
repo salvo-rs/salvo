@@ -102,7 +102,7 @@ impl SecurityRequirement {
 ///
 /// # Examples
 ///
-/// Create implicit oauth2 flow security schema for path operations.
+/// Create implicit OAuth2 flow security schema for path operations.
 /// ```
 /// # use salvo_oapi::security::{SecurityScheme, OAuth2, Implicit, Flow, Scopes};
 /// SecurityScheme::OAuth2(OAuth2::with_description(
@@ -125,14 +125,14 @@ impl SecurityRequirement {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SecurityScheme {
-    /// Oauth flow authentication.
+    /// OAuth flow authentication.
     #[serde(rename = "oauth2")]
     OAuth2(OAuth2),
     /// Api key authentication sent in *`header`*, *`cookie`* or *`query`*.
     ApiKey(ApiKey),
     /// Http authentication such as *`bearer`* or *`basic`*.
     Http(Http),
-    /// Open id connect url to discover OAuth2 configuration values.
+    /// OpenID Connect URL to discover OAuth2 configuration values.
     OpenIdConnect(OpenIdConnect),
     /// Authentication is done via client side certificate.
     ///
@@ -350,7 +350,7 @@ pub enum HttpAuthScheme {
     Vapid,
 }
 
-/// Open id connect [`SecurityScheme`]
+/// OpenID Connect [`SecurityScheme`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -428,7 +428,7 @@ pub struct OAuth2 {
 impl OAuth2 {
     /// Construct a new OAuth2 security schema configuration object.
     ///
-    /// Oauth flow accepts slice of [`Flow`] configuration objects and can be optionally provided
+    /// OAuth flow accepts a slice of [`Flow`] configuration objects and can be optionally provided
     /// with description.
     ///
     /// # Examples
@@ -604,7 +604,7 @@ impl Implicit {
     ///
     /// # Examples
     ///
-    /// Create a new implicit oauth2 flow with refresh token.
+    /// Create a new implicit OAuth2 flow with refresh token.
     /// ```
     /// # use salvo_oapi::security::{Implicit, Scopes};
     /// Implicit::with_refresh_url(
@@ -658,10 +658,10 @@ pub struct AuthorizationCode {
 }
 
 impl AuthorizationCode {
-    /// Construct a new authorization code oauth flow.
+    /// Construct a new authorization code OAuth flow.
     ///
     /// Accepts three arguments: one which is authorization url, two a token url and
-    /// three a map of scopes for oauth flow.
+    /// three, a map of scopes for the OAuth flow.
     ///
     /// # Examples
     ///
@@ -763,10 +763,10 @@ pub struct Password {
 }
 
 impl Password {
-    /// Construct a new password oauth flow.
+    /// Construct a new password OAuth flow.
     ///
     /// Accepts two arguments: one which is a token url and
-    /// two a map of scopes for oauth flow.
+    /// two, a map of scopes for the OAuth flow.
     ///
     /// # Examples
     ///
@@ -796,7 +796,7 @@ impl Password {
         }
     }
 
-    /// Construct a new password oauth flow with additional refresh url.
+    /// Construct a new password OAuth flow with an additional refresh URL.
     ///
     /// This is essentially same as [`Password::new`] but allows defining third parameter for
     /// `refresh_url` for fetching refresh tokens.
@@ -854,10 +854,10 @@ pub struct ClientCredentials {
 }
 
 impl ClientCredentials {
-    /// Construct a new client credentials oauth flow.
+    /// Construct a new client credentials OAuth flow.
     ///
     /// Accepts two arguments: one which is a token url and
-    /// two a map of scopes for oauth flow.
+    /// two, a map of scopes for the OAuth flow.
     ///
     /// # Examples
     ///
@@ -887,7 +887,7 @@ impl ClientCredentials {
         }
     }
 
-    /// Construct a new client credentials oauth flow with additional refresh url.
+    /// Construct a new client credentials OAuth flow with an additional refresh URL.
     ///
     /// This is essentially same as [`ClientCredentials::new`] but allows defining third parameter
     /// for `refresh_url`.
@@ -923,7 +923,7 @@ impl ClientCredentials {
     }
 }
 
-/// [`OAuth2`] flow scopes object defines required permissions for oauth flow.
+/// [`OAuth2`] flow scopes object defines required permissions for an OAuth flow.
 ///
 /// Scopes must be given to oauth2 flow but depending on need one of few initialization methods
 /// could be used.
@@ -960,7 +960,7 @@ pub struct Scopes {
 }
 
 impl Scopes {
-    /// Construct new [`Scopes`] with empty map of scopes. This is useful if oauth flow does not
+    /// Construct new [`Scopes`] with empty map of scopes. This is useful if an OAuth flow does not
     /// need any permission scopes.
     ///
     /// # Examples

@@ -6,7 +6,7 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 
-/// Used to get quota and you can config users' quota config in database.
+/// Used to get quota settings, for example from a database.
 pub trait QuotaGetter<Key>: Send + Sync + 'static {
     /// Quota type.
     type Quota: Clone + Send + Sync + 'static;
@@ -41,7 +41,7 @@ impl BasicQuota {
     pub const fn per_second(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(1))
     }
-    /// Sets the limit of the quota seconds.
+    /// Creates a quota with a custom number of seconds.
     #[must_use]
     pub const fn set_seconds(limit: usize, seconds: i64) -> Self {
         Self::new(limit, Duration::seconds(seconds))
@@ -52,7 +52,7 @@ impl BasicQuota {
     pub const fn per_minute(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(60))
     }
-    /// Sets the limit of the quota minutes.
+    /// Creates a quota with a custom number of minutes.
     #[must_use]
     pub const fn set_minutes(limit: usize, minutes: i64) -> Self {
         Self::new(limit, Duration::seconds(60 * minutes))
@@ -63,14 +63,14 @@ impl BasicQuota {
     pub const fn per_hour(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(3600))
     }
-    /// Sets the limit of the quota hours.
+    /// Creates a quota with a custom number of hours.
     #[must_use]
     pub const fn set_hours(limit: usize, hours: i64) -> Self {
         Self::new(limit, Duration::seconds(3600 * hours))
     }
 }
 
-/// A common used quota has cells field.
+/// A quota split into cells for sliding-window accounting.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct CelledQuota {
@@ -78,7 +78,7 @@ pub struct CelledQuota {
     pub limit: usize,
     /// The period of requests.
     pub period: Duration,
-    /// The cells of this period split to.
+    /// The number of cells the period is split into.
     pub cells: usize,
 }
 impl CelledQuota {
@@ -97,7 +97,7 @@ impl CelledQuota {
     pub const fn per_second(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(1))
     }
-    /// Sets the limit of the quota seconds.
+    /// Creates a quota with a custom number of seconds.
     #[must_use]
     pub const fn set_seconds(limit: usize, cells: usize, seconds: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(seconds))
@@ -108,7 +108,7 @@ impl CelledQuota {
     pub const fn per_minute(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(60))
     }
-    /// Sets the limit of the quota minutes.
+    /// Creates a quota with a custom number of minutes.
     #[must_use]
     pub const fn set_minutes(limit: usize, cells: usize, minutes: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(60 * minutes))
@@ -119,7 +119,7 @@ impl CelledQuota {
     pub const fn per_hour(limit: usize, cells: usize) -> Self {
         Self::new(limit, cells, Duration::seconds(3600))
     }
-    /// Sets the limit of the quota hours.
+    /// Creates a quota with a custom number of hours.
     #[must_use]
     pub const fn set_hours(limit: usize, cells: usize, hours: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(3600 * hours))

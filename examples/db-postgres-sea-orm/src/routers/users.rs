@@ -16,7 +16,7 @@ use crate::models::posts;
 use crate::models::posts::{Column as PostColumn, Entity as Posts};
 use crate::models::users::{self, Column as UserColumn, Entity as Users};
 use crate::schemas::users::{
-    UserCreate, UserCredentiel, UserResponseModel, UserSuccessResponseModel, UserUpdate,
+    UserCreate, UserCredentials, UserResponseModel, UserSuccessResponseModel, UserUpdate,
 };
 use crate::schemas::{ErrorResponseModel, JwtClaims, TokenResponseModel};
 use crate::utils::{SECRET_KEY, hash_password, verify_password};
@@ -48,7 +48,7 @@ async fn get_all_users(
         .map(|user| UserResponseModel {
             id: user.id,
             email: user.username.clone(),
-            full_name: user.username.clone(),
+            full_name: user.full_name.clone(),
             created_at: user.created_at.clone(),
             updated_at: user.updated_at.clone(),
         })
@@ -102,7 +102,7 @@ async fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBo
     let new_user = users::ActiveModel {
         id: Set(Uuid::new_v4()),
         username: Set(user_create.email.clone()),
-        full_name: Set(user_create.fullname.clone()),
+        full_name: Set(user_create.full_name.clone()),
         password: Set(hashed),
         created_at: Set(now),
         updated_at: Set(now),
@@ -201,7 +201,7 @@ async fn update_users(
 
     let mut user: users::ActiveModel = user.unwrap().into();
 
-    user.full_name = Set(update_data.fullname.clone());
+    user.full_name = Set(update_data.full_name.clone());
     user.updated_at = Set(Utc::now().naive_utc());
 
     let user = user.update(db).await;
@@ -341,7 +341,7 @@ async fn get_posts_by_users(
 )]
 async fn get_access_token(
     res: &mut Response,
-    user_credentiel: JsonBody<UserCredentiel>,
+    user_credentials: JsonBody<UserCredentials>,
     depot: &mut Depot,
 ) {
     let connection = depot.obtain::<Arc<DbPool>>().unwrap();
@@ -349,7 +349,7 @@ async fn get_access_token(
     // ✅ Query user by ID
 
     let existing_user: Option<users::Model> = Users::find()
-        .filter(UserColumn::Username.eq(user_credentiel.username.clone()))
+        .filter(UserColumn::Username.eq(user_credentials.username.clone()))
         .one(db)
         .await
         .expect("❌ Failed to query user");
@@ -365,7 +365,7 @@ async fn get_access_token(
     };
 
     if !verify_password(
-        &user_credentiel.password.clone().as_str(),
+        &user_credentials.password.clone().as_str(),
         &user.password.clone().as_str(),
     ) {
         println!("🚫 Bad password");

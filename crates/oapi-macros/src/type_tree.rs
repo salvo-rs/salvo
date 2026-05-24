@@ -274,7 +274,7 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s
+    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any of its `children`s
     /// [`syn::TypePath`] is a given type as [`str`].
     pub(crate) fn is(&self, s: &str) -> bool {
         let mut is = self

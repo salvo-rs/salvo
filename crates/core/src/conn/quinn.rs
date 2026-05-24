@@ -21,7 +21,7 @@ pub use builder::Builder;
 mod listener;
 pub use listener::{QuinnAcceptor, QuinnListener};
 
-/// Http3 Connection.
+/// HTTP/3 connection.
 #[allow(dead_code)]
 pub struct QuinnConnection {
     inner: http3_quinn::Connection,

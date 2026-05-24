@@ -54,6 +54,6 @@ fuzz_target!(|data: &[u8]| {
         ..TusOptions::default()
     };
 
-    let _ = options.get_file_id_from_request(&req);
+    let _ = options.extract_file_id_from_request(&req);
     let _ = options.generate_upload_url(&mut req, &upload_id);
 });

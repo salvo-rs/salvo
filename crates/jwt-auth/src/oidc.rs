@@ -1,4 +1,4 @@
-//! Oidc(OpenID Connect) supports.
+//! OIDC (OpenID Connect) support.
 
 use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
@@ -53,7 +53,7 @@ fn resolve_or_else<T, E>(
     }
 }
 
-/// ConstDecoder will decode token with a static secret.
+/// Decodes JWTs using OpenID Connect discovery and JWKS.
 #[derive(Clone)]
 pub struct OidcDecoder {
     issuer: String,
@@ -76,7 +76,7 @@ impl Debug for OidcDecoder {
 impl JwtAuthDecoder for OidcDecoder {
     type Error = JwtAuthError;
 
-    /// Validates a JWT, Returning the claims serialized into type of T
+    /// Validates a JWT, returning the claims deserialized into type `T`.
     async fn decode<C>(&self, token: &str, _depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
     where
         C: DeserializeOwned + Clone,
@@ -323,7 +323,7 @@ impl OidcDecoder {
         }
     }
 
-    /// If we are currently updating the JWKS in the background this function will resolve when the update it complete
+    /// If the JWKS is currently updating in the background, this function resolves when the update is complete.
     /// If we are not currently updating the JWKS in the background, this function will resolve immediately.
     async fn wait_update(&self) {
         if self.cache_state.is_revalidating() {
@@ -341,18 +341,19 @@ impl OidcDecoder {
             // if we have it, then return it
             Ok(key)
         } else {
-            // Try and invalidate our cache. Maybe the JWKS has changed or our cached values expired
-            // Even if it failed it. It may allow us to retrieve a key from stale-if-error
+            // Try to invalidate our cache. Maybe the JWKS has changed or our cached values expired.
+            // Even if it fails, stale-if-error may still let us retrieve a key.
             self.revalidate_cache();
             self.wait_update().await;
             self.get_kid(kid).await?.ok_or(JwtAuthError::CacheError)
         }
     }
 
-    /// Gets the decoding components of a JWK by kid from the JWKS in our cache
+    /// Gets the decoding components of a JWK by kid from the JWKS in our cache.
     /// Returns an Error, if the cache is stale and beyond the Stale While Revalidate and Stale If Error allowances configured in [`crate::cache::Settings`]
-    /// Returns Ok if the cache is not stale.
-    /// Returns Ok after triggering a background update of the JWKS If the cache is stale but within the Stale While Revalidate and Stale If Error allowances.
+    /// Returns `Ok` if the cache is not stale.
+    /// Returns `Ok` after triggering a background JWKS update if the cache is stale but within the
+    /// stale-while-revalidate and stale-if-error allowances.
     #[allow(clippy::future_not_send)]
     async fn get_kid(&self, kid: &str) -> Result<Option<Arc<DecodingInfo>>, JwtAuthError> {
         let read_cache = self.cache.read().await;

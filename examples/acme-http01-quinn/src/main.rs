@@ -20,7 +20,7 @@ async fn main() {
         .cache_path("temp/letsencrypt") // Path to store the certificate cache
         .add_domain("test.salvo.rs") // replace with your domain
         .http01_challenge(&mut router) // Add routes to handle ACME challenge requests
-        .quinn("0.0.0.0:443"); // Enable QUIC/HTTP3 support on the same port
+        .quinn("0.0.0.0:443"); // Enable QUIC/HTTP/3 support on the same port
 
     // Create an acceptor that listens on both port 80 (HTTP) and port 443 (HTTPS)
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
