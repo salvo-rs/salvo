@@ -139,10 +139,12 @@ impl Extension {
 
 /// Store-supported tus protocol extensions.
 ///
-/// The default extension set is empty.
-/// Clients and Servers are encouraged to implement as many of the extensions as possible.
-/// Feature detection SHOULD be achieved by the Client sending an OPTIONS request and the Server
-/// responding with the Tus-Extension header. See more details: https://tus.io/protocols/resumable-upload#protocol-extensions
+/// The default extension set is empty. Clients and servers are encouraged to
+/// implement as many extensions as possible. Feature detection should use an
+/// `OPTIONS` request and a `Tus-Extension` response header.
+///
+/// See the tus protocol extension docs:
+/// <https://tus.io/protocols/resumable-upload#protocol-extensions>
 #[async_trait]
 pub trait DataStore: Send + Sync + 'static {
     /// Returns the tus extensions supported by this storage backend.
