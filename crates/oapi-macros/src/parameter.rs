@@ -289,7 +289,7 @@ impl TryToTokens for ValueParameter<'_> {
             #oapi::oapi::parameter::Parameter::from(#oapi::oapi::parameter::Parameter::new(#name))
         });
         if let Some(parameter_in) = &self.parameter_in {
-            tokens.extend(quote! { .parameter_in(#parameter_in) });
+            tokens.extend(quote! { .location(#parameter_in) });
         }
 
         let (schema_features, param_features) = &self.features;

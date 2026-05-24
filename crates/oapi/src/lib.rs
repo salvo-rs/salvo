@@ -904,7 +904,7 @@ impl ComposeSchema for serde_json::value::RawValue {
 ///             .parameter(
 ///                 salvo_oapi::Parameter::new("id")
 ///                     .required(salvo_oapi::Required::True)
-///                     .parameter_in(salvo_oapi::ParameterIn::Path)
+///                     .location(salvo_oapi::ParameterIn::Path)
 ///                     .description("Id of pet")
 ///                     .schema(
 ///                         salvo_oapi::Object::new()
@@ -917,7 +917,7 @@ impl ComposeSchema for serde_json::value::RawValue {
 ///             .parameter(
 ///                 salvo_oapi::Parameter::new("name")
 ///                     .required(salvo_oapi::Required::True)
-///                     .parameter_in(salvo_oapi::ParameterIn::Query)
+///                     .location(salvo_oapi::ParameterIn::Query)
 ///                     .description("Name of pet")
 ///                     .schema(
 ///                         salvo_oapi::Object::new()

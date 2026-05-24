@@ -437,14 +437,20 @@ impl Cors {
     }
 }
 
-/// Enum to control when to call next handler.
+/// Controls when [`CorsHandler`] runs the rest of the middleware/handler chain
+/// relative to writing the CORS headers.
 #[non_exhaustive]
 #[derive(Default, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CallNext {
-    /// Call next handlers before [`CorsHandler`] write data to response.
+    /// Run the remaining handlers **before** [`CorsHandler`] writes the CORS
+    /// headers onto the response. This is the default and the right choice for
+    /// most setups: downstream handlers see the request unmodified, and CORS
+    /// headers are appended last.
     #[default]
     Before,
-    /// Call next handlers after [`CorsHandler`] write data to response.
+    /// Run the remaining handlers **after** [`CorsHandler`] has written the CORS
+    /// headers. Use this when downstream handlers need to inspect or augment the
+    /// CORS headers — note that they may also overwrite them.
     After,
 }
 

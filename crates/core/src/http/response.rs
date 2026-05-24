@@ -388,7 +388,12 @@ impl Response {
         self
     }
 
-    /// Render content.
+    /// Render content into this response.
+    ///
+    /// Delegates to the [`Scribe`] implementation, which writes the body, headers,
+    /// and (if not already set) the `Content-Type`. If serialization fails, the
+    /// `Scribe` impl is responsible for converting the error into a `5xx` response
+    /// instead of panicking or returning an error here.
     ///
     /// # Example
     ///

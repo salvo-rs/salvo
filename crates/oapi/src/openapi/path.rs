@@ -339,7 +339,7 @@ mod tests {
         use crate::Parameter;
 
         let path_item = PathItem::new(PathItemType::Get, Operation::new())
-            .parameters([Parameter::new("id").parameter_in(crate::ParameterIn::Path)]);
+            .parameters([Parameter::new("id").location(crate::ParameterIn::Path)]);
 
         assert_json_eq!(
             path_item,

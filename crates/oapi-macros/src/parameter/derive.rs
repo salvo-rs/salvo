@@ -565,7 +565,7 @@ impl TryToTokens for Parameter<'_> {
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
 
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
-            tokens.extend(quote! { .parameter_in(#parameter_in) });
+            tokens.extend(quote! { .location(#parameter_in) });
         } else if let Some(parameter_in) = &self.container_attributes.default_parameter_in {
             tokens.extend(parameter_in.try_to_token_stream()?);
         }

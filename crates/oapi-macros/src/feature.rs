@@ -245,8 +245,8 @@ impl TryToTokens for Feature {
             Self::Rename(rename) => rename.to_token_stream(),
             Self::Style(style) => quote! { .style(#style) },
             Self::DefaultStyle(style) => quote! { .style(#style) },
-            Self::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
-            Self::DefaultParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+            Self::ParameterIn(parameter_in) => quote! { .location(#parameter_in) },
+            Self::DefaultParameterIn(parameter_in) => quote! { .location(#parameter_in) },
             Self::MultipleOf(multiple_of) => quote! { .multiple_of(#multiple_of) },
             Self::AllowReserved(allow_reserved) => {
                 quote! { .allow_reserved(Some(#allow_reserved)) }

@@ -9,6 +9,7 @@
 //! | --- | --- | :---: |
 //! | `cookie` | Support for Cookie | ✔️ |
 //! | `server` | Built-in Server implementation | ✔️ |
+//! | `server-handle` | Expose a [`ServerHandle`](salvo_core::server::ServerHandle) for graceful/forced shutdown | ✔️ |
 //! | `http1` | Support for HTTP 1.1 protocol | ✔️ |
 //! | `http2` | Support for HTTP 2 protocol | ✔️ |
 //! | `http2-cleartext` | Support for HTTP 2 over cleartext TCP | ❌ |
@@ -18,7 +19,13 @@
 //! | `rustls` | TLS built on [`rustls`](https://crates.io/crates/rustls) | ❌ |
 //! | `openssl` | TLS built on [`openssl-tls`](https://crates.io/crates/openssl) | ❌ |
 //! | `native-tls` | TLS built on [`native-tls`](https://crates.io/crates/native-tls) | ❌ |
+//! | `tls12` | Allow TLS 1.2 (in addition to 1.3) for the rustls backend | ❌ |
+//! | `aws-lc-rs` | Use [`aws-lc-rs`](https://crates.io/crates/aws-lc-rs) as the rustls crypto provider | ✔️ |
+//! | `ring` | Use [`ring`](https://crates.io/crates/ring) as the rustls crypto provider | ❌ |
 //! | `unix` | Listener based on Unix socket | ❌ |
+//! | `socket2` | Tune listener socket options via [`socket2`](https://crates.io/crates/socket2) | ❌ |
+//! | `fix-http1-request-uri` | Rewrite HTTP/1.1 absolute-form request URIs to origin-form | ✔️ |
+//! | `matched-path` | Expose the matched route template on the request | ✔️ |
 //! | `tower-compat` | Adapters for `tower::Layer` and `tower::Service` | ❌ |
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
@@ -36,6 +43,19 @@
 //! | `timeout` | Middleware for setting a timeout | ❌ |
 //! | `trailing-slash` | Middleware for handling trailing slashes | ❌ |
 //! | `websocket` | WebSocket implementation | ❌ |
+//! | `cache` | Response caching middleware | ❌ |
+//! | `compression` | Response compression middleware | ❌ |
+//! | `cors` | CORS middleware | ❌ |
+//! | `csrf` | CSRF protection middleware | ❌ |
+//! | `flash` | Flash messages middleware | ❌ |
+//! | `jwt-auth` | JWT authentication middleware | ❌ |
+//! | `oapi` | OpenAPI 3 generation and Swagger/RapiDoc/ReDoc/Scalar UIs | ❌ |
+//! | `otel` | OpenTelemetry integration | ❌ |
+//! | `proxy` | Reverse-proxy middleware | ❌ |
+//! | `rate-limiter` | Rate-limiting middleware | ❌ |
+//! | `serve-static` | Static file / directory serving | ❌ |
+//! | `session` | Cookie-based session middleware | ❌ |
+//! | `tus` | [tus.io](https://tus.io) resumable upload protocol | ❌ |
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -49,137 +69,137 @@ pub use salvo_core::*;
 extern crate self as salvo;
 
 cfg_feature! {
-    #![feature ="affix-state"]
+    #![feature = "affix-state"]
     // #[doc(no_inline)]
     pub use salvo_extra::affix_state;
 }
 cfg_feature! {
-    #![feature ="basic-auth"]
+    #![feature = "basic-auth"]
     // #[doc(no_inline)]
     pub use salvo_extra::basic_auth;
 }
 cfg_feature! {
-    #![feature ="caching-headers"]
+    #![feature = "caching-headers"]
     // #[doc(no_inline)]
     pub use salvo_extra::caching_headers;
 }
 cfg_feature! {
-    #![feature ="catch-panic"]
+    #![feature = "catch-panic"]
     // #[doc(no_inline)]
     pub use salvo_extra::catch_panic;
 }
 cfg_feature! {
-    #![feature ="force-https"]
+    #![feature = "force-https"]
     // #[doc(no_inline)]
     pub use salvo_extra::force_https;
 }
 cfg_feature! {
-    #![feature ="logging"]
+    #![feature = "logging"]
     // #[doc(no_inline)]
     pub use salvo_extra::logging;
 }
 cfg_feature! {
-    #![feature ="concurrency-limiter"]
+    #![feature = "concurrency-limiter"]
     // #[doc(no_inline)]
     pub use salvo_extra::concurrency_limiter;
 }
 cfg_feature! {
-    #![feature ="size-limiter"]
+    #![feature = "size-limiter"]
     // #[doc(no_inline)]
     pub use salvo_extra::size_limiter;
 }
 cfg_feature! {
-    #![feature ="sse"]
+    #![feature = "sse"]
     // #[doc(no_inline)]
     pub use salvo_extra::sse;
 }
 cfg_feature! {
-    #![feature ="trailing-slash"]
+    #![feature = "trailing-slash"]
     // #[doc(no_inline)]
     pub use salvo_extra::trailing_slash;
 }
 cfg_feature! {
-    #![feature ="timeout"]
+    #![feature = "timeout"]
     // #[doc(no_inline)]
     pub use salvo_extra::timeout;
 }
 cfg_feature! {
-    #![feature ="websocket"]
+    #![feature = "websocket"]
     // #[doc(no_inline)]
     pub use salvo_extra::websocket;
 }
 cfg_feature! {
-    #![feature ="request-id"]
+    #![feature = "request-id"]
     // #[doc(no_inline)]
     pub use salvo_extra::request_id;
 }
 cfg_feature! {
-    #![feature ="cache"]
+    #![feature = "cache"]
     #[doc(no_inline)]
     pub use salvo_cache as cache;
 }
 cfg_feature! {
-    #![feature ="compression"]
+    #![feature = "compression"]
     #[doc(no_inline)]
     pub use salvo_compression as compression;
 }
 cfg_feature! {
-    #![feature ="cors"]
+    #![feature = "cors"]
     #[doc(no_inline)]
     pub use salvo_cors as cors;
 }
 cfg_feature! {
-    #![feature ="craft"]
+    #![feature = "craft"]
     // #[doc(no_inline)]
     pub use salvo_craft as craft;
 }
 cfg_feature! {
-    #![feature ="csrf"]
+    #![feature = "csrf"]
     #[doc(no_inline)]
     pub use salvo_csrf as csrf;
 }
 cfg_feature! {
-    #![feature ="flash"]
+    #![feature = "flash"]
     #[doc(no_inline)]
     pub use salvo_flash as flash;
 }
 cfg_feature! {
-    #![feature ="jwt-auth"]
+    #![feature = "jwt-auth"]
     #[doc(no_inline)]
     pub use salvo_jwt_auth as jwt_auth;
 }
 cfg_feature! {
-    #![feature ="proxy"]
+    #![feature = "proxy"]
     #[doc(no_inline)]
     pub use salvo_proxy as proxy;
 }
 cfg_feature! {
-    #![feature ="rate-limiter"]
+    #![feature = "rate-limiter"]
     #[doc(no_inline)]
     pub use salvo_rate_limiter as rate_limiter;
 }
 cfg_feature! {
-    #![feature ="session"]
+    #![feature = "session"]
     #[doc(no_inline)]
     pub use salvo_session as session;
 }
 cfg_feature! {
-    #![feature ="serve-static"]
+    #![feature = "serve-static"]
     #[doc(no_inline)]
     pub use salvo_serve_static as serve_static;
 }
 cfg_feature! {
-    #![feature ="otel"]
+    #![feature = "otel"]
     #[doc(no_inline)]
     pub use salvo_otel as otel;
 }
 cfg_feature! {
-    #![feature ="acme"]
+    #![feature = "acme"]
     #[doc(no_inline)]
     pub use salvo_acme as acme;
 }
 cfg_feature! {
-    #![feature ="oapi"]
+    #![feature = "oapi"]
     #[doc(no_inline)]
     pub use salvo_oapi as oapi;
 }
@@ -193,96 +213,96 @@ cfg_feature! {
 pub mod prelude {
     pub use salvo_core::prelude::*;
     cfg_feature! {
-        #![feature ="affix-state"]
+        #![feature = "affix-state"]
         pub use salvo_extra::affix_state;
     }
     cfg_feature! {
-        #![feature ="basic-auth"]
+        #![feature = "basic-auth"]
         pub use salvo_extra::basic_auth::{BasicAuth, BasicAuthDepotExt, BasicAuthValidator};
     }
     cfg_feature! {
-        #![feature ="caching-headers"]
+        #![feature = "caching-headers"]
         pub use salvo_extra::caching_headers::CachingHeaders;
     }
     cfg_feature! {
-        #![feature ="catch-panic"]
+        #![feature = "catch-panic"]
         pub use salvo_extra::catch_panic::CatchPanic;
     }
     cfg_feature! {
-        #![feature ="compression"]
+        #![feature = "compression"]
         pub use salvo_compression::{Compression, CompressionAlgo, CompressionLevel};
     }
     cfg_feature! {
-        #![feature ="craft"]
+        #![feature = "craft"]
         // #[doc(no_inline)]
         pub use salvo_craft::craft;
     }
     cfg_feature! {
-        #![feature ="csrf"]
+        #![feature = "csrf"]
         pub use salvo_csrf::CsrfDepotExt;
     }
     cfg_feature! {
-        #![feature ="force-https"]
+        #![feature = "force-https"]
         pub use salvo_extra::force_https::ForceHttps;
     }
     cfg_feature! {
-        #![feature ="jwt-auth"]
+        #![feature = "jwt-auth"]
         pub use salvo_jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState};
     }
     cfg_feature! {
-        #![feature ="logging"]
+        #![feature = "logging"]
         pub use salvo_extra::logging::Logger;
     }
     cfg_feature! {
-        #![feature ="proxy"]
+        #![feature = "proxy"]
         pub use salvo_proxy::Proxy;
     }
     cfg_feature! {
-        #![feature ="session"]
+        #![feature = "session"]
         pub use salvo_session::{SessionDepotExt, SessionHandler, SessionStore};
     }
     cfg_feature! {
-        #![feature ="concurrency-limiter"]
+        #![feature = "concurrency-limiter"]
         pub use salvo_extra::concurrency_limiter::max_concurrency;
     }
     cfg_feature! {
-        #![feature ="size-limiter"]
+        #![feature = "size-limiter"]
         pub use salvo_extra::size_limiter::max_size;
     }
     cfg_feature! {
-        #![feature ="sse"]
+        #![feature = "sse"]
         pub use salvo_extra::sse::{SseEvent, SseKeepAlive};
     }
     cfg_feature! {
-        #![feature ="trailing-slash"]
+        #![feature = "trailing-slash"]
         pub use salvo_extra::trailing_slash::{self, TrailingSlash, TrailingSlashAction};
     }
     cfg_feature! {
-        #![feature ="timeout"]
+        #![feature = "timeout"]
         pub use salvo_extra::timeout::Timeout;
     }
     cfg_feature! {
-        #![feature ="tower-compat"]
+        #![feature = "tower-compat"]
         pub use salvo_extra::tower_compat::{TowerServiceCompat, TowerLayerCompat};
     }
     cfg_feature! {
-        #![feature ="websocket"]
+        #![feature = "websocket"]
         pub use salvo_extra::websocket::WebSocketUpgrade;
     }
     cfg_feature! {
-        #![feature ="request-id"]
+        #![feature = "request-id"]
         pub use salvo_extra::request_id::RequestId;
     }
     cfg_feature! {
-        #![feature ="serve-static"]
+        #![feature = "serve-static"]
         pub use salvo_serve_static::{StaticFile, StaticDir};
     }
     cfg_feature! {
-        #![feature ="acme"]
+        #![feature = "acme"]
         pub use salvo_acme::AcmeListener;
     }
     cfg_feature! {
-        #![feature ="oapi"]
+        #![feature = "oapi"]
         pub use crate::oapi::{endpoint, RouterExt, EndpointArgRegister, EndpointOutRegister, OpenApi, ToParameter, ToParameters, ToSchema, ToResponse, ToResponses};
         pub use crate::oapi::swagger_ui::SwaggerUi;
         pub use crate::oapi::rapidoc::RapiDoc;
