@@ -223,33 +223,33 @@ impl SchemaReference {
         self
     }
 
-    /// Get the composed name including generic parameters.
+    /// Returns the formatted display name including generic parameters.
     ///
     /// For example, `Page` with child `User` produces `Page<User>`.
     #[must_use]
-    pub fn compose_name(&self) -> String {
+    pub fn display_name(&self) -> String {
         if self.references.is_empty() {
             self.name.as_ref().to_owned()
         } else {
             let generic_names: Vec<String> =
-                self.references.iter().map(|r| r.compose_name()).collect();
+                self.references.iter().map(|r| r.display_name()).collect();
             format!("{}<{}>", self.name, generic_names.join(", "))
         }
     }
 
-    /// Get the schemas for the direct generic type parameters.
+    /// Returns the direct generic type parameter references of this schema.
     #[must_use]
-    pub fn compose_generics(&self) -> &[Self] {
+    pub fn generic_params(&self) -> &[Self] {
         &self.references
     }
 
-    /// Collect all child references recursively (depth-first).
+    /// Collects all child references recursively (depth-first).
     #[must_use]
-    pub fn compose_child_references(&self) -> Vec<&Self> {
+    pub fn child_references(&self) -> Vec<&Self> {
         let mut result = Vec::new();
         for reference in &self.references {
             result.push(reference);
-            result.extend(reference.compose_child_references());
+            result.extend(reference.child_references());
         }
         result
     }

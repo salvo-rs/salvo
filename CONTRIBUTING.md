@@ -58,6 +58,23 @@ cargo check --all --bins --examples --tests
 - Update README files, crate docs, or examples when user-facing behavior changes.
 - Keep feature-gated code compile-tested for both enabled and disabled states.
 
+### Builder Method Naming
+
+Salvo follows the conventional Rust API split between *constructors* and
+*chained setters*. Use the `with_*` prefix **only** for associated functions
+that construct a value with a specific input — never for chained setters that
+take and return `self`.
+
+| Style | Example | When |
+|-------|---------|------|
+| `Type::with_foo(foo) -> Self` | `Router::with_path("/")`, `Depot::with_capacity(8)`, `Vec::with_capacity` | An *associated function* that builds a fresh value pre-configured with a required input. |
+| `self.foo(value) -> Self` | `Router::new().path("/").host("example.com")` | A *method* on an existing value that sets one field and returns `self` for chaining. |
+| `self.foo(&mut self, value) -> &mut Self` | rarely used; only when chained setters must keep the binding alive | Reserve for niche cases — the consuming-`self` variant above is preferred. |
+
+This avoids the ambiguity in `Tus::new().with_store(...)`: readers cannot tell
+from the name whether `with_store` constructs or mutates. Do not add new
+chained setters that use the `with_` prefix.
+
 ## Documentation And Message Style
 
 - Prefer compile-checked examples over `ignore` blocks. Use `no_run` when the snippet needs a real network listener or other runtime setup but should still compile.

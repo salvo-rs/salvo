@@ -365,14 +365,14 @@ fn test_schema_reference_helpers() {
         .reference(SchemaReference::new("Vec").reference(SchemaReference::new("User")))
         .reference(SchemaReference::new("String"));
 
-    assert_eq!(reference.compose_name(), "Response<Vec<User>, String>");
+    assert_eq!(reference.display_name(), "Response<Vec<User>, String>");
 
-    let generics = reference.compose_generics();
+    let generics = reference.generic_params();
     assert_eq!(generics.len(), 2);
     assert_eq!(generics[0].name, "Vec");
     assert_eq!(generics[1].name, "String");
 
-    let all_children = reference.compose_child_references();
+    let all_children = reference.child_references();
     assert_eq!(all_children.len(), 3); // Vec, User, String
     assert_eq!(all_children[0].name, "Vec");
     assert_eq!(all_children[1].name, "User"); // depth-first under Vec

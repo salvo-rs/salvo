@@ -49,11 +49,11 @@
 //!
 //! ```ignore
 //! let tus = Tus::new()
-//!     .with_on_upload_create(|req, upload_info| async move {
+//!     .on_upload_create(|req, upload_info| async move {
 //!         println!("New upload: {:?}", upload_info);
 //!         Ok(UploadPatch::default())
 //!     })
-//!     .with_on_upload_finish(|req, upload_info| async move {
+//!     .on_upload_finish(|req, upload_info| async move {
 //!         println!("Upload complete: {:?}", upload_info);
 //!         Ok(UploadFinishPatch::default())
 //!     });
@@ -65,7 +65,7 @@
 //!
 //! ```ignore
 //! let tus = Tus::new()
-//!     .with_upload_id_naming_function(|req, metadata| async move {
+//!     .upload_id_naming_function(|req, metadata| async move {
 //!         Ok(uuid::Uuid::new_v4().to_string())
 //!     });
 //! ```
@@ -272,7 +272,8 @@ impl Tus {
         self
     }
 
-    pub fn with_store(mut self, store: impl DataStore) -> Self {
+    /// Sets the [`DataStore`] used to persist uploads.
+    pub fn store(mut self, store: impl DataStore) -> Self {
         self.store = Arc::new(store);
         self
     }
@@ -281,7 +282,7 @@ impl Tus {
     ///
     /// This is a convenience for the common case of just changing where uploaded
     /// files are stored on disk. It replaces the current store with a fresh
-    /// [`DiskStore`] rooted at `root`, so call it before any [`Self::with_store`]
+    /// [`DiskStore`] rooted at `root`, so call it before any [`Self::store`]
     /// invocation if you want to combine it with a custom store.
     ///
     /// # Example
@@ -292,10 +293,11 @@ impl Tus {
     /// let tus = Tus::new().storage_root("/var/uploads/tus");
     /// ```
     pub fn storage_root(self, root: impl Into<PathBuf>) -> Self {
-        self.with_store(DiskStore::new().disk_root(root))
+        self.store(DiskStore::new().disk_root(root))
     }
 
-    pub fn with_locker(mut self, locker: impl Locker) -> Self {
+    /// Sets the [`Locker`] used to serialize concurrent writes to the same upload.
+    pub fn locker(mut self, locker: impl Locker) -> Self {
         self.options.locker = Arc::new(locker);
         self
     }
@@ -327,7 +329,8 @@ impl Tus {
 
 // Hooks
 impl Tus {
-    pub fn with_upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
+    /// Sets the function used to derive the upload ID from an incoming `POST`.
+    pub fn upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, Option<Metadata>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<String, TusError>> + Send + 'static,
@@ -336,7 +339,9 @@ impl Tus {
         self
     }
 
-    pub fn with_generate_url_function<F>(mut self, f: F) -> Self
+    /// Sets the function that generates the upload location URL returned in the
+    /// `Location` header.
+    pub fn generate_url_function<F>(mut self, f: F) -> Self
     where
         F: Fn(&Request, GenerateUrlCtx) -> Result<String, TusError> + Send + Sync + 'static,
     {
@@ -347,7 +352,8 @@ impl Tus {
 
 // Lifecycle
 impl Tus {
-    pub fn with_on_incoming_request<F, Fut>(mut self, f: F) -> Self
+    /// Sets an async hook that runs at the start of every tus request.
+    pub fn on_incoming_request<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = ()> + Send + 'static,
@@ -356,7 +362,8 @@ impl Tus {
         self
     }
 
-    pub fn with_on_incoming_request_sync<F>(mut self, f: F) -> Self
+    /// Sets a synchronous hook that runs at the start of every tus request.
+    pub fn on_incoming_request_sync<F>(mut self, f: F) -> Self
     where
         F: Fn(&Request, String) + Send + Sync + 'static,
     {
@@ -367,7 +374,8 @@ impl Tus {
         self
     }
 
-    pub fn with_on_upload_create<F, Fut>(mut self, f: F) -> Self
+    /// Sets the hook invoked when a new upload is being created.
+    pub fn on_upload_create<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<UploadPatch, TusError>> + Send + 'static,
@@ -376,7 +384,8 @@ impl Tus {
         self
     }
 
-    pub fn with_on_upload_finish<F, Fut>(mut self, f: F) -> Self
+    /// Sets the hook invoked when an upload completes.
+    pub fn on_upload_finish<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<UploadFinishPatch, TusError>> + Send + 'static,
@@ -616,17 +625,17 @@ mod tests {
     }
 
     #[test]
-    fn test_tus_with_locker() {
+    fn test_tus_locker() {
         use lockers::memory_locker::MemoryLocker;
 
-        let tus = Tus::new().with_locker(MemoryLocker::new());
+        let tus = Tus::new().locker(MemoryLocker::new());
         // Just verify it compiles and doesn't panic
         assert!(Arc::strong_count(&tus.options.locker) >= 1);
     }
 
     #[test]
-    fn test_tus_with_store() {
-        let tus = Tus::new().with_store(stores::DiskStore::new());
+    fn test_tus_store() {
+        let tus = Tus::new().store(stores::DiskStore::new());
         // Just verify it compiles and doesn't panic
         assert!(Arc::strong_count(&tus.store) >= 1);
     }
@@ -683,10 +692,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_tus_with_upload_id_naming_function() {
-        let tus = Tus::new().with_upload_id_naming_function(|_req, _meta| async move {
-            Ok("custom-id".to_owned())
-        });
+    async fn test_tus_upload_id_naming_function() {
+        let tus = Tus::new()
+            .upload_id_naming_function(|_req, _meta| async move { Ok("custom-id".to_owned()) });
 
         // Verify the function is set by calling it
         let req = Request::default();
@@ -702,8 +710,8 @@ mod tests {
 
         let temp_dir = tempfile::TempDir::new().unwrap();
         let tus = Tus::new()
-            .with_store(stores::DiskStore::new().disk_root(temp_dir.path()))
-            .with_upload_id_naming_function(|_req, _meta| async move { Ok("file.txt".to_owned()) });
+            .store(stores::DiskStore::new().disk_root(temp_dir.path()))
+            .upload_id_naming_function(|_req, _meta| async move { Ok("file.txt".to_owned()) });
         let service = Service::new(tus.into_router());
 
         let response = TestClient::post("http://localhost/tus-files")
@@ -716,23 +724,22 @@ mod tests {
     }
 
     #[test]
-    fn test_tus_with_generate_url_function() {
-        let tus = Tus::new().with_generate_url_function(|_req, ctx| {
-            Ok(format!("https://cdn.example.com/{}", ctx.id))
-        });
+    fn test_tus_generate_url_function() {
+        let tus = Tus::new()
+            .generate_url_function(|_req, ctx| Ok(format!("https://cdn.example.com/{}", ctx.id)));
 
         assert!(tus.options.generate_url_function.is_some());
     }
 
     #[tokio::test]
-    async fn test_tus_with_on_incoming_request() {
+    async fn test_tus_on_incoming_request() {
         use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = called.clone();
 
-        let tus = Tus::new().with_on_incoming_request(move |_req, _id| {
+        let tus = Tus::new().on_incoming_request(move |_req, _id| {
             let called = called_clone.clone();
             async move {
                 called.store(true, Ordering::SeqCst);
@@ -746,14 +753,14 @@ mod tests {
     }
 
     #[test]
-    fn test_tus_with_on_incoming_request_sync() {
+    fn test_tus_on_incoming_request_sync() {
         use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = called.clone();
 
-        let tus = Tus::new().with_on_incoming_request_sync(move |_req, _id| {
+        let tus = Tus::new().on_incoming_request_sync(move |_req, _id| {
             called_clone.store(true, Ordering::SeqCst);
         });
 
@@ -761,17 +768,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_tus_with_on_upload_create() {
-        let tus = Tus::new()
-            .with_on_upload_create(|_req, _upload| async move { Ok(UploadPatch::default()) });
+    async fn test_tus_on_upload_create() {
+        let tus =
+            Tus::new().on_upload_create(|_req, _upload| async move { Ok(UploadPatch::default()) });
 
         assert!(tus.options.on_upload_create.is_some());
     }
 
     #[tokio::test]
-    async fn test_tus_with_on_upload_finish() {
+    async fn test_tus_on_upload_finish() {
         let tus = Tus::new()
-            .with_on_upload_finish(|_req, _upload| async move { Ok(UploadFinishPatch::default()) });
+            .on_upload_finish(|_req, _upload| async move { Ok(UploadFinishPatch::default()) });
 
         assert!(tus.options.on_upload_finish.is_some());
     }
