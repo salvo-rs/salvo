@@ -395,7 +395,8 @@ impl Response {
     ///
     /// let mut res = Response::new();
     /// assert_eq!(None, res.content_type());
-    /// res.headers_mut().insert("content-type", "text/plain".parse().unwrap());
+    /// res.headers_mut()
+    ///     .insert("content-type", "text/plain".parse().unwrap());
     /// assert_eq!(Some(mime::TEXT_PLAIN), res.content_type());
     /// ```
     #[inline]
@@ -445,14 +446,24 @@ impl Response {
         scribe.render(self);
     }
 
-    /// Render content with status code.
+    /// Sets the status code and renders content into this response.
     #[inline]
-    pub fn stuff<P>(&mut self, code: StatusCode, scribe: P)
+    pub fn render_with_status<P>(&mut self, code: StatusCode, scribe: P)
     where
         P: Scribe,
     {
         self.status_code = Some(code);
         scribe.render(self);
+    }
+
+    /// Sets the status code and renders content into this response.
+    #[deprecated(since = "0.94.0", note = "use `Response::render_with_status` instead")]
+    #[inline]
+    pub fn stuff<P>(&mut self, code: StatusCode, scribe: P)
+    where
+        P: Scribe,
+    {
+        self.render_with_status(code, scribe);
     }
 
     /// Attempts to send a file. If file not exists, not found error will occur.
@@ -622,6 +633,20 @@ mod test {
         }
 
         assert_eq!("Hello World", &result)
+    }
+
+    #[test]
+    fn test_render_with_status_sets_status_and_body() {
+        let mut res = Response::new();
+        res.render_with_status(StatusCode::CREATED, "created");
+
+        assert_eq!(res.status_code, Some(StatusCode::CREATED));
+        let content_type = res.content_type().expect("content type");
+        assert_eq!(content_type.essence_str(), "text/plain");
+        match res.take_body() {
+            ResBody::Once(bytes) => assert_eq!(bytes, Bytes::from_static(b"created")),
+            body => panic!("expected once body, got {body:?}"),
+        }
     }
 
     #[cfg(feature = "cookie")]

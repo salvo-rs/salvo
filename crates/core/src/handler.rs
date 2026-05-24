@@ -177,9 +177,9 @@ pub trait Handler: Send + Sync + 'static {
         ArcHandler(Arc::new(self))
     }
 
-    /// Wrap to `HoopedHandler`.
+    /// Wraps this handler in a [`HoopedHandler`].
     #[inline]
-    fn hooped<H: Handler>(self) -> HoopedHandler
+    fn hooped(self) -> HoopedHandler
     where
         Self: Sized,
     {
@@ -484,5 +484,16 @@ mod tests {
             .await;
         assert_eq!(res.status_code, Some(StatusCode::OK));
         assert_eq!(res.take_string().await.unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_hooped_handler_without_type_parameter() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.render("hello");
+        }
+
+        let _handler: HoopedHandler = hello.hooped();
     }
 }
