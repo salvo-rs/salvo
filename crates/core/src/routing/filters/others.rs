@@ -40,8 +40,8 @@ impl Debug for MethodFilter {
 pub struct SchemeFilter {
     /// Scheme to filter.
     pub scheme: Scheme,
-    /// Fallback value returned by the filter when the request URI has no scheme.
-    pub lack: bool,
+    /// Fallback filter result returned when the request URI has no scheme.
+    pub fallback: bool,
 }
 impl SchemeFilter {
     /// Create a new `SchemeFilter`.
@@ -49,14 +49,21 @@ impl SchemeFilter {
     pub fn new(scheme: Scheme) -> Self {
         Self {
             scheme,
-            lack: false,
+            fallback: false,
         }
     }
-    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
+    /// Sets the fallback filter result returned when the request URI has no scheme.
     #[must_use]
-    pub fn lack(mut self, lack: bool) -> Self {
-        self.lack = lack;
+    pub fn fallback(mut self, fallback: bool) -> Self {
+        self.fallback = fallback;
         self
+    }
+
+    /// Sets the fallback filter result returned when the request URI has no scheme.
+    #[deprecated(since = "0.94.0", note = "use `SchemeFilter::fallback` instead")]
+    #[must_use]
+    pub fn lack(self, lack: bool) -> Self {
+        self.fallback(lack)
     }
 }
 
@@ -67,7 +74,7 @@ impl Filter for SchemeFilter {
         req.uri()
             .scheme()
             .map(|s| s == &self.scheme)
-            .unwrap_or(self.lack)
+            .unwrap_or(self.fallback)
     }
     #[inline]
     fn info(&self) -> FilterInfo {
@@ -86,22 +93,29 @@ impl Debug for SchemeFilter {
 pub struct HostFilter {
     /// Host to filter.
     pub host: String,
-    /// Fallback value returned by the filter when the request URI has no host.
-    pub lack: bool,
+    /// Fallback filter result returned when the request URI has no host.
+    pub fallback: bool,
 }
 impl HostFilter {
     /// Create a new `HostFilter`.
     pub fn new(host: impl Into<String>) -> Self {
         Self {
             host: host.into(),
-            lack: false,
+            fallback: false,
         }
     }
-    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
+    /// Sets the fallback filter result returned when the request URI has no host.
     #[must_use]
-    pub fn lack(mut self, lack: bool) -> Self {
-        self.lack = lack;
+    pub fn fallback(mut self, fallback: bool) -> Self {
+        self.fallback = fallback;
         self
+    }
+
+    /// Sets the fallback filter result returned when the request URI has no host.
+    #[deprecated(since = "0.94.0", note = "use `HostFilter::fallback` instead")]
+    #[must_use]
+    pub fn lack(self, lack: bool) -> Self {
+        self.fallback(lack)
     }
 }
 
@@ -129,7 +143,7 @@ impl Filter for HostFilter {
             }
         })
         .map(|h| h == self.host)
-        .unwrap_or(self.lack)
+        .unwrap_or(self.fallback)
     }
     #[inline]
     fn info(&self) -> FilterInfo {
@@ -149,21 +163,31 @@ impl Debug for HostFilter {
 pub struct PortFilter {
     /// Port to filter.
     pub port: u16,
-    /// Fallback value returned by the filter when the request URI has no port.
-    pub lack: bool,
+    /// Fallback filter result returned when the request URI has no port.
+    pub fallback: bool,
 }
 
 impl PortFilter {
     /// Create a new `PortFilter`.
     #[must_use]
     pub fn new(port: u16) -> Self {
-        Self { port, lack: false }
+        Self {
+            port,
+            fallback: false,
+        }
     }
-    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
+    /// Sets the fallback filter result returned when the request URI has no port.
     #[must_use]
-    pub fn lack(mut self, lack: bool) -> Self {
-        self.lack = lack;
+    pub fn fallback(mut self, fallback: bool) -> Self {
+        self.fallback = fallback;
         self
+    }
+
+    /// Sets the fallback filter result returned when the request URI has no port.
+    #[deprecated(since = "0.94.0", note = "use `PortFilter::fallback` instead")]
+    #[must_use]
+    pub fn lack(self, lack: bool) -> Self {
+        self.fallback(lack)
     }
 }
 
@@ -192,7 +216,7 @@ impl Filter for PortFilter {
         })
         .and_then(|p| p.parse::<u16>().ok())
         .map(|p| p == self.port)
-        .unwrap_or(self.lack)
+        .unwrap_or(self.fallback)
     }
     #[inline]
     fn info(&self) -> FilterInfo {
@@ -203,5 +227,49 @@ impl Debug for PortFilter {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "port:{:?}", self.port)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn fallback_sets_scheme_filter_result_when_scheme_is_absent() {
+        let mut req = Request::new();
+        let mut state = PathState::new(req.uri().path());
+
+        assert!(
+            SchemeFilter::new(Scheme::HTTPS)
+                .fallback(true)
+                .filter(&mut req, &mut state)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn fallback_sets_host_filter_result_when_host_is_absent() {
+        let mut req = Request::new();
+        let mut state = PathState::new(req.uri().path());
+
+        assert!(
+            HostFilter::new("example.com")
+                .fallback(true)
+                .filter(&mut req, &mut state)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn fallback_sets_port_filter_result_when_port_is_absent() {
+        let mut req = Request::new();
+        let mut state = PathState::new(req.uri().path());
+
+        assert!(
+            PortFilter::new(443)
+                .fallback(true)
+                .filter(&mut req, &mut state)
+                .await
+        );
     }
 }
