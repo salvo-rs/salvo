@@ -91,6 +91,7 @@ impl Default for DiskStore {
 
 impl DiskStore {
     /// Creates a disk store rooted at `./tus-upload-files`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             root: "./tus-upload-files".into(),
@@ -100,6 +101,7 @@ impl DiskStore {
     /// Sets the local disk root directory where uploaded files are written.
     ///
     /// Defaults to `./tus-upload-files`.
+    #[must_use]
     pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
         self.root = root.into();
         self
@@ -165,9 +167,8 @@ impl DiskStore {
         path.starts_with(root)
     }
 
-    fn resolve_data_path(&self, id: &str, storage: &Option<MetaStoreInfo>) -> PathBuf {
+    fn resolve_data_path(&self, id: &str, storage: Option<&MetaStoreInfo>) -> PathBuf {
         if let Some(path) = storage
-            .as_ref()
             .map(|info| PathBuf::from(&info.path))
             .filter(|path| self.path_is_within_root(path))
         {
@@ -206,7 +207,7 @@ impl DiskStore {
     async fn resolve_existing_data_path(
         &self,
         id: &str,
-        storage: &Option<MetaStoreInfo>,
+        storage: Option<&MetaStoreInfo>,
     ) -> TusResult<PathBuf> {
         let path = self.resolve_data_path(id, storage);
         if self.existing_path_is_within_root(&path).await {
@@ -224,7 +225,7 @@ impl DiskStore {
 
     async fn resolve_meta_data_path(&self, meta: &mut MetaUpload) -> TusResult<PathBuf> {
         let path = self
-            .resolve_existing_data_path(&meta.id, &meta.storage)
+            .resolve_existing_data_path(&meta.id, meta.storage.as_ref())
             .await?;
         if let Some(storage) = &mut meta.storage {
             storage.path = path.to_string_lossy().into_owned();
@@ -288,7 +289,7 @@ impl DiskStore {
                 )
             }
             (Some(stem), None) => format!("{}-{}", stem.to_string_lossy(), id),
-            _ => format!("{}-{}", name, id),
+            _ => format!("{name}-{id}"),
         }
     }
 
@@ -878,7 +879,7 @@ mod tests {
             path: stored_path.to_string_lossy().into_owned(),
             bucket: None,
         });
-        let path = store.resolve_data_path("test-id", &storage);
+        let path = store.resolve_data_path("test-id", storage.as_ref());
         assert_eq!(path, stored_path);
     }
 
@@ -892,14 +893,14 @@ mod tests {
             bucket: None,
         });
 
-        let path = store.resolve_data_path("test-id", &storage);
+        let path = store.resolve_data_path("test-id", storage.as_ref());
         assert_eq!(path, store.data_path("test-id"));
     }
 
     #[test]
     fn test_resolve_data_path_without_storage() {
         let store = DiskStore::new().disk_root("/uploads");
-        let path = store.resolve_data_path("test-id", &None);
+        let path = store.resolve_data_path("test-id", None);
         assert_eq!(path, PathBuf::from("/uploads/test-id.bin"));
     }
 
@@ -1314,7 +1315,7 @@ mod tests {
         assert_eq!(info.offset, Some(0));
 
         let meta = store.read_meta("test-write-limited").await.unwrap();
-        let data_path = store.resolve_data_path("test-write-limited", &meta.storage);
+        let data_path = store.resolve_data_path("test-write-limited", meta.storage.as_ref());
         let data_len = fs::metadata(data_path).await.unwrap().len();
         assert_eq!(data_len, 0);
     }

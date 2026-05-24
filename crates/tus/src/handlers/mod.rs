@@ -126,7 +126,7 @@ pub struct Metadata(
 
 impl Metadata {
     /// Parses a tus `Upload-Metadata` header value.
-    pub fn parse_metadata(raw: &str) -> Result<Metadata, ProtocolError> {
+    pub fn parse_metadata(raw: &str) -> Result<Self, ProtocolError> {
         if raw.trim().is_empty() {
             return Err(ProtocolError::InvalidMetadata);
         }
@@ -163,11 +163,12 @@ impl Metadata {
             map.insert(key.to_owned(), Some(decoded_value));
         }
 
-        Ok(Metadata(map))
+        Ok(Self(map))
     }
 
     /// Serializes metadata into a tus `Upload-Metadata` header value.
-    pub fn stringify(metadata: Metadata) -> String {
+    #[must_use]
+    pub fn stringify(metadata: Self) -> String {
         metadata
             .0
             .iter()
@@ -175,7 +176,7 @@ impl Metadata {
                 Some(value) => {
                     let encoded =
                         base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
-                    format!("{} {}", key, encoded)
+                    format!("{key} {encoded}")
                 }
                 None => key.to_owned(),
             })

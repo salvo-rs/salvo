@@ -21,6 +21,7 @@ impl Default for MemoryLocker {
 
 impl MemoryLocker {
     /// Creates an empty in-memory locker.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(HashMap::new())),
@@ -236,7 +237,7 @@ mod tests {
         // Create locks for many different IDs
         let mut guards = Vec::new();
         for i in 0..100 {
-            let guard = locker.write_lock(&format!("id-{}", i)).await.unwrap();
+            let guard = locker.write_lock(&format!("id-{i}")).await.unwrap();
             guards.push(guard);
         }
 

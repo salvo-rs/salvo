@@ -1033,9 +1033,8 @@ mod tests {
     #[test]
     fn in_flight_limit_bypasses_new_keys_when_full() {
         let in_flight = Arc::new(InFlight::new(1));
-        let first = match in_flight.enter("a") {
-            FlightPermit::Leader(guard) => guard,
-            _ => panic!("first key should lead an in-flight request"),
+        let FlightPermit::Leader(first) = in_flight.enter("a") else {
+            panic!("first key should lead an in-flight request");
         };
 
         assert!(matches!(in_flight.enter("a"), FlightPermit::Follower(_)));
