@@ -72,9 +72,8 @@ take and return `self`.
 | `self.foo(&mut self, value) -> &mut Self` | rarely used; only when chained setters must keep the binding alive | Reserve for niche cases — the consuming-`self` variant above is preferred. |
 
 This avoids the ambiguity in `Tus::new().with_store(...)`: readers cannot tell
-from the name whether `with_store` constructs or mutates. Existing `with_*`
-chained setters have been kept as `#[deprecated]` aliases that forward to the
-non-prefixed name; do not add new ones in that style.
+from the name whether `with_store` constructs or mutates. Do not add new
+chained setters that use the `with_` prefix.
 
 ## Documentation And Message Style
 

@@ -278,12 +278,6 @@ impl Tus {
         self
     }
 
-    /// Deprecated alias for [`Self::store`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::store` instead")]
-    pub fn with_store(self, store: impl DataStore) -> Self {
-        self.store(store)
-    }
-
     /// Sets the local disk root directory used by the default [`DiskStore`].
     ///
     /// This is a convenience for the common case of just changing where uploaded
@@ -306,12 +300,6 @@ impl Tus {
     pub fn locker(mut self, locker: impl Locker) -> Self {
         self.options.locker = Arc::new(locker);
         self
-    }
-
-    /// Deprecated alias for [`Self::locker`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::locker` instead")]
-    pub fn with_locker(self, locker: impl Locker) -> Self {
-        self.locker(locker)
     }
 
     pub fn into_router(self) -> Router {
@@ -351,16 +339,6 @@ impl Tus {
         self
     }
 
-    /// Deprecated alias for [`Self::upload_id_naming_function`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::upload_id_naming_function` instead")]
-    pub fn with_upload_id_naming_function<F, Fut>(self, f: F) -> Self
-    where
-        F: Fn(&Request, Option<Metadata>) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<String, TusError>> + Send + 'static,
-    {
-        self.upload_id_naming_function(f)
-    }
-
     /// Sets the function that generates the upload location URL returned in the
     /// `Location` header.
     pub fn generate_url_function<F>(mut self, f: F) -> Self
@@ -369,15 +347,6 @@ impl Tus {
     {
         self.options.generate_url_function = Some(Arc::new(f));
         self
-    }
-
-    /// Deprecated alias for [`Self::generate_url_function`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::generate_url_function` instead")]
-    pub fn with_generate_url_function<F>(self, f: F) -> Self
-    where
-        F: Fn(&Request, GenerateUrlCtx) -> Result<String, TusError> + Send + Sync + 'static,
-    {
-        self.generate_url_function(f)
     }
 }
 
@@ -393,16 +362,6 @@ impl Tus {
         self
     }
 
-    /// Deprecated alias for [`Self::on_incoming_request`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::on_incoming_request` instead")]
-    pub fn with_on_incoming_request<F, Fut>(self, f: F) -> Self
-    where
-        F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = ()> + Send + 'static,
-    {
-        self.on_incoming_request(f)
-    }
-
     /// Sets a synchronous hook that runs at the start of every tus request.
     pub fn on_incoming_request_sync<F>(mut self, f: F) -> Self
     where
@@ -415,15 +374,6 @@ impl Tus {
         self
     }
 
-    /// Deprecated alias for [`Self::on_incoming_request_sync`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::on_incoming_request_sync` instead")]
-    pub fn with_on_incoming_request_sync<F>(self, f: F) -> Self
-    where
-        F: Fn(&Request, String) + Send + Sync + 'static,
-    {
-        self.on_incoming_request_sync(f)
-    }
-
     /// Sets the hook invoked when a new upload is being created.
     pub fn on_upload_create<F, Fut>(mut self, f: F) -> Self
     where
@@ -434,16 +384,6 @@ impl Tus {
         self
     }
 
-    /// Deprecated alias for [`Self::on_upload_create`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::on_upload_create` instead")]
-    pub fn with_on_upload_create<F, Fut>(self, f: F) -> Self
-    where
-        F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<UploadPatch, TusError>> + Send + 'static,
-    {
-        self.on_upload_create(f)
-    }
-
     /// Sets the hook invoked when an upload completes.
     pub fn on_upload_finish<F, Fut>(mut self, f: F) -> Self
     where
@@ -452,16 +392,6 @@ impl Tus {
     {
         self.options.on_upload_finish = Some(Arc::new(move |req, upload| Box::pin(f(req, upload))));
         self
-    }
-
-    /// Deprecated alias for [`Self::on_upload_finish`].
-    #[deprecated(since = "0.94.0", note = "use `Tus::on_upload_finish` instead")]
-    pub fn with_on_upload_finish<F, Fut>(self, f: F) -> Self
-    where
-        F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<UploadFinishPatch, TusError>> + Send + 'static,
-    {
-        self.on_upload_finish(f)
     }
 }
 

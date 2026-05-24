@@ -236,18 +236,6 @@ impl RateIssuer for ForwardedHeaderIssuer {
     }
 }
 
-/// Deprecated alias for [`ForwardedHeaderIssuer`].
-///
-/// The old name suggested this issuer always reports the *real* client IP, which
-/// it does not — it blindly trusts forwarded headers. The new name makes that
-/// explicit. Prefer [`TrustedProxyIssuer`] when direct connections to the app
-/// are also possible.
-#[deprecated(
-    since = "0.94.0",
-    note = "use `ForwardedHeaderIssuer` (or `TrustedProxyIssuer` for safer deployments) instead"
-)]
-pub type RealIpIssuer = ForwardedHeaderIssuer;
-
 /// Identify the client IP only when the request arrived from a trusted proxy.
 ///
 /// `TrustedProxyIssuer` is the proxy-aware counterpart to [`ForwardedHeaderIssuer`].
@@ -474,14 +462,6 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
     pub fn skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
-    }
-
-    /// Deprecated alias for [`Self::skipper`].
-    #[deprecated(since = "0.94.0", note = "use `RateLimiter::skipper` instead")]
-    #[inline]
-    #[must_use]
-    pub fn with_skipper(self, skipper: impl Skipper) -> Self {
-        self.skipper(skipper)
     }
 
     /// Sets `add_headers` and returns new `RateLimiter`.

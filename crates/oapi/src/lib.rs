@@ -237,27 +237,10 @@ impl SchemaReference {
         }
     }
 
-    /// Returns the formatted display name including generic parameters.
-    #[deprecated(since = "0.94.0", note = "use `SchemaReference::display_name` instead")]
-    #[must_use]
-    pub fn compose_name(&self) -> String {
-        self.display_name()
-    }
-
     /// Returns the direct generic type parameter references of this schema.
     #[must_use]
     pub fn generic_params(&self) -> &[Self] {
         &self.references
-    }
-
-    /// Returns the direct generic type parameter references of this schema.
-    #[deprecated(
-        since = "0.94.0",
-        note = "use `SchemaReference::generic_params` instead"
-    )]
-    #[must_use]
-    pub fn compose_generics(&self) -> &[Self] {
-        self.generic_params()
     }
 
     /// Collects all child references recursively (depth-first).
@@ -269,16 +252,6 @@ impl SchemaReference {
             result.extend(reference.child_references());
         }
         result
-    }
-
-    /// Collects all child references recursively (depth-first).
-    #[deprecated(
-        since = "0.94.0",
-        note = "use `SchemaReference::child_references` instead"
-    )]
-    #[must_use]
-    pub fn compose_child_references(&self) -> Vec<&Self> {
-        self.child_references()
     }
 }
 

@@ -236,13 +236,6 @@ impl FlashLevel {
             Self::Error => "error",
         }
     }
-
-    /// Returns the lowercase string representation of this `FlashLevel`.
-    #[deprecated(since = "0.94.0", note = "use `FlashLevel::as_str` instead")]
-    #[must_use]
-    pub fn to_str(&self) -> &'static str {
-        self.as_str()
-    }
 }
 impl Debug for FlashLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
