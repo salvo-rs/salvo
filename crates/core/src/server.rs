@@ -49,22 +49,23 @@ cfg_feature! {
 #[cfg(feature = "server-handle")]
 impl ServerHandle {
     /// Forcefully stops the server immediately, without waiting for in-flight
-    /// requests to finish. For a clean shutdown use [`Self::stop_graceful`]
-    /// instead.
-    pub fn force_stop(&self) {
+    /// requests to finish. The adjective parallels [`Self::stop_graceful`];
+    /// reach for that one when you want a clean shutdown.
+    pub fn stop_forceful(&self) {
         let _ = self.tx_cmd.send(ServerCommand::StopForcible);
     }
 
-    /// Deprecated alias for [`Self::force_stop`].
+    /// Deprecated alias for [`Self::stop_forceful`].
     ///
-    /// The old name reads awkwardly (`forcible` is normally an adjective and
-    /// does not parallel the adjective in `stop_graceful`). Use [`force_stop`]
-    /// for new code; this shim keeps existing callers compiling.
+    /// The old name reads awkwardly (`forcible` is an adjective for things
+    /// that *can* be forced, not for the act of forcing, and it does not
+    /// parallel the adjective in `stop_graceful`). Use [`stop_forceful`] for
+    /// new code; this shim keeps existing callers compiling.
     ///
-    /// [`force_stop`]: Self::force_stop
-    #[deprecated(since = "0.94.0", note = "use `ServerHandle::force_stop` instead")]
+    /// [`stop_forceful`]: Self::stop_forceful
+    #[deprecated(since = "0.94.0", note = "use `ServerHandle::stop_forceful` instead")]
     pub fn stop_forcible(&self) {
-        self.force_stop();
+        self.stop_forceful();
     }
 
     /// Graceful stop server.
@@ -184,16 +185,16 @@ impl<A: Acceptor + Send> Server<A> {
         }
 
         /// Forcefully stops the server immediately, without waiting for in-flight
-        /// requests to finish. For a clean shutdown use [`Self::stop_graceful`]
-        /// instead.
-        pub fn force_stop(&self) {
+        /// requests to finish. The adjective parallels [`Self::stop_graceful`];
+        /// reach for that one when you want a clean shutdown.
+        pub fn stop_forceful(&self) {
             let _ = self.tx_cmd.send(ServerCommand::StopForcible);
         }
 
-        /// Deprecated alias for [`Self::force_stop`].
-        #[deprecated(since = "0.94.0", note = "use `Server::force_stop` instead")]
+        /// Deprecated alias for [`Self::stop_forceful`].
+        #[deprecated(since = "0.94.0", note = "use `Server::stop_forceful` instead")]
         pub fn stop_forcible(&self) {
-            self.force_stop();
+            self.stop_forceful();
         }
 
         /// Graceful stop server.
@@ -537,7 +538,7 @@ mod tests {
         // Give server a moment to start
         tokio::time::sleep(Duration::from_millis(50)).await;
 
-        handle.force_stop();
+        handle.stop_forceful();
 
         let result = timeout(Duration::from_secs(1), server_task).await;
         assert!(
