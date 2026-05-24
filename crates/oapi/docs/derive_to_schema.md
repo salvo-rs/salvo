@@ -10,7 +10,7 @@ not have any effect.
 You can use the Rust's own `#[deprecated]` attribute on any struct, enum or field to mark it as deprecated and it will
 reflect to the generated OpenAPI spec.
 
-`#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is not supported in
+`#[deprecated]` attribute supports adding additional details such as a reason or the `since` version, but this is not supported in
 OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 
@@ -112,7 +112,7 @@ enum Card {
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-   Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+   Value can be any Rust type that normally could be used to serialize to JSON or a custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 * `name = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
   the OpenAPI. E.g _`name = "path::to::Pet"`_. This would make the schema appear in the generated
@@ -146,7 +146,7 @@ enum Card {
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-   Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+   Value can be any Rust type that normally could be used to serialize to JSON or a custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
   will be inlined. **warning:** Don't use this for recursive data types!

@@ -10,7 +10,7 @@ within `parameters(...)` section if description or other than default configurat
 You can use the Rust's own `#[deprecated]` attribute on field to mark it as
 deprecated and it will reflect to the generated OpenAPI spec.
 
-`#[deprecated]` attribute supports adding additional details such as a reason and or since version
+`#[deprecated]` attribute supports adding additional details such as a reason or the `since` version,
 but this is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
 While it is totally okay to declare deprecated with reason
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
@@ -26,14 +26,14 @@ struct Query {
 
 # ToParameters Container Attributes for `#[salvo(parameters(...))]`
 
-The following attributes are available for use in on the container attribute `#[salvo(parameters(...))]` for the struct
+The following attributes are available on the container attribute `#[salvo(parameters(...))]` for the struct
 deriving `ToParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
   __Only__ supported on __unnamed structs__.
 * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
   values are based on _`parameter_in`_ attribute.
-* `default_parameter_in = ...` =  Defines default where the parameters of this field are used with a value from
+* `default_parameter_in = ...` Defines the default location for parameters of this field with a value from
   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
@@ -61,7 +61,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 
-* `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
+* `parameter_in = ...` Defines where parameters of this field are used with a value from
   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 
 * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter within _`object`_ or _`array`_.
@@ -74,7 +74,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-  Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+  Value can be any Rust type that normally could be used to serialize to JSON or a custom type such as _`Object`_.
   _`Object`_ will be rendered as generic OpenAPI object.
 
 * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and

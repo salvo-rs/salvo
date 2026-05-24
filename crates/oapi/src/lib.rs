@@ -70,7 +70,7 @@ extern crate self as salvo_oapi;
 ///
 /// Generated schemas can be referenced or reused in path operations.
 ///
-/// This trait is derivable and can be used with `[#derive]` attribute. For a details of
+/// This trait is derivable and can be used with the `#[derive]` attribute. For details of
 /// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
 /// [derive]: derive.ToSchema.html
@@ -89,7 +89,7 @@ extern crate self as salvo_oapi;
 /// }
 /// ```
 ///
-/// Following manual implementation is equal to above derive one.
+/// The following manual implementation is equivalent to the derived one above.
 /// ```
 /// use salvo_oapi::{Components, ToSchema, RefOr, Schema, SchemaFormat, BasicType, SchemaType, KnownFormat, Object};
 /// # struct Pet {

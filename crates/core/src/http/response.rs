@@ -108,7 +108,7 @@ where
 }
 
 impl Response {
-    /// Creates a new blank `Response`.
+    /// Creates a new blank `Response` with the provided cookie jar.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -156,9 +156,9 @@ impl Response {
 
     /// Modify a header for this response.
     ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be
-    /// replaced. When `overwrite` is set to `false`, The new header is always appended to the
-    /// request, even if the header already exists.
+    /// When `overwrite` is set to `true`, if the header is already present, the value will be
+    /// replaced. When `overwrite` is set to `false`, the new header is always appended to the
+    /// response, even if the header already exists.
     pub fn add_header<N, V>(
         &mut self,
         name: N,
@@ -386,17 +386,18 @@ impl Response {
         }
     }
 
-    /// Get content type..
+    /// Returns the response `Content-Type`.
     ///
     /// # Example
     ///
     /// ```
-    /// use salvo_core::http::{Response, StatusCode};
+    /// use salvo_core::http::Response;
     ///
     /// let mut res = Response::new();
     /// assert_eq!(None, res.content_type());
     /// res.headers_mut().insert("content-type", "text/plain".parse().unwrap());
     /// assert_eq!(Some(mime::TEXT_PLAIN), res.content_type());
+    /// ```
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         self.headers

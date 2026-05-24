@@ -45,7 +45,7 @@ const INDEX_TMPL: &str = r#"
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct ReDoc {
-    /// The title of the html page. The default title is "Scalar".
+    /// The title of the html page. The default title is "ReDoc".
     pub title: Cow<'static, str>,
     /// The version of the html page.
     pub keywords: Option<Cow<'static, str>>,
@@ -80,7 +80,7 @@ impl ReDoc {
         }
     }
 
-    /// Set title of the html page. The default title is "Scalar".
+    /// Set title of the html page. The default title is "ReDoc".
     #[must_use]
     pub fn title(mut self, title: impl Into<Cow<'static, str>>) -> Self {
         self.title = title.into();
@@ -108,7 +108,7 @@ impl ReDoc {
         self
     }
 
-    /// Consusmes the [`ReDoc`] and returns [`Router`] with the [`ReDoc`] as handler.
+    /// Consumes the [`ReDoc`] and returns [`Router`] with the [`ReDoc`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }

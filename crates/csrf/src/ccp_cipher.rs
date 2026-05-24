@@ -17,7 +17,7 @@ pub struct CcpCipher {
 }
 
 impl CcpCipher {
-    /// Given an aead key, return an `CcpCipher` instance.
+    /// Given an AEAD key, returns a `CcpCipher` instance.
     #[inline]
     #[must_use]
     pub fn new(aead_key: [u8; 32]) -> Self {

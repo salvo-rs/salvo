@@ -104,7 +104,7 @@ impl Scalar {
         self
     }
 
-    /// Consusmes the [`Scalar`] and returns [`Router`] with the [`Scalar`] as handler.
+    /// Consumes the [`Scalar`] and returns [`Router`] with the [`Scalar`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }

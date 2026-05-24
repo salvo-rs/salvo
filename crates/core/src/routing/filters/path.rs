@@ -204,7 +204,7 @@ impl WispBuilder for CharsWispBuilder {
                     .parse::<usize>()
                     .map_err(|_| format!("parse range for {name} failed"))?;
                 if min < 1 {
-                    return Err("min_width must greater or equal to 1".to_owned());
+                    return Err("min_width must be greater than or equal to 1".to_owned());
                 }
                 min
             };
@@ -221,7 +221,7 @@ impl WispBuilder for CharsWispBuilder {
                             .parse::<usize>()
                             .map_err(|_| format!("parse range for {name} failed"))?;
                         if max <= 1 {
-                            return Err("min_width must greater than 1".to_owned());
+                            return Err("max_width must be greater than 1".to_owned());
                         }
                         max - 1
                     } else {
@@ -229,7 +229,7 @@ impl WispBuilder for CharsWispBuilder {
                             .parse::<usize>()
                             .map_err(|_| format!("parse range for {name} failed"))?;
                         if max < 1 {
-                            return Err("min_width must greater or equal to 1".to_owned());
+                            return Err("max_width must be greater than or equal to 1".to_owned());
                         }
                         max
                     };
@@ -324,7 +324,7 @@ impl CombWisp {
     /// Create new `CombWisp`.
     ///
     /// # Panics
-    /// If contains unsupported `WispKind``.
+    /// If it contains an unsupported `WispKind`.
     pub fn new(wisps: Vec<WispKind>) -> Result<Self, String> {
         let mut comb_regex = "^".to_owned();
         let mut names = Vec::with_capacity(wisps.len());
@@ -332,7 +332,7 @@ impl CombWisp {
         let mut is_greedy = false;
         let mut wild_start = None;
         let mut wild_regex = None;
-        let any_chars_regex = Regex::new(".*").expect("regex should worked");
+        let any_chars_regex = Regex::new(".*").expect("regex should compile");
         for wisp in wisps {
             match wisp {
                 WispKind::Const(wisp) => {

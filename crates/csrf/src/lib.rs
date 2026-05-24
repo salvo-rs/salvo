@@ -46,7 +46,8 @@ cfg_feature! {
     pub use cookie_store::CookieStore;
 
     /// Helper function to create a `CookieStore`.
-    #[must_use] pub fn cookie_store<>() -> CookieStore {
+    #[must_use]
+    pub fn cookie_store() -> CookieStore {
         CookieStore::new()
     }
 }
@@ -102,15 +103,15 @@ cfg_feature! {
 cfg_feature! {
     #![all(feature = "hmac-cipher", feature = "cookie-store")]
     /// Helper function to create a `Csrf` use `HmacCipher` and `CookieStore`.
-    pub fn hmac_cookie_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, CookieStore> {
-        Csrf::new(HmacCipher::new(aead_key), CookieStore::new(), finder)
+    pub fn hmac_cookie_csrf(hmac_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, CookieStore> {
+        Csrf::new(HmacCipher::new(hmac_key), CookieStore::new(), finder)
     }
 }
 cfg_feature! {
     #![all(feature = "hmac-cipher", feature = "session-store")]
     /// Helper function to create a `Csrf` use `HmacCipher` and `SessionStore`.
-    pub fn hmac_session_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, SessionStore> {
-        Csrf::new(HmacCipher::new(aead_key), SessionStore::new(), finder)
+    pub fn hmac_session_csrf(hmac_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, SessionStore> {
+        Csrf::new(HmacCipher::new(hmac_key), SessionStore::new(), finder)
     }
 }
 
@@ -166,7 +167,7 @@ cfg_feature! {
     }
 }
 
-/// key used to insert auth decoded data to depot.
+/// Key used to store the CSRF token in [`Depot`].
 pub const CSRF_TOKEN_KEY: &str = "salvo.csrf.token";
 
 /// Controls when a CSRF token is rotated.
