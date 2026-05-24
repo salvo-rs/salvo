@@ -57,6 +57,53 @@ This is an official crate, so you can enable it in `Cargo.toml`:
 salvo = { version = "*", features = ["jwt-auth"] }
 ```
 
+## Quick Start
+
+Use `HeaderFinder` for the standard `Authorization: Bearer <token>` header.
+`force_passed(true)` lets the request reach your handler so the handler can
+decide how to respond to authorized, unauthorized, and forbidden states.
+
+```rust
+use salvo::jwt_auth::{ConstDecoder, HeaderFinder, JwtAuthState};
+use salvo::prelude::*;
+use serde::{Deserialize, Serialize};
+
+const SECRET: &[u8] = b"replace-with-a-secret-from-your-config";
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Claims {
+    sub: String,
+    exp: i64,
+}
+
+#[handler]
+async fn me(depot: &mut Depot, res: &mut Response) {
+    match depot.jwt_auth_state() {
+        JwtAuthState::Authorized => {
+            let data = depot.jwt_auth_data::<Claims>().unwrap();
+            res.render(Json(&data.claims));
+        }
+        JwtAuthState::Unauthorized => res.render(StatusError::unauthorized()),
+        JwtAuthState::Forbidden => res.render(StatusError::forbidden()),
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let auth = JwtAuth::<Claims, _>::new(ConstDecoder::from_secret(SECRET))
+        .finders(vec![Box::new(HeaderFinder::new())])
+        .force_passed(true);
+
+    let router = Router::new().hoop(auth).get(me);
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
+
+Avoid query-string tokens in production because URLs are commonly saved in
+browser history, logs, and referrer headers. Prefer Authorization headers or
+secure, `HttpOnly` cookies.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-jwt-auth)
