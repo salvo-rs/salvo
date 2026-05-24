@@ -48,11 +48,24 @@ cfg_feature! {
 
 #[cfg(feature = "server-handle")]
 impl ServerHandle {
-    /// Force stop server.
-    ///
-    /// Call this function will stop server immediately.
-    pub fn stop_forcible(&self) {
+    /// Forcefully stops the server immediately, without waiting for in-flight
+    /// requests to finish. The adjective parallels [`Self::stop_graceful`];
+    /// reach for that one when you want a clean shutdown.
+    pub fn stop_forceful(&self) {
         let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+    }
+
+    /// Deprecated alias for [`Self::stop_forceful`].
+    ///
+    /// The old name reads awkwardly (`forcible` is an adjective for things
+    /// that *can* be forced, not for the act of forcing, and it does not
+    /// parallel the adjective in `stop_graceful`). Use [`stop_forceful`] for
+    /// new code; this shim keeps existing callers compiling.
+    ///
+    /// [`stop_forceful`]: Self::stop_forceful
+    #[deprecated(since = "0.94.0", note = "use `ServerHandle::stop_forceful` instead")]
+    pub fn stop_forcible(&self) {
+        self.stop_forceful();
     }
 
     /// Graceful stop server.
@@ -171,11 +184,17 @@ impl<A: Acceptor + Send> Server<A> {
             }
         }
 
-        /// Force stop server.
-        ///
-        /// Call this function will stop server immediately.
-        pub fn stop_forcible(&self) {
+        /// Forcefully stops the server immediately, without waiting for in-flight
+        /// requests to finish. The adjective parallels [`Self::stop_graceful`];
+        /// reach for that one when you want a clean shutdown.
+        pub fn stop_forceful(&self) {
             let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+        }
+
+        /// Deprecated alias for [`Self::stop_forceful`].
+        #[deprecated(since = "0.94.0", note = "use `Server::stop_forceful` instead")]
+        pub fn stop_forcible(&self) {
+            self.stop_forceful();
         }
 
         /// Graceful stop server.
@@ -519,7 +538,7 @@ mod tests {
         // Give server a moment to start
         tokio::time::sleep(Duration::from_millis(50)).await;
 
-        handle.stop_forcible();
+        handle.stop_forceful();
 
         let result = timeout(Duration::from_secs(1), server_task).await;
         assert!(
