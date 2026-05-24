@@ -249,10 +249,10 @@ impl Handler for EmptyHandler {
     }
 }
 
-/// This is a empty implement for `Handler`.
+/// An empty implementation of `Handler`.
 ///
-/// `EmptyHandler` does nothing except set [`Response`]'s status as [`StatusCode::OK`], it just
-/// marker a router exits.
+/// `EmptyHandler` does nothing except setting the [`Response`] status to [`StatusCode::OK`]; it
+/// just marks the end of a handler chain when no handler is set.
 #[must_use]
 pub fn empty() -> EmptyHandler {
     EmptyHandler
