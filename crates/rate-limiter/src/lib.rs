@@ -18,13 +18,11 @@
 //!
 //! ## Issuers
 //! - [`RemoteIpIssuer`]: Identifies clients by their direct connection IP
-//! - [`ForwardedHeaderIssuer`]: Unconditionally trusts `X-Forwarded-For` / `X-Real-IP`
-//!   (legacy; **use only when the application is unreachable except through a
-//!   header-rewriting proxy**)
-//! - [`TrustedProxyIssuer`]: Same idea as [`ForwardedHeaderIssuer`], but only honours the
-//!   forwarded headers when the request actually arrived from a configured proxy IP.
-//!   **This is the safer choice for any deployment that might also accept direct
-//!   connections.**
+//! - [`ForwardedHeaderIssuer`]: Unconditionally trusts `X-Forwarded-For` / `X-Real-IP` (legacy;
+//!   **use only when the application is unreachable except through a header-rewriting proxy**)
+//! - [`TrustedProxyIssuer`]: Same idea as [`ForwardedHeaderIssuer`], but only honours the forwarded
+//!   headers when the request actually arrived from a configured proxy IP. **This is the safer
+//!   choice for any deployment that might also accept direct connections.**
 //!
 //! ## Guards (Algorithms)
 //! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)
@@ -252,9 +250,9 @@ impl RateIssuer for ForwardedHeaderIssuer {
 ///   Cloudflare, ELB, etc.), and that proxy rewrites the forwarded headers.
 /// - You cannot guarantee that **direct** connections to the application are impossible — for
 ///   example a developer port-forward, a misrouted firewall rule, or a cloud security-group
-///   regression would briefly expose it. With [`ForwardedHeaderIssuer`] those direct connections would let
-///   any client spoof their source IP; with `TrustedProxyIssuer` the spoofed header is silently
-///   ignored.
+///   regression would briefly expose it. With [`ForwardedHeaderIssuer`] those direct connections
+///   would let any client spoof their source IP; with `TrustedProxyIssuer` the spoofed header is
+///   silently ignored.
 ///
 /// # Example
 ///
