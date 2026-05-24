@@ -137,7 +137,7 @@ where
     }
 }
 
-/// Identify user by Request Uri.
+/// Identify cacheable requests by their URI.
 #[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,

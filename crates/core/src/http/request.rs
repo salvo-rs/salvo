@@ -51,7 +51,7 @@ pub fn set_global_secure_max_size(size: usize) {
     GLOBAL_SECURE_MAX_SIZE.store(size, Ordering::Relaxed);
 }
 
-/// Middleware for set the secure maximum size of request body.
+/// Middleware to set the secure maximum size of the request body.
 ///
 /// **Note**: The security maximum value applies to request body reads and form parsing,
 /// including multipart file uploads. Increase the limit if you need to accept large uploads.

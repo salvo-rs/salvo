@@ -8,7 +8,7 @@ use std::fmt::{self, Debug, Formatter};
 /// when all processing for the request is finished.
 ///
 /// # Example
-/// We set `current_user` value in function `set_user` , and then use this value in the following
+/// We set the `current_user` value in function `set_user`, and then use this value in the following
 /// middlewares and handlers.
 ///
 /// ```no_run

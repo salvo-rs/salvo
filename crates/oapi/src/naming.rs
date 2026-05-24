@@ -20,10 +20,9 @@ static GLOBAL_NAMER: LazyLock<RwLock<Box<dyn Namer>>> =
 static NAME_TYPES: LazyLock<RwLock<BTreeMap<String, (TypeId, &'static str)>>> =
     LazyLock::new(Default::default);
 
-/// Set global namer.
+/// Sets the global namer.
 ///
-/// Set global namer, all the types will be named by this namer. You should call this method before
-/// at before you generate OpenAPI schema.
+/// All types will be named by this namer. Call this method before generating the OpenAPI schema.
 ///
 /// # Example
 ///
