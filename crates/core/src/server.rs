@@ -48,11 +48,23 @@ cfg_feature! {
 
 #[cfg(feature = "server-handle")]
 impl ServerHandle {
-    /// Force stop server.
-    ///
-    /// Call this function will stop server immediately.
-    pub fn stop_forcible(&self) {
+    /// Forcefully stops the server immediately, without waiting for in-flight
+    /// requests to finish. For a clean shutdown use [`Self::stop_graceful`]
+    /// instead.
+    pub fn force_stop(&self) {
         let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+    }
+
+    /// Deprecated alias for [`Self::force_stop`].
+    ///
+    /// The old name reads awkwardly (`forcible` is normally an adjective and
+    /// does not parallel the adjective in `stop_graceful`). Use [`force_stop`]
+    /// for new code; this shim keeps existing callers compiling.
+    ///
+    /// [`force_stop`]: Self::force_stop
+    #[deprecated(since = "0.94.0", note = "use `ServerHandle::force_stop` instead")]
+    pub fn stop_forcible(&self) {
+        self.force_stop();
     }
 
     /// Graceful stop server.
@@ -171,11 +183,17 @@ impl<A: Acceptor + Send> Server<A> {
             }
         }
 
-        /// Force stop server.
-        ///
-        /// Call this function will stop server immediately.
-        pub fn stop_forcible(&self) {
+        /// Forcefully stops the server immediately, without waiting for in-flight
+        /// requests to finish. For a clean shutdown use [`Self::stop_graceful`]
+        /// instead.
+        pub fn force_stop(&self) {
             let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+        }
+
+        /// Deprecated alias for [`Self::force_stop`].
+        #[deprecated(since = "0.94.0", note = "use `Server::force_stop` instead")]
+        pub fn stop_forcible(&self) {
+            self.force_stop();
         }
 
         /// Graceful stop server.
@@ -519,7 +537,7 @@ mod tests {
         // Give server a moment to start
         tokio::time::sleep(Duration::from_millis(50)).await;
 
-        handle.stop_forcible();
+        handle.force_stop();
 
         let result = timeout(Duration::from_secs(1), server_task).await;
         assert!(

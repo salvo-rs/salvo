@@ -20,6 +20,27 @@ use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
 
 /// Represents an HTTP response.
+///
+/// # Terminal responses ("stamped")
+///
+/// Several parts of Salvo (notably [`FlowCtrl::call_next`] and the built-in
+/// catcher logic) treat a response as **terminal** — historically called
+/// *stamped* in this codebase — once a status code has been set that signals
+/// the request is finished:
+///
+/// - any 4xx client error,
+/// - any 5xx server error, or
+/// - any 3xx redirection.
+///
+/// When that happens, the remaining handlers in the chain are skipped so a
+/// downstream handler cannot accidentally overwrite the response. [`is_stamped`]
+/// is the predicate used to test this condition; the name is kept for backwards
+/// compatibility, but read it as "is this response in a terminal state?".
+/// Successful (2xx), informational (1xx), and unset status codes are *not*
+/// considered terminal.
+///
+/// [`FlowCtrl::call_next`]: crate::routing::FlowCtrl::call_next
+/// [`is_stamped`]: Response::is_stamped
 #[non_exhaustive]
 pub struct Response {
     /// The HTTP status code.
@@ -202,8 +223,21 @@ impl Response {
         self.replace_body(ResBody::None)
     }
 
-    /// If returns `true`, it means this response is ready for write back and the reset handlers
-    /// should be skipped.
+    /// Returns `true` when this response is in a *terminal* state — i.e. it
+    /// already has a status code that signals the request is finished, so the
+    /// remaining handlers in the chain should be skipped.
+    ///
+    /// A response is considered terminal when its status code is set to any of:
+    ///
+    /// - a 4xx client error,
+    /// - a 5xx server error, or
+    /// - a 3xx redirection.
+    ///
+    /// Successful (2xx), informational (1xx), and unset status codes return
+    /// `false`. The method name uses "stamped" — internal terminology for
+    /// "this response has had its outcome stamped on it" — and is kept for
+    /// backwards compatibility. See the [type-level docs](Response#terminal-responses-stamped)
+    /// for more.
     #[inline]
     pub fn is_stamped(&self) -> bool {
         self.status_code.is_some_and(|code| {
