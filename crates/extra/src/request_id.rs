@@ -32,13 +32,6 @@ pub const REQUEST_ID_KEY: &str = "::salvo::request_id";
 pub trait RequestIdDepotExt {
     /// Get a reference to the request id from the depot, if one has been set.
     fn request_id(&self) -> Option<&str>;
-
-    /// Deprecated alias for [`RequestIdDepotExt::request_id`]; the original name was
-    /// erroneously copied from the CSRF module.
-    #[deprecated(since = "0.93.0", note = "use `request_id` instead")]
-    fn csrf_token(&self) -> Option<&str> {
-        self.request_id()
-    }
 }
 
 impl RequestIdDepotExt for Depot {
