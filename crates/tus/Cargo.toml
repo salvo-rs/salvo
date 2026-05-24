@@ -37,3 +37,6 @@ salvo_core    = { workspace = true, features = ["test"] }
 tempfile      = { workspace = true }
 tokio         = { workspace = true, features = ["rt", "macros", "time"] }
 tracing-test  = { workspace = true }
+
+[lints]
+workspace = true

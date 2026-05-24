@@ -82,6 +82,6 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.send_file(storage.path, req.headers()).await;
 }
 
-pub fn get_handler() -> Router {
+pub(crate) fn get_handler() -> Router {
     Router::with_path("{id}").get(get)
 }

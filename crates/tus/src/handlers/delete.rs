@@ -72,6 +72,6 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 }
 
-pub fn delete_handler() -> Router {
+pub(crate) fn delete_handler() -> Router {
     Router::with_path("{id}").delete(delete)
 }

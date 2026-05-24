@@ -1,23 +1,35 @@
 use salvo_core::async_trait;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
+/// In-memory upload locker.
 pub mod memory_locker;
 
 use crate::error::TusResult;
 
+/// Lock provider used to serialize access to an upload ID.
 #[async_trait]
 pub trait Locker: Send + Sync + 'static {
+    /// Acquires an exclusive lock for `id`.
     async fn lock(&self, id: &str) -> TusResult<LockGuard>;
+    /// Acquires a shared read lock for `id`.
     async fn read_lock(&self, id: &str) -> TusResult<LockGuard> {
         self.lock(id).await
     }
+    /// Acquires an exclusive write lock for `id`.
     async fn write_lock(&self, id: &str) -> TusResult<LockGuard> {
         self.lock(id).await
     }
 }
 
+/// RAII guard that keeps an upload lock held until it is dropped.
 pub struct LockGuard {
     _guard: LockGuardInner,
+}
+
+impl std::fmt::Debug for LockGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LockGuard").finish_non_exhaustive()
+    }
 }
 
 #[allow(dead_code)]
