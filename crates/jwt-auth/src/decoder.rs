@@ -171,6 +171,17 @@ impl ConstDecoder {
     }
 }
 
+impl JwtAuthDecoder for ConstDecoder {
+    type Error = JwtError;
+
+    async fn decode<C>(&self, token: &str, _depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
+    where
+        C: for<'de> Deserialize<'de> + Clone,
+    {
+        decode::<C>(token, &self.decoding_key, &self.validation)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -180,16 +191,5 @@ mod tests {
         let decoder = ConstDecoder::from_rsa_raw_components(&[1, 2, 3], &[1, 0, 1]);
 
         assert_eq!(decoder.validation.algorithms, [Algorithm::RS256]);
-    }
-}
-
-impl JwtAuthDecoder for ConstDecoder {
-    type Error = JwtError;
-
-    async fn decode<C>(&self, token: &str, _depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
-    where
-        C: for<'de> Deserialize<'de> + Clone,
-    {
-        decode::<C>(token, &self.decoding_key, &self.validation)
     }
 }

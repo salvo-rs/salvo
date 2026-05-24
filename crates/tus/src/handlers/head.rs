@@ -104,17 +104,13 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     if let Some(metadata) = upload_info.metadata {
-        match HeaderValue::from_str(&Metadata::stringify(metadata)) {
-            Ok(v) => {
-                headers.insert("Upload-Metadata", v);
-            }
-            Err(_) => {
-                res.status_code = Some(
-                    TusError::Internal("Stored Upload-Metadata is not a valid header".into())
-                        .status(),
-                );
-                return;
-            }
+        if let Ok(v) = HeaderValue::from_str(&Metadata::stringify(metadata)) {
+            headers.insert("Upload-Metadata", v);
+        } else {
+            res.status_code = Some(
+                TusError::Internal("Stored Upload-Metadata is not a valid header".into()).status(),
+            );
+            return;
         }
     }
 

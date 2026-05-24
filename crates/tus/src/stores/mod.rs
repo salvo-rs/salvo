@@ -86,6 +86,7 @@ pub struct UploadInfo {
 
 impl UploadInfo {
     /// Returns `true` when the upload length has not been declared yet.
+    #[must_use]
     pub fn is_size_deferred(&self) -> bool {
         self.size.is_none()
     }
@@ -110,19 +111,21 @@ pub enum Extension {
 
 impl Extension {
     /// Returns the tus header token for this extension.
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            Extension::Creation => "creation",
-            Extension::Expiration => "expiration",
-            Extension::CreationWithUpload => "creation-with-upload",
-            Extension::CreationDeferLength => "creation-defer-length",
-            Extension::Concatenation => "concatenation",
-            Extension::Termination => "termination",
+            Self::Creation => "creation",
+            Self::Expiration => "expiration",
+            Self::CreationWithUpload => "creation-with-upload",
+            Self::CreationDeferLength => "creation-defer-length",
+            Self::Concatenation => "concatenation",
+            Self::Termination => "termination",
         }
     }
 
     /// Converts a set of extensions into a `Tus-Extension` header value.
-    pub fn to_header_value(extensions: &HashSet<Extension>) -> Option<HeaderValue> {
+    #[must_use]
+    pub fn to_header_value(extensions: &HashSet<Self>) -> Option<HeaderValue> {
         if extensions.is_empty() {
             return None;
         }
@@ -307,7 +310,7 @@ mod tests {
             creation_date: "2024-01-01T00:00:00Z".to_owned(),
         };
 
-        let cloned = info.clone();
+        let cloned = info;
         assert_eq!(cloned.id, "test-id");
         assert_eq!(cloned.size, Some(2048));
         assert_eq!(cloned.offset, Some(512));
@@ -325,7 +328,7 @@ mod tests {
             bucket: Some("my-bucket".to_owned()),
         };
 
-        let cloned = info.clone();
+        let cloned = info;
         assert_eq!(cloned.type_name, "s3");
         assert_eq!(cloned.path, "uploads/file.bin");
         assert_eq!(cloned.bucket, Some("my-bucket".to_owned()));
@@ -357,7 +360,7 @@ mod tests {
     #[test]
     fn test_extension_debug() {
         let ext = Extension::Creation;
-        let debug_str = format!("{:?}", ext);
+        let debug_str = format!("{ext:?}");
         assert_eq!(debug_str, "Creation");
     }
 
@@ -368,7 +371,7 @@ mod tests {
             path: "/uploads/test.bin".to_owned(),
             bucket: None,
         };
-        let debug_str = format!("{:?}", info);
+        let debug_str = format!("{info:?}");
         assert!(debug_str.contains("disk"));
         assert!(debug_str.contains("/uploads/test.bin"));
     }
@@ -383,7 +386,7 @@ mod tests {
             storage: None,
             creation_date: "2024-01-01".to_owned(),
         };
-        let debug_str = format!("{:?}", info);
+        let debug_str = format!("{info:?}");
         assert!(debug_str.contains("abc123"));
         assert!(debug_str.contains("1024"));
         assert!(debug_str.contains("512"));

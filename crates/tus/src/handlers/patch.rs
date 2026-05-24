@@ -70,7 +70,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         on_incoming_request(req, id.clone()).await;
     }
 
-    let max_file_size = opts.get_configured_max_size(req, Some(id.to_owned())).await;
+    let max_file_size = opts.get_configured_max_size(req, Some(id.clone())).await;
     let _lock = match opts
         .acquire_write_lock(req, &id, CancellationContext::new())
         .await
@@ -133,19 +133,18 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     if let Some(raw_length) = req.headers().get(H_UPLOAD_LENGTH) {
-        let size = match raw_length.to_str() {
-            Ok(value) => match parse_u64(Some(value), H_UPLOAD_LENGTH) {
+        let size = if let Ok(value) = raw_length.to_str() {
+            match parse_u64(Some(value), H_UPLOAD_LENGTH) {
                 Ok(size) => size,
                 Err(e) => {
                     res.status_code = Some(TusError::Protocol(e).status());
                     return;
                 }
-            },
-            Err(_) => {
-                res.status_code =
-                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
-                return;
             }
+        } else {
+            res.status_code =
+                Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+            return;
         };
 
         if !store.has_extension(Extension::CreationDeferLength) {
@@ -176,20 +175,21 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     let content_length = match req.headers().get(H_CONTENT_LENGTH) {
-        Some(value) => match value.to_str() {
-            Ok(v) => match parse_u64(Some(v), H_CONTENT_LENGTH) {
-                Ok(size) => Some(size),
-                Err(e) => {
-                    res.status_code = Some(TusError::Protocol(e).status());
-                    return;
+        Some(value) => {
+            if let Ok(v) = value.to_str() {
+                match parse_u64(Some(v), H_CONTENT_LENGTH) {
+                    Ok(size) => Some(size),
+                    Err(e) => {
+                        res.status_code = Some(TusError::Protocol(e).status());
+                        return;
+                    }
                 }
-            },
-            Err(_) => {
+            } else {
                 res.status_code =
                     Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
                 return;
             }
-        },
+        }
         None => None,
     };
 

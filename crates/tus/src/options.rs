@@ -369,7 +369,7 @@ impl TusOptions {
 
 impl Default for TusOptions {
     fn default() -> Self {
-        TusOptions {
+        Self {
             path: "/tus-files".to_owned(),
             max_size: Some(MaxSize::Fixed(2 * 1024 * 1024 * 1024)), // Default max size 2GiB
             relative_location: true,
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn test_max_size_clone() {
         let max_size1 = MaxSize::Fixed(2048);
-        let max_size2 = max_size1.clone();
+        let max_size2 = max_size1;
         match max_size2 {
             MaxSize::Fixed(size) => assert_eq!(size, 2048),
             _ => panic!("Expected Fixed variant"),
@@ -593,7 +593,7 @@ mod tests {
         let patch = UploadPatch {
             metadata: Some(Metadata::default()),
         };
-        let cloned = patch.clone();
+        let cloned = patch;
         assert!(cloned.metadata.is_some());
     }
 
@@ -604,7 +604,7 @@ mod tests {
             headers: Some(HeaderMap::new()),
             body: Some(vec![1, 2, 3]),
         };
-        let cloned = patch.clone();
+        let cloned = patch;
         assert_eq!(cloned.status_code, Some(StatusCode::OK));
         assert!(cloned.headers.is_some());
         assert_eq!(cloned.body, Some(vec![1, 2, 3]));
@@ -613,14 +613,14 @@ mod tests {
     #[test]
     fn test_upload_patch_debug() {
         let patch = UploadPatch::default();
-        let debug = format!("{:?}", patch);
+        let debug = format!("{patch:?}");
         assert!(debug.contains("UploadPatch"));
     }
 
     #[test]
     fn test_upload_finish_patch_debug() {
         let patch = UploadFinishPatch::default();
-        let debug = format!("{:?}", patch);
+        let debug = format!("{patch:?}");
         assert!(debug.contains("UploadFinishPatch"));
     }
 

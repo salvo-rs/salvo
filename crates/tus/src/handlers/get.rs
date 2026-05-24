@@ -59,13 +59,10 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             }
         };
 
-        let storage = match info.storage {
-            Some(storage) => storage,
-            None => {
-                res.status_code =
-                    Some(TusError::Internal("upload storage info missing".into()).status());
-                return;
-            }
+        let Some(storage) = info.storage else {
+            res.status_code =
+                Some(TusError::Internal("upload storage info missing".into()).status());
+            return;
         };
 
         if storage.type_name != "file" {

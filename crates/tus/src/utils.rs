@@ -20,13 +20,14 @@ pub fn parse_u64(v: Option<&str>, name: &'static str) -> Result<u64, ProtocolErr
 }
 
 /// Normalizes a route path to start with `/` and omit trailing slashes.
+#[must_use]
 pub fn normalize_path(p: &str) -> String {
     if p.is_empty() {
         return "/".to_owned();
     }
     let mut out = p.to_owned();
     if !out.starts_with('/') {
-        out = format!("/{}", out);
+        out = format!("/{out}");
     }
     if out.len() > 1 {
         out = out.trim_end_matches('/').to_owned();
@@ -37,6 +38,7 @@ pub fn normalize_path(p: &str) -> String {
 /// Validate that an upload ID is safe to use in file paths.
 /// Returns true if the ID contains only safe characters (alphanumeric, dash, underscore).
 /// This prevents path traversal attacks via malicious upload IDs.
+#[must_use]
 pub fn is_safe_upload_id(id: &str) -> bool {
     if id.is_empty() {
         return false;
@@ -48,6 +50,7 @@ pub fn is_safe_upload_id(id: &str) -> bool {
 
 /// Sanitize a path component to remove potentially dangerous sequences.
 /// Returns None if the path component is unsafe.
+#[must_use]
 pub fn sanitize_path_component(component: &str) -> Option<&str> {
     let component = component.trim();
 
@@ -80,6 +83,7 @@ pub fn sanitize_path_component(component: &str) -> Option<&str> {
 }
 
 /// Returns `true` when `value` matches the expected header value.
+#[must_use]
 pub fn validate_header(name: &'static str, value: Option<&HeaderValue>) -> bool {
     match value {
         Some(v) => {

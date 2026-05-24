@@ -162,16 +162,19 @@ pub struct CancellationSignal {
 
 impl CancellationSignal {
     /// Returns the current cancellation reason, if cancellation has happened.
+    #[must_use]
     pub fn reason(&self) -> Option<CancellationReason> {
         *self.receiver.borrow()
     }
 
     /// Returns `true` when this signal has been cancelled or aborted.
+    #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.reason().is_some()
     }
 
     /// Returns `true` when the signal was cancelled because the request aborted.
+    #[must_use]
     pub fn is_aborted(&self) -> bool {
         matches!(self.reason(), Some(CancellationReason::Abort))
     }
@@ -199,6 +202,7 @@ pub struct CancellationContext {
 
 impl CancellationContext {
     /// Creates a new cancellation context.
+    #[must_use]
     pub fn new() -> Self {
         let (sender, receiver) = watch::channel(None);
         Self {
@@ -258,6 +262,7 @@ impl Default for Tus {
 // Tus service Configuration
 impl Tus {
     /// Creates a tus service with default options and a [`DiskStore`].
+    #[must_use]
     pub fn new() -> Self {
         Self {
             options: TusOptions::default(),
@@ -266,30 +271,35 @@ impl Tus {
     }
 
     /// Sets the route path where tus endpoints are mounted.
+    #[must_use]
     pub fn path(mut self, path: impl Into<String>) -> Self {
         self.options.path = path.into();
         self
     }
 
     /// Sets the maximum upload size policy.
+    #[must_use]
     pub fn max_size(mut self, max_size: MaxSize) -> Self {
         self.options.max_size = Some(max_size);
         self
     }
 
     /// Controls whether generated `Location` headers use relative URLs.
+    #[must_use]
     pub fn relative_location(mut self, yes: bool) -> Self {
         self.options.relative_location = yes;
         self
     }
 
     /// Sets the trusted origin used for absolute `Location` headers.
+    #[must_use]
     pub fn canonical_origin(mut self, origin: impl Into<String>) -> Self {
         self.options.canonical_origin = Some(origin.into());
         self
     }
 
     /// Sets the allowed CORS origins for tus responses.
+    #[must_use]
     pub fn allowed_origins<I, S>(mut self, origins: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -300,6 +310,7 @@ impl Tus {
     }
 
     /// Adds extra request headers accepted by CORS preflight responses.
+    #[must_use]
     pub fn allowed_headers<I, S>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -310,6 +321,7 @@ impl Tus {
     }
 
     /// Adds extra response headers exposed to browsers by CORS.
+    #[must_use]
     pub fn exposed_headers<I, S>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -320,12 +332,14 @@ impl Tus {
     }
 
     /// Controls whether CORS responses allow credentials.
+    #[must_use]
     pub fn allow_credentials(mut self, yes: bool) -> Self {
         self.options.allowed_credentials = yes;
         self
     }
 
     /// Sets the [`DataStore`] used to persist uploads.
+    #[must_use]
     pub fn store(mut self, store: impl DataStore) -> Self {
         self.store = Arc::new(store);
         self
@@ -345,11 +359,13 @@ impl Tus {
     ///
     /// let tus = Tus::new().storage_root("/var/uploads/tus");
     /// ```
+    #[must_use]
     pub fn storage_root(self, root: impl Into<PathBuf>) -> Self {
         self.store(DiskStore::new().disk_root(root))
     }
 
     /// Sets the [`Locker`] used to serialize concurrent writes to the same upload.
+    #[must_use]
     pub fn locker(mut self, locker: impl Locker) -> Self {
         self.options.locker = Arc::new(locker);
         self
@@ -369,9 +385,7 @@ impl Tus {
         let state = Arc::new(self);
 
         Router::with_path(base_path)
-            .hoop(TusStateHoop {
-                state: state.clone(),
-            })
+            .hoop(TusStateHoop { state })
             .push(handlers::options_handler())
             .push(handlers::post_handler())
             .push(handlers::head_handler())
@@ -384,6 +398,7 @@ impl Tus {
 // Hooks
 impl Tus {
     /// Sets the function used to derive the upload ID from an incoming `POST`.
+    #[must_use]
     pub fn upload_id_naming_function<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, Option<Metadata>) -> Fut + Send + Sync + 'static,
@@ -395,6 +410,7 @@ impl Tus {
 
     /// Sets the function that generates the upload location URL returned in the
     /// `Location` header.
+    #[must_use]
     pub fn generate_url_function<F>(mut self, f: F) -> Self
     where
         F: Fn(&Request, GenerateUrlCtx) -> Result<String, TusError> + Send + Sync + 'static,
@@ -407,6 +423,7 @@ impl Tus {
 // Lifecycle
 impl Tus {
     /// Sets an async hook that runs at the start of every tus request.
+    #[must_use]
     pub fn on_incoming_request<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, String) -> Fut + Send + Sync + 'static,
@@ -417,6 +434,7 @@ impl Tus {
     }
 
     /// Sets a synchronous hook that runs at the start of every tus request.
+    #[must_use]
     pub fn on_incoming_request_sync<F>(mut self, f: F) -> Self
     where
         F: Fn(&Request, String) + Send + Sync + 'static,
@@ -429,6 +447,7 @@ impl Tus {
     }
 
     /// Sets the hook invoked when a new upload is being created.
+    #[must_use]
     pub fn on_upload_create<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
@@ -439,6 +458,7 @@ impl Tus {
     }
 
     /// Sets the hook invoked when an upload completes.
+    #[must_use]
     pub fn on_upload_finish<F, Fut>(mut self, f: F) -> Self
     where
         F: Fn(&Request, UploadInfo) -> Fut + Send + Sync + 'static,
@@ -611,7 +631,7 @@ mod tests {
     #[test]
     fn test_cancellation_context_debug() {
         let ctx = CancellationContext::new();
-        let debug = format!("{:?}", ctx);
+        let debug = format!("{ctx:?}");
         assert!(debug.contains("CancellationContext"));
     }
 
@@ -726,7 +746,7 @@ mod tests {
     #[test]
     fn test_tus_clone() {
         let tus = Tus::new().path("/test");
-        let cloned = tus.clone();
+        let cloned = tus;
         assert_eq!(cloned.options.path, "/test");
     }
 
@@ -812,7 +832,7 @@ mod tests {
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let called = Arc::new(AtomicBool::new(false));
-        let called_clone = called.clone();
+        let called_clone = called;
 
         let tus = Tus::new().on_incoming_request_sync(move |_req, _id| {
             called_clone.store(true, Ordering::SeqCst);

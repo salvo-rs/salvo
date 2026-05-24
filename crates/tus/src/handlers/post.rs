@@ -55,14 +55,11 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    if let Some(value) = upload_defer_length {
-        match value.to_str() {
-            Ok("1") => {}
-            _ => {
-                res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
-                return;
-            }
-        }
+    if let Some(value) = upload_defer_length
+        && !matches!(value.to_str(), Ok("1"))
+    {
+        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+        return;
     }
 
     // Must provide either Upload-Length or Upload-Defer-Length, but not both or neither
@@ -120,25 +117,26 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     let upload_length_value = match upload_length {
-        Some(value) => match value.to_str() {
-            Ok(v) => match parse_u64(Some(v), H_UPLOAD_LENGTH) {
-                Ok(size) => Some(size),
-                Err(e) => {
-                    res.status_code = Some(TusError::Protocol(e).status());
-                    return;
+        Some(value) => {
+            if let Ok(v) = value.to_str() {
+                match parse_u64(Some(v), H_UPLOAD_LENGTH) {
+                    Ok(size) => Some(size),
+                    Err(e) => {
+                        res.status_code = Some(TusError::Protocol(e).status());
+                        return;
+                    }
                 }
-            },
-            Err(_) => {
+            } else {
                 res.status_code =
                     Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
                 return;
             }
-        },
+        }
         None => None,
     };
 
     let max_file_size = opts
-        .get_configured_max_size(req, Some(upload_id.to_owned()))
+        .get_configured_max_size(req, Some(upload_id.clone()))
         .await;
 
     if let Some(size) = upload_length_value
@@ -197,22 +195,23 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
         if creation_with_upload {
             let content_length = match req.headers().get(H_CONTENT_LENGTH) {
-                Some(value) => match value.to_str() {
-                    Ok(v) => match parse_u64(Some(v), H_CONTENT_LENGTH) {
-                        Ok(size) => Some(size),
-                        Err(e) => {
-                            res.status_code = Some(TusError::Protocol(e).status());
-                            return;
+                Some(value) => {
+                    if let Ok(v) = value.to_str() {
+                        match parse_u64(Some(v), H_CONTENT_LENGTH) {
+                            Ok(size) => Some(size),
+                            Err(e) => {
+                                res.status_code = Some(TusError::Protocol(e).status());
+                                return;
+                            }
                         }
-                    },
-                    Err(_) => {
+                    } else {
                         res.status_code = Some(
                             TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH))
                                 .status(),
                         );
                         return;
                     }
-                },
+                }
                 None => None,
             };
 
@@ -253,12 +252,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             || creation_with_upload && upload.size.is_some_and(|x| x == upload.offset.unwrap_or(0))
     };
 
-    let url = match opts.generate_upload_url(req, &upload_id) {
-        Ok(url) => url,
-        Err(_) => {
-            res.status_code = Some(TusError::GenerateUploadURLError.status());
-            return;
-        }
+    let Ok(url) = opts.generate_upload_url(req, &upload_id) else {
+        res.status_code = Some(TusError::GenerateUploadURLError.status());
+        return;
     };
 
     tracing::info!("Generated file url: {}", &url);
@@ -322,17 +318,14 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let should_set_location = matches!(res.status_code, Some(StatusCode::CREATED))
         || res.status_code.is_some_and(|s| s.is_redirection());
     if should_set_location {
-        match HeaderValue::from_str(&url) {
-            Ok(v) => {
-                res.headers.insert("Location", v);
-            }
-            Err(_) => {
-                res.status_code = Some(
-                    TusError::Internal("Generated upload URL is not a valid header value".into())
-                        .status(),
-                );
-                return;
-            }
+        if let Ok(v) = HeaderValue::from_str(&url) {
+            res.headers.insert("Location", v);
+        } else {
+            res.status_code = Some(
+                TusError::Internal("Generated upload URL is not a valid header value".into())
+                    .status(),
+            );
+            return;
         }
     }
 
