@@ -132,6 +132,6 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 }
 
-pub fn head_handler() -> Router {
+pub(crate) fn head_handler() -> Router {
     Router::with_path("{id}").head(head)
 }

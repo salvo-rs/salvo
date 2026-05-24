@@ -7,7 +7,8 @@ use tokio::sync::{Mutex, RwLock};
 use crate::error::TusResult;
 use crate::lockers::{LockGuard, Locker};
 
-#[derive(Clone)]
+/// In-memory [`Locker`] implementation backed by Tokio locks.
+#[derive(Clone, Debug)]
 pub struct MemoryLocker {
     inner: Arc<Mutex<HashMap<String, Arc<RwLock<()>>>>>,
 }
@@ -19,6 +20,7 @@ impl Default for MemoryLocker {
 }
 
 impl MemoryLocker {
+    /// Creates an empty in-memory locker.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(HashMap::new())),

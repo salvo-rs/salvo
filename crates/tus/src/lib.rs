@@ -87,10 +87,15 @@ use crate::utils::normalize_path;
 
 mod handlers;
 
+/// Error types returned by the tus implementation.
 pub mod error;
+/// Lock abstractions used to serialize upload access.
 pub mod lockers;
+/// Configuration types and hooks for [`Tus`].
 pub mod options;
+/// Storage abstractions and built-in storage backends.
 pub mod stores;
+/// Utility helpers for tus headers, paths, and upload IDs.
 pub mod utils;
 
 pub use error::{ProtocolError, TusError, TusResult};
@@ -100,52 +105,78 @@ pub use lockers::{LockGuard, Locker};
 use salvo_core::{Depot, Request, Router, handler};
 pub use stores::{ByteStream, DataStore, DiskStore, Extension, StoreInfo, UploadInfo};
 
+/// Supported tus protocol version.
 pub const TUS_VERSION: &str = "1.0.0";
+/// `Tus-Resumable` header name.
 pub const H_TUS_RESUMABLE: &str = "tus-resumable";
+/// `Tus-Version` header name.
 pub const H_TUS_VERSION: &str = "tus-version";
+/// `Tus-Extension` header name.
 pub const H_TUS_EXTENSION: &str = "tus-extension";
+/// `Tus-Max-Size` header name.
 pub const H_TUS_MAX_SIZE: &str = "tus-max-size";
 
+/// `Access-Control-Allow-Methods` header name.
 pub const H_ACCESS_CONTROL_ALLOW_METHODS: &str = "access-control-allow-methods";
+/// `Access-Control-Allow-Headers` header name.
 pub const H_ACCESS_CONTROL_ALLOW_HEADERS: &str = "access-control-allow-headers";
+/// `Access-Control-Request-Headers` header name.
 pub const H_ACCESS_CONTROL_REQUEST_HEADERS: &str = "access-control-request-headers";
+/// `Access-Control-Max-Age` header name.
 pub const H_ACCESS_CONTROL_MAX_AGE: &str = "access-control-max-age";
 
+/// `Upload-Length` header name.
 pub const H_UPLOAD_LENGTH: &str = "upload-length";
+/// `Upload-Offset` header name.
 pub const H_UPLOAD_OFFSET: &str = "upload-offset";
+/// `Upload-Metadata` header name.
 pub const H_UPLOAD_METADATA: &str = "upload-metadata";
+/// `Upload-Concat` header name.
 pub const H_UPLOAD_CONCAT: &str = "upload-concat";
+/// `Upload-Defer-Length` header name.
 pub const H_UPLOAD_DEFER_LENGTH: &str = "upload-defer-length";
+/// `Upload-Expires` header name.
 pub const H_UPLOAD_EXPIRES: &str = "upload-expires";
 
+/// `Content-Type` header name.
 pub const H_CONTENT_TYPE: &str = "content-type";
+/// `Content-Length` header name.
 pub const H_CONTENT_LENGTH: &str = "content-length";
+/// Content type for tus `PATCH` request bodies.
 pub const CT_OFFSET_OCTET_STREAM: &str = "application/offset+octet-stream";
 
+/// Reason a tus request was interrupted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CancellationReason {
+    /// The request was aborted by the client or transport.
     Abort,
+    /// The request was cancelled by local control flow.
     Cancel,
 }
 
+/// Receiver side of a cancellation notification.
 #[derive(Clone, Debug)]
 pub struct CancellationSignal {
     receiver: watch::Receiver<Option<CancellationReason>>,
 }
 
 impl CancellationSignal {
+    /// Returns the current cancellation reason, if cancellation has happened.
     pub fn reason(&self) -> Option<CancellationReason> {
         *self.receiver.borrow()
     }
 
+    /// Returns `true` when this signal has been cancelled or aborted.
     pub fn is_cancelled(&self) -> bool {
         self.reason().is_some()
     }
 
+    /// Returns `true` when the signal was cancelled because the request aborted.
     pub fn is_aborted(&self) -> bool {
         matches!(self.reason(), Some(CancellationReason::Abort))
     }
 
+    /// Waits until cancellation is observed and returns its reason.
     pub async fn cancelled(&mut self) -> CancellationReason {
         loop {
             if let Some(reason) = *self.receiver.borrow() {
@@ -158,13 +189,16 @@ impl CancellationSignal {
     }
 }
 
+/// Shared cancellation state for a tus request.
 #[derive(Clone, Debug)]
 pub struct CancellationContext {
+    /// Signal observed by async operations that should stop when the request is cancelled.
     pub signal: CancellationSignal,
     sender: watch::Sender<Option<CancellationReason>>,
 }
 
 impl CancellationContext {
+    /// Creates a new cancellation context.
     pub fn new() -> Self {
         let (sender, receiver) = watch::channel(None);
         Self {
@@ -173,10 +207,12 @@ impl CancellationContext {
         }
     }
 
+    /// Marks the request as aborted.
     pub fn abort(&self) {
         let _ = self.sender.send(Some(CancellationReason::Abort));
     }
 
+    /// Marks the request as cancelled.
     pub fn cancel(&self) {
         let _ = self.sender.send(Some(CancellationReason::Cancel));
     }
@@ -200,10 +236,18 @@ impl TusStateHoop {
     }
 }
 
+/// Builder and router factory for tus resumable upload endpoints.
 #[derive(Clone)]
 pub struct Tus {
     options: TusOptions,
     store: Arc<dyn DataStore>,
+}
+impl std::fmt::Debug for Tus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tus")
+            .field("options", &self.options)
+            .finish_non_exhaustive()
+    }
 }
 impl Default for Tus {
     fn default() -> Self {
@@ -213,6 +257,7 @@ impl Default for Tus {
 
 // Tus service Configuration
 impl Tus {
+    /// Creates a tus service with default options and a [`DiskStore`].
     pub fn new() -> Self {
         Self {
             options: TusOptions::default(),
@@ -220,26 +265,31 @@ impl Tus {
         }
     }
 
+    /// Sets the route path where tus endpoints are mounted.
     pub fn path(mut self, path: impl Into<String>) -> Self {
         self.options.path = path.into();
         self
     }
 
+    /// Sets the maximum upload size policy.
     pub fn max_size(mut self, max_size: MaxSize) -> Self {
         self.options.max_size = Some(max_size);
         self
     }
 
+    /// Controls whether generated `Location` headers use relative URLs.
     pub fn relative_location(mut self, yes: bool) -> Self {
         self.options.relative_location = yes;
         self
     }
 
+    /// Sets the trusted origin used for absolute `Location` headers.
     pub fn canonical_origin(mut self, origin: impl Into<String>) -> Self {
         self.options.canonical_origin = Some(origin.into());
         self
     }
 
+    /// Sets the allowed CORS origins for tus responses.
     pub fn allowed_origins<I, S>(mut self, origins: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -249,6 +299,7 @@ impl Tus {
         self
     }
 
+    /// Adds extra request headers accepted by CORS preflight responses.
     pub fn allowed_headers<I, S>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -258,6 +309,7 @@ impl Tus {
         self
     }
 
+    /// Adds extra response headers exposed to browsers by CORS.
     pub fn exposed_headers<I, S>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -267,6 +319,7 @@ impl Tus {
         self
     }
 
+    /// Controls whether CORS responses allow credentials.
     pub fn allow_credentials(mut self, yes: bool) -> Self {
         self.options.allowed_credentials = yes;
         self
@@ -302,6 +355,7 @@ impl Tus {
         self
     }
 
+    /// Builds the Salvo router that serves the configured tus endpoints.
     pub fn into_router(self) -> Router {
         let base_path = normalize_path(&self.options.path);
         if !self.options.relative_location && self.options.canonical_origin.is_none() {

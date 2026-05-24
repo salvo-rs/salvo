@@ -349,6 +349,6 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 }
 
-pub fn post_handler() -> Router {
+pub(crate) fn post_handler() -> Router {
     Router::new().post(create)
 }

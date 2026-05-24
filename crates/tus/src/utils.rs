@@ -3,6 +3,7 @@ use salvo_core::http::HeaderValue;
 use crate::TUS_VERSION;
 use crate::error::ProtocolError;
 
+/// Validates a `Tus-Resumable` header value.
 pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
     let v = v.ok_or(ProtocolError::MissingTusResumable)?;
     if v != TUS_VERSION {
@@ -11,12 +12,14 @@ pub fn check_tus_version(v: Option<&str>) -> Result<(), ProtocolError> {
     Ok(())
 }
 
+/// Parses a required unsigned integer header.
 pub fn parse_u64(v: Option<&str>, name: &'static str) -> Result<u64, ProtocolError> {
     let s = v.ok_or(ProtocolError::MissingHeader(name))?;
     s.parse::<u64>()
         .map_err(|_| ProtocolError::InvalidInt(name))
 }
 
+/// Normalizes a route path to start with `/` and omit trailing slashes.
 pub fn normalize_path(p: &str) -> String {
     if p.is_empty() {
         return "/".to_owned();
@@ -76,6 +79,7 @@ pub fn sanitize_path_component(component: &str) -> Option<&str> {
     Some(component)
 }
 
+/// Returns `true` when `value` matches the expected header value.
 pub fn validate_header(name: &'static str, value: Option<&HeaderValue>) -> bool {
     match value {
         Some(v) => {

@@ -261,6 +261,6 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         .insert(H_UPLOAD_OFFSET, HeaderValue::from(new_offset));
 }
 
-pub fn patch_handler() -> Router {
+pub(crate) fn patch_handler() -> Router {
     Router::with_path("{id}").patch(patch)
 }

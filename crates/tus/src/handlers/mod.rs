@@ -10,12 +10,12 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
 use base64::Engine;
-pub use delete::delete_handler;
-pub use get::get_handler;
-pub use head::head_handler;
-pub use options::options_handler;
-pub use patch::patch_handler;
-pub use post::post_handler;
+pub(crate) use delete::delete_handler;
+pub(crate) use get::get_handler;
+pub(crate) use head::head_handler;
+pub(crate) use options::options_handler;
+pub(crate) use patch::patch_handler;
+pub(crate) use post::post_handler;
 use salvo_core::Request;
 use salvo_core::http::{HeaderMap, HeaderValue};
 
@@ -117,10 +117,15 @@ pub(crate) fn insert_joined_header(
     }
 }
 
+/// Parsed tus `Upload-Metadata` values.
 #[derive(Clone, Debug, Default)]
-pub struct Metadata(pub HashMap<String, Option<String>>);
+pub struct Metadata(
+    /// Parsed `Upload-Metadata` values keyed by metadata name.
+    pub HashMap<String, Option<String>>,
+);
 
 impl Metadata {
+    /// Parses a tus `Upload-Metadata` header value.
     pub fn parse_metadata(raw: &str) -> Result<Metadata, ProtocolError> {
         if raw.trim().is_empty() {
             return Err(ProtocolError::InvalidMetadata);
@@ -161,6 +166,7 @@ impl Metadata {
         Ok(Metadata(map))
     }
 
+    /// Serializes metadata into a tus `Upload-Metadata` header value.
     pub fn stringify(metadata: Metadata) -> String {
         metadata
             .0
@@ -212,18 +218,23 @@ impl DerefMut for Metadata {
     }
 }
 
+/// Context passed to a custom upload URL generator.
 #[derive(Clone, Copy, Debug)]
 pub struct GenerateUrlCtx<'a> {
+    /// Request protocol used for the generated URL.
     pub proto: &'a str,
+    /// Request host used for the generated URL.
     pub host: &'a str,
+    /// Base tus route path.
     pub path: &'a str,
+    /// Upload ID being linked.
     pub id: &'a str,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct HostProto<'a> {
-    pub proto: &'a str,
-    pub host: &'a str,
+pub(crate) struct HostProto<'a> {
+    pub(crate) proto: &'a str,
+    pub(crate) host: &'a str,
 }
 
 #[cfg(test)]

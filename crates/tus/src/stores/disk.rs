@@ -77,7 +77,8 @@ impl From<MetaUpload> for UploadInfo {
     }
 }
 
-#[derive(Clone)]
+/// Disk-backed storage for tus uploads.
+#[derive(Debug, Clone)]
 pub struct DiskStore {
     root: PathBuf,
 }
@@ -89,6 +90,7 @@ impl Default for DiskStore {
 }
 
 impl DiskStore {
+    /// Creates a disk store rooted at `./tus-upload-files`.
     pub fn new() -> Self {
         Self {
             root: "./tus-upload-files".into(),

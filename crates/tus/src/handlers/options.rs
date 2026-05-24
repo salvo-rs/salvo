@@ -61,7 +61,7 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.status_code(StatusCode::NO_CONTENT);
 }
 
-pub fn options_handler() -> Router {
+pub(crate) fn options_handler() -> Router {
     Router::new()
         .options(options)
         .push(Router::with_path("{id}").options(options))
