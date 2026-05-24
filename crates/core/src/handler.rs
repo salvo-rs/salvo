@@ -199,7 +199,7 @@ pub trait Handler: Send + Sync + 'static {
 
     /// Hoop this handler with middleware.
     ///
-    /// This middleware is only effective when the filter returns true..
+    /// This middleware is only effective when the filter returns `true`.
     #[inline]
     fn hoop_when<H, F>(self, hoop: H, filter: F) -> HoopedHandler
     where
@@ -352,19 +352,19 @@ impl HoopedHandler {
         }
     }
 
-    /// Get current catcher's middlewares reference.
+    /// Get a reference to the middlewares attached to this handler.
     #[inline]
     #[must_use]
     pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
-    /// Get current catcher's middlewares mutable reference.
+    /// Get a mutable reference to the middlewares attached to this handler.
     #[inline]
     pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.hoops
     }
 
-    /// Add a handler as middleware, it will run the handler when error caught.
+    /// Add a handler as middleware. It will run before this handler.
     #[inline]
     #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
@@ -372,9 +372,8 @@ impl HoopedHandler {
         self
     }
 
-    /// Add a handler as middleware, it will run the handler when error caught.
-    ///
-    /// This middleware is only effective when the filter returns true..
+    /// Add a handler as middleware. It runs the handler when an error is caught,
+    /// but only when the filter returns `true`.
     #[inline]
     #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self

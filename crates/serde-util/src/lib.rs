@@ -1,4 +1,4 @@
-//! Provides serde related features parsing serde attributes from types.
+//! Utilities for parsing `serde` attributes from type definitions.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -27,22 +27,22 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
     }
 }
 
-/// Value type of a `#[serde(...)]` attribute.
+/// Parsed values from a `#[serde(...)]` attribute.
 #[derive(Default, Debug)]
 pub struct SerdeValue {
-    /// Skip field.
+    /// Whether the field has `#[serde(skip)]` (or its serialize/deserialize variants).
     pub skip: bool,
-    /// Rename field.
+    /// Value of `#[serde(rename = "...")]`, if any.
     pub rename: Option<String>,
-    /// Aliases of field.
+    /// Values from `#[serde(alias = "...")]` declarations.
     pub aliases: Vec<String>,
-    /// Is default value.
+    /// Whether the field has `#[serde(default)]` or `#[serde(default = "...")]`.
     pub is_default: bool,
-    /// Flatten field.
+    /// Whether the field has `#[serde(flatten)]`.
     pub flatten: bool,
-    /// Skip serializing if.
+    /// Whether the field has `#[serde(skip_serializing_if = "...")]`.
     pub skip_serializing_if: bool,
-    /// Double option.
+    /// Whether the field has `#[serde(with = "double_option")]`.
     pub double_option: bool,
 }
 

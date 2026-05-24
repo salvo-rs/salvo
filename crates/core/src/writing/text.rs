@@ -4,7 +4,7 @@ use super::{Scribe, try_set_header};
 use crate::http::Response;
 use crate::http::header::{CONTENT_TYPE, HeaderValue};
 
-/// Write text content to response as text content.
+/// Render text content as the response body.
 ///
 /// # Example
 ///

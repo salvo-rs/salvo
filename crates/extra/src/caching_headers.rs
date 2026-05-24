@@ -38,7 +38,7 @@ pub struct ETag {
 }
 
 impl ETag {
-    /// constructs a new Etag handler
+    /// Constructs a new `ETag` handler.
     #[must_use]
     pub fn new() -> Self {
         Self::default()

@@ -40,7 +40,7 @@ impl Debug for MethodFilter {
 pub struct SchemeFilter {
     /// Scheme to filter.
     pub scheme: Scheme,
-    /// When scheme is lack in request uri, use this value.
+    /// Fallback value returned by the filter when the request URI has no scheme.
     pub lack: bool,
 }
 impl SchemeFilter {
@@ -52,7 +52,7 @@ impl SchemeFilter {
             lack: false,
         }
     }
-    /// Set lack value and return `Self`.
+    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
     #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
@@ -86,7 +86,7 @@ impl Debug for SchemeFilter {
 pub struct HostFilter {
     /// Host to filter.
     pub host: String,
-    /// When host is lack in request uri, use this value.
+    /// Fallback value returned by the filter when the request URI has no host.
     pub lack: bool,
 }
 impl HostFilter {
@@ -97,7 +97,7 @@ impl HostFilter {
             lack: false,
         }
     }
-    /// Set lack value and return `Self`.
+    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
     #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
@@ -109,8 +109,8 @@ impl HostFilter {
 impl Filter for HostFilter {
     #[inline]
     async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        // Http1, if `fix-http1-request-uri` feature is disabled, host is lack. so use header host
-        // instead. https://github.com/hyperium/hyper/issues/1310
+        // On HTTP/1 without the `fix-http1-request-uri` feature, the URI has no authority,
+        // so fall back to the `Host` header. See https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
@@ -122,7 +122,7 @@ impl Filter for HostFilter {
         host.map(|h| {
             if h.contains(':') {
                 h.rsplit_once(':')
-                    .expect("rsplit_once by ':' should not returns `None`")
+                    .expect("rsplit_once by ':' should not return `None`")
                     .0
             } else {
                 h
@@ -143,13 +143,13 @@ impl Debug for HostFilter {
     }
 }
 
-/// Filter by request uri host.
+/// Filter by request URI port.
 #[derive(Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct PortFilter {
     /// Port to filter.
     pub port: u16,
-    /// When port is lack in request uri, use this value.
+    /// Fallback value returned by the filter when the request URI has no port.
     pub lack: bool,
 }
 
@@ -159,7 +159,7 @@ impl PortFilter {
     pub fn new(port: u16) -> Self {
         Self { port, lack: false }
     }
-    /// Set lack value and return `Self`.
+    /// Set the fallback value used when the request URI lacks this component, and return `Self`.
     #[must_use]
     pub fn lack(mut self, lack: bool) -> Self {
         self.lack = lack;
@@ -171,8 +171,8 @@ impl PortFilter {
 impl Filter for PortFilter {
     #[inline]
     async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        // Http1, if `fix-http1-request-uri` feature is disabled, port is lack. so use header host
-        // instead. https://github.com/hyperium/hyper/issues/1310
+        // On HTTP/1 without the `fix-http1-request-uri` feature, the URI has no authority,
+        // so fall back to the `Host` header. See https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         let host = req.uri().authority().map(|a| a.as_str());
         #[cfg(not(feature = "fix-http1-request-uri"))]
@@ -184,7 +184,7 @@ impl Filter for PortFilter {
         host.map(|h| {
             if h.contains(':') {
                 h.rsplit_once(':')
-                    .expect("rsplit_once by ':' should not returns `None`")
+                    .expect("rsplit_once by ':' should not return `None`")
                     .1
             } else {
                 h

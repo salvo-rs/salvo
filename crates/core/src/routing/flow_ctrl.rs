@@ -57,8 +57,8 @@ impl FlowCtrl {
     /// Call next handler. If get next handler and executed, returns `true``, otherwise returns
     /// `false`.
     ///
-    /// **NOTE**: If response status code is error or is redirection, all reset handlers will be
-    /// skipped.
+    /// **NOTE**: If the response status code is an error or a redirection, all remaining
+    /// handlers will be skipped.
     #[inline]
     pub async fn call_next(
         &mut self,
@@ -91,16 +91,17 @@ impl FlowCtrl {
         }
     }
 
-    /// Skip all reset handlers.
+    /// Skip all remaining handlers.
     #[inline]
     pub fn skip_rest(&mut self) {
         self.cursor = self.handlers.len()
     }
 
-    /// Check is `FlowCtrl` ceased.
+    /// Check whether the `FlowCtrl` has been ceased.
     ///
-    /// **NOTE**: If handler is used as middleware, it should use `is_ceased` to check is flow
-    /// ceased. If `is_ceased` returns `true`, the handler should skip the following logic.
+    /// **NOTE**: When a handler is used as middleware, it should call `is_ceased` to check
+    /// whether the flow has been ceased. If `is_ceased` returns `true`, the handler should
+    /// skip the following logic.
     #[inline]
     #[must_use]
     pub fn is_ceased(&self) -> bool {

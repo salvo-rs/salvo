@@ -79,14 +79,14 @@ pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
     }
 }
 
-/// TrailingSlash
+/// Middleware that adds, removes, or redirects trailing slashes on request paths.
 #[non_exhaustive]
 pub struct TrailingSlash {
-    /// Action of this `TrailingSlash`.
+    /// Action to perform on the trailing slash.
     pub action: TrailingSlashAction,
-    /// Skip to Remove or add slash when skipper is returns `true`.
+    /// Skip adding or removing the trailing slash when this skipper returns `true`.
     pub skipper: Box<dyn Skipper>,
-    /// Redirect code is used when redirect url.
+    /// HTTP status code used when redirecting to the canonical URL.
     pub redirect_code: StatusCode,
 }
 

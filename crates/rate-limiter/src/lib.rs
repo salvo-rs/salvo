@@ -132,11 +132,11 @@ cfg_feature! {
     pub use sliding_guard::SlidingGuard;
 }
 
-/// Issuer is used to identify every request.
+/// Issues a rate-limit key for a request, identifying the subject being limited.
 pub trait RateIssuer: Send + Sync + 'static {
-    /// The key is used to identify the rate limit.
+    /// The key type that uniquely identifies a rate-limited subject (e.g. client IP, user id).
     type Key: Hash + Eq + Send + Sync + 'static;
-    /// Issue a new key for the request.
+    /// Issue a key for the request. If it returns `None`, the request will not be rate-limited.
     fn issue(
         &self,
         req: &mut Request,

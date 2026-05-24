@@ -90,7 +90,7 @@ pub trait Extractible<'ex> {
     where
         Self: Sized;
 
-    /// Extract data from request with a argument. This function used in macros internal.
+    /// Extract data from a request with an argument. This function is used internally by macros.
     fn extract_with_arg(
         req: &'ex mut Request,
         depot: &'ex mut Depot,

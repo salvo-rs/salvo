@@ -64,8 +64,8 @@ pub struct Info {
 impl Info {
     /// Construct a new [`Info`] object.
     ///
-    /// This function accepts two arguments. One which is the title of the API and two the
-    /// version of the api document typically the API version.
+    /// Accepts two arguments: the API title, and the document version (typically the
+    /// API version).
     ///
     /// # Examples
     ///
@@ -81,42 +81,42 @@ impl Info {
             ..Default::default()
         }
     }
-    /// Add title of the API.
+    /// Set the title of the API.
     #[must_use]
     pub fn title<I: Into<String>>(mut self, title: I) -> Self {
         self.title = title.into();
         self
     }
 
-    /// Add version of the api document typically the API version.
+    /// Set the version of the API document (typically the API version).
     #[must_use]
     pub fn version<I: Into<String>>(mut self, version: I) -> Self {
         self.version = version.into();
         self
     }
 
-    /// Add description of the API.
+    /// Set the description of the API.
     #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
 
-    /// Add url for terms of the API.
+    /// Set the URL pointing to the terms of service for the API.
     #[must_use]
     pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: S) -> Self {
         self.terms_of_service = Some(terms_of_service.into());
         self
     }
 
-    /// Add contact information of the API.
+    /// Set the contact information of the API.
     #[must_use]
     pub fn contact(mut self, contact: Contact) -> Self {
         self.contact = Some(contact);
         self
     }
 
-    /// Add license of the API.
+    /// Set the license of the API.
     #[must_use]
     pub fn license(mut self, license: License) -> Self {
         self.license = Some(license);

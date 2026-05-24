@@ -167,16 +167,16 @@ impl Router {
         self
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or its descendants.
-    /// handle the request.
+    /// Add a handler as middleware. It runs the handler in the current router or its
+    /// descendants when handling the request.
     #[inline]
     #[must_use]
     pub fn with_hoop<H: Handler>(hoop: H) -> Self {
         Self::new().hoop(hoop)
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or its descendants.
-    /// handle the request. This middleware is only effective when the filter returns true..
+    /// Add a handler as middleware. It runs the handler in the current router or its
+    /// descendants when handling the request, but only when the filter returns `true`.
     #[inline]
     #[must_use]
     pub fn with_hoop_when<H, F>(hoop: H, filter: F) -> Self
@@ -187,8 +187,8 @@ impl Router {
         Self::new().hoop_when(hoop, filter)
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or its descendants.
-    /// handle the request.
+    /// Add a handler as middleware. It runs the handler in the current router or its
+    /// descendants when handling the request.
     #[inline]
     #[must_use]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
@@ -196,8 +196,8 @@ impl Router {
         self
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or its descendants.
-    /// handle the request. This middleware is only effective when the filter returns true..
+    /// Add a handler as middleware. It runs the handler in the current router or its
+    /// descendants when handling the request, but only when the filter returns `true`.
     #[inline]
     #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self

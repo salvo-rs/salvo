@@ -6,8 +6,8 @@
 //! [`Server`] can be used to alter connection url for _**path operations**_. It can be a
 //! relative path e.g `/api/v1` or valid http url e.g. `http://alternative.api.com/api/v1`.
 //!
-//! Relative path will append to the **sever address** so the connection url for _**path
-//! operations**_ will become `server address + relative path`.
+//! A relative path is appended to the **server address**, so the connection URL for
+//! _**path operations**_ becomes `server address + relative path`.
 //!
 //! Optionally it also supports parameter substitution with `{variable}` syntax.
 //!
@@ -136,7 +136,7 @@ impl Servers {
 /// Represents target server object. It can be used to alter server connection for
 /// _**path operations**_.
 ///
-/// By default OpenAPI will implicitly implement [`Server`] with `url = "/"` if no servers is
+/// By default OpenAPI will implicitly add a [`Server`] with `url = "/"` if no servers are
 /// provided to the [`OpenApi`][openapi].
 ///
 /// [openapi]: ../struct.OpenApi.html

@@ -115,11 +115,11 @@ cfg_feature! {
     pub use moka_store::{MokaStore};
 }
 
-/// Issuer
+/// Issues a cache key for a request, deciding whether the request should be cached.
 pub trait CacheIssuer: Send + Sync + 'static {
-    /// The key is used to identify the rate limit.
+    /// The key type used to identify a cached entry.
     type Key: Hash + Eq + Send + Sync + 'static;
-    /// Issue a new key for the request. If it returns `None`, the request will not be cached.
+    /// Issue a key for the request. If it returns `None`, the request will not be cached.
     fn issue(
         &self,
         req: &mut Request,

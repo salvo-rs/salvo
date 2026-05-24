@@ -26,7 +26,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
         Item::Fn(_) => Ok(input.into_token_stream()),
         _ => Err(syn::Error::new_spanned(
             input,
-            "#[craft] must added to `impl`",
+            "#[craft] must be applied to an `impl` block",
         )),
     }
 }
