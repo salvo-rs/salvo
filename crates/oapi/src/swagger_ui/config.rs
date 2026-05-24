@@ -34,7 +34,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// ]);
 /// ```
 ///
-/// With oauth config.
+/// With OAuth config.
 /// ```rust
 /// # use salvo_oapi::swagger_ui::{Config, oauth};
 /// let config = Config::with_oauth_config(
@@ -50,7 +50,7 @@ pub struct Config<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) config_url: Option<String>,
 
-    /// Id of the DOM element where `Swagger UI` will put it's user interface.
+    /// ID of the DOM element where `Swagger UI` will put its user interface.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "dom_id")]
     pub(crate) dom_id: Option<String>,
@@ -127,7 +127,7 @@ pub struct Config<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) request_snippets_enabled: Option<bool>,
 
-    /// Oauth redirect url.
+    /// OAuth redirect URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) oauth2_redirect_url: Option<String>,
 
@@ -239,7 +239,7 @@ impl<'a> Config<'a> {
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
     /// # Examples
-    /// Create new config with oauth config.
+    /// Create new config with OAuth config.
     /// ```rust
     /// # use salvo_oapi::swagger_ui::{Config, oauth};
     /// let config = Config::with_oauth_config(
@@ -271,13 +271,13 @@ impl<'a> Config<'a> {
         self
     }
 
-    /// Add id of the DOM element where `Swagger UI` will put it's user interface.
+    /// Add ID of the DOM element where `Swagger UI` will put its user interface.
     ///
     /// The default value is `#swagger-ui`.
     ///
     /// # Examples
     ///
-    /// Set custom dom id where the Swagger UI will place it's content.
+    /// Set custom DOM ID where the Swagger UI will place its content.
     /// ```rust
     /// # use salvo_oapi::swagger_ui::Config;
     /// let config = Config::new(["/api-docs/openapi.json"]).dom_id("#my-id");
@@ -569,11 +569,11 @@ impl<'a> Config<'a> {
         self
     }
 
-    /// Add oauth redirect url.
+    /// Add OAuth redirect URL.
     ///
     /// # Examples
     ///
-    /// Add oauth redirect url.
+    /// Add OAuth redirect URL.
     /// ```rust
     /// # use salvo_oapi::swagger_ui::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])

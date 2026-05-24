@@ -73,7 +73,7 @@ pub struct UploadInfo {
 }
 
 impl UploadInfo {
-    pub fn get_size_is_deferred(&self) -> bool {
+    pub fn is_size_deferred(&self) -> bool {
         self.size.is_none()
     }
 }
@@ -115,8 +115,9 @@ impl Extension {
     }
 }
 
-/// Extension:
-/// Default extensions is empty.
+/// Store-supported tus protocol extensions.
+///
+/// The default extension set is empty.
 /// Clients and Servers are encouraged to implement as many of the extensions as possible.
 /// Feature detection SHOULD be achieved by the Client sending an OPTIONS request and the Server
 /// responding with the Tus-Extension header. See more details: https://tus.io/protocols/resumable-upload#protocol-extensions
@@ -232,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn test_upload_info_get_size_is_deferred_true() {
+    fn test_upload_info_is_size_deferred_true() {
         let info = UploadInfo {
             id: "test".to_owned(),
             size: None,
@@ -241,11 +242,11 @@ mod tests {
             storage: None,
             creation_date: "2024-01-01".to_owned(),
         };
-        assert!(info.get_size_is_deferred());
+        assert!(info.is_size_deferred());
     }
 
     #[test]
-    fn test_upload_info_get_size_is_deferred_false() {
+    fn test_upload_info_is_size_deferred_false() {
         let info = UploadInfo {
             id: "test".to_owned(),
             size: Some(1024),
@@ -254,7 +255,7 @@ mod tests {
             storage: None,
             creation_date: "2024-01-01".to_owned(),
         };
-        assert!(!info.get_size_is_deferred());
+        assert!(!info.is_size_deferred());
     }
 
     #[test]

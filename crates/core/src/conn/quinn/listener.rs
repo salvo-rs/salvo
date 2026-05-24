@@ -1,4 +1,4 @@
-//! QuinnListener and it's implements.
+//! QuinnListener and its implementations.
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
@@ -201,4 +201,3 @@ impl Acceptor for QuinnAcceptor {
         Err(IoError::other("quinn accept error"))
     }
 }
-

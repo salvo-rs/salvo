@@ -517,7 +517,7 @@ impl Builder {
 /// [`recv_response()`]. A body for this request can be sent with [`send_data()`], then the request
 /// shall be completed by either sending trailers with [`send_trailers()`], or [`finish()`].
 ///
-/// After receiving the response's headers, it's body can be read by [`recv_data()`] until it returns
+/// After receiving the response's headers, its body can be read by [`recv_data()`] until it returns
 /// `None`. Then the trailers will eventually be available via [`recv_trailers()`].
 ///
 /// TODO: If data is polled before the response has been received, an error will be thrown.

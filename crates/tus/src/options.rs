@@ -16,7 +16,7 @@ use crate::utils::is_safe_upload_id;
 pub type UploadId = Option<String>;
 
 static RE_FILE_ID: OnceLock<Regex> = OnceLock::new();
-pub fn get_file_id_regex() -> &'static Regex {
+pub fn file_id_regex() -> &'static Regex {
     RE_FILE_ID.get_or_init(|| Regex::new(r"([^/]+)/?$").expect("Invalid regex pattern"))
 }
 
@@ -112,7 +112,7 @@ pub struct TusOptions {
     /// Function to generate upload IDs
     pub upload_id_naming_function: NamingFunction,
 
-    /// Function to generate file uel
+    /// Function to generate the upload URL.
     pub generate_url_function: Option<GenerateUrlFunction>,
 
     pub on_incoming_request: Option<OnIncomingRequest>,
@@ -156,9 +156,9 @@ impl TusOptions {
         }
     }
 
-    pub fn get_file_id_from_request(&self, req: &Request) -> TusResult<String> {
+    pub fn extract_file_id_from_request(&self, req: &Request) -> TusResult<String> {
         let path = req.uri().path();
-        let re = get_file_id_regex();
+        let re = file_id_regex();
 
         re.captures(path)
             .and_then(|caps| caps.get(1))
@@ -413,8 +413,8 @@ mod tests {
     }
 
     #[test]
-    fn test_get_file_id_regex() {
-        let re = get_file_id_regex();
+    fn test_file_id_regex() {
+        let re = file_id_regex();
 
         // Test matching file IDs
         let captures = re.captures("/uploads/abc123").unwrap();
@@ -432,22 +432,22 @@ mod tests {
     }
 
     #[test]
-    fn test_get_file_id_from_request_rejects_unsafe_id() {
+    fn test_extract_file_id_from_request_rejects_unsafe_id() {
         let options = TusOptions::default();
         let mut req = Request::default();
         *req.uri_mut() = "/uploads/file.txt".parse().unwrap();
 
-        let result = options.get_file_id_from_request(&req);
+        let result = options.extract_file_id_from_request(&req);
         assert!(matches!(result, Err(TusError::FileIdError)));
     }
 
     #[test]
-    fn test_get_file_id_from_request_accepts_safe_id() {
+    fn test_extract_file_id_from_request_accepts_safe_id() {
         let options = TusOptions::default();
         let mut req = Request::default();
         *req.uri_mut() = "/uploads/abc-123_DEF".parse().unwrap();
 
-        let result = options.get_file_id_from_request(&req).unwrap();
+        let result = options.extract_file_id_from_request(&req).unwrap();
         assert_eq!(result, "abc-123_DEF");
     }
 

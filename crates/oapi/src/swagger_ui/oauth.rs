@@ -1,10 +1,10 @@
-//! Implements Swagger UI [oauth configuration](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/oauth2.md) options.
+//! Implements Swagger UI [OAuth configuration](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/oauth2.md) options.
 
 use std::collections::HashMap;
 
 use serde::Serialize;
 
-/// Object used to alter Swagger UI oauth settings.
+/// Object used to alter Swagger UI OAuth settings.
 ///
 /// # Examples
 ///
@@ -18,40 +18,40 @@ use serde::Serialize;
 #[derive(Default, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
-    /// oauth client_id the Swagger UI is using for auth flow.
+    /// OAuth client_id the Swagger UI is using for the auth flow.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 
-    /// oauth client_secret the Swagger UI is using for auth flow.
+    /// OAuth client_secret the Swagger UI is using for the auth flow.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
 
-    /// oauth realm the Swagger UI is using for auth flow.
+    /// OAuth realm the Swagger UI is using for the auth flow.
     /// realm query parameter (for oauth1) added to authorizationUrl and tokenUrl.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub realm: Option<String>,
 
-    /// oauth app_name the Swagger UI is using for auth flow.
+    /// OAuth app_name the Swagger UI is using for the auth flow.
     /// application name, displayed in authorization popup.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_name: Option<String>,
 
-    /// oauth scope_separator the Swagger UI is using for auth flow.
+    /// OAuth scope_separator the Swagger UI is using for the auth flow.
     /// scope separator for passing scopes, encoded before calling, default value is a space (encoded value %20).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope_separator: Option<String>,
 
-    /// oauth scopes the Swagger UI is using for auth flow.
-    /// [`Vec<String>`] of initially selected oauth scopes, default is empty.
+    /// OAuth scopes the Swagger UI is using for the auth flow.
+    /// [`Vec<String>`] of initially selected OAuth scopes, default is empty.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scopes: Option<Vec<String>>,
 
-    /// oauth additional_query_string_params the Swagger UI is using for auth flow.
+    /// OAuth additional_query_string_params the Swagger UI is using for the auth flow.
     /// [`HashMap<String, String>`] of additional query parameters added to authorizationUrl and tokenUrl
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_query_string_params: Option<HashMap<String, String>>,
 
-    /// oauth use_basic_authentication_with_access_code_grant the Swagger UI is using for auth flow.
+    /// OAuth use_basic_authentication_with_access_code_grant setting the Swagger UI is using for the auth flow.
     /// Only activated for the accessCode flow. During the authorization_code request to the tokenUrl,
     /// pass the [Client Password](https://tools.ietf.org/html/rfc6749#section-2.3.1) using the HTTP Basic Authentication scheme
     /// (Authorization header with Basic base64encode(client_id + client_secret)).
@@ -59,7 +59,7 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_basic_authentication_with_access_code_grant: Option<bool>,
 
-    /// oauth use_pkce_with_authorization_code_grant the Swagger UI is using for auth flow.
+    /// OAuth use_pkce_with_authorization_code_grant setting the Swagger UI is using for the auth flow.
     /// Only applies to authorizationCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
     /// brings enhanced security for OAuth public clients.
     /// The default is false
@@ -68,7 +68,7 @@ pub struct Config {
 }
 
 impl Config {
-    /// Create a new [`Config`] for oauth auth flow.
+    /// Create a new [`Config`] for the OAuth auth flow.
     ///
     /// # Examples
     ///
@@ -173,7 +173,7 @@ impl Config {
     /// Add scopes into [`Config`].
     ///
     /// Method takes one argument which exposes the scopes to the user.
-    /// [`Vec<String>`] of initially selected oauth scopes, default is empty.
+    /// [`Vec<String>`] of initially selected OAuth scopes, default is empty.
     ///
     /// # Examples
     ///

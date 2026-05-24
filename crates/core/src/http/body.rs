@@ -59,7 +59,7 @@ pub use channel::{BodyReceiver, BodySender};
 
 use crate::http::HeaderMap;
 
-/// Frame with it's DATA type is [`Bytes`].
+/// Frame with its DATA type as [`Bytes`].
 #[derive(Debug)]
 pub struct BytesFrame(pub Frame<Bytes>);
 impl BytesFrame {

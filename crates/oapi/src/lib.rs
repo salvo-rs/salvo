@@ -1042,7 +1042,7 @@ where
     fn to_responses(components: &mut Components) -> Responses {
         Responses::new().response(
             "200",
-            Response::new("Response json format data")
+            Response::new("JSON response body")
                 .add_content("application/json", Content::new(C::to_schema(components))),
         )
     }
@@ -1078,8 +1078,8 @@ impl ToResponses for StatusError {
             Self::upgrade_required(),
             Self::precondition_required(),
             Self::too_many_requests(),
-            Self::request_header_fields_toolarge(),
-            Self::unavailable_for_legalreasons(),
+            Self::request_header_fields_too_large(),
+            Self::unavailable_for_legal_reasons(),
             Self::internal_server_error(),
             Self::not_implemented(),
             Self::bad_gateway(),

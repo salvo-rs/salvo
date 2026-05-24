@@ -213,7 +213,7 @@ impl JwkSetStore {
         let time = Instant::now();
         let new_jwks = fetch.jwks;
         // If we didn't parse out a cache policy from the last request
-        // Assume that it's the same as the last
+        // Assume that it is the same as the last
         let cache_policy = fetch.cache_policy.unwrap_or(self.cache_policy);
         let result = match (self.jwks == new_jwks, self.cache_policy == cache_policy) {
             // Everything is the same

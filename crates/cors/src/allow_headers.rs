@@ -60,7 +60,7 @@ impl AllowHeaders {
         Self(AllowHeadersInner::Dynamic(Arc::new(c)))
     }
 
-    /// Set allow headers by a async closure
+    /// Set allowed headers by an async closure.
     ///
     /// See [`Cors::allow_headers`] for more details.
     ///

@@ -1,4 +1,4 @@
-//! TcpListener and it's implements.
+//! TcpListener and its implementations.
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::net::SocketAddr;

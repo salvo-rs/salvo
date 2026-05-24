@@ -99,7 +99,7 @@ NOTE: When using `&self` as the method receiver, the containing type must implem
 
 ## Documentation & Resources
 
-- [API Documentation](https://docs.rs/salvo-craft)
+- [API Documentation](https://docs.rs/salvo-craft-macros)
 - [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 
 ## ☕ Donate

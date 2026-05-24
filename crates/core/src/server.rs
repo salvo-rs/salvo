@@ -212,7 +212,7 @@ impl<A: Acceptor + Send> Server<A> {
 
     cfg_feature! {
         #![feature = "quinn"]
-        /// Use this function to set http3 protocol.
+        /// Use this function to set the HTTP/3 protocol.
         pub fn quinn_mut(&mut self) -> &mut quinn::Builder {
             &mut self.builder.quinn
         }
@@ -636,4 +636,3 @@ mod tests {
         };
     }
 }
-

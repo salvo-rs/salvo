@@ -1,4 +1,4 @@
-//! HTTP3 supports.
+//! HTTP/3 support.
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
@@ -18,7 +18,7 @@ use crate::http::Method;
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::proto::WebTransportSession;
 
-/// Builder is used to serve HTTP3 connection.
+/// Builder used to serve HTTP/3 connections.
 pub struct Builder(salvo_http3::server::Builder);
 impl Debug for Builder {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -57,7 +57,7 @@ impl Builder {
 }
 
 impl Builder {
-    /// Serve HTTP3 connection.
+    /// Serve an HTTP/3 connection.
     pub async fn serve_connection(
         &self,
         conn: crate::conn::quinn::QuinnConnection,
@@ -172,7 +172,7 @@ async fn process_web_transport(
             .extensions_mut()
             .remove::<Arc<Mutex<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>>>()
             .map(|c| {
-                Arc::into_inner(c).expect("http3 connection must exist").into_inner()
+                Arc::into_inner(c).expect("HTTP/3 connection must exist").into_inner()
                     .map_err(|e| IoError::other( format!("failed to get conn : {e}")))
             })
             .transpose()?;

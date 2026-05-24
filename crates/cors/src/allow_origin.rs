@@ -74,7 +74,7 @@ impl AllowOrigin {
         Self(OriginInner::Dynamic(Arc::new(c)))
     }
 
-    /// Set the allowed origins by a async closure
+    /// Set the allowed origins by an async closure.
     ///
     /// See [`Cors::allow_origin`] for more details.
     ///

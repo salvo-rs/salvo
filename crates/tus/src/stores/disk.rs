@@ -378,8 +378,7 @@ impl DiskStore {
 
 #[async_trait]
 impl DataStore for DiskStore {
-    /// The DiskStore support extensions.
-    /// Extension::Creation
+    /// Extensions supported by `DiskStore`.
     fn extensions(&self) -> HashSet<Extension> {
         let mut support_extensions = HashSet::new();
         support_extensions.insert(Extension::Creation);
@@ -1029,7 +1028,7 @@ mod tests {
 
         let _created = store.create(upload_info).await.unwrap();
         let info = store.get_upload_file_info("test-deferred").await.unwrap();
-        assert!(info.get_size_is_deferred());
+        assert!(info.is_size_deferred());
     }
 
     #[tokio::test]

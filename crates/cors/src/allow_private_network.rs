@@ -40,7 +40,7 @@ impl AllowPrivateNetwork {
         Self(AllowPrivateNetworkInner::Dynamic(Arc::new(c)))
     }
 
-    /// Allow requests via private network for some requests by a async closure
+    /// Allow private-network requests for some requests by an async closure.
     ///
     /// See [`Cors::allow_private_network`] for more details.
     ///
