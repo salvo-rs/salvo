@@ -32,6 +32,7 @@
 //! | `logging` | Middleware for logging requests and responses | ❌ |
 //! | `request-id` | Middleware for setting a request ID | ❌ |
 //! | `size-limiter` | Middleware for limiting request size | ❌ |
+//! | `tls-detect` | Serve HTTP and HTTPS on the same port via TLS detection | ❌ |
 //! | `sse` | Server-Sent Events (SSE) middleware | ❌ |
 //! | `timeout` | Middleware for setting a timeout | ❌ |
 //! | `trailing-slash` | Middleware for handling trailing slashes | ❌ |
@@ -87,6 +88,11 @@ cfg_feature! {
     #![feature ="size-limiter"]
     // #[doc(no_inline)]
     pub use salvo_extra::size_limiter;
+}
+cfg_feature! {
+    #![feature ="tls-detect"]
+    // #[doc(no_inline)]
+    pub use salvo_extra::tls_detect;
 }
 cfg_feature! {
     #![feature ="sse"]
