@@ -106,6 +106,42 @@ Router::new()
     .push(Router::with_path("articles").hoop(auth_check).post(create_article).delete(delete_article))
 ```
 
+### JSON API
+
+Handler 可以反序列化請求體，並返回型別化的 JSON 回應：
+
+```rust
+use salvo::http::ParseError;
+use salvo::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize)]
+struct CreateTodo {
+    text: String,
+}
+
+#[derive(Serialize)]
+struct Todo {
+    id: u64,
+    text: String,
+}
+
+#[handler]
+async fn create_todo(req: &mut Request) -> Result<Json<Todo>, ParseError> {
+    let payload = req.parse_json::<CreateTodo>().await?;
+    Ok(Json(Todo {
+        id: 1,
+        text: payload.text,
+    }))
+}
+```
+
+這種寫法需要啟用 Serde 的 derive 功能：
+
+```bash
+cargo add serde --features derive
+```
+
 ### 一行程式碼支援 OpenAPI
 
 只需將 `#[handler]` 改為 `#[endpoint]`：
@@ -141,6 +177,7 @@ salvo new my_project
 - [官方網站](https://salvo.rs)
 - [API 文件](https://docs.rs/salvo)
 - [範例程式碼](./examples/)
+- [按功能拆分的 crate](./crates/)
 
 ## 推薦專案
 

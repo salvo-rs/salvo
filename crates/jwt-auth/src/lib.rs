@@ -14,7 +14,7 @@
 //!
 //! # Security Considerations
 //!
-//! **⚠️ WARNING: Avoid passing JWT tokens in URL query parameters in production!**
+//! **Warning: avoid passing JWT tokens in URL query parameters in production.**
 //!
 //! While this crate supports extracting tokens from query parameters (via [`QueryFinder`]),
 //! this method has significant security risks:
@@ -28,15 +28,14 @@
 //! - Use [`HeaderFinder`] with the `Authorization: Bearer <token>` header (recommended)
 //! - Use [`CookieFinder`] with `HttpOnly` and `Secure` cookie flags
 //!
-//! The example below uses query parameters for simplicity, but **production applications
-//! should use the Authorization header or secure cookies instead**.
+//! The example below uses the Authorization header via [`HeaderFinder`].
 //!
 //! # Example:
 //!
 //! ```no_run
 //! use jsonwebtoken::{self, EncodingKey};
 //! use salvo::http::{Method, StatusError};
-//! use salvo::jwt_auth::{ConstDecoder, QueryFinder};
+//! use salvo::jwt_auth::{ConstDecoder, HeaderFinder};
 //! use salvo::prelude::*;
 //! use serde::{Deserialize, Serialize};
 //! use time::{Duration, OffsetDateTime};
@@ -52,11 +51,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
-//!         .finders(vec![
-//!             // Box::new(HeaderFinder::new()),
-//!             Box::new(QueryFinder::new("jwt_token")),
-//!             // Box::new(CookieFinder::new("jwt_token")),
-//!         ])
+//!         .finders(vec![Box::new(HeaderFinder::new())])
 //!         .force_passed(true);
 //!
 //!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
@@ -85,7 +80,9 @@
 //!             &claim,
 //!             &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
 //!         )?;
-//!         res.render(Redirect::other(format!("/?jwt_token={token}")));
+//!         res.render(Text::Plain(format!(
+//!             "Use this token as `Authorization: Bearer {token}`"
+//!         )));
 //!     } else {
 //!         match depot.jwt_auth_state() {
 //!             JwtAuthState::Authorized => {
