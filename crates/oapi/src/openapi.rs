@@ -535,18 +535,18 @@ impl OpenApi {
         self
     }
 
-    /// Consusmes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
+    /// Consumes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }
 
-    /// Consusmes the [`OpenApi`] and information from a [`Router`].
+    /// Consumes the [`OpenApi`] and information from a [`Router`].
     #[must_use]
     pub fn merge_router(self, router: &Router) -> Self {
         self.merge_router_with_base(router, "/")
     }
 
-    /// Consusmes the [`OpenApi`] and information from a [`Router`] with base path.
+    /// Consumes the [`OpenApi`] and information from a [`Router`] with base path.
     #[must_use]
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
         let mut node = NormNode::new(router, Default::default());

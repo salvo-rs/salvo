@@ -370,8 +370,7 @@ impl HoopedHandler {
         self
     }
 
-    /// Add a handler as middleware. It runs the handler when an error is caught,
-    /// but only when the filter returns `true`.
+    /// Add a handler as middleware. It runs this middleware only when the filter returns `true`.
     #[inline]
     #[must_use]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
@@ -407,7 +406,7 @@ impl Handler for HoopedHandler {
     }
 }
 
-/// `none_skipper` will skipper nothing.
+/// `none_skipper` skips nothing.
 ///
 /// It can be used as default `Skipper` in middleware.
 pub fn none_skipper(_req: &mut Request, _depot: &Depot) -> bool {

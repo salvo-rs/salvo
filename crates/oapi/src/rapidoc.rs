@@ -93,7 +93,7 @@ impl RapiDoc {
         self
     }
 
-    /// Consusmes the [`RapiDoc`] and returns [`Router`] with the [`RapiDoc`] as handler.
+    /// Consumes the [`RapiDoc`] and returns [`Router`] with the [`RapiDoc`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }

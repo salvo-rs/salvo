@@ -162,7 +162,7 @@ pub struct Catcher {
     hoops: Vec<Arc<dyn Handler>>,
 }
 impl Default for Catcher {
-    /// Create new `Catcher` with its goal handler is [`DefaultGoal`].
+    /// Creates a new `Catcher` with [`DefaultGoal`] as its handler.
     fn default() -> Self {
         Self {
             goal: Arc::new(DefaultGoal::new()),
@@ -229,8 +229,8 @@ impl Catcher {
 
 /// Default [`Handler`] used as goal for [`Catcher`].
 ///
-/// If http status is error, and all custom handlers is not catch it and write body,
-/// `DefaultGoal` will used to catch them.
+/// If the HTTP status is an error, and no custom handler catches it or writes a body,
+/// `DefaultGoal` is used to handle it.
 ///
 /// `DefaultGoal` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 #[derive(Default, Debug)]

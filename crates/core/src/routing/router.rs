@@ -293,8 +293,8 @@ impl Router {
         self
     }
 
-    /// When you want write router chain, this function will be useful,
-    /// You can write your custom logic in FnOnce.
+    /// Runs a closure with this router and returns the closure result.
+    /// Useful for composing router chains conditionally.
     #[inline]
     #[must_use]
     pub fn then<F>(self, func: F) -> Self
@@ -306,7 +306,7 @@ impl Router {
 
     /// Add a [`SchemeFilter`] to current router.
     ///
-    /// [`SchemeFilter`]: super::filters::HostFilter
+    /// [`SchemeFilter`]: super::filters::SchemeFilter
     #[inline]
     #[must_use]
     pub fn scheme(self, scheme: Scheme) -> Self {

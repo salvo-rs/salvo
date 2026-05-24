@@ -164,7 +164,7 @@ where
     #[inline]
     #[must_use]
     pub fn new(store: S, secret: &[u8]) -> Self {
-        Self::try_new(store, secret).expect("secret key must be at least 32 bytes")
+        Self::try_new(store, secret).expect("secret key must be at least 64 bytes")
     }
 
     /// Try creating new `HandlerBuilder`
