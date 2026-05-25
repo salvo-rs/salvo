@@ -51,7 +51,9 @@ impl Builder {
             .enable_extended_connect(true)
             .enable_datagram(true)
             .max_webtransport_sessions(1)
-            .send_grease(true);
+            // h3 0.0.8 can leave aioquic/curl clients waiting for stream end
+            // when a GREASE frame is sent just before finishing the response.
+            .send_grease(false);
         Self(builder)
     }
 }
