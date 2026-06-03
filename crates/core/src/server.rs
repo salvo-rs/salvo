@@ -52,7 +52,7 @@ impl ServerHandle {
     /// requests to finish. The adjective parallels [`Self::stop_graceful`];
     /// reach for that one when you want a clean shutdown.
     pub fn stop_forceful(&self) {
-        let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+        let _ = self.tx_cmd.send(ServerCommand::StopForceful);
     }
 
     /// Deprecated alias for [`Self::stop_forceful`].
@@ -109,7 +109,7 @@ impl ServerHandle {
 
 #[cfg(feature = "server-handle")]
 enum ServerCommand {
-    StopForcible,
+    StopForceful,
     StopGraceful(Option<Duration>),
 }
 
@@ -188,7 +188,7 @@ impl<A: Acceptor + Send> Server<A> {
         /// requests to finish. The adjective parallels [`Self::stop_graceful`];
         /// reach for that one when you want a clean shutdown.
         pub fn stop_forceful(&self) {
-            let _ = self.tx_cmd.send(ServerCommand::StopForcible);
+            let _ = self.tx_cmd.send(ServerCommand::StopForceful);
         }
 
         /// Deprecated alias for [`Self::stop_forceful`].
@@ -361,7 +361,7 @@ impl<A: Acceptor + Send> Server<A> {
                                     tracing::info!("initiate graceful stop server");
                                 }
                             },
-                            ServerCommand::StopForcible => {
+                            ServerCommand::StopForceful => {
                                 tracing::info!("force stop server");
                                 force_stop_token.cancel();
                             },

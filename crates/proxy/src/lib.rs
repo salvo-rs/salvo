@@ -78,7 +78,7 @@ cfg_feature! {
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
 
-const X_FORWARDER_FOR_HEADER_NAME: &str = "x-forwarded-for";
+const X_FORWARDED_FOR_HEADER_NAME: &str = "x-forwarded-for";
 const HOP_BY_HOP_HEADERS: &[&str] = &[
     "connection",
     "keep-alive",
@@ -563,7 +563,7 @@ where
         }
 
         if self.client_ip_forwarding_enabled {
-            let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
+            let xff_header_name = HeaderName::from_static(X_FORWARDED_FOR_HEADER_NAME);
             if let Some(client_ip) = req.remote_addr().ip() {
                 match HeaderValue::from_str(&client_ip.to_string()) {
                     Ok(xff) => {
@@ -1123,7 +1123,7 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
 
     #[tokio::test]
     async fn test_client_ip_forwarding() {
-        let xff_header_name = HeaderName::from_static(X_FORWARDER_FOR_HEADER_NAME);
+        let xff_header_name = HeaderName::from_static(X_FORWARDED_FOR_HEADER_NAME);
 
         let mut request = Request::new();
         let depot = Depot::new();
