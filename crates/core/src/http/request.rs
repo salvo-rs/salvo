@@ -327,8 +327,8 @@ impl Request {
 
     /// Returns a mutable reference to the associated URI.
     ///
-    /// *Notice: If you using this mutable reference to change the uri, you should change the
-    /// `params` and `queries` manually.*
+    /// **Note**: If you use this mutable reference to change the URI, you should change the
+    /// `params` and `queries` manually.
     ///
     /// # Examples
     ///
@@ -345,7 +345,7 @@ impl Request {
 
     /// Set the associated URI. `queries` will be reset.
     ///
-    /// *Notice: `params` will not reset.*
+    /// **Note**: `params` will not be reset.
     #[inline]
     pub fn set_uri(&mut self, uri: Uri) {
         self.uri = uri;
