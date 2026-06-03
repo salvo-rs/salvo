@@ -1,4 +1,14 @@
 //! Path filter implementation.
+//!
+//! A request path is matched segment by segment against a pattern. The smallest
+//! matching unit of such a pattern is called a **wisp**: it inspects the current
+//! position of the path and decides whether it matches, optionally capturing a
+//! named parameter. For example, the pattern `/users/{id}/posts` is made up of the
+//! constant wisps `users` and `posts` plus the named wisp `id`.
+//!
+//! Every wisp implements the [`PathWisp`] trait. The concrete kinds are enumerated
+//! by [`WispKind`] (constant, named, chars, regex and comb), and custom wisps can be
+//! registered through the [`WispBuilder`] trait.
 
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
@@ -12,7 +22,11 @@ use crate::async_trait;
 use crate::http::Request;
 use crate::routing::{Filter, FilterInfo, PathState};
 
-/// PathWisp
+/// A single matching unit of a path pattern.
+///
+/// A wisp inspects the current position of the [`PathState`] and reports whether
+/// the path matches, capturing named parameters along the way. A path pattern is
+/// composed of one or more wisps; see [`WispKind`] for the available kinds.
 pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
     #[doc(hidden)]
     fn type_id(&self) -> std::any::TypeId {
@@ -29,9 +43,16 @@ pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
     /// Return whether the path matches.
     fn detect(&self, state: &mut PathState) -> bool;
 }
-/// WispBuilder
+/// Builds a [`PathWisp`] from a parsed pattern fragment.
+///
+/// Builders are registered by name (e.g. `num`, `hex`) and invoked while a path
+/// pattern is parsed, allowing custom wisp kinds to be plugged in.
 pub trait WispBuilder: Send + Sync {
-    /// Build `PathWisp`.
+    /// Builds a [`WispKind`] from a parsed pattern fragment.
+    ///
+    /// * `name` - the captured parameter name.
+    /// * `sign` - the builder name that selected this builder (e.g. `num`).
+    /// * `args` - any arguments passed to the builder in the pattern.
     fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<WispKind, String>;
 }
 
@@ -66,15 +87,15 @@ fn push_named_part(matched_parts: &mut Vec<String>, name: &str) {
 
 /// Enum of all wisp kinds.
 pub enum WispKind {
-    /// ConstWisp.
+    /// Matches a literal constant string in the path. See [`ConstWisp`].
     Const(ConstWisp),
-    /// NamedWisp.
+    /// Captures a whole segment, or the remaining path for wildcards. See [`NamedWisp`].
     Named(NamedWisp),
-    /// CharsWisp.
+    /// Matches a run of characters accepted by a checker. See [`CharsWisp`].
     Chars(CharsWisp),
-    /// RegexWisp.
+    /// Matches part of a segment with a regex pattern. See [`RegexWisp`].
     Regex(RegexWisp),
-    /// CombWisp.
+    /// Combines several wisps within a single segment. See [`CombWisp`].
     Comb(CombWisp),
 }
 impl PathWisp for WispKind {
@@ -141,7 +162,7 @@ impl From<CombWisp> for WispKind {
     }
 }
 
-/// RegexWispBuilder
+/// A [`WispBuilder`] that builds a [`RegexWisp`] from a shared regex pattern.
 #[derive(Debug)]
 pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
@@ -162,7 +183,7 @@ impl WispBuilder for RegexWispBuilder {
     }
 }
 
-/// CharsWispBuilder
+/// A [`WispBuilder`] that builds a [`CharsWisp`] from a per-character checker.
 pub struct CharsWispBuilder(Arc<dyn Fn(char) -> bool + Send + Sync + 'static>);
 impl CharsWispBuilder {
     /// Create new `CharsWispBuilder`.
@@ -247,7 +268,7 @@ impl WispBuilder for CharsWispBuilder {
     }
 }
 
-/// Chars wisp matches characters in URL segment.
+/// Chars wisp matches a run of characters within a URL segment.
 pub struct CharsWisp {
     name: String,
     checker: Arc<dyn Fn(char) -> bool + Send + Sync + 'static>,
@@ -312,7 +333,7 @@ impl PathWisp for CharsWisp {
     }
 }
 
-/// Comb wisp is a group of other kind of wisps in the same url segment.
+/// Comb wisp is a group of other kinds of wisps within the same URL segment.
 #[derive(Debug)]
 pub struct CombWisp {
     names: Vec<String>,
@@ -520,7 +541,8 @@ impl PathWisp for CombWisp {
     }
 }
 
-/// Named wisp match part in url segment and give it a name.
+/// Named wisp captures a path part under a name: a whole segment for `{name}`, or
+/// the remaining path for wildcard names (`{**rest}`, `{*+rest}`, `{*?rest}`).
 #[derive(Debug, Eq, PartialEq)]
 pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
@@ -561,7 +583,7 @@ impl PathWisp for NamedWisp {
     }
 }
 
-/// Regex wisp match part in url segment use regex pattern and give it a name.
+/// Regex wisp matches part of a URL segment with a regex pattern and captures it under a name.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct RegexWisp {
@@ -643,7 +665,7 @@ impl PathWisp for RegexWisp {
     }
 }
 
-/// Const wisp is used for match the const string in the path.
+/// Const wisp matches a constant string in the path.
 #[derive(Eq, PartialEq, Debug)]
 pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
