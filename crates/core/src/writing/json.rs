@@ -71,7 +71,7 @@ where
                 let _ = res.write_body(bytes);
             }
             Err(e) => {
-                tracing::error!(error = ?e, "JsonContent write error");
+                tracing::error!(error = ?e, "JSON serialize error");
                 res.render(StatusError::internal_server_error());
             }
         }

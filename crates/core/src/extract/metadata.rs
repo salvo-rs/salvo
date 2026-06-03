@@ -7,18 +7,18 @@ use crate::extract::RenameRule;
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum SourceFrom {
-    /// The field will extracted from url param.
+    /// The field will be extracted from url param.
     Param,
-    /// The field will extracted from url query.
+    /// The field will be extracted from url query.
     Query,
-    /// The field will extracted from http header.
+    /// The field will be extracted from http header.
     Header,
-    /// The field will extracted from http cookie.
+    /// The field will be extracted from http cookie.
     #[cfg(feature = "cookie")]
     Cookie,
-    /// The field will extracted from http payload.
+    /// The field will be extracted from http payload.
     Body,
-    /// The field will extracted from depot.
+    /// The field will be extracted from depot.
     Depot,
 }
 
@@ -160,9 +160,9 @@ impl Metadata {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Field {
-    /// Field declare name in struct definition.
+    /// The field's declared name in the struct definition.
     pub decl_name: &'static str,
-    /// Field flatten, this field will extracted from request.
+    /// Whether the field is flattened; this field will be extracted from the request.
     pub flatten: bool,
     /// Field sources.
     pub sources: Vec<Source>,
@@ -176,13 +176,13 @@ pub struct Field {
     pub metadata: Option<&'static Metadata>,
 }
 impl Field {
-    /// Create a new field with the given name and kind.
+    /// Create a new field with the given name.
     #[must_use]
     pub fn new(decl_name: &'static str) -> Self {
         Self::with_sources(decl_name, vec![])
     }
 
-    /// Create a new field with the given name and kind, and the given sources.
+    /// Create a new field with the given name and sources.
     #[must_use]
     pub fn with_sources(decl_name: &'static str, sources: Vec<Source>) -> Self {
         Self {
@@ -224,7 +224,7 @@ impl Field {
         self
     }
 
-    /// Add a alias to aliases list.
+    /// Add an alias to the aliases list.
     #[must_use]
     pub fn add_alias(mut self, alias: &'static str) -> Self {
         self.aliases.push(alias);

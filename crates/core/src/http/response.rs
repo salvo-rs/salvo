@@ -348,7 +348,7 @@ impl Response {
         pub fn cookies_mut(&mut self) -> &mut CookieJar {
             &mut self.cookies
         }
-        /// Helper function for get cookie.
+        /// Gets a cookie by name from the response.
         #[inline]
         pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
         where
@@ -356,14 +356,14 @@ impl Response {
         {
             self.cookies.get(name.as_ref())
         }
-        /// Helper function for add cookie.
+        /// Adds a cookie to the response.
         #[inline]
-        pub fn add_cookie(&mut self, cookie: Cookie<'static>)-> &mut Self {
+        pub fn add_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
             self.cookies.add(cookie);
             self
         }
 
-        /// Helper function for remove cookie.
+        /// Removes a cookie from the response.
         ///
         /// Removes `cookie` from this [`CookieJar`]. If an _original_ cookie with the same
         /// name as `cookie` is present in the jar, a _removal_ cookie will be

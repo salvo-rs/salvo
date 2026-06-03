@@ -15,7 +15,7 @@ static PREFIX: &str = "bytes=";
 impl HttpRange {
     /// Parses Range HTTP header string as per RFC 2616.
     ///
-    /// `header` is HTTP Range header (e.g. `bytes=bytes=0-9`).
+    /// `header` is HTTP Range header (e.g. `bytes=0-9`).
     /// `size` is full size of response (file).
     pub fn parse(header: &str, size: u64) -> Result<Vec<Self>, ParseError> {
         if header.is_empty() {
