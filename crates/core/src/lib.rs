@@ -70,7 +70,7 @@ cfg_feature! {
 }
 
 pub use self::conn::Listener;
-pub use self::depot::Depot;
+pub use self::depot::{Depot, NamedDepot, NamedDepotMut, TypedDepot, TypedDepotMut};
 pub use self::error::{BoxedError, Error};
 pub use self::extract::Extractible;
 pub use self::handler::Handler;

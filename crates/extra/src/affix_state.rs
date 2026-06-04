@@ -27,9 +27,9 @@
 //!
 //! #[handler]
 //! async fn hello(depot: &mut Depot) -> String {
-//!     let config = depot.obtain::<Config>().unwrap();
-//!     let custom_data = depot.get::<&str>("custom_data").unwrap();
-//!     let state = depot.obtain::<Arc<State>>().unwrap();
+//!     let config = depot.get_typed::<Config>().unwrap();
+//!     let custom_data = depot.named().get::<&str>("custom_data").unwrap();
+//!     let state = depot.get_typed::<Arc<State>>().unwrap();
 //!     let mut fails_ref = state.fails.lock().unwrap();
 //!     fails_ref.push("fail message".into());
 //!     format!("Hello World\nConfig: {config:#?}\nFails: {fails_ref:#?}\nCustom Data: {custom_data}")
@@ -56,7 +56,6 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::handler;
@@ -67,30 +66,43 @@ trait AffixState {
 }
 
 #[derive(Default)]
-struct AffixCell<V> {
+struct NamedAffixCell<V> {
     key: String,
     value: V,
 }
-impl<T> AffixState for AffixCell<T>
+impl<T> AffixState for NamedAffixCell<T>
 where
     T: Send + Sync + Clone + 'static,
 {
     fn affix_to(&self, depot: &mut Depot) {
-        depot.insert(self.key.clone(), self.value.clone());
+        depot.named_mut().insert(self.key.clone(), self.value.clone());
     }
 }
 
-/// Inject a typed value into depot using the type's ID as the key.
+#[derive(Default)]
+struct TypedAffixCell<V> {
+    value: V,
+}
+impl<T> AffixState for TypedAffixCell<T>
+where
+    T: Send + Sync + Clone + 'static,
+{
+    fn affix_to(&self, depot: &mut Depot) {
+        depot.typed_mut().insert(self.value.clone());
+    }
+}
+
+/// Injects a typed value into the depot.
 ///
 /// This is useful when you want to access the value by its type rather than by an explicit key.
 ///
 /// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
-    insert(format!("{:?}", TypeId::of::<V>()), value)
+    AffixList::new().inject(value)
 }
 
-/// Insert a key-value pair into depot with an explicit key.
+/// Inserts a key-value pair into the depot with an explicit key.
 ///
 /// Use this when you need to access the value using a specific key string.
 ///
@@ -104,7 +116,7 @@ where
     AffixList::new().insert(key, value)
 }
 
-/// AffixList is used to add any data to depot.
+/// `AffixList` adds typed and named values to the depot.
 ///
 /// View [module level documentation](index.html) for more details.
 #[derive(Default)]
@@ -120,25 +132,26 @@ impl Debug for AffixList {
 
 #[handler]
 impl AffixList {
-    /// Create an empty affix list.
+    /// Creates an empty affix list.
     #[must_use]
     pub fn new() -> Self {
         Self(Vec::new())
     }
-    /// Inject a value into depot.
+    /// Injects a typed value into the depot.
     #[must_use]
-    pub fn inject<V: Send + Sync + Clone + 'static>(self, value: V) -> Self {
-        self.insert(format!("{:?}", TypeId::of::<V>()), value)
+    pub fn inject<V: Send + Sync + Clone + 'static>(mut self, value: V) -> Self {
+        self.0.push(Box::new(TypedAffixCell { value }));
+        self
     }
 
-    /// Insert a key-value pair into depot.
+    /// Inserts a key-value pair into the depot.
     #[must_use]
     pub fn insert<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<String>,
         V: Send + Sync + Clone + 'static,
     {
-        let cell = AffixCell {
+        let cell = NamedAffixCell {
             key: key.into(),
             value,
         };
@@ -169,10 +182,14 @@ mod tests {
         format!(
             "{}:{}",
             depot
-                .obtain::<Arc<User>>()
+                .get_typed::<Arc<User>>()
                 .map(|u| u.name.clone())
                 .unwrap_or_default(),
-            depot.get::<&str>("data1").copied().unwrap_or_default()
+            depot
+                .named()
+                .get::<&str>("data1")
+                .copied()
+                .unwrap_or_default()
         )
     }
     #[tokio::test]

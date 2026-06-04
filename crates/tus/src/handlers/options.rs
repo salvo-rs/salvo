@@ -14,7 +14,7 @@ use crate::{
 #[handler]
 /// https://tus.io/protocols/resumable-upload#options
 async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
+    let state = depot.typed().get::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
     let max_size = opts.get_configured_max_size(req, None).await;
