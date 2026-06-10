@@ -49,7 +49,7 @@ salvo-tus = { version = "0.93.0", path = "crates/tus", default-features = false 
 
 certon = "0.2"
 
-aead = "0.5"
+aead = "0.6"
 aes-gcm = "0.10"
 arc-swap = "1.9"
 anyhow = "1"
