@@ -75,7 +75,7 @@ where
     T: Send + Sync + Clone + 'static,
 {
     fn affix_to(&self, depot: &mut Depot) {
-        depot.named_mut().insert(self.key.clone(), self.value.clone());
+        depot.insert(self.key.clone(), self.value.clone());
     }
 }
 
@@ -88,7 +88,7 @@ where
     T: Send + Sync + Clone + 'static,
 {
     fn affix_to(&self, depot: &mut Depot) {
-        depot.typed_mut().insert(self.value.clone());
+        depot.insert_typed(self.value.clone());
     }
 }
 

@@ -139,7 +139,25 @@ impl Depot {
 
     /// Inserts a typed value into the depot.
     ///
-    /// The value is stored by its [`TypeId`], separately from string-keyed values.
+    /// The value is stored by its [`TypeId`], separately from string-keyed values. Any existing
+    /// value of the same type is replaced.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::Depot;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Config {
+    ///     debug: bool,
+    /// }
+    ///
+    /// let mut depot = Depot::new();
+    /// depot.insert_typed(Config { debug: true });
+    /// assert_eq!(depot.get_typed::<Config>(), Some(&Config { debug: true }));
+    /// assert_eq!(depot.remove_typed::<Config>(), Some(Config { debug: true }));
+    /// assert!(!depot.contains_typed::<Config>());
+    /// ```
     #[inline]
     pub fn insert_typed<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
         self.typed.insert(TypeId::of::<V>(), TypedEntry::new(value));
@@ -168,16 +186,23 @@ impl Depot {
     #[inline]
     #[must_use]
     pub fn contains_typed<T: Any + Send + Sync>(&self) -> bool {
-        self.typed().contains::<T>()
+        self.typed.contains_key(&TypeId::of::<T>())
     }
 
     /// Removes and returns a typed value from the depot.
     #[inline]
     pub fn remove_typed<T: Any + Send + Sync>(&mut self) -> Option<T> {
-        self.typed_mut().remove::<T>()
+        self.typed.remove(&TypeId::of::<T>()).map(|entry| {
+            *entry
+                .value
+                .downcast::<T>()
+                .expect("typed depot value should downcast")
+        })
     }
 
     /// Inject a value into the depot.
+    ///
+    /// This is an alias for [`Depot::insert_typed`].
     #[inline]
     pub fn inject<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
         self.insert_typed(value)
@@ -188,6 +213,8 @@ impl Depot {
     /// Returns `Err(None)` if the value is not present in the depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if the value is present but downcasting
     /// failed.
+    ///
+    /// Consider [`Depot::get_typed`], which returns an `Option` instead.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         if let Some(entry) = self.typed.get(&TypeId::of::<T>()) {
@@ -202,6 +229,8 @@ impl Depot {
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
     /// failed.
+    ///
+    /// Consider [`Depot::get_typed_mut`], which returns an `Option` instead.
     #[inline]
     pub fn obtain_mut<T: Any + Send + Sync>(
         &mut self,
@@ -221,6 +250,8 @@ impl Depot {
     }
 
     /// Inserts a key-value pair into the depot.
+    ///
+    /// Any existing value stored under the same key is replaced.
     #[inline]
     pub fn insert<K, V>(&mut self, key: K, value: V) -> &mut Self
     where
@@ -239,7 +270,9 @@ impl Depot {
     }
     /// Check whether a value of this type has been injected into the depot.
     ///
-    /// **Note**: Only checks values inserted via [`Depot::inject`].
+    /// **Note**: Only checks typed values, i.e. those inserted via [`Depot::inject`],
+    /// [`Depot::insert_typed`] or [`TypedDepotMut::insert`]. This is an alias for
+    /// [`Depot::contains_typed`].
     #[inline]
     #[must_use]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
@@ -311,6 +344,8 @@ impl Depot {
     }
 
     /// Remove the injected value of the given type from the depot and return it, if present.
+    ///
+    /// Consider [`Depot::remove_typed`], which returns an `Option` instead.
     #[inline]
     pub fn scrape<T: Any + Send + Sync>(
         &mut self,
