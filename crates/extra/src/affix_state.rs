@@ -56,7 +56,6 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 
 use salvo_core::handler;
@@ -80,14 +79,26 @@ where
     }
 }
 
-/// Inject a typed value into depot using the type's ID as the key.
+struct TypedAffixCell<V> {
+    value: V,
+}
+impl<T> AffixState for TypedAffixCell<T>
+where
+    T: Send + Sync + Clone + 'static,
+{
+    fn affix_to(&self, depot: &mut Depot) {
+        depot.inject(self.value.clone());
+    }
+}
+
+/// Inject a typed value into depot, stored by its type.
 ///
 /// This is useful when you want to access the value by its type rather than by an explicit key.
 ///
 /// View [module level documentation](index.html) for more details.
 #[inline]
 pub fn inject<V: Send + Sync + Clone + 'static>(value: V) -> AffixList {
-    insert(format!("{:?}", TypeId::of::<V>()), value)
+    AffixList::new().inject(value)
 }
 
 /// Insert a key-value pair into depot with an explicit key.
@@ -125,10 +136,11 @@ impl AffixList {
     pub fn new() -> Self {
         Self(Vec::new())
     }
-    /// Inject a value into depot.
+    /// Inject a value into depot, stored by its type.
     #[must_use]
-    pub fn inject<V: Send + Sync + Clone + 'static>(self, value: V) -> Self {
-        self.insert(format!("{:?}", TypeId::of::<V>()), value)
+    pub fn inject<V: Send + Sync + Clone + 'static>(mut self, value: V) -> Self {
+        self.0.push(Box::new(TypedAffixCell { value }));
+        self
     }
 
     /// Insert a key-value pair into depot.

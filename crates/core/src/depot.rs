@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::{Any, TypeId, type_name};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
@@ -36,12 +36,26 @@ use std::fmt::{self, Debug, Formatter};
 
 #[derive(Default)]
 pub struct Depot {
-    map: HashMap<String, Box<dyn Any + Send + Sync>>,
+    /// Values stored under an explicit string key.
+    named: HashMap<String, Box<dyn Any + Send + Sync>>,
+    /// Values stored by their type, keyed on [`TypeId`].
+    typed: HashMap<TypeId, TypedEntry>,
 }
 
-#[inline]
-fn type_key<T: 'static>() -> String {
-    format!("{:?}", TypeId::of::<T>())
+/// A type-keyed value, tagged with its Rust type name for diagnostics.
+struct TypedEntry {
+    type_name: &'static str,
+    value: Box<dyn Any + Send + Sync>,
+}
+
+impl TypedEntry {
+    #[inline]
+    fn new<T: Any + Send + Sync>(value: T) -> Self {
+        Self {
+            type_name: type_name::<T>(),
+            value: Box::new(value),
+        }
+    }
 }
 
 impl Depot {
@@ -53,39 +67,44 @@ impl Depot {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            map: HashMap::new(),
+            named: HashMap::new(),
+            typed: HashMap::new(),
         }
     }
 
-    /// Get reference to depot inner map.
+    /// Get reference to the depot's inner map of string-keyed values.
+    ///
+    /// **Note**: this exposes only values inserted with an explicit string key; values stored by
+    /// type (via [`Depot::inject`]) are kept in separate storage and are not included.
     #[inline]
     #[must_use]
     pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send + Sync>> {
-        &self.map
+        &self.named
     }
 
-    /// Creates an empty `Depot` with the specified capacity.
+    /// Creates an empty `Depot` with the specified capacity for string-keyed values.
     ///
-    /// The depot will be able to hold at least capacity elements without reallocating. If capacity
-    /// is 0, the depot will not allocate.
+    /// The depot will be able to hold at least capacity string-keyed elements without reallocating.
+    /// If capacity is 0, the depot will not allocate.
     #[inline]
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
+            named: HashMap::with_capacity(capacity),
+            typed: HashMap::new(),
         }
     }
-    /// Returns the number of elements the depot can hold without reallocating.
+    /// Returns the number of string-keyed elements the depot can hold without reallocating.
     #[inline]
     #[must_use]
     pub fn capacity(&self) -> usize {
-        self.map.capacity()
+        self.named.capacity()
     }
 
-    /// Inject a value into the depot.
+    /// Inject a value into the depot, stored by its type.
     #[inline]
     pub fn inject<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
-        self.map.insert(type_key::<V>(), Box::new(value));
+        self.typed.insert(TypeId::of::<V>(), TypedEntry::new(value));
         self
     }
 
@@ -96,7 +115,11 @@ impl Depot {
     /// failed.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
-        self.get(&type_key::<T>())
+        if let Some(entry) = self.typed.get(&TypeId::of::<T>()) {
+            entry.value.downcast_ref::<T>().ok_or(Some(&entry.value))
+        } else {
+            Err(None)
+        }
     }
 
     /// Obtain a mutable reference to a value previously injected into the depot.
@@ -108,7 +131,18 @@ impl Depot {
     pub fn obtain_mut<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
-        self.get_mut(&type_key::<T>())
+        if let Some(entry) = self.typed.get_mut(&TypeId::of::<T>()) {
+            if entry.value.is::<T>() {
+                Ok(entry
+                    .value
+                    .downcast_mut::<T>()
+                    .expect("downcast_mut should not fail"))
+            } else {
+                Err(Some(&mut entry.value))
+            }
+        } else {
+            Err(None)
+        }
     }
 
     /// Inserts a key-value pair into the depot.
@@ -118,7 +152,7 @@ impl Depot {
         K: Into<String>,
         V: Any + Send + Sync,
     {
-        self.map.insert(key.into(), Box::new(value));
+        self.named.insert(key.into(), Box::new(value));
         self
     }
 
@@ -126,7 +160,7 @@ impl Depot {
     #[inline]
     #[must_use]
     pub fn contains_key(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+        self.named.contains_key(key)
     }
     /// Check whether a value of this type has been injected into the depot.
     ///
@@ -134,7 +168,7 @@ impl Depot {
     #[inline]
     #[must_use]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
-        self.map.contains_key(&type_key::<T>())
+        self.typed.contains_key(&TypeId::of::<T>())
     }
 
     /// Immutably borrows value from depot.
@@ -147,7 +181,7 @@ impl Depot {
         &self,
         key: &str,
     ) -> Result<&V, Option<&Box<dyn Any + Send + Sync>>> {
-        if let Some(value) = self.map.get(key) {
+        if let Some(value) = self.named.get(key) {
             value.downcast_ref::<V>().ok_or(Some(value))
         } else {
             Err(None)
@@ -163,7 +197,7 @@ impl Depot {
         &mut self,
         key: &str,
     ) -> Result<&mut V, Option<&mut Box<dyn Any + Send + Sync>>> {
-        if let Some(value) = self.map.get_mut(key) {
+        if let Some(value) = self.named.get_mut(key) {
             if value.downcast_mut::<V>().is_some() {
                 Ok(value
                     .downcast_mut::<V>()
@@ -182,7 +216,7 @@ impl Depot {
         &mut self,
         key: &str,
     ) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
-        if let Some(value) = self.map.remove(key) {
+        if let Some(value) = self.named.remove(key) {
             value.downcast::<V>().map(|b| *b).map_err(Some)
         } else {
             Err(None)
@@ -192,7 +226,7 @@ impl Depot {
     /// Delete the key from depot, if the key is not present, return `false`.
     #[inline]
     pub fn delete(&mut self, key: &str) -> bool {
-        self.map.remove(key).is_some()
+        self.named.remove(key).is_some()
     }
 
     /// Remove the injected value of the given type from the depot and return it, if present.
@@ -200,14 +234,24 @@ impl Depot {
     pub fn scrape<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
-        self.remove(&type_key::<T>())
+        if let Some(entry) = self.typed.remove(&TypeId::of::<T>()) {
+            entry.value.downcast::<T>().map(|b| *b).map_err(Some)
+        } else {
+            Err(None)
+        }
     }
 }
 
 impl Debug for Depot {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let types = self
+            .typed
+            .values()
+            .map(|entry| entry.type_name)
+            .collect::<Vec<_>>();
         f.debug_struct("Depot")
-            .field("keys", &self.map.keys())
+            .field("keys", &self.named.keys())
+            .field("types", &types)
             .finish()
     }
 }
@@ -231,6 +275,34 @@ mod test {
             depot.get_mut::<String>("one").unwrap(),
             &mut "ONE".to_owned()
         );
+    }
+
+    #[test]
+    fn test_depot_typed() {
+        let mut depot = Depot::new();
+
+        assert!(depot.obtain::<String>().is_err());
+        depot.inject("typed".to_owned());
+        assert!(depot.contains::<String>());
+        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
+        assert_eq!(depot.obtain_mut::<String>().unwrap(), "typed");
+        assert_eq!(depot.scrape::<String>().unwrap(), "typed");
+        assert!(!depot.contains::<String>());
+    }
+
+    #[test]
+    fn test_depot_named_and_typed_are_separate() {
+        let mut depot = Depot::new();
+
+        // A string-keyed value and a typed value of the same type don't collide.
+        depot.insert("value", "named".to_owned());
+        depot.inject("typed".to_owned());
+
+        assert_eq!(depot.get::<String>("value").unwrap(), "named");
+        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
+        // `inner()` exposes only string-keyed values.
+        assert_eq!(depot.inner().len(), 1);
+        assert!(depot.contains_key("value"));
     }
 
     #[tokio::test]
