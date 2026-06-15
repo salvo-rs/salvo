@@ -223,15 +223,29 @@ impl Depot {
         }
     }
 
-    /// Delete the key from depot, if the key is not present, return `false`.
+    /// Remove the value at the given key, regardless of its type.
+    ///
+    /// Returns `true` if a value was present, `false` otherwise. Use [`Depot::remove`] instead when
+    /// you need the removed value back.
     #[inline]
-    pub fn delete(&mut self, key: &str) -> bool {
+    pub fn remove_any(&mut self, key: &str) -> bool {
         self.named.remove(key).is_some()
     }
 
-    /// Remove the injected value of the given type from the depot and return it, if present.
+    /// Deprecated alias for [`Depot::remove_any`].
     #[inline]
-    pub fn scrape<T: Any + Send + Sync>(
+    #[deprecated(since = "0.94.0", note = "use `Depot::remove_any` instead")]
+    pub fn delete(&mut self, key: &str) -> bool {
+        self.remove_any(key)
+    }
+
+    /// Remove the value of the given type from the depot and return it, if present.
+    ///
+    /// Returns `Err(None)` if value is not present in depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
+    /// failed.
+    #[inline]
+    pub fn take<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
         if let Some(entry) = self.typed.remove(&TypeId::of::<T>()) {
@@ -239,6 +253,15 @@ impl Depot {
         } else {
             Err(None)
         }
+    }
+
+    /// Deprecated alias for [`Depot::take`].
+    #[inline]
+    #[deprecated(since = "0.94.0", note = "use `Depot::take` instead")]
+    pub fn scrape<T: Any + Send + Sync>(
+        &mut self,
+    ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
+        self.take::<T>()
     }
 }
 
@@ -286,7 +309,7 @@ mod test {
         assert!(depot.contains::<String>());
         assert_eq!(depot.obtain::<String>().unwrap(), "typed");
         assert_eq!(depot.obtain_mut::<String>().unwrap(), "typed");
-        assert_eq!(depot.scrape::<String>().unwrap(), "typed");
+        assert_eq!(depot.take::<String>().unwrap(), "typed");
         assert!(!depot.contains::<String>());
     }
 
@@ -303,6 +326,12 @@ mod test {
         // `inner()` exposes only string-keyed values.
         assert_eq!(depot.inner().len(), 1);
         assert!(depot.contains_key("value"));
+
+        // `remove_any` drops the named entry without touching the typed one.
+        assert!(depot.remove_any("value"));
+        assert!(!depot.remove_any("value"));
+        assert!(!depot.contains_key("value"));
+        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
     }
 
     #[tokio::test]
