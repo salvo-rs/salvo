@@ -101,20 +101,29 @@ impl Depot {
         self.named.capacity()
     }
 
-    /// Inject a value into the depot, stored by its type.
+    /// Store a value in the depot, keyed by its type.
     #[inline]
-    pub fn inject<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
+    pub fn insert_typed<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
         self.typed.insert(TypeId::of::<V>(), TypedEntry::new(value));
         self
     }
 
-    /// Obtain a reference to a value previously injected into the depot.
+    /// Deprecated alias for [`Depot::insert_typed`].
+    #[inline]
+    #[deprecated(since = "0.94.0", note = "use `Depot::insert_typed` instead")]
+    pub fn inject<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
+        self.insert_typed(value)
+    }
+
+    /// Get a reference to the value of the given type, previously stored by type.
     ///
     /// Returns `Err(None)` if the value is not present in the depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if the value is present but downcasting
     /// failed.
     #[inline]
-    pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
+    pub fn get_typed<T: Any + Send + Sync>(
+        &self,
+    ) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         if let Some(entry) = self.typed.get(&TypeId::of::<T>()) {
             entry.value.downcast_ref::<T>().ok_or(Some(&entry.value))
         } else {
@@ -122,13 +131,20 @@ impl Depot {
         }
     }
 
-    /// Obtain a mutable reference to a value previously injected into the depot.
+    /// Deprecated alias for [`Depot::get_typed`].
+    #[inline]
+    #[deprecated(since = "0.94.0", note = "use `Depot::get_typed` instead")]
+    pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
+        self.get_typed::<T>()
+    }
+
+    /// Get a mutable reference to the value of the given type, previously stored by type.
     ///
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
     /// failed.
     #[inline]
-    pub fn obtain_mut<T: Any + Send + Sync>(
+    pub fn get_typed_mut<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
         if let Some(entry) = self.typed.get_mut(&TypeId::of::<T>()) {
@@ -143,6 +159,15 @@ impl Depot {
         } else {
             Err(None)
         }
+    }
+
+    /// Deprecated alias for [`Depot::get_typed_mut`].
+    #[inline]
+    #[deprecated(since = "0.94.0", note = "use `Depot::get_typed_mut` instead")]
+    pub fn obtain_mut<T: Any + Send + Sync>(
+        &mut self,
+    ) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
+        self.get_typed_mut::<T>()
     }
 
     /// Inserts a key-value pair into the depot.
@@ -162,13 +187,21 @@ impl Depot {
     pub fn contains_key(&self, key: &str) -> bool {
         self.named.contains_key(key)
     }
-    /// Check whether a value of this type has been injected into the depot.
+    /// Check whether a value of the given type has been stored in the depot.
     ///
-    /// **Note**: Only checks values inserted via [`Depot::inject`].
+    /// **Note**: Only checks values inserted via [`Depot::insert_typed`].
     #[inline]
     #[must_use]
-    pub fn contains<T: Any + Send + Sync>(&self) -> bool {
+    pub fn contains_typed<T: Any + Send + Sync>(&self) -> bool {
         self.typed.contains_key(&TypeId::of::<T>())
+    }
+
+    /// Deprecated alias for [`Depot::contains_typed`].
+    #[inline]
+    #[must_use]
+    #[deprecated(since = "0.94.0", note = "use `Depot::contains_typed` instead")]
+    pub fn contains<T: Any + Send + Sync>(&self) -> bool {
+        self.contains_typed::<T>()
     }
 
     /// Immutably borrows value from depot.
@@ -245,7 +278,7 @@ impl Depot {
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcasting
     /// failed.
     #[inline]
-    pub fn take<T: Any + Send + Sync>(
+    pub fn remove_typed<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
         if let Some(entry) = self.typed.remove(&TypeId::of::<T>()) {
@@ -255,13 +288,13 @@ impl Depot {
         }
     }
 
-    /// Deprecated alias for [`Depot::take`].
+    /// Deprecated alias for [`Depot::remove_typed`].
     #[inline]
-    #[deprecated(since = "0.94.0", note = "use `Depot::take` instead")]
+    #[deprecated(since = "0.94.0", note = "use `Depot::remove_typed` instead")]
     pub fn scrape<T: Any + Send + Sync>(
         &mut self,
     ) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
-        self.take::<T>()
+        self.remove_typed::<T>()
     }
 }
 
@@ -304,13 +337,13 @@ mod test {
     fn test_depot_typed() {
         let mut depot = Depot::new();
 
-        assert!(depot.obtain::<String>().is_err());
-        depot.inject("typed".to_owned());
-        assert!(depot.contains::<String>());
-        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
-        assert_eq!(depot.obtain_mut::<String>().unwrap(), "typed");
-        assert_eq!(depot.take::<String>().unwrap(), "typed");
-        assert!(!depot.contains::<String>());
+        assert!(depot.get_typed::<String>().is_err());
+        depot.insert_typed("typed".to_owned());
+        assert!(depot.contains_typed::<String>());
+        assert_eq!(depot.get_typed::<String>().unwrap(), "typed");
+        assert_eq!(depot.get_typed_mut::<String>().unwrap(), "typed");
+        assert_eq!(depot.remove_typed::<String>().unwrap(), "typed");
+        assert!(!depot.contains_typed::<String>());
     }
 
     #[test]
@@ -319,10 +352,10 @@ mod test {
 
         // A string-keyed value and a typed value of the same type don't collide.
         depot.insert("value", "named".to_owned());
-        depot.inject("typed".to_owned());
+        depot.insert_typed("typed".to_owned());
 
         assert_eq!(depot.get::<String>("value").unwrap(), "named");
-        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
+        assert_eq!(depot.get_typed::<String>().unwrap(), "typed");
         // `inner()` exposes only string-keyed values.
         assert_eq!(depot.inner().len(), 1);
         assert!(depot.contains_key("value"));
@@ -331,7 +364,7 @@ mod test {
         assert!(depot.remove_any("value"));
         assert!(!depot.remove_any("value"));
         assert!(!depot.contains_key("value"));
-        assert_eq!(depot.obtain::<String>().unwrap(), "typed");
+        assert_eq!(depot.get_typed::<String>().unwrap(), "typed");
     }
 
     #[tokio::test]

@@ -13,7 +13,7 @@ use crate::{
 
 #[handler]
 async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
+    let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
     let headers = apply_common_headers(req, opts, &mut res.headers);

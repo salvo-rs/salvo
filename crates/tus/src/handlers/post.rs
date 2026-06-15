@@ -19,7 +19,7 @@ use crate::{
 /// Tus-Resumable: 1.0.0
 #[handler]
 async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
+    let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
     apply_common_headers(req, opts, &mut res.headers);

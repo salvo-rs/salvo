@@ -27,9 +27,9 @@
 //!
 //! #[handler]
 //! async fn hello(depot: &mut Depot) -> String {
-//!     let config = depot.obtain::<Config>().unwrap();
+//!     let config = depot.get_typed::<Config>().unwrap();
 //!     let custom_data = depot.get::<&str>("custom_data").unwrap();
-//!     let state = depot.obtain::<Arc<State>>().unwrap();
+//!     let state = depot.get_typed::<Arc<State>>().unwrap();
 //!     let mut fails_ref = state.fails.lock().unwrap();
 //!     fails_ref.push("fail message".into());
 //!     format!("Hello World\nConfig: {config:#?}\nFails: {fails_ref:#?}\nCustom Data: {custom_data}")
@@ -87,7 +87,7 @@ where
     T: Send + Sync + Clone + 'static,
 {
     fn affix_to(&self, depot: &mut Depot) {
-        depot.inject(self.value.clone());
+        depot.insert_typed(self.value.clone());
     }
 }
 
@@ -181,7 +181,7 @@ mod tests {
         format!(
             "{}:{}",
             depot
-                .obtain::<Arc<User>>()
+                .get_typed::<Arc<User>>()
                 .map(|u| u.name.clone())
                 .unwrap_or_default(),
             depot.get::<&str>("data1").copied().unwrap_or_default()
