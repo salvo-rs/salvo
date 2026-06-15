@@ -236,7 +236,7 @@ struct TusStateHoop {
 #[handler]
 impl TusStateHoop {
     async fn handle(&self, depot: &mut Depot) {
-        depot.inject(self.state.clone());
+        depot.insert_typed(self.state.clone());
     }
 }
 

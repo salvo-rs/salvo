@@ -99,7 +99,9 @@ impl SessionDepotExt for Depot {
     }
     #[inline]
     fn take_session(&mut self) -> Option<Session> {
-        self.remove(SESSION_KEY).ok()
+        self.remove(SESSION_KEY)
+            .and_then(|v| v.downcast::<Session>().ok())
+            .map(|v| *v)
     }
     #[inline]
     fn session(&self) -> Option<&Session> {

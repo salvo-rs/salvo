@@ -11,7 +11,7 @@ use crate::{CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tu
 
 #[handler]
 async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let state = depot.obtain::<Arc<Tus>>().expect("missing tus state");
+    let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
     let headers = apply_common_headers(req, opts, &mut res.headers);
