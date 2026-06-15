@@ -244,32 +244,20 @@ impl Depot {
     }
 
     /// Remove the value at the given key from the depot and return it, if present.
-    #[inline]
-    pub fn remove<V: Any + Send + Sync>(
-        &mut self,
-        key: &str,
-    ) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
-        if let Some(value) = self.named.remove(key) {
-            value.downcast::<V>().map(|b| *b).map_err(Some)
-        } else {
-            Err(None)
-        }
-    }
-
-    /// Remove the value at the given key, regardless of its type.
     ///
-    /// Returns `true` if a value was present, `false` otherwise. Use [`Depot::remove`] instead when
-    /// you need the removed value back.
+    /// The value is returned in its type-erased box; downcast it with
+    /// [`Box::downcast`] if you need the concrete type back. Returns `None` if the key was not
+    /// present.
     #[inline]
-    pub fn remove_any(&mut self, key: &str) -> bool {
-        self.named.remove(key).is_some()
+    pub fn remove(&mut self, key: &str) -> Option<Box<dyn Any + Send + Sync>> {
+        self.named.remove(key)
     }
 
-    /// Deprecated alias for [`Depot::remove_any`].
+    /// Deprecated: use [`Depot::remove`] and check the [`Option`] (e.g. `remove(key).is_some()`).
     #[inline]
-    #[deprecated(since = "0.94.0", note = "use `Depot::remove_any` instead")]
+    #[deprecated(since = "0.94.0", note = "use `Depot::remove` and check the returned `Option`")]
     pub fn delete(&mut self, key: &str) -> bool {
-        self.remove_any(key)
+        self.remove(key).is_some()
     }
 
     /// Remove the value of the given type from the depot and return it, if present.
@@ -360,9 +348,12 @@ mod test {
         assert_eq!(depot.inner().len(), 1);
         assert!(depot.contains_key("value"));
 
-        // `remove_any` drops the named entry without touching the typed one.
-        assert!(depot.remove_any("value"));
-        assert!(!depot.remove_any("value"));
+        // `remove` drops the named entry without touching the typed one.
+        assert_eq!(
+            depot.remove("value").and_then(|v| v.downcast::<String>().ok()),
+            Some(Box::new("named".to_owned()))
+        );
+        assert!(depot.remove("value").is_none());
         assert!(!depot.contains_key("value"));
         assert_eq!(depot.get_typed::<String>().unwrap(), "typed");
     }

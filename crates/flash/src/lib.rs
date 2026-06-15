@@ -356,7 +356,9 @@ where
         }
 
         let mut flash = depot
-            .remove::<Flash>(OUTGOING_FLASH_KEY)
+            .remove(OUTGOING_FLASH_KEY)
+            .and_then(|v| v.downcast::<Flash>().ok())
+            .map(|v| *v)
             .unwrap_or_default();
         if let Some(min_level) = self.minimum_level {
             flash.0.retain(|msg| msg.level >= min_level);
