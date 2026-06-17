@@ -73,40 +73,7 @@ impl Debug for AcmeConfig {
 /// - **OCSP stapling** via [`ocsp`](AcmeConfigBuilder::ocsp).
 /// - **Custom storage** via [`storage`](AcmeConfigBuilder::storage).
 /// - **ZeroSSL** via [`zerossl_api_key`](AcmeConfigBuilder::zerossl_api_key).
-pub struct AcmeConfigBuilder {
-    pub(crate) directory_name: String,
-    pub(crate) directory_url: String,
-    pub(crate) domains: Vec<String>,
-    pub(crate) contacts: Vec<String>,
-    pub(crate) challenge_type: ChallengeType,
-    pub(crate) cache_path: Option<PathBuf>,
-    pub(crate) keys_for_http01: Option<Arc<RwLock<HashMap<String, String>>>>,
-    pub(crate) before_expired: Duration,
-    pub(crate) key_type: KeyType,
-    pub(crate) issuers: Option<Vec<Arc<dyn CertIssuer>>>,
-    pub(crate) storage: Option<Arc<dyn Storage>>,
-    pub(crate) http01_solver: Option<Arc<dyn Solver>>,
-    pub(crate) tls_alpn01_solver: Option<Arc<dyn Solver>>,
-    pub(crate) dns01_solver: Option<Arc<dyn Solver>>,
-    pub(crate) ocsp: OcspConfig,
-    pub(crate) on_demand: Option<Arc<OnDemandConfig>>,
-    pub(crate) zerossl_api_key: Option<String>,
-    pub(crate) agree_to_tos: bool,
-}
-
-impl fmt::Debug for AcmeConfigBuilder {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("AcmeConfigBuilder")
-            .field("directory_name", &self.directory_name)
-            .field("directory_url", &self.directory_url)
-            .field("domains", &self.domains)
-            .field("contacts", &self.contacts)
-            .field("challenge_type", &self.challenge_type)
-            .field("cache_path", &self.cache_path)
-            .field("key_type", &self.key_type)
-            .finish()
-    }
-}
+pub use AcmeConfig as AcmeConfigBuilder;
 
 impl AcmeConfigBuilder {
     #[inline]
@@ -328,47 +295,8 @@ impl AcmeConfigBuilder {
         if self.domains.is_empty() {
             return Err(IoError::other("at least one domain name is expected"));
         }
-        let Self {
-            directory_name,
-            directory_url,
-            domains,
-            contacts,
-            challenge_type,
-            cache_path,
-            keys_for_http01,
-            before_expired,
-            key_type,
-            issuers,
-            storage,
-            http01_solver,
-            tls_alpn01_solver,
-            dns01_solver,
-            ocsp,
-            on_demand,
-            zerossl_api_key,
-            agree_to_tos,
-        } = self;
 
-        Ok(AcmeConfig {
-            directory_name,
-            directory_url,
-            domains,
-            contacts,
-            challenge_type,
-            cache_path,
-            keys_for_http01,
-            before_expired,
-            key_type,
-            issuers,
-            storage,
-            http01_solver,
-            tls_alpn01_solver,
-            dns01_solver,
-            ocsp,
-            on_demand,
-            zerossl_api_key,
-            agree_to_tos,
-        })
+        Ok(self)
     }
 }
 
