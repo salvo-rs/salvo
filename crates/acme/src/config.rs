@@ -42,8 +42,8 @@ impl AcmeConfig {
     /// Create an ACME configuration builder.
     #[inline]
     #[must_use]
-    pub fn builder() -> AcmeConfigBuilder {
-        AcmeConfigBuilder::new()
+    pub fn builder() -> Self {
+        Self::new()
     }
 }
 
@@ -291,7 +291,7 @@ impl AcmeConfigBuilder {
     }
 
     /// Consumes this builder and returns a [`AcmeConfig`] object.
-    pub fn build(self) -> IoResult<AcmeConfig> {
+    pub fn build(self) -> IoResult<Self> {
         if self.domains.is_empty() {
             return Err(IoError::other("at least one domain name is expected"));
         }

@@ -107,7 +107,7 @@ impl Body for ReqBody {
                 if bytes.is_empty() {
                     Poll::Ready(None)
                 } else {
-                    let bytes = std::mem::replace(bytes, Bytes::new());
+                    let bytes = std::mem::take(bytes);
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
