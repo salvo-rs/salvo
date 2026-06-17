@@ -99,14 +99,11 @@ use bytes::Bytes;
 use salvo_core::handler::Skipper;
 use salvo_core::http::header::{AUTHORIZATION, CACHE_CONTROL, COOKIE, SET_COOKIE, VARY};
 use salvo_core::http::{HeaderMap, ResBody, StatusCode};
-use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
+use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
 use tokio::sync::Notify;
 
 mod skipper;
 pub use skipper::MethodSkipper;
-
-#[macro_use]
-mod cfg;
 
 cfg_feature! {
     #![feature = "moka-store"]

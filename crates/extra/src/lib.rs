@@ -90,8 +90,7 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[macro_use]
-mod cfg;
+use salvo_core::cfg_feature;
 
 cfg_feature! {
     #![feature = "basic-auth"]

@@ -1,5 +1,7 @@
 //! Rust implementation of Openapi Spec V3.1.
 
+use salvo_core::cfg_feature;
+
 mod callback;
 mod components;
 mod content;

@@ -34,10 +34,7 @@ use rand::RngExt;
 use rand::distr::StandardUniform;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};
-use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
-
-#[macro_use]
-mod cfg;
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
 
 cfg_feature! {
     #![feature = "cookie-store"]

@@ -108,8 +108,7 @@ use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 mod quota;
 pub use quota::{BasicQuota, CelledQuota, QuotaGetter};
-#[macro_use]
-mod cfg;
+use salvo_core::cfg_feature;
 
 cfg_feature! {
     #![feature = "moka-store"]

@@ -62,8 +62,7 @@
 //! }
 //! ```
 
-#[macro_use]
-mod cfg;
+use salvo_core::cfg_feature;
 
 mod config;
 mod listener;
