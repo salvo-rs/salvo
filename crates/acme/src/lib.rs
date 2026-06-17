@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 //! Automatic HTTPS/TLS certificate management for Salvo via the ACME protocol.
 //!

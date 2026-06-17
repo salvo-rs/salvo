@@ -259,7 +259,7 @@ impl AcmeConfigBuilder {
 
     /// Sets a custom persistent storage backend.
     ///
-    /// By default, a [`FileStorage`] will be created from the `cache_path`
+    /// By default, a [`certon::FileStorage`] will be created from the `cache_path`
     /// if provided.
     #[inline]
     #[must_use]
