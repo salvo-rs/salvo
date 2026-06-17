@@ -255,7 +255,10 @@ impl Depot {
 
     /// Deprecated: use [`Depot::remove`] and check the [`Option`] (e.g. `remove(key).is_some()`).
     #[inline]
-    #[deprecated(since = "0.94.0", note = "use `Depot::remove` and check the returned `Option`")]
+    #[deprecated(
+        since = "0.94.0",
+        note = "use `Depot::remove` and check the returned `Option`"
+    )]
     pub fn delete(&mut self, key: &str) -> bool {
         self.remove(key).is_some()
     }
@@ -350,7 +353,9 @@ mod test {
 
         // `remove` drops the named entry without touching the typed one.
         assert_eq!(
-            depot.remove("value").and_then(|v| v.downcast::<String>().ok()),
+            depot
+                .remove("value")
+                .and_then(|v| v.downcast::<String>().ok()),
             Some(Box::new("named".to_owned()))
         );
         assert!(depot.remove("value").is_none());
