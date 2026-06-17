@@ -270,11 +270,19 @@ impl NamedFileBuilder {
         let inferred_mime = content_type
             .clone()
             .or_else(|| mime_infer::from_path(&path).first());
-        let needs_charset = inferred_mime
-            .as_ref()
-            .map(|m| is_charset_required_mime(m) && m.get_param("charset").is_none())
-            .unwrap_or(false);
-        let needs_detect = content_type.is_none() && path.extension().is_none();
+        // When a content encoding is set, the on-disk bytes are the *encoded*
+        // (e.g. gzip) payload of a precompressed sidecar file. Sniffing a charset
+        // or text mime from those compressed bytes yields a bogus result (the
+        // compressed blob is not valid UTF-8), so the wrong `charset=` would be
+        // attached to the `Content-Type` and the client mojibakes the decoded
+        // text. Skip content-based detection in that case.
+        let is_encoded = content_encoding.is_some();
+        let needs_charset = !is_encoded
+            && inferred_mime
+                .as_ref()
+                .map(|m| is_charset_required_mime(m) && m.get_param("charset").is_none())
+                .unwrap_or(false);
+        let needs_detect = !is_encoded && content_type.is_none() && path.extension().is_none();
 
         // Single spawn_blocking: open + metadata + optional preread.
         // This replaces 3-7 separate spawn_blocking calls with just 1.
@@ -808,6 +816,37 @@ mod tests {
         assert_eq!(
             value.to_str().unwrap(),
             r#"attachment; filename="report\"\\__.txt"; filename*=UTF-8''report%22%5C%0D%0A.txt"#
+        );
+    }
+
+    #[tokio::test]
+    async fn precompressed_file_does_not_sniff_charset_from_encoded_bytes() {
+        use std::io::Write as _;
+
+        // Simulate a `.js.gz` sidecar: the on-disk bytes are a gzip payload, which
+        // is not valid UTF-8. Without the fix, charset detection runs on these
+        // compressed bytes and attaches a bogus `charset=` to the text/javascript
+        // content type, causing the client to mojibake the decoded source.
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(&[
+            0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xab, 0xe2, 0x80, 0x9c,
+            0xc3, 0xa9, 0xb4, 0xd6, 0xfe, 0x00,
+        ])
+        .expect("write gzip-like bytes");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .content_type("text/javascript".parse().expect("parse mime"))
+            .content_encoding("gzip")
+            .build()
+            .await
+            .expect("build named file");
+
+        // No charset must be sniffed from the encoded payload.
+        assert_eq!(named.content_type().get_param("charset"), None);
+        assert_eq!(
+            named.content_encoding().map(|v| v.to_str().unwrap()),
+            Some("gzip")
         );
     }
 
