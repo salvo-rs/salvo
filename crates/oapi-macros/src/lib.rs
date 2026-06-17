@@ -15,8 +15,6 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Bracket;
 use syn::{Ident, Item, Token, bracketed, parse_macro_input};
 
-#[macro_use]
-mod cfg;
 mod attribute;
 pub(crate) mod bound;
 mod component;

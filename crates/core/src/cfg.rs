@@ -1,3 +1,5 @@
+#[macro_export]
+#[doc(hidden)]
 macro_rules! cfg_feature {
     (
         #![$meta:meta]

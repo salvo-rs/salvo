@@ -4,8 +4,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 
-#[macro_use]
-mod cfg;
+use salvo_core::cfg_feature;
 
 #[cfg(any(
     feature = "swagger-ui",

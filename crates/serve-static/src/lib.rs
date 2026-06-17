@@ -16,9 +16,7 @@ mod file;
 
 pub use dir::StaticDir;
 pub use file::StaticFile;
-
-#[macro_use]
-mod cfg;
+use salvo_core::cfg_feature;
 
 #[doc(hidden)]
 #[macro_export]

@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
+use salvo_core::cfg_feature;
 use syn::parse_quote;
 
 use crate::feature::Feature;

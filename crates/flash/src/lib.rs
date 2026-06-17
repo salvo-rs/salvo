@@ -74,11 +74,8 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::Deref;
 
-use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
+use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
 use serde::{Deserialize, Serialize};
-
-#[macro_use]
-mod cfg;
 
 cfg_feature! {
     #![feature = "cookie-store"]

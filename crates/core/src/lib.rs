@@ -37,7 +37,8 @@ extern crate self as salvo_core;
 extern crate self as salvo;
 
 #[macro_use]
-mod cfg;
+#[doc(hidden)]
+pub mod cfg;
 
 pub mod catcher;
 pub mod conn;

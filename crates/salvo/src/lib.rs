@@ -60,11 +60,10 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[macro_use]
-mod cfg;
 pub use salvo_core as core;
 // #[doc(no_inline)]
 pub use salvo_core::*;
+
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo;
 
@@ -211,7 +210,9 @@ cfg_feature! {
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
+    use salvo_core::cfg_feature;
     pub use salvo_core::prelude::*;
+
     cfg_feature! {
         #![feature = "affix-state"]
         pub use salvo_extra::affix_state;
