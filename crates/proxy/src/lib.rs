@@ -51,8 +51,9 @@ use salvo_core::http::header::{
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::routing::normalize_url_path;
-use salvo_core::{BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
-use salvo_core::cfg_feature;
+use salvo_core::{
+    BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature,
+};
 
 cfg_feature! {
     #![feature = "hyper-client"]

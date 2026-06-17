@@ -225,5 +225,3 @@ macro_rules! for_each_tuple {
         }
     };
 }
-
-

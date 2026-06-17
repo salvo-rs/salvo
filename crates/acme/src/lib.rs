@@ -93,9 +93,9 @@ pub use certon::{
     AcmeIssuer, AcmeIssuerBuilder, CertCache, CertIssuer, CertResolver, Certificate,
     Config as CertonConfig, ConfigBuilder as CertonConfigBuilder, DistributedSolver, Dns01Solver,
     DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
-    MaintenanceConfig, Manager, OcspConfig, OnDemandConfig, PreChecker, Revoker, Solver, Storage,
-    TlsAlpn01Solver, ZeroSslIssuer,
-    LETS_ENCRYPT_PRODUCTION,LETS_ENCRYPT_STAGING,ZEROSSL_PRODUCTION
+    LETS_ENCRYPT_PRODUCTION, LETS_ENCRYPT_STAGING, MaintenanceConfig, Manager, OcspConfig,
+    OnDemandConfig, PreChecker, Revoker, Solver, Storage, TlsAlpn01Solver, ZEROSSL_PRODUCTION,
+    ZeroSslIssuer,
 };
 
 // ---------------------------------------------------------------------------

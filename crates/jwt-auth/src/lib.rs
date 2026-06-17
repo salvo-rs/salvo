@@ -152,7 +152,6 @@ pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFi
 
 mod decoder;
 pub use decoder::{ConstDecoder, JwtAuthDecoder};
-
 use salvo_core::cfg_feature;
 
 cfg_feature! {

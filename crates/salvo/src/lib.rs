@@ -210,9 +210,9 @@ cfg_feature! {
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
-    pub use salvo_core::prelude::*;
     use salvo_core::cfg_feature;
-    
+    pub use salvo_core::prelude::*;
+
     cfg_feature! {
         #![feature = "affix-state"]
         pub use salvo_extra::affix_state;
