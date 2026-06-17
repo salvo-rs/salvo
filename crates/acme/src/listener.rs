@@ -117,7 +117,7 @@ impl<T> AcmeListenerBuilder<T> {
         }
     }
 
-    /// Create an handler for HTTP-01 challenge.
+    /// Create a handler for HTTP-01 challenge.
     #[must_use]
     pub fn http01_challenge(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challenge();
@@ -138,7 +138,7 @@ impl<T> AcmeListenerBuilder<T> {
         }
     }
 
-    /// Create an handler for TLS-ALPN-01 challenge.
+    /// Create a handler for TLS-ALPN-01 challenge.
     #[inline]
     #[must_use]
     pub fn tls_alpn01_challenge(self) -> Self {
@@ -439,7 +439,7 @@ cfg_feature! {
             let mut crypto = a.server_config.as_ref().clone();
             crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
             let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(crypto).map_err(salvo_core::Error::other)?;
-            let config = salvo_core::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
+            let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(config, local_addr).try_bind().await?;
             Ok(JoinedAcceptor::new(a, b))
         }
@@ -451,7 +451,7 @@ pub struct AcmeAcceptor<T> {
     pub(crate) server_config: Arc<ServerConfig>,
     inner: T,
     holdings: Vec<Holding>,
-    tls_acceptor: tokio_rustls::TlsAcceptor,
+    tls_acceptor: TlsAcceptor,
 }
 impl<T> Debug for AcmeAcceptor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

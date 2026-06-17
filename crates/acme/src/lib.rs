@@ -12,7 +12,7 @@
 //! - **On-demand TLS**: obtain certificates at handshake time.
 //! - **OCSP stapling**: automatic OCSP response fetching and stapling.
 //! - **Multiple key types**: ECDSA P-256/P-384/P-521, RSA, Ed25519.
-//! - **Persistent storage**: pluggable storage backend via [`certon::Storage`].
+//! - **Persistent storage**: pluggable storage backend via [`Storage`].
 //! - **Background renewal**: automatic certificate renewal and OCSP refresh.
 //!
 //! ## Quick Start - HTTP-01
@@ -96,18 +96,12 @@ pub use certon::{
     DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
     MaintenanceConfig, Manager, OcspConfig, OnDemandConfig, PreChecker, Revoker, Solver, Storage,
     TlsAlpn01Solver, ZeroSslIssuer,
+    LETS_ENCRYPT_PRODUCTION,LETS_ENCRYPT_STAGING,ZEROSSL_PRODUCTION
 };
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/// Let's Encrypt production directory URL.
-pub const LETS_ENCRYPT_PRODUCTION: &str = certon::LETS_ENCRYPT_PRODUCTION;
-/// Let's Encrypt staging directory URL.
-pub const LETS_ENCRYPT_STAGING: &str = certon::LETS_ENCRYPT_STAGING;
-/// ZeroSSL production directory URL.
-pub const ZEROSSL_PRODUCTION: &str = certon::ZEROSSL_PRODUCTION;
 
 /// Well known ACME challenge path.
 pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
