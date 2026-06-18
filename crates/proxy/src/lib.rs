@@ -237,6 +237,10 @@ fn contains_ambiguous_path_escape(path: &str) -> bool {
     false
 }
 
+fn contains_parent_dir_component(path: &str) -> bool {
+    path.split(['/', '\\']).any(|part| part == "..")
+}
+
 fn hex_value(byte: u8) -> Option<u8> {
     match byte {
         b'0'..=b'9' => Some(byte - b'0'),
@@ -250,7 +254,11 @@ pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String>
     req.uri().query().map(Into::into)
 }
 
-/// Default host header getter. This getter gets the host header from the request URI.
+/// Default host header getter.
+///
+/// This getter returns only the host name from the request URI. It does not include a non-default
+/// port. Use [`standard_host_header_getter`] when the forwarded `Host` header should include a
+/// non-default port from the upstream URI.
 pub fn default_host_header_getter(
     forward_uri: &Uri,
     _req: &Request,
@@ -364,6 +372,10 @@ where
     C: Client,
 {
     /// Create new `Proxy` with upstreams list.
+    ///
+    /// The default host header getter forwards only the upstream host name. To include
+    /// non-default upstream ports, configure [`standard_host_header_getter`] with
+    /// [`Self::host_header_getter`].
     #[must_use]
     pub fn new(upstreams: U, client: C) -> Self {
         Self {
@@ -379,6 +391,9 @@ where
     }
 
     /// Create new `Proxy` with upstreams list and enable x-forwarded-for header.
+    ///
+    /// Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the direct
+    /// client IP from the connection.
     pub fn with_client_ip_forwarding(upstreams: U, client: C) -> Self {
         Self {
             upstreams,
@@ -427,10 +442,10 @@ where
 
     /// Enable or disable strict path normalization.
     ///
-    /// When enabled, the proxy rejects paths that still contain percent-encoded `.`, `/`, `\`,
-    /// or `%` characters after Salvo routing has extracted the path tail. This is useful when the
-    /// proxy is used as a security boundary and the upstream server may perform another decode
-    /// pass.
+    /// When enabled, the proxy rejects literal parent-directory (`..`) path components and paths
+    /// that still contain percent-encoded `.`, `/`, `\`, or `%` characters after Salvo routing has
+    /// extracted the path tail. This is useful when the proxy is used as a security boundary and
+    /// the upstream server may perform another decode or normalization pass.
     #[inline]
     #[must_use]
     pub fn strict_path_normalization(mut self, enable: bool) -> Self {
@@ -461,6 +476,9 @@ where
     }
 
     /// Enable x-forwarded-for header forwarding.
+    ///
+    /// When enabled, the proxy overwrites any inbound `X-Forwarded-For` value with the direct
+    /// client IP from the connection instead of trusting a client-supplied forwarding chain.
     #[inline]
     #[must_use]
     pub fn client_ip_forwarding(mut self, enable: bool) -> Self {
@@ -501,8 +519,13 @@ where
         }
 
         let path = (self.url_path_getter)(req, depot).unwrap_or_default();
-        if self.strict_path_normalization_enabled && contains_ambiguous_path_escape(&path) {
-            return Err(Error::other("ambiguous percent-encoded path"));
+        if self.strict_path_normalization_enabled {
+            if contains_ambiguous_path_escape(&path) {
+                return Err(Error::other("ambiguous percent-encoded path"));
+            }
+            if contains_parent_dir_component(&path) {
+                return Err(Error::other("parent directory path segment"));
+            }
         }
         let path = encode_url_path(&normalize_url_path(&path));
         let query = (self.url_query_getter)(req, depot);
@@ -813,6 +836,16 @@ mod tests {
     }
 
     #[test]
+    fn test_contains_parent_dir_component() {
+        assert!(contains_parent_dir_component("../admin"));
+        assert!(contains_parent_dir_component("api/../admin"));
+        assert!(contains_parent_dir_component(r"api\..\admin"));
+        assert!(!contains_parent_dir_component("guide.v1/index.html"));
+        assert!(!contains_parent_dir_component("files/%2e%2e/admin"));
+        assert!(!contains_parent_dir_component("..hidden/admin"));
+    }
+
+    #[test]
     fn test_get_upgrade_type() {
         let mut headers = HeaderMap::new();
         headers.insert(CONNECTION, HeaderValue::from_static("upgrade"));
@@ -858,6 +891,10 @@ mod tests {
         );
 
         let uri_with_port = Uri::from_str("http://host.tld:8080/test").unwrap();
+        assert_eq!(
+            default_host_header_getter(&uri_with_port, &req, &depot),
+            Some("host.tld".to_owned())
+        );
         assert_eq!(
             standard_host_header_getter(&uri_with_port, &req, &depot),
             Some("host.tld:8080".to_owned())
@@ -1195,11 +1232,27 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
     }
 
     #[tokio::test]
-    async fn test_build_proxied_request_unsafe_tail() {
+    async fn test_build_proxied_request_rejects_parent_dir_tail_by_default() {
         let mut request = Request::new();
         request.params_mut().insert("**rest", "../admin".to_owned());
         let depot = Depot::new();
         let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
+
+        assert!(
+            proxy
+                .build_proxied_request(&mut request, &depot)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_proxied_request_can_opt_out_of_parent_dir_rejection() {
+        let mut request = Request::new();
+        request.params_mut().insert("**rest", "../admin".to_owned());
+        let depot = Depot::new();
+        let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default())
+            .strict_path_normalization(false);
 
         let req = proxy
             .build_proxied_request(&mut request, &depot)
