@@ -98,9 +98,9 @@ impl AllowHeaders {
     ) -> Option<(HeaderName, HeaderValue)> {
         let mirror = req
             .headers()
-            .get(header::ACCESS_CONTROL_REQUEST_HEADERS)?
-            .clone();
-        let value = self.0.resolve(origin, req, depot, Some(mirror)).await?;
+            .get(header::ACCESS_CONTROL_REQUEST_HEADERS)
+            .cloned();
+        let value = self.0.resolve(origin, req, depot, mirror).await?;
         Some((header::ACCESS_CONTROL_ALLOW_HEADERS, value))
     }
 }
@@ -156,7 +156,8 @@ impl From<&Vec<String>> for AllowHeaders {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::header;
+    use salvo_core::http::header::{self, HeaderValue};
+    use salvo_core::{Depot, Request};
 
     use super::super::inner::HeaderInner;
     use super::{AllowHeaders, Any};
@@ -171,5 +172,32 @@ mod tests {
     fn test_from_list() {
         let headers: AllowHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
         assert!(matches!(headers.0, HeaderInner::Exact(ref v) if v == "content-type,accept"));
+    }
+
+    #[tokio::test]
+    async fn exact_and_dynamic_do_not_require_request_headers() {
+        let req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        let headers: AllowHeaders = vec![header::CONTENT_TYPE].into();
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("content-type")
+            ))
+        );
+
+        let headers = AllowHeaders::dynamic(|_, _, _| Some(HeaderValue::from_static("x-dynamic")));
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("x-dynamic")
+            ))
+        );
     }
 }

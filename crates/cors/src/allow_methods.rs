@@ -110,9 +110,9 @@ impl AllowMethods {
     ) -> Option<(HeaderName, HeaderValue)> {
         let mirror = req
             .headers()
-            .get(header::ACCESS_CONTROL_REQUEST_METHOD)?
-            .clone();
-        let value = self.0.resolve(origin, req, depot, Some(mirror)).await?;
+            .get(header::ACCESS_CONTROL_REQUEST_METHOD)
+            .cloned();
+        let value = self.0.resolve(origin, req, depot, mirror).await?;
         Some((header::ACCESS_CONTROL_ALLOW_METHODS, value))
     }
 }
@@ -143,7 +143,9 @@ impl From<Vec<Method>> for AllowMethods {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::Method;
+    use salvo_core::http::header::HeaderValue;
+    use salvo_core::http::{Method, header};
+    use salvo_core::{Depot, Request};
 
     use super::{AllowMethods, Any};
     use crate::inner::HeaderInner;
@@ -158,5 +160,32 @@ mod tests {
     fn test_from_list() {
         let methods: AllowMethods = vec![Method::GET, Method::POST].into();
         assert!(matches!(methods.0, HeaderInner::Exact(ref v) if v == "GET,POST"));
+    }
+
+    #[tokio::test]
+    async fn exact_and_dynamic_do_not_require_request_method() {
+        let req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        let methods: AllowMethods = vec![Method::GET].into();
+        let header = methods.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                HeaderValue::from_static("GET")
+            ))
+        );
+
+        let methods = AllowMethods::dynamic(|_, _, _| Some(HeaderValue::from_static("PATCH")));
+        let header = methods.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                HeaderValue::from_static("PATCH")
+            ))
+        );
     }
 }
