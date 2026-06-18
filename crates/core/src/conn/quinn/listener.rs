@@ -9,7 +9,7 @@ use std::vec;
 
 use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
-use salvo_http3::quinn::{self, Endpoint};
+use salvo_http3::quinn::Endpoint;
 use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
@@ -188,7 +188,7 @@ impl Acceptor for QuinnAcceptor {
                     });
                     return Ok(Accepted {
                         coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(quinn::Connection::new(conn), fusewire.clone()),
+                        stream: QuinnConnection::new(conn, fusewire.clone()),
                         fusewire,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),

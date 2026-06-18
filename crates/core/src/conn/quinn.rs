@@ -25,16 +25,27 @@ pub use listener::{QuinnAcceptor, QuinnListener};
 #[allow(dead_code)]
 pub struct QuinnConnection {
     inner: http3_quinn::Connection,
+    raw: quinn::Connection,
     fusewire: Option<ArcFusewire>,
 }
 impl QuinnConnection {
-    pub(crate) fn new(inner: http3_quinn::Connection, fusewire: Option<ArcFusewire>) -> Self {
-        Self { inner, fusewire }
+    pub(crate) fn new(raw: quinn::Connection, fusewire: Option<ArcFusewire>) -> Self {
+        Self {
+            inner: http3_quinn::Connection::new(raw.clone()),
+            raw,
+            fusewire,
+        }
     }
     /// Get inner quinn connection.
     #[must_use]
     pub fn into_inner(self) -> http3_quinn::Connection {
         self.inner
+    }
+
+    /// Get the underlying Quinn connection.
+    #[must_use]
+    pub fn quinn(&self) -> &quinn::Connection {
+        &self.raw
     }
 }
 impl Debug for QuinnConnection {

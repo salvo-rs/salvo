@@ -664,6 +664,16 @@ impl Request {
             matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &salvo_http3::ext::Protocol::WEB_TRANSPORT)
         }
 
+        /// Get the underlying Quinn connection for a WebTransport request.
+        ///
+        /// Returns a cheap clone of the connection handle while handling a
+        /// WebTransport `CONNECT` request. It can be used to inspect QUIC-level
+        /// state, such as [`quinn::Connection::stats`](crate::proto::quinn::Connection::stats).
+        #[inline]
+        pub fn quinn_connection(&self) -> Option<crate::proto::quinn::Connection> {
+            self.extensions.get::<crate::proto::quinn::Connection>().cloned()
+        }
+
         /// Try to get a WebTransport session from the request.
         pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<salvo_http3::quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
