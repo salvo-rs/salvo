@@ -67,7 +67,7 @@ use std::fmt::{self, Formatter};
 use std::time::Duration;
 
 use cookie::{Cookie, Key, KeyError, SameSite};
-use salvo_core::http::uri::Scheme;
+use salvo_core::http::SecureCookiePolicy;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait};
 use saysion::base64::Engine as _;
 use saysion::base64::engine::general_purpose;
@@ -122,7 +122,7 @@ pub struct HandlerBuilder<S> {
     session_ttl: Option<Duration>,
     save_unchanged: bool,
     same_site_policy: SameSite,
-    secure_cookie: Option<bool>,
+    secure_cookie_policy: SecureCookiePolicy,
     key: Key,
     fallback_keys: Vec<Key>,
 }
@@ -138,7 +138,7 @@ where
             .field("cookie_domain", &self.cookie_domain)
             .field("session_ttl", &self.session_ttl)
             .field("same_site_policy", &self.same_site_policy)
-            .field("secure_cookie", &self.secure_cookie)
+            .field("secure_cookie_policy", &self.secure_cookie_policy)
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
@@ -191,7 +191,7 @@ where
             cookie_name: "salvo.session.id".into(),
             cookie_domain: None,
             same_site_policy: SameSite::Lax,
-            secure_cookie: None,
+            secure_cookie_policy: SecureCookiePolicy::AutoFromScheme,
             session_ttl: Some(Duration::from_secs(24 * 60 * 60)),
             key,
             fallback_keys: vec![],
@@ -266,7 +266,18 @@ where
     #[inline]
     #[must_use]
     pub fn secure_cookie(mut self, secure: bool) -> Self {
-        self.secure_cookie = Some(secure);
+        self.secure_cookie_policy = SecureCookiePolicy::from_bool(secure);
+        self
+    }
+
+    /// Sets the policy used to decide whether session cookies include `Secure`.
+    ///
+    /// The default policy is [`SecureCookiePolicy::AutoFromScheme`]. `SameSite::None`
+    /// session cookies are always sent with `Secure`.
+    #[inline]
+    #[must_use]
+    pub fn secure_cookie_policy(mut self, policy: SecureCookiePolicy) -> Self {
+        self.secure_cookie_policy = policy;
         self
     }
 
@@ -303,7 +314,7 @@ where
             cookie_domain,
             session_ttl,
             same_site_policy,
-            secure_cookie,
+            secure_cookie_policy,
             key,
             fallback_keys,
         } = self;
@@ -322,7 +333,7 @@ where
             cookie_domain,
             session_ttl,
             same_site_policy,
-            secure_cookie,
+            secure_cookie_policy,
             hmac,
             fallback_hmacs,
         })
@@ -338,7 +349,7 @@ pub struct SessionHandler<S> {
     session_ttl: Option<Duration>,
     save_unchanged: bool,
     same_site_policy: SameSite,
-    secure_cookie: Option<bool>,
+    secure_cookie_policy: SecureCookiePolicy,
     hmac: Hmac<Sha256>,
     fallback_hmacs: Vec<Hmac<Sha256>>,
 }
@@ -355,7 +366,7 @@ where
             .field("cookie_domain", &self.cookie_domain)
             .field("session_ttl", &self.session_ttl)
             .field("same_site_policy", &self.same_site_policy)
-            .field("secure_cookie", &self.secure_cookie)
+            .field("secure_cookie_policy", &self.secure_cookie_policy)
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
@@ -400,9 +411,8 @@ where
             match self.store.store_session(session).await {
                 Ok(cookie_value) => {
                     if let Some(cookie_value) = cookie_value {
-                        let secure_cookie = self
-                            .secure_cookie
-                            .unwrap_or_else(|| req.uri().scheme() == Some(&Scheme::HTTPS));
+                        let secure_cookie = self.same_site_policy == SameSite::None
+                            || self.secure_cookie_policy.is_secure(req);
                         let cookie = self.build_cookie(secure_cookie, cookie_value);
                         res.add_cookie(cookie);
                     }
@@ -649,6 +659,10 @@ mod tests {
         assert!(builder.cookie_domain.is_none());
         assert!(builder.save_unchanged);
         assert_eq!(builder.same_site_policy, SameSite::Lax);
+        assert_eq!(
+            builder.secure_cookie_policy,
+            SecureCookiePolicy::AutoFromScheme
+        );
         assert_eq!(builder.session_ttl, Some(Duration::from_secs(24 * 60 * 60)));
     }
 
@@ -795,7 +809,18 @@ mod tests {
         assert_eq!(handler.session_ttl, Some(Duration::from_secs(7200)));
         assert!(!handler.save_unchanged);
         assert_eq!(handler.same_site_policy, SameSite::Strict);
-        assert_eq!(handler.secure_cookie, Some(true));
+        assert_eq!(handler.secure_cookie_policy, SecureCookiePolicy::Always);
+    }
+
+    #[test]
+    fn test_handler_builder_secure_cookie_policy() {
+        let builder = HandlerBuilder::new(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .secure_cookie_policy(SecureCookiePolicy::Never);
+
+        assert_eq!(builder.secure_cookie_policy, SecureCookiePolicy::Never);
     }
 
     // Tests for SessionHandler
@@ -921,6 +946,38 @@ mod tests {
             .unwrap()
             .to_str()
             .unwrap();
+        assert!(cookie.contains("Secure"));
+    }
+
+    #[tokio::test]
+    async fn test_session_same_site_none_forces_secure_cookie() {
+        #[handler]
+        pub async fn index() -> &'static str {
+            "ok"
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .same_site_policy(SameSite::None)
+        .secure_cookie(false)
+        .build()
+        .unwrap();
+
+        let router = Router::new().hoop(session_handler).get(index);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
+        let cookie = response
+            .headers()
+            .get(SET_COOKIE)
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(cookie.contains("SameSite=None"));
         assert!(cookie.contains("Secure"));
     }
 
