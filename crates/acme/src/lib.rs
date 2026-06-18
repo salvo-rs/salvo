@@ -15,6 +15,13 @@
 //! - **Persistent storage**: pluggable storage backend via [`Storage`].
 //! - **Background renewal**: automatic certificate renewal and OCSP refresh.
 //!
+//! ## Certificate key type
+//!
+//! Salvo ACME defaults to [`KeyType::EcdsaP256`] for newly generated
+//! certificate private keys. RSA key types remain available for compatibility,
+//! but they are explicit opt-in via [`AcmeConfigBuilder::key_type`] or
+//! [`AcmeListenerBuilder::key_type`].
+//!
 //! ## Quick Start - HTTP-01
 //!
 //! ```ignore

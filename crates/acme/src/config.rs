@@ -204,7 +204,9 @@ impl AcmeConfigBuilder {
 
     /// Sets the key type for certificate private keys.
     ///
-    /// Defaults to [`KeyType::EcdsaP256`].
+    /// Defaults to [`KeyType::EcdsaP256`], which is the recommended key type
+    /// for newly generated certificates. RSA variants are available for
+    /// compatibility, but must be selected explicitly.
     /// Available types: `EcdsaP256`, `EcdsaP384`, `EcdsaP521`, `Rsa2048`,
     /// `Rsa4096`, `Rsa8192`, `Ed25519`.
     #[inline]
@@ -315,6 +317,7 @@ mod tests {
         assert!(builder.cache_path.is_none());
         assert!(builder.keys_for_http01.is_none());
         assert_eq!(builder.before_expired, Duration::from_secs(12 * 60 * 60));
+        assert_eq!(builder.key_type, KeyType::EcdsaP256);
     }
 
     #[test]
