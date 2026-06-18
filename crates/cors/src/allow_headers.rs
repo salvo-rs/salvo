@@ -6,7 +6,7 @@ use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
 
 use super::inner::HeaderInner;
-use super::{separated_by_commas, Any, WILDCARD};
+use super::{Any, WILDCARD, separated_by_commas};
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Headers`][mdn] header.
 ///
@@ -158,7 +158,8 @@ impl From<&Vec<String>> for AllowHeaders {
 mod tests {
     use salvo_core::http::header;
 
-    use super::{super::inner::HeaderInner, AllowHeaders, Any};
+    use super::super::inner::HeaderInner;
+    use super::{AllowHeaders, Any};
 
     #[test]
     fn test_from_any() {

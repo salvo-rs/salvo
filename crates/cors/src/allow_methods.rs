@@ -143,10 +143,10 @@ impl From<Vec<Method>> for AllowMethods {
 
 #[cfg(test)]
 mod tests {
-    use crate::inner::HeaderInner;
     use salvo_core::http::Method;
 
     use super::{AllowMethods, Any};
+    use crate::inner::HeaderInner;
 
     #[test]
     fn test_from_any() {

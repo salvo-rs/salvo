@@ -99,7 +99,8 @@ mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
-    use super::{AllowPrivateNetwork, super::inner::BoolInner};
+    use super::super::inner::BoolInner;
+    use super::AllowPrivateNetwork;
     use crate::Cors;
 
     const REQUEST_PRIVATE_NETWORK: HeaderName =

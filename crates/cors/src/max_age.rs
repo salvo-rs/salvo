@@ -117,7 +117,8 @@ mod tests {
     use salvo_core::http::header::{self, HeaderValue};
     use salvo_core::{Depot, Request};
 
-    use super::{MaxAge, super::inner::HeaderValueInner};
+    use super::super::inner::HeaderValueInner;
+    use super::MaxAge;
 
     #[test]
     fn test_from_duration() {

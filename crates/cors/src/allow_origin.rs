@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use super::{Any, WILDCARD};
-use crate::inner::HeaderValueListInner;
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
+
+use super::{Any, WILDCARD};
+use crate::inner::HeaderValueListInner;
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Origin`][mdn] header.
 ///
@@ -184,8 +185,9 @@ impl From<&Vec<String>> for AllowOrigin {
 
 #[cfg(test)]
 mod tests {
-    use super::{AllowOrigin, Any, HeaderValueListInner, WILDCARD};
     use salvo_core::http::header::HeaderValue;
+
+    use super::{AllowOrigin, Any, HeaderValueListInner, WILDCARD};
 
     #[test]
     fn test_from_any() {

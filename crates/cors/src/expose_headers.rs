@@ -6,7 +6,7 @@ use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
 
 use super::inner::HeaderValueInner;
-use super::{separated_by_commas, Any, WILDCARD};
+use super::{Any, WILDCARD, separated_by_commas};
 
 /// Holds configuration for how to set the [`Access-Control-Expose-Headers`][mdn] header.
 ///
@@ -139,11 +139,11 @@ impl From<&Vec<String>> for ExposeHeaders {
 
 #[cfg(test)]
 mod tests {
-    use crate::inner::HeaderValueInner;
-use salvo_core::http::header::{self, HeaderValue};
+    use salvo_core::http::header::{self, HeaderValue};
     use salvo_core::{Depot, Request};
 
     use super::{Any, ExposeHeaders};
+    use crate::inner::HeaderValueInner;
 
     #[test]
     fn test_from_any() {
