@@ -1,11 +1,10 @@
-use std::fmt::{self, Debug, Formatter};
-use std::pin::Pin;
+use std::fmt::Debug;
 use std::sync::Arc;
 
+use super::{Any, WILDCARD};
+use crate::inner::HeaderValueListInner;
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
-
-use super::{Any, WILDCARD};
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Origin`][mdn] header.
 ///
@@ -13,9 +12,9 @@ use super::{Any, WILDCARD};
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
 /// [`Cors::allow_origin`]: super::Cors::allow_origin
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct AllowOrigin(OriginInner);
+pub struct AllowOrigin(HeaderValueListInner);
 
 impl AllowOrigin {
     /// Allow any origin by sending a wildcard (`*`)
@@ -24,7 +23,7 @@ impl AllowOrigin {
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
     pub fn any() -> Self {
-        Self(OriginInner::Exact(WILDCARD.clone()))
+        Self(HeaderValueListInner::Exact(WILDCARD.clone()))
     }
 
     /// Set a single allowed origin
@@ -33,7 +32,7 @@ impl AllowOrigin {
     ///
     /// [`Cors::allow_origin`]: super::Cors::allow_origin
     pub fn exact(origin: HeaderValue) -> Self {
-        Self(OriginInner::Exact(origin))
+        Self(HeaderValueListInner::Exact(origin))
     }
 
     /// Set multiple allowed origins
@@ -55,7 +54,7 @@ impl AllowOrigin {
                 "Wildcard origin (`*`) cannot be passed to `AllowOrigin::list`. Use `AllowOrigin::any()` instead"
             );
         } else {
-            Self(OriginInner::List(origins))
+            Self(HeaderValueListInner::List(origins))
         }
     }
 
@@ -71,7 +70,7 @@ impl AllowOrigin {
             + Sync
             + 'static,
     {
-        Self(OriginInner::Dynamic(Arc::new(c)))
+        Self(HeaderValueListInner::Dynamic(Arc::new(c)))
     }
 
     /// Set the allowed origins by an async closure.
@@ -84,7 +83,7 @@ impl AllowOrigin {
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
     {
-        Self(OriginInner::DynamicAsync(Arc::new(
+        Self(HeaderValueListInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
@@ -99,7 +98,7 @@ impl AllowOrigin {
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
-        matches!(&self.0, OriginInner::Exact(v) if v == WILDCARD)
+        matches!(&self.0, HeaderValueListInner::Exact(v) if v == WILDCARD)
     }
 
     pub(super) async fn to_header(
@@ -109,24 +108,13 @@ impl AllowOrigin {
         depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
         let allow_origin = match &self.0 {
-            OriginInner::Exact(v) => v.clone(),
-            OriginInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
-            OriginInner::Dynamic(c) => c(origin, req, depot)?,
-            OriginInner::DynamicAsync(c) => c(origin, req, depot).await?,
+            HeaderValueListInner::Exact(v) => v.clone(),
+            HeaderValueListInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
+            HeaderValueListInner::Dynamic(c) => c(origin, req, depot)?,
+            HeaderValueListInner::DynamicAsync(c) => c(origin, req, depot).await?,
         };
 
         Some((header::ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin))
-    }
-}
-
-impl Debug for AllowOrigin {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            OriginInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            OriginInner::List(inner) => f.debug_tuple("List").field(inner).finish(),
-            OriginInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
-            OriginInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
-        }
     }
 }
 
@@ -194,49 +182,22 @@ impl From<&Vec<String>> for AllowOrigin {
     }
 }
 
-#[derive(Clone)]
-enum OriginInner {
-    Exact(HeaderValue),
-    List(Vec<HeaderValue>),
-    Dynamic(
-        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
-    ),
-    DynamicAsync(
-        Arc<
-            dyn Fn(
-                    Option<&HeaderValue>,
-                    &Request,
-                    &Depot,
-                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-}
-
-impl Default for OriginInner {
-    fn default() -> Self {
-        Self::List(Vec::new())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use super::{AllowOrigin, Any, HeaderValueListInner, WILDCARD};
     use salvo_core::http::header::HeaderValue;
-
-    use super::{AllowOrigin, Any, OriginInner, WILDCARD};
 
     #[test]
     fn test_from_any() {
         let origin: AllowOrigin = Any.into();
-        assert!(matches!(origin.0, OriginInner::Exact(ref v) if v == "*"));
+        assert!(matches!(origin.0, HeaderValueListInner::Exact(ref v) if v == "*"));
     }
 
     #[test]
     fn test_from_list() {
         let origin: AllowOrigin = vec!["https://example.com"].into();
         assert!(
-            matches!(origin.0, OriginInner::List(ref v) if v == &vec![HeaderValue::from_static("https://example.com")])
+            matches!(origin.0, HeaderValueListInner::List(ref v) if v == &vec![HeaderValue::from_static("https://example.com")])
         );
     }
 

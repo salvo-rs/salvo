@@ -1,9 +1,9 @@
-use std::fmt;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use salvo_core::http::header::{HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
+
+use super::inner::BoolInner;
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Private-Network`][wicg] header.
 ///
@@ -11,9 +11,9 @@ use salvo_core::{Depot, Request};
 ///
 /// [wicg]: https://wicg.github.io/private-network-access/
 /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct AllowPrivateNetwork(AllowPrivateNetworkInner);
+pub struct AllowPrivateNetwork(BoolInner);
 
 impl AllowPrivateNetwork {
     /// Allow requests via a more private network than the one used to access the origin
@@ -22,7 +22,7 @@ impl AllowPrivateNetwork {
     ///
     /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn yes() -> Self {
-        Self(AllowPrivateNetworkInner::Yes)
+        Self(BoolInner::Yes)
     }
 
     /// Allow requests via private network for some requests by a closure
@@ -34,7 +34,7 @@ impl AllowPrivateNetwork {
     where
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Self(AllowPrivateNetworkInner::Dynamic(Arc::new(c)))
+        Self(BoolInner::Dynamic(Arc::new(c)))
     }
 
     /// Allow private-network requests for some requests by an async closure.
@@ -47,7 +47,7 @@ impl AllowPrivateNetwork {
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(AllowPrivateNetworkInner::DynamicAsync(Arc::new(
+        Self(BoolInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
@@ -72,54 +72,20 @@ impl AllowPrivateNetwork {
             return None;
         }
 
-        let allow_private_network = match &self.0 {
-            AllowPrivateNetworkInner::Yes => true,
-            AllowPrivateNetworkInner::No => false,
-            AllowPrivateNetworkInner::Dynamic(c) => c(origin, req, depot),
-            AllowPrivateNetworkInner::DynamicAsync(c) => c(origin, req, depot).await,
-        };
-
-        allow_private_network.then_some((ALLOW_PRIVATE_NETWORK, TRUE))
+        self.0
+            .resolve_async(origin, req, depot)
+            .await
+            .then_some((ALLOW_PRIVATE_NETWORK, TRUE))
     }
 }
 
 impl From<bool> for AllowPrivateNetwork {
     fn from(v: bool) -> Self {
         match v {
-            true => Self(AllowPrivateNetworkInner::Yes),
-            false => Self(AllowPrivateNetworkInner::No),
+            true => Self(BoolInner::Yes),
+            false => Self(BoolInner::No),
         }
     }
-}
-
-impl fmt::Debug for AllowPrivateNetwork {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            AllowPrivateNetworkInner::Yes => f.debug_tuple("Yes").finish(),
-            AllowPrivateNetworkInner::No => f.debug_tuple("No").finish(),
-            AllowPrivateNetworkInner::Dynamic(_) => f.debug_tuple("Predicate").finish(),
-            AllowPrivateNetworkInner::DynamicAsync(_) => f.debug_tuple("AsyncPredicate").finish(),
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-enum AllowPrivateNetworkInner {
-    Yes,
-    #[default]
-    No,
-    Dynamic(Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync>),
-    DynamicAsync(
-        Arc<
-            dyn Fn(
-                    Option<&HeaderValue>,
-                    &Request,
-                    &Depot,
-                ) -> Pin<Box<dyn Future<Output = bool> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
 }
 
 #[cfg(test)]
@@ -133,7 +99,7 @@ mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
-    use super::{AllowPrivateNetwork, AllowPrivateNetworkInner};
+    use super::{AllowPrivateNetwork, super::inner::BoolInner};
     use crate::Cors;
 
     const REQUEST_PRIVATE_NETWORK: HeaderName =
@@ -150,10 +116,10 @@ mod tests {
     #[test]
     fn test_from_bool() {
         let p: AllowPrivateNetwork = true.into();
-        assert!(matches!(p.0, AllowPrivateNetworkInner::Yes));
+        assert!(matches!(p.0, BoolInner::Yes));
 
         let p: AllowPrivateNetwork = false.into();
-        assert!(matches!(p.0, AllowPrivateNetworkInner::No));
+        assert!(matches!(p.0, BoolInner::No));
     }
 
     #[tokio::test]
