@@ -94,10 +94,7 @@ pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
         })
         .collect::<Vec<(String, u8)>>();
 
-    vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
-        std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-        other => other,
-    });
+    vec.sort_by(|(_, a), (_, b)| b.cmp(a));
 
     vec
 }

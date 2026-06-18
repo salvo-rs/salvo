@@ -43,6 +43,8 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
+    use salvo_core::http::HeaderValue;
+    use salvo_core::http::header::{CONTENT_ENCODING, VARY};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -202,6 +204,56 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_serve_static_dir_respects_accept_encoding_q_order() {
+        let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "br;q=0.1, gzip;q=1", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_ENCODING),
+            Some(&HeaderValue::from_static("gzip"))
+        );
+        let varies_on_accept_encoding = response
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|value| value.trim().eq_ignore_ascii_case("accept-encoding"));
+        assert!(varies_on_accept_encoding);
+
+        let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "br;q=1, gzip;q=0.1", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_ENCODING),
+            Some(&HeaderValue::from_static("br"))
+        );
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "identity;q=1, gzip;q=0.5", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.headers().get(CONTENT_ENCODING), None);
+        let varies_on_accept_encoding = response
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|value| value.trim().eq_ignore_ascii_case("accept-encoding"));
+        assert!(varies_on_accept_encoding);
+        assert_eq!(response.take_string().await.unwrap(), "copy1");
     }
 
     #[cfg(feature = "embed")]
