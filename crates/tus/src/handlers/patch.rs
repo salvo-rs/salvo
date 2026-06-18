@@ -169,8 +169,10 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             return;
         }
 
-        // Update
-        let _ = store.declare_upload_length(&id, size).await;
+        if let Err(e) = store.declare_upload_length(&id, size).await {
+            res.status_code = Some(e.status());
+            return;
+        }
         already_uploaded_info.size = Some(size);
     }
 
@@ -236,7 +238,10 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    let new_offset = offset + written;
+    let Some(new_offset) = offset.checked_add(written) else {
+        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+        return;
+    };
 
     if let Some(expires_at) = expires_at {
         let is_finished = match already_uploaded_info.size {
@@ -263,4 +268,148 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
 pub(crate) fn patch_handler() -> Router {
     Router::with_path("{id}").patch(patch)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use salvo_core::Service;
+    use salvo_core::async_trait;
+    use salvo_core::http::StatusCode;
+    use salvo_core::test::TestClient;
+
+    use crate::stores::{ByteStream, DataStore, UploadInfo};
+    use crate::{Extension, MaxSize, TusError};
+
+    use super::*;
+
+    struct PatchTestStore {
+        info: UploadInfo,
+        declare_result: Result<(), TusError>,
+        written: u64,
+        declare_called: Arc<AtomicBool>,
+        write_called: Arc<AtomicBool>,
+    }
+
+    #[async_trait]
+    impl DataStore for PatchTestStore {
+        fn extensions(&self) -> HashSet<Extension> {
+            HashSet::from([Extension::CreationDeferLength])
+        }
+
+        async fn create(&self, file: UploadInfo) -> crate::error::TusResult<UploadInfo> {
+            Ok(file)
+        }
+
+        async fn remove(&self, _id: &str) -> crate::error::TusResult<()> {
+            Ok(())
+        }
+
+        async fn write(
+            &self,
+            _id: &str,
+            _offset: u64,
+            _stream: ByteStream,
+        ) -> crate::error::TusResult<u64> {
+            self.write_called.store(true, Ordering::SeqCst);
+            Ok(self.written)
+        }
+
+        async fn get_upload_file_info(&self, _id: &str) -> crate::error::TusResult<UploadInfo> {
+            Ok(self.info.clone())
+        }
+
+        async fn declare_upload_length(
+            &self,
+            _id: &str,
+            _length: u64,
+        ) -> crate::error::TusResult<()> {
+            self.declare_called.store(true, Ordering::SeqCst);
+            self.declare_result
+                .as_ref()
+                .map(|_| ())
+                .map_err(|err| TusError::Internal(err.to_string()))
+        }
+    }
+
+    fn upload_info(offset: u64, size: Option<u64>) -> UploadInfo {
+        UploadInfo {
+            id: "upload-id".to_owned(),
+            size,
+            offset: Some(offset),
+            metadata: None,
+            storage: None,
+            creation_date: "2024-01-01T00:00:00Z".to_owned(),
+        }
+    }
+
+    #[tokio::test]
+    async fn patch_returns_store_error_when_declare_upload_length_fails() {
+        let declare_called = Arc::new(AtomicBool::new(false));
+        let write_called = Arc::new(AtomicBool::new(false));
+        let store = PatchTestStore {
+            info: upload_info(0, None),
+            declare_result: Err(TusError::Internal("declare failed".to_owned())),
+            written: 4,
+            declare_called: declare_called.clone(),
+            write_called: write_called.clone(),
+        };
+        let service = Service::new(
+            Tus::new()
+                .max_size(MaxSize::Fixed(u64::MAX))
+                .store(store)
+                .into_router(),
+        );
+
+        let response = TestClient::patch("http://localhost/tus-files/upload-id")
+            .add_header(H_TUS_RESUMABLE, TUS_VERSION, true)
+            .add_header(H_CONTENT_TYPE, CT_OFFSET_OCTET_STREAM, true)
+            .add_header(H_UPLOAD_OFFSET, "0", true)
+            .add_header(H_UPLOAD_LENGTH, "4", true)
+            .add_header(H_CONTENT_LENGTH, "4", true)
+            .body("data")
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            response.status_code.unwrap(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert!(declare_called.load(Ordering::SeqCst));
+        assert!(!write_called.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn patch_rejects_new_offset_overflow() {
+        let declare_called = Arc::new(AtomicBool::new(false));
+        let write_called = Arc::new(AtomicBool::new(false));
+        let store = PatchTestStore {
+            info: upload_info(u64::MAX, None),
+            declare_result: Ok(()),
+            written: 1,
+            declare_called,
+            write_called: write_called.clone(),
+        };
+        let service = Service::new(
+            Tus::new()
+                .max_size(MaxSize::Fixed(u64::MAX))
+                .store(store)
+                .into_router(),
+        );
+
+        let response = TestClient::patch("http://localhost/tus-files/upload-id")
+            .add_header(H_TUS_RESUMABLE, TUS_VERSION, true)
+            .add_header(H_CONTENT_TYPE, CT_OFFSET_OCTET_STREAM, true)
+            .add_header(H_UPLOAD_OFFSET, u64::MAX.to_string(), true)
+            .add_header(H_CONTENT_LENGTH, "0", true)
+            .body("")
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert!(write_called.load(Ordering::SeqCst));
+    }
 }
