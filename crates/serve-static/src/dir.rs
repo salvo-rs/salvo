@@ -602,14 +602,14 @@ fn list_json(current: &CurrentInfo) -> String {
     json!(current).to_string()
 }
 fn list_xml(current: &CurrentInfo) -> String {
-    let mut ftxt = "<list>".to_owned();
+    let mut xml = "<list>".to_owned();
     if current.dirs.is_empty() && current.files.is_empty() {
-        ftxt.push_str("No files");
+        xml.push_str("No files");
     } else {
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
             let _ = write!(
-                ftxt,
+                xml,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 xml_escape(&dir.name),
                 dir.modified.format(&format).expect("format time failed"),
@@ -618,7 +618,7 @@ fn list_xml(current: &CurrentInfo) -> String {
         }
         for file in &current.files {
             let _ = write!(
-                ftxt,
+                xml,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 xml_escape(&file.name),
                 file.modified.format(&format).expect("format time failed"),
@@ -627,8 +627,8 @@ fn list_xml(current: &CurrentInfo) -> String {
             );
         }
     }
-    ftxt.push_str("</list>");
-    ftxt
+    xml.push_str("</list>");
+    xml
 }
 
 fn is_safe_relative_path(path: &str) -> bool {
@@ -686,7 +686,7 @@ fn list_html(current: &CurrentInfo) -> String {
             let _ = write!(out, r#"/<a href="{link}">{encoded}</a>"#);
         }
     }
-    let mut ftxt = format!(
+    let mut html = format!(
         r#"<!DOCTYPE html><html><head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width">
@@ -695,24 +695,24 @@ fn list_html(current: &CurrentInfo) -> String {
         encode_url_path(&current.path),
         HTML_STYLE,
     );
-    header_link(&mut ftxt, &current.path);
-    let _ = write!(ftxt, "</h3></header><hr/>");
+    header_link(&mut html, &current.path);
+    let _ = write!(html, "</h3></header><hr/>");
     if current.dirs.is_empty() && current.files.is_empty() {
-        let _ = write!(ftxt, "<p>No files</p>");
+        let _ = write!(html, "<p>No files</p>");
     } else {
-        let _ = write!(ftxt, "<table><tr><th>");
+        let _ = write!(html, "<table><tr><th>");
         if !(current.path.is_empty() || current.path == "/") {
-            let _ = write!(ftxt, "<a href=\"../\">[..]</a>");
+            let _ = write!(html, "<a href=\"../\">[..]</a>");
         }
         let _ = write!(
-            ftxt,
+            html,
             "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>"
         );
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
             let encoded = encode_url_path(&dir.name);
             let _ = write!(
-                ftxt,
+                html,
                 r#"<tr><td>{}</td><td><a href="./{}/">{}</a></td><td>{}</td><td></td></tr>"#,
                 DIR_ICON,
                 encoded,
@@ -723,7 +723,7 @@ fn list_html(current: &CurrentInfo) -> String {
         for file in &current.files {
             let encoded = encode_url_path(&file.name);
             let _ = write!(
-                ftxt,
+                html,
                 r#"<tr><td>{}</td><td><a href="./{}">{}</a></td><td>{}</td><td>{}</td></tr>"#,
                 FILE_ICON,
                 encoded,
@@ -732,13 +732,13 @@ fn list_html(current: &CurrentInfo) -> String {
                 human_size(file.size)
             );
         }
-        let _ = write!(ftxt, "</table>");
+        let _ = write!(html, "</table>");
     }
     let _ = write!(
-        ftxt,
+        html,
         r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#
     );
-    ftxt
+    html
 }
 fn list_text(current: &CurrentInfo) -> String {
     use std::fmt::Write;

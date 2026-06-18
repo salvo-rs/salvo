@@ -577,7 +577,7 @@ impl NamedFile {
         }
     }
 
-    /// GEt last_modified value.
+    /// Get last modified value.
     #[inline]
     pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
