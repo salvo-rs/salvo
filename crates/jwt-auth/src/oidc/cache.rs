@@ -137,11 +137,17 @@ impl CacheState {
 
     /// Check if the cache is revalidating
     pub fn is_revalidating(&self) -> bool {
-        self.is_revalidating.load(Ordering::SeqCst)
+        self.is_revalidating.load(Ordering::Acquire)
     }
-    /// Set the cache is revalidating
-    pub fn set_is_revalidating(&self, value: bool) {
-        self.is_revalidating.store(value, Ordering::SeqCst);
+    /// Try to mark the cache as revalidating.
+    pub fn begin_revalidation(&self) -> bool {
+        self.is_revalidating
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+    /// Mark the cache as no longer revalidating.
+    pub fn finish_revalidation(&self) {
+        self.is_revalidating.store(false, Ordering::Release);
     }
 }
 
@@ -309,5 +315,18 @@ mod tests {
         let header_value = HeaderValue::from_static("invalid-directive");
         let policy = CachePolicy::from_header_val(Some(&header_value));
         assert_eq!(policy, CachePolicy::default());
+    }
+
+    #[test]
+    fn test_cache_state_revalidation_claim_is_atomic() {
+        let state = CacheState::new();
+
+        assert!(state.begin_revalidation());
+        assert!(state.is_revalidating());
+        assert!(!state.begin_revalidation());
+
+        state.finish_revalidation();
+        assert!(!state.is_revalidating());
+        assert!(state.begin_revalidation());
     }
 }
