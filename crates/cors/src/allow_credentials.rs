@@ -33,7 +33,7 @@ impl AllowCredentials {
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn dynamic<P>(p: P) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+        P: Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
         Self(AllowCredentialsInner::Dynamic(Arc::new(p)))
     }
@@ -45,7 +45,7 @@ impl AllowCredentials {
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn dynamic_async<P, Fut>(p: P) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        P: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = bool> + Send + 'static,
     {
         Self(AllowCredentialsInner::DynamicAsync(Arc::new(
@@ -66,8 +66,8 @@ impl AllowCredentials {
         let allow_creds = match &self.0 {
             AllowCredentialsInner::Yes => true,
             AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Dynamic(p) => p(origin?, req, depot),
-            AllowCredentialsInner::DynamicAsync(p) => p(origin?, req, depot).await,
+            AllowCredentialsInner::Dynamic(p) => p(origin, req, depot),
+            AllowCredentialsInner::DynamicAsync(p) => p(origin, req, depot).await,
         };
 
         allow_creds.then_some((
@@ -102,10 +102,14 @@ enum AllowCredentialsInner {
     Yes,
     #[default]
     No,
-    Dynamic(Arc<dyn Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync>),
+    Dynamic(Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync>),
     DynamicAsync(
         Arc<
-            dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
+            dyn Fn(
+                    Option<&HeaderValue>,
+                    &Request,
+                    &Depot,
+                ) -> Pin<Box<dyn Future<Output = bool> + Send>>
                 + Send
                 + Sync,
         >,
