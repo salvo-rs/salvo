@@ -174,6 +174,10 @@ impl<T> AcmeListenerBuilder<T> {
 
     /// Sets the key type for certificate private keys.
     ///
+    /// `EcdsaP256` is the default and recommended key type for newly generated
+    /// certificates. RSA variants are available for compatibility, but must be
+    /// selected explicitly.
+    ///
     /// Available types: `EcdsaP256` (default), `EcdsaP384`, `EcdsaP521`,
     /// `Rsa2048`, `Rsa4096`, `Rsa8192`, `Ed25519`.
     #[inline]
