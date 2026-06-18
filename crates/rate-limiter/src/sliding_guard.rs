@@ -33,20 +33,6 @@ impl SlidingGuard {
         }
     }
 
-    fn normalize_quota(quota: &CelledQuota) -> CelledQuota {
-        let mut quota = quota.clone();
-        if quota.limit == 0 {
-            quota.limit = 1;
-        }
-        if quota.cells == 0 {
-            quota.cells = 1;
-        }
-        if quota.cells > quota.limit {
-            quota.cells = quota.limit;
-        }
-        quota
-    }
-
     fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
         self.cell_start = now;
         self.cell_span = quota.period / (quota.cells as u32);
@@ -61,7 +47,7 @@ impl RateGuard for SlidingGuard {
     type Quota = CelledQuota;
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
         let now = OffsetDateTime::now_utc();
-        let quota = Self::normalize_quota(quota);
+        let quota = quota.normalized();
         if self.quota.as_ref() != Some(&quota) {
             self.reset_window(&quota, now);
             self.quota = Some(quota);
@@ -86,14 +72,17 @@ impl RateGuard for SlidingGuard {
     }
 
     async fn remaining(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit.saturating_sub(self.total)
     }
 
     async fn reset(&self, quota: &Self::Quota) -> i64 {
+        let quota = quota.normalized();
         (self.cell_start + quota.period).unix_timestamp()
     }
 
     async fn limit(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit
     }
 }
@@ -178,6 +167,27 @@ mod tests {
         // Zero cells should be treated as 1
         assert!(guard.verify(&quota).await);
         assert_eq!(guard.counts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_zero_limit() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(0, 2);
+
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+        assert_eq!(guard.limit(&quota).await, 1);
+        assert_eq!(guard.remaining(&quota).await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_normalizes_tiny_cell_span() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(10, 10, Duration::nanoseconds(1));
+
+        assert!(guard.verify(&quota).await);
+        assert_eq!(guard.counts.len(), 1);
+        assert!(guard.cell_span > Duration::ZERO);
     }
 
     #[tokio::test]
