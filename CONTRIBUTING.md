@@ -58,6 +58,23 @@ cargo check --all --bins --examples --tests
 - Update README files, crate docs, or examples when user-facing behavior changes.
 - Keep feature-gated code compile-tested for both enabled and disabled states.
 
+### Crate And Package Names
+
+Treat already published crate names as stable public API. Do not rename existing
+crates.io packages just to make spelling visually consistent.
+
+Use these terms consistently:
+
+| Term | Example | Rule |
+|------|---------|------|
+| crates.io package name | `salvo-core`, `salvo_core`, `salvo-csrf` | Keep the published spelling for existing packages. Prefer hyphenated names for new packages unless the crates.io normalized name would collide with an existing package. |
+| Rust crate identifier | `salvo_core`, `salvo_csrf` | Use the identifier exposed to Rust code, which must use underscores. |
+| Cargo dependency key | `salvo_core`, `salvo-csrf` | Preserve existing keys when they affect public feature names or downstream configuration. Normalize only when the key is private to the workspace. |
+
+For new workspace crates, prefer a hyphenated package name and an underscored
+Rust crate identifier. Historical packages such as `salvo_core`,
+`salvo_extra`, and `salvo_macros` remain compatibility exceptions.
+
 ### Builder Method Naming
 
 Salvo follows the conventional Rust API split between *constructors* and
