@@ -1,12 +1,11 @@
-use std::fmt::{self, Debug, Formatter};
-use std::future::Future;
-use std::pin::Pin;
+use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
 
+use super::inner::HeaderInner;
 use super::{Any, WILDCARD, separated_by_commas};
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Headers`][mdn] header.
@@ -15,9 +14,9 @@ use super::{Any, WILDCARD, separated_by_commas};
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
 /// [`Cors::allow_headers`]: super::Cors::allow_headers
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct AllowHeaders(AllowHeadersInner);
+pub struct AllowHeaders(HeaderInner);
 
 impl AllowHeaders {
     /// Allow any headers by sending a wildcard (`*`)
@@ -26,7 +25,7 @@ impl AllowHeaders {
     ///
     /// [`Cors::allow_headers`]: super::Cors::allow_headers
     pub fn any() -> Self {
-        Self(AllowHeadersInner::Exact(WILDCARD.clone()))
+        Self(HeaderInner::Exact(WILDCARD.clone()))
     }
 
     /// Set multiple allowed headers
@@ -40,8 +39,8 @@ impl AllowHeaders {
     {
         let headers = headers.into_iter().map(Into::into);
         match separated_by_commas(headers) {
-            None => Self(AllowHeadersInner::None),
-            Some(v) => Self(AllowHeadersInner::Exact(v)),
+            None => Self(HeaderInner::None),
+            Some(v) => Self(HeaderInner::Exact(v)),
         }
     }
 
@@ -57,7 +56,7 @@ impl AllowHeaders {
             + Sync
             + 'static,
     {
-        Self(AllowHeadersInner::Dynamic(Arc::new(c)))
+        Self(HeaderInner::Dynamic(Arc::new(c)))
     }
 
     /// Set allowed headers by an async closure.
@@ -70,7 +69,7 @@ impl AllowHeaders {
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
     {
-        Self(AllowHeadersInner::DynamicAsync(Arc::new(
+        Self(HeaderInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
@@ -84,11 +83,11 @@ impl AllowHeaders {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Request-Headers
     pub fn mirror_request() -> Self {
-        Self(AllowHeadersInner::MirrorRequest)
+        Self(HeaderInner::MirrorRequest)
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
-        matches!(&self.0, AllowHeadersInner::Exact(v) if v == WILDCARD)
+        matches!(&self.0, HeaderInner::Exact(v) if v == WILDCARD)
     }
 
     pub(super) async fn to_header(
@@ -97,30 +96,12 @@ impl AllowHeaders {
         req: &Request,
         depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
-        let allow_headers = match &self.0 {
-            AllowHeadersInner::None => return None,
-            AllowHeadersInner::Exact(v) => v.clone(),
-            AllowHeadersInner::MirrorRequest => req
-                .headers()
-                .get(header::ACCESS_CONTROL_REQUEST_HEADERS)?
-                .clone(),
-            AllowHeadersInner::Dynamic(d) => d(origin, req, depot)?,
-            AllowHeadersInner::DynamicAsync(d) => d(origin, req, depot).await?,
-        };
-
-        Some((header::ACCESS_CONTROL_ALLOW_HEADERS, allow_headers))
-    }
-}
-
-impl Debug for AllowHeaders {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            AllowHeadersInner::None => f.debug_tuple("None").finish(),
-            AllowHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            AllowHeadersInner::MirrorRequest => f.debug_tuple("MirrorRequest").finish(),
-            AllowHeadersInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
-            AllowHeadersInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
-        }
+        let mirror = req
+            .headers()
+            .get(header::ACCESS_CONTROL_REQUEST_HEADERS)
+            .cloned();
+        let value = self.0.resolve(origin, req, depot, mirror).await?;
+        Some((header::ACCESS_CONTROL_ALLOW_HEADERS, value))
     }
 }
 
@@ -173,43 +154,50 @@ impl From<&Vec<String>> for AllowHeaders {
     }
 }
 
-#[derive(Clone, Default)]
-enum AllowHeadersInner {
-    #[default]
-    None,
-    Exact(HeaderValue),
-    MirrorRequest,
-    Dynamic(
-        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
-    ),
-    DynamicAsync(
-        Arc<
-            dyn Fn(
-                    Option<&HeaderValue>,
-                    &Request,
-                    &Depot,
-                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-}
-
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::header;
+    use salvo_core::http::header::{self, HeaderValue};
+    use salvo_core::{Depot, Request};
 
-    use super::{AllowHeaders, AllowHeadersInner, Any};
+    use super::super::inner::HeaderInner;
+    use super::{AllowHeaders, Any};
 
     #[test]
     fn test_from_any() {
         let headers: AllowHeaders = Any.into();
-        assert!(matches!(headers.0, AllowHeadersInner::Exact(ref v) if v == "*"));
+        assert!(matches!(headers.0, HeaderInner::Exact(ref v) if v == "*"));
     }
 
     #[test]
     fn test_from_list() {
         let headers: AllowHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
-        assert!(matches!(headers.0, AllowHeadersInner::Exact(ref v) if v == "content-type,accept"));
+        assert!(matches!(headers.0, HeaderInner::Exact(ref v) if v == "content-type,accept"));
+    }
+
+    #[tokio::test]
+    async fn exact_and_dynamic_do_not_require_request_headers() {
+        let req = Request::default();
+        let depot = Depot::new();
+        let origin = HeaderValue::from_static("https://example.com");
+
+        let headers: AllowHeaders = vec![header::CONTENT_TYPE].into();
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("content-type")
+            ))
+        );
+
+        let headers = AllowHeaders::dynamic(|_, _, _| Some(HeaderValue::from_static("x-dynamic")));
+        let header = headers.to_header(Some(&origin), &req, &depot).await;
+        assert_eq!(
+            header,
+            Some((
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("x-dynamic")
+            ))
+        );
     }
 }

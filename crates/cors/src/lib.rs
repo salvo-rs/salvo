@@ -47,6 +47,7 @@ mod allow_methods;
 mod allow_origin;
 mod allow_private_network;
 mod expose_headers;
+mod inner;
 mod max_age;
 mod vary;
 

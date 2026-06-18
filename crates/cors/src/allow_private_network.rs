@@ -1,9 +1,9 @@
-use std::fmt;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use salvo_core::http::header::{HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
+
+use super::inner::BoolInner;
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Private-Network`][wicg] header.
 ///
@@ -11,9 +11,9 @@ use salvo_core::{Depot, Request};
 ///
 /// [wicg]: https://wicg.github.io/private-network-access/
 /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct AllowPrivateNetwork(AllowPrivateNetworkInner);
+pub struct AllowPrivateNetwork(BoolInner);
 
 impl AllowPrivateNetwork {
     /// Allow requests via a more private network than the one used to access the origin
@@ -22,7 +22,7 @@ impl AllowPrivateNetwork {
     ///
     /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn yes() -> Self {
-        Self(AllowPrivateNetworkInner::Yes)
+        Self(BoolInner::Yes)
     }
 
     /// Allow requests via private network for some requests by a closure
@@ -32,12 +32,9 @@ impl AllowPrivateNetwork {
     /// [`Cors::allow_private_network`]: super::Cors::allow_private_network
     pub fn dynamic<C>(c: C) -> Self
     where
-        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue>
-            + Send
-            + Sync
-            + 'static,
+        C: Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Self(AllowPrivateNetworkInner::Dynamic(Arc::new(c)))
+        Self(BoolInner::Dynamic(Arc::new(c)))
     }
 
     /// Allow private-network requests for some requests by an async closure.
@@ -48,17 +45,13 @@ impl AllowPrivateNetwork {
     pub fn dynamic_async<C, Fut>(c: C) -> Self
     where
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
+        Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(AllowPrivateNetworkInner::DynamicAsync(Arc::new(
+        Self(BoolInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
 
-    #[allow(
-        clippy::declare_interior_mutable_const,
-        clippy::borrow_interior_mutable_const
-    )]
     pub(super) async fn to_header(
         &self,
         origin: Option<&HeaderValue>,
@@ -75,69 +68,24 @@ impl AllowPrivateNetwork {
 
         const TRUE: HeaderValue = HeaderValue::from_static("true");
 
-        // Cheapest fallback: allow_private_network hasn't been set
-        if matches!(&self.0, AllowPrivateNetworkInner::No) {
-            return None;
-        }
-
-        // Access-Control-Allow-Private-Network is only relevant if the request
-        // has the Access-Control-Request-Private-Network header set, else skip
         if req.headers().get(REQUEST_PRIVATE_NETWORK) != Some(&TRUE) {
             return None;
         }
 
-        match &self.0 {
-            AllowPrivateNetworkInner::Yes => Some((ALLOW_PRIVATE_NETWORK, TRUE)),
-            AllowPrivateNetworkInner::No => None,
-            AllowPrivateNetworkInner::Dynamic(c) => {
-                c(origin, req, depot).map(|v| (ALLOW_PRIVATE_NETWORK, v))
-            }
-            AllowPrivateNetworkInner::DynamicAsync(c) => c(origin, req, depot)
-                .await
-                .map(|v| (ALLOW_PRIVATE_NETWORK, v)),
-        }
+        self.0
+            .resolve_async(origin, req, depot)
+            .await
+            .then_some((ALLOW_PRIVATE_NETWORK, TRUE))
     }
 }
 
 impl From<bool> for AllowPrivateNetwork {
     fn from(v: bool) -> Self {
         match v {
-            true => Self(AllowPrivateNetworkInner::Yes),
-            false => Self(AllowPrivateNetworkInner::No),
+            true => Self(BoolInner::Yes),
+            false => Self(BoolInner::No),
         }
     }
-}
-
-impl fmt::Debug for AllowPrivateNetwork {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            AllowPrivateNetworkInner::Yes => f.debug_tuple("Yes").finish(),
-            AllowPrivateNetworkInner::No => f.debug_tuple("No").finish(),
-            AllowPrivateNetworkInner::Dynamic(_) => f.debug_tuple("Predicate").finish(),
-            AllowPrivateNetworkInner::DynamicAsync(_) => f.debug_tuple("AsyncPredicate").finish(),
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-enum AllowPrivateNetworkInner {
-    Yes,
-    #[default]
-    No,
-    Dynamic(
-        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
-    ),
-    DynamicAsync(
-        Arc<
-            dyn Fn(
-                    Option<&HeaderValue>,
-                    &Request,
-                    &Depot,
-                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
 }
 
 #[cfg(test)]
@@ -151,7 +99,8 @@ mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
-    use super::{AllowPrivateNetwork, AllowPrivateNetworkInner};
+    use super::super::inner::BoolInner;
+    use super::AllowPrivateNetwork;
     use crate::Cors;
 
     const REQUEST_PRIVATE_NETWORK: HeaderName =
@@ -168,10 +117,10 @@ mod tests {
     #[test]
     fn test_from_bool() {
         let p: AllowPrivateNetwork = true.into();
-        assert!(matches!(p.0, AllowPrivateNetworkInner::Yes));
+        assert!(matches!(p.0, BoolInner::Yes));
 
         let p: AllowPrivateNetwork = false.into();
-        assert!(matches!(p.0, AllowPrivateNetworkInner::No));
+        assert!(matches!(p.0, BoolInner::No));
     }
 
     #[tokio::test]
@@ -200,7 +149,7 @@ mod tests {
         assert_eq!(header, None);
 
         // Test `Dynamic`
-        let p = AllowPrivateNetwork::dynamic(|_, _, _| Some(HeaderValue::from_static("true")));
+        let p = AllowPrivateNetwork::dynamic(|_, _, _| true);
         let header = p.to_header(Some(&origin), &req, &depot).await;
         assert_eq!(
             header,
@@ -208,9 +157,7 @@ mod tests {
         );
 
         // Test `DynamicAsync`
-        let p = AllowPrivateNetwork::dynamic_async(|_, _, _| async {
-            Some(HeaderValue::from_static("true"))
-        });
+        let p = AllowPrivateNetwork::dynamic_async(|_, _, _| async { true });
         let header = p.to_header(Some(&origin), &req, &depot).await;
         assert_eq!(
             header,
@@ -245,13 +192,8 @@ mod tests {
     async fn cors_private_network_header_is_added_correctly_with_predicate() {
         let allow_private_network =
             AllowPrivateNetwork::dynamic(|origin: Option<&HeaderValue>, req: &Request, _depot| {
-                if req.uri().path() == "/allow-private"
+                req.uri().path() == "/allow-private"
                     && origin == Some(&HeaderValue::from_static("localhost"))
-                {
-                    Some(TRUE)
-                } else {
-                    None
-                }
             });
         let cors_handler = Cors::new()
             .allow_private_network(allow_private_network)

@@ -1,10 +1,10 @@
-use std::fmt::{self, Debug, Formatter};
-use std::future::Future;
-use std::pin::Pin;
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
+
+use super::inner::BoolInner;
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Credentials`][mdn] header.
 ///
@@ -12,9 +12,9 @@ use salvo_core::{Depot, Request};
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
 /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct AllowCredentials(AllowCredentialsInner);
+pub struct AllowCredentials(BoolInner);
 
 impl AllowCredentials {
     /// Allow credentials for all requests
@@ -23,7 +23,7 @@ impl AllowCredentials {
     ///
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn yes() -> Self {
-        Self(AllowCredentialsInner::Yes)
+        Self(BoolInner::Yes)
     }
 
     /// Allow credentials for some requests by a closure
@@ -33,9 +33,9 @@ impl AllowCredentials {
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn dynamic<P>(p: P) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+        P: Fn(Option<&HeaderValue>, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Self(AllowCredentialsInner::Dynamic(Arc::new(p)))
+        Self(BoolInner::Dynamic(Arc::new(p)))
     }
 
     /// Allow credentials for some requests by an async closure
@@ -45,16 +45,16 @@ impl AllowCredentials {
     /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn dynamic_async<P, Fut>(p: P) -> Self
     where
-        P: Fn(&HeaderValue, &Request, &Depot) -> Fut + Send + Sync + 'static,
+        P: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = bool> + Send + 'static,
     {
-        Self(AllowCredentialsInner::DynamicAsync(Arc::new(
+        Self(BoolInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(p(header, req, depot)),
         )))
     }
 
     pub(super) fn is_true(&self) -> bool {
-        matches!(&self.0, AllowCredentialsInner::Yes)
+        matches!(&self.0, BoolInner::Yes)
     }
 
     pub(super) async fn to_header(
@@ -63,14 +63,7 @@ impl AllowCredentials {
         req: &Request,
         depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
-        let allow_creds = match &self.0 {
-            AllowCredentialsInner::Yes => true,
-            AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Dynamic(p) => p(origin?, req, depot),
-            AllowCredentialsInner::DynamicAsync(p) => p(origin?, req, depot).await,
-        };
-
-        allow_creds.then_some((
+        self.0.resolve_async(origin, req, depot).await.then_some((
             header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
             HeaderValue::from_static("true"),
         ))
@@ -80,47 +73,22 @@ impl AllowCredentials {
 impl From<bool> for AllowCredentials {
     fn from(v: bool) -> Self {
         match v {
-            true => Self(AllowCredentialsInner::Yes),
-            false => Self(AllowCredentialsInner::No),
+            true => Self(BoolInner::Yes),
+            false => Self(BoolInner::No),
         }
     }
 }
 
-impl Debug for AllowCredentials {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            AllowCredentialsInner::Yes => f.debug_tuple("Yes").finish(),
-            AllowCredentialsInner::No => f.debug_tuple("No").finish(),
-            AllowCredentialsInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
-            AllowCredentialsInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-enum AllowCredentialsInner {
-    Yes,
-    #[default]
-    No,
-    Dynamic(Arc<dyn Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync>),
-    DynamicAsync(
-        Arc<
-            dyn Fn(&HeaderValue, &Request, &Depot) -> Pin<Box<dyn Future<Output = bool> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-}
 #[cfg(test)]
 mod tests {
-    use super::{AllowCredentials, AllowCredentialsInner};
+    use super::AllowCredentials;
 
     #[test]
     fn test_from_bool() {
         let creds: AllowCredentials = true.into();
-        assert!(matches!(creds.0, AllowCredentialsInner::Yes));
+        assert!(creds.is_true());
 
         let creds: AllowCredentials = false.into();
-        assert!(matches!(creds.0, AllowCredentialsInner::No));
+        assert!(!creds.is_true());
     }
 }

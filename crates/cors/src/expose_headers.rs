@@ -1,11 +1,11 @@
-use std::fmt::{self, Debug, Formatter};
-use std::pin::Pin;
+use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::{Depot, Request};
 
+use super::inner::HeaderValueInner;
 use super::{Any, WILDCARD, separated_by_commas};
 
 /// Holds configuration for how to set the [`Access-Control-Expose-Headers`][mdn] header.
@@ -14,9 +14,9 @@ use super::{Any, WILDCARD, separated_by_commas};
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
 /// [`Cors::expose_headers`]: super::Cors::expose_headers
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 #[must_use]
-pub struct ExposeHeaders(ExposeHeadersInner);
+pub struct ExposeHeaders(HeaderValueInner);
 
 impl ExposeHeaders {
     /// Expose any / all headers by sending a wildcard (`*`)
@@ -25,7 +25,7 @@ impl ExposeHeaders {
     ///
     /// [`Cors::expose_headers`]: super::Cors::expose_headers
     pub fn any() -> Self {
-        Self(ExposeHeadersInner::Exact(WILDCARD.clone()))
+        Self(HeaderValueInner::Exact(WILDCARD.clone()))
     }
 
     /// Set multiple exposed header names
@@ -38,8 +38,8 @@ impl ExposeHeaders {
         I: IntoIterator<Item = HeaderName>,
     {
         match separated_by_commas(headers.into_iter().map(Into::into)) {
-            None => Self(ExposeHeadersInner::None),
-            Some(value) => Self(ExposeHeadersInner::Exact(value)),
+            None => Self(HeaderValueInner::None),
+            Some(value) => Self(HeaderValueInner::Exact(value)),
         }
     }
 
@@ -55,7 +55,7 @@ impl ExposeHeaders {
             + Sync
             + 'static,
     {
-        Self(ExposeHeadersInner::Dynamic(Arc::new(c)))
+        Self(HeaderValueInner::Dynamic(Arc::new(c)))
     }
 
     /// Allow custom headers by an async closure.
@@ -68,13 +68,13 @@ impl ExposeHeaders {
         C: Fn(Option<&HeaderValue>, &Request, &Depot) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Option<HeaderValue>> + Send + 'static,
     {
-        Self(ExposeHeadersInner::DynamicAsync(Arc::new(
+        Self(HeaderValueInner::DynamicAsync(Arc::new(
             move |header, req, depot| Box::pin(c(header, req, depot)),
         )))
     }
 
     pub(super) fn is_wildcard(&self) -> bool {
-        matches!(&self.0, ExposeHeadersInner::Exact(v) if v == WILDCARD)
+        matches!(&self.0, HeaderValueInner::Exact(v) if v == WILDCARD)
     }
 
     pub(super) async fn to_header(
@@ -83,25 +83,8 @@ impl ExposeHeaders {
         req: &Request,
         depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
-        let expose_headers = match &self.0 {
-            ExposeHeadersInner::None => return None,
-            ExposeHeadersInner::Exact(v) => v.clone(),
-            ExposeHeadersInner::Dynamic(c) => c(origin, req, depot)?,
-            ExposeHeadersInner::DynamicAsync(c) => c(origin, req, depot).await?,
-        };
-
-        Some((header::ACCESS_CONTROL_EXPOSE_HEADERS, expose_headers))
-    }
-}
-
-impl Debug for ExposeHeaders {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            ExposeHeadersInner::None => f.debug_tuple("None").finish(),
-            ExposeHeadersInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
-            ExposeHeadersInner::Dynamic(_) => f.debug_tuple("Dynamic").finish(),
-            ExposeHeadersInner::DynamicAsync(_) => f.debug_tuple("DynamicAsync").finish(),
-        }
+        let value = self.0.resolve(origin, req, depot).await?;
+        Some((header::ACCESS_CONTROL_EXPOSE_HEADERS, value))
     }
 }
 
@@ -154,45 +137,24 @@ impl From<&Vec<String>> for ExposeHeaders {
     }
 }
 
-#[derive(Default, Clone)]
-enum ExposeHeadersInner {
-    #[default]
-    None,
-    Exact(HeaderValue),
-    Dynamic(
-        Arc<dyn Fn(Option<&HeaderValue>, &Request, &Depot) -> Option<HeaderValue> + Send + Sync>,
-    ),
-    DynamicAsync(
-        Arc<
-            dyn Fn(
-                    Option<&HeaderValue>,
-                    &Request,
-                    &Depot,
-                ) -> Pin<Box<dyn Future<Output = Option<HeaderValue>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-}
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header::{self, HeaderValue};
     use salvo_core::{Depot, Request};
 
-    use super::{Any, ExposeHeaders, ExposeHeadersInner};
+    use super::{Any, ExposeHeaders};
+    use crate::inner::HeaderValueInner;
 
     #[test]
     fn test_from_any() {
         let headers: ExposeHeaders = Any.into();
-        assert!(matches!(headers.0, ExposeHeadersInner::Exact(ref v) if v == "*"));
+        assert!(matches!(headers.0, HeaderValueInner::Exact(ref v) if v == "*"));
     }
 
     #[test]
     fn test_from_list() {
         let headers: ExposeHeaders = vec![header::CONTENT_TYPE, header::ACCEPT].into();
-        assert!(
-            matches!(headers.0, ExposeHeadersInner::Exact(ref v) if v == "content-type,accept")
-        );
+        assert!(matches!(headers.0, HeaderValueInner::Exact(ref v) if v == "content-type,accept"));
     }
 
     #[tokio::test]
