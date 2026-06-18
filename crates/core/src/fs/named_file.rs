@@ -182,7 +182,7 @@ impl NamedFileBuilder {
 
     /// Disable `Content-Disposition` header.
     ///
-    /// By default Content-Disposition` header is enabled.
+    /// By default, the `Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flag::ContentDisposition);
@@ -514,7 +514,7 @@ impl NamedFile {
 
     /// Disable `Content-Disposition` header.
     ///
-    /// By default Content-Disposition` header is enabled.
+    /// By default, the `Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flag::ContentDisposition);
@@ -546,9 +546,17 @@ impl NamedFile {
                 }
             };
 
-            let dur = mtime
-                .duration_since(UNIX_EPOCH)
-                .expect("modification time must be after epoch");
+            let dur = match mtime.duration_since(UNIX_EPOCH) {
+                Ok(dur) => dur,
+                Err(err) => {
+                    tracing::warn!(
+                        error = ?err,
+                        path = %self.path.display(),
+                        "skip file etag for modification time before unix epoch"
+                    );
+                    return None;
+                }
+            };
             let etag_str = format!(
                 "\"{:x}-{:x}-{:x}-{:x}\"",
                 ino,
@@ -577,7 +585,7 @@ impl NamedFile {
         }
     }
 
-    /// GEt last_modified value.
+    /// Get last modified value.
     #[inline]
     pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
@@ -848,6 +856,24 @@ mod tests {
             named.content_encoding().map(|v| v.to_str().unwrap()),
             Some("gzip")
         );
+    }
+
+    #[tokio::test]
+    async fn etag_returns_none_for_pre_epoch_modified_time() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified = Some(UNIX_EPOCH - Duration::from_secs(1));
+
+        assert_eq!(named.etag(), None);
     }
 
     #[test]
