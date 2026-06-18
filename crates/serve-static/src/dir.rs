@@ -257,6 +257,9 @@ impl StaticDir {
     /// During the file chunk read, the maximum read size at one time will affect the
     /// access experience and the demand for server memory.
     ///
+    /// This controls streaming chunks and does not change `NamedFile`'s small-file preload
+    /// threshold.
+    ///
     /// Please set it according to your own situation.
     ///
     /// The default is 1M.

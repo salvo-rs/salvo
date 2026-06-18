@@ -36,6 +36,9 @@ impl StaticFile {
     /// During file reading, the maximum read size at one time will affect the
     /// access experience and memory usage of the server.
     ///
+    /// This controls streaming chunks and does not change `NamedFile`'s small-file preload
+    /// threshold.
+    ///
     /// Please set it according to your specific requirements.
     ///
     /// The default is 1MB.

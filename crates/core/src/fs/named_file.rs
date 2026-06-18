@@ -27,6 +27,7 @@ use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
+const PRELOAD_THRESHOLD: u64 = 1024 * 1024;
 const RFC5987_ATTR_CHAR_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
@@ -85,6 +86,7 @@ pub(crate) enum Flag {
 ///     let file = NamedFile::builder("document.pdf")
 ///         .attached_name("report.pdf")
 ///         .buffer_size(65536)
+///         .preload_threshold(262144)
 ///         .build()
 ///         .await;
 /// }
@@ -136,6 +138,7 @@ pub struct NamedFile {
 /// - Content-Disposition (inline vs attachment)
 /// - Download filename
 /// - Buffer size for chunked reading
+/// - Preload threshold for small-file responses
 /// - ETag and Last-Modified header generation
 ///
 /// # Example
@@ -147,6 +150,7 @@ pub struct NamedFile {
 ///     .attached_name("data-export-2024.csv")  // Force download with this name
 ///     .content_type("text/csv".parse().unwrap())
 ///     .buffer_size(131072)  // 128KB chunks
+///     .preload_threshold(262144)  // Preload files up to 256KB
 ///     .use_etag(true)
 ///     .build()
 ///     .await?;
@@ -159,6 +163,7 @@ pub struct NamedFileBuilder {
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
     buffer_size: Option<u64>,
+    preload_threshold: Option<u64>,
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
@@ -204,11 +209,26 @@ impl NamedFileBuilder {
         self
     }
 
-    /// Sets buffer size and returns `Self`.
+    /// Sets chunk buffer size and returns `Self`.
+    ///
+    /// This controls the maximum chunk size used when a file is streamed. It does not change the
+    /// small-file preload threshold. Use [`Self::preload_threshold`] to configure that separately.
     #[inline]
     #[must_use]
     pub fn buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
+        self
+    }
+
+    /// Sets small-file preload threshold and returns `Self`.
+    ///
+    /// Files whose size is less than or equal to this threshold are read during build and sent from
+    /// memory. Larger files are streamed in chunks using [`Self::buffer_size`]. Set this to `0` to
+    /// disable preloading for non-empty files.
+    #[inline]
+    #[must_use]
+    pub fn preload_threshold(mut self, threshold: u64) -> Self {
+        self.preload_threshold = Some(threshold);
         self
     }
 
@@ -259,12 +279,14 @@ impl NamedFileBuilder {
             content_type,
             content_encoding,
             buffer_size,
+            preload_threshold,
             disposition_type,
             attached_name,
             flags,
         } = self;
 
-        let buf_size = buffer_size.unwrap_or(CHUNK_SIZE);
+        let buf_size = buffer_size.unwrap_or(CHUNK_SIZE).max(1);
+        let preload_threshold = preload_threshold.unwrap_or(PRELOAD_THRESHOLD);
 
         // Determine what charset detection is needed before the blocking call.
         let inferred_mime = content_type
@@ -297,9 +319,9 @@ impl NamedFileBuilder {
             let metadata = file.metadata()?;
             let file_size = metadata.len();
 
-            // For small files (size <= buffer_size), read the entire content now.
+            // For small files (size <= preload_threshold), read the entire content now.
             // This avoids ChunkedFile's spawn_blocking + into_std overhead later.
-            let preread = if file_size <= buf_size {
+            let preread = if file_size <= preload_threshold {
                 let mut buf = vec![0u8; file_size as usize];
                 file.read_exact(&mut buf)?;
                 Some(buf)
@@ -446,6 +468,7 @@ impl NamedFile {
             content_type: None,
             content_encoding: None,
             buffer_size: None,
+            preload_threshold: None,
             flags: BitFlags::default(),
         }
     }
@@ -848,6 +871,63 @@ mod tests {
             named.content_encoding().map(|v| v.to_str().unwrap()),
             Some("gzip")
         );
+    }
+
+    #[tokio::test]
+    async fn buffer_size_does_not_raise_preload_threshold() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        let bytes = vec![b'a'; (PRELOAD_THRESHOLD + 1) as usize];
+        file.write_all(&bytes).expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .buffer_size(PRELOAD_THRESHOLD * 2)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.buffer_size, PRELOAD_THRESHOLD * 2);
+        assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_can_be_configured() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        let bytes = vec![b'a'; (PRELOAD_THRESHOLD + 1) as usize];
+        file.write_all(&bytes).expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .preload_threshold(PRELOAD_THRESHOLD + 1)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(
+            named.preread.as_ref().map(Bytes::len),
+            Some((PRELOAD_THRESHOLD + 1) as usize)
+        );
+    }
+
+    #[tokio::test]
+    async fn zero_buffer_size_is_clamped() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .buffer_size(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.buffer_size, 1);
     }
 
     #[test]
