@@ -4,6 +4,12 @@
 
 //! WebSocket implementation.
 //!
+//! Browser clients that pass the second `protocols` argument to `new WebSocket(url, protocols)`
+//! send a `Sec-WebSocket-Protocol` header. Configure [`WebSocketUpgrade::protocols`] with the
+//! server-supported subprotocols, or use [`WebSocketUpgrade::accept_any_protocol`] when the
+//! server intentionally accepts any offered subprotocol. Otherwise the upgrade response will not
+//! include `Sec-WebSocket-Protocol`.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -20,6 +26,7 @@
 //! async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
 //!     let user = req.parse_queries::<User>();
 //!     WebSocketUpgrade::new()
+//!         .protocols(&["echo.v1"])
 //!         .upgrade(req, res, |mut ws| async move {
 //!             println!("{user:#?} ");
 //!             while let Some(msg) = ws.recv().await {
@@ -66,7 +73,7 @@
 //!             const status = document.getElementById('status');
 //!             const msg = document.getElementById('msg');
 //!             const submit = document.getElementById('submit');
-//!             const ws = new WebSocket(`ws://${location.host}/ws?id=123&name=chris`);
+//!             const ws = new WebSocket(`ws://${location.host}/ws?id=123&name=chris`, 'echo.v1');
 //!
 //!             ws.onopen = function() {
 //!                 status.innerHTML = '<p><em>Connected!</em></p>';
