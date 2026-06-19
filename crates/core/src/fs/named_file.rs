@@ -588,7 +588,18 @@ impl NamedFile {
     /// Get last modified value.
     #[inline]
     pub fn last_modified(&self) -> Option<SystemTime> {
-        self.modified
+        self.modified.and_then(|mtime| {
+            if let Err(err) = mtime.duration_since(UNIX_EPOCH) {
+                tracing::warn!(
+                    error = ?err,
+                    path = %self.path.display(),
+                    "skip file last-modified for modification time before unix epoch"
+                );
+                None
+            } else {
+                Some(mtime)
+            }
+        })
     }
     /// Specifies whether to use Last-Modified or not.
     ///
@@ -874,6 +885,31 @@ mod tests {
         named.modified = Some(UNIX_EPOCH - Duration::from_secs(1));
 
         assert_eq!(named.etag(), None);
+    }
+
+    #[tokio::test]
+    async fn send_skips_last_modified_for_pre_epoch_modified_time() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::LAST_MODIFIED;
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified = Some(UNIX_EPOCH - Duration::from_secs(1));
+
+        let mut res = Response::new();
+        named.send(&HeaderMap::new(), &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert!(!res.headers().contains_key(LAST_MODIFIED));
     }
 
     #[test]
