@@ -38,7 +38,7 @@ fn create_service() -> Service {
 
 // Custom handler for 404 Not Found errors
 #[handler]
-async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+async fn handle404(_req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
     // Check if the error is a 404 Not Found
     if StatusCode::NOT_FOUND == res.status_code.unwrap_or(StatusCode::NOT_FOUND) {
         // Return custom error page

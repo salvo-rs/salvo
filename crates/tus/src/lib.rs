@@ -822,7 +822,7 @@ mod tests {
 
         assert!(tus.options.on_incoming_request.is_some());
         let req = Request::default();
-        (tus.options.on_incoming_request.unwrap())(&req, "test-id".to_owned()).await;
+        tus.options.on_incoming_request.unwrap()(&req, "test-id".to_owned()).await;
         assert!(called.load(Ordering::SeqCst));
     }
 

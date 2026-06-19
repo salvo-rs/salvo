@@ -238,7 +238,7 @@ impl RequestBuilder {
             body,
         } = self;
         let mut req = hyper::Request::builder().method(method).uri(url.to_string());
-        (*req.headers_mut().expect("`headers_mut` returns `None`")) = headers;
+        *req.headers_mut().expect("`headers_mut` returns `None`") = headers;
         req.body(body).expect("invalid request body")
     }
 

@@ -312,7 +312,7 @@ where
     F: Fn(&mut Request, &Depot) -> bool + Send + Sync + 'static,
 {
     fn skipped(&self, req: &mut Request, depot: &Depot) -> bool {
-        (self)(req, depot)
+        self(req, depot)
     }
 }
 

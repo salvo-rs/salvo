@@ -177,7 +177,7 @@ impl Acceptor for QuinnAcceptor {
         if let Some(new_conn) = self.endpoint.accept().await {
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
-            match new_conn.await {
+            return match new_conn.await {
                 Ok(conn) => {
                     let fusewire = fuse_factory.map(|f| {
                         f.create(FuseInfo {
@@ -186,16 +186,16 @@ impl Acceptor for QuinnAcceptor {
                             local_addr: local_addr.clone(),
                         })
                     });
-                    return Ok(Accepted {
+                    Ok(Accepted {
                         coupler: QuinnCoupler,
                         stream: QuinnConnection::new(conn, fusewire.clone()),
                         fusewire,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
-                    });
+                    })
                 }
-                Err(e) => return Err(IoError::other(e.to_string())),
+                Err(e) => Err(IoError::other(e.to_string())),
             }
         }
         Err(IoError::other("quinn accept error"))

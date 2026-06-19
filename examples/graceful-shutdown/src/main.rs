@@ -49,7 +49,7 @@ async fn listen_shutdown_signal(handle: ServerHandle) {
     tokio::select! {
         _ = ctrl_c => println!("ctrl_c signal received"),
         _ = terminate => println!("terminate signal received"),
-    };
+    }
 
     // Graceful Shutdown Server
     handle.stop_graceful(None);

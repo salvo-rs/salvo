@@ -491,7 +491,7 @@ impl ComponentSchema {
                     }
                 });
 
-                let format: SchemaFormat = (type_path).into();
+                let format: SchemaFormat = type_path.into();
                 if format.is_known_format() {
                     let format = format.try_to_token_stream()?;
                     tokens.extend(quote! {

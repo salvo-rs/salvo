@@ -149,7 +149,7 @@ where
 {
     type Key = K;
     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
-        (self)(req, depot)
+        self(req, depot)
     }
 }
 

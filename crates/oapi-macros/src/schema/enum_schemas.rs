@@ -7,9 +7,8 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, Fields, Generics, Token, Variant};
 
-use super::enum_variant::{
-    self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
-    UntaggedEnum,
+use super::enum_variant::{AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
+                          UntaggedEnum,
 };
 use super::feature::{
     self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,

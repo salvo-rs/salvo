@@ -270,7 +270,7 @@ impl TusOptions {
             Self::extract_host_and_proto(req.headers(), self.respect_forwarded_headers);
 
         if let Some(callback) = &self.generate_url_function {
-            match callback(
+            return match callback(
                 req,
                 GenerateUrlCtx {
                     proto,
@@ -279,8 +279,8 @@ impl TusOptions {
                     id: upload_id,
                 },
             ) {
-                Ok(url) => return Ok(url),
-                Err(e) => return Err(e),
+                Ok(url) => Ok(url),
+                Err(e) => Err(e),
             };
         }
 

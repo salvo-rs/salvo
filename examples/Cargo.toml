@@ -15,7 +15,6 @@ Salvo is a powerful web framework that can make your work easier.
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
 documentation = "https://docs.rs/salvo/"
-readme = "./README.md"
 keywords = ["http", "async", "web", "framework", "server"]
 license = "Apache-2.0"
 categories = [

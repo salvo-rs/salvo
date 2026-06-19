@@ -591,7 +591,7 @@ impl OpenApi {
                 let Endpoint {
                     mut operation,
                     mut components,
-                } = (creator)();
+                } = creator();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
                 operation
                     .securities

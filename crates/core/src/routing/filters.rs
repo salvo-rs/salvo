@@ -235,13 +235,13 @@ mod tests {
 
     #[test]
     fn test_methods() {
-        assert!(get() == MethodFilter(Method::GET));
-        assert!(head() == MethodFilter(Method::HEAD));
-        assert!(options() == MethodFilter(Method::OPTIONS));
-        assert!(post() == MethodFilter(Method::POST));
-        assert!(patch() == MethodFilter(Method::PATCH));
-        assert!(put() == MethodFilter(Method::PUT));
-        assert!(delete() == MethodFilter(Method::DELETE));
+        assert_eq!(get(), MethodFilter(Method::GET));
+        assert_eq!(head(), MethodFilter(Method::HEAD));
+        assert_eq!(options(), MethodFilter(Method::OPTIONS));
+        assert_eq!(post(), MethodFilter(Method::POST));
+        assert_eq!(patch(), MethodFilter(Method::PATCH));
+        assert_eq!(put(), MethodFilter(Method::PUT));
+        assert_eq!(delete(), MethodFilter(Method::DELETE));
     }
 
     #[tokio::test]
