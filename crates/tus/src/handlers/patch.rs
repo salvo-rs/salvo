@@ -286,13 +286,20 @@ mod tests {
     use crate::stores::{ByteStream, DataStore, UploadInfo};
     use crate::{Extension, MaxSize, TusError};
 
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ObservedWriteLimit {
+        NotCalled,
+        Unlimited,
+        Limited(u64),
+    }
+
     struct PatchTestStore {
         info: UploadInfo,
         declare_result: Result<(), TusError>,
         written: u64,
         declare_called: Arc<AtomicBool>,
         write_called: Arc<AtomicBool>,
-        write_limit: Arc<Mutex<Option<Option<u64>>>>,
+        write_limit: Arc<Mutex<ObservedWriteLimit>>,
     }
 
     #[async_trait]
@@ -326,7 +333,10 @@ mod tests {
             stream: ByteStream,
             max_bytes: Option<u64>,
         ) -> crate::error::TusResult<u64> {
-            *self.write_limit.lock().expect("write limit lock") = Some(max_bytes);
+            *self.write_limit.lock().expect("write limit lock") = match max_bytes {
+                Some(max_bytes) => ObservedWriteLimit::Limited(max_bytes),
+                None => ObservedWriteLimit::Unlimited,
+            };
             self.write(id, offset, stream).await
         }
 
@@ -368,7 +378,7 @@ mod tests {
             written: 4,
             declare_called: declare_called.clone(),
             write_called: write_called.clone(),
-            write_limit: Arc::new(Mutex::new(None)),
+            write_limit: Arc::new(Mutex::new(ObservedWriteLimit::NotCalled)),
         };
         let service = Service::new(
             Tus::new()
@@ -405,7 +415,7 @@ mod tests {
             written: 1,
             declare_called,
             write_called: write_called.clone(),
-            write_limit: Arc::new(Mutex::new(None)),
+            write_limit: Arc::new(Mutex::new(ObservedWriteLimit::NotCalled)),
         };
         let service = Service::new(
             Tus::new()
@@ -429,7 +439,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_caps_unbounded_write_size_to_remaining_u64_capacity() {
-        let write_limit = Arc::new(Mutex::new(None));
+        let write_limit = Arc::new(Mutex::new(ObservedWriteLimit::NotCalled));
         let write_called = Arc::new(AtomicBool::new(false));
         let store = PatchTestStore {
             info: upload_info(u64::MAX, None),
@@ -459,7 +469,7 @@ mod tests {
         assert!(write_called.load(Ordering::SeqCst));
         assert_eq!(
             *write_limit.lock().expect("write limit lock"),
-            Some(Some(0))
+            ObservedWriteLimit::Limited(0)
         );
     }
 }
