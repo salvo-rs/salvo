@@ -202,20 +202,22 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         _ => None,
     };
 
+    let remaining_u64_capacity = u64::MAX - offset;
     let max_write_size = match max_allowed {
         Some(max_allowed) if offset > max_allowed => {
             res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         }
-        Some(max_allowed) => Some(max_allowed - offset),
-        None => None,
+        Some(max_allowed) => Some((max_allowed - offset).min(remaining_u64_capacity)),
+        None => Some(remaining_u64_capacity),
     };
 
-    if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed) {
-        let exceeds = offset
-            .checked_add(incoming)
-            .is_none_or(|end| end > max_allowed);
-        if exceeds {
+    if let Some(incoming) = content_length {
+        let Some(end) = offset.checked_add(incoming) else {
+            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            return;
+        };
+        if max_allowed.is_some_and(|max_allowed| end > max_allowed) {
             res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         }
@@ -273,18 +275,16 @@ pub(crate) fn patch_handler() -> Router {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
 
-    use salvo_core::Service;
-    use salvo_core::async_trait;
     use salvo_core::http::StatusCode;
     use salvo_core::test::TestClient;
-
-    use crate::stores::{ByteStream, DataStore, UploadInfo};
-    use crate::{Extension, MaxSize, TusError};
+    use salvo_core::{Service, async_trait};
 
     use super::*;
+    use crate::stores::{ByteStream, DataStore, UploadInfo};
+    use crate::{Extension, MaxSize, TusError};
 
     struct PatchTestStore {
         info: UploadInfo,
@@ -292,6 +292,7 @@ mod tests {
         written: u64,
         declare_called: Arc<AtomicBool>,
         write_called: Arc<AtomicBool>,
+        write_limit: Arc<Mutex<Option<Option<u64>>>>,
     }
 
     #[async_trait]
@@ -316,6 +317,17 @@ mod tests {
         ) -> crate::error::TusResult<u64> {
             self.write_called.store(true, Ordering::SeqCst);
             Ok(self.written)
+        }
+
+        async fn write_limited(
+            &self,
+            id: &str,
+            offset: u64,
+            stream: ByteStream,
+            max_bytes: Option<u64>,
+        ) -> crate::error::TusResult<u64> {
+            *self.write_limit.lock().expect("write limit lock") = Some(max_bytes);
+            self.write(id, offset, stream).await
         }
 
         async fn get_upload_file_info(&self, _id: &str) -> crate::error::TusResult<UploadInfo> {
@@ -356,6 +368,7 @@ mod tests {
             written: 4,
             declare_called: declare_called.clone(),
             write_called: write_called.clone(),
+            write_limit: Arc::new(Mutex::new(None)),
         };
         let service = Service::new(
             Tus::new()
@@ -383,7 +396,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn patch_rejects_new_offset_overflow() {
+    async fn patch_rejects_content_length_overflow_before_writing() {
         let declare_called = Arc::new(AtomicBool::new(false));
         let write_called = Arc::new(AtomicBool::new(false));
         let store = PatchTestStore {
@@ -392,6 +405,39 @@ mod tests {
             written: 1,
             declare_called,
             write_called: write_called.clone(),
+            write_limit: Arc::new(Mutex::new(None)),
+        };
+        let service = Service::new(
+            Tus::new()
+                .max_size(MaxSize::Fixed(u64::MAX))
+                .store(store)
+                .into_router(),
+        );
+
+        let response = TestClient::patch("http://localhost/tus-files/upload-id")
+            .add_header(H_TUS_RESUMABLE, TUS_VERSION, true)
+            .add_header(H_CONTENT_TYPE, CT_OFFSET_OCTET_STREAM, true)
+            .add_header(H_UPLOAD_OFFSET, u64::MAX.to_string(), true)
+            .add_header(H_CONTENT_LENGTH, "1", true)
+            .body("x")
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert!(!write_called.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn patch_caps_unbounded_write_size_to_remaining_u64_capacity() {
+        let write_limit = Arc::new(Mutex::new(None));
+        let write_called = Arc::new(AtomicBool::new(false));
+        let store = PatchTestStore {
+            info: upload_info(u64::MAX, None),
+            declare_result: Ok(()),
+            written: 0,
+            declare_called: Arc::new(AtomicBool::new(false)),
+            write_called: write_called.clone(),
+            write_limit: write_limit.clone(),
         };
         let service = Service::new(
             Tus::new()
@@ -409,7 +455,11 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(response.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(response.status_code.unwrap(), StatusCode::NO_CONTENT);
         assert!(write_called.load(Ordering::SeqCst));
+        assert_eq!(
+            *write_limit.lock().expect("write limit lock"),
+            Some(Some(0))
+        );
     }
 }
