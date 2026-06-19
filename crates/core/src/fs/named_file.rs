@@ -588,18 +588,20 @@ impl NamedFile {
     /// Get last modified value.
     #[inline]
     pub fn last_modified(&self) -> Option<SystemTime> {
-        self.modified.and_then(|mtime| {
-            if let Err(err) = mtime.duration_since(UNIX_EPOCH) {
-                tracing::warn!(
-                    error = ?err,
-                    path = %self.path.display(),
-                    "skip file last-modified for modification time before unix epoch"
-                );
-                None
-            } else {
-                Some(mtime)
-            }
-        })
+        self.modified
+    }
+
+    fn encodable_last_modified(&self, mtime: SystemTime) -> Option<SystemTime> {
+        if let Err(err) = mtime.duration_since(UNIX_EPOCH) {
+            tracing::warn!(
+                error = ?err,
+                path = %self.path.display(),
+                "skip file last-modified header for modification time before unix epoch"
+            );
+            None
+        } else {
+            Some(mtime)
+        }
     }
     /// Specifies whether to use Last-Modified or not.
     ///
@@ -631,7 +633,8 @@ impl NamedFile {
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
-            !since.precondition_passes(*last_modified)
+            let since: SystemTime = since.into();
+            since < *last_modified
         } else {
             false
         };
@@ -644,7 +647,8 @@ impl NamedFile {
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
-            !since.is_modified(*last_modified)
+            let since: SystemTime = since.into();
+            since >= *last_modified
         } else {
             false
         };
@@ -670,7 +674,7 @@ impl NamedFile {
             res.headers_mut()
                 .typed_insert(ContentType::from(self.content_type.clone()));
         }
-        if let Some(lm) = last_modified {
+        if let Some(lm) = last_modified.and_then(|lm| self.encodable_last_modified(lm)) {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
         if let Some(etag) = etag {
@@ -892,7 +896,7 @@ mod tests {
         use std::io::Write as _;
         use std::time::Duration;
 
-        use crate::http::header::LAST_MODIFIED;
+        use crate::http::header::{IF_MODIFIED_SINCE, LAST_MODIFIED};
         use crate::http::{HeaderMap, Response};
 
         let mut file = tempfile::NamedTempFile::new().expect("create temp file");
@@ -903,12 +907,20 @@ mod tests {
             .build()
             .await
             .expect("build named file");
-        named.modified = Some(UNIX_EPOCH - Duration::from_secs(1));
+        let pre_epoch = UNIX_EPOCH - Duration::from_secs(1);
+        named.modified = Some(pre_epoch);
+        named.use_etag(false);
+        assert_eq!(named.last_modified(), Some(pre_epoch));
 
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_MODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:00:00 GMT"),
+        );
         let mut res = Response::new();
-        named.send(&HeaderMap::new(), &mut res).await;
+        named.send(&headers, &mut res).await;
 
-        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
         assert!(!res.headers().contains_key(LAST_MODIFIED));
     }
 
