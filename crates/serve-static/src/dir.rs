@@ -277,6 +277,75 @@ impl StaticDir {
         false
     }
 }
+
+struct CanonicalRoot {
+    path: PathBuf,
+    canonical_path: PathBuf,
+}
+
+struct ResolvedPath {
+    path: PathBuf,
+    canonical_root: PathBuf,
+    metadata: Metadata,
+}
+
+impl StaticDir {
+    async fn canonical_roots(&self) -> Vec<CanonicalRoot> {
+        // `roots` is public, so derive canonical roots from the current value.
+        let mut roots = Vec::with_capacity(self.roots.len());
+        for root in &self.roots {
+            if let Ok(canonical) = tokio::fs::canonicalize(root).await {
+                roots.push(CanonicalRoot {
+                    path: root.clone(),
+                    canonical_path: canonical,
+                });
+            }
+        }
+        roots
+    }
+
+    async fn resolve_root_path(
+        &self,
+        root: &CanonicalRoot,
+        path: PathBuf,
+        apply_exclude_filters: bool,
+    ) -> Option<ResolvedPath> {
+        if apply_exclude_filters {
+            let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
+            if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+                return None;
+            }
+        }
+
+        let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
+        let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
+        if !canonical_path.starts_with(&root.canonical_path) {
+            return None;
+        }
+        Some(ResolvedPath {
+            path,
+            canonical_root: root.canonical_path.clone(),
+            metadata,
+        })
+    }
+
+    async fn resolve_relative_path(
+        &self,
+        root: &CanonicalRoot,
+        rel_path: impl AsRef<Path>,
+    ) -> Option<ResolvedPath> {
+        self.resolve_root_path(root, root.path.join(rel_path), true)
+            .await
+    }
+
+    async fn resolve_child_path(&self, root: &Path, path: PathBuf) -> Option<ResolvedPath> {
+        let synthetic_root = CanonicalRoot {
+            path: root.to_owned(),
+            canonical_path: root.to_owned(),
+        };
+        self.resolve_root_path(&synthetic_root, path, false).await
+    }
+}
 #[derive(Serialize, Deserialize, Debug)]
 struct CurrentInfo {
     path: String,
@@ -351,37 +420,28 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        let mut abs_is_file = false;
+        let roots = self.canonical_roots().await;
         if self.include_dot_files || !is_dot_file {
-            for root in &self.roots {
-                let raw_path = join_path!(root, &rel_path);
-                // Security check to ensure that the accessed path is a subpath of the current root
-                // path.
-                if !Path::new(&raw_path).starts_with(root) {
-                    continue;
-                }
-                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
-                    continue;
-                }
-                let path = PathBuf::from(&raw_path);
-                // Use a single async metadata call instead of multiple blocking is_file/is_dir
-                let meta = tokio::fs::symlink_metadata(&path).await;
-                if let Ok(meta) = meta {
-                    if meta.is_dir() {
+            for root in &roots {
+                // Use a single async symlink_metadata call for file type checks, then verify
+                // the canonical target stays under the canonical root before serving it.
+                if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
+                    if path.metadata.is_dir() {
                         if !req_path.ends_with('/') && !req_path.is_empty() {
                             redirect_to_dir_url(req.uri(), res);
                             return;
                         }
 
-                        for ifile in &self.defaults {
-                            let ipath = path.join(ifile);
-                            if tokio::fs::symlink_metadata(&ipath)
+                        for default_file in &self.defaults {
+                            let default_path = path.path.join(default_file);
+                            let Some(default_path) = self
+                                .resolve_child_path(&path.canonical_root, default_path)
                                 .await
-                                .map(|m| m.is_file())
-                                .unwrap_or(false)
-                            {
-                                abs_path = Some(ipath);
-                                abs_is_file = true;
+                            else {
+                                continue;
+                            };
+                            if default_path.metadata.is_file() {
+                                abs_path = Some(default_path);
                                 break;
                             }
                         }
@@ -392,31 +452,20 @@ impl Handler for StaticDir {
                         if abs_path.is_some() {
                             break;
                         }
-                    } else if meta.is_file() {
+                    } else if path.metadata.is_file() {
                         abs_path = Some(path);
-                        abs_is_file = true;
                     }
                 }
             }
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
-            for root in &self.roots {
-                let raw_path = join_path!(root, fallback);
-                if !Path::new(&raw_path).starts_with(root) {
-                    continue;
-                }
-                if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
-                    continue;
-                }
-                let path = PathBuf::from(&raw_path);
-                if tokio::fs::symlink_metadata(&path)
-                    .await
-                    .map(|m| m.is_file())
-                    .unwrap_or(false)
-                {
+            for root in &roots {
+                if let Some(path) = self.resolve_relative_path(root, fallback).await {
+                    if !path.metadata.is_file() {
+                        continue;
+                    }
                     abs_path = Some(path);
-                    abs_is_file = true;
                     break;
                 }
             }
@@ -427,7 +476,9 @@ impl Handler for StaticDir {
             return;
         };
 
-        let is_file = abs_is_file;
+        let is_file = abs_path.metadata.is_file();
+        let canonical_root = abs_path.canonical_root;
+        let abs_path = abs_path.path;
 
         if is_file {
             let ext = abs_path
@@ -461,9 +512,10 @@ impl Handler for StaticDir {
                                     let mut path = abs_path.clone();
                                     path.as_mut_os_string().push(".");
                                     path.as_mut_os_string().push(zip_ext.as_str());
-                                    if tokio::fs::symlink_metadata(&path)
+                                    if self
+                                        .resolve_child_path(&canonical_root, path.clone())
                                         .await
-                                        .map(|m| m.is_file())
+                                        .map(|path| path.metadata.is_file())
                                         .unwrap_or(false)
                                     {
                                         new_abs_path = Some(path);

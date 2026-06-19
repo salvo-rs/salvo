@@ -40,10 +40,23 @@ cfg_feature! {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
     use crate::*;
+
+    #[cfg(unix)]
+    fn create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
 
     #[tokio::test]
     async fn test_serve_static_dir() {
@@ -138,6 +151,33 @@ mod tests {
         )
         .await;
         assert!(content == "copy3");
+    }
+
+    #[tokio::test]
+    async fn test_static_dir_rejects_symlinked_directory_escape() {
+        let public = tempfile::TempDir::new().unwrap();
+        let private = tempfile::TempDir::new().unwrap();
+        fs::write(private.path().join("secret.txt"), "secret").unwrap();
+        fs::write(private.path().join("fallback.html"), "fallback").unwrap();
+
+        let link = public.path().join("link");
+        if create_dir_symlink(private.path(), &link).is_err() {
+            return;
+        }
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(public.path().to_path_buf()).fallback("link/fallback.html"));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/link/secret.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+
+        let response = TestClient::get("http://127.0.0.1:5801/missing")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
