@@ -47,6 +47,17 @@ impl StaticFile {
     pub fn chunk_size(self, size: u64) -> Self {
         Self(self.0.buffer_size(size))
     }
+
+    /// Set the small-file preload threshold.
+    ///
+    /// Files whose size is less than or equal to this threshold are read during `NamedFile`
+    /// construction and sent from memory. Larger files are streamed in chunks. Set this to `0` to
+    /// disable preloading for non-empty files.
+    #[inline]
+    #[must_use]
+    pub fn preload_threshold(self, threshold: u64) -> Self {
+        Self(self.0.preload_threshold(threshold))
+    }
 }
 
 #[async_trait]
