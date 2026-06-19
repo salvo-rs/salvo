@@ -87,12 +87,14 @@ impl HeaderFinder {
         self.cared_methods = methods;
         self
     }
-    /// Returns a mutable reference to the allowed HTTP methods.
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         self.allowed_methods_mut()
     }
-    /// Sets the allowed HTTP methods and returns `Self`.
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
     #[inline]
     #[must_use]
     pub fn cared_methods(self, methods: Vec<Method>) -> Self {
@@ -193,12 +195,14 @@ impl FormFinder {
         self.cared_methods = methods;
         self
     }
-    /// Returns a mutable reference to the allowed HTTP methods.
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         self.allowed_methods_mut()
     }
-    /// Sets the allowed HTTP methods and returns `Self`.
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
     #[inline]
     #[must_use]
     pub fn cared_methods(self, methods: Vec<Method>) -> Self {
@@ -263,12 +267,14 @@ impl QueryFinder {
         self.cared_methods = methods;
         self
     }
-    /// Returns a mutable reference to the allowed HTTP methods.
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         self.allowed_methods_mut()
     }
-    /// Sets the allowed HTTP methods and returns `Self`.
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
     #[inline]
     #[must_use]
     pub fn cared_methods(self, methods: Vec<Method>) -> Self {
@@ -334,12 +340,14 @@ impl CookieFinder {
         self.cared_methods = methods;
         self
     }
-    /// Returns a mutable reference to the allowed HTTP methods.
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         self.allowed_methods_mut()
     }
-    /// Sets the allowed HTTP methods and returns `Self`.
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
     #[inline]
     #[must_use]
     pub fn cared_methods(self, methods: Vec<Method>) -> Self {
