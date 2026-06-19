@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
@@ -634,7 +634,7 @@ impl NamedFile {
             (&last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
             let since: SystemTime = since.into();
-            since < *last_modified
+            since < http_date_precision(*last_modified)
         } else {
             false
         };
@@ -648,7 +648,7 @@ impl NamedFile {
             (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
             let since: SystemTime = since.into();
-            since >= *last_modified
+            since >= http_date_precision(*last_modified)
         } else {
             false
         };
@@ -790,6 +790,19 @@ impl DerefMut for NamedFile {
     }
 }
 
+fn http_date_precision(time: SystemTime) -> SystemTime {
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(dur) => UNIX_EPOCH + Duration::from_secs(dur.as_secs()),
+        Err(err) => {
+            let dur = err.duration();
+            let secs = dur.as_secs() + u64::from(dur.subsec_nanos() > 0);
+            UNIX_EPOCH
+                .checked_sub(Duration::from_secs(secs))
+                .unwrap_or(time)
+        }
+    }
+}
+
 /// Returns true if `req_headers` has no `If-Match` header or one which matches `etag`.
 fn any_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
     match req_headers.typed_get::<IfMatch>() {
@@ -922,6 +935,68 @@ mod tests {
 
         assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
         assert!(!res.headers().contains_key(LAST_MODIFIED));
+    }
+
+    #[tokio::test]
+    async fn send_if_modified_since_uses_http_date_precision() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::IF_MODIFIED_SINCE;
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified =
+            Some(UNIX_EPOCH + Duration::from_secs(100) + Duration::from_nanos(500_000_000));
+        named.use_etag(false);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_MODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:01:40 GMT"),
+        );
+        let mut res = Response::new();
+        named.send(&headers, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
+    }
+
+    #[tokio::test]
+    async fn send_if_unmodified_since_uses_http_date_precision() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::IF_UNMODIFIED_SINCE;
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified =
+            Some(UNIX_EPOCH + Duration::from_secs(100) + Duration::from_nanos(500_000_000));
+        named.use_etag(false);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_UNMODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:01:40 GMT"),
+        );
+        let mut res = Response::new();
+        named.send(&headers, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
     }
 
     #[test]
