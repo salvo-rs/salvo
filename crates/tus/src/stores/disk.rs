@@ -303,8 +303,44 @@ impl DiskStore {
                 Ok(true)
             }
             Err(err) if err.kind() == io::ErrorKind::AlreadyExists => Ok(false),
-            Err(err) => Err(err),
+            Err(err) => {
+                tracing::debug!(
+                    error = ?err,
+                    source = %source.display(),
+                    target = %target.display(),
+                    "hard link finalization unavailable, falling back to copy"
+                );
+                Self::copy_file_no_replace(source, target).await
+            }
         }
+    }
+
+    async fn copy_file_no_replace(source: &Path, target: &Path) -> io::Result<bool> {
+        let mut source_file = fs::File::open(source).await?;
+        let mut target_file = match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(target)
+            .await
+        {
+            Ok(file) => file,
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => return Ok(false),
+            Err(err) => return Err(err),
+        };
+
+        if let Err(err) = tokio::io::copy(&mut source_file, &mut target_file).await {
+            let _ = fs::remove_file(target).await;
+            return Err(err);
+        }
+        if let Err(err) = target_file.sync_all().await {
+            let _ = fs::remove_file(target).await;
+            return Err(err);
+        }
+        if let Err(err) = fs::remove_file(source).await {
+            let _ = fs::remove_file(target).await;
+            return Err(err);
+        }
+        Ok(true)
     }
 
     async fn try_finalize_if_complete(&self, meta: &mut MetaUpload) {
@@ -1530,6 +1566,32 @@ mod tests {
             info.storage.unwrap().path,
             store.data_path(id).to_string_lossy().into_owned()
         );
+    }
+
+    #[tokio::test]
+    async fn test_copy_file_no_replace_moves_without_overwriting() {
+        let (_store, temp_dir) = create_test_store();
+        let source = temp_dir.path().join("source.bin");
+        let target = temp_dir.path().join("target.bin");
+
+        fs::write(&source, b"new").await.unwrap();
+        assert!(
+            DiskStore::copy_file_no_replace(&source, &target)
+                .await
+                .unwrap()
+        );
+        assert!(!source.exists());
+        assert_eq!(fs::read(&target).await.unwrap().as_slice(), b"new");
+
+        let second_source = temp_dir.path().join("second-source.bin");
+        fs::write(&second_source, b"second").await.unwrap();
+        assert!(
+            !DiskStore::copy_file_no_replace(&second_source, &target)
+                .await
+                .unwrap()
+        );
+        assert!(second_source.exists());
+        assert_eq!(fs::read(&target).await.unwrap().as_slice(), b"new");
     }
 
     #[tokio::test]
