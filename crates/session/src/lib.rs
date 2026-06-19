@@ -406,7 +406,9 @@ where
             if let Err(e) = self.store.destroy_session(session).await {
                 tracing::error!(error = ?e, "unable to destroy session");
             }
-            res.remove_cookie(&self.cookie_name);
+            let secure_cookie =
+                self.same_site_policy == SameSite::None || self.secure_cookie_policy.is_secure(req);
+            res.remove_cookie_with(self.build_removal_cookie(secure_cookie));
         } else if self.save_unchanged || session.data_changed() {
             match self.store.store_session(session).await {
                 Ok(cookie_value) => {
@@ -496,6 +498,20 @@ where
         }
 
         self.sign_cookie(&mut cookie);
+
+        cookie
+    }
+    fn build_removal_cookie(&self, secure: bool) -> Cookie<'static> {
+        let mut cookie = Cookie::build((self.cookie_name.clone(), ""))
+            .http_only(true)
+            .same_site(self.same_site_policy)
+            .secure(secure)
+            .path(self.cookie_path.clone())
+            .build();
+
+        if let Some(cookie_domain) = self.cookie_domain.clone() {
+            cookie.set_domain(cookie_domain)
+        }
 
         cookie
     }
@@ -917,6 +933,46 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
+    }
+
+    #[tokio::test]
+    async fn test_session_destroy_preserves_cookie_path_and_domain() {
+        #[handler]
+        pub async fn destroy_session(depot: &mut Depot) {
+            if let Some(session) = depot.session_mut() {
+                session.destroy();
+            }
+        }
+
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .cookie_domain("example.com")
+        .cookie_path("/app")
+        .build()
+        .unwrap();
+
+        let router = Router::new()
+            .hoop(session_handler)
+            .push(Router::with_path("destroy").get(destroy_session));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8698/destroy")
+            .add_header(COOKIE, "salvo.session.id=stale", true)
+            .send(&service)
+            .await;
+
+        let cookie = response
+            .headers()
+            .get(SET_COOKIE)
+            .expect("set-cookie header")
+            .to_str()
+            .expect("set-cookie should be valid");
+        assert!(cookie.starts_with("salvo.session.id="));
+        assert!(cookie.contains("Max-Age=0"));
+        assert!(cookie.contains("Path=/app"));
+        assert!(cookie.contains("Domain=example.com"));
     }
 
     #[tokio::test]
