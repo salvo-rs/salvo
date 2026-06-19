@@ -385,7 +385,7 @@ impl<'de> RequestDeserializer<'de> {
                     let parser = self.real_parser(source);
                     match parser {
                         SourceParser::Json => {
-                            if let Some(payload) = &self.payload {
+                            return if let Some(payload) = &self.payload {
                                 match payload {
                                     Payload::FormData(form_data) => {
                                         let mut value = form_data.fields.get(field_name);
@@ -402,7 +402,7 @@ impl<'de> RequestDeserializer<'de> {
                                             self.field_source = Some(source);
                                             return true;
                                         }
-                                        return false;
+                                        false
                                     }
                                     Payload::JsonMap(map) => {
                                         let mut value = map.get(field_name);
@@ -419,17 +419,17 @@ impl<'de> RequestDeserializer<'de> {
                                             self.field_source = Some(source);
                                             return true;
                                         }
-                                        return false;
+                                        false
                                     }
                                     Payload::JsonStr(value) => {
                                         self.field_str_value = Some(Cow::Borrowed(*value));
                                         self.field_source = Some(source);
-                                        return true;
+                                        true
                                     }
                                 }
                             } else {
-                                return false;
-                            }
+                                false
+                            };
                         }
                         SourceParser::MultiMap => {
                             if let Some(Payload::FormData(form_data)) = self.payload {

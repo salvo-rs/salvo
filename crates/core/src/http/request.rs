@@ -92,9 +92,9 @@ impl Handler for SecureMaxSize {
 ///   internally. Subsequent calls return the cached bytes.
 /// - [`form_data()`](Request::form_data) parses form data and caches the result. If the body has
 ///   already been consumed by `payload()`, it will use the cached bytes to parse the form.
-/// - [`replace_body()`](Request::replace_body) preserves those cached values for compatibility.
-///   Use [`replace_body_and_clear_cache()`](Request::replace_body_and_clear_cache) when replacing
-///   the body should also invalidate cached payload and form data.
+/// - [`replace_body()`](Request::replace_body) preserves those cached values for compatibility. Use
+///   [`replace_body_and_clear_cache()`](Request::replace_body_and_clear_cache) when replacing the
+///   body should also invalidate cached payload and form data.
 ///
 /// # Size Limits
 ///

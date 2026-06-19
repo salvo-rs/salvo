@@ -75,7 +75,7 @@ impl Depot {
     /// Get reference to the depot's inner map of string-keyed values.
     ///
     /// **Note**: this exposes only values inserted with an explicit string key; values stored by
-    /// type (via [`Depot::inject`]) are kept in separate storage and are not included.
+    /// type (via [`Depot::insert_typed`]) are kept in separate storage and are not included.
     #[inline]
     #[must_use]
     pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send + Sync>> {

@@ -300,9 +300,7 @@ impl FlexFusewire {
         Self::lock_timeout_state(state).armed
     }
 
-    fn lock_timeout_state<'a>(
-        state: &'a TimeoutWatchStateRef,
-    ) -> MutexGuard<'a, TimeoutWatchState> {
+    fn lock_timeout_state(state: &TimeoutWatchStateRef) -> MutexGuard<'_, TimeoutWatchState> {
         state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())

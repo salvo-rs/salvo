@@ -95,16 +95,19 @@ mod tests {
         assert!(example.external_value.is_empty());
 
         let example = example.summary("summary");
-        assert!(example.summary == "summary");
+        assert_eq!(example.summary, "summary");
 
         let example = example.description("description");
-        assert!(example.description == "description");
+        assert_eq!(example.description, "description");
 
         let example = example.external_value("external_value");
-        assert!(example.external_value == "external_value");
+        assert_eq!(example.external_value, "external_value");
 
         let example = example.value(serde_json::Value::String("value".to_owned()));
         assert!(example.value.is_some());
-        assert!(example.value.unwrap() == serde_json::Value::String("value".to_owned()));
+        assert_eq!(
+            example.value.unwrap(),
+            serde_json::Value::String("value".to_owned())
+        );
     }
 }

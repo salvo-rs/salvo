@@ -119,6 +119,6 @@ mod tests {
             .take_string()
             .await
             .unwrap();
-        assert!(content == "Hello");
+        assert_eq!(content, "Hello");
     }
 }
