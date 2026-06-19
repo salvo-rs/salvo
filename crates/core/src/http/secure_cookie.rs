@@ -10,7 +10,7 @@ pub enum SecureCookiePolicy {
     Always,
     /// Never include the `Secure` attribute.
     Never,
-    /// Include the `Secure` attribute when the request URI scheme is HTTPS.
+    /// Include the `Secure` attribute when the request scheme is HTTPS.
     #[default]
     AutoFromScheme,
 }
@@ -30,7 +30,7 @@ impl SecureCookiePolicy {
         match self {
             Self::Always => true,
             Self::Never => false,
-            Self::AutoFromScheme => req.uri().scheme() == Some(&Scheme::HTTPS),
+            Self::AutoFromScheme => req.scheme() == &Scheme::HTTPS,
         }
     }
 }
@@ -59,5 +59,17 @@ mod tests {
 
         assert!(!SecureCookiePolicy::AutoFromScheme.is_secure(&http_req));
         assert!(SecureCookiePolicy::AutoFromScheme.is_secure(&https_req));
+    }
+
+    #[test]
+    fn secure_cookie_policy_uses_recorded_scheme_when_uri_has_no_scheme() {
+        let hyper_req = http::Request::builder()
+            .uri("/")
+            .body(crate::http::ReqBody::None)
+            .expect("build request");
+        let req = Request::from_hyper(hyper_req, Scheme::HTTPS);
+
+        assert_eq!(req.uri().scheme(), None);
+        assert!(SecureCookiePolicy::AutoFromScheme.is_secure(&req));
     }
 }
