@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
@@ -187,7 +187,7 @@ impl NamedFileBuilder {
 
     /// Disable `Content-Disposition` header.
     ///
-    /// By default Content-Disposition` header is enabled.
+    /// By default, the `Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flag::ContentDisposition);
@@ -548,7 +548,7 @@ impl NamedFile {
 
     /// Disable `Content-Disposition` header.
     ///
-    /// By default Content-Disposition` header is enabled.
+    /// By default, the `Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flag::ContentDisposition);
@@ -580,9 +580,17 @@ impl NamedFile {
                 }
             };
 
-            let dur = mtime
-                .duration_since(UNIX_EPOCH)
-                .expect("modification time must be after epoch");
+            let dur = match mtime.duration_since(UNIX_EPOCH) {
+                Ok(dur) => dur,
+                Err(err) => {
+                    tracing::warn!(
+                        error = ?err,
+                        path = %self.path.display(),
+                        "skip file etag for modification time before unix epoch"
+                    );
+                    return None;
+                }
+            };
             let etag_str = format!(
                 "\"{:x}-{:x}-{:x}-{:x}\"",
                 ino,
@@ -616,6 +624,19 @@ impl NamedFile {
     pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
     }
+
+    fn encodable_last_modified(&self, mtime: SystemTime) -> Option<SystemTime> {
+        if let Err(err) = mtime.duration_since(UNIX_EPOCH) {
+            tracing::warn!(
+                error = ?err,
+                path = %self.path.display(),
+                "skip file last-modified header for modification time before unix epoch"
+            );
+            None
+        } else {
+            Some(mtime)
+        }
+    }
     /// Specifies whether to use Last-Modified or not.
     ///
     /// Default is true.
@@ -646,7 +667,8 @@ impl NamedFile {
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
-            !since.precondition_passes(*last_modified)
+            let since: SystemTime = since.into();
+            since < http_date_precision(*last_modified)
         } else {
             false
         };
@@ -659,7 +681,8 @@ impl NamedFile {
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
-            !since.is_modified(*last_modified)
+            let since: SystemTime = since.into();
+            since >= http_date_precision(*last_modified)
         } else {
             false
         };
@@ -685,7 +708,7 @@ impl NamedFile {
             res.headers_mut()
                 .typed_insert(ContentType::from(self.content_type.clone()));
         }
-        if let Some(lm) = last_modified {
+        if let Some(lm) = last_modified.and_then(|lm| self.encodable_last_modified(lm)) {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
         if let Some(etag) = etag {
@@ -798,6 +821,19 @@ impl Deref for NamedFile {
 impl DerefMut for NamedFile {
     fn deref_mut(&mut self) -> &mut File {
         &mut self.file
+    }
+}
+
+fn http_date_precision(time: SystemTime) -> SystemTime {
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(dur) => UNIX_EPOCH + Duration::from_secs(dur.as_secs()),
+        Err(err) => {
+            let dur = err.duration();
+            let secs = dur.as_secs() + u64::from(dur.subsec_nanos() > 0);
+            UNIX_EPOCH
+                .checked_sub(Duration::from_secs(secs))
+                .unwrap_or(time)
+        }
     }
 }
 
@@ -980,6 +1016,119 @@ mod tests {
             .expect("build named file");
 
         assert_eq!(named.buffer_size, 1);
+    }
+
+    #[tokio::test]
+    async fn etag_returns_none_for_pre_epoch_modified_time() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified = Some(UNIX_EPOCH - Duration::from_secs(1));
+
+        assert_eq!(named.etag(), None);
+    }
+
+    #[tokio::test]
+    async fn send_skips_last_modified_for_pre_epoch_modified_time() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::{IF_MODIFIED_SINCE, LAST_MODIFIED};
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        let pre_epoch = UNIX_EPOCH - Duration::from_secs(1);
+        named.modified = Some(pre_epoch);
+        named.use_etag(false);
+        assert_eq!(named.last_modified(), Some(pre_epoch));
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_MODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:00:00 GMT"),
+        );
+        let mut res = Response::new();
+        named.send(&headers, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
+        assert!(!res.headers().contains_key(LAST_MODIFIED));
+    }
+
+    #[tokio::test]
+    async fn send_if_modified_since_uses_http_date_precision() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::IF_MODIFIED_SINCE;
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified =
+            Some(UNIX_EPOCH + Duration::from_secs(100) + Duration::from_nanos(500_000_000));
+        named.use_etag(false);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_MODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:01:40 GMT"),
+        );
+        let mut res = Response::new();
+        named.send(&headers, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::NOT_MODIFIED));
+    }
+
+    #[tokio::test]
+    async fn send_if_unmodified_since_uses_http_date_precision() {
+        use std::io::Write as _;
+        use std::time::Duration;
+
+        use crate::http::header::IF_UNMODIFIED_SINCE;
+        use crate::http::{HeaderMap, Response};
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let mut named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        named.modified =
+            Some(UNIX_EPOCH + Duration::from_secs(100) + Duration::from_nanos(500_000_000));
+        named.use_etag(false);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            IF_UNMODIFIED_SINCE,
+            HeaderValue::from_static("Thu, 01 Jan 1970 00:01:40 GMT"),
+        );
+        let mut res = Response::new();
+        named.send(&headers, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
     }
 
     #[test]
