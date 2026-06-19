@@ -68,10 +68,11 @@ gateway path `/api/users` is forwarded to `http://backend/users`. If the backend
 also expects the `/api` prefix, configure the upstream with that base path:
 `http://backend/api`.
 
-`Proxy` normalizes literal `.` and `..` path segments before forwarding. When
-the proxy is used as an access-control boundary and the upstream may perform an
-additional URL decode pass, enable strict path normalization to reject ambiguous
-encoded path characters:
+`Proxy` uses strict path normalization by default. It rejects literal `..` path
+segments and ambiguous encoded path characters before forwarding, then
+normalizes safe paths. This is useful when the proxy is used as an
+access-control boundary and the upstream may perform an additional URL decode or
+normalization pass:
 
 ```rust
 use salvo::prelude::*;
@@ -83,12 +84,22 @@ let router = Router::with_path("api/{**rest}").goal(
 );
 ```
 
-Strict path normalization rejects percent-encoded `.`, `/`, `\`, and `%`
-characters in the proxied path tail, including cases such as `%2e%2e`,
-`%2f`, `%5c`, and double-encoded forms that remain percent-encoded after
-Salvo routing extracts the tail. Backends should still validate and normalize
-their own routes and file paths; this option only prevents common proxy/backend
-path interpretation mismatches.
+Strict path normalization rejects literal parent-directory components and
+percent-encoded `.`, `/`, `\`, and `%` characters in the proxied path tail,
+including cases such as `..`, `%2e%2e`, `%2f`, `%5c`, and double-encoded forms
+that remain percent-encoded after Salvo routing extracts the tail. Backends
+should still validate and normalize their own routes and file paths; this option
+only prevents common proxy/backend path interpretation mismatches.
+
+### Forwarded headers
+
+The default host header getter forwards only the upstream host name. Configure
+`standard_host_header_getter` when the upstream `Host` header should include a
+non-default port, for example `example.com:8080`.
+
+Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
+direct client IP from the connection. This avoids trusting a client-supplied
+forwarding chain.
 
 [![Docs](https://docs.rs/salvo-proxy/badge.svg)](https://docs.rs/salvo-proxy)
 

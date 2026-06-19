@@ -40,10 +40,25 @@ cfg_feature! {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+
+    use salvo_core::http::HeaderValue;
+    use salvo_core::http::header::{CONTENT_ENCODING, VARY};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
     use crate::*;
+
+    #[cfg(unix)]
+    fn create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
 
     #[tokio::test]
     async fn test_serve_static_dir() {
@@ -51,6 +66,7 @@ mod tests {
             StaticDir::new(vec!["test/static"])
                 .include_dot_files(false)
                 .auto_list(true)
+                .preload_threshold(0)
                 .defaults("index.html"),
         );
         let service = Service::new(router);
@@ -141,11 +157,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_static_dir_rejects_symlinked_directory_escape() {
+        let public = tempfile::TempDir::new().unwrap();
+        let private = tempfile::TempDir::new().unwrap();
+        fs::write(private.path().join("secret.txt"), "secret").unwrap();
+        fs::write(private.path().join("fallback.html"), "fallback").unwrap();
+
+        let link = public.path().join("link");
+        if create_dir_symlink(private.path(), &link).is_err() {
+            return;
+        }
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(public.path().to_path_buf()).fallback("link/fallback.html"));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/link/secret.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+
+        let response = TestClient::get("http://127.0.0.1:5801/missing")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
     async fn test_serve_static_file() {
         let router = Router::new()
             .push(
-                Router::with_path("test1.txt")
-                    .get(StaticFile::new("test/static/test1.txt").chunk_size(1024)),
+                Router::with_path("test1.txt").get(
+                    StaticFile::new("test/static/test1.txt")
+                        .chunk_size(1024)
+                        .preload_threshold(0),
+                ),
             )
             .push(
                 Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")),
@@ -162,6 +208,56 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_serve_static_dir_respects_accept_encoding_q_order() {
+        let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "br;q=0.1, gzip;q=1", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_ENCODING),
+            Some(&HeaderValue::from_static("gzip"))
+        );
+        let varies_on_accept_encoding = response
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|value| value.trim().eq_ignore_ascii_case("accept-encoding"));
+        assert!(varies_on_accept_encoding);
+
+        let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "br;q=1, gzip;q=0.1", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_ENCODING),
+            Some(&HeaderValue::from_static("br"))
+        );
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .add_header("accept-encoding", "identity;q=1, gzip;q=0.5", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.headers().get(CONTENT_ENCODING), None);
+        let varies_on_accept_encoding = response
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|value| value.trim().eq_ignore_ascii_case("accept-encoding"));
+        assert!(varies_on_accept_encoding);
+        assert_eq!(response.take_string().await.unwrap(), "copy1");
     }
 
     #[cfg(feature = "embed")]

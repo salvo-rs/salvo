@@ -57,6 +57,8 @@ pub mod mime;
 mod range;
 pub mod request;
 pub mod response;
+/// Cookie security policy helpers.
+pub mod secure_cookie;
 cfg_feature! {
     #![feature = "cookie"]
     pub use cookie;
@@ -68,6 +70,7 @@ pub use http::method::Method;
 pub use http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header, method, uri};
 pub use range::HttpRange;
 pub use request::Request;
+pub use secure_cookie::SecureCookiePolicy;
 pub mod body;
 pub use body::{Body, ReqBody, ResBody};
 pub use http::version::Version;
@@ -94,10 +97,7 @@ pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
         })
         .collect::<Vec<(String, u8)>>();
 
-    vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
-        std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-        other => other,
-    });
+    vec.sort_by(|(_, a), (_, b)| b.cmp(a));
 
     vec
 }

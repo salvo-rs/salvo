@@ -48,12 +48,12 @@ impl FormData {
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
     {
-        let ctype: Option<Mime> = headers
+        let content_type: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok());
-        match ctype {
-            Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
+        match content_type {
+            Some(content_type) if content_type.subtype() == mime::WWW_FORM_URLENCODED => {
                 futures_util::pin_mut!(body);
                 let mut data = BytesMut::new();
                 while let Some(chunk) = body.try_next().await.map_err(|e| {
@@ -70,7 +70,7 @@ impl FormData {
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
             }
-            Some(ctype) if ctype.type_() == mime::MULTIPART => {
+            Some(content_type) if content_type.type_() == mime::MULTIPART => {
                 let mut form_data = Self::new();
                 let Some(boundary) = headers
                     .get(CONTENT_TYPE)
@@ -221,34 +221,40 @@ impl FilePart {
         })
     }
 }
+
+fn cleanup_temporary_upload(path: &Path, temp_dir: &Path) {
+    // Log warnings if cleanup fails to help identify potential disk space issues.
+    if let Err(e) = std::fs::remove_file(path) {
+        // Only log if the file still exists (ENOENT is expected if already cleaned up).
+        if e.kind() != std::io::ErrorKind::NotFound {
+            tracing::warn!(
+                error = %e,
+                path = %path.display(),
+                "failed to remove temporary upload file"
+            );
+        }
+    }
+    if let Err(e) = std::fs::remove_dir(temp_dir) {
+        // Only log if directory still exists and is not empty.
+        if e.kind() != std::io::ErrorKind::NotFound {
+            tracing::debug!(
+                error = %e,
+                path = %temp_dir.display(),
+                "failed to remove temporary upload directory"
+            );
+        }
+    }
+}
+
 impl Drop for FilePart {
     fn drop(&mut self) {
-        if let Some(temp_dir) = &self.temp_dir {
+        if let Some(temp_dir) = self.temp_dir.take() {
             let path = self.path.clone();
-            let temp_dir = temp_dir.to_owned();
-            tokio::task::spawn_blocking(move || {
-                // Log warnings if cleanup fails to help identify potential disk space issues
-                if let Err(e) = std::fs::remove_file(&path) {
-                    // Only log if the file still exists (ENOENT is expected if already cleaned up)
-                    if e.kind() != std::io::ErrorKind::NotFound {
-                        tracing::warn!(
-                            error = %e,
-                            path = %path.display(),
-                            "failed to remove temporary upload file"
-                        );
-                    }
-                }
-                if let Err(e) = std::fs::remove_dir(&temp_dir) {
-                    // Only log if directory still exists and is not empty
-                    if e.kind() != std::io::ErrorKind::NotFound {
-                        tracing::debug!(
-                            error = %e,
-                            path = %temp_dir.display(),
-                            "failed to remove temporary upload directory"
-                        );
-                    }
-                }
-            });
+            if tokio::runtime::Handle::try_current().is_ok() {
+                tokio::task::spawn_blocking(move || cleanup_temporary_upload(&path, &temp_dir));
+            } else {
+                cleanup_temporary_upload(&path, &temp_dir);
+            }
         }
     }
 }
@@ -277,4 +283,33 @@ fn text_nonce() -> String {
     }
 
     URL_SAFE_NO_PAD.encode(raw)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_part_drop_removes_temp_files_without_tokio_runtime() {
+        let temp_dir = Builder::new()
+            .prefix("salvo_http_multipart_drop_test")
+            .tempdir()
+            .expect("create temp dir")
+            .keep();
+        let path = temp_dir.join("upload.tmp");
+        std::fs::write(&path, b"data").expect("write temp upload");
+
+        {
+            let _file_part = FilePart {
+                name: None,
+                headers: HeaderMap::new(),
+                path: path.clone(),
+                size: 4,
+                temp_dir: Some(temp_dir.clone()),
+            };
+        }
+
+        assert!(!path.exists());
+        assert!(!temp_dir.exists());
+    }
 }

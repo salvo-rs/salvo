@@ -19,7 +19,8 @@ impl Default for FixedGuard {
 
 impl FixedGuard {
     /// Create a new `FixedGuard`.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             reset: OffsetDateTime::now_utc(),
             count: 0,
@@ -31,15 +32,11 @@ impl FixedGuard {
 impl RateGuard for FixedGuard {
     type Quota = BasicQuota;
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
-        if self.quota.is_none() || OffsetDateTime::now_utc() > self.reset || self.quota.as_ref() != Some(quota) {
-            if self.quota.as_ref() != Some(quota) {
-                let mut quota = quota.clone();
-                if quota.limit == 0 {
-                    quota.limit = 1;
-                }
-                self.quota = Some(quota);
-            }
-            self.reset = OffsetDateTime::now_utc() + quota.period;
+        let now = OffsetDateTime::now_utc();
+        let quota = quota.normalized();
+        if self.quota.as_ref() != Some(&quota) || now > self.reset {
+            self.quota = Some(quota.clone());
+            self.reset = now + quota.period;
             self.count = 1;
             true
         } else if self.count < quota.limit {
@@ -51,6 +48,7 @@ impl RateGuard for FixedGuard {
     }
 
     async fn remaining(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit.saturating_sub(self.count)
     }
 
@@ -59,6 +57,7 @@ impl RateGuard for FixedGuard {
     }
 
     async fn limit(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit
     }
 }
@@ -164,7 +163,20 @@ mod tests {
         let quota = BasicQuota::per_second(0);
 
         assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
         assert_eq!(guard.remaining(&quota).await, 0);
+        assert_eq!(guard.limit(&quota).await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_fixed_guard_normalizes_non_positive_period() {
+        let mut guard = FixedGuard::new();
+        let quota = BasicQuota::set_seconds(2, 0);
+
+        assert!(guard.verify(&quota).await);
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+        assert_eq!(guard.quota.as_ref().unwrap().period, Duration::seconds(1));
     }
 
     #[tokio::test]

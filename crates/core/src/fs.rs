@@ -31,6 +31,7 @@
 //! let file = NamedFile::builder("./downloads/report.pdf")
 //!     .attached_name("monthly-report.pdf")
 //!     .buffer_size(65536)
+//!     .preload_threshold(262144)
 //!     .build()
 //!     .await
 //!     .unwrap();
@@ -39,6 +40,8 @@
 //! # Chunked Reading
 //!
 //! Large files are read in chunks to avoid loading the entire file into memory.
+//! `NamedFile::builder(...).preload_threshold(...)` controls the separate
+//! small-file preload limit.
 //! The [`ChunkedFile`] struct implements [`Stream`](futures_util::stream::Stream),
 //! yielding [`Bytes`](bytes::Bytes) chunks as they are read.
 mod named_file;

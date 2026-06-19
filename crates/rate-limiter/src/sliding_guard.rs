@@ -5,7 +5,7 @@ use super::{CelledQuota, RateGuard};
 /// Sliding window implement.
 #[derive(Clone, Debug)]
 pub struct SlidingGuard {
-    cell_inst: OffsetDateTime,
+    cell_start: OffsetDateTime,
     cell_span: Duration,
     counts: Vec<usize>,
     head: usize,
@@ -21,9 +21,10 @@ impl Default for SlidingGuard {
 
 impl SlidingGuard {
     /// Create a new `SlidingGuard`.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
-            cell_inst: OffsetDateTime::now_utc(),
+            cell_start: OffsetDateTime::now_utc(),
             cell_span: Duration::default(),
             counts: vec![],
             head: 0,
@@ -32,22 +33,8 @@ impl SlidingGuard {
         }
     }
 
-    fn normalize_quota(quota: &CelledQuota) -> CelledQuota {
-        let mut quota = quota.clone();
-        if quota.limit == 0 {
-            quota.limit = 1;
-        }
-        if quota.cells == 0 {
-            quota.cells = 1;
-        }
-        if quota.cells > quota.limit {
-            quota.cells = quota.limit;
-        }
-        quota
-    }
-
     fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
-        self.cell_inst = now;
+        self.cell_start = now;
         self.cell_span = quota.period / (quota.cells as u32);
         self.counts = vec![0; quota.cells];
         self.head = 0;
@@ -60,13 +47,13 @@ impl RateGuard for SlidingGuard {
     type Quota = CelledQuota;
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
         let now = OffsetDateTime::now_utc();
-        let quota = Self::normalize_quota(quota);
+        let quota = quota.normalized();
         if self.quota.as_ref() != Some(&quota) {
             self.reset_window(&quota, now);
             self.quota = Some(quota);
             return true;
         }
-        let mut delta = now - self.cell_inst;
+        let mut delta = now - self.cell_start;
         if delta > quota.period {
             self.reset_window(&quota, now);
             return true;
@@ -79,20 +66,23 @@ impl RateGuard for SlidingGuard {
             }
             self.counts[self.head] += 1;
             self.total += 1;
-            self.cell_inst = now;
+            self.cell_start = now;
         }
         self.total <= quota.limit
     }
 
     async fn remaining(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit.saturating_sub(self.total)
     }
 
     async fn reset(&self, quota: &Self::Quota) -> i64 {
-        (self.cell_inst + quota.period).unix_timestamp()
+        let quota = quota.normalized();
+        (self.cell_start + quota.period).unix_timestamp()
     }
 
     async fn limit(&self, quota: &Self::Quota) -> usize {
+        let quota = quota.normalized();
         quota.limit
     }
 }
@@ -124,7 +114,7 @@ mod tests {
         let guard = SlidingGuard::new();
         let debug_str = format!("{guard:?}");
         assert!(debug_str.contains("SlidingGuard"));
-        assert!(debug_str.contains("cell_inst"));
+        assert!(debug_str.contains("cell_start"));
         assert!(debug_str.contains("counts"));
     }
 
@@ -177,6 +167,27 @@ mod tests {
         // Zero cells should be treated as 1
         assert!(guard.verify(&quota).await);
         assert_eq!(guard.counts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_verify_zero_limit() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::per_second(0, 2);
+
+        assert!(guard.verify(&quota).await);
+        assert!(!guard.verify(&quota).await);
+        assert_eq!(guard.limit(&quota).await, 1);
+        assert_eq!(guard.remaining(&quota).await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_normalizes_tiny_cell_span() {
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(10, 10, Duration::nanoseconds(1));
+
+        assert!(guard.verify(&quota).await);
+        assert_eq!(guard.counts.len(), 1);
+        assert!(guard.cell_span > Duration::ZERO);
     }
 
     #[tokio::test]
@@ -304,7 +315,7 @@ mod tests {
         assert!(guard.verify(&quota).await);
 
         for request_index in 2..=12 {
-            guard.cell_inst = OffsetDateTime::now_utc() - Duration::seconds(3);
+            guard.cell_start = OffsetDateTime::now_utc() - Duration::seconds(3);
             assert!(
                 guard.verify(&quota).await,
                 "request {request_index} rejected, head={}, counts={:?}",
