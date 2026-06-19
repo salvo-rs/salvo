@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
-use std::io::Read as StdRead;
+use std::io::{Read as StdRead, Seek as StdSeek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -306,12 +306,15 @@ impl NamedFileBuilder {
                 .unwrap_or(false);
         let needs_detect = !is_encoded && content_type.is_none() && path.extension().is_none();
 
-        // Single spawn_blocking: open + metadata + optional preread.
+        let needs_detection_sample = needs_charset || needs_detect;
+
+        // Single spawn_blocking: open + metadata + optional preread/detection sample.
         // This replaces 3-7 separate spawn_blocking calls with just 1.
         struct FileInfo {
             file: std::fs::File,
             metadata: Metadata,
             preread: Option<Vec<u8>>,
+            detection_sample: Option<Vec<u8>>,
         }
         let blocking_path = path.clone();
         let info = tokio::task::spawn_blocking(move || -> std::io::Result<FileInfo> {
@@ -329,10 +332,24 @@ impl NamedFileBuilder {
                 None
             };
 
+            let detection_sample = if needs_detection_sample {
+                if let Some(preread) = &preread {
+                    Some(preread[..cmp::min(1024, preread.len())].to_vec())
+                } else {
+                    let mut sample = vec![0u8; cmp::min(1024, file_size) as usize];
+                    file.read_exact(&mut sample)?;
+                    file.seek(SeekFrom::Start(0))?;
+                    Some(sample)
+                }
+            } else {
+                None
+            };
+
             Ok(FileInfo {
                 file,
                 metadata,
                 preread,
+                detection_sample,
             })
         })
         .await
@@ -344,18 +361,12 @@ impl NamedFileBuilder {
         // Resolve content type, using preread bytes for charset detection if needed.
         let content_type = if let Some(mut mime) = inferred_mime {
             if needs_charset {
-                let sample = match &info.preread {
-                    Some(buf) => &buf[..cmp::min(1024, buf.len())],
-                    None => &[],
-                };
+                let sample = info.detection_sample.as_deref().unwrap_or(&[]);
                 fill_mime_charset_if_need(&mut mime, sample);
             }
             mime
         } else if needs_detect {
-            let sample = match &info.preread {
-                Some(buf) => &buf[..cmp::min(1024, buf.len())],
-                None => &[],
-            };
+            let sample = info.detection_sample.as_deref().unwrap_or(&[]);
             detect_text_mime(sample).unwrap_or(mime::APPLICATION_OCTET_STREAM)
         } else {
             mime::APPLICATION_OCTET_STREAM
@@ -911,6 +922,47 @@ mod tests {
             named.preread.as_ref().map(Bytes::len),
             Some((PRELOAD_THRESHOLD + 1) as usize)
         );
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_zero_still_detects_extensionless_text_mime() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let path = temp_dir.path().join("README");
+        std::fs::write(&path, b"plain text content").expect("write extensionless file");
+
+        let named = NamedFile::builder(&path)
+            .preload_threshold(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.content_type().type_(), mime::TEXT);
+        assert_eq!(named.content_type().subtype(), mime::PLAIN);
+        assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_zero_still_sniffs_charset() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let path = temp_dir.path().join("data.json");
+        std::fs::write(&path, br#"{"message":"hello"}"#).expect("write json file");
+
+        let named = NamedFile::builder(&path)
+            .preload_threshold(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.content_type().type_(), mime::APPLICATION);
+        assert_eq!(named.content_type().subtype(), mime::JSON);
+        assert_eq!(
+            named
+                .content_type()
+                .get_param("charset")
+                .map(|v| v.as_str()),
+            Some("utf-8")
+        );
+        assert!(named.preread.is_none());
     }
 
     #[tokio::test]
