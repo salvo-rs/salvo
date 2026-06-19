@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
-use std::io::Read as StdRead;
+use std::io::{Read as StdRead, Seek as StdSeek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -27,6 +27,7 @@ use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
+const PRELOAD_THRESHOLD: u64 = 1024 * 1024;
 const RFC5987_ATTR_CHAR_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
@@ -85,6 +86,7 @@ pub(crate) enum Flag {
 ///     let file = NamedFile::builder("document.pdf")
 ///         .attached_name("report.pdf")
 ///         .buffer_size(65536)
+///         .preload_threshold(262144)
 ///         .build()
 ///         .await;
 /// }
@@ -136,6 +138,7 @@ pub struct NamedFile {
 /// - Content-Disposition (inline vs attachment)
 /// - Download filename
 /// - Buffer size for chunked reading
+/// - Preload threshold for small-file responses
 /// - ETag and Last-Modified header generation
 ///
 /// # Example
@@ -147,6 +150,7 @@ pub struct NamedFile {
 ///     .attached_name("data-export-2024.csv")  // Force download with this name
 ///     .content_type("text/csv".parse().unwrap())
 ///     .buffer_size(131072)  // 128KB chunks
+///     .preload_threshold(262144)  // Preload files up to 256KB
 ///     .use_etag(true)
 ///     .build()
 ///     .await?;
@@ -159,6 +163,7 @@ pub struct NamedFileBuilder {
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
     buffer_size: Option<u64>,
+    preload_threshold: Option<u64>,
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
@@ -204,11 +209,26 @@ impl NamedFileBuilder {
         self
     }
 
-    /// Sets buffer size and returns `Self`.
+    /// Sets chunk buffer size and returns `Self`.
+    ///
+    /// This controls the maximum chunk size used when a file is streamed. It does not change the
+    /// small-file preload threshold. Use [`Self::preload_threshold`] to configure that separately.
     #[inline]
     #[must_use]
     pub fn buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
+        self
+    }
+
+    /// Sets small-file preload threshold and returns `Self`.
+    ///
+    /// Files whose size is less than or equal to this threshold are read during build and sent from
+    /// memory. Larger files are streamed in chunks using [`Self::buffer_size`]. Set this to `0` to
+    /// disable preloading for non-empty files.
+    #[inline]
+    #[must_use]
+    pub fn preload_threshold(mut self, threshold: u64) -> Self {
+        self.preload_threshold = Some(threshold);
         self
     }
 
@@ -259,12 +279,14 @@ impl NamedFileBuilder {
             content_type,
             content_encoding,
             buffer_size,
+            preload_threshold,
             disposition_type,
             attached_name,
             flags,
         } = self;
 
-        let buf_size = buffer_size.unwrap_or(CHUNK_SIZE);
+        let buf_size = buffer_size.unwrap_or(CHUNK_SIZE).max(1);
+        let preload_threshold = preload_threshold.unwrap_or(PRELOAD_THRESHOLD);
 
         // Determine what charset detection is needed before the blocking call.
         let inferred_mime = content_type
@@ -284,12 +306,15 @@ impl NamedFileBuilder {
                 .unwrap_or(false);
         let needs_detect = !is_encoded && content_type.is_none() && path.extension().is_none();
 
-        // Single spawn_blocking: open + metadata + optional preread.
+        let needs_detection_sample = needs_charset || needs_detect;
+
+        // Single spawn_blocking: open + metadata + optional preread/detection sample.
         // This replaces 3-7 separate spawn_blocking calls with just 1.
         struct FileInfo {
             file: std::fs::File,
             metadata: Metadata,
             preread: Option<Vec<u8>>,
+            detection_sample: Option<Vec<u8>>,
         }
         let blocking_path = path.clone();
         let info = tokio::task::spawn_blocking(move || -> std::io::Result<FileInfo> {
@@ -297,12 +322,25 @@ impl NamedFileBuilder {
             let metadata = file.metadata()?;
             let file_size = metadata.len();
 
-            // For small files (size <= buffer_size), read the entire content now.
+            // For small files (size <= preload_threshold), read the entire content now.
             // This avoids ChunkedFile's spawn_blocking + into_std overhead later.
-            let preread = if file_size <= buf_size {
+            let preread = if file_size <= preload_threshold {
                 let mut buf = vec![0u8; file_size as usize];
                 file.read_exact(&mut buf)?;
                 Some(buf)
+            } else {
+                None
+            };
+
+            let detection_sample = if needs_detection_sample {
+                if let Some(preread) = &preread {
+                    Some(preread[..cmp::min(1024, preread.len())].to_vec())
+                } else {
+                    let mut sample = vec![0u8; cmp::min(1024, file_size) as usize];
+                    file.read_exact(&mut sample)?;
+                    file.seek(SeekFrom::Start(0))?;
+                    Some(sample)
+                }
             } else {
                 None
             };
@@ -311,6 +349,7 @@ impl NamedFileBuilder {
                 file,
                 metadata,
                 preread,
+                detection_sample,
             })
         })
         .await
@@ -322,18 +361,12 @@ impl NamedFileBuilder {
         // Resolve content type, using preread bytes for charset detection if needed.
         let content_type = if let Some(mut mime) = inferred_mime {
             if needs_charset {
-                let sample = match &info.preread {
-                    Some(buf) => &buf[..cmp::min(1024, buf.len())],
-                    None => &[],
-                };
+                let sample = info.detection_sample.as_deref().unwrap_or(&[]);
                 fill_mime_charset_if_need(&mut mime, sample);
             }
             mime
         } else if needs_detect {
-            let sample = match &info.preread {
-                Some(buf) => &buf[..cmp::min(1024, buf.len())],
-                None => &[],
-            };
+            let sample = info.detection_sample.as_deref().unwrap_or(&[]);
             detect_text_mime(sample).unwrap_or(mime::APPLICATION_OCTET_STREAM)
         } else {
             mime::APPLICATION_OCTET_STREAM
@@ -446,6 +479,7 @@ impl NamedFile {
             content_type: None,
             content_encoding: None,
             buffer_size: None,
+            preload_threshold: None,
             flags: BitFlags::default(),
         }
     }
@@ -848,6 +882,104 @@ mod tests {
             named.content_encoding().map(|v| v.to_str().unwrap()),
             Some("gzip")
         );
+    }
+
+    #[tokio::test]
+    async fn buffer_size_does_not_raise_preload_threshold() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        let bytes = vec![b'a'; (PRELOAD_THRESHOLD + 1) as usize];
+        file.write_all(&bytes).expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .buffer_size(PRELOAD_THRESHOLD * 2)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.buffer_size, PRELOAD_THRESHOLD * 2);
+        assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_can_be_configured() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        let bytes = vec![b'a'; (PRELOAD_THRESHOLD + 1) as usize];
+        file.write_all(&bytes).expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .preload_threshold(PRELOAD_THRESHOLD + 1)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(
+            named.preread.as_ref().map(Bytes::len),
+            Some((PRELOAD_THRESHOLD + 1) as usize)
+        );
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_zero_still_detects_extensionless_text_mime() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let path = temp_dir.path().join("README");
+        std::fs::write(&path, b"plain text content").expect("write extensionless file");
+
+        let named = NamedFile::builder(&path)
+            .preload_threshold(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.content_type().type_(), mime::TEXT);
+        assert_eq!(named.content_type().subtype(), mime::PLAIN);
+        assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn preload_threshold_zero_still_sniffs_charset() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let path = temp_dir.path().join("data.json");
+        std::fs::write(&path, br#"{"message":"hello"}"#).expect("write json file");
+
+        let named = NamedFile::builder(&path)
+            .preload_threshold(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.content_type().type_(), mime::APPLICATION);
+        assert_eq!(named.content_type().subtype(), mime::JSON);
+        assert_eq!(
+            named
+                .content_type()
+                .get_param("charset")
+                .map(|v| v.as_str()),
+            Some("utf-8")
+        );
+        assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn zero_buffer_size_is_clamped() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        file.write_all(b"hello").expect("write file");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .buffer_size(0)
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.buffer_size, 1);
     }
 
     #[test]

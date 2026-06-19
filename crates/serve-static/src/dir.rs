@@ -149,6 +149,8 @@ pub struct StaticDir {
     pub roots: Vec<PathBuf>,
     /// Chunk size for file reading (in bytes)
     pub chunk_size: Option<u64>,
+    /// Small-file preload threshold for served files (in bytes)
+    pub preload_threshold: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
     pub include_dot_files: bool,
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
@@ -166,6 +168,7 @@ impl Debug for StaticDir {
         f.debug_struct("StaticDir")
             .field("roots", &self.roots)
             .field("chunk_size", &self.chunk_size)
+            .field("preload_threshold", &self.preload_threshold)
             .field("include_dot_files", &self.include_dot_files)
             .field("auto_list", &self.auto_list)
             .field("compressed_variations", &self.compressed_variations)
@@ -187,6 +190,7 @@ impl StaticDir {
         Self {
             roots: roots.collect(),
             chunk_size: None,
+            preload_threshold: None,
             include_dot_files: false,
             exclude_filters: vec![],
             auto_list: false,
@@ -257,6 +261,9 @@ impl StaticDir {
     /// During the file chunk read, the maximum read size at one time will affect the
     /// access experience and the demand for server memory.
     ///
+    /// This controls streaming chunks and does not change `NamedFile`'s small-file preload
+    /// threshold.
+    ///
     /// Please set it according to your own situation.
     ///
     /// The default is 1M.
@@ -264,6 +271,18 @@ impl StaticDir {
     #[must_use]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
+        self
+    }
+
+    /// Sets the small-file preload threshold.
+    ///
+    /// Files whose size is less than or equal to this threshold are read during `NamedFile`
+    /// construction and sent from memory. Larger files are streamed in chunks. Set this to `0` to
+    /// disable preloading for non-empty files.
+    #[inline]
+    #[must_use]
+    pub fn preload_threshold(mut self, threshold: u64) -> Self {
+        self.preload_threshold = Some(threshold);
         self
     }
 
@@ -541,6 +560,9 @@ impl Handler for StaticDir {
                 }
                 if let Some(size) = self.chunk_size {
                     builder = builder.buffer_size(size);
+                }
+                if let Some(threshold) = self.preload_threshold {
+                    builder = builder.preload_threshold(threshold);
                 }
                 if let Some(content_type) = content_type {
                     builder = builder.content_type(content_type);

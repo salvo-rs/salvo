@@ -64,6 +64,7 @@ mod tests {
             StaticDir::new(vec!["test/static"])
                 .include_dot_files(false)
                 .auto_list(true)
+                .preload_threshold(0)
                 .defaults("index.html"),
         );
         let service = Service::new(router);
@@ -184,8 +185,11 @@ mod tests {
     async fn test_serve_static_file() {
         let router = Router::new()
             .push(
-                Router::with_path("test1.txt")
-                    .get(StaticFile::new("test/static/test1.txt").chunk_size(1024)),
+                Router::with_path("test1.txt").get(
+                    StaticFile::new("test/static/test1.txt")
+                        .chunk_size(1024)
+                        .preload_threshold(0),
+                ),
             )
             .push(
                 Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")),
