@@ -227,7 +227,7 @@ impl<'a> Config<'a> {
     /// fetch the API document.
     ///
     /// # Examples
-    /// Create new config with 2 api doc urls.
+    /// Creates a new config with two API doc URLs.
     /// ```rust
     /// # use salvo_oapi::swagger_ui::Config;
     /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
@@ -239,7 +239,7 @@ impl<'a> Config<'a> {
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
     /// # Examples
-    /// Create new config with OAuth config.
+    /// Creates a new config with OAuth config.
     /// ```rust
     /// # use salvo_oapi::swagger_ui::{Config, oauth};
     /// let config = Config::with_oauth_config(

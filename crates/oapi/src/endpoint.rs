@@ -19,7 +19,7 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
-    /// Create new `Endpoint` with given operation and components.
+    /// Creates a new `Endpoint` with the given operation and components.
     #[must_use]
     pub fn new(operation: Operation, components: Components) -> Self {
         Self {

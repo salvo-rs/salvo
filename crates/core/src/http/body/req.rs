@@ -48,22 +48,22 @@ impl ReqBody {
             }
         }
     }
-    /// Check is that body is not set.
+    /// Returns true if the body is not set.
     #[inline]
     pub fn is_none(&self) -> bool {
         matches!(*self, Self::None)
     }
-    /// Check is that body is once.
+    /// Returns true if the body contains one byte buffer.
     #[inline]
     pub fn is_once(&self) -> bool {
         matches!(*self, Self::Once(_))
     }
-    /// Check is that body is hyper default body type.
+    /// Returns true if the body is Hyper's default incoming body type.
     #[inline]
     pub fn is_hyper(&self) -> bool {
         matches!(*self, Self::Hyper { .. })
     }
-    /// Check is that body is stream.
+    /// Returns true if the body is boxed.
     #[inline]
     pub fn is_boxed(&self) -> bool {
         matches!(*self, Self::Boxed { .. })
@@ -256,7 +256,7 @@ cfg_feature! {
             S: RecvStream + Send + Unpin + 'static,
             B: Buf + Send + Unpin + 'static,
         {
-            /// Create new `H3ReqBody` instance.
+            /// Creates a new `H3ReqBody` instance.
             pub fn new(inner: salvo_http3::server::RequestStream<S, B>) -> Self {
                 Self { inner }
             }

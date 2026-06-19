@@ -98,7 +98,7 @@ impl CookieStore {
         self
     }
 
-    /// Into `FlashHandler`.
+    /// Converts this store into a `FlashHandler`.
     #[must_use]
     pub fn into_handler(self) -> FlashHandler<Self> {
         FlashHandler::new(self)

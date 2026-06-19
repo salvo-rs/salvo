@@ -59,7 +59,7 @@ impl Debug for FlowCtrl {
 }
 
 impl FlowCtrl {
-    /// Create new `FlowCtrl`.
+    /// Creates a new `FlowCtrl`.
     #[inline]
     #[must_use]
     pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {

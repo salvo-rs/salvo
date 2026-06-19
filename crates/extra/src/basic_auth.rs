@@ -86,7 +86,7 @@ impl<V> BasicAuth<V>
 where
     V: BasicAuthValidator,
 {
-    /// Create new `BasicAuthValidator`.
+    /// Creates a new `BasicAuthValidator`.
     #[inline]
     pub fn new(validator: V) -> Self {
         Self {
@@ -124,7 +124,7 @@ where
         &self.header_names
     }
 
-    /// Get mutable reference to the header names.
+    /// Returns a mutable reference to the header names.
     #[inline]
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
         &mut self.header_names

@@ -30,7 +30,7 @@ impl<T> Deref for QueryParam<T, true> {
     fn deref(&self) -> &Self::Target {
         self.0
             .as_ref()
-            .expect("`QueryParam<T, true>` defref get `None`")
+            .expect("`QueryParam<T, true>` deref returned `None`")
     }
 }
 impl<T> Deref for QueryParam<T, false> {
@@ -45,7 +45,7 @@ impl<T> DerefMut for QueryParam<T, true> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
             .as_mut()
-            .expect("`QueryParam<T, true>` defref_mut get `None`")
+            .expect("`QueryParam<T, true>` deref_mut returned `None`")
     }
 }
 impl<T> DerefMut for QueryParam<T, false> {
@@ -213,14 +213,14 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_required_query_prarm_extract() {
+    async fn test_required_query_param_extract() {
         let mut req = Request::new();
         let mut depot = Depot::new();
         let _ = QueryParam::<String, true>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
-    async fn test_required_query_prarm_extract_with_value() {
+    async fn test_required_query_param_extract_with_value() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
@@ -234,7 +234,7 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_required_query_prarm_extract_with_value_panic() {
+    async fn test_required_query_param_extract_with_value_panic() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
@@ -252,14 +252,14 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_query_prarm_extract() {
+    async fn test_query_param_extract() {
         let mut req = Request::new();
         let mut depot = Depot::new();
         let _ = QueryParam::<String, false>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
-    async fn test_query_prarm_extract_with_value() {
+    async fn test_query_param_extract_with_value() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
@@ -273,7 +273,7 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_query_prarm_extract_with_value_panic() {
+    async fn test_query_param_extract_with_value_panic() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);

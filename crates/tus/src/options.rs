@@ -15,7 +15,13 @@ use crate::stores::UploadInfo;
 use crate::utils::is_safe_upload_id;
 
 /// Optional tus upload ID passed to size and URL callbacks.
-pub type UploadId = Option<String>;
+pub type MaybeUploadId = Option<String>;
+
+/// Optional tus upload ID passed to size and URL callbacks.
+///
+/// This alias is kept for compatibility. New internal code should prefer
+/// [`MaybeUploadId`] when the optional nature matters at the call site.
+pub type UploadId = MaybeUploadId;
 
 static RE_FILE_ID: OnceLock<Regex> = OnceLock::new();
 /// Returns the regex used to extract an upload ID from a request path.
@@ -27,6 +33,8 @@ pub fn file_id_regex() -> &'static Regex {
 #[derive(Clone)]
 pub enum MaxSize {
     /// Fixed maximum number of bytes accepted for an upload.
+    ///
+    /// A value of `0` means no configured size limit.
     Fixed(u64),
     /// Callback that computes the maximum number of bytes for each request.
     #[allow(clippy::type_complexity)]

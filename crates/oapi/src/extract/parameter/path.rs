@@ -155,14 +155,14 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_path_prarm_extract() {
+    async fn test_path_param_extract() {
         let mut req = Request::new();
         let mut depot = Depot::new();
         let _ = PathParam::<String>::extract(&mut req, &mut depot).await;
     }
 
     #[tokio::test]
-    async fn test_path_prarm_extract_with_value() {
+    async fn test_path_param_extract_with_value() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
@@ -174,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     #[should_panic]
-    async fn test_path_prarm_extract_with_value_panic() {
+    async fn test_path_param_extract_with_value_panic() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);

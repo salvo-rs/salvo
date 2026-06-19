@@ -39,7 +39,7 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Error, Handler};
 #[derive(Default, Debug)]
 pub struct CatchPanic {}
 impl CatchPanic {
-    /// Create new `CatchPanic` middleware.
+    /// Creates a new `CatchPanic` middleware.
     #[inline]
     #[must_use] pub fn new() -> Self {
         Self {}
@@ -89,4 +89,3 @@ mod tests {
         assert!(logs_contain("panic occurred"));
     }
 }
-

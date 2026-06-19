@@ -150,7 +150,7 @@ impl<S> HandlerBuilder<S>
 where
     S: SessionStore,
 {
-    /// Create new `HandlerBuilder`
+    /// Creates a new `HandlerBuilder`.
     ///
     /// # Security Note
     ///
@@ -429,7 +429,7 @@ impl<S> SessionHandler<S>
 where
     S: SessionStore + Send + Sync + 'static,
 {
-    /// Create new `HandlerBuilder`
+    /// Creates a new `HandlerBuilder`.
     pub fn builder(store: S, secret: &[u8]) -> HandlerBuilder<S> {
         HandlerBuilder::new(store, secret)
     }

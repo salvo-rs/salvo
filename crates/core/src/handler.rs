@@ -342,7 +342,7 @@ impl Debug for HoopedHandler {
 }
 
 impl HoopedHandler {
-    /// Create new `HoopedHandler`.
+    /// Creates a new `HoopedHandler`.
     pub fn new<H: Handler>(inner: H) -> Self {
         Self {
             inner: Arc::new(inner),

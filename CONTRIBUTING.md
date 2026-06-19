@@ -36,6 +36,8 @@ cargo test --all --all-features --no-fail-fast
 cargo test --workspace --doc
 ```
 
+Formatting uses nightly because `rustfmt.toml` contains nightly-only options.
+
 Nightly-only checks used in CI:
 
 ```bash

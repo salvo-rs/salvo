@@ -166,7 +166,7 @@ impl From<CombWisp> for WispKind {
 #[derive(Debug)]
 pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
-    /// Create new `RegexWispBuilder`.
+    /// Creates a new `RegexWispBuilder`.
     #[inline]
     #[must_use]
     pub fn new(checker: Regex) -> Self {
@@ -186,7 +186,7 @@ impl WispBuilder for RegexWispBuilder {
 /// A [`WispBuilder`] that builds a [`CharsWisp`] from a per-character checker.
 pub struct CharsWispBuilder(Arc<dyn Fn(char) -> bool + Send + Sync + 'static>);
 impl CharsWispBuilder {
-    /// Create new `CharsWispBuilder`.
+    /// Creates a new `CharsWispBuilder`.
     #[inline]
     pub fn new<C>(checker: C) -> Self
     where
@@ -342,7 +342,7 @@ pub struct CombWisp {
     wild_start: Option<String>,
 }
 impl CombWisp {
-    /// Create new `CombWisp`.
+    /// Creates a new `CombWisp`.
     ///
     /// # Panics
     /// If it contains an unsupported `WispKind`.
@@ -1106,7 +1106,7 @@ impl PathFilter {
         }
     }
 
-    /// Create new `PathFilter`.
+    /// Creates a new `PathFilter`.
     ///
     /// Invalid path patterns are logged and converted into a filter that never matches.
     /// Use [`PathFilter::try_new`] to handle malformed patterns explicitly.

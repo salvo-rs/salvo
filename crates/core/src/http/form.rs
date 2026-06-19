@@ -31,7 +31,7 @@ pub struct FormData {
 }
 
 impl FormData {
-    /// Create new `FormData`.
+    /// Creates a new `FormData`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {

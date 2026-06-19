@@ -123,7 +123,7 @@ impl Debug for OpensslConfig {
 }
 
 impl OpensslConfig {
-    /// Create new `OpensslConfig`
+    /// Creates a new `OpensslConfig`.
     #[inline]
     #[must_use]
     pub fn new(keycert: Keycert) -> Self {

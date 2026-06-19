@@ -40,7 +40,7 @@ where
     T: Listener + Send,
     E: StdError + Send,
 {
-    /// Create new OpensslListener with config stream.
+    /// Creates a new `OpensslListener` with a config stream.
     #[inline]
     pub fn new(config_stream: S, inner: T) -> Self {
         Self {
@@ -134,7 +134,7 @@ where
     T: Acceptor + Send + 'static,
     T::Stream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    /// Create new OpensslAcceptor.
+    /// Creates a new `OpensslAcceptor`.
     pub fn new(
         inner: T,
         current_acceptor: Arc<ArcSwapOption<SslAcceptor>>,
@@ -234,4 +234,3 @@ where
         })
     }
 }
-

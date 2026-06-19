@@ -469,7 +469,7 @@ fn escape_quoted_filename(filename: &str) -> String {
     escaped
 }
 impl NamedFile {
-    /// Create new [`NamedFileBuilder`].
+    /// Creates a new [`NamedFileBuilder`].
     #[inline]
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {

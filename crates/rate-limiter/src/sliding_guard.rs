@@ -2,7 +2,7 @@ use time::{Duration, OffsetDateTime};
 
 use super::{CelledQuota, RateGuard};
 
-/// Sliding window implement.
+/// Sliding-window rate limiter implementation.
 #[derive(Clone, Debug)]
 pub struct SlidingGuard {
     cell_start: OffsetDateTime,

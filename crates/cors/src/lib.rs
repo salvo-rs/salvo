@@ -122,7 +122,7 @@ impl Default for Cors {
 }
 
 impl Cors {
-    /// Create new `Cors`.
+    /// Creates a new `Cors`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {

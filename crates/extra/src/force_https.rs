@@ -74,7 +74,7 @@ impl Debug for ForceHttps {
 }
 
 impl ForceHttps {
-    /// Create new `ForceHttps` middleware.
+    /// Creates a new `ForceHttps` middleware.
     #[must_use]
     pub fn new() -> Self {
         Default::default()

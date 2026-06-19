@@ -18,7 +18,7 @@ impl Deref for PathParams {
     }
 }
 impl PathParams {
-    /// Create new `PathParams`.
+    /// Creates a new `PathParams`.
     #[must_use]
     pub fn new() -> Self {
         Self::default()

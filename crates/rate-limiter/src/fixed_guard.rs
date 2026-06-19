@@ -3,7 +3,7 @@ use time::OffsetDateTime;
 
 use super::{BasicQuota, RateGuard};
 
-/// Fixed window implement.
+/// Fixed-window rate limiter implementation.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct FixedGuard {
     reset: OffsetDateTime,
