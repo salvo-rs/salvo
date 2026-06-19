@@ -460,7 +460,7 @@ where
         &mut self.client
     }
 
-    /// Enable x-forwarded-for header prepending.
+    /// Enable x-forwarded-for header forwarding.
     #[inline]
     #[must_use]
     pub fn client_ip_forwarding(mut self, enable: bool) -> Self {
@@ -506,7 +506,7 @@ where
         }
         let path = encode_url_path(&normalize_url_path(&path));
         let query = (self.url_query_getter)(req, depot);
-        let rest = if let Some(query) = query {
+        let path_and_query = if let Some(query) = query {
             if let Some(stripped) = query.strip_prefix('?') {
                 format!("{path}?{}", utf8_percent_encode(stripped, QUERY_ENCODE_SET))
             } else {
@@ -515,17 +515,17 @@ where
         } else {
             path
         };
-        let forward_url = if upstream.ends_with('/') && rest.starts_with('/') {
-            format!("{}{}", upstream.trim_end_matches('/'), rest)
-        } else if upstream.ends_with('/') || rest.starts_with('/') {
-            format!("{upstream}{rest}")
-        } else if rest.is_empty() {
+        let forward_url = if upstream.ends_with('/') && path_and_query.starts_with('/') {
+            format!("{}{}", upstream.trim_end_matches('/'), path_and_query)
+        } else if upstream.ends_with('/') || path_and_query.starts_with('/') {
+            format!("{upstream}{path_and_query}")
+        } else if path_and_query.is_empty() {
             upstream.to_owned()
         } else {
-            format!("{upstream}/{rest}")
+            format!("{upstream}/{path_and_query}")
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
-        let mut build = hyper::Request::builder()
+        let mut request_builder = hyper::Request::builder()
             .method(req.method())
             .uri(&forward_url);
         let connection_headers = connection_header_names(req.headers());
@@ -537,13 +537,14 @@ where
             if self.strip_authorization_header_enabled && key == AUTHORIZATION {
                 continue;
             }
-            build = build.header(key, value);
+            request_builder = request_builder.header(key, value);
         }
         if let Some(upgrade_type) = upgrade_type {
-            build = build.header(CONNECTION, HeaderValue::from_static("upgrade"));
+            request_builder =
+                request_builder.header(CONNECTION, HeaderValue::from_static("upgrade"));
             match HeaderValue::from_str(&upgrade_type) {
                 Ok(upgrade_type) => {
-                    build = build.header(UPGRADE, upgrade_type);
+                    request_builder = request_builder.header(UPGRADE, upgrade_type);
                 }
                 Err(e) => {
                     tracing::error!(error = ?e, "invalid upgrade header value");
@@ -553,7 +554,7 @@ where
         if let Some(host_value) = (self.host_header_getter)(&forward_url, req, depot) {
             match HeaderValue::from_str(&host_value) {
                 Ok(host_value) => {
-                    build = build.header(HOST, host_value);
+                    request_builder = request_builder.header(HOST, host_value);
                 }
                 Err(e) => {
                     tracing::error!(error = ?e, "invalid host header value");
@@ -566,7 +567,7 @@ where
             if let Some(client_ip) = req.remote_addr().ip() {
                 match HeaderValue::from_str(&client_ip.to_string()) {
                     Ok(xff) => {
-                        if let Some(headers) = build.headers_mut() {
+                        if let Some(headers) = request_builder.headers_mut() {
                             headers.insert(&xff_header_name, xff);
                         }
                     }
@@ -577,7 +578,7 @@ where
             }
         }
 
-        build.body(req.take_body()).map_err(Error::other)
+        request_builder.body(req.take_body()).map_err(Error::other)
     }
 }
 

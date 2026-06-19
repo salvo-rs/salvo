@@ -396,8 +396,8 @@ impl DataStore for DiskStore {
         self.ensure_root().await?;
 
         let data_path = self.data_path(&file.id);
-        let mut file = file;
-        file.storage = Some(StoreInfo {
+        let mut upload = file;
+        upload.storage = Some(StoreInfo {
             type_name: "file".to_owned(),
             path: data_path.to_string_lossy().into_owned(),
             bucket: None,
@@ -410,14 +410,14 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        let mut meta = MetaUpload::from(file.clone());
+        let mut meta = MetaUpload::from(upload.clone());
         self.try_finalize_if_complete(&mut meta).await;
         if let Err(err) = self.write_meta_atomic(&meta).await {
             let _ = fs::remove_file(&data_path).await;
             return Err(err);
         }
 
-        Ok(file)
+        Ok(upload)
     }
 
     async fn remove(&self, id: &str) -> TusResult<()> {

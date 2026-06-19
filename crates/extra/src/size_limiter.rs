@@ -100,7 +100,8 @@ fn request_limit(max_size: u64) -> usize {
 
 /// Create a new `MaxSize`.
 #[inline]
-#[must_use] pub fn max_size(size: u64) -> MaxSize {
+#[must_use]
+pub fn max_size(size: u64) -> MaxSize {
     MaxSize(size)
 }
 

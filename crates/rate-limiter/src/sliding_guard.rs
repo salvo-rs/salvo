@@ -5,7 +5,7 @@ use super::{CelledQuota, RateGuard};
 /// Sliding window implement.
 #[derive(Clone, Debug)]
 pub struct SlidingGuard {
-    cell_inst: OffsetDateTime,
+    cell_start: OffsetDateTime,
     cell_span: Duration,
     counts: Vec<usize>,
     head: usize,
@@ -21,9 +21,10 @@ impl Default for SlidingGuard {
 
 impl SlidingGuard {
     /// Create a new `SlidingGuard`.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
-            cell_inst: OffsetDateTime::now_utc(),
+            cell_start: OffsetDateTime::now_utc(),
             cell_span: Duration::default(),
             counts: vec![],
             head: 0,
@@ -47,7 +48,7 @@ impl SlidingGuard {
     }
 
     fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
-        self.cell_inst = now;
+        self.cell_start = now;
         self.cell_span = quota.period / (quota.cells as u32);
         self.counts = vec![0; quota.cells];
         self.head = 0;
@@ -66,7 +67,7 @@ impl RateGuard for SlidingGuard {
             self.quota = Some(quota);
             return true;
         }
-        let mut delta = now - self.cell_inst;
+        let mut delta = now - self.cell_start;
         if delta > quota.period {
             self.reset_window(&quota, now);
             return true;
@@ -79,7 +80,7 @@ impl RateGuard for SlidingGuard {
             }
             self.counts[self.head] += 1;
             self.total += 1;
-            self.cell_inst = now;
+            self.cell_start = now;
         }
         self.total <= quota.limit
     }
@@ -89,7 +90,7 @@ impl RateGuard for SlidingGuard {
     }
 
     async fn reset(&self, quota: &Self::Quota) -> i64 {
-        (self.cell_inst + quota.period).unix_timestamp()
+        (self.cell_start + quota.period).unix_timestamp()
     }
 
     async fn limit(&self, quota: &Self::Quota) -> usize {
@@ -124,7 +125,7 @@ mod tests {
         let guard = SlidingGuard::new();
         let debug_str = format!("{guard:?}");
         assert!(debug_str.contains("SlidingGuard"));
-        assert!(debug_str.contains("cell_inst"));
+        assert!(debug_str.contains("cell_start"));
         assert!(debug_str.contains("counts"));
     }
 
@@ -304,7 +305,7 @@ mod tests {
         assert!(guard.verify(&quota).await);
 
         for request_index in 2..=12 {
-            guard.cell_inst = OffsetDateTime::now_utc() - Duration::seconds(3);
+            guard.cell_start = OffsetDateTime::now_utc() - Duration::seconds(3);
             assert!(
                 guard.verify(&quota).await,
                 "request {request_index} rejected, head={}, counts={:?}",

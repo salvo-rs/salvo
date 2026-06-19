@@ -48,12 +48,12 @@ impl FormData {
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
     {
-        let ctype: Option<Mime> = headers
+        let content_type: Option<Mime> = headers
             .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok());
-        match ctype {
-            Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
+        match content_type {
+            Some(content_type) if content_type.subtype() == mime::WWW_FORM_URLENCODED => {
                 futures_util::pin_mut!(body);
                 let mut data = BytesMut::new();
                 while let Some(chunk) = body.try_next().await.map_err(|e| {
@@ -70,7 +70,7 @@ impl FormData {
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
             }
-            Some(ctype) if ctype.type_() == mime::MULTIPART => {
+            Some(content_type) if content_type.type_() == mime::MULTIPART => {
                 let mut form_data = Self::new();
                 let Some(boundary) = headers
                     .get(CONTENT_TYPE)
