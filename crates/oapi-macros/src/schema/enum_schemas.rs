@@ -435,7 +435,7 @@ impl TryToTokens for SimpleEnum<'_> {
     }
 }
 
-fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
+fn regular_enum_to_tokens<T: enum_variant::Variant>(
     tokens: &mut TokenStream,
     container_rules: Option<&SerdeContainer>,
     enum_variant_features: &Vec<Feature>,
@@ -528,33 +528,31 @@ impl ComplexEnum<'_> {
 
                 let example = pop_feature!(named_struct_features => Feature::Example(_));
 
-                Ok(Some(self::enum_variant::Variant::to_tokens(
-                    &ObjectVariant {
-                        name: variant_name.unwrap_or(Cow::Borrowed(name)),
-                        title: title_features
-                            .first()
-                            .map(TryToTokens::try_to_token_stream)
-                            .transpose()?,
-                        example: example
-                            .as_ref()
-                            .map(TryToTokens::try_to_token_stream)
-                            .transpose()?,
-                        item: NamedStructSchema {
-                            struct_name: Cow::Borrowed(&*self.enum_name),
-                            attributes: &variant.attrs,
-                            description: None,
-                            rename_all: named_struct_features.pop_rename_all_feature(),
-                            features: Some(named_struct_features),
-                            fields: &named_fields.named,
-                            generics: None,
-                            name: None,
-                            aliases: None,
-                            inline: None,
-                            compose_context: None,
-                        }
-                        .try_to_token_stream()?,
-                    },
-                )))
+                Ok(Some(enum_variant::Variant::to_tokens(&ObjectVariant {
+                    name: variant_name.unwrap_or(Cow::Borrowed(name)),
+                    title: title_features
+                        .first()
+                        .map(TryToTokens::try_to_token_stream)
+                        .transpose()?,
+                    example: example
+                        .as_ref()
+                        .map(TryToTokens::try_to_token_stream)
+                        .transpose()?,
+                    item: NamedStructSchema {
+                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        attributes: &variant.attrs,
+                        description: None,
+                        rename_all: named_struct_features.pop_rename_all_feature(),
+                        features: Some(named_struct_features),
+                        fields: &named_fields.named,
+                        generics: None,
+                        name: None,
+                        aliases: None,
+                        inline: None,
+                        compose_context: None,
+                    }
+                    .try_to_token_stream()?,
+                })))
             }
             Fields::Unnamed(unnamed_fields) => {
                 let (title_features, mut unnamed_struct_features) = variant
@@ -578,31 +576,29 @@ impl ComplexEnum<'_> {
 
                 let example = pop_feature!(unnamed_struct_features => Feature::Example(_));
 
-                Ok(Some(self::enum_variant::Variant::to_tokens(
-                    &ObjectVariant {
-                        name: variant_name.unwrap_or(Cow::Borrowed(name)),
-                        title: title_features
-                            .first()
-                            .map(TryToTokens::try_to_token_stream)
-                            .transpose()?,
-                        example: example
-                            .as_ref()
-                            .map(TryToTokens::try_to_token_stream)
-                            .transpose()?,
-                        item: UnnamedStructSchema {
-                            struct_name: Cow::Borrowed(&*self.enum_name),
-                            attributes: &variant.attrs,
-                            description: None,
-                            features: Some(unnamed_struct_features),
-                            fields: &unnamed_fields.unnamed,
-                            name: None,
-                            aliases: None,
-                            inline: None,
-                            compose_context: None,
-                        }
-                        .try_to_token_stream()?,
-                    },
-                )))
+                Ok(Some(enum_variant::Variant::to_tokens(&ObjectVariant {
+                    name: variant_name.unwrap_or(Cow::Borrowed(name)),
+                    title: title_features
+                        .first()
+                        .map(TryToTokens::try_to_token_stream)
+                        .transpose()?,
+                    example: example
+                        .as_ref()
+                        .map(TryToTokens::try_to_token_stream)
+                        .transpose()?,
+                    item: UnnamedStructSchema {
+                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        attributes: &variant.attrs,
+                        description: None,
+                        features: Some(unnamed_struct_features),
+                        fields: &unnamed_fields.unnamed,
+                        name: None,
+                        aliases: None,
+                        inline: None,
+                        compose_context: None,
+                    }
+                    .try_to_token_stream()?,
+                })))
             }
             Fields::Unit => {
                 let mut unit_features =
