@@ -105,6 +105,9 @@ mod tests {
 
         let example = example.value(serde_json::Value::String("value".to_owned()));
         assert!(example.value.is_some());
-        assert_eq!(example.value.unwrap(), serde_json::Value::String("value".to_owned()));
+        assert_eq!(
+            example.value.unwrap(),
+            serde_json::Value::String("value".to_owned())
+        );
     }
 }

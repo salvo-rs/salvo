@@ -429,7 +429,7 @@ impl<'de> RequestDeserializer<'de> {
                                 }
                             } else {
                                 false
-                            }
+                            };
                         }
                         SourceParser::MultiMap => {
                             if let Some(Payload::FormData(form_data)) = self.payload {

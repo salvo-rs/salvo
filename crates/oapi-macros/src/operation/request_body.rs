@@ -31,8 +31,9 @@ use crate::{AnyValue, Array, DiagResult, Required, TryToTokens, parse_utils};
 /// #[salvo_oapi::endpoint(
 ///    request_body = (content = String, description = "foobar", content_type = "text/xml"),
 /// )]
+/// ```
 ///
-/// It is also possible to provide the request body type simply by providing only the content object type.
+/// The request body type can also be provided directly.
 /// ```text
 /// #[salvo_oapi::endpoint(
 ///    request_body = Foo,
