@@ -68,6 +68,15 @@ impl BasicQuota {
     pub const fn set_hours(limit: usize, hours: i64) -> Self {
         Self::new(limit, Duration::seconds(3600 * hours))
     }
+
+    pub(crate) fn normalized(&self) -> Self {
+        let mut quota = self.clone();
+        quota.limit = quota.limit.max(1);
+        if quota.period <= Duration::ZERO {
+            quota.period = Duration::seconds(1);
+        }
+        quota
+    }
 }
 
 /// A quota split into cells for sliding-window accounting.
@@ -124,6 +133,21 @@ impl CelledQuota {
     pub const fn set_hours(limit: usize, cells: usize, hours: i64) -> Self {
         Self::new(limit, cells, Duration::seconds(3600 * hours))
     }
+
+    pub(crate) fn normalized(&self) -> Self {
+        let mut quota = self.clone();
+        quota.limit = quota.limit.max(1);
+        if quota.period <= Duration::ZERO {
+            quota.period = Duration::seconds(1);
+        }
+        quota.cells = quota.cells.max(1).min(quota.limit).min(u32::MAX as usize);
+
+        let max_nonzero_cells = usize::try_from(quota.period.whole_nanoseconds())
+            .unwrap_or(usize::MAX)
+            .max(1);
+        quota.cells = quota.cells.min(max_nonzero_cells);
+        quota
+    }
 }
 
 impl<Key, T> QuotaGetter<Key> for T
@@ -175,6 +199,14 @@ mod tests {
     }
 
     #[test]
+    fn test_basic_quota_normalized() {
+        let quota = BasicQuota::set_seconds(0, 0).normalized();
+
+        assert_eq!(quota.limit, 1);
+        assert_eq!(quota.period, Duration::seconds(1));
+    }
+
+    #[test]
     fn test_celled_quota() {
         let quota = CelledQuota::per_second(10, 3);
         assert_eq!(quota.limit, 10);
@@ -205,5 +237,17 @@ mod tests {
         assert_eq!(quota.limit, 15);
         assert_eq!(quota.cells, 6);
         assert_eq!(quota.period, Duration::seconds(7200));
+    }
+
+    #[test]
+    fn test_celled_quota_normalized() {
+        let quota = CelledQuota::new(0, 0, Duration::seconds(0)).normalized();
+
+        assert_eq!(quota.limit, 1);
+        assert_eq!(quota.cells, 1);
+        assert_eq!(quota.period, Duration::seconds(1));
+
+        let quota = CelledQuota::new(10, 10, Duration::nanoseconds(1)).normalized();
+        assert_eq!(quota.cells, 1);
     }
 }
