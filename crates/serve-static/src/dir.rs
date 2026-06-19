@@ -1,6 +1,6 @@
 //! Serve static directories with directory listing support
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
@@ -10,8 +10,10 @@ use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
-use salvo_core::http::header::ACCEPT_ENCODING;
-use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError, mime};
+use salvo_core::http::header::{ACCEPT_ENCODING, VARY};
+use salvo_core::http::{
+    self, HeaderMap, HeaderValue, Request, Response, StatusCode, StatusError, mime,
+};
 use salvo_core::routing::{
     decode_url_path, encode_url_path, normalize_url_path, redirect_to_dir_url,
 };
@@ -71,6 +73,21 @@ impl From<CompressionAlgo> for HeaderValue {
             CompressionAlgo::Gzip => Self::from_static("gzip"),
             CompressionAlgo::Zstd => Self::from_static("zstd"),
         }
+    }
+}
+
+fn append_vary_accept_encoding(headers: &mut HeaderMap) {
+    let already_varies = headers
+        .get_all(VARY)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .any(|value| {
+            let value = value.trim();
+            value == "*" || value.eq_ignore_ascii_case("accept-encoding")
+        });
+    if !already_varies {
+        headers.append(VARY, HeaderValue::from_static("Accept-Encoding"));
     }
 }
 
@@ -509,6 +526,7 @@ impl Handler for StaticDir {
                 .map(|ext| self.is_compressed_ext(ext))
                 .unwrap_or(false);
             let mut content_encoding = None;
+            let mut varies_on_accept_encoding = false;
             let content_type = mime_infer::from_path(&abs_path).first();
 
             let named_path = if !is_compressed_ext {
@@ -521,26 +539,34 @@ impl Handler for StaticDir {
                         .unwrap_or_default();
                     // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
-                        let accept_algos = http::parse_accept_encoding(header)
-                            .into_iter()
-                            .filter_map(|(algo, _level)| algo.parse::<CompressionAlgo>().ok())
-                            .collect::<HashSet<_>>();
-                        for (algo, exts) in &self.compressed_variations {
-                            if accept_algos.contains(algo) {
-                                for zip_ext in exts {
-                                    let mut path = abs_path.clone();
-                                    path.as_mut_os_string().push(".");
-                                    path.as_mut_os_string().push(zip_ext.as_str());
-                                    if self
-                                        .resolve_child_path(&canonical_root, path.clone())
-                                        .await
-                                        .map(|path| path.metadata.is_file())
-                                        .unwrap_or(false)
-                                    {
-                                        new_abs_path = Some(path);
-                                        content_encoding = Some(algo.to_string());
-                                        break;
-                                    }
+                        varies_on_accept_encoding = true;
+                        'accepted_encoding: for (algo, level) in http::parse_accept_encoding(header)
+                        {
+                            if level == 0 {
+                                continue;
+                            }
+                            if algo.eq_ignore_ascii_case("identity") {
+                                break;
+                            }
+                            let Ok(algo) = algo.parse::<CompressionAlgo>() else {
+                                continue;
+                            };
+                            let Some(exts) = self.compressed_variations.get(&algo) else {
+                                continue;
+                            };
+                            for zip_ext in exts {
+                                let mut path = abs_path.clone();
+                                path.as_mut_os_string().push(".");
+                                path.as_mut_os_string().push(zip_ext.as_str());
+                                if self
+                                    .resolve_child_path(&canonical_root, path.clone())
+                                    .await
+                                    .map(|path| path.metadata.is_file())
+                                    .unwrap_or(false)
+                                {
+                                    new_abs_path = Some(path);
+                                    content_encoding = Some(algo.to_string());
+                                    break 'accepted_encoding;
                                 }
                             }
                         }
@@ -553,7 +579,7 @@ impl Handler for StaticDir {
                 abs_path
             };
 
-            let builder = {
+            let (builder, varies_on_accept_encoding) = {
                 let mut builder = NamedFile::builder(named_path);
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);
@@ -567,11 +593,14 @@ impl Handler for StaticDir {
                 if let Some(content_type) = content_type {
                     builder = builder.content_type(content_type);
                 }
-                builder
+                (builder, varies_on_accept_encoding)
             };
             if let Ok(named_file) = builder.build().await {
                 let headers = req.headers();
                 named_file.send(headers, res).await;
+                if varies_on_accept_encoding {
+                    append_vary_accept_encoding(res.headers_mut());
+                }
             } else {
                 res.render(StatusError::internal_server_error().brief("read file failed"));
             }
