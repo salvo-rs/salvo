@@ -311,13 +311,12 @@ impl OidcDecoder {
     /// Will only ever spawn one task at a single time.
     /// If called while an update task is currently running, will do nothing.
     fn revalidate_cache(&self) {
-        if !self.cache_state.is_revalidating() {
-            self.cache_state.set_is_revalidating(true);
+        if self.cache_state.begin_revalidation() {
             tracing::info!("Spawning Task to re-validate JWKS");
             let decoder = self.clone();
             tokio::task::spawn(async move {
                 let _ = decoder.update_cache().await;
-                decoder.cache_state.set_is_revalidating(false);
+                decoder.cache_state.finish_revalidation();
                 decoder.notifier.notify_waiters();
             });
         }
@@ -326,8 +325,12 @@ impl OidcDecoder {
     /// If the JWKS is currently updating in the background, this function resolves when the update is complete.
     /// If we are not currently updating the JWKS in the background, this function will resolve immediately.
     async fn wait_update(&self) {
-        if self.cache_state.is_revalidating() {
-            self.notifier.notified().await;
+        loop {
+            let notified = self.notifier.notified();
+            if !self.cache_state.is_revalidating() {
+                break;
+            }
+            notified.await;
         }
     }
 
