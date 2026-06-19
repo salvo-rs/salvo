@@ -13,7 +13,7 @@
 //!
 //! # Examples
 //!
-//! Create new server with relative path.
+//! Creates a new server with a relative path.
 //! ```rust
 //! # use salvo_oapi::server::Server;
 //! Server::new("/api/v1");
@@ -188,13 +188,13 @@ impl Server {
     ///
     /// # Examples
     ///
-    /// Create new server with url path.
+    /// Creates a new server with a URL path.
     /// ```
     /// # use salvo_oapi::server::Server;
     /// Server::new("/api/v1");
     /// ```
     ///
-    /// Create new server with alternative server.
+    /// Creates a new server with an alternative server.
     /// ```
     /// # use salvo_oapi::server::Server;
     /// Server::new("https://alternative.pet-api.test/api/v1");

@@ -176,7 +176,7 @@ impl Debug for Catcher {
     }
 }
 impl Catcher {
-    /// Create new `Catcher`.
+    /// Creates a new `Catcher`.
     pub fn new<H: Handler>(goal: H) -> Self {
         Self {
             goal: Arc::new(goal),
@@ -238,12 +238,12 @@ pub struct DefaultGoal {
     footer: Option<Cow<'static, str>>,
 }
 impl DefaultGoal {
-    /// Create new `DefaultGoal`.
+    /// Creates a new `DefaultGoal`.
     #[must_use]
     pub fn new() -> Self {
         Self { footer: None }
     }
-    /// Create new `DefaultGoal` with custom footer.
+    /// Creates a new `DefaultGoal` with a custom footer.
     #[inline]
     #[must_use]
     pub fn with_footer(footer: impl Into<Cow<'static, str>>) -> Self {

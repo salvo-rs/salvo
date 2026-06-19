@@ -30,7 +30,7 @@ pub struct BasicQuota {
     pub period: Duration,
 }
 impl BasicQuota {
-    /// Create new `BasicQuota`.
+    /// Creates a new `BasicQuota`.
     #[must_use]
     pub const fn new(limit: usize, period: Duration) -> Self {
         Self { limit, period }
@@ -91,7 +91,7 @@ pub struct CelledQuota {
     pub cells: usize,
 }
 impl CelledQuota {
-    /// Create new `CelledQuota`.
+    /// Creates a new `CelledQuota`.
     #[must_use]
     pub const fn new(limit: usize, cells: usize, period: Duration) -> Self {
         Self {

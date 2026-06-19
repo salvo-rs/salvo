@@ -133,7 +133,7 @@ impl<A> Debug for Server<A> {
 }
 
 impl<A: Acceptor + Send> Server<A> {
-    /// Create new `Server` with [`Acceptor`].
+    /// Creates a new `Server` with an [`Acceptor`].
     ///
     /// # Example
     ///
@@ -150,7 +150,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self::with_http_builder(acceptor, HttpBuilder::new())
     }
 
-    /// Create new `Server` with [`Acceptor`] and [`HttpBuilder`].
+    /// Creates a new `Server` with an [`Acceptor`] and [`HttpBuilder`].
     pub fn with_http_builder(acceptor: A, builder: HttpBuilder) -> Self {
         #[cfg(feature = "server-handle")]
         let (tx_cmd, rx_cmd) = tokio::sync::mpsc::unbounded_channel();

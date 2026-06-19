@@ -133,14 +133,14 @@ impl Default for WebSocketUpgrade {
 }
 
 impl WebSocketUpgrade {
-    /// Create new `WebSocketUpgrade`.
+    /// Creates a new `WebSocketUpgrade`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         Self { config: None, protocols: Vec::new(), accept_any: false }
     }
 
-    /// Create new `WebSocketUpgrade` with config.
+    /// Creates a new `WebSocketUpgrade` with config.
     #[inline]
     #[must_use]
     pub fn with_config(config: WebSocketConfig) -> Self {

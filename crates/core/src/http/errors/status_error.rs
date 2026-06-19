@@ -245,7 +245,7 @@ impl Display for StatusError {
 }
 
 impl StatusError {
-    /// Create new `StatusError` with code. If code is not error, it will be `None`.
+    /// Creates a new `StatusError` with a code. If the code is not an error, it will be `None`.
     #[must_use]
     pub fn from_code(code: StatusCode) -> Option<Self> {
         match code {

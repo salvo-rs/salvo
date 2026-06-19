@@ -35,7 +35,7 @@ impl Default for NativeTlsConfig {
     }
 }
 impl NativeTlsConfig {
-    /// Create new `NativeTlsConfig`
+    /// Creates a new `NativeTlsConfig`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {

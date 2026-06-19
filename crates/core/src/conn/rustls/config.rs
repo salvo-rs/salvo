@@ -157,7 +157,7 @@ pub struct RustlsConfig {
 }
 
 impl RustlsConfig {
-    /// Create new `RustlsConfig`
+    /// Creates a new `RustlsConfig`.
     #[inline]
     #[must_use]
     pub fn new(fallback: impl Into<Option<Keycert>>) -> Self {

@@ -40,7 +40,7 @@ pub struct Logger {
     pub log_status_error: bool,
 }
 impl Logger {
-    /// Create new `Logger` middleware.
+    /// Creates a new `Logger` middleware.
     #[inline]
     #[must_use]
     pub fn new() -> Self {

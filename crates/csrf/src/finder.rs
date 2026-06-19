@@ -16,7 +16,7 @@ pub struct HeaderFinder {
     header_name: String,
 }
 impl HeaderFinder {
-    /// Create new `HeaderFinder`, you can use value like `x-csrf-token`.
+    /// Creates a new `HeaderFinder`; you can use a value like `x-csrf-token`.
     #[inline]
     pub fn new(header_name: impl Into<String>) -> Self {
         Self {
@@ -38,7 +38,7 @@ pub struct FormFinder {
     field_name: String,
 }
 impl FormFinder {
-    /// Create new `FormFinder`.
+    /// Creates a new `FormFinder`.
     #[inline]
     pub fn new(field_name: impl Into<String>) -> Self {
         Self {
@@ -60,7 +60,7 @@ pub struct JsonFinder {
     field_name: String,
 }
 impl JsonFinder {
-    /// Create new `FormFinder`.
+    /// Creates a new `FormFinder`.
     #[inline]
     pub fn new(field_name: impl Into<String>) -> Self {
         Self {

@@ -371,7 +371,7 @@ where
     U::Error: Into<BoxedError>,
     C: Client,
 {
-    /// Create new `Proxy` with upstreams list.
+    /// Creates a new `Proxy` with an upstream list.
     ///
     /// The default host header getter forwards only the upstream host name. To include
     /// non-default upstream ports, configure [`standard_host_header_getter`] with
@@ -390,7 +390,7 @@ where
         }
     }
 
-    /// Create new `Proxy` with upstreams list and enable x-forwarded-for header.
+    /// Creates a new `Proxy` with an upstream list and enables the x-forwarded-for header.
     ///
     /// Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the direct
     /// client IP from the connection.

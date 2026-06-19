@@ -195,7 +195,7 @@ impl Debug for StaticDir {
     }
 }
 impl StaticDir {
-    /// Create new `StaticDir`.
+    /// Creates a new `StaticDir`.
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
         let mut compressed_variations = HashMap::new();

@@ -225,7 +225,7 @@ where
     S: TryStream<Ok = SseEvent> + Send + 'static,
     S::Error: StdError + Send + Sync + 'static,
 {
-    /// Create new `SseKeepAlive`.
+    /// Creates a new `SseKeepAlive`.
     #[inline]
     #[must_use]
     pub fn new(event_stream: S) -> Self {

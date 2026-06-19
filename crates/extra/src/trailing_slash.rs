@@ -100,7 +100,7 @@ impl Debug for TrailingSlash {
 }
 
 impl TrailingSlash {
-    /// Create new `TrailingSlash`.
+    /// Creates a new `TrailingSlash`.
     #[inline]
     pub fn new(action: TrailingSlashAction) -> Self {
         Self {
@@ -112,13 +112,13 @@ impl TrailingSlash {
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
-    /// Create new `TrailingSlash` and sets its action as [`TrailingSlashAction::Add`].
+    /// Creates a new `TrailingSlash` and sets its action to [`TrailingSlashAction::Add`].
     #[inline]
     #[must_use]
     pub fn new_add() -> Self {
         Self::new(TrailingSlashAction::Add)
     }
-    /// Create new `TrailingSlash` and sets its action as [`TrailingSlashAction::Remove`].
+    /// Creates a new `TrailingSlash` and sets its action to [`TrailingSlashAction::Remove`].
     #[inline]
     #[must_use]
     pub fn new_remove() -> Self {

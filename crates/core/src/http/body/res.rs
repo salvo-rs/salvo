@@ -37,42 +37,42 @@ pub enum ResBody {
     Error(StatusError),
 }
 impl ResBody {
-    /// Check is that body is not set.
+    /// Returns true if the body is not set.
     #[inline]
     pub fn is_none(&self) -> bool {
         matches!(*self, Self::None)
     }
-    /// Check is that body is once.
+    /// Returns true if the body contains one byte buffer.
     #[inline]
     pub fn is_once(&self) -> bool {
         matches!(*self, Self::Once(_))
     }
-    /// Check is that body is chunks.
+    /// Returns true if the body contains queued chunks.
     #[inline]
     pub fn is_chunks(&self) -> bool {
         matches!(*self, Self::Chunks(_))
     }
-    /// Check is that body is hyper default body type.
+    /// Returns true if the body is Hyper's default incoming body type.
     #[inline]
     pub fn is_hyper(&self) -> bool {
         matches!(*self, Self::Hyper(_))
     }
-    /// Check is that body is stream.
+    /// Returns true if the body is boxed.
     #[inline]
     pub fn is_boxed(&self) -> bool {
         matches!(*self, Self::Boxed(_))
     }
-    /// Check is that body is stream.
+    /// Returns true if the body is a stream.
     #[inline]
     pub fn is_stream(&self) -> bool {
         matches!(*self, Self::Stream(_))
     }
-    /// Check is that body is stream.
+    /// Returns true if the body is a channel.
     #[inline]
     pub fn is_channel(&self) -> bool {
         matches!(*self, Self::Channel { .. })
     }
-    /// Check is that body is error will be process in catcher.
+    /// Returns true if the body is an error to process in a catcher.
     pub fn is_error(&self) -> bool {
         matches!(*self, Self::Error(_))
     }

@@ -38,12 +38,12 @@ pub trait JwtTokenFinder: Send + Sync {
 /// let finder = HeaderFinder::new();
 ///
 /// // Custom configuration for specific methods
-/// let get_only = HeaderFinder::new().cared_methods(vec![Method::GET]);
+/// let get_only = HeaderFinder::new().allowed_methods(vec![Method::GET]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct HeaderFinder {
-    /// List of HTTP methods for which this finder should extract tokens.
+    /// Allowed HTTP methods for which this finder should extract tokens.
     /// If the request's method is not in this list, the finder will not attempt extraction.
     pub cared_methods: Vec<Method>,
 
@@ -51,7 +51,7 @@ pub struct HeaderFinder {
     pub header_names: Vec<HeaderName>,
 }
 impl HeaderFinder {
-    /// Create new `HeaderFinder`.
+    /// Creates a new `HeaderFinder`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -75,17 +75,30 @@ impl HeaderFinder {
         self
     }
 
-    /// Get cared methods list mutable reference.
+    /// Returns a mutable reference to the allowed HTTP methods.
     #[inline]
-    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+    pub fn allowed_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list and returns `Self`.
+    /// Sets the allowed HTTP methods and returns `Self`.
     #[inline]
     #[must_use]
-    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn allowed_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
+    }
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
+    #[inline]
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        self.allowed_methods_mut()
+    }
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
+    #[inline]
+    #[must_use]
+    pub fn cared_methods(self, methods: Vec<Method>) -> Self {
+        self.allowed_methods(methods)
     }
 }
 #[async_trait]
@@ -150,19 +163,19 @@ mod tests {
 /// let finder = FormFinder::new("access_token");
 ///
 /// // Limit to POST requests only
-/// let post_only = FormFinder::new("access_token").cared_methods(vec![Method::POST]);
+/// let post_only = FormFinder::new("access_token").allowed_methods(vec![Method::POST]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct FormFinder {
-    /// List of HTTP methods for which this finder should extract tokens.
+    /// Allowed HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
 
     /// Name of the form field containing the token.
     pub field_name: Cow<'static, str>,
 }
 impl FormFinder {
-    /// Create new `FormFinder`.
+    /// Creates a new `FormFinder`.
     #[inline]
     pub fn new<T: Into<Cow<'static, str>>>(field_name: T) -> Self {
         Self {
@@ -170,17 +183,30 @@ impl FormFinder {
             cared_methods: ALL_METHODS.to_vec(),
         }
     }
-    /// Get cared methods list mutable reference.
+    /// Returns a mutable reference to the allowed HTTP methods.
     #[inline]
-    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+    pub fn allowed_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list and returns Self.
+    /// Sets the allowed HTTP methods and returns `Self`.
     #[inline]
     #[must_use]
-    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn allowed_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
+    }
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
+    #[inline]
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        self.allowed_methods_mut()
+    }
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
+    #[inline]
+    #[must_use]
+    pub fn cared_methods(self, methods: Vec<Method>) -> Self {
+        self.allowed_methods(methods)
     }
 }
 #[async_trait]
@@ -209,19 +235,19 @@ impl JwtTokenFinder for FormFinder {
 /// let finder = QueryFinder::new("token");
 ///
 /// // Limit to GET requests only
-/// let get_only = QueryFinder::new("token").cared_methods(vec![Method::GET]);
+/// let get_only = QueryFinder::new("token").allowed_methods(vec![Method::GET]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct QueryFinder {
-    /// List of HTTP methods for which this finder should extract tokens.
+    /// Allowed HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
 
     /// Name of the query parameter containing the token.
     pub query_name: Cow<'static, str>,
 }
 impl QueryFinder {
-    /// Create new `QueryFinder`.
+    /// Creates a new `QueryFinder`.
     #[inline]
     pub fn new<T: Into<Cow<'static, str>>>(query_name: T) -> Self {
         Self {
@@ -229,17 +255,30 @@ impl QueryFinder {
             cared_methods: ALL_METHODS.to_vec(),
         }
     }
-    /// Get cared methods list mutable reference.
+    /// Returns a mutable reference to the allowed HTTP methods.
     #[inline]
-    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+    pub fn allowed_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list and returns Self.
+    /// Sets the allowed HTTP methods and returns `Self`.
     #[inline]
     #[must_use]
-    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn allowed_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
+    }
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
+    #[inline]
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        self.allowed_methods_mut()
+    }
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
+    #[inline]
+    #[must_use]
+    pub fn cared_methods(self, methods: Vec<Method>) -> Self {
+        self.allowed_methods(methods)
     }
 }
 
@@ -269,19 +308,19 @@ impl JwtTokenFinder for QueryFinder {
 /// let finder = CookieFinder::new("jwt");
 ///
 /// // Limit to specific methods
-/// let restricted = CookieFinder::new("jwt").cared_methods(vec![Method::GET, Method::POST]);
+/// let restricted = CookieFinder::new("jwt").allowed_methods(vec![Method::GET, Method::POST]);
 /// ```
 #[derive(Eq, PartialEq, Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct CookieFinder {
-    /// List of HTTP methods for which this finder should extract tokens.
+    /// Allowed HTTP methods for which this finder should extract tokens.
     pub cared_methods: Vec<Method>,
 
     /// Name of the cookie containing the token.
     pub cookie_name: Cow<'static, str>,
 }
 impl CookieFinder {
-    /// Create new `CookieFinder`.
+    /// Creates a new `CookieFinder`.
     #[inline]
     pub fn new<T: Into<Cow<'static, str>>>(cookie_name: T) -> Self {
         Self {
@@ -289,17 +328,30 @@ impl CookieFinder {
             cared_methods: ALL_METHODS.to_vec(),
         }
     }
-    /// Get cared methods list mutable reference.
+    /// Returns a mutable reference to the allowed HTTP methods.
     #[inline]
-    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+    pub fn allowed_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list and returns Self.
+    /// Sets the allowed HTTP methods and returns `Self`.
     #[inline]
     #[must_use]
-    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn allowed_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
+    }
+    /// Deprecated alias for [`Self::allowed_methods_mut`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods_mut` instead")]
+    #[inline]
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        self.allowed_methods_mut()
+    }
+    /// Deprecated alias for [`Self::allowed_methods`].
+    #[deprecated(since = "0.93.0", note = "use `allowed_methods` instead")]
+    #[inline]
+    #[must_use]
+    pub fn cared_methods(self, methods: Vec<Method>) -> Self {
+        self.allowed_methods(methods)
     }
 }
 #[async_trait]

@@ -26,7 +26,7 @@ impl Header {
     ///
     /// # Examples
     ///
-    /// Create new [`Header`] with integer type.
+    /// Creates a new [`Header`] with an integer type.
     /// ```
     /// # use salvo_oapi::{Header, Object, BasicType};
     /// let header = Header::new(Object::with_type(BasicType::Integer));
