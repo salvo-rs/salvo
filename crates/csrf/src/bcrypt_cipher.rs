@@ -53,16 +53,18 @@ impl CsrfCipher for BcryptCipher {
             .decode(token.as_bytes())
             .unwrap_or_else(|_| vec![0u8; self.token_size]);
 
-        let proof = proof.replace('_', "/").replace('-', "+");
+        // bcrypt hashes only use the `./0-9A-Za-z$` alphabet; `generate` rewrites
+        // `/` to `_` for URL safety, so the inverse here is just `_` -> `/`.
+        let proof = proof.replace('_', "/");
 
         // Always perform bcrypt verification to maintain constant time
         bcrypt::verify(&token_bytes, &proof).unwrap_or(false)
     }
     fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
+        // bcrypt output never contains `+`; only `/` needs URL-safe rewriting.
         let proof = bcrypt::hash(&token, self.cost)
             .expect("bcrypt hash failed")
-            .replace('+', "/")
             .replace('/', "_");
 
         (URL_SAFE_NO_PAD.encode(token), proof)
