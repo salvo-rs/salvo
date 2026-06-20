@@ -641,12 +641,11 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
-            "*"
-        );
+        assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(), "*");
         assert!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
             "credentials header must be dropped when origin is `*`"
         );
     }
@@ -677,7 +676,9 @@ mod tests {
             .await;
 
         assert!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
             "credentials must be dropped when the handler set a wildcard origin"
         );
     }
@@ -707,7 +708,9 @@ mod tests {
             .await;
 
         assert!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
             "credentials must be dropped even in After mode when the handler sets a wildcard"
         );
     }
@@ -742,7 +745,9 @@ mod tests {
             .await;
 
         assert!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
             "credentials must be dropped when a list header contains a `*` token"
         );
     }
@@ -843,13 +848,18 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_METHODS).unwrap(), "*");
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_METHODS).unwrap(),
+            "*"
+        );
         assert_eq!(
             res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
             "https://app.example.com"
         );
         assert!(
-            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
             "credentials must be dropped when any CORS header is `*`"
         );
     }
