@@ -526,23 +526,32 @@ impl Handler for CorsHandler {
             headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);
         }
 
-        // Defense in depth: `Access-Control-Allow-Origin: *` must never be paired
-        // with `Access-Control-Allow-Credentials: true`. The build-time assertions
-        // in `ensure_usable_cors_rules` only cover statically configured
+        // Defense in depth: when credentials are allowed, none of the CORS
+        // response headers may be the wildcard `*`. `ensure_usable_cors_rules`
+        // asserts this at build time, but only for statically configured
         // credentials (`AllowCredentials::Yes`); a dynamic credentials policy can
-        // otherwise produce this invalid, unsafe combination at runtime.
+        // otherwise produce this invalid, unsafe combination at runtime. Mirror
+        // all four wildcard checks here and drop credentials if any header is `*`.
         if headers
             .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
             .is_some_and(|v| v == "true")
-            && headers
-                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
-                .is_some_and(|v| v == "*")
         {
-            tracing::error!(
-                "CORS misconfiguration: `Access-Control-Allow-Credentials: true` cannot be \
-                 combined with `Access-Control-Allow-Origin: *`; dropping the credentials header"
-            );
-            headers.remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
+            let wildcard_header = [
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+            ]
+            .into_iter()
+            .find(|name| headers.get(name).is_some_and(|v| v == "*"));
+
+            if let Some(name) = wildcard_header {
+                tracing::error!(
+                    "CORS misconfiguration: `Access-Control-Allow-Credentials: true` cannot be \
+                     combined with `{name}: *`; dropping the credentials header"
+                );
+                headers.remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
+            }
         }
 
         res.headers_mut().extend(headers);
@@ -605,6 +614,43 @@ mod tests {
         assert!(
             res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
             "credentials header must be dropped when origin is `*`"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_methods() {
+        // Origin is an exact (reflected) value, but `Allow-Methods` is `*`;
+        // credentials must still be dropped because `*` and credentials are
+        // incompatible for any of the CORS response headers.
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_methods(Any)
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(hello));
+        let service = Service::new(router);
+
+        let res = TestClient::options("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_METHODS).unwrap(), "*");
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            "https://app.example.com"
+        );
+        assert!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            "credentials must be dropped when any CORS header is `*`"
         );
     }
 
