@@ -246,7 +246,9 @@ impl<'de> RequestDeserializer<'de> {
                 };
                 let mut de = serde_json::Deserializer::new(serde_json::de::StrRead::new(s));
                 seed.deserialize(&mut de)
-                    .map_err(|_| ValError::custom("parse value error"))
+                    // Preserve the underlying serde_json error (line/column and the
+                    // expected/actual type) instead of a generic message.
+                    .map_err(ValError::custom)
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
@@ -453,7 +455,11 @@ impl<'de> RequestDeserializer<'de> {
                             return false;
                         }
                         _ => {
-                            panic!("unsupported source parser: {parser:?}");
+                            // `Source` and `Metadata` are public API, so a caller
+                            // can construct an unsupported (from, parser) pair.
+                            // Skip the field instead of panicking.
+                            tracing::error!(?parser, "unsupported source parser");
+                            return false;
                         }
                     }
                 }
