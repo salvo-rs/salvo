@@ -17,7 +17,7 @@ use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
 
 /// Type alias for depot value extractor functions.
-/// Each extractor attempts to extract a specific type from the Depot and convert it to Cow<str>.
+/// Each extractor attempts to extract a specific type from the Depot and convert it to `Cow<str>`.
 type DepotExtractFn = for<'a> fn(&'a Depot, &str) -> Option<Cow<'a, str>>;
 
 /// Registry of depot value extractors.
@@ -54,9 +54,9 @@ static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
     |d, k| d.get::<bool>(k).ok().map(|v| Cow::Owned(v.to_string())),
 ];
 
-/// Helper function to extract a value from Depot and convert it to a Cow<str>.
-/// Supports String, &str, Arc<String>, Arc<str>, and common primitive types (integers, floats,
-/// bool).
+/// Helper function to extract a value from Depot and convert it to a `Cow<str>`.
+/// Supports `String`, `&str`, `Arc<String>`, `Arc<str>`, and common primitive types (integers,
+/// floats, bool).
 fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
     for extractor in DEPOT_EXTRACTORS {
         if let Some(value) = extractor(depot, key) {

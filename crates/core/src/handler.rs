@@ -50,7 +50,8 @@
 //! - No need to manually add `#[async_trait]`.
 //! - Unused context parameters can be omitted.
 //! - Required parameters can be listed in any supported order.
-//! - Return values that implement [`Writer`] or [`Scribe`] can be returned directly.
+//! - Return values that implement [`Writer`](crate::writing::Writer) or
+//!   [`Scribe`](crate::writing::Scribe) can be returned directly.
 //!
 //! `#[handler]` can also be added to an `impl` block. In that form, the `handle`
 //! method becomes the [`Handler::handle`] implementation for the struct:
@@ -76,7 +77,8 @@
 //! When the `anyhow` feature is enabled, `anyhow::Error` can be returned from a
 //! handler and is rendered as `500 Internal Server Error`.
 //!
-//! Custom error types can implement [`Writer`] to control the generated response:
+//! Custom error types can implement [`Writer`](crate::writing::Writer) to control the generated
+//! response:
 //!
 //! ```ignore
 //! use anyhow::anyhow;
