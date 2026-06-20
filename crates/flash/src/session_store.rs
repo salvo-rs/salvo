@@ -44,15 +44,23 @@ impl FlashStore for SessionStore {
         depot.session().and_then(|s| s.get::<Flash>(&self.name))
     }
     async fn save_flash(&self, _req: &mut Request, depot: &mut Depot, _res: &mut Response, flash: Flash) {
-        if let Err(e) = depot
-            .session_mut()
-            .expect("session must exist")
-            .insert(&self.name, flash)
-        {
+        let Some(session) = depot.session_mut() else {
+            tracing::error!(
+                "session is not available in depot; add SessionHandler before FlashHandler<SessionStore>"
+            );
+            return;
+        };
+        if let Err(e) = session.insert(&self.name, flash) {
             tracing::error!(error = ?e, "save flash to session failed");
         }
     }
     async fn clear_flash(&self, _req: &mut Request, depot: &mut Depot, _res: &mut Response) {
-        depot.session_mut().expect("session must exist").remove(&self.name);
+        let Some(session) = depot.session_mut() else {
+            tracing::error!(
+                "session is not available in depot; add SessionHandler before FlashHandler<SessionStore>"
+            );
+            return;
+        };
+        session.remove(&self.name);
     }
 }
