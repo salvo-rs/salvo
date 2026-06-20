@@ -278,6 +278,24 @@ impl Handler for DefaultGoal {
     }
 }
 
+/// Escapes text interpolated into the HTML error page so that request-derived
+/// content (e.g. via `StatusError::brief`/`detail`/`cause`) cannot inject markup
+/// (reflected XSS).
+fn html_escape(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 fn status_error_html(
     code: StatusCode,
     name: &str,
@@ -286,6 +304,14 @@ fn status_error_html(
     cause: Option<&str>,
     footer: Option<&str>,
 ) -> String {
+    let name = html_escape(name);
+    let brief = html_escape(brief);
+    let detail = detail
+        .map(|detail| format!("<pre>{}</pre>", html_escape(detail)))
+        .unwrap_or_default();
+    let cause = cause
+        .map(|cause| format!("<pre>{}</pre>", html_escape(&format!("{cause:#?}"))))
+        .unwrap_or_default();
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -324,12 +350,8 @@ fn status_error_html(
         code.as_u16(),
         name,
         brief,
-        detail
-            .map(|detail| format!("<pre>{detail}</pre>"))
-            .unwrap_or_default(),
-        cause
-            .map(|cause| format!("<pre>{cause:#?}</pre>"))
-            .unwrap_or_default(),
+        detail,
+        cause,
         footer.unwrap_or(SALVO_LINK)
     )
 }
@@ -514,6 +536,21 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+
+    #[test]
+    fn test_status_error_html_escapes_content() {
+        let html = status_error_html(
+            StatusCode::BAD_REQUEST,
+            "Bad Request",
+            "<script>alert(1)</script>",
+            Some("a & b \"q\" 'x'"),
+            None,
+            None,
+        );
+        assert!(!html.contains("<script>alert(1)</script>"));
+        assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        assert!(html.contains("a &amp; b &quot;q&quot; &#39;x&#39;"));
+    }
 
     struct CustomError;
     #[async_trait]
