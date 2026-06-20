@@ -355,18 +355,24 @@ mod tests {
         // every request, so `delta` only ever measured the inter-request gap
         // and the window never slid (head stayed at 0 forever).
         let mut guard = SlidingGuard::new();
-        // limit is high so requests are never rejected and cannot interfere.
-        let quota = CelledQuota::new(100, 3, Duration::milliseconds(300)); // cell_span = 100ms
+        // High limit so requests are never rejected. Many cells over a long
+        // period (cell_span = 200ms) so the head provably advances at least once
+        // but cannot wrap all the way back to 0 within the test, even if the
+        // wall-clock sleeps overshoot substantially on a loaded CI worker.
+        let quota = CelledQuota::new(100, 10, Duration::milliseconds(2000));
+        let cells = quota.normalized().cells;
 
         assert!(guard.verify(&quota).await);
-        for _ in 0..4 {
-            tokio::time::sleep(tokio::time::Duration::from_millis(45)).await;
+        // Six gaps of 50ms each are individually smaller than one 200ms cell
+        // span, but cumulatively (>=300ms) exceed it, so the head must advance.
+        for _ in 0..6 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
             assert!(guard.verify(&quota).await);
         }
 
         assert!(
-            guard.head > 0,
-            "sliding window head did not advance over time, head={}",
+            guard.head > 0 && guard.head < cells,
+            "sliding window head did not advance as expected, head={} cells={cells}",
             guard.head
         );
     }
