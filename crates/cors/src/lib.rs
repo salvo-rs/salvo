@@ -557,6 +557,15 @@ fn enforce_credentials_safety(res: &mut Response) {
         return;
     }
 
+    // CORS list headers (methods/headers/expose) may be comma-separated, so a
+    // wildcard can appear as a token within a list such as `*, authorization`.
+    // Split on commas and compare per token rather than the whole value.
+    let has_wildcard_token = |name: &HeaderName| {
+        res.headers().get_all(name).iter().any(|v| {
+            v.to_str()
+                .is_ok_and(|s| s.split(',').any(|token| token.trim() == "*"))
+        })
+    };
     let wildcard_header = [
         header::ACCESS_CONTROL_ALLOW_ORIGIN,
         header::ACCESS_CONTROL_ALLOW_METHODS,
@@ -564,7 +573,7 @@ fn enforce_credentials_safety(res: &mut Response) {
         header::ACCESS_CONTROL_EXPOSE_HEADERS,
     ]
     .into_iter()
-    .find(|name| res.headers().get_all(name).iter().any(|v| v == "*"));
+    .find(|name| has_wildcard_token(name));
 
     if let Some(name) = wildcard_header {
         tracing::error!(
@@ -689,6 +698,39 @@ mod tests {
         assert!(
             res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
             "credentials must be dropped even in After mode when the handler sets a wildcard"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_token_in_list() {
+        // A wildcard can appear as a token inside a comma-separated list header
+        // (e.g. `Access-Control-Allow-Headers: *, authorization`); it must still
+        // be detected.
+        #[handler]
+        async fn sets_list_wildcard(res: &mut Response) {
+            res.headers_mut().insert(
+                ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("*, authorization"),
+            );
+            res.render("ok");
+        }
+
+        let cors_handler = Cors::new()
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_list_wildcard));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            "credentials must be dropped when a list header contains a `*` token"
         );
     }
 
