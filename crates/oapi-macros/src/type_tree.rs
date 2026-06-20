@@ -20,10 +20,13 @@ enum TypeTreeValue<'t> {
 
 impl PartialEq for TypeTreeValue<'_> {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            Self::Path(_) | Self::TypePath(_) | Self::UnitType => self == other,
-            Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
-            Self::Tuple(tuple, _) => matches!(other, Self::Tuple(other, _) if other == tuple),
+        match (self, other) {
+            (Self::TypePath(a), Self::TypePath(b)) => a == b,
+            (Self::Path(a), Self::Path(b)) => a == b,
+            (Self::UnitType, Self::UnitType) => true,
+            (Self::Array(a, _), Self::Array(b, _)) => a == b,
+            (Self::Tuple(a, _), Self::Tuple(b, _)) => a == b,
+            _ => false,
         }
     }
 }

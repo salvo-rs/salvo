@@ -347,7 +347,6 @@ impl ComponentSchema {
         let schema = quote! {
             #oapi::oapi::schema::Array::new().items(#component_schema)
             #schema_type
-            .items(#component_schema)
             #unique
         };
 
