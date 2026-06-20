@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, quote};
+use quote::quote;
+use syn::ext::IdentExt;
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
@@ -105,15 +106,15 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 ));
             }
             InputType::NoReference(pat) => {
-                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
-                    call_args.push(ident.ident.clone());
+                if let (Pat::Ident(pat_ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    let id = pat_ident.ident.clone();
+                    call_args.push(id.clone());
                     let ty = omit_type_path_lifetimes(ty);
-                    let idv = pat.pat.to_token_stream().to_string();
-                    let idv = idv
-                        .rsplit_once(' ')
-                        .map(|(_, v)| v.to_owned())
-                        .unwrap_or(idv);
-                    let id = Ident::new(&idv, Span::call_site());
+                    // Derive the extractor arg name from the parsed identifier
+                    // directly. The previous code re-stringified the whole pattern
+                    // and rebuilt it with `Ident::new`, which panics on a raw
+                    // identifier such as `r#type`. `unraw` drops a leading `r#`.
+                    let idv = id.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
 
                     extract_ts.push(quote!{
