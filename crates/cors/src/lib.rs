@@ -525,11 +525,74 @@ impl Handler for CorsHandler {
             // This header is applied only to non-preflight requests
             headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);
         }
+
         res.headers_mut().extend(headers);
 
         if self.call_next == CallNext::After {
             ctrl.call_next(req, depot, res).await;
         }
+
+        // Run the wildcard/credentials guard last, after every `call_next` point,
+        // so it always sees the truly final response regardless of whether the
+        // downstream chain ran before or after this handler. A genuine CORS
+        // preflight is an OPTIONS request carrying `Access-Control-Request-
+        // Method`; a plain actual request may also use OPTIONS without it.
+        let is_preflight = req.method() == Method::OPTIONS
+            && req
+                .headers()
+                .contains_key(header::ACCESS_CONTROL_REQUEST_METHOD);
+        enforce_credentials_safety(res, is_preflight);
+    }
+}
+
+/// Defense in depth: when credentials are allowed, none of the *applicable* CORS
+/// response headers may be the wildcard `*`. `ensure_usable_cors_rules` asserts
+/// this at build time, but only for statically configured credentials
+/// (`AllowCredentials::Yes`); a dynamic credentials policy — or a downstream
+/// handler that sets its own CORS headers — can otherwise produce this invalid,
+/// unsafe combination at runtime.
+///
+/// Each header is only checked where it is meaningful, so a non-applicable
+/// wildcard (e.g. a global middleware that always emits `Access-Control-Allow-
+/// Methods: *`) does not strip credentials from a valid response:
+/// - `Access-Control-Allow-Origin` — every response (the security-critical case);
+/// - `Access-Control-Allow-Methods` / `-Allow-Headers` — preflight responses only;
+/// - `Access-Control-Expose-Headers` — non-preflight (actual) responses only.
+fn enforce_credentials_safety(res: &mut Response, is_preflight: bool) {
+    let credentials = res
+        .headers()
+        .get_all(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+        .iter()
+        .any(|v| v == "true");
+    if !credentials {
+        return;
+    }
+
+    // CORS list headers (methods/headers/expose) may be comma-separated, so a
+    // wildcard can appear as a token within a list such as `*, authorization`.
+    // Split on commas and compare per token rather than the whole value.
+    let has_wildcard_token = |name: &HeaderName| {
+        res.headers().get_all(name).iter().any(|v| {
+            v.to_str()
+                .is_ok_and(|s| s.split(',').any(|token| token.trim() == "*"))
+        })
+    };
+
+    let mut candidates = vec![header::ACCESS_CONTROL_ALLOW_ORIGIN];
+    if is_preflight {
+        candidates.push(header::ACCESS_CONTROL_ALLOW_METHODS);
+        candidates.push(header::ACCESS_CONTROL_ALLOW_HEADERS);
+    } else {
+        candidates.push(header::ACCESS_CONTROL_EXPOSE_HEADERS);
+    }
+
+    if let Some(name) = candidates.into_iter().find(|name| has_wildcard_token(name)) {
+        tracing::error!(
+            "CORS misconfiguration: `Access-Control-Allow-Credentials: true` cannot be combined \
+             with `{name}: *`; dropping the credentials header"
+        );
+        res.headers_mut()
+            .remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
     }
 }
 
@@ -552,6 +615,254 @@ mod tests {
     use salvo_core::test::TestClient;
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_origin() {
+        // A dynamic credentials policy bypasses the build-time assertions, so the
+        // runtime guard must drop `Allow-Credentials: true` when the resolved
+        // `Allow-Origin` is `*`.
+        let cors_handler = Cors::new()
+            .allow_origin(AllowOrigin::any())
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .allow_methods(vec![Method::GET, Method::OPTIONS])
+            .into_handler();
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(hello));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://evil.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(), "*");
+        assert!(
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
+            "credentials header must be dropped when origin is `*`"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_when_handler_sets_wildcard_origin() {
+        // With the default `CallNext::Before`, the downstream handler runs first
+        // and may set its own `Access-Control-Allow-Origin: *`. The guard must
+        // inspect the final merged response, not just the headers it built.
+        #[handler]
+        async fn sets_wildcard(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+            res.render("ok");
+        }
+
+        let cors_handler = Cors::new()
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert!(
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
+            "credentials must be dropped when the handler set a wildcard origin"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_in_after_mode_with_handler_wildcard() {
+        // In `CallNext::After` mode the downstream chain runs after this handler,
+        // so a handler that sets a wildcard CORS header must still be caught by
+        // the guard, which runs after every `call_next` point.
+        #[handler]
+        async fn sets_wildcard(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+            res.render("ok");
+        }
+
+        let cors = Cors::new().allow_credentials(AllowCredentials::dynamic(|_, _, _| true));
+        let cors_handler = CorsHandler::new(cors, CallNext::After);
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert!(
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
+            "credentials must be dropped even in After mode when the handler sets a wildcard"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_token_in_list() {
+        // A wildcard can appear as a token inside a comma-separated list header
+        // (e.g. `Access-Control-Allow-Headers: *, authorization`); it must still
+        // be detected. `Allow-Headers` is preflight-only, so use an OPTIONS
+        // request.
+        // A handler sets a comma-separated `Allow-Headers` containing a `*` token.
+        #[handler]
+        async fn sets_list_wildcard(res: &mut Response) {
+            res.headers_mut().insert(
+                ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("*, authorization"),
+            );
+        }
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_list_wildcard));
+        let service = Service::new(router);
+
+        let res = TestClient::options("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
+            .send(&service)
+            .await;
+
+        assert!(
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
+            "credentials must be dropped when a list header contains a `*` token"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_keeps_credentials_on_options_without_request_method() {
+        // An OPTIONS request without `Access-Control-Request-Method` is an actual
+        // request, not a preflight, so a wildcard `Allow-Methods` must not strip
+        // credentials.
+        #[handler]
+        async fn sets_wildcard_methods(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("*"));
+        }
+
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard_methods));
+        let service = Service::new(router);
+
+        let res = TestClient::options("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).unwrap(),
+            "true",
+            "credentials must be kept for a non-preflight OPTIONS (no Request-Method)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_keeps_credentials_on_actual_request_with_wildcard_methods() {
+        // `Allow-Methods` is only meaningful on a preflight response. A wildcard
+        // value on a normal (non-OPTIONS) response is ignored by the browser, so
+        // the guard must NOT strip credentials in that case (the actual
+        // credentialed CORS check uses the specific origin + credentials).
+        #[handler]
+        async fn sets_wildcard_methods(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("*"));
+            res.render("ok");
+        }
+
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard_methods));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            "https://app.example.com"
+        );
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).unwrap(),
+            "true",
+            "credentials must be kept: wildcard methods is preflight-only and ignored here"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_methods() {
+        // Origin is an exact (reflected) value, but `Allow-Methods` is `*`;
+        // credentials must still be dropped because `*` and credentials are
+        // incompatible for any of the CORS response headers.
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_methods(Any)
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(hello));
+        let service = Service::new(router);
+
+        let res = TestClient::options("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_METHODS).unwrap(),
+            "*"
+        );
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            "https://app.example.com"
+        );
+        assert!(
+            res.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none(),
+            "credentials must be dropped when any CORS header is `*`"
+        );
+    }
 
     #[tokio::test]
     async fn test_cors() {
