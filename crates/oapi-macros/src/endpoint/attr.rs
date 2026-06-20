@@ -184,4 +184,31 @@ mod tests {
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert!(attr.request_body.is_some());
     }
+
+    #[test]
+    fn test_request_body_ref_generates_to_schema() {
+        use proc_macro2::TokenStream;
+
+        use crate::shared::TryToTokens;
+
+        // Regression: `request_body = ref(Type)` previously generated a call to
+        // `Schema::to_schema`, but `Schema` is an enum without that method, so the
+        // documented feature failed to compile. It must use the `ToSchema` trait
+        // (matching the response `ref(...)` path).
+        let attr = parse_str::<EndpointAttr>("request_body = ref(PetSchema)").unwrap();
+        let body = attr.request_body.expect("request_body parsed");
+        let mut tokens = TokenStream::new();
+        if body.try_to_tokens(&mut tokens).is_err() {
+            panic!("request_body = ref(...) code generation failed");
+        }
+        let generated = tokens.to_string();
+        assert!(
+            generated.contains("ToSchema"),
+            "request_body = ref(...) should call the ToSchema trait: {generated}"
+        );
+        assert!(
+            !generated.contains("schema :: Schema"),
+            "request_body = ref(...) must not reference the Schema enum: {generated}"
+        );
+    }
 }
