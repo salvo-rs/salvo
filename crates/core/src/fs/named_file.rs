@@ -755,7 +755,7 @@ impl NamedFile {
         if offset != 0 || length != self.metadata.len() || range.is_some() {
             // Range request
             res.status_code(StatusCode::PARTIAL_CONTENT);
-            match ContentRange::bytes(offset..offset + length, self.metadata.len()) {
+            match ContentRange::bytes(offset..offset.saturating_add(length), self.metadata.len()) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
                 }
@@ -768,7 +768,7 @@ impl NamedFile {
 
             // Fast path: slice from preread bytes if available
             if let Some(preread) = self.preread {
-                let end = cmp::min((offset + length) as usize, preread.len());
+                let end = cmp::min(offset.saturating_add(length) as usize, preread.len());
                 let start = cmp::min(offset as usize, end);
                 res.replace_body(ResBody::Once(preread.slice(start..end)));
             } else {

@@ -3,7 +3,7 @@ use std::io::SeekFrom;
 use std::time::SystemTime;
 
 use headers::*;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::header::{IF_NONE_MATCH, RANGE};
@@ -131,7 +131,7 @@ where
 
         if offset != 0 || length != self.length || range.is_some() {
             res.status_code(StatusCode::PARTIAL_CONTENT);
-            match ContentRange::bytes(offset..offset + length, self.length) {
+            match ContentRange::bytes(offset..offset.saturating_add(length), self.length) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
                 }
@@ -144,13 +144,16 @@ where
                 res.render(StatusError::bad_request().brief("seek file failed"));
                 return;
             }
+            // Only stream the requested range, not the rest of the reader. The
+            // declared `Content-Length` must match the number of bytes written.
+            let content_length = cmp::min(length, self.length);
             res.headers_mut()
-                .typed_insert(ContentLength(cmp::min(length, self.length)));
-            res.stream(ReaderStream::new(self.reader));
+                .typed_insert(ContentLength(content_length));
+            res.stream(ReaderStream::new(self.reader.take(content_length)));
         } else {
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(self.length));
-            res.stream(ReaderStream::new(self.reader));
+            res.stream(ReaderStream::new(self.reader.take(self.length)));
         }
     }
 }
