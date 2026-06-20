@@ -19,7 +19,12 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
         Some((tt, next)) => match tt {
             TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
             TokenTree::Literal(literal) => {
-                Some((literal.to_string().replace('\"', ""), literal.span()))
+                // Parse as a string literal so escapes are decoded correctly
+                // (e.g. `"a\"b"` -> `a"b`) instead of naively stripping every `"`.
+                let span = literal.span();
+                syn::parse_str::<syn::LitStr>(&literal.to_string())
+                    .ok()
+                    .map(|lit| (lit.value(), span))
             }
             _ => None,
         },
