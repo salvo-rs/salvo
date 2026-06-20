@@ -980,16 +980,10 @@ impl PathParser {
         Ok(wisps)
     }
     fn validate(&self, wisps: &[WispKind], all_names: &mut IndexSet<String>) -> Result<(), String> {
-        if !wisps.is_empty() {
-            let wild_name = all_names.iter().find(|v| v.starts_with('*'));
-            if let Some(wild_name) = wild_name {
-                return Err(format!(
-                    "wildcard name `{}` must added at the last in url: `{}`",
-                    wild_name,
-                    self.path.iter().collect::<String>()
-                ));
-            }
-        }
+        // Note: `validate` is only ever called once with an empty `all_names`,
+        // so a wildcard check here would always see an empty set. The real
+        // wildcard-position and duplicate-name validation happens below, after
+        // `all_names` is populated from `wisps`.
         for (index, wisp) in wisps.iter().enumerate() {
             let name = match wisp {
                 WispKind::Named(wisp) => Some(&wisp.0),
