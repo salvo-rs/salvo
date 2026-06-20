@@ -535,19 +535,24 @@ impl Handler for CorsHandler {
         // Run the wildcard/credentials guard last, after every `call_next` point,
         // so it always sees the truly final response regardless of whether the
         // downstream chain ran before or after this handler.
-        enforce_credentials_safety(res);
+        enforce_credentials_safety(res, req.method() == Method::OPTIONS);
     }
 }
 
-/// Defense in depth: when credentials are allowed, none of the CORS response
-/// headers may be the wildcard `*`. `ensure_usable_cors_rules` asserts this at
-/// build time, but only for statically configured credentials
+/// Defense in depth: when credentials are allowed, none of the *applicable* CORS
+/// response headers may be the wildcard `*`. `ensure_usable_cors_rules` asserts
+/// this at build time, but only for statically configured credentials
 /// (`AllowCredentials::Yes`); a dynamic credentials policy — or a downstream
 /// handler that sets its own CORS headers — can otherwise produce this invalid,
-/// unsafe combination at runtime. Inspect the final response headers (via
-/// `get_all`, so a `*` in any position is caught) and drop the credentials
-/// header if any wildcard is present.
-fn enforce_credentials_safety(res: &mut Response) {
+/// unsafe combination at runtime.
+///
+/// Each header is only checked where it is meaningful, so a non-applicable
+/// wildcard (e.g. a global middleware that always emits `Access-Control-Allow-
+/// Methods: *`) does not strip credentials from a valid response:
+/// - `Access-Control-Allow-Origin` — every response (the security-critical case);
+/// - `Access-Control-Allow-Methods` / `-Allow-Headers` — preflight responses only;
+/// - `Access-Control-Expose-Headers` — non-preflight (actual) responses only.
+fn enforce_credentials_safety(res: &mut Response, is_preflight: bool) {
     let credentials = res
         .headers()
         .get_all(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
@@ -566,16 +571,16 @@ fn enforce_credentials_safety(res: &mut Response) {
                 .is_ok_and(|s| s.split(',').any(|token| token.trim() == "*"))
         })
     };
-    let wildcard_header = [
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        header::ACCESS_CONTROL_ALLOW_METHODS,
-        header::ACCESS_CONTROL_ALLOW_HEADERS,
-        header::ACCESS_CONTROL_EXPOSE_HEADERS,
-    ]
-    .into_iter()
-    .find(|name| has_wildcard_token(name));
 
-    if let Some(name) = wildcard_header {
+    let mut candidates = vec![header::ACCESS_CONTROL_ALLOW_ORIGIN];
+    if is_preflight {
+        candidates.push(header::ACCESS_CONTROL_ALLOW_METHODS);
+        candidates.push(header::ACCESS_CONTROL_ALLOW_HEADERS);
+    } else {
+        candidates.push(header::ACCESS_CONTROL_EXPOSE_HEADERS);
+    }
+
+    if let Some(name) = candidates.into_iter().find(|name| has_wildcard_token(name)) {
         tracing::error!(
             "CORS misconfiguration: `Access-Control-Allow-Credentials: true` cannot be combined \
              with `{name}: *`; dropping the credentials header"
@@ -705,17 +710,18 @@ mod tests {
     async fn test_cors_drops_credentials_with_wildcard_token_in_list() {
         // A wildcard can appear as a token inside a comma-separated list header
         // (e.g. `Access-Control-Allow-Headers: *, authorization`); it must still
-        // be detected.
+        // be detected. `Allow-Headers` is preflight-only, so use an OPTIONS
+        // request.
+        // A handler sets a comma-separated `Allow-Headers` containing a `*` token.
         #[handler]
         async fn sets_list_wildcard(res: &mut Response) {
             res.headers_mut().insert(
                 ACCESS_CONTROL_ALLOW_HEADERS,
                 HeaderValue::from_static("*, authorization"),
             );
-            res.render("ok");
         }
-
         let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
             .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
             .into_handler();
         let router = Router::new()
@@ -723,14 +729,53 @@ mod tests {
             .push(Router::with_path("hello").goal(sets_list_wildcard));
         let service = Service::new(router);
 
-        let res = TestClient::get("http://127.0.0.1/hello")
+        let res = TestClient::options("http://127.0.0.1/hello")
             .add_header("Origin", "https://app.example.com", true)
+            .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
             .send(&service)
             .await;
 
         assert!(
             res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
             "credentials must be dropped when a list header contains a `*` token"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_keeps_credentials_on_actual_request_with_wildcard_methods() {
+        // `Allow-Methods` is only meaningful on a preflight response. A wildcard
+        // value on a normal (non-OPTIONS) response is ignored by the browser, so
+        // the guard must NOT strip credentials in that case (the actual
+        // credentialed CORS check uses the specific origin + credentials).
+        #[handler]
+        async fn sets_wildcard_methods(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("*"));
+            res.render("ok");
+        }
+
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard_methods));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            "https://app.example.com"
+        );
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).unwrap(),
+            "true",
+            "credentials must be kept: wildcard methods is preflight-only and ignored here"
         );
     }
 
