@@ -95,8 +95,7 @@ fn cors_allow_origin(req: &Request, opts: &TusOptions) -> Option<HeaderValue> {
     // `Access-Control-Allow-Credentials: true` would let any site read responses
     // using the victim's cookies, so fall back to `*` (which the browser rejects
     // in combination with credentials) instead of reflecting.
-    if opts.allowed_origins.is_empty()
-        || opts.allowed_origins.iter().any(|allowed| allowed == "*")
+    if opts.allowed_origins.is_empty() || opts.allowed_origins.iter().any(|allowed| allowed == "*")
     {
         return Some(HeaderValue::from_static("*"));
     }

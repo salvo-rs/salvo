@@ -823,10 +823,7 @@ mod tests {
         let mut res = TestClient::get("http://127.0.0.1:5802")
             .send(&service)
             .await;
-        assert_eq!(
-            res.status_code.unwrap(),
-            StatusCode::INTERNAL_SERVER_ERROR
-        );
+        assert_eq!(res.status_code.unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
         let content0 = res.take_string().await.unwrap();
 
         // A non-success response must not be cached, so the backend runs again
