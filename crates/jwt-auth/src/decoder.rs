@@ -195,4 +195,13 @@ mod tests {
 
         assert_eq!(decoder.validation.algorithms, [Algorithm::RS256]);
     }
+
+    #[test]
+    fn secret_constructors_pin_hs256() {
+        let decoder = ConstDecoder::from_secret(b"secret");
+        assert_eq!(decoder.validation.algorithms, [Algorithm::HS256]);
+
+        let decoder = ConstDecoder::from_base64_secret("c2VjcmV0").unwrap();
+        assert_eq!(decoder.validation.algorithms, [Algorithm::HS256]);
+    }
 }
