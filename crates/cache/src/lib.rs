@@ -580,6 +580,13 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     if res.body.is_stream() || res.body.is_error() {
         return None;
     }
+    // Only cache successful responses. A missing status code defaults to `200 OK`
+    // when the response is sent, so treat `None` as cacheable. Caching error or
+    // redirect statuses (e.g. a transient `500`, or an auth-dependent `401`/`403`)
+    // would replay them to every client for the whole TTL.
+    if res.status_code.is_some_and(|status| !status.is_success()) {
+        return None;
+    }
     if !cache_private && response_has_private_cache_headers(res.headers()) {
         return None;
     }
@@ -640,6 +647,10 @@ where
             return;
         }
         let Some(key) = self.issuer.issue(req, depot).await else {
+            // No cache key means "do not cache this request"; still run the rest
+            // of the chain so the handler executes instead of returning an empty
+            // response.
+            ctrl.call_next(req, depot, res).await;
             return;
         };
         let Some(cache) = self.store.load_entry(&key).await else {
@@ -783,6 +794,61 @@ mod tests {
         let content2 = res.take_string().await.unwrap();
 
         assert_ne!(content0, content2);
+    }
+
+    #[handler]
+    async fn server_error(res: &mut Response) {
+        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        res.render(format!("error at {}", OffsetDateTime::now_utc()));
+    }
+
+    #[tokio::test]
+    async fn test_cache_skips_non_success_status() {
+        let cache = Cache::new(
+            MokaStore::builder()
+                .time_to_live(std::time::Duration::from_secs(5))
+                .build(),
+            RequestIssuer::default(),
+        );
+        let router = Router::new().hoop(cache).goal(server_error);
+        let service = Service::new(router);
+
+        let mut res = TestClient::get("http://127.0.0.1:5802")
+            .send(&service)
+            .await;
+        assert_eq!(
+            res.status_code.unwrap(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        let content0 = res.take_string().await.unwrap();
+
+        // A non-success response must not be cached, so the backend runs again
+        // and produces a fresh (different) body.
+        let mut res = TestClient::get("http://127.0.0.1:5802")
+            .send(&service)
+            .await;
+        let content1 = res.take_string().await.unwrap();
+        assert_ne!(content0, content1);
+    }
+
+    #[tokio::test]
+    async fn test_cache_issuer_none_runs_handler() {
+        let cache = Cache::new(
+            MokaStore::builder()
+                .time_to_live(std::time::Duration::from_secs(5))
+                .build(),
+            // Issuer that never produces a key: requests must still be handled.
+            |_req: &mut Request, _depot: &Depot| Option::<String>::None,
+        );
+        let router = Router::new().hoop(cache).goal(cached);
+        let service = Service::new(router);
+
+        let mut res = TestClient::get("http://127.0.0.1:5803")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let body = res.take_string().await.unwrap();
+        assert!(body.contains("Hello World"));
     }
 
     // Tests for RequestIssuer
