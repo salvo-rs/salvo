@@ -101,7 +101,7 @@ impl Parse for Minimum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|maximum| Self(maximum, ident))
+        parse_number(input).map(|minimum| Self(minimum, ident))
     }
 }
 impl ToTokens for Minimum {
@@ -241,7 +241,7 @@ impl Parse for MinLength {
     where
         Self: Sized,
     {
-        parse_integer(input).map(|max_length| Self(max_length, ident))
+        parse_integer(input).map(|min_length| Self(min_length, ident))
     }
 }
 impl ToTokens for MinLength {
@@ -312,7 +312,9 @@ impl Parse for MaxItems {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max_items| Self(max_items, ident))
+        // `maxItems` is an integer count; use `parse_integer` (like `MaxLength`)
+        // so a float literal is rejected with a clear error.
+        parse_integer(input).map(|max_items| Self(max_items, ident))
     }
 }
 impl ToTokens for MaxItems {
@@ -347,7 +349,9 @@ impl Parse for MinItems {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max_items| Self(max_items, ident))
+        // `minItems` is an integer count; use `parse_integer` (like `MinLength`)
+        // so a float literal is rejected with a clear error.
+        parse_integer(input).map(|min_items| Self(min_items, ident))
     }
 }
 impl ToTokens for MinItems {
