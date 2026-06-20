@@ -264,7 +264,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let where_predicate = args.generics.type_params().map(|t| {
         let ty = &t.ident;
         quote! {
-            #ty: salvo::extract::Extractible<'__macro_gen_ex> + ::serde::de::Deserialize<'__macro_gen_ex>,
+            #ty: #salvo::extract::Extractible<'__macro_gen_ex> + #salvo::serde::Deserialize<'__macro_gen_ex>,
         }
     }).collect::<Punctuated<_, Token![,]>>();
 

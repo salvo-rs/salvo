@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 use std::hash::Hash;
 
+// Re-exported so macro-generated code (e.g. `#[derive(Extractible)]` bounds on
+// generic parameters) can reference `Deserialize` through the resolved salvo
+// crate path instead of assuming a top-level `serde` dependency.
+pub use serde::de::Deserialize;
 pub use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{
-    Deserialize, DeserializeSeed, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess,
-    Visitor,
+    DeserializeSeed, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
 
 mod request;
