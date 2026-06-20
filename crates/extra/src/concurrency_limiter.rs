@@ -100,10 +100,14 @@ impl Handler for MaxConcurrency {
                         "Max concurrency semaphore is never closed, acquire should never fail: {}",
                         e
                     );
-                    res.render(StatusError::payload_too_large().brief("max concurrency reached"));
+                    res.render(
+                        StatusError::service_unavailable().brief("max concurrency reached"),
+                    );
                 }
                 TryAcquireError::NoPermits => {
-                    tracing::error!("no permits: {}", e);
+                    // Hitting the concurrency limit is an expected condition, not
+                    // an error; log it at debug level to avoid log spam.
+                    tracing::debug!("max concurrency reached, rejecting request");
                     res.render(StatusError::too_many_requests().brief("max concurrency reached"));
                 }
             },

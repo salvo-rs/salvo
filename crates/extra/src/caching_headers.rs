@@ -75,12 +75,16 @@ impl Handler for ETag {
             .and_then(|etag| etag.to_str().ok())
             .and_then(|etag| etag.parse::<EntityTag>().ok());
 
-        let etag = req
+        // Prefer an ETag already set on the *response* by an upstream handler.
+        // (Reading it from the request is wrong: `ETag` is a response header, and
+        // a client could forge it to control caching and force a 304.)
+        let res_etag = res
             .headers()
             .get(ETAG)
             .and_then(|etag| etag.to_str().ok())
-            .and_then(|etag| etag.parse().ok())
-            .or_else(|| {
+            .and_then(|etag| etag.parse::<EntityTag>().ok());
+
+        let etag = res_etag.or_else(|| {
                 let etag = match &res.body {
                     ResBody::Once(bytes) => Some(EntityTag::from_data(bytes)),
                     ResBody::Chunks(bytes) => {
@@ -232,5 +236,25 @@ mod tests {
             .await;
         assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
         assert!(response.body.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_caching_headers_ignores_forged_request_etag() {
+        // A client-supplied `ETag` request header must not influence the ETag the
+        // server computes from the response body, nor force a 304.
+        let router = Router::with_hoop(CachingHeaders::new()).get(hello);
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:8699/")
+            .add_header(ETAG, "\"forged\"", true)
+            .add_header(IF_NONE_MATCH, "\"forged\"", true)
+            .send(&service)
+            .await;
+
+        // The real body-derived ETag does not match the forged value, so the
+        // response is served normally instead of a spurious 304.
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        let etag = response.headers().get(ETAG).unwrap();
+        assert_ne!(etag, "\"forged\"");
     }
 }
