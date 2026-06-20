@@ -580,11 +580,18 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     if res.body.is_stream() || res.body.is_error() {
         return None;
     }
-    // Only cache successful responses. A missing status code defaults to `200 OK`
-    // when the response is sent, so treat `None` as cacheable. Caching error or
-    // redirect statuses (e.g. a transient `500`, or an auth-dependent `401`/`403`)
-    // would replay them to every client for the whole TTL.
-    if res.status_code.is_some_and(|status| !status.is_success()) {
+    // Only cache successful responses. Use the *effective* status: a missing
+    // status code is sent as `200 OK` when a body is present but as `404` when
+    // the body is `None` (mirrors `Response::into_hyper`). Caching error or
+    // redirect statuses (e.g. a transient `500`, an auth-dependent `401`/`403`,
+    // or an empty unmatched `404`) would replay them to every client for the
+    // whole TTL.
+    let effective_status = res.status_code.unwrap_or(if res.body.is_none() {
+        StatusCode::NOT_FOUND
+    } else {
+        StatusCode::OK
+    });
+    if !effective_status.is_success() {
         return None;
     }
     if !cache_private && response_has_private_cache_headers(res.headers()) {
@@ -849,6 +856,25 @@ mod tests {
         assert_eq!(res.status_code.unwrap(), StatusCode::OK);
         let body = res.take_string().await.unwrap();
         assert!(body.contains("Hello World"));
+    }
+
+    #[test]
+    fn test_cached_response_skips_empty_unmatched_404() {
+        // No status code + empty body is sent as `404 NOT_FOUND`
+        // (see `Response::into_hyper`), so its effective status is non-success
+        // and it must not be cached.
+        let res = Response::new();
+        assert!(res.status_code.is_none() && res.body.is_none());
+        assert!(cached_response(&res, false).is_none());
+    }
+
+    #[test]
+    fn test_cached_response_caches_default_success() {
+        // No status code but a body present is sent as `200 OK`, so it is cached.
+        let mut res = Response::new();
+        res.render("ok");
+        assert!(res.status_code.is_none());
+        assert!(cached_response(&res, false).is_some());
     }
 
     // Tests for RequestIssuer
