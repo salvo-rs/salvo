@@ -188,7 +188,7 @@ impl Feature {
                     "multiple_of",
                     "maximum",
                     "minimum",
-                    "exclusive_<aximum",
+                    "exclusive_maximum",
                     "exclusive_minimum",
                     "max_length",
                     "min_length",

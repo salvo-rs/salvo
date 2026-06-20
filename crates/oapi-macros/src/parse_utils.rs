@@ -147,7 +147,7 @@ pub(crate) fn parse_path_or_lit_str(input: ParseStream) -> syn::Result<String> {
     } else if let Ok(lit) = input.parse::<LitStr>() {
         Ok(lit.value())
     } else {
-        Err(syn::Error::new(input.span(), "invalid indent or lit str"))
+        Err(syn::Error::new(input.span(), "invalid ident or lit str"))
     }
 }
 

@@ -62,10 +62,10 @@ impl BodySender {
     /// Send trailers on trailers channel.
     pub async fn send_trailers(&mut self, trailers: HeaderMap) -> IoResult<()> {
         let Some(tx) = self.trailers_tx.take() else {
-            return Err(IoError::other("failed to send railers"));
+            return Err(IoError::other("failed to send trailers"));
         };
         tx.send(trailers)
-            .map_err(|_| IoError::other("failed to send railers"))
+            .map_err(|_| IoError::other("failed to send trailers"))
     }
 
     /// Send error on data channel.
