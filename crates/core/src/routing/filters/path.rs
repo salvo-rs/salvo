@@ -466,7 +466,11 @@ impl PathWisp for CombWisp {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
                     if self.wild_regex.is_some() {
-                        wild_path = wild_path.trim_start_matches(value.as_str());
+                        // Strip the captured value exactly once. `trim_start_matches`
+                        // removes every leading repetition (e.g. a value of "a"
+                        // would strip all of "aaa…"), corrupting the remaining wild
+                        // path.
+                        wild_path = wild_path.strip_prefix(value.as_str()).unwrap_or(wild_path);
                     }
                     #[cfg(feature = "matched-path")]
                     {
