@@ -263,8 +263,12 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
         flash: Flash,
     ) -> impl Future<Output = ()> + Send;
     /// Clear the flash store.
-    fn clear_flash(&self, depot: &mut Depot, res: &mut Response)
-    -> impl Future<Output = ()> + Send;
+    fn clear_flash(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+    ) -> impl Future<Output = ()> + Send;
 }
 
 /// A trait for `Depot` to get flash messages.
@@ -363,7 +367,7 @@ where
         if !flash.is_empty() {
             self.store.save_flash(req, depot, res, flash).await;
         } else if has_incoming {
-            self.store.clear_flash(depot, res).await;
+            self.store.clear_flash(req, depot, res).await;
         }
     }
 }

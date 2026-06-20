@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 
+use salvo_core::http::SecureCookiePolicy;
 use salvo_core::http::cookie::time::Duration;
 use salvo_core::http::cookie::{Cookie, CookieJar, Key, SameSite};
 use salvo_core::{Depot, Request, Response};
@@ -13,6 +14,8 @@ pub struct CookieStore {
     pub max_age: Duration,
     /// The cookie same site.
     pub same_site: SameSite,
+    /// Policy for deciding whether flash cookies include `Secure`.
+    pub secure_cookie_policy: SecureCookiePolicy,
     /// The cookie http only.
     pub http_only: bool,
     /// The cookie path.
@@ -26,6 +29,7 @@ impl Debug for CookieStore {
         f.debug_struct("CookieStore")
             .field("max_age", &self.max_age)
             .field("same_site", &self.same_site)
+            .field("secure_cookie_policy", &self.secure_cookie_policy)
             .field("http_only", &self.http_only)
             .field("path", &self.path)
             .field("name", &self.name)
@@ -46,6 +50,7 @@ impl CookieStore {
         Self {
             max_age: Duration::seconds(60),
             same_site: SameSite::Lax,
+            secure_cookie_policy: SecureCookiePolicy::AutoFromScheme,
             http_only: true,
             path: "/".into(),
             name: "salvo.flash".into(),
@@ -71,6 +76,26 @@ impl CookieStore {
     #[must_use]
     pub fn same_site(mut self, same_site: SameSite) -> Self {
         self.same_site = same_site;
+        self
+    }
+
+    /// Forces the `Secure` attribute for flash cookies.
+    ///
+    /// By default this is detected from the request URI scheme. Use this option in
+    /// production when TLS is terminated before the Salvo application.
+    #[must_use]
+    pub fn secure(mut self, secure: bool) -> Self {
+        self.secure_cookie_policy = SecureCookiePolicy::from_bool(secure);
+        self
+    }
+
+    /// Sets the policy used to decide whether flash cookies include `Secure`.
+    ///
+    /// The default policy is [`SecureCookiePolicy::AutoFromScheme`]. `SameSite::None`
+    /// flash cookies are always sent with `Secure`.
+    #[must_use]
+    pub fn secure_cookie_policy(mut self, policy: SecureCookiePolicy) -> Self {
+        self.secure_cookie_policy = policy;
         self
     }
 
@@ -111,6 +136,20 @@ impl CookieStore {
             .cloned()
             .expect("signed cookie should be present in jar")
     }
+
+    fn secure_for_request(&self, req: &Request) -> bool {
+        self.same_site == SameSite::None || self.secure_cookie_policy.is_secure(req)
+    }
+
+    fn clear_cookie(&self, secure: bool) -> Cookie<'static> {
+        Cookie::build((self.name.clone(), ""))
+            .max_age(Duration::seconds(0))
+            .same_site(self.same_site)
+            .secure(secure)
+            .http_only(self.http_only)
+            .path(self.path.clone())
+            .build()
+    }
 }
 impl FlashStore for CookieStore {
     async fn load_flash(&self, req: &mut Request, _depot: &mut Depot) -> Option<Flash> {
@@ -127,34 +166,31 @@ impl FlashStore for CookieStore {
     }
     async fn save_flash(
         &self,
-        _req: &mut Request,
+        req: &mut Request,
         _depot: &mut Depot,
         res: &mut Response,
         flash: Flash,
     ) {
+        let secure = self.same_site == SameSite::None || self.secure_cookie_policy.is_secure(req);
         let value = serde_json::to_string(&flash).unwrap_or_default();
         let cookie = Cookie::build((self.name.clone(), value))
             .max_age(self.max_age)
             .path(self.path.clone())
             .same_site(self.same_site)
+            .secure(secure)
             .http_only(self.http_only)
             .build();
         res.add_cookie(self.sign_cookie(cookie));
     }
-    async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
-        res.add_cookie(
-            Cookie::build((self.name.clone(), ""))
-                .max_age(Duration::seconds(0))
-                .same_site(self.same_site)
-                .http_only(self.http_only)
-                .path(self.path.clone())
-                .build(),
-        );
+    async fn clear_flash(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.add_cookie(self.clear_cookie(self.secure_for_request(req)));
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::test::TestClient;
+
     use super::*;
 
     #[test]
@@ -162,6 +198,10 @@ mod tests {
         let store = CookieStore::new();
         assert_eq!(store.max_age, Duration::seconds(60));
         assert_eq!(store.same_site, SameSite::Lax);
+        assert_eq!(
+            store.secure_cookie_policy,
+            SecureCookiePolicy::AutoFromScheme
+        );
         assert!(store.http_only);
         assert_eq!(store.path, "/");
         assert_eq!(store.name, "salvo.flash");
@@ -199,6 +239,21 @@ mod tests {
     }
 
     #[test]
+    fn test_cookie_store_secure() {
+        let store = CookieStore::new().secure(true);
+        assert_eq!(store.secure_cookie_policy, SecureCookiePolicy::Always);
+
+        let store = CookieStore::new().secure(false);
+        assert_eq!(store.secure_cookie_policy, SecureCookiePolicy::Never);
+    }
+
+    #[test]
+    fn test_cookie_store_secure_cookie_policy() {
+        let store = CookieStore::new().secure_cookie_policy(SecureCookiePolicy::Never);
+        assert_eq!(store.secure_cookie_policy, SecureCookiePolicy::Never);
+    }
+
+    #[test]
     fn test_cookie_store_http_only() {
         let store = CookieStore::new().http_only(false);
         assert!(!store.http_only);
@@ -223,12 +278,14 @@ mod tests {
             .name("my_flash")
             .max_age(Duration::seconds(300))
             .same_site(SameSite::Strict)
+            .secure(true)
             .http_only(false)
             .path("/dashboard");
 
         assert_eq!(store.name, "my_flash");
         assert_eq!(store.max_age, Duration::seconds(300));
         assert_eq!(store.same_site, SameSite::Strict);
+        assert_eq!(store.secure_cookie_policy, SecureCookiePolicy::Always);
         assert!(!store.http_only);
         assert_eq!(store.path, "/dashboard");
     }
@@ -265,6 +322,125 @@ mod tests {
         let loaded = store.load_flash(&mut next_req, &mut depot).await.unwrap();
         assert_eq!(loaded.0.len(), 1);
         assert_eq!(loaded.0[0].value, "saved");
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_infers_secure_from_https_scheme() {
+        let store = CookieStore::new().key(Key::generate());
+        let mut req = TestClient::get("https://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut flash = Flash::default();
+        flash.success("saved");
+
+        store
+            .save_flash(&mut req, &mut depot, &mut res, flash)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_secure_policy_can_force_secure() {
+        let store = CookieStore::new()
+            .key(Key::generate())
+            .secure_cookie_policy(SecureCookiePolicy::Always);
+        let mut req = TestClient::get("http://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut flash = Flash::default();
+        flash.success("saved");
+
+        store
+            .save_flash(&mut req, &mut depot, &mut res, flash)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_secure_policy_can_disable_https_secure() {
+        let store = CookieStore::new()
+            .key(Key::generate())
+            .secure_cookie_policy(SecureCookiePolicy::Never);
+        let mut req = TestClient::get("https://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut flash = Flash::default();
+        flash.success("saved");
+
+        store
+            .save_flash(&mut req, &mut depot, &mut res, flash)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.secure(), Some(false));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_same_site_none_forces_secure() {
+        let store = CookieStore::new()
+            .key(Key::generate())
+            .same_site(SameSite::None)
+            .secure_cookie_policy(SecureCookiePolicy::Never);
+        let mut req = TestClient::get("http://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut flash = Flash::default();
+        flash.success("saved");
+
+        store
+            .save_flash(&mut req, &mut depot, &mut res, flash)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.same_site(), Some(SameSite::None));
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_clear_same_site_none_uses_secure() {
+        let store = CookieStore::new().same_site(SameSite::None);
+        let mut req = TestClient::get("http://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
+        assert_eq!(cookie.same_site(), Some(SameSite::None));
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_clear_infers_secure_from_https_scheme() {
+        let store = CookieStore::new().name("__Secure-salvo.flash");
+        let mut req = TestClient::get("https://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_clear_keeps_http_auto_policy_insecure() {
+        let store = CookieStore::new();
+        let mut req = TestClient::get("http://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
+        assert_eq!(cookie.secure(), Some(false));
     }
 
     #[tokio::test]
