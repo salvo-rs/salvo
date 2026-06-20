@@ -54,20 +54,24 @@ impl RateGuard for SlidingGuard {
             return true;
         }
         let mut delta = now - self.cell_start;
-        if delta > quota.period {
+        if delta >= quota.period {
             self.reset_window(&quota, now);
             return true;
-        } else {
-            while delta > self.cell_span {
-                delta -= self.cell_span;
-                self.head = (self.head + 1) % self.counts.len();
-                self.total = self.total.saturating_sub(self.counts[self.head]);
-                self.counts[self.head] = 0;
-            }
-            self.counts[self.head] += 1;
-            self.total += 1;
-            self.cell_start = now;
         }
+        // Advance the head over every whole cell span that has elapsed since the
+        // current cell started, evicting the counts of the cells that slide out
+        // of the window. Cell boundaries are anchored in absolute time, so
+        // `cell_start` is moved forward by whole cell spans instead of being
+        // reset to `now` on every request (which would freeze the window).
+        while delta >= self.cell_span {
+            delta -= self.cell_span;
+            self.head = (self.head + 1) % self.counts.len();
+            self.total = self.total.saturating_sub(self.counts[self.head]);
+            self.counts[self.head] = 0;
+        }
+        self.counts[self.head] += 1;
+        self.total += 1;
+        self.cell_start = now - delta;
         self.total <= quota.limit
     }
 
@@ -295,6 +299,31 @@ mod tests {
         // Change quota should reset
         assert!(guard.verify(&quota2).await);
         assert_eq!(guard.counts.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_window_slides_with_small_gaps() {
+        // Regression test: cell boundaries must be anchored in absolute time.
+        // With several requests spaced closer than one cell span, but whose
+        // cumulative elapsed time exceeds a cell span, the head must still
+        // advance. The previous implementation reset `cell_start` to `now` on
+        // every request, so `delta` only ever measured the inter-request gap
+        // and the window never slid (head stayed at 0 forever).
+        let mut guard = SlidingGuard::new();
+        // limit is high so requests are never rejected and cannot interfere.
+        let quota = CelledQuota::new(100, 3, Duration::milliseconds(300)); // cell_span = 100ms
+
+        assert!(guard.verify(&quota).await);
+        for _ in 0..4 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(45)).await;
+            assert!(guard.verify(&quota).await);
+        }
+
+        assert!(
+            guard.head > 0,
+            "sliding window head did not advance over time, head={}",
+            guard.head
+        );
     }
 
     #[tokio::test]
