@@ -3,6 +3,17 @@ use time::{Duration, OffsetDateTime};
 use super::{CelledQuota, RateGuard};
 
 /// Sliding-window rate limiter implementation.
+///
+/// The window is approximated with a ring of `cells` fixed-width buckets
+/// (a "sliding window counter"). Requests are attributed to the bucket covering
+/// the instant they arrive, and a bucket is evicted once a full `period` has
+/// passed since it started. This keeps memory at `O(cells)` regardless of the
+/// request rate, at the cost of sub-cell precision: every request inside a
+/// bucket shares that bucket's start time, so a burst clustered near the end of
+/// a bucket can be forgotten up to one `cell_span` early when the bucket is
+/// reused. The error is bounded by a single bucket's worth of requests and
+/// shrinks as `cells` grows (note `cells` is capped at `limit`). An exact
+/// sliding window would require storing a timestamp per request.
 #[derive(Clone, Debug)]
 pub struct SlidingGuard {
     cell_start: OffsetDateTime,
