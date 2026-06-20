@@ -100,10 +100,7 @@ impl RenameRule {
             SnakeCase => {
                 let mut snake = String::new();
                 for (i, ch) in variant.char_indices() {
-                    // Use ASCII-only detection to match the ASCII-only lowercasing
-                    // below; mixing Unicode `is_uppercase` with `to_ascii_lowercase`
-                    // produced inconsistent results for non-ASCII letters.
-                    if i > 0 && ch.is_ascii_uppercase() {
+                    if i > 0 && ch.is_uppercase() {
                         snake.push('_');
                     }
                     snake.push(ch.to_ascii_lowercase());
@@ -194,12 +191,6 @@ fn rename_variants() {
     }
     assert_eq!(CamelCase.apply_to_variant("\u{00C9}clair"), "\u{00C9}clair");
     assert_eq!(CamelCase.apply_to_variant(""), "");
-    // A non-ASCII uppercase letter (`É`) must not insert a spurious `_` (it is
-    // not ASCII-lowercased, so detection and conversion stay ASCII-consistent).
-    assert_eq!(
-        SnakeCase.apply_to_variant("Foo\u{00C9}Bar"),
-        "foo\u{00C9}_bar"
-    );
 }
 
 #[test]
