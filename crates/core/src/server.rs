@@ -439,6 +439,10 @@ impl<A: Acceptor + Send> Server<A> {
                 }
                 Err(e) => {
                     tracing::error!(error = ?e, "accept connection failed");
+                    // Back off briefly so a persistent accept error (e.g. `EMFILE`
+                    // when the process is out of file descriptors) does not spin
+                    // this loop at 100% CPU and flood the logs.
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
             }
         }
