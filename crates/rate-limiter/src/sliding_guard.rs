@@ -35,11 +35,25 @@ impl SlidingGuard {
 
     fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
         self.cell_start = now;
-        self.cell_span = quota.period / (quota.cells as u32);
+        self.cell_span = Self::cell_span(quota);
         self.counts = vec![0; quota.cells];
         self.head = 0;
         self.counts[0] = 1;
         self.total = 1;
+    }
+
+    /// Width of a single cell, rounded **up** so the whole ring spans at least
+    /// `quota.period`. With truncating division `cells * cell_span` can be
+    /// shorter than `period`, which would let the head wrap around and evict a
+    /// still-valid request before `period` elapsed.
+    fn cell_span(quota: &CelledQuota) -> Duration {
+        let cells = quota.cells.max(1) as u32;
+        let span = quota.period / cells;
+        if span * cells < quota.period {
+            span + Duration::nanoseconds(1)
+        } else {
+            span
+        }
     }
 }
 
@@ -299,6 +313,26 @@ mod tests {
         // Change quota should reset
         assert!(guard.verify(&quota2).await);
         assert_eq!(guard.counts.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_guard_ring_span_covers_period() {
+        // Regression test: `period / cells` truncates, so the ring
+        // (`cells * cell_span`) could span slightly less than `period`. When it
+        // does, advancing over a near-full period wraps the head all the way
+        // around and evicts a request that is still inside the window. The ring
+        // must always cover at least the full period.
+        let mut guard = SlidingGuard::new();
+        let quota = CelledQuota::new(9, 3, Duration::seconds(1)); // 1s / 3 is not exact
+        assert!(guard.verify(&quota).await);
+
+        let normalized = quota.normalized();
+        let ring = guard.cell_span * (normalized.cells as u32);
+        assert!(
+            ring >= normalized.period,
+            "ring span {ring:?} shorter than period {:?}",
+            normalized.period
+        );
     }
 
     #[tokio::test]
