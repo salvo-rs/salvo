@@ -379,7 +379,9 @@ impl StaticDir {
             path: root.to_owned(),
             canonical_path: root.to_owned(),
         };
-        self.resolve_root_path(&synthetic_root, path, false).await
+        // Apply exclude filters here too: default files (e.g. `index.html`) and
+        // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
+        self.resolve_root_path(&synthetic_root, path, true).await
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
