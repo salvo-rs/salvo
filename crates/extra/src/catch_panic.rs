@@ -27,7 +27,7 @@ use std::panic::AssertUnwindSafe;
 use futures_util::FutureExt;
 
 use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Error, Handler};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 
 /// Middleware that catches panics in handlers and converts them to HTTP 500 responses.
@@ -50,11 +50,12 @@ impl CatchPanic {
 impl Handler for CatchPanic {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Err(e) = AssertUnwindSafe(ctrl.call_next(req, depot, res)).catch_unwind().await {
+            // Log the panic payload, but do not attach it to the response cause:
+            // if the app renders `StatusError::cause`, that would leak internal
+            // details (and possibly request data) to clients.
             tracing::error!(error = ?e, "panic occurred");
             res.render(
-                StatusError::internal_server_error()
-                    .brief("panic occurred on server")
-                    .cause(Error::other(format!("{e:#?}"))),
+                StatusError::internal_server_error().brief("panic occurred on server"),
             );
         }
     }
