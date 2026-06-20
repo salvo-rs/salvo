@@ -525,6 +525,26 @@ impl Handler for CorsHandler {
             // This header is applied only to non-preflight requests
             headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);
         }
+
+        // Defense in depth: `Access-Control-Allow-Origin: *` must never be paired
+        // with `Access-Control-Allow-Credentials: true`. The build-time assertions
+        // in `ensure_usable_cors_rules` only cover statically configured
+        // credentials (`AllowCredentials::Yes`); a dynamic credentials policy can
+        // otherwise produce this invalid, unsafe combination at runtime.
+        if headers
+            .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .is_some_and(|v| v == "true")
+            && headers
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_some_and(|v| v == "*")
+        {
+            tracing::error!(
+                "CORS misconfiguration: `Access-Control-Allow-Credentials: true` cannot be \
+                 combined with `Access-Control-Allow-Origin: *`; dropping the credentials header"
+            );
+            headers.remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
+        }
+
         res.headers_mut().extend(headers);
 
         if self.call_next == CallNext::After {
@@ -552,6 +572,41 @@ mod tests {
     use salvo_core::test::TestClient;
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_cors_drops_credentials_with_wildcard_origin() {
+        // A dynamic credentials policy bypasses the build-time assertions, so the
+        // runtime guard must drop `Allow-Credentials: true` when the resolved
+        // `Allow-Origin` is `*`.
+        let cors_handler = Cors::new()
+            .allow_origin(AllowOrigin::any())
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .allow_methods(vec![Method::GET, Method::OPTIONS])
+            .into_handler();
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(hello));
+        let service = Service::new(router);
+
+        let res = TestClient::get("http://127.0.0.1/hello")
+            .add_header("Origin", "https://evil.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            "*"
+        );
+        assert!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
+            "credentials header must be dropped when origin is `*`"
+        );
+    }
 
     #[tokio::test]
     async fn test_cors() {
