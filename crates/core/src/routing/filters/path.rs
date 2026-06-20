@@ -290,45 +290,33 @@ impl PathWisp for CharsWisp {
         let Some(picked) = state.pick() else {
             return false;
         };
-        if let Some(max_width) = self.max_width {
-            let mut chars = Vec::with_capacity(max_width);
-            for ch in picked.chars() {
-                if (self.checker)(ch) {
-                    chars.push(ch);
-                }
-                if chars.len() == max_width {
-                    state.forward(max_width);
-                    state.params.insert(&self.name, chars.into_iter().collect());
-                    #[cfg(feature = "matched-path")]
-                    push_named_part(&mut state.matched_parts, &self.name);
-                    return true;
-                }
+        // Match the longest *contiguous* run of checker-passing characters from
+        // the start, capped at `max_width` characters. Track the consumed byte
+        // length separately from the character count: `PathState::forward` is
+        // byte-based, so forwarding by a character count would misalign the
+        // cursor on multi-byte (non-ASCII) characters.
+        let mut count = 0usize;
+        let mut byte_len = 0usize;
+        let mut value = String::new();
+        for ch in picked.chars() {
+            if !(self.checker)(ch) {
+                break;
             }
-            if chars.len() >= self.min_width {
-                state.forward(chars.len());
-                state.params.insert(&self.name, chars.into_iter().collect());
-                #[cfg(feature = "matched-path")]
-                push_named_part(&mut state.matched_parts, &self.name);
-                true
-            } else {
-                false
+            value.push(ch);
+            byte_len += ch.len_utf8();
+            count += 1;
+            if self.max_width == Some(count) {
+                break;
             }
+        }
+        if count >= self.min_width {
+            state.forward(byte_len);
+            state.params.insert(&self.name, value);
+            #[cfg(feature = "matched-path")]
+            push_named_part(&mut state.matched_parts, &self.name);
+            true
         } else {
-            let mut chars = Vec::with_capacity(16);
-            for ch in picked.chars() {
-                if (self.checker)(ch) {
-                    chars.push(ch);
-                }
-            }
-            if chars.len() >= self.min_width {
-                state.forward(chars.len());
-                state.params.insert(&self.name, chars.into_iter().collect());
-                #[cfg(feature = "matched-path")]
-                push_named_part(&mut state.matched_parts, &self.name);
-                true
-            } else {
-                false
-            }
+            false
         }
     }
 }
@@ -1314,6 +1302,38 @@ mod tests {
     #[test]
     fn test_parse_num() {
         assert!(PathParser::new(r"/first{id:num}").parse().is_err());
+    }
+    #[test]
+    fn test_chars_wisp_contiguous_and_byte_forward() {
+        use std::sync::Arc;
+
+        use super::{CharsWisp, PathWisp, is_num};
+        // Stops at the first non-matching char (a contiguous run): "1a2"
+        // captures only "1" and leaves "a2".
+        let wisp = CharsWisp {
+            name: "id".to_owned(),
+            checker: Arc::new(is_num),
+            min_width: 1,
+            max_width: None,
+        };
+        let mut state = PathState::new("1a2");
+        assert!(wisp.detect(&mut state));
+        assert_eq!(state.params.get("id").map(String::as_str), Some("1"));
+        assert_eq!(state.pick(), Some("a2"));
+
+        // Multi-byte chars: the cursor advances by byte length, not char count,
+        // so the whole `é` segment is consumed and the next part is reachable.
+        // (With a char-count forward the cursor would land inside `é`.)
+        let wisp = CharsWisp {
+            name: "x".to_owned(),
+            checker: Arc::new(|c: char| c != '/'),
+            min_width: 1,
+            max_width: None,
+        };
+        let mut state = PathState::new("\u{00E9}/rest");
+        assert!(wisp.detect(&mut state));
+        assert_eq!(state.params.get("x").map(String::as_str), Some("\u{00E9}"));
+        assert_eq!(state.pick(), Some("rest"));
     }
     #[test]
     fn test_parse_named_follow_another_panic() {
