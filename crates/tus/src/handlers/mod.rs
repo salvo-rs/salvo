@@ -24,8 +24,7 @@ use crate::options::TusOptions;
 use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
-pub(crate) const DEFAULT_ALLOW_HEADERS: &str =
-    "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length";
+pub(crate) const DEFAULT_ALLOW_HEADERS: &str = "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length";
 
 pub(crate) fn apply_common_headers<'a>(
     req: &Request,
