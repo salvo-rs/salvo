@@ -204,12 +204,16 @@ impl<'de> RequestDeserializer<'de> {
         T: de::DeserializeSeed<'de>,
     {
         if self.field_flatten {
-            let field = self
-                .metadata
-                .fields
-                .get(self.field_index as usize)
-                .expect("field must exist");
-            let metadata = field.metadata.expect("field's metadata must exist");
+            // `field_index` is an `isize` cursor whose `-1` sentinel means
+            // "before the first field"; guard the conversion so a broken
+            // invariant returns an error instead of indexing with `usize::MAX`.
+            let field = usize::try_from(self.field_index)
+                .ok()
+                .and_then(|index| self.metadata.fields.get(index))
+                .ok_or_else(|| ValError::custom("flatten field index out of range"))?;
+            let Some(metadata) = field.metadata else {
+                return Err(ValError::custom("flatten field has no metadata"));
+            };
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
