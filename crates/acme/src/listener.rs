@@ -70,11 +70,21 @@ impl<T> AcmeListenerBuilder<T> {
     /// Defaults to Let's Encrypt production.
     #[inline]
     #[must_use]
-    pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+    pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.directory(name, url),
             ..self
         }
+    }
+
+    /// Deprecated alias for [`Self::directory`].
+    ///
+    /// The `get_` prefix was misleading: this is a setter, not a getter.
+    #[deprecated(since = "0.94.0", note = "use `directory` instead")]
+    #[inline]
+    #[must_use]
+    pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+        self.directory(name, url)
     }
 
     /// Sets domains.

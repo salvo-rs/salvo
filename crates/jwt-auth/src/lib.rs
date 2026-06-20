@@ -561,16 +561,16 @@ mod tests {
     #[test]
     fn test_header_finder_new() {
         let finder = HeaderFinder::new();
-        assert_eq!(finder.cared_methods.len(), 9); // All methods
+        assert_eq!(finder.allowed_methods.len(), 9); // All methods
         assert_eq!(finder.header_names.len(), 1); // Authorization
     }
 
     #[test]
     fn test_header_finder_allowed_methods() {
         let finder = HeaderFinder::new().allowed_methods(vec![Method::GET, Method::POST]);
-        assert_eq!(finder.cared_methods.len(), 2);
-        assert!(finder.cared_methods.contains(&Method::GET));
-        assert!(finder.cared_methods.contains(&Method::POST));
+        assert_eq!(finder.allowed_methods.len(), 2);
+        assert!(finder.allowed_methods.contains(&Method::GET));
+        assert!(finder.allowed_methods.contains(&Method::POST));
     }
 
     #[test]
@@ -596,7 +596,7 @@ mod tests {
     fn test_query_finder_new() {
         let finder = QueryFinder::new("token");
         assert_eq!(finder.query_name, "token");
-        assert_eq!(finder.cared_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), 9);
     }
 
     #[test]
@@ -614,8 +614,8 @@ mod tests {
     #[test]
     fn test_query_finder_allowed_methods() {
         let finder = QueryFinder::new("token").allowed_methods(vec![Method::GET]);
-        assert_eq!(finder.cared_methods.len(), 1);
-        assert!(finder.cared_methods.contains(&Method::GET));
+        assert_eq!(finder.allowed_methods.len(), 1);
+        assert!(finder.allowed_methods.contains(&Method::GET));
     }
 
     // ==================== CookieFinder Tests ====================
@@ -624,20 +624,20 @@ mod tests {
     fn test_cookie_finder_new() {
         let finder = CookieFinder::new("session");
         assert_eq!(finder.cookie_name, "session");
-        assert_eq!(finder.cared_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), 9);
     }
 
     #[test]
     fn test_cookie_finder_allowed_methods() {
         let finder = CookieFinder::new("jwt").allowed_methods(vec![Method::GET, Method::POST]);
-        assert_eq!(finder.cared_methods.len(), 2);
+        assert_eq!(finder.allowed_methods.len(), 2);
     }
 
     #[test]
     fn test_cookie_finder_mut_methods() {
         let mut finder = CookieFinder::new("token");
         finder.allowed_methods_mut().clear();
-        assert!(finder.cared_methods.is_empty());
+        assert!(finder.allowed_methods.is_empty());
     }
 
     // ==================== FormFinder Tests ====================
@@ -646,14 +646,14 @@ mod tests {
     fn test_form_finder_new() {
         let finder = FormFinder::new("token");
         assert_eq!(finder.field_name, "token");
-        assert_eq!(finder.cared_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), 9);
     }
 
     #[test]
     fn test_form_finder_allowed_methods() {
         let finder = FormFinder::new("access_token").allowed_methods(vec![Method::POST]);
-        assert_eq!(finder.cared_methods.len(), 1);
-        assert!(finder.cared_methods.contains(&Method::POST));
+        assert_eq!(finder.allowed_methods.len(), 1);
+        assert!(finder.allowed_methods.contains(&Method::POST));
     }
 
     // ==================== JwtAuthState Tests ====================

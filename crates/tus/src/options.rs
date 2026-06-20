@@ -17,10 +17,11 @@ use crate::utils::is_safe_upload_id;
 /// Optional tus upload ID passed to size and URL callbacks.
 pub type MaybeUploadId = Option<String>;
 
-/// Optional tus upload ID passed to size and URL callbacks.
+/// Deprecated alias for [`MaybeUploadId`].
 ///
-/// This alias is kept for compatibility. New internal code should prefer
-/// [`MaybeUploadId`] when the optional nature matters at the call site.
+/// The name was misleading — it is `Option<String>`, not an upload id — and was
+/// identical in meaning to [`MaybeUploadId`]. Use [`MaybeUploadId`] instead.
+#[deprecated(since = "0.94.0", note = "use `MaybeUploadId` instead")]
 pub type UploadId = MaybeUploadId;
 
 static RE_FILE_ID: OnceLock<Regex> = OnceLock::new();
@@ -38,7 +39,7 @@ pub enum MaxSize {
     Fixed(u64),
     /// Callback that computes the maximum number of bytes for each request.
     #[allow(clippy::type_complexity)]
-    Dynamic(Arc<dyn Fn(&Request, UploadId) -> BoxFuture<'static, u64> + Send + Sync>),
+    Dynamic(Arc<dyn Fn(&Request, MaybeUploadId) -> BoxFuture<'static, u64> + Send + Sync>),
 }
 
 impl fmt::Debug for MaxSize {
