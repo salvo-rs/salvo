@@ -104,7 +104,7 @@ for comprehensive examples including:
 - [`derive@ToSchema`] - Schema derivation with all attributes
 - [`derive@ToParameters`] - Parameter extraction documentation
 - [`derive@ToResponse`] / [`derive@ToResponses`] - Response documentation
-- [`endpoint`] - Endpoint macro documentation
+- [`macro@endpoint`] - Endpoint macro documentation
 - [Security documentation][security] - API authentication setup
 
 [security]: openapi/security/index.html
