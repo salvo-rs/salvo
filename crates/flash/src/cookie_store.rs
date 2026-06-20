@@ -136,6 +136,20 @@ impl CookieStore {
             .cloned()
             .expect("signed cookie should be present in jar")
     }
+
+    fn secure_for_request(&self, req: &Request) -> bool {
+        self.same_site == SameSite::None || self.secure_cookie_policy.is_secure(req)
+    }
+
+    fn clear_cookie(&self, secure: bool) -> Cookie<'static> {
+        Cookie::build((self.name.clone(), ""))
+            .max_age(Duration::seconds(0))
+            .same_site(self.same_site)
+            .secure(secure)
+            .http_only(self.http_only)
+            .path(self.path.clone())
+            .build()
+    }
 }
 impl FlashStore for CookieStore {
     async fn load_flash(&self, req: &mut Request, _depot: &mut Depot) -> Option<Flash> {
@@ -171,15 +185,15 @@ impl FlashStore for CookieStore {
     async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
         let secure =
             self.same_site == SameSite::None || self.secure_cookie_policy == SecureCookiePolicy::Always;
-        res.add_cookie(
-            Cookie::build((self.name.clone(), ""))
-                .max_age(Duration::seconds(0))
-                .same_site(self.same_site)
-                .secure(secure)
-                .http_only(self.http_only)
-                .path(self.path.clone())
-                .build(),
-        );
+        res.add_cookie(self.clear_cookie(secure));
+    }
+    async fn clear_flash_with_request(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        res: &mut Response,
+    ) {
+        res.add_cookie(self.clear_cookie(self.secure_for_request(req)));
     }
 }
 
@@ -408,6 +422,38 @@ mod tests {
         assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
         assert_eq!(cookie.same_site(), Some(SameSite::None));
         assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_clear_infers_secure_from_https_scheme() {
+        let store = CookieStore::new().name("__Secure-salvo.flash");
+        let mut req = TestClient::get("https://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        store
+            .clear_flash_with_request(&mut req, &mut depot, &mut res)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
+        assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_cookie_store_clear_keeps_http_auto_policy_insecure() {
+        let store = CookieStore::new();
+        let mut req = TestClient::get("http://example.com/").build();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+
+        store
+            .clear_flash_with_request(&mut req, &mut depot, &mut res)
+            .await;
+
+        let cookie = res.cookie(&store.name).unwrap();
+        assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
+        assert_eq!(cookie.secure(), Some(false));
     }
 
     #[tokio::test]
