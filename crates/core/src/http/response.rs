@@ -370,30 +370,33 @@ impl Response {
         #[inline]
         pub fn remove_cookie(&mut self, name: &str) -> &mut Self {
             if let Some(cookie) = self.cookies.get(name).cloned() {
-                self.cookies.remove(cookie);
+                self.remove_cookie_with(cookie);
+            } else {
+                self.remove_cookie_with(Cookie::new(name.to_owned(), ""));
             }
             self
         }
 
         /// Removes a cookie from the response using the supplied cookie attributes.
         ///
-        /// Removes `cookie` from this [`CookieJar`]. If an _original_ cookie with the same
-        /// name as `cookie` is present in the jar, a _removal_ cookie will be
-        /// present in the `delta` computation. **To properly generate the removal
-        /// cookie, `cookie` must contain the same `path` and `domain` as the cookie
-        /// that was initially set.**
+        /// The supplied cookie is converted to a _removal_ cookie and added to
+        /// the response. **To properly remove the cookie in a browser, `cookie`
+        /// must contain the same `path` and `domain` as the cookie that was
+        /// initially set.**
         ///
         /// A "removal" cookie is a cookie that has the same name as the original
         /// cookie but has an empty value, a max-age of 0, and an expiration date
         /// far in the past.
         ///
-        /// Read more about [removal cookies](https://docs.rs/cookie/0.18.0/cookie/struct.CookieJar.html#method.remove).
+        /// Read more about [removal cookies](https://docs.rs/cookie/0.18.0/cookie/struct.Cookie.html#method.make_removal).
         #[inline]
         pub fn remove_cookie_with<C>(&mut self, cookie: C) -> &mut Self
         where
             C: Into<Cookie<'static>>,
         {
-            self.cookies.remove(cookie);
+            let mut cookie = cookie.into();
+            cookie.make_removal();
+            self.cookies.add(cookie);
             self
         }
     }
@@ -724,13 +727,28 @@ mod test {
 
     #[cfg(feature = "cookie")]
     #[test]
-    fn test_remove_cookie_with_emits_path_and_domain() {
-        use cookie::{Cookie, CookieJar};
+    fn test_remove_cookie_emits_removal_without_original_cookie() {
+        let mut res = Response::new();
+        res.remove_cookie("sid");
 
-        let mut jar = CookieJar::new();
-        jar.add_original(Cookie::new("sid", "abc"));
+        let hyper_res = res.strip_to_hyper();
+        let cookie = hyper_res
+            .headers()
+            .get(http::header::SET_COOKIE)
+            .expect("set-cookie header")
+            .to_str()
+            .expect("set-cookie should be valid");
 
-        let mut res = Response::with_cookies(jar);
+        assert!(cookie.starts_with("sid="));
+        assert!(cookie.contains("Max-Age=0"));
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_remove_cookie_with_emits_path_and_domain_without_original_cookie() {
+        use cookie::Cookie;
+
+        let mut res = Response::new();
         res.remove_cookie_with(
             Cookie::build("sid")
                 .path("/app")
