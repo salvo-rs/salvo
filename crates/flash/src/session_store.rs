@@ -52,7 +52,7 @@ impl FlashStore for SessionStore {
             tracing::error!(error = ?e, "save flash to session failed");
         }
     }
-    async fn clear_flash(&self, depot: &mut Depot, _res: &mut Response) {
+    async fn clear_flash(&self, _req: &mut Request, depot: &mut Depot, _res: &mut Response) {
         depot.session_mut().expect("session must exist").remove(&self.name);
     }
 }

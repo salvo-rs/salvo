@@ -182,17 +182,7 @@ impl FlashStore for CookieStore {
             .build();
         res.add_cookie(self.sign_cookie(cookie));
     }
-    async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
-        let secure =
-            self.same_site == SameSite::None || self.secure_cookie_policy == SecureCookiePolicy::Always;
-        res.add_cookie(self.clear_cookie(secure));
-    }
-    async fn clear_flash_with_request(
-        &self,
-        req: &mut Request,
-        _depot: &mut Depot,
-        res: &mut Response,
-    ) {
+    async fn clear_flash(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(self.clear_cookie(self.secure_for_request(req)));
     }
 }
@@ -413,10 +403,11 @@ mod tests {
     #[tokio::test]
     async fn test_cookie_store_clear_same_site_none_uses_secure() {
         let store = CookieStore::new().same_site(SameSite::None);
+        let mut req = TestClient::get("http://example.com/").build();
         let mut depot = Depot::new();
         let mut res = Response::new();
 
-        store.clear_flash(&mut depot, &mut res).await;
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
 
         let cookie = res.cookie(&store.name).unwrap();
         assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
@@ -431,9 +422,7 @@ mod tests {
         let mut depot = Depot::new();
         let mut res = Response::new();
 
-        store
-            .clear_flash_with_request(&mut req, &mut depot, &mut res)
-            .await;
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
 
         let cookie = res.cookie(&store.name).unwrap();
         assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
@@ -447,9 +436,7 @@ mod tests {
         let mut depot = Depot::new();
         let mut res = Response::new();
 
-        store
-            .clear_flash_with_request(&mut req, &mut depot, &mut res)
-            .await;
+        store.clear_flash(&mut req, &mut depot, &mut res).await;
 
         let cookie = res.cookie(&store.name).unwrap();
         assert_eq!(cookie.max_age(), Some(Duration::seconds(0)));
