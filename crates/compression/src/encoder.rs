@@ -214,6 +214,27 @@ mod tests {
         assert_eq!(decompressed, *b"hello");
     }
 
+    #[cfg(feature = "brotli")]
+    #[test]
+    fn test_brotli_encoder_finishes_multiblock_stream() {
+        use brotli::Decompressor;
+        // Larger-than-buffer input written in several chunks, so `finish` must
+        // emit a complete (finalized) brotli stream. `read_to_end` fully decodes
+        // it and fails if the terminating block is missing.
+        let input: Vec<u8> = (0..200_000u32).map(|i| (i % 251) as u8).collect();
+        let mut encoder = Encoder::new(CompressionAlgo::Brotli, CompressionLevel::Default);
+        for chunk in input.chunks(7000) {
+            encoder.write(chunk).unwrap();
+        }
+        let compressed = encoder.finish().unwrap();
+
+        let mut decompressed = Vec::new();
+        Decompressor::new(&compressed[..], 4096)
+            .read_to_end(&mut decompressed)
+            .expect("brotli stream should be a complete, decodable stream");
+        assert_eq!(decompressed, input);
+    }
+
     #[cfg(feature = "deflate")]
     #[test]
     fn test_deflate_encoder() {
