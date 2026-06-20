@@ -340,13 +340,17 @@ pub struct Holding {
 }
 impl Display for Holding {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:?} on {}://{}",
-            self.http_versions,
-            self.http_scheme,
-            self.local_addr.to_string().trim_start_matches("socket://")
-        )
+        write!(f, "{:?} on ", self.http_versions)?;
+        let addr = self.local_addr.to_string();
+        // IPv4/IPv6 addresses render as `socket://<addr>`; replace that placeholder
+        // scheme with the real HTTP scheme. Other kinds (e.g. a Unix socket's
+        // `unix://<path>`) already carry a meaningful prefix and the HTTP scheme
+        // does not apply, so they are shown verbatim — the old code produced
+        // `https://unix://...`.
+        match addr.strip_prefix("socket://") {
+            Some(rest) => write!(f, "{}://{}", self.http_scheme, rest),
+            None => f.write_str(&addr),
+        }
     }
 }
 /// A trait for coupling streams with HTTP protocol handling.
@@ -540,5 +544,29 @@ impl AsyncWrite for DynStream {
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         let this = &mut *self;
         Pin::new(&mut this.writer).poll_shutdown(cx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn holding_display_scheme_handling() {
+        let ip = Holding {
+            local_addr: SocketAddr::from("127.0.0.1:8080".parse::<std::net::SocketAddr>().unwrap()),
+            http_versions: vec![],
+            http_scheme: Scheme::HTTP,
+        };
+        assert_eq!(ip.to_string(), "[] on http://127.0.0.1:8080");
+
+        // A non-IP address (here `Unknown`, same path a `unix://` socket takes)
+        // must not be prefixed with a bogus `http://`.
+        let other = Holding {
+            local_addr: SocketAddr::Unknown,
+            http_versions: vec![],
+            http_scheme: Scheme::HTTP,
+        };
+        assert_eq!(other.to_string(), "[] on unknown");
     }
 }
