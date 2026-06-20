@@ -539,8 +539,18 @@ impl DataStore for DiskStore {
                 }
                 Err(e) => return Err(TusError::Internal(e.to_string())),
             };
+            // Accumulate with overflow checks: `write` is a public `DataStore`
+            // API and, on the deferred-size path (`meta.size == None`), there is
+            // no upper bound, so an extreme starting offset could otherwise wrap.
+            let new_offset = written
+                .checked_add(chunk.len() as u64)
+                .and_then(|w| original_offset.checked_add(w));
+            let Some(new_offset) = new_offset else {
+                let _ = file.set_len(original_offset).await;
+                return Err(TusError::PayloadTooLarge);
+            };
             if let Some(size) = meta.size
-                && original_offset + written + chunk.len() as u64 > size
+                && new_offset > size
             {
                 let _ = file.set_len(original_offset).await;
                 return Err(TusError::PayloadTooLarge);
@@ -555,7 +565,9 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        meta.offset = original_offset + written;
+        // `original_offset + written` was validated each iteration above, so this
+        // cannot overflow; `saturating_add` is a belt-and-braces guard.
+        meta.offset = original_offset.saturating_add(written);
         self.try_finalize_if_complete(&mut meta).await;
         self.write_meta_atomic(&meta).await?;
 
