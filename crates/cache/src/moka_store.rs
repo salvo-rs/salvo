@@ -98,7 +98,7 @@ where
         }
     }
 }
-/// A simple in-memory store for rate limiter.
+/// A simple in-memory store for the cache.
 pub struct MokaStore<K> {
     inner: MokaCache<K, CachedEntry>,
 }

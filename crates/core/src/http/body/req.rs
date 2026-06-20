@@ -180,7 +180,7 @@ impl TryFrom<ReqBody> for Incoming {
                 "ReqBody::None cannot convert to Incoming",
             )),
             ReqBody::Once(_) => Err(crate::Error::other(
-                "ReqBody::Bytes cannot convert to Incoming",
+                "ReqBody::Once cannot convert to Incoming",
             )),
             ReqBody::Hyper { inner, .. } => Ok(inner),
             ReqBody::Boxed { .. } => Err(crate::Error::other(

@@ -60,7 +60,7 @@ pub struct JsonFinder {
     field_name: String,
 }
 impl JsonFinder {
-    /// Creates a new `FormFinder`.
+    /// Creates a new `JsonFinder`.
     #[inline]
     pub fn new(field_name: impl Into<String>) -> Self {
         Self {

@@ -449,6 +449,6 @@ fn parse_path_or_lit_str(expr: &Expr) -> syn::Result<String> {
             lit: Lit::Str(s), ..
         }) => Ok(s.value()),
         Expr::Path(ExprPath { path, .. }) => Ok(path.require_ident()?.to_string()),
-        _ => Err(Error::new_spanned(expr, "invalid indent or lit str")),
+        _ => Err(Error::new_spanned(expr, "invalid ident or lit str")),
     }
 }

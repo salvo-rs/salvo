@@ -146,7 +146,7 @@ impl ConstDecoder {
         )
     }
 
-    /// If you know what you're doing and have a RSA EC encoded public key, use this.
+    /// If you know what you're doing and have an EC DER encoded public key, use this.
     #[must_use]
     pub fn from_ec_der(der: &[u8]) -> Self {
         Self::with_validation(
