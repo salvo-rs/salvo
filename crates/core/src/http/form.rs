@@ -181,10 +181,12 @@ impl FilePart {
     /// deleted once the FilePart object goes out of scope).
     pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
         // Setup a file to capture the contents.
+        // Map the `JoinError` to a `ParseError` instead of panicking, so a
+        // runtime issue (e.g. shutdown) on this request path doesn't abort.
         let mut path =
             tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
                 .await
-                .expect("Runtime spawn blocking poll error")?
+                .map_err(ParseError::other)??
                 .keep();
         let temp_dir = Some(path.clone());
         let name = field.file_name().map(|s| {
