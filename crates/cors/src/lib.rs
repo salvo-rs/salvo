@@ -534,8 +534,14 @@ impl Handler for CorsHandler {
 
         // Run the wildcard/credentials guard last, after every `call_next` point,
         // so it always sees the truly final response regardless of whether the
-        // downstream chain ran before or after this handler.
-        enforce_credentials_safety(res, req.method() == Method::OPTIONS);
+        // downstream chain ran before or after this handler. A genuine CORS
+        // preflight is an OPTIONS request carrying `Access-Control-Request-
+        // Method`; a plain actual request may also use OPTIONS without it.
+        let is_preflight = req.method() == Method::OPTIONS
+            && req
+                .headers()
+                .contains_key(header::ACCESS_CONTROL_REQUEST_METHOD);
+        enforce_credentials_safety(res, is_preflight);
     }
 }
 
@@ -738,6 +744,38 @@ mod tests {
         assert!(
             res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none(),
             "credentials must be dropped when a list header contains a `*` token"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_keeps_credentials_on_options_without_request_method() {
+        // An OPTIONS request without `Access-Control-Request-Method` is an actual
+        // request, not a preflight, so a wildcard `Allow-Methods` must not strip
+        // credentials.
+        #[handler]
+        async fn sets_wildcard_methods(res: &mut Response) {
+            res.headers_mut()
+                .insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("*"));
+        }
+
+        let cors_handler = Cors::new()
+            .allow_origin("https://app.example.com")
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
+            .into_handler();
+        let router = Router::new()
+            .hoop(cors_handler)
+            .push(Router::with_path("hello").goal(sets_wildcard_methods));
+        let service = Service::new(router);
+
+        let res = TestClient::options("http://127.0.0.1/hello")
+            .add_header("Origin", "https://app.example.com", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            res.headers().get(ACCESS_CONTROL_ALLOW_CREDENTIALS).unwrap(),
+            "true",
+            "credentials must be kept for a non-preflight OPTIONS (no Request-Method)"
         );
     }
 
