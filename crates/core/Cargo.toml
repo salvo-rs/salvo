@@ -130,6 +130,7 @@ tokio = { workspace = true, features = [
     "macros",
     "net",
     "rt-multi-thread",
+    "time",
 ] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
