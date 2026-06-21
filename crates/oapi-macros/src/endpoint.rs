@@ -156,6 +156,21 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
         Item::Impl(item_impl) => {
             let attrs = &item_impl.attrs;
 
+            // The generated metadata registers the endpoint through top-level, non-generic
+            // helper functions (`TypeId::of::<Ty>()` / `assign_name::<Ty>()`) submitted to a
+            // static inventory. A generic `impl<T> Foo<T>` has no single concrete type to
+            // register, and the impl's parameters are out of scope in those helpers, so
+            // reject such impls with a clear error instead of emitting uncompilable code.
+            // (A concrete instantiation like `impl Foo<String>` carries no params here and
+            // is still accepted.)
+            if !item_impl.generics.params.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    &item_impl.generics,
+                    "#[endpoint] does not support generic `impl` blocks; \
+                     implement it on a concrete type",
+                ));
+            }
+
             attr.doc_comments = Some(CommentAttributes::from_attributes(attrs).0);
             attr.deprecated = if attrs.iter().any(|attr| attr.path().is_ident("deprecated")) {
                 Some(true)
@@ -182,8 +197,8 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
             // The self type is used verbatim for `TypeId::of` / `assign_name`, while a
             // sanitized identifier derived from it names the generated helper fns. This
-            // avoids panicking on qualified or generic self types like `path::Foo` or
-            // `Foo<T>` (the old `Ident::new(ty.to_string())` rejected `:`, `<`, spaces).
+            // avoids panicking on qualified self types like `path::Foo`, which the old
+            // `Ident::new(ty.to_string())` rejected because of the `:` and spaces.
             let name = type_name_suffix(ty);
             let meta = metadata(&salvo, &oapi, &attr, &name, &quote! { #ty }, modifiers)?;
 
@@ -385,5 +400,27 @@ mod tests {
         assert!(text.contains("assign_name :: < a :: b :: Foo >"));
         // ...while the generated helper fns get a sanitized identifier suffix.
         assert!(text.contains("__macro_gen_oapi_endpoint_type_id_a"));
+    }
+
+    #[test]
+    fn endpoint_on_generic_impl_is_rejected() {
+        // A generic impl has no single concrete type to register in the static
+        // inventory, so it must be rejected with a clear error rather than expand
+        // to helper fns that reference the out-of-scope parameter.
+        let attr: super::EndpointAttr = syn::parse2(quote! {}).unwrap();
+        let item: syn::Item = parse_str("impl<T> Foo<T> { fn handle(&self) {} }").unwrap();
+        let err = super::generate(attr, item).unwrap_err();
+        assert!(err.to_string().contains("generic"));
+    }
+
+    #[test]
+    fn endpoint_on_concrete_generic_impl_is_accepted() {
+        // `impl Foo<String>` carries no generic params and must still work.
+        let attr: super::EndpointAttr = syn::parse2(quote! {}).unwrap();
+        let item: syn::Item = parse_str("impl Foo<String> { fn handle(&self) {} }").unwrap();
+        let text = super::generate(attr, item)
+            .expect("concrete instantiation should be accepted")
+            .to_string();
+        assert!(text.contains("TypeId :: of :: < Foo < String > >"));
     }
 }
