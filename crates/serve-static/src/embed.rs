@@ -60,17 +60,42 @@ pub fn render_embedded_file(
 
 /// Returns whether an `If-None-Match` header value matches the given hash.
 ///
-/// Per RFC 7232 the header is `*` or a comma-separated list of (possibly weak,
-/// `W/`-prefixed) quoted entity-tags. The bare (unquoted) form is also accepted
-/// for backward compatibility with the previously emitted ETag.
+/// Per RFC 7232 the header is `*` or a list of (possibly weak, `W/`-prefixed)
+/// entity-tags. The opaque value of a quoted tag may itself contain commas, so
+/// the list is parsed quote-aware rather than split on `,`. A bare (unquoted)
+/// tag is also accepted for backward compatibility with the previously emitted
+/// ETag.
 fn if_none_match_matches(if_none_match: &str, hash: &str) -> bool {
-    let value = if_none_match.trim();
-    value == "*"
-        || value.split(',').any(|tag| {
-            let tag = tag.trim();
-            let tag = tag.strip_prefix("W/").unwrap_or(tag);
-            tag.trim_matches('"') == hash
-        })
+    let mut rest = if_none_match.trim();
+    if rest == "*" {
+        return true;
+    }
+    while !rest.is_empty() {
+        rest = rest.trim_start_matches([' ', '\t', ',']);
+        // An entity-tag may carry a weak indicator; weak/strong both match here.
+        let tag = rest.strip_prefix("W/").unwrap_or(rest);
+        if let Some(after_open) = tag.strip_prefix('"') {
+            // Quoted tag: the opaque value runs up to the next `"` and may
+            // contain commas.
+            match after_open.find('"') {
+                Some(end) => {
+                    if &after_open[..end] == hash {
+                        return true;
+                    }
+                    rest = &after_open[end + 1..];
+                }
+                None => break, // malformed (unterminated quote)
+            }
+        } else {
+            // Bare (legacy) token: runs up to the next comma.
+            let end = tag.find(',').unwrap_or(tag.len());
+            if tag[..end].trim() == hash {
+                return true;
+            }
+            rest = &tag[end..];
+        }
+    }
+    false
 }
 
 fn render_embedded_data(
@@ -359,5 +384,11 @@ mod tests {
         // Non-matches.
         assert!(!if_none_match_matches("\"deadbeef\"", hash));
         assert!(!if_none_match_matches("", hash));
+        // A single quoted tag whose opaque value merely contains the hash after a
+        // comma must NOT match (the comma is inside the quotes, not a separator).
+        assert!(!if_none_match_matches("\"other,0a1b2c3d\"", hash));
+        // ...but a genuine two-element list where the second tag's opaque value
+        // contains a comma still matches the first.
+        assert!(if_none_match_matches("\"0a1b2c3d\", \"x,y\"", hash));
     }
 }
