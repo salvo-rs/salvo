@@ -5,8 +5,7 @@ use quote::{ToTokens, quote};
 use regex::Regex;
 use syn::parse::Parser;
 use syn::{
-    AngleBracketedGenericArguments, Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item,
-    PathArguments, Token, Type, TypePath, parse_quote,
+    Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type, parse_quote,
 };
 
 use crate::utils::salvo_crate;
@@ -118,7 +117,7 @@ impl FnReceiver {
 }
 
 fn rewrite_method(
-    mut impl_generics: Generics,
+    impl_generics: Generics,
     self_ty: &Type,
     method: &mut ImplItemFn,
 ) -> syn::Result<()> {
@@ -170,20 +169,19 @@ fn rewrite_method(
                 .collect();
             method.sig.inputs[0] = FnArg::Receiver(parse_quote!(&self));
             method.sig.ident = Ident::new("handle", Span::call_site());
-            let where_clause = impl_generics.make_where_clause().clone();
-            let mut angle_bracketed: Option<AngleBracketedGenericArguments> = None;
-            if let Type::Path(TypePath { path, .. }) = self_ty
-                && let Some(last_segment) = path.segments.last()
-                && let PathArguments::AngleBracketed(_angle_bracketed) = &last_segment.arguments
-            {
-                angle_bracketed = Some(_angle_bracketed.clone());
-            }
+            // Use `split_for_impl` so the generated `handle` struct is referred to
+            // with its *type* generics (`handle<T>`) in impl headers, while the
+            // `impl` keeps the bounded `impl<T: Bound>` form and the where-clause.
+            // The previous code derived the type arguments from `self_ty`, which is
+            // wrong whenever they differ from the impl's parameters (e.g.
+            // `impl<T> Foo<Wrapper<T>>` would emit `handle<Wrapper<T>>`).
+            let (impl_g, ty_g, where_c) = impl_generics.split_for_impl();
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
-                    pub struct handle #impl_generics(::std::sync::Arc<#self_ty>) #where_clause;
+                    pub struct handle #impl_g(::std::sync::Arc<#self_ty>) #where_c;
                     use ::std::ops::Deref;
-                    impl #impl_generics Deref for handle #angle_bracketed #where_clause{
+                    impl #impl_g Deref for handle #ty_g #where_c {
                         type Target = #self_ty;
 
                         fn deref(&self) -> &Self::Target {
@@ -194,7 +192,7 @@ fn rewrite_method(
                     use ::std::ops::Deref as _;
                     #(#forwarded_attrs)*
                     #macro_attr
-                    impl #impl_generics handle #angle_bracketed #where_clause{
+                    impl #impl_g handle #ty_g #where_c {
                         #method
                     }
                     handle(#output)
