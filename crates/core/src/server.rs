@@ -30,7 +30,6 @@ use crate::Service;
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
 use crate::fuse::{ArcFuseFactory, FuseFactory};
-use crate::http::{HeaderValue, Version};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -285,18 +284,29 @@ impl<A: Acceptor + Send> Server<A> {
             let force_stop_token = CancellationToken::new();
             let graceful_stop_token = CancellationToken::new();
 
+            #[cfg(not(feature = "quinn"))]
+            let alt_svc_h3 = None;
+            #[cfg(feature = "quinn")]
             let mut alt_svc_h3 = None;
+
             for holding in acceptor.holdings() {
                 tracing::info!("listening {}", holding);
-                if holding.http_versions.contains(&Version::HTTP_3)
-                    && let Some(addr) = holding.local_addr.clone().into_std()
+
+                #[cfg(feature = "quinn")]
                 {
-                    let port = addr.port();
-                    alt_svc_h3 = Some(
-                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
-                            .parse::<HeaderValue>()
-                            .expect("parsing alt-svc header should not fail"),
-                    );
+                    use crate::http::{HeaderValue, Version};
+
+                    if builder.quinn.auto_alt_svc_header
+                        && holding.http_versions.contains(&Version::HTTP_3)
+                        && let Some(addr) = holding.local_addr.clone().into_std()
+                    {
+                        let port = addr.port();
+                        alt_svc_h3 = Some(
+                            format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                                .parse::<HeaderValue>()
+                                .expect("parsing alt-svc header should not fail"),
+                        );
+                    }
                 }
             }
 
@@ -399,11 +409,23 @@ impl<A: Acceptor + Send> Server<A> {
             fuse_factory,
             ..
         } = self;
+
+        #[cfg(not(feature = "quinn"))]
+        let alt_svc_h3 = None;
+        #[cfg(feature = "quinn")]
         let mut alt_svc_h3 = None;
+
         for holding in acceptor.holdings() {
             tracing::info!("listening {}", holding);
-            if holding.http_versions.contains(&Version::HTTP_3) {
-                if let Some(addr) = holding.local_addr.clone().into_std() {
+
+            #[cfg(feature = "quinn")]
+            {
+                use crate::http::{HeaderValue, Version};
+
+                if builder.quinn.auto_alt_svc_header
+                    && holding.http_versions.contains(&Version::HTTP_3)
+                    && let Some(addr) = holding.local_addr.clone().into_std()
+                {
                     let port = addr.port();
                     alt_svc_h3 = Some(
                         format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
