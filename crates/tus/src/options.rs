@@ -123,8 +123,9 @@ pub struct TusOptions {
     /// When `relative_location` is `false` and `canonical_origin` is `None`, the
     /// absolute `Location` is built from the request's `Host` (and, if
     /// [`respect_forwarded_headers`](Self::respect_forwarded_headers) is set,
-    /// `Forwarded`/`X-Forwarded-*`) headers, all of which are client-controlled.
-    /// An attacker can then poison the returned upload URL via `Host` header
+    /// `Forwarded`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and
+    /// `X-Forwarded-Ssl`) headers, all of which are client-controlled. An
+    /// attacker can then poison the returned upload URL via `Host` header
     /// injection. In production prefer a relative `Location` or set
     /// `canonical_origin` to a fixed, trusted origin so the host is never taken
     /// from request headers.
@@ -134,11 +135,12 @@ pub struct TusOptions {
     ///
     /// # Security
     ///
-    /// Only enable this behind a proxy that overwrites `Forwarded` /
-    /// `X-Forwarded-Host` / `X-Forwarded-Proto`. If clients can reach the server
-    /// directly, these headers are spoofable and can poison the `Location`
-    /// header; set [`canonical_origin`](Self::canonical_origin) to avoid relying
-    /// on request headers at all.
+    /// Only enable this behind a proxy that overwrites every host/proto
+    /// forwarding header it honours — `Forwarded`, `X-Forwarded-Host`,
+    /// `X-Forwarded-Proto`, and `X-Forwarded-Ssl`. If clients can reach the
+    /// server directly, these headers are spoofable and can poison the
+    /// `Location` header; set [`canonical_origin`](Self::canonical_origin) to
+    /// avoid relying on request headers at all.
     pub respect_forwarded_headers: bool,
 
     /// Additional headers sent in `Access-Control-Allow-Headers`.
