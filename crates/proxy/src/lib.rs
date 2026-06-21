@@ -373,8 +373,9 @@ where
 {
     /// Creates a new `Proxy` with an upstream list.
     ///
-    /// The default host header getter forwards only the upstream host name. To include
-    /// non-default upstream ports, configure [`standard_host_header_getter`] with
+    /// The default host header getter is [`standard_host_header_getter`], which forwards the
+    /// upstream host and includes a non-default port (RFC 7230 / RFC 9110). To forward only
+    /// the bare host name, configure [`default_host_header_getter`] via
     /// [`Self::host_header_getter`].
     #[must_use]
     pub fn new(upstreams: U, client: C) -> Self {
@@ -383,7 +384,7 @@ where
             client,
             url_path_getter: Box::new(default_url_path_getter),
             url_query_getter: Box::new(default_url_query_getter),
-            host_header_getter: Box::new(default_host_header_getter),
+            host_header_getter: Box::new(standard_host_header_getter),
             client_ip_forwarding_enabled: false,
             strict_path_normalization_enabled: true,
             strip_authorization_header_enabled: false,
@@ -400,7 +401,7 @@ where
             client,
             url_path_getter: Box::new(default_url_path_getter),
             url_query_getter: Box::new(default_url_query_getter),
-            host_header_getter: Box::new(default_host_header_getter),
+            host_header_getter: Box::new(standard_host_header_getter),
             client_ip_forwarding_enabled: true,
             strict_path_normalization_enabled: true,
             strip_authorization_header_enabled: false,
@@ -924,6 +925,21 @@ mod tests {
         assert_eq!(
             preserve_original_host_header_getter(&uri, &req, &depot),
             Some("test.host.tld".to_owned())
+        );
+    }
+
+    #[test]
+    fn test_proxy_default_host_header_getter_includes_port() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+        // `Proxy::new` now defaults to the standards-compliant getter, which keeps
+        // a non-default upstream port in the forwarded `Host`.
+        let proxy = Proxy::new(vec!["http://host.tld:8080"], HyperClient::default());
+        let uri = Uri::from_str("http://host.tld:8080/test").unwrap();
+        let req = Request::new();
+        let depot = Depot::new();
+        assert_eq!(
+            (proxy.host_header_getter)(&uri, &req, &depot),
+            Some("host.tld:8080".to_owned())
         );
     }
 
