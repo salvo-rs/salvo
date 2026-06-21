@@ -347,9 +347,9 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
         match self.store.load(req, depot, &self.cipher).await {
             Some((current_token, proof)) => {
                 if !skipped {
-                    if let Some(token) = &self.find_token(req).await {
+                    if let Some(token) = self.find_token(req).await {
                         tracing::debug!("csrf token found in request");
-                        if !self.cipher.verify(token, &proof) {
+                        if !self.cipher.verify(&token, &proof) {
                             tracing::debug!(
                                 "rejecting request due to invalid or expired csrf token"
                             );
