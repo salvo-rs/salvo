@@ -74,7 +74,7 @@ impl Builder {
     ///
     /// The automatically generated header follows this format:
     /// ```text
-    /// h3="{port}"; ma=2592000,h3-29="{port}"; ma=2592000
+    /// h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000
     /// ```
     ///
     /// By default, this is set to `true`.
