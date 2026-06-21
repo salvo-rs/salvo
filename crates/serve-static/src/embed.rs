@@ -128,6 +128,15 @@ fn render_embedded_data(
     // clients echo it verbatim.
     let etag = format!("\"{hash}\"");
 
+    // Set the ETag before any early return so a `304 Not Modified` carries the
+    // same validator a `200`/`206` would (RFC 7232 §4.1), matching the
+    // file-serving path.
+    if let Ok(etag_val) = etag.parse() {
+        res.headers_mut().insert(ETAG, etag_val);
+    } else {
+        tracing::error!("Failed to parse etag: {etag}");
+    }
+
     let not_modified = req
         .headers()
         .get(IF_NONE_MATCH)
@@ -136,13 +145,6 @@ fn render_embedded_data(
     if not_modified {
         res.status_code(StatusCode::NOT_MODIFIED);
         return;
-    }
-
-    // Set ETag for all successful responses (200 or 206)
-    if let Ok(etag_val) = etag.parse() {
-        res.headers_mut().insert(ETAG, etag_val);
-    } else {
-        tracing::error!("Failed to parse etag: {etag}");
     }
 
     // Indicate that byte ranges are accepted

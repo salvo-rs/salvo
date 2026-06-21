@@ -339,5 +339,31 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+
+        // A 200 response carries a quoted RFC 7232 ETag...
+        let response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        let etag = response
+            .headers
+            .get("etag")
+            .expect("200 response should carry an ETag")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert!(etag.starts_with('"') && etag.ends_with('"'));
+
+        // ...and echoing it back yields a 304 that still carries the same
+        // validator (RFC 7232 §4.1), not a bare 304.
+        let response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
+            .add_header("if-none-match", &etag, true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_MODIFIED);
+        assert_eq!(
+            response.headers.get("etag").and_then(|v| v.to_str().ok()),
+            Some(etag.as_str())
+        );
     }
 }
