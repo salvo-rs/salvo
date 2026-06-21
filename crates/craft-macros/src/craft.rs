@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
 use regex::Regex;
@@ -33,10 +35,14 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
 
 const REGEX_STR: &str = r#"(?s)#\s*\[\s*(::)?\s*([A-Za-z_][A-Za-z0-9_]*\s*::\s*)*\s*craft\s*\(\s*(?P<name>handler|endpoint)\s*(?P<content>\(.*\))?\s*\)\s*\]"#;
 
+/// Compiled once per process instead of per `#[craft]` method.
+static CRAFT_ATTR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(REGEX_STR).expect("regex compile should not fail"));
+
 fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>> {
     let mut index: Option<usize> = None;
     let mut new_attr: Option<Attribute> = None;
-    let re = Regex::new(REGEX_STR).expect("regex compile should not fail");
+    let re = &*CRAFT_ATTR_RE;
     for (idx, attr) in &mut item_fn.attrs.iter().enumerate() {
         if !(match attr.path().segments.last() {
             Some(segment) => segment.ident == "craft",
