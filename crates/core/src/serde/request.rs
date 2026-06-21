@@ -95,7 +95,9 @@ where
 pub(crate) enum Payload<'a> {
     FormData(&'a FormData),
     JsonStr(&'a str),
-    JsonMap(HashMap<&'a str, &'a RawValue>),
+    // Behind an `Arc` so cloning a `Payload` (e.g. once per flattened field) is a
+    // refcount bump instead of rebuilding the whole map.
+    JsonMap(Arc<HashMap<&'a str, &'a RawValue>>),
 }
 impl Payload<'_> {
     #[allow(dead_code)]
@@ -149,7 +151,7 @@ impl<'de> RequestDeserializer<'de> {
                     {
                         // https://github.com/serde-rs/json/issues/903
                         payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
-                            Ok(map) => Some(Payload::JsonMap(map)),
+                            Ok(map) => Some(Payload::JsonMap(Arc::new(map))),
                             Err(e) => {
                                 tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
                                 Some(Payload::JsonStr(std::str::from_utf8(data)?))
