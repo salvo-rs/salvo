@@ -45,7 +45,7 @@ pub struct FlowCtrl {
     catching: Option<bool>,
     is_ceased: bool,
     pub(crate) cursor: usize,
-    pub(crate) handlers: Vec<Arc<dyn Handler>>,
+    pub(crate) handlers: Vec<Option<Arc<dyn Handler>>>,
 }
 
 impl Debug for FlowCtrl {
@@ -67,14 +67,14 @@ impl FlowCtrl {
             catching: None,
             is_ceased: false,
             cursor: 0,
-            handlers,
+            handlers: handlers.into_iter().map(Some).collect(),
         }
     }
     /// Returns whether there is another handler in the chain.
     #[inline]
     #[must_use]
     pub fn has_next(&self) -> bool {
-        self.cursor < self.handlers.len() // && !self.handlers.is_empty()
+        self.cursor < self.handlers.len()
     }
 
     /// Runs the next handler in the chain.
@@ -104,22 +104,21 @@ impl FlowCtrl {
             self.skip_rest();
             return false;
         }
-        let mut handler = self.handlers.get(self.cursor).cloned();
-        if handler.is_none() {
-            false
-        } else {
-            while let Some(h) = handler.take() {
-                self.cursor += 1;
-                h.handle(req, depot, res, self).await;
+        let start = self.cursor;
+        while self.cursor < self.handlers.len() {
+            let handler = self.handlers[self.cursor].take();
+            self.cursor += 1;
+            if let Some(handler) = handler {
+                handler.handle(req, depot, res, self).await;
                 if !self.catching.unwrap_or_default() && res.is_stamped() {
                     self.skip_rest();
                     return true;
-                } else if self.has_next() {
-                    handler = self.handlers.get(self.cursor).cloned();
                 }
+            } else {
+                continue;
             }
-            true
         }
+        self.cursor > start
     }
 
     /// Skip all remaining handlers.

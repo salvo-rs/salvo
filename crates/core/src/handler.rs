@@ -395,14 +395,13 @@ impl Handler for HoopedHandler {
     ) {
         let inner: Arc<dyn Handler> = self.inner.clone();
         let right = ctrl.handlers.split_off(ctrl.cursor);
-        ctrl.handlers.append(
-            &mut self
-                .hoops
+        ctrl.handlers.extend(
+            self.hoops
                 .iter()
                 .cloned()
                 .chain([inner])
-                .chain(right)
-                .collect(),
+                .map(Some)
+                .chain(right.into_iter()),
         );
         ctrl.call_next(req, depot, res).await;
     }
