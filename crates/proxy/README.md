@@ -93,9 +93,10 @@ only prevents common proxy/backend path interpretation mismatches.
 
 ### Forwarded headers
 
-The default host header getter forwards only the upstream host name. Configure
-`standard_host_header_getter` when the upstream `Host` header should include a
-non-default port, for example `example.com:8080`.
+The default host header getter (`standard_host_header_getter`) forwards the
+upstream host and includes a non-default port, for example `example.com:8080`
+(per RFC 7230 / RFC 9110). Configure `default_host_header_getter` if you want to
+forward only the bare host name without the port.
 
 Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
