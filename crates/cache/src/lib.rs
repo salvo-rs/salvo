@@ -142,13 +142,16 @@ where
 /// path, query, and (optionally) method. It does **not** include content
 /// negotiation headers such as `Accept-Encoding` or `Accept`. If the cached
 /// responses vary by those headers — for example when a compression middleware
-/// runs behind the cache — a client may receive a representation encoded for a
-/// different request (e.g. a `gzip` body without `Accept-Encoding: gzip`).
+/// also runs — a client may receive a representation encoded for a different
+/// request (e.g. a `gzip` body without `Accept-Encoding: gzip`).
 ///
-/// When responses are content-negotiated, either keep the cache in front of
-/// (not behind) the negotiating middleware, use a custom [`CacheIssuer`] that
-/// folds the relevant headers into the key, or ensure upstream sets an
-/// appropriate `Vary` header.
+/// The cache stores the response produced by the handlers *inside* it (`hoop`s
+/// run outer-to-inner and the entry is captured on the way back out), so the
+/// negotiating middleware must run **outside** the cache — added to the router
+/// *before* the cache hoop — so it re-negotiates on every request, including
+/// cache hits. Alternatively, use a custom [`CacheIssuer`] that folds the
+/// relevant headers into the key, or ensure upstream sets an appropriate
+/// `Vary` header.
 #[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,
