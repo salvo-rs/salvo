@@ -402,7 +402,10 @@ where
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
         let inner = inner.try_bind().await?;
 
-        // Start certon's background maintenance for renewal + OCSP.
+        // Start certon's background maintenance for renewal + OCSP. Dropping the
+        // returned `JoinHandle` *detaches* the spawned task rather than cancelling
+        // it (per certon's docs), so the renewal/OCSP loop keeps running for the
+        // lifetime of the process even though we don't hold the handle.
         let _maintenance_handle = certon::start_maintenance(&certon_config);
 
         let acceptor = AcmeAcceptor::new(acme_config, server_config, inner, tls_acceptor);
