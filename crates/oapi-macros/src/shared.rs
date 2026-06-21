@@ -96,7 +96,7 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType<'_> {
 /// `'static` intact, so the type can be used in an `Extractible` bound without
 /// carrying caller lifetimes. Operates on the AST via [`VisitMut`] rather than
 /// re-parsing a stringified type, which avoids a per-call regex compile, the
-/// previous `'static` mis-rewrite, and the parse `expect` panic.
+/// previous incorrect rewriting of `'static`, and the parse `expect` panic.
 pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
     struct ElideLifetimes {
         elided: syn::Lifetime,
