@@ -92,7 +92,7 @@ use futures_util::sink::{Sink, SinkExt};
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::{FutureExt, TryFutureExt, future};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::header::{SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
+use salvo_core::http::header::{ORIGIN, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade,
 };
@@ -123,6 +123,26 @@ pub struct WebSocketUpgrade {
     config: Option<WebSocketConfig>,
     protocols: Vec<String>,
     accept_any: bool,
+    origin_check: Option<OriginCheck>,
+}
+
+/// Policy for validating the `Origin` header of a WebSocket upgrade request.
+enum OriginCheck {
+    /// Exact, case-insensitive match against an allowlist; a missing `Origin` is rejected.
+    Allowlist(Vec<String>),
+    /// Custom predicate over the optional `Origin` header value.
+    Predicate(Box<dyn Fn(Option<&str>) -> bool + Send + Sync>),
+}
+
+impl OriginCheck {
+    fn allows(&self, origin: Option<&str>) -> bool {
+        match self {
+            Self::Allowlist(list) => {
+                origin.is_some_and(|o| list.iter().any(|allowed| allowed.eq_ignore_ascii_case(o)))
+            }
+            Self::Predicate(predicate) => predicate(origin),
+        }
+    }
 }
 
 impl Default for WebSocketUpgrade {
@@ -137,7 +157,12 @@ impl WebSocketUpgrade {
     #[inline]
     #[must_use]
     pub fn new() -> Self {
-        Self { config: None, protocols: Vec::new(), accept_any: false }
+        Self {
+            config: None,
+            protocols: Vec::new(),
+            accept_any: false,
+            origin_check: None,
+        }
     }
 
     /// Creates a new `WebSocketUpgrade` with config.
@@ -148,6 +173,7 @@ impl WebSocketUpgrade {
             config: Some(config),
             protocols: Vec::new(),
             accept_any: false,
+            origin_check: None,
         }
     }
 
@@ -206,6 +232,70 @@ impl WebSocketUpgrade {
     #[must_use]
     pub fn accept_any_protocol(mut self) -> Self {
         self.accept_any = true;
+        self
+    }
+
+    /// Only allow the upgrade when the request's `Origin` header exactly matches
+    /// one of `origins` (case-insensitive). A request with a missing or
+    /// non-matching `Origin` is rejected with `403 Forbidden`.
+    ///
+    /// # Security
+    ///
+    /// Browsers attach an `Origin` header to cross-site WebSocket handshakes but,
+    /// unlike `fetch`, the same-origin policy does **not** block the connection
+    /// itself. Without an origin check, any site a victim visits can open an
+    /// authenticated WebSocket to your server using the victim's ambient
+    /// credentials (cookies) — a Cross-Site WebSocket Hijacking (CSWSH) attack.
+    /// Configure an allowlist (or [`check_origin`](Self::check_origin)) for any
+    /// endpoint that relies on cookie/session authentication.
+    ///
+    /// Note that non-browser clients (e.g. native apps, `curl`) typically send no
+    /// `Origin` header; with an allowlist they are rejected. Use
+    /// [`check_origin`](Self::check_origin) if you need to allow a missing
+    /// `Origin`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// WebSocketUpgrade::new()
+    ///     .allowed_origins(&["https://app.example.com"])
+    ///     .upgrade(req, res, |ws| async move { /* ... */ })
+    ///     .await
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn allowed_origins(mut self, origins: &[&str]) -> Self {
+        self.origin_check = Some(OriginCheck::Allowlist(
+            origins.iter().map(|s| (*s).to_owned()).collect(),
+        ));
+        self
+    }
+
+    /// Only allow the upgrade when `predicate` returns `true` for the request's
+    /// `Origin` header (passed as `Some(value)`, or `None` when the header is
+    /// absent). A rejected request gets `403 Forbidden`.
+    ///
+    /// Use this for dynamic policies, e.g. matching a suffix, consulting a
+    /// configured set, or explicitly allowing a missing `Origin`. See
+    /// [`allowed_origins`](Self::allowed_origins) for the CSWSH rationale.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// WebSocketUpgrade::new()
+    ///     .check_origin(|origin| {
+    ///         origin.is_some_and(|o| o.ends_with(".example.com"))
+    ///     })
+    ///     .upgrade(req, res, |ws| async move { /* ... */ })
+    ///     .await
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn check_origin(
+        mut self,
+        predicate: impl Fn(Option<&str>) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.origin_check = Some(OriginCheck::Predicate(Box::new(predicate)));
         self
     }
 
@@ -326,6 +416,14 @@ impl WebSocketUpgrade {
             tracing::debug!("missing sec-websocket-key header");
             return Err(StatusError::bad_request().brief("missing sec-websocket-key header"));
         };
+
+        if let Some(check) = &self.origin_check {
+            let origin = req_headers.get(ORIGIN).and_then(|v| v.to_str().ok());
+            if !check.allows(origin) {
+                tracing::debug!(?origin, "rejecting websocket upgrade: origin not allowed");
+                return Err(StatusError::forbidden().brief("websocket origin not allowed"));
+            }
+        }
 
         res.status_code(StatusCode::SWITCHING_PROTOCOLS);
 
@@ -720,6 +818,51 @@ mod tests {
                 }
             })
             .await
+    }
+
+    #[handler]
+    async fn connect_with_allowed_origins(
+        req: &mut Request,
+        res: &mut Response,
+    ) -> Result<(), StatusError> {
+        WebSocketUpgrade::new()
+            .allowed_origins(&["https://allowed.example"])
+            .upgrade(req, res, |_ws| async move {})
+            .await
+    }
+
+    #[test]
+    fn origin_check_allowlist_and_predicate() {
+        let allow = OriginCheck::Allowlist(vec!["https://A.example".to_owned()]);
+        assert!(allow.allows(Some("https://a.example"))); // case-insensitive
+        assert!(!allow.allows(Some("https://evil.example")));
+        assert!(!allow.allows(None)); // a missing Origin is rejected by an allowlist
+
+        let pred = OriginCheck::Predicate(Box::new(|o| o.is_none() || o == Some("https://ok")));
+        assert!(pred.allows(None));
+        assert!(pred.allows(Some("https://ok")));
+        assert!(!pred.allows(Some("https://no")));
+    }
+
+    #[tokio::test]
+    async fn test_websocket_rejects_disallowed_origin() {
+        let router = Router::new().goal(connect_with_allowed_origins);
+        let mut response = TestClient::get("http://127.0.0.1:5801")
+            .add_header(CONNECTION, "Upgrade", true)
+            .add_header(UPGRADE, "websocket", true)
+            .add_header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==", true)
+            .add_header(SEC_WEBSOCKET_VERSION, "13", true)
+            .add_header(ORIGIN, "https://evil.example", true)
+            .send(router)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::FORBIDDEN));
+        assert!(
+            response
+                .take_string()
+                .await
+                .unwrap()
+                .contains("origin not allowed")
+        );
     }
 
     #[tokio::test]
