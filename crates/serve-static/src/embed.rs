@@ -58,6 +58,46 @@ pub fn render_embedded_file(
     render_embedded_data(data, &metadata, req, res, mime);
 }
 
+/// Returns whether an `If-None-Match` header value matches the given hash.
+///
+/// Per RFC 7232 the header is `*` or a list of (possibly weak, `W/`-prefixed)
+/// entity-tags. The opaque value of a quoted tag may itself contain commas, so
+/// the list is parsed quote-aware rather than split on `,`. A bare (unquoted)
+/// tag is also accepted for backward compatibility with the previously emitted
+/// ETag.
+fn if_none_match_matches(if_none_match: &str, hash: &str) -> bool {
+    let mut rest = if_none_match.trim();
+    if rest == "*" {
+        return true;
+    }
+    while !rest.is_empty() {
+        rest = rest.trim_start_matches([' ', '\t', ',']);
+        // An entity-tag may carry a weak indicator; weak/strong both match here.
+        let tag = rest.strip_prefix("W/").unwrap_or(rest);
+        if let Some(after_open) = tag.strip_prefix('"') {
+            // Quoted tag: the opaque value runs up to the next `"` and may
+            // contain commas.
+            match after_open.find('"') {
+                Some(end) => {
+                    if &after_open[..end] == hash {
+                        return true;
+                    }
+                    rest = &after_open[end + 1..];
+                }
+                None => break, // malformed (unterminated quote)
+            }
+        } else {
+            // Bare (legacy) token: runs up to the next comma.
+            let end = tag.find(',').unwrap_or(tag.len());
+            if tag[..end].trim() == hash {
+                return true;
+            }
+            rest = &tag[end..];
+        }
+    }
+    false
+}
+
 fn render_embedded_data(
     data: Cow<'static, [u8]>,
     metadata: &Metadata,
@@ -82,23 +122,29 @@ fn render_embedded_data(
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
 
-    // ETag generation and If-None-Match check
+    // ETag generation and If-None-Match check.
     let hash = hex::encode(metadata.sha256_hash());
-    if req
-        .headers()
-        .get(IF_NONE_MATCH)
-        .map(|etag| etag.to_str().unwrap_or("000000").eq(&hash))
-        .unwrap_or(false)
-    {
-        res.status_code(StatusCode::NOT_MODIFIED);
-        return;
-    }
+    // RFC 7232 entity-tags are quoted; emit a proper `"<hash>"` so conforming
+    // clients echo it verbatim.
+    let etag = format!("\"{hash}\"");
 
-    // Set ETag for all successful responses (200 or 206)
-    if let Ok(etag_val) = hash.parse() {
+    // Set the ETag before any early return so a `304 Not Modified` carries the
+    // same validator a `200`/`206` would (RFC 7232 §4.1), matching the
+    // file-serving path.
+    if let Ok(etag_val) = etag.parse() {
         res.headers_mut().insert(ETAG, etag_val);
     } else {
-        tracing::error!("Failed to parse etag hash: {}", hash);
+        tracing::error!("Failed to parse etag: {etag}");
+    }
+
+    let not_modified = req
+        .headers()
+        .get(IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| if_none_match_matches(value, &hash));
+    if not_modified {
+        res.status_code(StatusCode::NOT_MODIFIED);
+        return;
     }
 
     // Indicate that byte ranges are accepted
@@ -319,5 +365,32 @@ impl EmbeddedFileExt for EmbeddedFile {
     #[inline]
     fn into_handler(self) -> EmbeddedFileHandler {
         EmbeddedFileHandler(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::if_none_match_matches;
+
+    #[test]
+    fn if_none_match_handles_quoted_weak_and_lists() {
+        let hash = "0a1b2c3d";
+        // Quoted form (what the server now emits) and bare legacy form.
+        assert!(if_none_match_matches("\"0a1b2c3d\"", hash));
+        assert!(if_none_match_matches("0a1b2c3d", hash));
+        // Weak validator and wildcard.
+        assert!(if_none_match_matches("W/\"0a1b2c3d\"", hash));
+        assert!(if_none_match_matches("*", hash));
+        // Comma-separated list with surrounding whitespace.
+        assert!(if_none_match_matches("\"other\", \"0a1b2c3d\"", hash));
+        // Non-matches.
+        assert!(!if_none_match_matches("\"deadbeef\"", hash));
+        assert!(!if_none_match_matches("", hash));
+        // A single quoted tag whose opaque value merely contains the hash after a
+        // comma must NOT match (the comma is inside the quotes, not a separator).
+        assert!(!if_none_match_matches("\"other,0a1b2c3d\"", hash));
+        // ...but a genuine two-element list where the second tag's opaque value
+        // contains a comma still matches the first.
+        assert!(if_none_match_matches("\"0a1b2c3d\", \"x,y\"", hash));
     }
 }
