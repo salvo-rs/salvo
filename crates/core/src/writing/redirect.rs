@@ -38,6 +38,18 @@ const PATH_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
 /// characters (e.g., Chinese characters, emoji), so both pre-encoded and
 /// unencoded URLs are accepted.
 ///
+/// # Security
+///
+/// Never build a redirect target directly from untrusted input (a query
+/// parameter, form field, `Referer`, etc.) without validating it first.
+/// Redirecting to an attacker-controlled URL is an [open redirect][owasp],
+/// commonly abused for phishing and for laundering OAuth/SSO callbacks. When
+/// the destination comes from the client, restrict it to a known allowlist or
+/// to same-origin paths (e.g. require it to start with a single `/` and reject
+/// `//`, scheme-relative, and absolute URLs) before constructing the redirect.
+///
+/// [owasp]: https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html
+///
 /// # Example
 ///
 /// ```
@@ -75,7 +87,8 @@ impl Redirect {
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid header value after percent-encoding.
+    /// If `uri` isn't a valid header value after percent-encoding. Use
+    /// [`Redirect::with_status_code`] for a fallible, non-panicking variant.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303
     pub fn other(uri: impl AsRef<str>) -> Self {
@@ -86,7 +99,8 @@ impl Redirect {
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid header value after percent-encoding.
+    /// If `uri` isn't a valid header value after percent-encoding. Use
+    /// [`Redirect::with_status_code`] for a fallible, non-panicking variant.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307
     pub fn temporary(uri: impl AsRef<str>) -> Self {
@@ -97,7 +111,8 @@ impl Redirect {
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid header value after percent-encoding.
+    /// If `uri` isn't a valid header value after percent-encoding. Use
+    /// [`Redirect::with_status_code`] for a fallible, non-panicking variant.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/308
     pub fn permanent(uri: impl AsRef<str>) -> Self {
@@ -113,7 +128,8 @@ impl Redirect {
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid header value after percent-encoding.
+    /// If `uri` isn't a valid header value after percent-encoding. Use
+    /// [`Redirect::with_status_code`] for a fallible, non-panicking variant.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
     pub fn found(uri: impl AsRef<str>) -> Self {
