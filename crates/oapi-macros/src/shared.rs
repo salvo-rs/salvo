@@ -5,7 +5,6 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Delimiter, Group, Punct, Span, TokenStream};
 use proc_macro2_diagnostics::Diagnostic;
 use quote::{ToTokens, TokenStreamExt, quote};
-use regex::Regex;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
@@ -93,11 +92,30 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType<'_> {
     }
 }
 
+/// Replace every named lifetime in a type path with the elided `'_`, leaving
+/// `'static` intact, so the type can be used in an `Extractible` bound without
+/// carrying caller lifetimes. Operates on the AST via [`VisitMut`] rather than
+/// re-parsing a stringified type, which avoids a per-call regex compile, the
+/// previous `'static` mis-rewrite, and the parse `expect` panic.
 pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
-    let reg = Regex::new(r"'\w+").expect("invalid regex");
-    let ty_path = ty_path.into_token_stream().to_string();
-    let ty_path = reg.replace_all(&ty_path, "'_");
-    syn::parse_str(ty_path.as_ref()).expect("failed to parse type path")
+    struct ElideLifetimes {
+        elided: syn::Lifetime,
+    }
+    impl syn::visit_mut::VisitMut for ElideLifetimes {
+        fn visit_lifetime_mut(&mut self, lifetime: &mut syn::Lifetime) {
+            if lifetime.ident != "static" {
+                *lifetime = self.elided.clone();
+            }
+        }
+    }
+    let mut ty_path = ty_path.clone();
+    syn::visit_mut::VisitMut::visit_type_path_mut(
+        &mut ElideLifetimes {
+            elided: syn::parse_quote!('_),
+        },
+        &mut ty_path,
+    );
+    ty_path
 }
 
 pub(crate) trait TryToTokens {
@@ -446,5 +464,38 @@ pub(crate) struct FieldRename;
 impl Rename for FieldRename {
     fn rename(rule: RenameRule, value: &str) -> String {
         rule.apply_to_field(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+    use syn::TypePath;
+
+    use super::omit_type_path_lifetimes;
+
+    fn elide(src: &str) -> String {
+        let ty: TypePath = syn::parse_str(src).unwrap();
+        omit_type_path_lifetimes(&ty)
+            .into_token_stream()
+            .to_string()
+    }
+
+    #[test]
+    fn omit_replaces_named_lifetimes_with_elided() {
+        assert_eq!(elide("QueryParam<'a, T>"), "QueryParam < '_ , T >");
+        assert_eq!(elide("Foo<'a, 'b, T>"), "Foo < '_ , '_ , T >");
+    }
+
+    #[test]
+    fn omit_keeps_static_lifetime() {
+        assert_eq!(elide("Cow<'static, str>"), "Cow < 'static , str >");
+        // Mixed: only the named lifetime is elided, `'static` is preserved.
+        assert_eq!(elide("Foo<'a, 'static, T>"), "Foo < '_ , 'static , T >");
+    }
+
+    #[test]
+    fn omit_leaves_lifetime_free_types_untouched() {
+        assert_eq!(elide("Vec<String>"), "Vec < String >");
     }
 }

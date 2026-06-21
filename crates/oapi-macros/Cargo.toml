@@ -41,7 +41,7 @@ proc-macro-crate = { workspace = true }
 proc-macro2-diagnostics = { workspace = true }
 regex = { workspace = true }
 salvo-serde-util = { workspace = true }
-syn = { workspace = true, features = ["full", "extra-traits"] }
+syn = { workspace = true, features = ["full", "extra-traits", "visit-mut"] }
 salvo_core = { workspace = true }
 
 [dev-dependencies]
