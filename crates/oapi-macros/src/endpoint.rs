@@ -41,8 +41,8 @@ fn metadata(
         None
     } else {
         Some(quote! {{
-            let mut components = &mut components;
-            let mut operation = &mut operation;
+            let components = &mut components;
+            let operation = &mut operation;
             #(#modifiers)*
         }})
     };
