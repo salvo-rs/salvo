@@ -47,6 +47,11 @@ pub struct RequestId {
     /// The header name used to carry the request id.
     pub header_name: HeaderName,
     /// Whether to overwrite an existing request id. Default is `true`.
+    ///
+    /// When set to `false`, a client-supplied id in the request header is trusted
+    /// and propagated to logs, the response and the depot. Only disable this
+    /// behind a trusted proxy that sets/sanitizes the header, otherwise a client
+    /// can inject arbitrary ids (log forging / trace-correlation confusion).
     pub overwrite: bool,
     /// The generator used to produce request ids.
     pub generator: Box<dyn IdGenerator + Send + Sync>,
@@ -80,6 +85,12 @@ impl RequestId {
     }
 
     /// Set whether to overwrite an existing request id. Default is `true`.
+    ///
+    /// # Security
+    ///
+    /// With `false`, a client-supplied id is trusted and forwarded to logs, the
+    /// response and the depot. Only disable overwriting when a trusted proxy
+    /// sets/sanitizes the header; otherwise clients can inject arbitrary ids.
     #[must_use]
     pub fn overwrite(mut self, overwrite: bool) -> Self {
         self.overwrite = overwrite;
