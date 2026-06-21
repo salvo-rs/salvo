@@ -33,6 +33,12 @@ where
     }
 
     /// Sets the max capacity of the cache.
+    ///
+    /// This counts the **number of entries**, not their total size in bytes.
+    /// Since cached entries hold full response bodies, a cache bounded only by
+    /// entry count can still grow unbounded in memory when individual responses
+    /// are large. To bound by bytes instead, build the underlying moka cache
+    /// with a `weigher` that returns each entry's byte size.
     #[must_use] pub fn max_capacity(mut self, capacity: u64) -> Self {
         self.inner = self.inner.max_capacity(capacity);
         self
