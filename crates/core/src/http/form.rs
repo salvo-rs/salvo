@@ -179,6 +179,19 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
+    ///
+    /// # Security
+    ///
+    /// This streams the entire field to a temporary file with **no size limit
+    /// of its own** — it writes until the field ends. Reached through
+    /// [`Request::form_data`](crate::http::Request::form_data) the body is
+    /// already bounded by the request's secure-max-size limit (configurable via
+    /// [`Request::set_secure_max_size`](crate::http::Request::set_secure_max_size),
+    /// the [`set_global_secure_max_size`](crate::http::request::set_global_secure_max_size)
+    /// default, or the `SecureMaxSize` middleware). If you instead call this
+    /// directly on an otherwise unbounded `Field`, a client can fill the
+    /// temporary directory's disk (denial of service), so bound the request
+    /// body yourself first.
     pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
         // Setup a file to capture the contents.
         // Map the `JoinError` to a `ParseError` instead of panicking, so a
