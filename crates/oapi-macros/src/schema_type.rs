@@ -443,7 +443,6 @@ impl TryToTokens for Type<'_> {
             #[cfg(feature="non-strict-integers")]
             "u16" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt16) }),
             #[cfg(feature="non-strict-integers")]
-            #[cfg(feature="non-strict-integers")]
             "u32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt32) }),
             #[cfg(feature="non-strict-integers")]
             "u64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::UInt64) }),
