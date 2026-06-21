@@ -135,7 +135,13 @@ cfg_feature! {
 pub trait RateIssuer: Send + Sync + 'static {
     /// The key type that uniquely identifies a rate-limited subject (e.g. client IP, user id).
     type Key: Hash + Eq + Send + Sync + 'static;
-    /// Issue a key for the request. If it returns `None`, the request will not be rate-limited.
+    /// Issue a key identifying the rate-limited subject for this request.
+    ///
+    /// Returning `None` means the subject could not be identified: the
+    /// [`RateLimiter`] handler then rejects the request with `400 Bad Request`
+    /// (`"invalid identifier"`) and skips the rest of the chain. It does **not**
+    /// let the request through unlimited, so an issuer that wants to exempt
+    /// certain requests should pair the limiter with a [`Skipper`] instead.
     fn issue(
         &self,
         req: &mut Request,
