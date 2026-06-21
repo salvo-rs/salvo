@@ -8,11 +8,33 @@ use crate::{Array, DiagResult, InputType, Operation, omit_type_path_lifetimes, p
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
+/// Build a valid identifier usable as a suffix in generated function names from an
+/// arbitrary self type. Any character that is not allowed in an identifier (`:`, `<`,
+/// `>`, `,`, whitespace, ...) is replaced with `_`, so qualified or generic types such
+/// as `path::Foo` or `Foo<T>` no longer panic the way `Ident::new(ty.to_string())` did.
+fn type_name_suffix(ty: &Type) -> Ident {
+    let raw = ty.to_token_stream().to_string();
+    let mut sanitized = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            sanitized.push(ch);
+        } else {
+            sanitized.push('_');
+        }
+    }
+    // An identifier may not be empty nor start with a digit.
+    if sanitized.is_empty() || sanitized.starts_with(|c: char| c.is_ascii_digit()) {
+        sanitized.insert(0, '_');
+    }
+    Ident::new(&sanitized, Span::call_site())
+}
+
 fn metadata(
     salvo: &Ident,
     oapi: &Ident,
     attr: &EndpointAttr,
     name: &Ident,
+    type_path: &TokenStream,
     mut modifiers: Vec<TokenStream>,
 ) -> DiagResult<TokenStream> {
     let tfn = Ident::new(
@@ -48,7 +70,7 @@ fn metadata(
     };
     let stream = quote! {
         fn #tfn() -> ::std::any::TypeId {
-            ::std::any::TypeId::of::<#name>()
+            ::std::any::TypeId::of::<#type_path>()
         }
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
@@ -56,7 +78,7 @@ fn metadata(
             let mut operation = #oapi::oapi::Operation::new();
             #modifiers
             if operation.operation_id.is_none() {
-                operation.operation_id = Some(#oapi::oapi::naming::assign_name::<#name>(#oapi::oapi::naming::NameRule::Auto));
+                operation.operation_id = Some(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto));
             }
             if !status_codes.is_empty() {
                 let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
@@ -121,7 +143,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             };
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
-            let meta = metadata(&salvo, &oapi, &attr, name, modifiers)?;
+            let meta = metadata(&salvo, &oapi, &attr, name, &quote! { #name }, modifiers)?;
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -158,8 +180,12 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
-            let name = Ident::new(&ty.to_token_stream().to_string(), Span::call_site());
-            let meta = metadata(&salvo, &oapi, &attr, &name, modifiers)?;
+            // The self type is used verbatim for `TypeId::of` / `assign_name`, while a
+            // sanitized identifier derived from it names the generated helper fns. This
+            // avoids panicking on qualified or generic self types like `path::Foo` or
+            // `Foo<T>` (the old `Ident::new(ty.to_string())` rejected `:`, `<`, spaces).
+            let name = type_name_suffix(ty);
+            let meta = metadata(&salvo, &oapi, &attr, &name, &quote! { #ty }, modifiers)?;
 
             Ok(quote! {
                 #item_impl
@@ -294,7 +320,7 @@ mod tests {
     use quote::quote;
     use syn::{Ident, Signature, parse_str};
 
-    use super::handle_fn;
+    use super::{handle_fn, type_name_suffix};
 
     #[test]
     fn test_handle_fn() {
@@ -327,5 +353,37 @@ mod tests {
             <String as salvo_oapi::oapi::EndpointArgRegister>::register(components, operation, "name");
         };
         assert_eq!(modifiers[0].to_string(), expected_modifier.to_string());
+    }
+
+    #[test]
+    fn type_name_suffix_sanitizes_qualified_and_generic_types() {
+        // Each of these used to panic `Ident::new`; now they yield valid idents.
+        for src in ["Foo", "path::to::Foo", "Foo<T>", "Foo<'a, T>"] {
+            let ty: syn::Type = parse_str(src).unwrap();
+            let id = type_name_suffix(&ty).to_string();
+            assert!(!id.is_empty());
+            assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
+            assert!(!id.starts_with(|c: char| c.is_ascii_digit()));
+        }
+        // A plain type is unchanged.
+        assert_eq!(
+            type_name_suffix(&parse_str("Foo").unwrap()).to_string(),
+            "Foo"
+        );
+    }
+
+    #[test]
+    fn endpoint_on_impl_accepts_qualified_self_type() {
+        let attr: super::EndpointAttr = syn::parse2(quote! {}).unwrap();
+        let item: syn::Item = parse_str("impl a::b::Foo { fn handle(&self) {} }").unwrap();
+        // This used to panic at `Ident::new("a :: b :: Foo")`; now it succeeds.
+        let text = super::generate(attr, item)
+            .expect("qualified self type should not panic")
+            .to_string();
+        // The full self type is used verbatim in the type-level positions...
+        assert!(text.contains("TypeId :: of :: < a :: b :: Foo >"));
+        assert!(text.contains("assign_name :: < a :: b :: Foo >"));
+        // ...while the generated helper fns get a sanitized identifier suffix.
+        assert!(text.contains("__macro_gen_oapi_endpoint_type_id_a"));
     }
 }
