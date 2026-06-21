@@ -183,15 +183,21 @@ impl FilePart {
     /// # Security
     ///
     /// This streams the entire field to a temporary file with **no size limit
-    /// of its own** — it writes until the field ends. Reached through
-    /// [`Request::form_data`](crate::http::Request::form_data) the body is
-    /// already bounded by the request's secure-max-size limit (configurable via
+    /// of its own** — it writes until the field ends. When the body is read for
+    /// the first time through
+    /// [`Request::form_data`](crate::http::Request::form_data) it is bounded by
+    /// the request's secure-max-size limit (configurable via
     /// [`Request::set_secure_max_size`](crate::http::Request::set_secure_max_size),
     /// the [`set_global_secure_max_size`](crate::http::request::set_global_secure_max_size)
-    /// default, or the `SecureMaxSize` middleware). If you instead call this
-    /// directly on an otherwise unbounded `Field`, a client can fill the
-    /// temporary directory's disk (denial of service), so bound the request
-    /// body yourself first.
+    /// default, or the `SecureMaxSize` middleware).
+    ///
+    /// That guarantee only covers the **first** read of the body: if the body
+    /// was already consumed and cached by an earlier `payload`/`payload_with_max_size`
+    /// call (possibly under a larger limit or none), `form_data` reuses the
+    /// cached payload without re-applying the limit. In that case, or when
+    /// calling `create` directly on an otherwise unbounded `Field`, a client can
+    /// fill the temporary directory's disk (denial of service), so make sure the
+    /// request body is bounded before the first read.
     pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
         // Setup a file to capture the contents.
         // Map the `JoinError` to a `ParseError` instead of panicking, so a
