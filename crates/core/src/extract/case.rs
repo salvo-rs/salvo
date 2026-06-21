@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use self::RenameRule::{
@@ -78,11 +79,14 @@ impl RenameRule {
     }
 
     /// Apply a renaming rule to a struct field, returning the version expected in the source.
+    ///
+    /// Returns `Cow::Borrowed` for the no-op rules (`snake_case`/`lowercase`),
+    /// avoiding an allocation on that hot path; the other rules allocate.
     #[must_use]
-    pub fn apply_to_field(self, field: &str) -> String {
+    pub fn apply_to_field(self, field: &str) -> Cow<'_, str> {
         match self {
-            LowerCase | SnakeCase => field.to_owned(),
-            UpperCase | ScreamingSnakeCase => field.to_ascii_uppercase(),
+            LowerCase | SnakeCase => Cow::Borrowed(field),
+            UpperCase | ScreamingSnakeCase => Cow::Owned(field.to_ascii_uppercase()),
             PascalCase => {
                 let mut pascal = String::new();
                 let mut capitalize = true;
@@ -96,14 +100,13 @@ impl RenameRule {
                         pascal.push(ch);
                     }
                 }
-                pascal
+                Cow::Owned(pascal)
             }
-            CamelCase => {
-                let pascal = PascalCase.apply_to_field(field);
-                lowercase_first_char(&pascal)
+            CamelCase => Cow::Owned(lowercase_first_char(&PascalCase.apply_to_field(field))),
+            KebabCase => Cow::Owned(field.replace('_', "-")),
+            ScreamingKebabCase => {
+                Cow::Owned(ScreamingSnakeCase.apply_to_field(field).replace('_', "-"))
             }
-            KebabCase => field.replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase.apply_to_field(field).replace('_', "-"),
         }
     }
 }
