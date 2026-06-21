@@ -150,8 +150,13 @@ where
 /// negotiating middleware must run **outside** the cache — added to the router
 /// *before* the cache hoop — so it re-negotiates on every request, including
 /// cache hits. Alternatively, use a custom [`CacheIssuer`] that folds the
-/// relevant headers into the key, or ensure upstream sets an appropriate
-/// `Vary` header.
+/// relevant headers into the key.
+///
+/// Note that a `Vary` response header is **not** a fix here: the store never
+/// evaluates `Vary` at lookup time. With the default `cache_private(false)` a
+/// `Vary` response is simply not cached at all, and with `cache_private(true)`
+/// it is cached under the same key and replayed regardless of the request's
+/// negotiation headers.
 #[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,
