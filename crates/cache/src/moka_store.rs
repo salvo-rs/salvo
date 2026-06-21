@@ -33,8 +33,32 @@ where
     }
 
     /// Sets the max capacity of the cache.
+    ///
+    /// By default this counts the **number of entries**, not their total size in
+    /// bytes. Since cached entries hold full response bodies, a cache bounded
+    /// only by entry count can still grow unbounded in memory when individual
+    /// responses are large. To bound by bytes instead, set a [`weigher`] that
+    /// returns each entry's size; `max_capacity` is then interpreted as the
+    /// maximum total weight.
+    ///
+    /// [`weigher`]: Self::weigher
     #[must_use] pub fn max_capacity(mut self, capacity: u64) -> Self {
         self.inner = self.inner.max_capacity(capacity);
+        self
+    }
+
+    /// Sets a weigher that returns the size of each entry, so that
+    /// [`max_capacity`](Self::max_capacity) bounds the cache by total weight
+    /// (e.g. bytes) rather than entry count.
+    ///
+    /// A common choice is the cached body's byte length, which keeps memory use
+    /// bounded even when a few responses are very large.
+    #[must_use]
+    pub fn weigher(
+        mut self,
+        weigher: impl Fn(&K, &CachedEntry) -> u32 + Send + Sync + 'static,
+    ) -> Self {
+        self.inner = self.inner.weigher(weigher);
         self
     }
 
@@ -228,6 +252,50 @@ mod tests {
         store.save_entry("key2".to_owned(), entry.clone()).await.unwrap();
         
         // Try to get the key to give time to the eviction listener to run.
+        for _ in 0..10 {
+            store.load_entry(&"key1".to_owned()).await;
+            store.load_entry(&"key2".to_owned()).await;
+            if evicted.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        assert!(evicted.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_weigher_bounds_by_bytes() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        fn body_len(entry: &CachedEntry) -> u32 {
+            match &entry.body {
+                CachedBody::None => 0,
+                CachedBody::Once(bytes) => bytes.len() as u32,
+                CachedBody::Chunks(chunks) => {
+                    chunks.iter().map(|c| c.len()).sum::<usize>() as u32
+                }
+            }
+        }
+
+        let evicted = Arc::new(AtomicBool::new(false));
+        let evicted_clone = evicted.clone();
+        // Weigh by body bytes; cap total weight so two 9-byte bodies can't coexist.
+        let store = MokaStore::<String>::builder()
+            .weigher(|_k, entry| body_len(entry))
+            .max_capacity(12)
+            .eviction_listener(move |_, _, _| {
+                evicted_clone.store(true, Ordering::SeqCst);
+            })
+            .build();
+        let entry = CachedEntry {
+            status: None,
+            headers: HeaderMap::new(),
+            body: CachedBody::Once("test_body".into()), // 9 bytes
+        };
+        store.save_entry("key1".to_owned(), entry.clone()).await.unwrap();
+        store.save_entry("key2".to_owned(), entry.clone()).await.unwrap();
+
         for _ in 0..10 {
             store.load_entry(&"key1".to_owned()).await;
             store.load_entry(&"key2".to_owned()).await;

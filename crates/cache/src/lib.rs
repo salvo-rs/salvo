@@ -135,6 +135,28 @@ where
 }
 
 /// Identify cacheable requests by their URI.
+///
+/// # Caveats
+///
+/// The generated key is derived only from the request's scheme, authority,
+/// path, query, and (optionally) method. It does **not** include content
+/// negotiation headers such as `Accept-Encoding` or `Accept`. If the cached
+/// responses vary by those headers — for example when a compression middleware
+/// also runs — a client may receive a representation encoded for a different
+/// request (e.g. a `gzip` body without `Accept-Encoding: gzip`).
+///
+/// The cache stores the response produced by the handlers *inside* it (`hoop`s
+/// run outer-to-inner and the entry is captured on the way back out), so the
+/// negotiating middleware must run **outside** the cache — added to the router
+/// *before* the cache hoop — so it re-negotiates on every request, including
+/// cache hits. Alternatively, use a custom [`CacheIssuer`] that folds the
+/// relevant headers into the key.
+///
+/// Note that a `Vary` response header is **not** a fix here: the store never
+/// evaluates `Vary` at lookup time. With the default `cache_private(false)` a
+/// `Vary` response is simply not cached at all, and with `cache_private(true)`
+/// it is cached under the same key and replayed regardless of the request's
+/// negotiation headers.
 #[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,
