@@ -482,7 +482,7 @@ impl<'de> RequestDeserializer<'de> {
             if self.fill_value(field) {
                 return field.serde_rename.map(Cow::from).or_else(|| {
                     if let Some(serde_rename_all) = self.metadata.serde_rename_all {
-                        Some(Cow::Owned(serde_rename_all.apply_to_field(field.decl_name)))
+                        Some(serde_rename_all.apply_to_field(field.decl_name))
                     } else {
                         Some(Cow::from(field.decl_name))
                     }
