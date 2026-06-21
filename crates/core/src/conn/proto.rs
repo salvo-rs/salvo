@@ -32,6 +32,21 @@ use crate::rt::tokio::TokioExecutor;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
+/// Fallback timeout for the initial protocol-detection read when no fusewire is
+/// configured. A connection that opens but never sends bytes would otherwise keep
+/// the detection read pending forever (Slowloris-style connection leak). The value
+/// is intentionally generous — real clients send the request line / HTTP/2 preface
+/// immediately — and only bounds this one initial read, not established connections.
+/// Configure a [`fuse_factory`](crate::Server::fuse_factory) for finer-grained
+/// handshake/idle timeouts.
+///
+/// This relies on the Tokio **time driver**, so the server must run on a runtime
+/// built with timers enabled (`#[tokio::main]` and `Runtime::new()` enable them;
+/// a hand-built runtime needs `enable_time()` / `enable_all()`). That matches the
+/// rest of the server (graceful-shutdown and fuse timeouts already use timers).
+#[cfg(all(feature = "http1", feature = "http2"))]
+const PROTOCOL_DETECT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 #[doc(hidden)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
@@ -95,7 +110,15 @@ impl HttpBuilder {
                 },
             }
         } else {
-            read_version(socket).await?
+            // No fusewire: still bound the protocol-detection read so a connection
+            // that never sends bytes can't leak a task indefinitely.
+            match tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)).await {
+                Ok(result) => result?,
+                Err(_) => {
+                    tracing::info!("closing connection: protocol-detection read timed out");
+                    return Ok(());
+                }
+            }
         };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
         let version = Version::HTTP_11; // Just make the compiler happy.
