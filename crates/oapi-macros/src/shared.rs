@@ -107,6 +107,13 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
                 *lifetime = self.elided.clone();
             }
         }
+        fn visit_macro_mut(&mut self, mac: &mut syn::Macro) {
+            // `VisitMut` does not parse macro bodies, so a lifetime carried inside a
+            // type macro (e.g. `JsonBody<borrowed!('a)>`) would otherwise survive.
+            // Rewrite the raw tokens so it is elided like any other.
+            let tokens = std::mem::take(&mut mac.tokens);
+            mac.tokens = elide_lifetimes_in_tokens(tokens, &self.elided);
+        }
     }
     let mut ty_path = ty_path.clone();
     syn::visit_mut::VisitMut::visit_type_path_mut(
@@ -116,6 +123,39 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
         &mut ty_path,
     );
     ty_path
+}
+
+/// Rewrite lifetime tokens (`'name`, except `'static`) to the elided `'_` inside a
+/// raw token stream, recursing through groups. Used for macro bodies that
+/// [`VisitMut`] does not descend into.
+fn elide_lifetimes_in_tokens(tokens: TokenStream, elided: &syn::Lifetime) -> TokenStream {
+    use proc_macro2::TokenTree;
+
+    let mut out = TokenStream::new();
+    let mut iter = tokens.into_iter().peekable();
+    while let Some(tt) = iter.next() {
+        match tt {
+            TokenTree::Group(group) => {
+                let inner = elide_lifetimes_in_tokens(group.stream(), elided);
+                let mut new_group = Group::new(group.delimiter(), inner);
+                new_group.set_span(group.span());
+                out.extend([TokenTree::Group(new_group)]);
+            }
+            TokenTree::Punct(punct) if punct.as_char() == '\'' => {
+                // A lifetime is an apostrophe immediately followed by an identifier.
+                if let Some(TokenTree::Ident(ident)) = iter.peek()
+                    && *ident != "static"
+                {
+                    elided.to_tokens(&mut out);
+                    iter.next(); // consume the lifetime name
+                    continue;
+                }
+                out.extend([TokenTree::Punct(punct)]);
+            }
+            other => out.extend([other]),
+        }
+    }
+    out
 }
 
 pub(crate) trait TryToTokens {
@@ -497,5 +537,15 @@ mod tests {
     #[test]
     fn omit_leaves_lifetime_free_types_untouched() {
         assert_eq!(elide("Vec<String>"), "Vec < String >");
+    }
+
+    #[test]
+    fn omit_rewrites_lifetimes_inside_type_macros() {
+        // `VisitMut` does not descend into macro bodies, so the raw tokens are
+        // rewritten directly; `'static` is still preserved.
+        let out = elide("JsonBody<borrowed!('a, 'static)>");
+        assert!(out.contains("'_"), "{out}");
+        assert!(out.contains("'static"), "{out}");
+        assert!(!out.contains("'a"), "{out}");
     }
 }
