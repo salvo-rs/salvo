@@ -331,15 +331,46 @@ impl<A: Acceptor + Send> Server<A> {
 
             let service: Arc<Service> = Arc::new(service.into());
             let builder = Arc::new(builder);
+            // Apply a received stop command. Used from both the permit-acquire and the
+            // accept `select!` so shutdown is observed even while saturated.
+            macro_rules! handle_stop_command {
+                ($cmd:expr) => {
+                    match $cmd {
+                        ServerCommand::StopGraceful(timeout) => {
+                            graceful_stop_token.cancel();
+                            if let Some(timeout) = timeout {
+                                tracing::info!(
+                                    timeout_in_seconds = timeout.as_secs_f32(),
+                                    "initiate graceful stop server",
+                                );
+                                let force_stop_token = force_stop_token.clone();
+                                tokio::spawn(async move {
+                                    tokio::time::sleep(timeout).await;
+                                    force_stop_token.cancel();
+                                });
+                            } else {
+                                tracing::info!("initiate graceful stop server");
+                            }
+                        }
+                        ServerCommand::StopForceful => {
+                            tracing::info!("force stop server");
+                            force_stop_token.cancel();
+                        }
+                    }
+                };
+            }
             loop {
                 // Acquire a connection permit before accepting (backpressure when at
-                // `max_connections`). Race it against the stop tokens so a saturated
-                // server can still observe shutdown instead of blocking forever.
+                // `max_connections`). Race it against the stop channel so a *saturated*
+                // server (no free permit) still observes shutdown instead of blocking
+                // the accept loop forever in `acquire_owned`.
                 let permit = if let Some(semaphore) = &conn_semaphore {
                     tokio::select! {
                         biased;
-                        _ = force_stop_token.cancelled() => break,
-                        _ = graceful_stop_token.cancelled() => break,
+                        Some(cmd) = rx_cmd.recv() => {
+                            handle_stop_command!(cmd);
+                            break;
+                        }
                         permit = semaphore.clone().acquire_owned() => {
                             Some(permit.expect("connection semaphore is never closed"))
                         }
@@ -393,30 +424,7 @@ impl<A: Acceptor + Send> Server<A> {
                         }
                     }
                     Some(cmd) = rx_cmd.recv() => {
-                        match cmd {
-                            ServerCommand::StopGraceful(timeout) => {
-                                let graceful_stop_token = graceful_stop_token.clone();
-                                graceful_stop_token.cancel();
-                                if let Some(timeout) = timeout {
-                                    tracing::info!(
-                                        timeout_in_seconds = timeout.as_secs_f32(),
-                                        "initiate graceful stop server",
-                                    );
-
-                                    let force_stop_token = force_stop_token.clone();
-                                    tokio::spawn(async move {
-                                        tokio::time::sleep(timeout).await;
-                                        force_stop_token.cancel();
-                                    });
-                                } else {
-                                    tracing::info!("initiate graceful stop server");
-                                }
-                            },
-                            ServerCommand::StopForceful => {
-                                tracing::info!("force stop server");
-                                force_stop_token.cancel();
-                            },
-                        }
+                        handle_stop_command!(cmd);
                         break;
                     },
                 }
@@ -669,31 +677,51 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "server-handle")]
     #[tokio::test]
-    async fn test_server_max_connections_still_stops() {
+    async fn test_server_max_connections_stops_while_saturated() {
         use std::time::Duration;
+
+        use tokio::io::AsyncWriteExt;
         use tokio::time::timeout;
 
-        // A connection-limited server must still observe graceful/forceful stop —
-        // the permit acquisition races the stop tokens, so it can't deadlock the
-        // accept loop while waiting for a permit.
-        for force in [true, false] {
-            let acceptor = crate::conn::TcpListener::new("127.0.0.1:0").bind().await;
-            let server = Server::new(acceptor).max_connections(1);
-            let handle = server.handle();
-            let server_task = tokio::spawn(server.try_serve(Router::new()));
+        use crate::conn::Acceptor;
 
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            if force {
-                handle.stop_forceful();
-            } else {
-                handle.stop_graceful(None);
-            }
-
-            let result = timeout(Duration::from_secs(1), server_task).await;
-            assert!(result.is_ok(), "limited server should stop within 1s");
-            assert!(result.unwrap().unwrap().is_ok(), "try_serve should return Ok");
+        // A long-lived handler so the single allowed connection stays open and the
+        // accept loop is parked in `acquire_owned` with no free permit.
+        #[handler]
+        async fn slow() {
+            tokio::time::sleep(Duration::from_secs(30)).await;
         }
+
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor).max_connections(1);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new().goal(slow)));
+
+        // Saturate the single permit: open a connection and send a request that the
+        // slow handler keeps busy, so no permit is free.
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        stream
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Force stop must break the accept loop even though it is saturated.
+        handle.stop_forceful();
+        let result = timeout(Duration::from_secs(2), server_task).await;
+        assert!(
+            result.is_ok(),
+            "saturated connection-limited server must still force-stop"
+        );
+        assert!(result.unwrap().unwrap().is_ok(), "try_serve should return Ok");
+        drop(stream);
     }
 
     #[test]
