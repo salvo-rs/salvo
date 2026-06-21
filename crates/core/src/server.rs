@@ -390,7 +390,17 @@ impl<A: Acceptor + Send> Server<A> {
                     "wait for {} connections to close.",
                     alive_connections.load(Ordering::Acquire)
                 );
-                notify.notified().await;
+                // Re-check in a loop and also wake on a force-stop: a connection that
+                // ignores `force_stop_token` would otherwise never decrement the count,
+                // so a single `notify.notified().await` could hang shutdown forever.
+                while !force_stop_token.is_cancelled()
+                    && alive_connections.load(Ordering::Acquire) > 0
+                {
+                    tokio::select! {
+                        _ = notify.notified() => {}
+                        _ = force_stop_token.cancelled() => break,
+                    }
+                }
             }
 
             tracing::info!("server stopped");
