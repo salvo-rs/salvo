@@ -39,6 +39,11 @@ const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 /// immediately — and only bounds this one initial read, not established connections.
 /// Configure a [`fuse_factory`](crate::Server::fuse_factory) for finer-grained
 /// handshake/idle timeouts.
+///
+/// This relies on the Tokio **time driver**, so the server must run on a runtime
+/// built with timers enabled (`#[tokio::main]` and `Runtime::new()` enable them;
+/// a hand-built runtime needs `enable_time()` / `enable_all()`). That matches the
+/// rest of the server (graceful-shutdown and fuse timeouts already use timers).
 #[cfg(all(feature = "http1", feature = "http2"))]
 const PROTOCOL_DETECT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
