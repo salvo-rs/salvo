@@ -571,4 +571,39 @@ mod tests {
             .await;
         assert_eq!(res.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
+
+    /// Regression test for [#925](https://github.com/salvo-rs/salvo/pull/925).
+    #[tokio::test]
+    async fn test_default_status_ok_visible_to_service_middleware() {
+        #[handler]
+        async fn goal(res: &mut Response) {
+            res.render("ok");
+        }
+
+        #[handler]
+        async fn check_status(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
+            ctrl.call_next(req, depot, res).await;
+
+            assert_eq!(
+                res.status_code,
+                Some(StatusCode::OK),
+                "service middleware should observe implicit 200 after call_next"
+            );
+        }
+
+        let router = Router::new().goal(goal);
+
+        let service = Service::new(router).hoop(check_status);
+
+        let res = TestClient::get("http://127.0.0.1:5802/")
+            .send(&service)
+            .await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+    }
 }
