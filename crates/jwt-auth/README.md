@@ -111,16 +111,15 @@ middleware. The middleware extracts the token and stores the decoded claims, but
 claim validation is performed by the configured `JwtAuthDecoder`.
 
 For static keys, use `ConstDecoder::with_validation` when your service needs to
-accept tokens only for a specific audience. Configure `jsonwebtoken::Validation`
-before constructing the decoder:
+accept tokens only for a specific audience. Configure `Validation` before
+constructing the decoder:
 
 ```rust
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use salvo::jwt_auth::ConstDecoder;
+use salvo::jwt_auth::{Algorithm, ConstDecoder, DecodingKey, Validation};
 
 let mut validation = Validation::new(Algorithm::HS256);
 validation.set_audience(&["api://salvo-service"]);
-validation.validate_aud = true;
+validation.required_spec_claims.insert("aud".to_owned());
 
 let decoder = ConstDecoder::with_validation(
     DecodingKey::from_secret(SECRET),
@@ -152,8 +151,9 @@ let decoder = OidcDecoder::builder("https://issuer.example.com")
 
 Troubleshooting audience failures:
 
-- Make sure the token actually contains an `aud` claim; enabling audience
-  validation requires the claim to be present.
+- Make sure the token actually contains an `aud` claim. `OidcDecoder::new` and
+  `.audiences(...)` require it automatically; for static keys, add `aud` to
+  `required_spec_claims` if the claim must be present.
 - Match the exact audience string issued by your identity provider, including
   prefixes such as `api://` when they are part of the configured audience.
 - For OIDC tokens, pass the application/API audience, not the issuer URL. The
