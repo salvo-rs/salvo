@@ -114,8 +114,6 @@ impl FlowCtrl {
                     self.skip_rest();
                     return true;
                 }
-            } else {
-                continue;
             }
         }
         self.cursor > start

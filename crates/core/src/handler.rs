@@ -401,7 +401,7 @@ impl Handler for HoopedHandler {
                 .cloned()
                 .chain([inner])
                 .map(Some)
-                .chain(right.into_iter()),
+                .chain(right),
         );
         ctrl.call_next(req, depot, res).await;
     }
