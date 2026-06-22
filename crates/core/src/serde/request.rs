@@ -1157,4 +1157,49 @@ mod tests {
             }
         );
     }
+
+    #[tokio::test]
+    async fn test_de_request_with_salvo_flatten() {
+        // `#[salvo(extract(flatten))]` flattens an extractible sub-struct: its
+        // fields are pulled from the same (flat) request sources as the parent.
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
+        struct Inner {
+            name: String,
+            age: usize,
+        }
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
+        struct RequestData {
+            id: u64,
+            #[salvo(extract(flatten))]
+            inner: Inner,
+        }
+        #[derive(Serialize)]
+        struct Body {
+            id: u64,
+            name: &'static str,
+            age: usize,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:8698/test")
+            .json(&Body {
+                id: 7,
+                name: "chris",
+                age: 20,
+            })
+            .build();
+        let mut depot = Depot::new();
+        let data: RequestData = req.extract(&mut depot).await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                id: 7,
+                inner: Inner {
+                    name: "chris".to_owned(),
+                    age: 20,
+                },
+            }
+        );
+    }
 }
