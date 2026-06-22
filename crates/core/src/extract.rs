@@ -27,8 +27,10 @@
 //! }
 //! ```
 //!
-//! Extracted types can be nested. Use `#[salvo(extract(flatten))]` or
-//! `#[serde(flatten)]` when a nested type should be parsed from the same request:
+//! Extracted types can be nested. Use `#[salvo(extract(flatten))]` when a nested
+//! extractible type should be parsed from the same request. (`#[serde(flatten)]`
+//! is not supported on `#[derive(Extractible)]` fields — it conflicts with
+//! Salvo's extraction and is rejected at compile time; use the attribute below.)
 //!
 //! ```
 //! # use salvo_core::prelude::*;
@@ -44,7 +46,7 @@
 //!     last_name: String,
 //!     lovers: Vec<String>,
 //!     /// The nested field is parsed from the same request.
-//!     #[serde(flatten)]
+//!     #[salvo(extract(flatten))]
 //!     nested: Nested<'a>,
 //! }
 //!

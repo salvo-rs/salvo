@@ -62,7 +62,19 @@ impl TryFrom<&Field> for FieldInfo {
         } else {
             (None, Vec::new(), false)
         };
-        let flatten = flatten.unwrap_or(serde_flatten);
+        // `#[serde(flatten)]` drives serde's own content-buffering flatten, which
+        // conflicts with Salvo's metadata-driven flattening (the two disagree on
+        // what the request map contains, producing spurious "missing field"
+        // errors). Reject it with a clear pointer to the supported attribute
+        // instead of failing at deserialization time.
+        if serde_flatten {
+            return Err(Error::new_spanned(
+                ident,
+                "`#[serde(flatten)]` is not supported on `#[derive(Extractible)]` fields; \
+                 use `#[salvo(extract(flatten))]` to flatten an extractible sub-struct",
+            ));
+        }
+        let flatten = flatten.unwrap_or(false);
         if flatten {
             if !sources.is_empty() {
                 return Err(Error::new_spanned(
