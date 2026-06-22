@@ -45,7 +45,7 @@ pub struct FlowCtrl {
     catching: Option<bool>,
     is_ceased: bool,
     pub(crate) cursor: usize,
-    pub(crate) handlers: Vec<Arc<dyn Handler>>,
+    pub(crate) handlers: Vec<Option<Arc<dyn Handler>>>,
 }
 
 impl Debug for FlowCtrl {
@@ -67,14 +67,14 @@ impl FlowCtrl {
             catching: None,
             is_ceased: false,
             cursor: 0,
-            handlers,
+            handlers: handlers.into_iter().map(Some).collect(),
         }
     }
     /// Returns whether there is another handler in the chain.
     #[inline]
     #[must_use]
     pub fn has_next(&self) -> bool {
-        self.cursor < self.handlers.len() // && !self.handlers.is_empty()
+        self.cursor < self.handlers.len()
     }
 
     /// Runs the next handler in the chain.
@@ -104,22 +104,19 @@ impl FlowCtrl {
             self.skip_rest();
             return false;
         }
-        let mut handler = self.handlers.get(self.cursor).cloned();
-        if handler.is_none() {
-            false
-        } else {
-            while let Some(h) = handler.take() {
-                self.cursor += 1;
-                h.handle(req, depot, res, self).await;
+        let start = self.cursor;
+        while self.cursor < self.handlers.len() {
+            let handler = self.handlers[self.cursor].take();
+            self.cursor += 1;
+            if let Some(handler) = handler {
+                handler.handle(req, depot, res, self).await;
                 if !self.catching.unwrap_or_default() && res.is_stamped() {
                     self.skip_rest();
                     return true;
-                } else if self.has_next() {
-                    handler = self.handlers.get(self.cursor).cloned();
                 }
             }
-            true
         }
+        self.cursor > start
     }
 
     /// Skip all remaining handlers.
@@ -146,5 +143,77 @@ impl FlowCtrl {
     pub fn cease(&mut self) {
         self.skip_rest();
         self.is_ceased = true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::prelude::*;
+    use crate::routing::FlowCtrl;
+    use crate::{Depot, Handler, Request, Response};
+
+    #[tokio::test]
+    async fn test_reentrant_call_next() {
+        #[handler]
+        async fn around_a(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
+            depot.get_typed_mut::<Vec<&str>>().unwrap().push("enter_a");
+            assert!(ctrl.call_next(req, depot, res).await);
+            depot.get_typed_mut::<Vec<&str>>().unwrap().push("exit_a");
+        }
+
+        #[handler]
+        async fn around_b(
+            req: &mut Request,
+            depot: &mut Depot,
+            res: &mut Response,
+            ctrl: &mut FlowCtrl,
+        ) {
+            depot.get_typed_mut::<Vec<&str>>().unwrap().push("enter_b");
+            assert!(ctrl.call_next(req, depot, res).await);
+            depot.get_typed_mut::<Vec<&str>>().unwrap().push("exit_b");
+        }
+
+        #[handler]
+        async fn goal(res: &mut Response, depot: &mut Depot) {
+            depot.get_typed_mut::<Vec<&str>>().unwrap().push("goal");
+            res.status_code(StatusCode::OK);
+        }
+
+        let order: Vec<&str> = Vec::new();
+        let handlers: Vec<Arc<dyn Handler>> =
+            vec![Arc::new(around_a), Arc::new(around_b), Arc::new(goal)];
+
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        depot.insert_typed(order);
+        let mut res = Response::new();
+        let mut ctrl = FlowCtrl::new(handlers);
+        let ran = ctrl.call_next(&mut req, &mut depot, &mut res).await;
+
+        assert!(ran);
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert!(!ctrl.has_next());
+        assert_eq!(
+            depot.get_typed::<Vec<&str>>().unwrap(),
+            &["enter_a", "enter_b", "goal", "exit_b", "exit_a"]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_empty_handler_chain() {
+        let handlers: Vec<Arc<dyn Handler>> = Vec::new();
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        let mut ctrl = FlowCtrl::new(handlers);
+        assert!(!ctrl.call_next(&mut req, &mut depot, &mut res).await);
+        assert!(!ctrl.has_next());
     }
 }

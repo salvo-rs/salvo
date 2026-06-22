@@ -112,12 +112,13 @@ impl HttpBuilder {
         } else {
             // No fusewire: still bound the protocol-detection read so a connection
             // that never sends bytes can't leak a task indefinitely.
-            match tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)).await {
-                Ok(result) => result?,
-                Err(_) => {
-                    tracing::info!("closing connection: protocol-detection read timed out");
-                    return Ok(());
-                }
+            if let Ok(result) =
+                tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)).await
+            {
+                result?
+            } else {
+                tracing::info!("closing connection: protocol-detection read timed out");
+                return Ok(());
             }
         };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
