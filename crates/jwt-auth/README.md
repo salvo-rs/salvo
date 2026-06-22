@@ -104,6 +104,66 @@ Avoid query-string tokens in production because URLs are commonly saved in
 browser history, logs, and referrer headers. Prefer Authorization headers or
 secure, `HttpOnly` cookies.
 
+## Audience (`aud`) claim validation
+
+`JwtAuth` supports the JWT `aud` claim through the decoder that you attach to
+middleware. The middleware extracts the token and stores the decoded claims, but
+claim validation is performed by the configured `JwtAuthDecoder`.
+
+For static keys, use `ConstDecoder::with_validation` when your service needs to
+accept tokens only for a specific audience. Configure `Validation` before
+constructing the decoder:
+
+```rust
+use salvo::jwt_auth::{Algorithm, ConstDecoder, DecodingKey, Validation};
+
+let mut validation = Validation::new(Algorithm::HS256);
+validation.set_audience(&["api://salvo-service"]);
+validation.required_spec_claims.insert("aud".to_owned());
+
+let decoder = ConstDecoder::with_validation(
+    DecodingKey::from_secret(SECRET),
+    validation,
+);
+```
+
+For OpenID Connect, `OidcDecoder::new(issuer, audience)` is the shortest path.
+It configures issuer validation and marks `aud` as required for the expected
+audience:
+
+```rust
+use salvo::jwt_auth::OidcDecoder;
+
+let decoder = OidcDecoder::new(
+    "https://issuer.example.com",
+    "api://salvo-service",
+).await?;
+```
+
+If you need to accept more than one audience, build the OIDC decoder explicitly:
+
+```rust
+let decoder = OidcDecoder::builder("https://issuer.example.com")
+    .audiences(["api://salvo-service", "api://salvo-admin"])
+    .build()
+    .await?;
+```
+
+Troubleshooting audience failures:
+
+- Make sure the token actually contains an `aud` claim. `OidcDecoder::new` and
+  `.audiences(...)` require it automatically; for static keys, add `aud` to
+  `required_spec_claims` if the claim must be present.
+- Match the exact audience string issued by your identity provider, including
+  prefixes such as `api://` when they are part of the configured audience.
+- For OIDC tokens, pass the application/API audience, not the issuer URL. The
+  issuer is validated separately from `aud`.
+- If your identity provider issues multiple audiences, configure every accepted
+  value with `audiences(...)` or use a custom decoder for more complex policy.
+- If a token decodes without audience validation but fails after enabling it,
+  inspect the provider's JWT template or API settings first; Salvo is comparing
+  the decoded `aud` value against the validation configuration.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-jwt-auth)
