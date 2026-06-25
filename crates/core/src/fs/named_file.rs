@@ -721,29 +721,9 @@ impl NamedFile {
             res.headers_mut()
                 .insert(CONTENT_ENCODING, content_encoding.clone());
         }
-        let mut offset = 0;
-
-        // check for range header
-        let range = req_headers.get(RANGE);
-        if let Some(range) = range {
-            if let Ok(range) = range.to_str() {
-                if let Ok(range) = HttpRange::parse(range, length)
-                    && !range.is_empty()
-                {
-                    length = range[0].length;
-                    offset = range[0].start;
-                } else {
-                    res.headers_mut()
-                        .typed_insert(ContentRange::unsatisfied_bytes(length));
-                    res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
-                    return;
-                };
-            } else {
-                res.status_code(StatusCode::BAD_REQUEST);
-                return;
-            };
-        }
-
+        // Conditional request handling must precede Range processing: per RFC 7232
+        // a `304 Not Modified` / `412 Precondition Failed` takes priority over the
+        // `206`/`416` produced by a Range request.
         if precondition_failed {
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
@@ -752,10 +732,44 @@ impl NamedFile {
             return;
         }
 
-        if offset != 0 || length != self.metadata.len() || range.is_some() {
+        let file_size = self.metadata.len();
+        let mut offset = 0;
+        let mut is_partial = false;
+
+        // check for range header
+        if let Some(range) = req_headers.get(RANGE) {
+            let Ok(range) = range.to_str() else {
+                res.status_code(StatusCode::BAD_REQUEST);
+                return;
+            };
+            match HttpRange::parse(range, length) {
+                // A single range is served as `206 Partial Content`.
+                Ok(ranges) if ranges.len() == 1 => {
+                    offset = ranges[0].start;
+                    length = ranges[0].length;
+                    is_partial = true;
+                }
+                // Multiple ranges would require a `multipart/byteranges` body, which
+                // is not supported here. Per RFC 7233 the server may ignore the Range
+                // header and return the full `200 OK` representation instead.
+                Ok(ranges) if ranges.len() > 1 => {}
+                // Empty / unsatisfiable range.
+                _ => {
+                    res.headers_mut()
+                        .typed_insert(ContentRange::unsatisfied_bytes(length));
+                    res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
+                    return;
+                }
+            }
+        }
+
+        if is_partial {
             // Range request
             res.status_code(StatusCode::PARTIAL_CONTENT);
-            match ContentRange::bytes(offset..offset.saturating_add(length), self.metadata.len()) {
+            // Single source of truth for the byte count, clamped to the file so the
+            // `Content-Range`, `Content-Length` and the body always agree.
+            let total_size = length.min(file_size.saturating_sub(offset));
+            match ContentRange::bytes(offset..offset.saturating_add(total_size), file_size) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
                 }
@@ -763,12 +777,11 @@ impl NamedFile {
                     tracing::error!(error = ?e, "set file's content range failed");
                 }
             }
-            let total_size = cmp::min(length, self.metadata.len());
             res.headers_mut().typed_insert(ContentLength(total_size));
 
             // Fast path: slice from preread bytes if available
             if let Some(preread) = self.preread {
-                let end = cmp::min(offset.saturating_add(length) as usize, preread.len());
+                let end = cmp::min(offset.saturating_add(total_size) as usize, preread.len());
                 let start = cmp::min(offset as usize, end);
                 res.replace_body(ResBody::Once(preread.slice(start..end)));
             } else {

@@ -119,6 +119,27 @@ impl HostFilter {
     }
 }
 
+/// Split an authority into its host and optional port.
+///
+/// Handles bracketed IPv6 literals such as `[::1]` and `[::1]:8080` correctly; a
+/// naive `rsplit_once(':')` would split inside the address.
+fn split_host_port(authority: &str) -> (&str, Option<&str>) {
+    if authority.starts_with('[') {
+        // IPv6 literal: the host ends at the closing bracket.
+        if let Some(close) = authority.find(']') {
+            let host = &authority[..=close];
+            let port = authority[close + 1..]
+                .strip_prefix(':')
+                .filter(|p| !p.is_empty());
+            return (host, port);
+        }
+    }
+    match authority.rsplit_once(':') {
+        Some((host, port)) => (host, Some(port)),
+        None => (authority, None),
+    }
+}
+
 #[async_trait]
 impl Filter for HostFilter {
     #[inline]
@@ -133,17 +154,8 @@ impl Filter for HostFilter {
                 .get(crate::http::header::HOST)
                 .and_then(|h| h.to_str().ok())
         });
-        host.map(|h| {
-            if h.contains(':') {
-                h.rsplit_once(':')
-                    .expect("rsplit_once by ':' should not return `None`")
-                    .0
-            } else {
-                h
-            }
-        })
-        .map(|h| h == self.host)
-        .unwrap_or(self.fallback)
+        host.map(|h| split_host_port(h).0 == self.host)
+            .unwrap_or(self.fallback)
     }
     #[inline]
     fn info(&self) -> FilterInfo {
@@ -205,18 +217,10 @@ impl Filter for PortFilter {
                 .get(crate::http::header::HOST)
                 .and_then(|h| h.to_str().ok())
         });
-        host.map(|h| {
-            if h.contains(':') {
-                h.rsplit_once(':')
-                    .expect("rsplit_once by ':' should not return `None`")
-                    .1
-            } else {
-                h
-            }
-        })
-        .and_then(|p| p.parse::<u16>().ok())
-        .map(|p| p == self.port)
-        .unwrap_or(self.fallback)
+        host.and_then(|h| split_host_port(h).1)
+            .and_then(|p| p.parse::<u16>().ok())
+            .map(|p| p == self.port)
+            .unwrap_or(self.fallback)
     }
     #[inline]
     fn info(&self) -> FilterInfo {
@@ -233,6 +237,22 @@ impl Debug for PortFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_host_port_handles_ipv4_and_ipv6() {
+        assert_eq!(split_host_port("example.com"), ("example.com", None));
+        assert_eq!(
+            split_host_port("example.com:8080"),
+            ("example.com", Some("8080"))
+        );
+        // IPv6 literals must not be split inside the address.
+        assert_eq!(split_host_port("[::1]"), ("[::1]", None));
+        assert_eq!(split_host_port("[::1]:8080"), ("[::1]", Some("8080")));
+        assert_eq!(
+            split_host_port("[2001:db8::1]:443"),
+            ("[2001:db8::1]", Some("443"))
+        );
+    }
 
     #[tokio::test]
     async fn fallback_sets_scheme_filter_result_when_scheme_is_absent() {

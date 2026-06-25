@@ -25,7 +25,11 @@ impl HttpRange {
             return Err(ParseError::InvalidRange);
         };
 
-        let size_sig = size as i64;
+        // Clamp to `i64::MAX`: the signed arithmetic below would otherwise wrap a
+        // `size` above `i64::MAX` into a negative value and corrupt every bound.
+        // Files larger than 8 EiB are not addressable here and do not occur in
+        // practice.
+        let size_sig = size.min(i64::MAX as u64) as i64;
         let mut no_overlap = false;
 
         let all_ranges: Vec<Option<Self>> = ranges_header
