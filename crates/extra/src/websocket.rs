@@ -462,9 +462,16 @@ impl WebSocketUpgrade {
                         tracing::debug!("websocket upgrade complete");
                         WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                     })
-                    .await
-                    .expect("connection upgrade failed");
-                callback(socket).await;
+                    .await;
+                match socket {
+                    Ok(socket) => callback(socket).await,
+                    Err(error) => {
+                        // The client can drop the connection before the upgrade
+                        // completes; that is a normal network condition, not a bug,
+                        // so log it instead of panicking inside the spawned task.
+                        tracing::debug!(?error, "websocket connection upgrade failed");
+                    }
+                }
             });
             Ok(())
         } else {

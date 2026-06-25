@@ -691,7 +691,9 @@ impl PathParser {
     }
     #[inline]
     fn next(&mut self, skip_blanks: bool) -> Option<char> {
-        if self.offset < self.path.len() - 1 {
+        // `offset + 1 < len` rather than `offset < len - 1`: the latter underflows
+        // to `usize::MAX` when `path` is empty (e.g. the root path `/`).
+        if self.offset + 1 < self.path.len() {
             self.offset += 1;
             if skip_blanks {
                 self.skip_blanks();
@@ -704,7 +706,7 @@ impl PathParser {
     }
     #[inline]
     fn peek(&self, skip_blanks: bool) -> Option<char> {
-        if self.offset < self.path.len() - 1 {
+        if self.offset + 1 < self.path.len() {
             if skip_blanks {
                 let mut offset = self.offset + 1;
                 let mut ch = self.path[offset];
