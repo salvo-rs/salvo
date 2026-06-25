@@ -531,7 +531,13 @@ impl TryToTokens for UnnamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let fields_len = self.fields.len();
-        let first_field = self.fields.first().expect("fields should not be empty");
+        let first_field = self.fields.first().ok_or_else(|| {
+            Diagnostic::spanned(
+                self.fields.span(),
+                DiagLevel::Error,
+                "a tuple struct used as a schema must have at least one field",
+            )
+        })?;
         let first_part = &TypeTree::from_type(&first_field.ty)?;
 
         let all_fields_are_same = fields_len == 1

@@ -83,8 +83,10 @@ impl<'t> TypeTree<'t> {
                 .iter()
                 .find_map(|bound| match &bound {
                     syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                    syn::TypeParamBound::Lifetime(_) | syn::TypeParamBound::Verbatim(_) => None,
-                    _ => panic!("TypeTree trait object found unrecognized TypeParamBound"),
+                    // `TypeParamBound` is `#[non_exhaustive]`; treat any other
+                    // (current or future) bound kind like a lifetime/verbatim bound
+                    // rather than panicking inside the proc-macro.
+                    _ => None,
                 })
                 .map(|path| vec![TypeTreeValue::Path(path)])
                 .unwrap_or_else(Vec::new),
