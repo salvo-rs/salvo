@@ -37,12 +37,12 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 /// 
 /// View [module level documentation](index.html) for more details.
 #[derive(Default, Debug)]
-pub struct CatchPanic;
+pub struct CatchPanic {}
 impl CatchPanic {
     /// Creates a new `CatchPanic` middleware.
     #[inline]
     #[must_use] pub fn new() -> Self {
-        Self
+        Self {}
     }
 }
 

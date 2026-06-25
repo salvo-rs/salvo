@@ -49,7 +49,7 @@ impl Router {
     /// Get current router's children reference.
     #[inline]
     #[must_use]
-    pub fn routers(&self) -> &[Self] {
+    pub fn routers(&self) -> &Vec<Self> {
         &self.routers
     }
     /// Get current router's children mutable reference.
@@ -61,7 +61,7 @@ impl Router {
     /// Get current router's middlewares reference.
     #[inline]
     #[must_use]
-    pub fn hoops(&self) -> &[Arc<dyn Handler>] {
+    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
         &self.hoops
     }
     /// Get current router's middlewares mutable reference.
@@ -73,7 +73,7 @@ impl Router {
     /// Get current router's filters reference.
     #[inline]
     #[must_use]
-    pub fn filters(&self) -> &[Box<dyn Filter>] {
+    pub fn filters(&self) -> &Vec<Box<dyn Filter>> {
         &self.filters
     }
     /// Get current router's filters mutable reference.
