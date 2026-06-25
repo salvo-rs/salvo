@@ -38,11 +38,13 @@ impl<'a> ToResponse<'a> {
                     ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0
                 }
                 Fields::Unnamed(fields) => {
-                    let field = fields
-                        .unnamed
-                        .iter()
-                        .next()
-                        .expect("unnamed struct must have 1 field");
+                    let field = fields.unnamed.iter().next().ok_or_else(|| {
+                        Diagnostic::spanned(
+                            ident.span(),
+                            DiagLevel::Error,
+                            "`ToResponse` requires the tuple struct to have exactly one field",
+                        )
+                    })?;
                     ToResponseUnnamedStructResponse::new(attributes, &field.ty, &field.attrs)?.0
                 }
                 Fields::Unit => ToResponseUnitStructResponse::new(attributes)?.0,
@@ -114,11 +116,13 @@ impl TryToTokens for ToResponses<'_> {
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unnamed(fields) => {
-                    let field = fields
-                        .unnamed
-                        .iter()
-                        .next()
-                        .expect("Unnamed struct must have 1 field");
+                    let field = fields.unnamed.iter().next().ok_or_else(|| {
+                        Diagnostic::spanned(
+                            self.ident.span(),
+                            DiagLevel::Error,
+                            "`ToResponses` requires the tuple struct to have exactly one field",
+                        )
+                    })?;
 
                     let response =
                         UnnamedStructResponse::new(self.attributes, &field.ty, &field.attrs)?.0;
@@ -144,11 +148,13 @@ impl TryToTokens for ToResponses<'_> {
                     )?
                     .0),
                     Fields::Unnamed(fields) => {
-                        let field = fields
-                            .unnamed
-                            .iter()
-                            .next()
-                            .expect("Unnamed enum variant must have 1 field");
+                        let field = fields.unnamed.iter().next().ok_or_else(|| {
+                            Diagnostic::spanned(
+                                variant.ident.span(),
+                                DiagLevel::Error,
+                                "`ToResponses` requires the tuple variant to have exactly one field",
+                            )
+                        })?;
                         Ok(UnnamedStructResponse::new(&variant.attrs, &field.ty, &field.attrs)?.0)
                     }
                     Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
@@ -256,8 +262,13 @@ impl<'u> UnnamedStructResponse<'u> {
                 break;
             }
         }
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?
-            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
+        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+            Diagnostic::spanned(
+                Span::call_site(),
+                DiagLevel::Error,
+                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+            )
+        })?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
@@ -297,8 +308,13 @@ impl NamedStructResponse<'_> {
             return Err(diag);
         }
 
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?
-            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
+        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+            Diagnostic::spanned(
+                Span::call_site(),
+                DiagLevel::Error,
+                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+            )
+        })?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
@@ -347,8 +363,13 @@ impl UnitStructResponse<'_> {
             return Err(diagnostics);
         }
 
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?
-            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
+        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+            Diagnostic::spanned(
+                Span::call_site(),
+                DiagLevel::Error,
+                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+            )
+        })?;
         let status_code = mem::take(&mut derive_value.status_code);
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();

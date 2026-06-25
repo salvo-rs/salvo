@@ -1,9 +1,13 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
-use syn::{Expr, Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
+use syn::spanned::Spanned;
+use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{Array, DiagResult, InputType, Operation, omit_type_path_lifetimes, parse_input_type};
+use crate::{
+    Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
+    parse_input_type,
+};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;
@@ -47,18 +51,43 @@ fn metadata(
     );
     let opt = Operation::new(attr);
     modifiers.append(opt.modifiers()?.as_mut());
-    let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
-        Expr::Lit(lit) => {
-            quote! {
-                #salvo::http::StatusCode::from_u16(#lit).unwrap()
-            }
+    let mut status_code_tokens = Vec::with_capacity(attr.status_codes.len());
+    for expr in &attr.status_codes {
+        match expr {
+            Expr::Lit(expr_lit) => match &expr_lit.lit {
+                Lit::Int(lit_int) => {
+                    // Validate the literal at expansion time so an out-of-range value
+                    // produces a clear compile error instead of a runtime `unwrap`
+                    // panic during route registration.
+                    let code: u16 = lit_int.base10_parse().map_err(|e| {
+                        Diagnostic::spanned(lit_int.span(), DiagLevel::Error, e.to_string())
+                    })?;
+                    if !(100..=599).contains(&code) {
+                        return Err(Diagnostic::spanned(
+                            lit_int.span(),
+                            DiagLevel::Error,
+                            format!(
+                                "invalid HTTP status code `{code}`: must be in the range 100..=599"
+                            ),
+                        ));
+                    }
+                    status_code_tokens.push(quote! {
+                        #salvo::http::StatusCode::from_u16(#code)
+                            .expect("status code validated at compile time")
+                    });
+                }
+                _ => {
+                    return Err(Diagnostic::spanned(
+                        expr_lit.span(),
+                        DiagLevel::Error,
+                        "`status_codes` entries must be integer literals or `StatusCode` expressions",
+                    ));
+                }
+            },
+            _ => status_code_tokens.push(quote! { #expr }),
         }
-        _ => {
-            quote! {
-                #expr
-            }
-        }
-    }));
+    }
+    let status_codes = Array::from_iter(status_code_tokens);
     let modifiers = if modifiers.is_empty() {
         None
     } else {
