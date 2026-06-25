@@ -86,7 +86,7 @@ impl futures_util::AsyncWrite for BodySender {
     ) -> Poll<IoResult<usize>> {
         match self.data_tx.poll_ready(cx) {
             Poll::Ready(Ok(())) => {
-                let data: Bytes = Bytes::from(buf.to_vec());
+                let data: Bytes = Bytes::copy_from_slice(buf);
                 let len = buf.len();
                 Poll::Ready(
                     self.data_tx
@@ -123,7 +123,7 @@ impl tokio::io::AsyncWrite for BodySender {
     ) -> Poll<IoResult<usize>> {
         match self.data_tx.poll_ready(cx) {
             Poll::Ready(Ok(())) => {
-                let data: Bytes = Bytes::from(buf.to_vec());
+                let data: Bytes = Bytes::copy_from_slice(buf);
                 let len = buf.len();
                 Poll::Ready(
                     self.data_tx
