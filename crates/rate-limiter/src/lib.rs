@@ -311,12 +311,46 @@ impl RateIssuer for TrustedProxyIssuer {
         let remote_ip = req.remote_addr().ip();
         if let Some(remote_ip) = remote_ip
             && self.trusted_proxies.contains(&remote_ip)
-            && let Some(forwarded) = extract_forwarded_ip(req)
+            && let Some(forwarded) = extract_client_ip_via_trusted_proxies(req, &self.trusted_proxies)
         {
             return Some(forwarded);
         }
         remote_ip
     }
+}
+
+/// Determine the real client IP for a request that arrived through a trusted proxy.
+///
+/// `X-Forwarded-For` is appended left-to-right (`client, proxy1, proxy2`), so the
+/// untrusted client address is found by scanning **right-to-left** and returning the
+/// first entry that is not itself a trusted proxy. Taking the leftmost value (as the
+/// legacy [`ForwardedHeaderIssuer`] does) would let a client spoof its address by
+/// pre-populating the header before it reaches the trusted proxy.
+fn extract_client_ip_via_trusted_proxies(
+    req: &Request,
+    trusted: &HashSet<IpAddr>,
+) -> Option<IpAddr> {
+    if let Some(xff) = req.headers().get("x-forwarded-for")
+        && let Ok(xff_str) = xff.to_str()
+    {
+        for part in xff_str.rsplit(',') {
+            if let Ok(ip) = part.trim().parse::<IpAddr>()
+                && !trusted.contains(&ip)
+            {
+                return Some(ip);
+            }
+        }
+    }
+
+    // No usable forwarded address; fall back to `X-Real-IP` set by the trusted proxy.
+    if let Some(real_ip) = req.headers().get("x-real-ip")
+        && let Ok(real_ip_str) = real_ip.to_str()
+        && let Ok(ip) = real_ip_str.trim().parse::<IpAddr>()
+    {
+        return Some(ip);
+    }
+
+    None
 }
 
 /// Parse the first usable IP out of `X-Forwarded-For` / `X-Real-IP`.
@@ -825,6 +859,33 @@ mod tests {
 
         let ip = issuer.issue(&mut req, &depot).await.expect("ip");
         assert_eq!(ip, "203.0.113.42".parse::<IpAddr>().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_trusted_proxy_issuer_ignores_spoofed_leftmost_xff() {
+        // A client spoofs `X-Forwarded-For: 1.2.3.4` before reaching the trusted
+        // proxy, which appends the real peer address. The issuer must return the
+        // real client (rightmost non-trusted), not the spoofed leftmost value.
+        let issuer = TrustedProxyIssuer::new(["10.0.0.5".parse::<IpAddr>().unwrap()]);
+        let mut req = make_req_from_proxy("10.0.0.5", Some("1.2.3.4, 198.51.100.7"), None);
+        let depot = Depot::new();
+
+        let ip = issuer.issue(&mut req, &depot).await.expect("ip");
+        assert_eq!(ip, "198.51.100.7".parse::<IpAddr>().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_trusted_proxy_issuer_skips_chained_trusted_proxies() {
+        // Two trusted proxies in the chain: both must be skipped right-to-left.
+        let issuer = TrustedProxyIssuer::new([
+            "10.0.0.5".parse::<IpAddr>().unwrap(),
+            "10.0.0.6".parse::<IpAddr>().unwrap(),
+        ]);
+        let mut req = make_req_from_proxy("10.0.0.6", Some("198.51.100.7, 10.0.0.5, 10.0.0.6"), None);
+        let depot = Depot::new();
+
+        let ip = issuer.issue(&mut req, &depot).await.expect("ip");
+        assert_eq!(ip, "198.51.100.7".parse::<IpAddr>().unwrap());
     }
 
     #[test]

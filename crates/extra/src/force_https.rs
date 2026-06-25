@@ -49,7 +49,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use salvo_core::handler::Skipper;
 use salvo_core::http::header;
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::{Request, ResBody, Response};
+use salvo_core::http::{Request, ResBody, Response, StatusCode};
 use salvo_core::writing::Redirect;
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
@@ -177,6 +177,12 @@ impl Handler for ForceHttps {
             if let Ok(uri) = builder.build() {
                 res.body(ResBody::None);
                 res.render(Redirect::permanent(uri.to_string()));
+                ctrl.skip_rest();
+            } else {
+                // Fail closed: a malformed redirect target must not fall through to
+                // serving the request over plaintext HTTP, which would defeat the
+                // purpose of this middleware.
+                res.status_code(StatusCode::BAD_REQUEST);
                 ctrl.skip_rest();
             }
         }

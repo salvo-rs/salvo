@@ -44,6 +44,11 @@ impl CachePolicy {
     }
 
     fn parse_str(&mut self, value: &str) {
+        // Upper bound for any cache directive (30 days). Without it, a malicious or
+        // misconfigured IdP returning a huge `max-age` could overflow the downstream
+        // `fetched + max_age` arithmetic (debug panic / release wrap) and pin a stale
+        // JWKS indefinitely.
+        const MAX_CACHE_AGE_SECS: u64 = 30 * 24 * 60 * 60;
         // Iterate over every token in the header value
         for token in value.split(',') {
             // split them into whitespace trimmed pairs
@@ -56,17 +61,21 @@ impl CachePolicy {
             match (key, directive_value) {
                 (Some("max-age"), Some(directive_value)) => {
                     if let Ok(secs) = directive_value.parse::<u64>() {
-                        self.max_age = Duration::from_secs(secs);
+                        // Keep at least 1s so `max-age=0` cannot make every request
+                        // revalidate and amplify load back onto the IdP.
+                        self.max_age = Duration::from_secs(secs.clamp(1, MAX_CACHE_AGE_SECS));
                     }
                 }
                 (Some("stale-while-revalidate"), Some(directive_value)) => {
                     if let Ok(secs) = directive_value.parse::<u64>() {
-                        self.stale_while_revalidate = Some(Duration::from_secs(secs));
+                        self.stale_while_revalidate =
+                            Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
                     }
                 }
                 (Some("stale-if-error"), Some(directive_value)) => {
                     if let Ok(secs) = directive_value.parse::<u64>() {
-                        self.stale_if_error = Some(Duration::from_secs(secs));
+                        self.stale_if_error =
+                            Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
                     }
                 }
                 _ => {},
