@@ -221,6 +221,15 @@ impl Depot {
         }
     }
 
+    /// Borrow the type-erased value stored under `key` via [`Depot::insert`], if any.
+    ///
+    /// Lets a caller that probes many concrete types do a single map lookup and
+    /// then `downcast_ref` repeatedly, instead of one lookup per candidate type.
+    #[inline]
+    pub(crate) fn get_any(&self, key: &str) -> Option<&(dyn Any + Send + Sync)> {
+        self.named.get(key).map(|v| &**v as &(dyn Any + Send + Sync))
+    }
+
     /// Mutably borrows value from depot.
     ///
     /// Returns `Err(None)` if value is not present in depot.
@@ -231,10 +240,10 @@ impl Depot {
         key: &str,
     ) -> Result<&mut V, Option<&mut Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.named.get_mut(key) {
-            if value.downcast_mut::<V>().is_some() {
+            if value.is::<V>() {
                 Ok(value
                     .downcast_mut::<V>()
-                    .expect("downcast_mut should not be failed"))
+                    .expect("type checked by is::<V>() above"))
             } else {
                 Err(Some(value))
             }

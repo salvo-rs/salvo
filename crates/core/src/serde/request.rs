@@ -16,53 +16,36 @@ use crate::http::header::HeaderMap;
 use crate::serde::{CowValue, FlatValue, VecValue};
 use crate::{Depot, Request};
 
-/// Type alias for depot value extractor functions.
-/// Each extractor attempts to extract a specific type from the Depot and convert it to `Cow<str>`.
-type DepotExtractFn = for<'a> fn(&'a Depot, &str) -> Option<Cow<'a, str>>;
-
-/// Registry of depot value extractors.
-/// Extractors are tried in order until one succeeds.
-/// String types that can be borrowed are listed first for efficiency.
-static DEPOT_EXTRACTORS: &[DepotExtractFn] = &[
-    // Borrowable string types (most common, listed first)
-    |d, k| d.get::<String>(k).ok().map(|v| Cow::Borrowed(v.as_str())),
-    |d, k| d.get::<&'static str>(k).ok().map(|v| Cow::Borrowed(*v)),
-    |d, k| {
-        d.get::<Arc<String>>(k)
-            .ok()
-            .map(|v| Cow::Borrowed(v.as_str()))
-    },
-    |d, k| d.get::<Arc<str>>(k).ok().map(|v| Cow::Borrowed(&**v)),
-    // Signed integer types
-    |d, k| d.get::<i8>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<i16>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<i32>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<i64>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<i128>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<isize>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    // Unsigned integer types
-    |d, k| d.get::<u8>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<u16>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<u32>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<u64>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<u128>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<usize>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    // Floating point types
-    |d, k| d.get::<f32>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    |d, k| d.get::<f64>(k).ok().map(|v| Cow::Owned(v.to_string())),
-    // Boolean
-    |d, k| d.get::<bool>(k).ok().map(|v| Cow::Owned(v.to_string())),
-];
-
 /// Helper function to extract a value from Depot and convert it to a `Cow<str>`.
 /// Supports `String`, `&str`, `Arc<String>`, `Arc<str>`, and common primitive types (integers,
 /// floats, bool).
+///
+/// Does a single map lookup and then probes the candidate types with cheap
+/// `downcast_ref`s, rather than one map lookup per candidate type.
 fn get_depot_value<'a>(depot: &'a Depot, key: &str) -> Option<Cow<'a, str>> {
-    for extractor in DEPOT_EXTRACTORS {
-        if let Some(value) = extractor(depot, key) {
-            return Some(value);
-        }
+    let any = depot.get_any(key)?;
+    // Borrowable string types (most common, listed first).
+    if let Some(v) = any.downcast_ref::<String>() {
+        return Some(Cow::Borrowed(v.as_str()));
     }
+    if let Some(v) = any.downcast_ref::<&'static str>() {
+        return Some(Cow::Borrowed(*v));
+    }
+    if let Some(v) = any.downcast_ref::<Arc<String>>() {
+        return Some(Cow::Borrowed(v.as_str()));
+    }
+    if let Some(v) = any.downcast_ref::<Arc<str>>() {
+        return Some(Cow::Borrowed(&**v));
+    }
+    // Numeric and boolean types, rendered to an owned string.
+    macro_rules! try_display {
+        ($($t:ty),* $(,)?) => {$(
+            if let Some(v) = any.downcast_ref::<$t>() {
+                return Some(Cow::Owned(v.to_string()));
+            }
+        )*};
+    }
+    try_display!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64, bool);
     None
 }
 
