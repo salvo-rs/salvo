@@ -639,6 +639,9 @@ fn response_has_private_cache_headers(headers: &HeaderMap) -> bool {
         || headers.contains_key(VARY)
         || cache_control_contains(headers, "private")
         || cache_control_contains(headers, "no-store")
+        // `no-cache` requires revalidation before reuse; this middleware does not
+        // revalidate, so treat it as non-cacheable rather than serving it blindly.
+        || cache_control_contains(headers, "no-cache")
 }
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
@@ -744,7 +747,17 @@ fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
     if let Some(status) = status {
         res.status_code(status);
     }
-    *res.headers_mut() = headers;
+    // Merge cached headers into the response rather than replacing the whole map,
+    // so headers set by outer middleware (request id, CORS, security headers) are
+    // preserved. Cached values fully replace any same-named header (keeping
+    // multi-valued headers such as `Set-Cookie` intact).
+    let res_headers = res.headers_mut();
+    for name in headers.keys() {
+        res_headers.remove(name);
+    }
+    for (name, value) in &headers {
+        res_headers.append(name.clone(), value.clone());
+    }
     *res.body_mut() = body.into();
 }
 
