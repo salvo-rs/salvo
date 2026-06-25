@@ -568,6 +568,12 @@ impl TryToTokens for Parameter<'_> {
             tokens.extend(quote! { .location(#parameter_in) });
         } else if let Some(parameter_in) = &self.container_attributes.default_parameter_in {
             tokens.extend(parameter_in.try_to_token_stream()?);
+        } else {
+            // `ToParameters` extracts from the query string by default (see `default_source_from`),
+            // so the OpenAPI parameter location must default to `Query` as well. Without this the
+            // location would fall back to `ParameterIn`'s `Path` default, which both mislabels the
+            // parameter and forces `required: true` regardless of the field type.
+            tokens.extend(quote! { .location(#oapi::oapi::parameter::ParameterIn::Query) });
         }
 
         if let Some(style) = param_features.pop_style_feature() {

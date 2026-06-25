@@ -494,6 +494,7 @@ mod tests {
                         salvo::oapi::Parameters(
                             [
                                 salvo::oapi::parameter::Parameter::new("name")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Name of pet")
                                     .required(salvo::oapi::Required::False)
                                     .schema(
@@ -501,6 +502,7 @@ mod tests {
                                             .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
                                     ),
                                 salvo::oapi::parameter::Parameter::new("age")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Age of pet")
                                     .required(salvo::oapi::Required::False)
                                     .schema(
@@ -511,6 +513,7 @@ mod tests {
                                             ))
                                     ),
                                 salvo::oapi::parameter::Parameter::new("kind")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Kind of pet")
                                     .required(salvo::oapi::Required::True)
                                     .schema(<PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
