@@ -40,11 +40,21 @@ impl PathParams {
 
     /// Insert new param.
     pub fn insert(&mut self, name: &str, value: String) {
-        #[cfg(debug_assertions)]
-        {
-            if self.greedy {
-                panic!("only one wildcard param is allowed and it must be the last one");
-            }
+        if self.greedy {
+            // A wildcard param must be the last one. Reaching here means an earlier
+            // wildcard was not rolled back correctly. In debug builds this is a bug
+            // worth catching loudly; in release we must not silently corrupt the
+            // existing params (the previous code kept inserting), so drop the stray
+            // insert and log instead.
+            debug_assert!(
+                false,
+                "only one wildcard param is allowed and it must be the last one"
+            );
+            tracing::error!(
+                param = name,
+                "ignoring a param inserted after a wildcard param; this indicates a routing bug"
+            );
+            return;
         }
         if name.starts_with('*') {
             self.inner.insert(split_wild_name(name).1.to_owned(), value);
