@@ -1,4 +1,3 @@
-use std::cmp;
 use std::io::SeekFrom;
 use std::time::SystemTime;
 
@@ -98,29 +97,9 @@ where
         }
         res.headers_mut().typed_insert(AcceptRanges::bytes());
 
-        let mut offset = 0;
-        let mut length = self.length;
-        // check for range header
-        let range = req_headers.get(RANGE);
-        if let Some(range) = range {
-            if let Ok(range) = range.to_str() {
-                if let Ok(range) = HttpRange::parse(range, length)
-                    && !range.is_empty()
-                {
-                    length = range[0].length;
-                    offset = range[0].start;
-                } else {
-                    res.headers_mut()
-                        .typed_insert(ContentRange::unsatisfied_bytes(length));
-                    res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
-                    return;
-                };
-            } else {
-                res.status_code(StatusCode::BAD_REQUEST);
-                return;
-            };
-        }
-
+        // Conditional request handling must precede Range processing: per RFC 7232
+        // a `304 Not Modified` / `412 Precondition Failed` takes priority over the
+        // `206`/`416` produced by a Range request.
         if precondition_failed {
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
@@ -129,9 +108,43 @@ where
             return;
         }
 
-        if offset != 0 || length != self.length || range.is_some() {
+        let mut offset = 0;
+        let mut length = self.length;
+        let mut is_partial = false;
+        // check for range header
+        if let Some(range) = req_headers.get(RANGE) {
+            let Ok(range) = range.to_str() else {
+                res.status_code(StatusCode::BAD_REQUEST);
+                return;
+            };
+            match HttpRange::parse(range, length) {
+                // A single range is served as `206 Partial Content`.
+                Ok(ranges) if ranges.len() == 1 => {
+                    offset = ranges[0].start;
+                    length = ranges[0].length;
+                    is_partial = true;
+                }
+                // Multiple ranges would require a `multipart/byteranges` body, which
+                // is not supported here. Per RFC 7233 the server may ignore the Range
+                // header and return the full `200 OK` representation instead.
+                Ok(ranges) if ranges.len() > 1 => {}
+                // Empty / unsatisfiable range.
+                _ => {
+                    res.headers_mut()
+                        .typed_insert(ContentRange::unsatisfied_bytes(length));
+                    res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
+                    return;
+                }
+            }
+        }
+
+        if is_partial {
             res.status_code(StatusCode::PARTIAL_CONTENT);
-            match ContentRange::bytes(offset..offset.saturating_add(length), self.length) {
+            // Derive the byte count from a single source and clamp defensively so the
+            // declared `Content-Range`, `Content-Length` and the streamed body always
+            // agree on the number of bytes.
+            let content_length = length.min(self.length.saturating_sub(offset));
+            match ContentRange::bytes(offset..offset.saturating_add(content_length), self.length) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
                 }
@@ -144,9 +157,6 @@ where
                 res.render(StatusError::bad_request().brief("seek file failed"));
                 return;
             }
-            // Only stream the requested range, not the rest of the reader. The
-            // declared `Content-Length` must match the number of bytes written.
-            let content_length = cmp::min(length, self.length);
             res.headers_mut()
                 .typed_insert(ContentLength(content_length));
             res.stream(ReaderStream::new(self.reader.take(content_length)));
