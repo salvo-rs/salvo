@@ -227,7 +227,9 @@ impl Depot {
     /// then `downcast_ref` repeatedly, instead of one lookup per candidate type.
     #[inline]
     pub(crate) fn get_any(&self, key: &str) -> Option<&(dyn Any + Send + Sync)> {
-        self.named.get(key).map(|v| &**v as &(dyn Any + Send + Sync))
+        self.named
+            .get(key)
+            .map(|v| &**v as &(dyn Any + Send + Sync))
     }
 
     /// Mutably borrows value from depot.
