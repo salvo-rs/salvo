@@ -21,7 +21,7 @@ impl FlattenedMapSchema {
         }: ComponentSchemaProps,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
-        let mut features = features.unwrap_or(Vec::new());
+        let mut features = features.unwrap_or_default();
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
 
         let example = features

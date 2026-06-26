@@ -90,7 +90,7 @@ impl ComponentSchema {
         option_is_nullable: bool,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
-        let mut features = features.unwrap_or(Vec::new());
+        let mut features = features.unwrap_or_default();
         let deprecated_stream = Self::get_deprecated(deprecated);
 
         match type_tree.generic_type {
