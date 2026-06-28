@@ -648,6 +648,51 @@ mod tests {
 
     #[cfg(feature = "server-handle")]
     #[tokio::test]
+    async fn handler_abort_discards_the_response() {
+        use std::time::Duration;
+
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        use crate::conn::Acceptor;
+
+        #[handler]
+        async fn abort(res: &mut Response, conn: &mut ConnCtrl) {
+            conn.abort();
+            res.body("must not be sent");
+        }
+
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new().goal(abort)));
+
+        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut received = Vec::new();
+        tokio::time::timeout(Duration::from_secs(1), client.read_to_end(&mut received))
+            .await
+            .expect("aborted connection should close promptly")
+            .unwrap();
+
+        assert!(
+            received.is_empty(),
+            "an aborted connection must not send an HTTP response"
+        );
+
+        handle.stop_forceful();
+        server_task.await.unwrap().unwrap();
+    }
+
+    #[cfg(feature = "server-handle")]
+    #[tokio::test]
     async fn test_server_handle_stop() {
         use std::time::Duration;
 

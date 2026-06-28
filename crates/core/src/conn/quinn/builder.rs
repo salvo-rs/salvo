@@ -177,11 +177,18 @@ impl Builder {
                             }
                         }
                         _ => {
+                            let request_conn_ctrl = hyper_handler.conn_ctrl.clone();
                             tokio::spawn(async move {
-                                match process_request(request, stream, hyper_handler).await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        tracing::error!(error = ?e, "process request failed")
+                                tokio::select! {
+                                    result = process_request(request, stream, hyper_handler) => {
+                                        if let Err(error) = result {
+                                            tracing::error!(?error, "process request failed");
+                                        }
+                                    }
+                                    _ = request_conn_ctrl.aborted() => {
+                                        // The connection loop closes QUIC. Ending
+                                        // this detached task avoids retaining the
+                                        // deliberately pending service future.
                                     }
                                 }
                             });

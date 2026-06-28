@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::future::pending;
 use std::pin::Pin;
 use std::sync::{Arc, LazyLock};
 
@@ -440,7 +441,17 @@ where
             .body
             .set_fuse_config(self.fuse_config, self.conn_ctrl.clone());
         let response = self.handle(request);
-        Box::pin(async move { Ok(response.await.into_hyper()) })
+        let conn_ctrl = self.conn_ctrl.clone();
+        Box::pin(async move {
+            let response = response.await;
+            // Do not return a response to Hyper after a handler abort. Yielding
+            // Pending here lets the connection driver observe the abort signal
+            // and drop the entire protocol connection first.
+            if conn_ctrl.is_aborted() {
+                pending::<()>().await;
+            }
+            Ok(response.into_hyper())
+        })
     }
 }
 
