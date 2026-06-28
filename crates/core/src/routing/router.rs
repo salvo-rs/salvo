@@ -115,9 +115,10 @@ impl Router {
                     }
                 }
                 if !matched {
-                    let frame = stack.pop().unwrap();
-                    path_state.restore(frame.checkpoint);
-                    hoops.truncate(frame.hoops_len);
+                    if let Some(frame) = stack.pop() {
+                        path_state.restore(frame.checkpoint);
+                        hoops.truncate(frame.hoops_len);
+                    }
                     continue;
                 }
                 hoops.extend(&frame.router.hoops);
@@ -146,9 +147,10 @@ impl Router {
                 }
             }
 
-            let frame = stack.pop().unwrap();
-            path_state.restore(frame.checkpoint);
-            hoops.truncate(frame.hoops_len);
+            if let Some(frame) = stack.pop() {
+                path_state.restore(frame.checkpoint);
+                hoops.truncate(frame.hoops_len);
+            }
         }
         None
     }

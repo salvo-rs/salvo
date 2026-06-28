@@ -104,6 +104,9 @@ impl HttpBuilder {
         B::Error: Into<Box<dyn StdError + Send + Sync>>,
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        // When both HTTP/1 and HTTP/2 are enabled, consume only enough bytes to
+        // distinguish the HTTP/2 prior-knowledge preface. `Rewind` preserves
+        // those bytes so the selected Hyper connection receives the full input.
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = {
             let timeout = fuse_config
@@ -118,7 +121,10 @@ impl HttpBuilder {
                         return Ok(());
                     }
                 }
-                _ = conn_ctrl.notified() => return Ok(()),
+                state = conn_ctrl.notified() => {
+                    tracing::info!(?state, "closing connection during protocol detection");
+                    return Ok(());
+                },
             }
         };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
@@ -142,8 +148,19 @@ impl HttpBuilder {
                     let mut conn = http1
                         .serve_connection(TokioIo::new(socket), service)
                         .with_upgrades();
+
+                    // The connection future, server shutdown, and handler-level
+                    // connection control are driven by the same task. This avoids
+                    // spawning a supervisor task for every accepted connection.
                     tokio::select! {
-                        _ = &mut conn => return Ok(()),
+                        result = &mut conn => {
+                            if let Err(error) = result {
+                                tracing::debug!(?error, "HTTP/1 connection ended with an error");
+                            }
+                            return Ok(());
+                        },
+                        // Server-wide graceful shutdown stops HTTP keep-alive but
+                        // allows the currently accepted request to complete.
                         _ = async {
                             if let Some(token) = &graceful_stop_token {
                                 token.cancelled().await;
@@ -151,16 +168,29 @@ impl HttpBuilder {
                                 pending::<()>().await;
                             }
                         } => {
+                            tracing::info!("gracefully shutting down HTTP/1 connection");
                             Pin::new(&mut conn).graceful_shutdown();
                             let _ = conn.await;
                         }
+                        // `ConnCtrl` is shared with handlers. Abort drops the
+                        // Hyper connection immediately; graceful shutdown first
+                        // disables keep-alive and remains abortable.
                         state = conn_ctrl.notified() => {
                             if state == ConnState::GracefulShutdown {
+                                tracing::info!("handler requested graceful HTTP/1 shutdown");
                                 Pin::new(&mut conn).graceful_shutdown();
                                 tokio::select! {
-                                    _ = &mut conn => {}
-                                    _ = conn_ctrl.aborted() => {}
+                                    result = &mut conn => {
+                                        if let Err(error) = result {
+                                            tracing::debug!(?error, "HTTP/1 connection ended during graceful shutdown");
+                                        }
+                                    }
+                                    _ = conn_ctrl.aborted() => {
+                                        tracing::info!("handler escalated HTTP/1 shutdown to abort");
+                                    }
                                 }
+                            } else {
+                                tracing::info!("handler aborted HTTP/1 connection");
                             }
                         }
                     }
@@ -172,8 +202,16 @@ impl HttpBuilder {
                 #[cfg(feature = "http2")]
                 {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
+
+                    // HTTP/2 uses the same lifecycle arbitration as HTTP/1.
+                    // Hyper translates graceful shutdown into a GOAWAY frame.
                     tokio::select! {
-                        _ = &mut conn => return Ok(()),
+                        result = &mut conn => {
+                            if let Err(error) = result {
+                                tracing::debug!(?error, "HTTP/2 connection ended with an error");
+                            }
+                            return Ok(());
+                        },
                         _ = async {
                             if let Some(token) = &graceful_stop_token {
                                 token.cancelled().await;
@@ -181,16 +219,26 @@ impl HttpBuilder {
                                 pending::<()>().await;
                             }
                         } => {
+                            tracing::info!("gracefully shutting down HTTP/2 connection");
                             Pin::new(&mut conn).graceful_shutdown();
                             let _ = conn.await;
                         }
                         state = conn_ctrl.notified() => {
                             if state == ConnState::GracefulShutdown {
+                                tracing::info!("handler requested graceful HTTP/2 shutdown");
                                 Pin::new(&mut conn).graceful_shutdown();
                                 tokio::select! {
-                                    _ = &mut conn => {}
-                                    _ = conn_ctrl.aborted() => {}
+                                    result = &mut conn => {
+                                        if let Err(error) = result {
+                                            tracing::debug!(?error, "HTTP/2 connection ended during graceful shutdown");
+                                        }
+                                    }
+                                    _ = conn_ctrl.aborted() => {
+                                        tracing::info!("handler escalated HTTP/2 shutdown to abort");
+                                    }
                                 }
+                            } else {
+                                tracing::info!("handler aborted HTTP/2 connection");
                             }
                         }
                     }
