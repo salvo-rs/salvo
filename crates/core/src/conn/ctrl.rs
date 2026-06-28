@@ -75,10 +75,14 @@ impl ConnCtrl {
         }
     }
 
-    /// Immediately aborts the entire transport connection.
+    /// Immediately aborts the underlying transport connection.
     ///
-    /// The current handler may continue until it next yields, but its response
-    /// is not guaranteed to be written.
+    /// The server will abruptly close the connection without sending any response.
+    /// This causes clients to encounter errors such as `curl: (52) Empty reply from server`.
+    ///
+    /// Aborting the connection immediately frees up system resources allocated to the
+    /// request flow. This forceful teardown should **only** be used in critical scenarios,
+    /// such as mitigating active attacks, where maintaining the connection poses a security risk.
     pub fn abort(&self) {
         if self.inner.state.swap(ABORT, Ordering::AcqRel) != ABORT {
             self.inner.waker.wake();
