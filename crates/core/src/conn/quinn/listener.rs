@@ -3,8 +3,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
 
 use futures_util::stream::{BoxStream, StreamExt};
@@ -13,11 +12,11 @@ use salvo_http3::quinn::Endpoint;
 use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
+use crate::Error;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
 use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
-use crate::Error;
 
 /// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
@@ -70,10 +69,9 @@ where
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
 
         let mut config_stream = config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("quinn: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("quinn: config stream ended before yielding an initial tls config")
+        })?;
         let initial = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
@@ -199,17 +197,15 @@ impl Acceptor for QuinnAcceptor {
                 None => new_conn.await,
             };
             match connected {
-                Ok(conn) => {
-                    Ok(Accepted {
-                        coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(conn),
-                        fuse_config,
-                        local_addr: self.holdings[0].local_addr.clone(),
-                        remote_addr: remote_addr.into(),
-                        http_scheme: self.holdings[0].http_scheme.clone(),
-                    })
-                }
-                Err(e) => Err(IoError::other(e.to_string()))
+                Ok(conn) => Ok(Accepted {
+                    coupler: QuinnCoupler,
+                    stream: QuinnConnection::new(conn),
+                    fuse_config,
+                    local_addr: self.holdings[0].local_addr.clone(),
+                    remote_addr: remote_addr.into(),
+                    http_scheme: self.holdings[0].http_scheme.clone(),
+                }),
+                Err(e) => Err(IoError::other(e.to_string())),
             }
         }
     }

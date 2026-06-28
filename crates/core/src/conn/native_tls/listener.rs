@@ -11,12 +11,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 use tokio_util::sync::CancellationToken;
 
+use super::Identity;
+use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFusePolicy;
-use crate::Error;
-
-use super::Identity;
 
 /// NativeTlsListener
 pub struct NativeTlsListener<S, C, T, E> {
@@ -62,10 +61,9 @@ where
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let mut config_stream = self.config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("native_tls: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("native_tls: config stream ended before yielding an initial tls config")
+        })?;
         let identity = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
@@ -84,7 +82,11 @@ where
             cancel_reload.clone(),
         ));
 
-        Ok(NativeTlsAcceptor::new(inner, current_acceptor, cancel_reload))
+        Ok(NativeTlsAcceptor::new(
+            inner,
+            current_acceptor,
+            cancel_reload,
+        ))
     }
 }
 
@@ -235,4 +237,3 @@ where
         })
     }
 }
-

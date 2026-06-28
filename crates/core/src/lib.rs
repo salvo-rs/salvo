@@ -70,8 +70,7 @@ cfg_feature! {
     pub use proto::webtransport;
 }
 
-pub use self::conn::ConnCtrl;
-pub use self::conn::Listener;
+pub use self::conn::{ConnCtrl, Listener};
 pub use self::depot::Depot;
 pub use self::error::{BoxedError, Error};
 pub use self::extract::Extractible;

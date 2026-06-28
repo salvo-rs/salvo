@@ -13,11 +13,10 @@ use tokio_openssl::SslStream;
 use tokio_util::sync::CancellationToken;
 
 use super::SslAcceptorBuilder;
-
+use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
 use crate::fuse::ArcFusePolicy;
-use crate::Error;
 
 /// OpensslListener
 pub struct OpensslListener<S, C, T, E> {
@@ -64,10 +63,9 @@ where
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let mut config_stream = self.config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("openssl: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("openssl: config stream ended before yielding an initial tls config")
+        })?;
         let builder: SslAcceptorBuilder = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;

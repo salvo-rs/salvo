@@ -10,13 +10,12 @@ use http::uri::Scheme;
 use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
+use super::{Accepted, Acceptor, Listener};
 use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Holding, StraightStream};
 use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
-
-use super::{Accepted, Acceptor, Listener};
 
 /// `UnixListener` is used to create a Unix socket connection listener.
 #[cfg(unix)]
@@ -54,7 +53,7 @@ impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[cfg(feature = "socket2")]
     #[inline]
-    pub fn new(path: T) -> Self{
+    pub fn new(path: T) -> Self {
         Self {
             path,
             permissions: None,

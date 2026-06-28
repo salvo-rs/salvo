@@ -52,8 +52,8 @@
 //! - Required parameters can be listed in any supported order.
 //! - Return values that implement [`Writer`](crate::writing::Writer) or
 //!   [`Scribe`](crate::writing::Scribe) can be returned directly.
-//! - A handler can request [`ConnCtrl`](crate::ConnCtrl) to gracefully shut
-//!   down or immediately abort the transport connection.
+//! - A handler can request [`ConnCtrl`](crate::ConnCtrl) to gracefully shut down or immediately
+//!   abort the transport connection.
 //!
 //! ```
 //! use salvo_core::prelude::*;

@@ -8,7 +8,6 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
-use crate::ConnCtrl;
 use crate::catcher::{Catcher, write_error_default};
 use crate::conn::SocketAddr;
 use crate::fuse::FuseConfig;
@@ -16,7 +15,7 @@ use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::{Depot, async_trait};
+use crate::{ConnCtrl, Depot, async_trait};
 
 /// Service http request.
 #[non_exhaustive]

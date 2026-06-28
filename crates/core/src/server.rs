@@ -14,6 +14,7 @@ compile_error!(
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
+use tokio::sync::Semaphore;
 #[cfg(feature = "server-handle")]
 use tokio::{
     sync::{
@@ -24,8 +25,6 @@ use tokio::{
 };
 #[cfg(feature = "server-handle")]
 use tokio_util::sync::CancellationToken;
-
-use tokio::sync::Semaphore;
 
 use crate::Service;
 #[cfg(feature = "quinn")]
@@ -94,7 +93,7 @@ impl ServerHandle {
     ///     let handle = server.handle();
     ///
     ///     // Graceful shutdown the server
-    ///       tokio::spawn(async move {
+    ///     tokio::spawn(async move {
     ///         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     ///         handle.stop_graceful(None);
     ///     });
@@ -116,7 +115,8 @@ enum ServerCommand {
 
 /// HTTP Server.
 ///
-/// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
+/// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a
+/// [`Service`].
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
@@ -650,6 +650,7 @@ mod tests {
     #[tokio::test]
     async fn test_server_handle_stop() {
         use std::time::Duration;
+
         use tokio::time::timeout;
 
         // Test forcible stop
@@ -742,7 +743,10 @@ mod tests {
             result.is_ok(),
             "saturated connection-limited server must still force-stop"
         );
-        assert!(result.unwrap().unwrap().is_ok(), "try_serve should return Ok");
+        assert!(
+            result.unwrap().unwrap().is_ok(),
+            "try_serve should return Ok"
+        );
         drop(stream);
     }
 

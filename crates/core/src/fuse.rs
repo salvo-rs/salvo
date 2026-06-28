@@ -76,6 +76,8 @@ impl FuseConfig {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FuseAction {
     /// Accept and enforce this configuration.
+    ///
+    /// Use Accept(FuseConfig::disabled()) to accept a connection without any timeouts.
     Accept(FuseConfig),
     /// Drop the connection before protocol handling.
     Reject,
