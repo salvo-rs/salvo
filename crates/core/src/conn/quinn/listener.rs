@@ -196,7 +196,7 @@ impl Acceptor for QuinnAcceptor {
                 },
                 None => new_conn.await,
             };
-            match connected {
+            return match connected {
                 Ok(conn) => Ok(Accepted {
                     coupler: QuinnCoupler,
                     stream: QuinnConnection::new(conn),
@@ -206,7 +206,7 @@ impl Acceptor for QuinnAcceptor {
                     http_scheme: self.holdings[0].http_scheme.clone(),
                 }),
                 Err(e) => Err(IoError::other(e.to_string())),
-            }
+            };
         }
     }
 }
