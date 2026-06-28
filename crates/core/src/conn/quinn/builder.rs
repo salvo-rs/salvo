@@ -1,5 +1,6 @@
 //! HTTP/3 support.
 use std::fmt::{self, Debug, Formatter};
+use std::future::pending;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
@@ -13,6 +14,7 @@ use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio_util::sync::CancellationToken;
 
+use crate::conn::ctrl::ConnState;
 use crate::fuse::ArcFusewire;
 use crate::http::Method;
 use crate::http::body::{H3ReqBody, ReqBody};
@@ -91,6 +93,7 @@ impl Builder {
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         let fusewire = hyper_handler.fusewire.clone();
+        let conn_ctrl = hyper_handler.conn_ctrl.clone();
         let raw_conn = conn.quinn().clone();
         let mut conn = self
             .inner
@@ -98,8 +101,50 @@ impl Builder {
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
+        let mut shutting_down = false;
         loop {
-            match conn.accept().await {
+            let accepted = tokio::select! {
+                accepted = conn.accept() => Some(accepted),
+                state = async {
+                    if shutting_down {
+                        conn_ctrl.aborted().await
+                    } else {
+                        conn_ctrl.notified().await
+                    }
+                } => {
+                    match state {
+                        ConnState::Abort => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                        ConnState::GracefulShutdown => {
+                            conn.shutdown(0)
+                                .await
+                                .map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                            shutting_down = true;
+                        }
+                        ConnState::Running => {}
+                    }
+                    None
+                }
+                _ = async {
+                    if let Some(token) = &graceful_stop_token {
+                        token.cancelled().await;
+                    } else {
+                        pending::<()>().await;
+                    }
+                }, if !shutting_down => {
+                    conn.shutdown(0)
+                        .await
+                        .map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                    shutting_down = true;
+                    None
+                }
+            };
+            let Some(accepted) = accepted else {
+                continue;
+            };
+            match accepted {
                 Ok(Some(resolver)) => {
                     let hyper_handler = hyper_handler.clone();
                     let (request, stream) = match resolver.resolve_request().await {
@@ -115,16 +160,21 @@ impl Builder {
                             if request.extensions().get::<Protocol>()
                                 == Some(&Protocol::WEB_TRANSPORT) =>
                         {
-                            if let Some(c) = process_web_transport(
-                                conn,
-                                request,
-                                stream,
-                                hyper_handler,
-                                fusewire.clone(),
-                                raw_conn.clone(),
-                            )
-                            .await?
-                            {
+                            let processed = tokio::select! {
+                                processed = process_web_transport(
+                                    conn,
+                                    request,
+                                    stream,
+                                    hyper_handler,
+                                    fusewire.clone(),
+                                    raw_conn.clone(),
+                                ) => processed?,
+                                _ = conn_ctrl.aborted() => {
+                                    raw_conn.close(0u32.into(), b"aborted by handler");
+                                    return Ok(());
+                                }
+                            };
+                            if let Some(c) = processed {
                                 conn = c;
                             } else {
                                 return Ok(());
@@ -154,11 +204,6 @@ impl Builder {
                     }
                     break;
                 }
-            }
-            if let Some(graceful_stop_token) = &graceful_stop_token
-                && graceful_stop_token.is_cancelled()
-            {
-                break;
             }
         }
         Ok(())

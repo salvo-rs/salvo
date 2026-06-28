@@ -65,6 +65,8 @@ use crate::service::HyperHandler;
 
 mod proto;
 pub use proto::HttpBuilder;
+mod ctrl;
+pub use ctrl::ConnCtrl;
 mod stream;
 pub use stream::*;
 

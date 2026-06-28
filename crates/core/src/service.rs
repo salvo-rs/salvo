@@ -8,6 +8,7 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
+use crate::ConnCtrl;
 use crate::catcher::{Catcher, write_error_default};
 use crate::conn::SocketAddr;
 use crate::fuse::ArcFusewire;
@@ -153,6 +154,7 @@ impl Service {
         remote_addr: SocketAddr,
         http_scheme: Scheme,
         fusewire: Option<ArcFusewire>,
+        conn_ctrl: ConnCtrl,
         alt_svc_h3: Option<HeaderValue>,
     ) -> HyperHandler {
         HyperHandler {
@@ -166,6 +168,7 @@ impl Service {
                 allowed_media_types: self.allowed_media_types.clone(),
             }),
             fusewire,
+            conn_ctrl,
             alt_svc_h3,
         }
     }
@@ -179,6 +182,7 @@ impl Service {
             request.remote_addr.clone(),
             request.scheme.clone(),
             None,
+            ConnCtrl::new(),
             None,
         )
         .handle(request)
@@ -233,6 +237,7 @@ pub struct HyperHandler {
     pub(crate) http_scheme: Scheme,
     pub(crate) state: Arc<HyperHandlerState>,
     pub(crate) fusewire: Option<ArcFusewire>,
+    pub(crate) conn_ctrl: ConnCtrl,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
 impl Debug for HyperHandler {
@@ -252,6 +257,7 @@ impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> + 'static {
         let state = self.state.clone();
+        let conn_ctrl = self.conn_ctrl.clone();
         req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
         #[cfg(not(feature = "cookie"))]
@@ -280,7 +286,7 @@ impl HyperHandler {
                 handlers.extend(dm.hoops);
                 handlers.push(DEFAULT_STATUS_OK_HANDLER.clone());
                 handlers.push(dm.goal);
-                let mut ctrl = FlowCtrl::new(handlers);
+                let mut ctrl = FlowCtrl::with_conn(handlers, conn_ctrl.clone());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() {
@@ -295,7 +301,7 @@ impl HyperHandler {
                 } else {
                     res.status_code = Some(StatusCode::NOT_FOUND);
                 }
-                let mut ctrl = FlowCtrl::new(state.hoops.clone());
+                let mut ctrl = FlowCtrl::with_conn(state.hoops.clone(), conn_ctrl.clone());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
                 if res.status_code.is_none() && path_state.once_ended {
@@ -352,7 +358,9 @@ impl HyperHandler {
                 && has_error
             {
                 if let Some(catcher) = &state.catcher {
-                    catcher.catch(&mut req, &mut depot, &mut res).await;
+                    catcher
+                        .catch(&mut req, &mut depot, &mut res, conn_ctrl)
+                        .await;
                 } else {
                     write_error_default(&req, &mut res, None);
                 }

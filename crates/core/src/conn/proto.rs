@@ -1,6 +1,8 @@
 use std::cmp;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
+#[cfg(any(feature = "http1", feature = "http2"))]
+use std::future::pending;
 use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -13,6 +15,9 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
+use crate::ConnCtrl;
+#[cfg(any(feature = "http1", feature = "http2"))]
+use crate::conn::ctrl::ConnState;
 use crate::fuse::ArcFusewire;
 use crate::http::body::{Body, HyperBody};
 #[cfg(any(feature = "http1", feature = "http2"))]
@@ -87,6 +92,7 @@ impl HttpBuilder {
         socket: I,
         service: S,
         fusewire: Option<ArcFusewire>,
+        conn_ctrl: ConnCtrl,
         graceful_stop_token: Option<CancellationToken>,
     ) -> Result<()>
     where
@@ -108,17 +114,21 @@ impl HttpBuilder {
                     tracing::info!("closing connection due to fused");
                     return Ok(());
                 },
+                _ = conn_ctrl.notified() => return Ok(()),
             }
         } else {
             // No fusewire: still bound the protocol-detection read so a connection
             // that never sends bytes can't leak a task indefinitely.
-            if let Ok(result) =
-                tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)).await
-            {
-                result?
-            } else {
-                tracing::info!("closing connection: protocol-detection read timed out");
-                return Ok(());
+            tokio::select! {
+                result = tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)) => {
+                    if let Ok(result) = result {
+                        result?
+                    } else {
+                        tracing::info!("closing connection: protocol-detection read timed out");
+                        return Ok(());
+                    }
+                }
+                _ = conn_ctrl.notified() => return Ok(()),
             }
         };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
@@ -138,54 +148,33 @@ impl HttpBuilder {
                         .http1
                         .serve_connection(TokioIo::new(socket), service)
                         .with_upgrades();
-
-                    match (fusewire, graceful_stop_token) {
-                        (Some(fusewire), Some(graceful_stop_token)) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
-                                },
-                                _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
-
-                                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                                    Pin::new(&mut conn).graceful_shutdown();
-                                    let _ = conn.await;
-                                }
+                    tokio::select! {
+                        _ = &mut conn => return Ok(()),
+                        _ = async {
+                            if let Some(fusewire) = &fusewire {
+                                fusewire.fused().await;
+                            } else {
+                                pending::<()>().await;
                             }
-                        }
-                        (None, Some(graceful_stop_token)) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
-
-                                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                                    Pin::new(&mut conn).graceful_shutdown();
-                                    let _ = conn.await;
-                                }
+                        } => tracing::info!("closing connection due to fused"),
+                        _ = async {
+                            if let Some(token) = &graceful_stop_token {
+                                token.cancelled().await;
+                            } else {
+                                pending::<()>().await;
                             }
-                        }
-                        (Some(fusewire), None) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
-                                }
-                            }
-                        }
-                        (None, None) => {
+                        } => {
+                            Pin::new(&mut conn).graceful_shutdown();
                             let _ = conn.await;
+                        }
+                        state = conn_ctrl.notified() => {
+                            if state == ConnState::GracefulShutdown {
+                                Pin::new(&mut conn).graceful_shutdown();
+                                tokio::select! {
+                                    _ = &mut conn => {}
+                                    _ = conn_ctrl.aborted() => {}
+                                }
+                            }
                         }
                     }
                 }
@@ -196,54 +185,33 @@ impl HttpBuilder {
                 #[cfg(feature = "http2")]
                 {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
-
-                    match (fusewire, graceful_stop_token) {
-                        (Some(fusewire), Some(graceful_stop_token)) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
-                                },
-                                _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
-
-                                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                                    Pin::new(&mut conn).graceful_shutdown();
-                                    let _ = conn.await;
-                                }
+                    tokio::select! {
+                        _ = &mut conn => return Ok(()),
+                        _ = async {
+                            if let Some(fusewire) = &fusewire {
+                                fusewire.fused().await;
+                            } else {
+                                pending::<()>().await;
                             }
-                        }
-                        (None, Some(graceful_stop_token)) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = graceful_stop_token.cancelled() => {
-                                    tracing::info!("closing connection due to inactivity");
-
-                                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
-                                    Pin::new(&mut conn).graceful_shutdown();
-                                    let _ = conn.await;
-                                }
+                        } => tracing::info!("closing connection due to fused"),
+                        _ = async {
+                            if let Some(token) = &graceful_stop_token {
+                                token.cancelled().await;
+                            } else {
+                                pending::<()>().await;
                             }
-                        }
-                        (Some(fusewire), None) => {
-                            tokio::select! {
-                                _ = &mut conn => {
-                                    // Connection completed successfully.
-                                    return Ok(());
-                                },
-                                _ = fusewire.fused() => {
-                                    tracing::info!("closing connection due to fused");
-                                }
-                            }
-                        }
-                        (None, None) => {
+                        } => {
+                            Pin::new(&mut conn).graceful_shutdown();
                             let _ = conn.await;
+                        }
+                        state = conn_ctrl.notified() => {
+                            if state == ConnState::GracefulShutdown {
+                                Pin::new(&mut conn).graceful_shutdown();
+                                tokio::select! {
+                                    _ = &mut conn => {}
+                                    _ = conn_ctrl.aborted() => {}
+                                }
+                            }
                         }
                     }
                 }

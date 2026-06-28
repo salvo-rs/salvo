@@ -282,12 +282,13 @@ where
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
         let fusewire = handler.fusewire.clone();
+        let conn_ctrl = handler.conn_ctrl.clone();
         if let Some(fusewire) = &fusewire {
             fusewire.event(FuseEvent::Alive);
         }
         async move {
             builder
-                .serve_connection(stream, handler, fusewire, graceful_stop_token)
+                .serve_connection(stream, handler, fusewire, conn_ctrl, graceful_stop_token)
                 .await
                 .map_err(IoError::other)
         }

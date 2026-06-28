@@ -387,7 +387,14 @@ impl<A: Acceptor + Send> Server<A> {
                                 let service = service.clone();
                                 let alive_connections = alive_connections.clone();
                                 let notify = notify.clone();
-                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, fusewire, alt_svc_h3.clone());
+                                let handler = service.hyper_handler(
+                                    local_addr,
+                                    remote_addr,
+                                    http_scheme,
+                                    fusewire,
+                                    crate::ConnCtrl::new(),
+                                    alt_svc_h3.clone(),
+                                );
                                 let builder = builder.clone();
 
                                 let force_stop_token = force_stop_token.clone();
@@ -525,6 +532,7 @@ impl<A: Acceptor + Send> Server<A> {
                         remote_addr,
                         http_scheme,
                         fusewire,
+                        crate::ConnCtrl::new(),
                         alt_svc_h3.clone(),
                     );
                     let builder = builder.clone();
