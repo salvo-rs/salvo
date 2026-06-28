@@ -88,53 +88,69 @@ impl Router {
         req: &mut Request,
         path_state: &mut PathState,
     ) -> Option<DetectMatched> {
-        Box::pin(async move {
-            for filter in &self.filters {
-                if !filter.filter(req, path_state).await {
-                    return None;
-                }
-            }
-            if !self.routers.is_empty() {
-                let original_cursor = path_state.cursor;
-                let original_params = path_state.params.clone();
-                #[cfg(feature = "matched-path")]
-                let original_matched_parts_len = path_state.matched_parts.len();
-                for child in &self.routers {
-                    if let Some(dm) = child.detect(req, path_state).await {
-                        let hoops = if self.hoops.is_empty() {
-                            dm.hoops
-                        } else {
-                            let mut hoops = Vec::with_capacity(self.hoops.len() + dm.hoops.len());
-                            hoops.extend_from_slice(&self.hoops);
-                            hoops.extend_from_slice(&dm.hoops);
-                            hoops
-                        };
-                        return Some(DetectMatched {
-                            hoops,
-                            goal: dm.goal.clone(),
-                        });
-                    } else {
-                        #[cfg(feature = "matched-path")]
-                        path_state
-                            .matched_parts
-                            .truncate(original_matched_parts_len);
-                        path_state.cursor = original_cursor;
-                        path_state.params = original_params.clone();
+        struct Frame<'a> {
+            router: &'a Router,
+            next_child: usize,
+            checkpoint: super::path_state::PathStateCheckpoint,
+            hoops_len: usize,
+            entered: bool,
+        }
+
+        let mut hoops = Vec::new();
+        let mut stack = vec![Frame {
+            router: self,
+            next_child: 0,
+            checkpoint: path_state.checkpoint(),
+            hoops_len: 0,
+            entered: false,
+        }];
+
+        while let Some(frame) = stack.last_mut() {
+            if !frame.entered {
+                let mut matched = true;
+                for filter in &frame.router.filters {
+                    if !filter.filter(req, path_state).await {
+                        matched = false;
+                        break;
                     }
                 }
+                if !matched {
+                    let frame = stack.pop().unwrap();
+                    path_state.restore(frame.checkpoint);
+                    hoops.truncate(frame.hoops_len);
+                    continue;
+                }
+                hoops.extend(&frame.router.hoops);
+                frame.entered = true;
             }
+
+            if let Some(child) = frame.router.routers.get(frame.next_child) {
+                frame.next_child += 1;
+                stack.push(Frame {
+                    router: child,
+                    next_child: 0,
+                    checkpoint: path_state.checkpoint(),
+                    hoops_len: hoops.len(),
+                    entered: false,
+                });
+                continue;
+            }
+
             if path_state.is_ended() {
                 path_state.once_ended = true;
-                if let Some(goal) = &self.goal {
+                if let Some(goal) = &frame.router.goal {
                     return Some(DetectMatched {
-                        hoops: self.hoops.clone(),
+                        hoops: hoops.into_iter().cloned().collect(),
                         goal: goal.clone(),
                     });
                 }
             }
-            None
-        })
-        .await
+
+            let frame = stack.pop().unwrap();
+            path_state.restore(frame.checkpoint);
+            hoops.truncate(frame.hoops_len);
+        }
+        None
     }
 
     /// Insert a router at the beginning of current router, shifting all routers after it to the
@@ -775,5 +791,22 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert_eq!(path_state.params["p"], "a/b/c");
+    }
+
+    #[tokio::test]
+    async fn deeply_nested_router_is_matched_iteratively() {
+        let depth = 256;
+        let mut router = Router::new().goal(fake_handler);
+        for index in (0..depth).rev() {
+            router = Router::with_path(format!("p{index}")).push(router);
+        }
+        let path = (0..depth)
+            .map(|index| format!("p{index}"))
+            .collect::<Vec<_>>()
+            .join("/");
+        let mut req = TestClient::get(format!("http://local.host/{path}")).build();
+        let mut path_state = PathState::new(req.uri().path());
+
+        assert!(router.detect(&mut req, &mut path_state).await.is_some());
     }
 }
