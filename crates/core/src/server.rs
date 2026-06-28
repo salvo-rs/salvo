@@ -31,7 +31,7 @@ use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, FuseFactory};
+use crate::fuse::{ArcFusePolicy, FuseConfig, FusePolicy};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -120,7 +120,7 @@ enum ServerCommand {
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    fuse_factory: Option<ArcFuseFactory>,
+    fuse_policy: Option<ArcFusePolicy>,
     /// Maximum number of concurrent connections; `None` means unlimited.
     max_connections: Option<usize>,
     #[cfg(feature = "server-handle")]
@@ -160,7 +160,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            fuse_factory: None,
+            fuse_policy: Some(Arc::new(FuseConfig::default())),
             max_connections: None,
             #[cfg(feature = "server-handle")]
             tx_cmd,
@@ -169,13 +169,27 @@ impl<A: Acceptor + Send> Server<A> {
         }
     }
 
-    /// Set the fuse factory.
+    /// Sets a per-connection fuse policy.
     #[must_use]
-    pub fn fuse_factory<F>(mut self, factory: F) -> Self
+    pub fn fuse_policy<F>(mut self, policy: F) -> Self
     where
-        F: FuseFactory + Send + Sync + 'static,
+        F: FusePolicy + Send + Sync + 'static,
     {
-        self.fuse_factory = Some(Arc::new(factory));
+        self.fuse_policy = Some(Arc::new(policy));
+        self
+    }
+
+    /// Uses the same fuse configuration for every accepted connection.
+    #[must_use]
+    pub fn fuse_config(mut self, config: FuseConfig) -> Self {
+        self.fuse_policy = Some(Arc::new(config));
+        self
+    }
+
+    /// Disables connection fuse protection.
+    #[must_use]
+    pub fn disable_fuse(mut self) -> Self {
+        self.fuse_policy = None;
         self
     }
 
@@ -292,7 +306,7 @@ impl<A: Acceptor + Send> Server<A> {
             let Self {
                 mut acceptor,
                 builder,
-                fuse_factory,
+                fuse_policy,
                 max_connections,
                 mut rx_cmd,
                 ..
@@ -379,9 +393,9 @@ impl<A: Acceptor + Send> Server<A> {
                     None
                 };
                 tokio::select! {
-                    accepted = acceptor.accept(fuse_factory.clone()) => {
+                    accepted = acceptor.accept(fuse_policy.clone()) => {
                         match accepted {
-                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme}) => {
+                            Ok(Accepted { coupler, stream, fuse_config, local_addr, remote_addr, http_scheme}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
@@ -391,7 +405,7 @@ impl<A: Acceptor + Send> Server<A> {
                                     local_addr,
                                     remote_addr,
                                     http_scheme,
-                                    fusewire,
+                                    fuse_config,
                                     crate::ConnCtrl::new(),
                                     alt_svc_h3.clone(),
                                 );
@@ -468,7 +482,7 @@ impl<A: Acceptor + Send> Server<A> {
         let Self {
             mut acceptor,
             builder,
-            fuse_factory,
+            fuse_policy,
             max_connections,
             ..
         } = self;
@@ -516,11 +530,11 @@ impl<A: Acceptor + Send> Server<A> {
                 ),
                 None => None,
             };
-            match acceptor.accept(fuse_factory.clone()).await {
+            match acceptor.accept(fuse_policy.clone()).await {
                 Ok(Accepted {
                     coupler,
                     stream,
-                    fusewire,
+                    fuse_config,
                     local_addr,
                     remote_addr,
                     http_scheme,
@@ -531,7 +545,7 @@ impl<A: Acceptor + Send> Server<A> {
                         local_addr,
                         remote_addr,
                         http_scheme,
-                        fusewire,
+                        fuse_config,
                         crate::ConnCtrl::new(),
                         alt_svc_h3.clone(),
                     );

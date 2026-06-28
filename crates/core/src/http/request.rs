@@ -663,7 +663,7 @@ impl Request {
         let body = self.take_body();
         self.replace_body(ReqBody::Boxed {
             inner: Box::pin(Limited::new(body, max_size)),
-            fusewire: None,
+            fuse_config: None,
         });
     }
 

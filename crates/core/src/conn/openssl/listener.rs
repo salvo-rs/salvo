@@ -16,7 +16,7 @@ use super::SslAcceptorBuilder;
 
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
-use crate::fuse::ArcFuseFactory;
+use crate::fuse::ArcFusePolicy;
 use crate::Error;
 
 /// OpensslListener
@@ -201,16 +201,16 @@ where
 
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let Accepted {
             coupler: _,
             stream,
-            fusewire,
+            fuse_config,
             local_addr,
             remote_addr,
             ..
-        } = self.inner.accept(fuse_factory).await?;
+        } = self.inner.accept(fuse_policy).await?;
         let Some(tls_acceptor) = self.current_acceptor.load_full() else {
             return Err(IoError::other("openssl: no active tls config"));
         };
@@ -226,8 +226,8 @@ where
 
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(conn, fusewire.clone()),
-            fusewire,
+            stream: HandshakeStream::new(conn, fuse_config.clone()),
+            fuse_config,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

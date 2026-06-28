@@ -195,7 +195,7 @@ mod tests {
         let service = Service::new(router);
         let body = ReqBody::Boxed {
             inner: Box::pin(UnknownSizeBody::new(b"too large")),
-            fusewire: None,
+            fuse_config: None,
         };
 
         let res = TestClient::post("http://127.0.0.1:5801/upload")

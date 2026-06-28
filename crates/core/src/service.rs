@@ -11,7 +11,7 @@ use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 use crate::ConnCtrl;
 use crate::catcher::{Catcher, write_error_default};
 use crate::conn::SocketAddr;
-use crate::fuse::ArcFusewire;
+use crate::fuse::FuseConfig;
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
@@ -153,7 +153,7 @@ impl Service {
         local_addr: SocketAddr,
         remote_addr: SocketAddr,
         http_scheme: Scheme,
-        fusewire: Option<ArcFusewire>,
+        fuse_config: Option<FuseConfig>,
         conn_ctrl: ConnCtrl,
         alt_svc_h3: Option<HeaderValue>,
     ) -> HyperHandler {
@@ -167,7 +167,7 @@ impl Service {
                 hoops: self.hoops.clone(),
                 allowed_media_types: self.allowed_media_types.clone(),
             }),
-            fusewire,
+            fuse_config,
             conn_ctrl,
             alt_svc_h3,
         }
@@ -236,7 +236,7 @@ pub struct HyperHandler {
     pub(crate) remote_addr: SocketAddr,
     pub(crate) http_scheme: Scheme,
     pub(crate) state: Arc<HyperHandlerState>,
-    pub(crate) fusewire: Option<ArcFusewire>,
+    pub(crate) fuse_config: Option<FuseConfig>,
     pub(crate) conn_ctrl: ConnCtrl,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
@@ -437,7 +437,9 @@ where
             }
         }
         let mut request = Request::from_hyper(req, scheme);
-        request.body.set_fusewire(self.fusewire.clone());
+        request
+            .body
+            .set_fuse_config(self.fuse_config, self.conn_ctrl.clone());
         let response = self.handle(request);
         Box::pin(async move { Ok(response.await.into_hyper()) })
     }

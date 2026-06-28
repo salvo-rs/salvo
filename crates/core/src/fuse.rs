@@ -1,249 +1,106 @@
-//! Protection mechanisms against slow HTTP attacks and connection abuse.
+//! Low-overhead protection against stalled and abusive connections.
 //!
-//! This module provides the "fuse" system, which monitors connections for
-//! malicious patterns such as slow HTTP attacks (Slowloris), slow read attacks,
-//! and other connection-based denial of service attempts.
-//!
-//! # Overview
-//!
-//! The fuse system works by:
-//! 1. Creating a [`Fusewire`] for each incoming connection via a [`FuseFactory`]
-//! 2. Monitoring connection events (TLS handshake, data read/write, frame handling)
-//! 3. "Fusing" (terminating) connections that exhibit suspicious behavior
-//!
-//! # Key Components
-//!
-//! - [`FuseFactory`]: Creates fusewires for new connections
-//! - [`Fusewire`]: Monitors a single connection for abuse patterns
-//! - [`FuseEvent`]: Events reported to fusewires for monitoring
-//! - [`FuseInfo`]: Connection metadata provided when creating fusewires
-//! - [`FlexFusewire`]: A flexible, configurable fusewire implementation
-//!
-//! # Example
-//!
-//! Using the flexible fusewire with custom timeouts:
-//!
-//! ```ignore
-//! use salvo_core::fuse::{FlexFactory, FlexFusewire};
-//! use std::time::Duration;
-//!
-//! let fuse_factory = FlexFactory::new()
-//!     .tls_handshake_timeout(Duration::from_secs(10))
-//!     .idle_timeout(Duration::from_secs(60));
-//! ```
-//!
-//! # Attack Prevention
-//!
-//! The fuse system helps protect against:
-//!
-//! - **Slowloris attacks**: Clients that send HTTP requests very slowly
-//! - **Slow read attacks**: Clients that read responses very slowly
-//! - **Connection exhaustion**: Keeping many connections open without activity
-//! - **TLS negotiation attacks**: Stalling during TLS handshake
-//!
-//! # Custom Implementations
-//!
-//! You can implement custom [`FuseFactory`] and [`Fusewire`] traits for
-//! specialized monitoring needs, such as integration with external security
-//! systems or custom rate limiting logic.
+//! A [`FusePolicy`] runs once when a connection is accepted. The resulting
+//! [`FuseConfig`] is then enforced by the TLS, transport and request-body state
+//! machines themselves; there is no per-I/O event dispatch or timer task.
 
-pub mod flex;
+use std::fmt::Debug;
 use std::sync::Arc;
-
-use async_trait::async_trait;
-pub use flex::{FlexFactory, FlexFusewire};
+use std::time::Duration;
 
 use crate::conn::SocketAddr;
 
-/// The transport protocol used for a connection.
-///
-/// This enum identifies whether a connection is using TCP (for HTTP/1.1 and HTTP/2)
-/// or QUIC (for HTTP/3).
-///
-/// # Default
-///
-/// The default transport protocol is [`TransProto::Tcp`].
+/// Transport used by an accepted connection.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TransProto {
-    /// TCP transport protocol (used for HTTP/1.1 and HTTP/2).
+    /// TCP or a TCP-based protocol.
     #[default]
     Tcp,
-    /// QUIC transport protocol (used for HTTP/3).
+    /// QUIC.
     Quic,
 }
-impl TransProto {
-    /// Returns `true` if this is a TCP connection.
-    #[must_use]
-    pub fn is_tcp(&self) -> bool {
-        matches!(self, Self::Tcp)
-    }
-    /// Returns `true` if this is a QUIC connection.
-    #[must_use]
-    pub fn is_quic(&self) -> bool {
-        matches!(self, Self::Quic)
-    }
-}
 
-/// Events reported to a fusewire during connection lifecycle.
-///
-/// These events allow the fusewire to track connection state and detect
-/// potentially malicious behavior patterns such as slow HTTP attacks.
-///
-/// # Event Flow
-///
-/// A typical HTTPS connection might produce events in this order:
-/// 1. `TlsHandshaking` - TLS negotiation begins
-/// 2. `TlsHandshaked` - TLS negotiation completes
-/// 3. `WaitFrame` - Waiting for HTTP request
-/// 4. `ReadData(n)` - Received n bytes of request data
-/// 5. `GainFrame` - Complete HTTP frame received
-/// 6. `WriteData(n)` - Sent n bytes of response data
-/// 7. `Alive` - Periodic keepalive during idle periods
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FuseEvent {
-    /// TLS handshake has started.
-    ///
-    /// A fusewire may start a timer here to detect stalled TLS negotiations.
-    TlsHandshaking,
-    /// TLS handshake completed successfully.
-    ///
-    /// The fusewire should cancel any TLS handshake timeout timer.
-    TlsHandshaked,
-    /// Connection is alive but idle.
-    ///
-    /// Sent periodically to indicate the connection is still open but waiting.
-    Alive,
-    /// Data was read from the connection.
-    ///
-    /// The `usize` value indicates the number of bytes read.
-    ReadData(usize),
-    /// Data was written to the connection.
-    ///
-    /// The `usize` value indicates the number of bytes written.
-    WriteData(usize),
-    /// Waiting for an HTTP frame (request or continuation).
-    ///
-    /// A fusewire may start a timer here to detect slow request attacks.
-    WaitFrame,
-    /// An HTTP frame was received completely.
-    ///
-    /// The fusewire should reset any frame timeout timers.
-    GainFrame,
-}
-
-/// Type alias for a thread-safe, shared fuse factory.
-pub type ArcFuseFactory = Arc<dyn FuseFactory + Sync + Send + 'static>;
-/// Type alias for a thread-safe, shared fusewire.
-pub type ArcFusewire = Arc<dyn Fusewire + Sync + Send + 'static>;
-
-/// Information about a connection provided to the fuse factory.
-///
-/// This struct contains metadata about an incoming connection that can be
-/// used to create an appropriate fusewire or make access control decisions.
+/// Metadata available to a connection admission policy.
 #[derive(Clone, Debug)]
 pub struct FuseInfo {
-    /// The transport protocol of the connection (TCP or QUIC).
+    /// Transport protocol.
     pub trans_proto: TransProto,
-    /// The remote address of the connecting client.
+    /// Peer address.
     pub remote_addr: SocketAddr,
-    /// The local address the connection was accepted on.
+    /// Local listener address.
     pub local_addr: SocketAddr,
 }
 
-/// Factory trait for creating fusewires for new connections.
-///
-/// Implementations of this trait are responsible for creating [`Fusewire`]
-/// instances for each incoming connection. The factory pattern allows
-/// sharing configuration across all fusewires while creating unique
-/// instances for each connection.
-///
-/// # Example Implementation
-///
-/// A simple factory using a closure:
-///
-/// ```ignore
-/// use salvo_core::fuse::{FuseFactory, FuseInfo, ArcFusewire};
-///
-/// let factory = |info: FuseInfo| {
-///     println!("New connection from: {}", info.remote_addr);
-///     MyCustomFusewire::new(info)
-/// };
-/// ```
-pub trait FuseFactory {
-    /// Creates a new fusewire for a connection.
-    ///
-    /// # Parameters
-    ///
-    /// - `info`: Information about the new connection
-    ///
-    /// # Returns
-    ///
-    /// A thread-safe fusewire instance for monitoring the connection.
-    fn create(&self, info: FuseInfo) -> ArcFusewire;
+/// Timeouts applied to an accepted connection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FuseConfig {
+    /// Maximum duration of a TLS handshake.
+    pub tls_handshake_timeout: Option<Duration>,
+    /// Maximum duration for reading an HTTP/1 request head.
+    pub http1_header_timeout: Option<Duration>,
+    /// Maximum time with no successful transport read or write.
+    pub connection_idle_timeout: Option<Duration>,
+    /// Maximum time a requested transport write may remain pending.
+    pub write_stall_timeout: Option<Duration>,
+    /// Maximum gap between request-body frames.
+    pub request_body_timeout: Option<Duration>,
 }
 
-/// Trait for monitoring and terminating suspicious connections.
-///
-/// A fusewire is created for each incoming connection and monitors its
-/// behavior throughout its lifecycle. When suspicious activity is detected,
-/// the fusewire "fuses" (terminates) the connection.
-///
-/// # Implementation Notes
-///
-/// Implementations should:
-/// - Track timing between events to detect slowloris-style attacks
-/// - Monitor data transfer rates to detect slow read attacks
-/// - Maintain connection state to enforce timeouts
-///
-/// # Example
-///
-/// ```ignore
-/// use salvo_core::fuse::{Fusewire, FuseEvent};
-/// use async_trait::async_trait;
-///
-/// struct TimeoutFusewire {
-///     fuse_signal: tokio::sync::Notify,
-/// }
-///
-/// #[async_trait]
-/// impl Fusewire for TimeoutFusewire {
-///     fn event(&self, event: FuseEvent) {
-///         // Reset timeout on activity
-///         match event {
-///             FuseEvent::ReadData(_) | FuseEvent::WriteData(_) => {
-///                 // Reset idle timer
-///             }
-///             _ => {}
-///         }
-///     }
-///
-///     async fn fused(&self) {
-///         // Wait until connection should be terminated
-///         self.fuse_signal.notified().await;
-///     }
-/// }
-/// ```
-#[async_trait]
-pub trait Fusewire {
-    /// Reports an event from the connection to this fusewire.
-    ///
-    /// Implementations should use these events to track connection state
-    /// and detect suspicious behavior patterns.
-    fn event(&self, event: FuseEvent);
-
-    /// Waits until the fusewire determines the connection should be terminated.
-    ///
-    /// This method is polled by the connection handler. When it returns,
-    /// the connection will be forcefully closed.
-    async fn fused(&self);
-}
-
-impl<T, F> FuseFactory for T
-where
-    T: Fn(FuseInfo) -> F,
-    F: Fusewire + Sync + Send + 'static,
-{
-    fn create(&self, info: FuseInfo) -> ArcFusewire {
-        Arc::new((*self)(info))
+impl Default for FuseConfig {
+    fn default() -> Self {
+        Self {
+            tls_handshake_timeout: Some(Duration::from_secs(10)),
+            http1_header_timeout: Some(Duration::from_secs(30)),
+            connection_idle_timeout: Some(Duration::from_secs(30)),
+            write_stall_timeout: Some(Duration::from_secs(30)),
+            request_body_timeout: Some(Duration::from_secs(60)),
+        }
     }
 }
+
+impl FuseConfig {
+    /// Disables every fuse timeout.
+    #[must_use]
+    pub const fn disabled() -> Self {
+        Self {
+            tls_handshake_timeout: None,
+            http1_header_timeout: None,
+            connection_idle_timeout: None,
+            write_stall_timeout: None,
+            request_body_timeout: None,
+        }
+    }
+}
+
+/// Admission result for a newly accepted connection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FuseAction {
+    /// Accept and enforce this configuration.
+    Accept(FuseConfig),
+    /// Drop the connection before protocol handling.
+    Reject,
+}
+
+/// Selects protection settings once per accepted connection.
+pub trait FusePolicy: Send + Sync + 'static {
+    /// Decides whether and how to protect a connection.
+    fn decide(&self, info: &FuseInfo) -> FuseAction;
+}
+
+impl FusePolicy for FuseConfig {
+    fn decide(&self, _info: &FuseInfo) -> FuseAction {
+        FuseAction::Accept(*self)
+    }
+}
+
+impl<F> FusePolicy for F
+where
+    F: Fn(&FuseInfo) -> FuseAction + Send + Sync + 'static,
+{
+    fn decide(&self, info: &FuseInfo) -> FuseAction {
+        self(info)
+    }
+}
+
+/// Shared connection policy used by listeners.
+pub type ArcFusePolicy = Arc<dyn FusePolicy>;

@@ -19,7 +19,7 @@ async fn main() {
         .push(Router::with_path("你好").get(hello_zh));
     println!("{router:?}");
     Server::new(acceptor)
-        .fuse_factory(salvo::fuse::flex::FlexFactory::new())
+        .fuse_config(salvo::fuse::FuseConfig::default())
         .serve(router)
         .await;
 }

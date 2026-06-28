@@ -20,7 +20,7 @@ use crate::conn::openssl::OpensslListener;
 #[cfg(feature = "rustls")]
 use crate::conn::rustls::RustlsListener;
 use crate::conn::{Holding, HttpBuilder, StraightStream};
-use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
@@ -217,26 +217,31 @@ impl Acceptor for TcpAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| {
+        loop {
+            let (conn, remote_addr) = self.inner.accept().await?;
             let local_addr = self.holdings[0].local_addr.clone();
-            let fusewire = fuse_factory.map(|f| {
-                f.create(FuseInfo {
+            let fuse_config = match &fuse_policy {
+                Some(policy) => match policy.decide(&FuseInfo {
                     trans_proto: TransProto::Tcp,
                     remote_addr: remote_addr.into(),
                     local_addr: local_addr.clone(),
-                })
-            });
-            Accepted {
+                }) {
+                    FuseAction::Accept(config) => Some(config),
+                    FuseAction::Reject => continue,
+                },
+                None => None,
+            };
+            return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fusewire.clone()),
-                fusewire,
+                stream: StraightStream::new(conn, fuse_config),
+                fuse_config,
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,
-            }
-        })
+            });
+        }
     }
 }
 
@@ -281,14 +286,11 @@ where
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        let fusewire = handler.fusewire.clone();
+        let fuse_config = handler.fuse_config;
         let conn_ctrl = handler.conn_ctrl.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
         async move {
             builder
-                .serve_connection(stream, handler, fusewire, conn_ctrl, graceful_stop_token)
+                .serve_connection(stream, handler, fuse_config, conn_ctrl, graceful_stop_token)
                 .await
                 .map_err(IoError::other)
         }
@@ -312,7 +314,7 @@ pub trait DynTcpAcceptor: Send {
     /// Accept a new connection.
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>>;
 }
 impl Acceptor for dyn DynTcpAcceptor {
@@ -327,9 +329,9 @@ impl Acceptor for dyn DynTcpAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        DynTcpAcceptor::accept(self, fuse_factory).await
+        DynTcpAcceptor::accept(self, fuse_policy).await
     }
 }
 
@@ -348,10 +350,10 @@ where
     #[inline]
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
         async move {
-            let accepted = self.0.accept(fuse_factory).await?;
+            let accepted = self.0.accept(fuse_policy).await?;
             Ok(accepted.map_into(|_| TcpCoupler::new(), DynStream::new))
         }
         .boxed()
@@ -391,13 +393,13 @@ impl DynTcpAcceptor for DynTcpAcceptors {
     #[inline]
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
         async move {
             let mut set = Vec::new();
             for inner in &mut self.inners {
-                let fuse_factory = fuse_factory.clone();
-                set.push(async move { inner.accept(fuse_factory).await }.boxed());
+                let fuse_policy = fuse_policy.clone();
+                set.push(async move { inner.accept(fuse_policy).await }.boxed());
             }
             futures_util::future::select_all(set).await.0
         }
@@ -416,9 +418,9 @@ impl Acceptor for DynTcpAcceptors {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        DynTcpAcceptor::accept(self, fuse_factory).await
+        DynTcpAcceptor::accept(self, fuse_policy).await
     }
 }
 impl Debug for DynTcpAcceptors {

@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 use super::{QuinnConnection, QuinnCoupler};
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::Error;
 
@@ -172,32 +172,38 @@ impl Acceptor for QuinnAcceptor {
 
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        if let Some(new_conn) = self.endpoint.accept().await {
+        loop {
+            let Some(new_conn) = self.endpoint.accept().await else {
+                return Err(IoError::other("quinn accept error"));
+            };
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
-            return match new_conn.await {
+            match new_conn.await {
                 Ok(conn) => {
-                    let fusewire = fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
+                    let fuse_config = match &fuse_policy {
+                        Some(policy) => match policy.decide(&FuseInfo {
+                            trans_proto: TransProto::Quic,
                             remote_addr: remote_addr.into(),
                             local_addr: local_addr.clone(),
-                        })
-                    });
-                    Ok(Accepted {
+                        }) {
+                            FuseAction::Accept(config) => Some(config),
+                            FuseAction::Reject => continue,
+                        },
+                        None => None,
+                    };
+                    return Ok(Accepted {
                         coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(conn, fusewire.clone()),
-                        fusewire,
+                        stream: QuinnConnection::new(conn, fuse_config.clone()),
+                        fuse_config,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
-                    })
+                    });
                 }
-                Err(e) => Err(IoError::other(e.to_string())),
+                Err(e) => return Err(IoError::other(e.to_string())),
             }
         }
-        Err(IoError::other("quinn accept error"))
     }
 }

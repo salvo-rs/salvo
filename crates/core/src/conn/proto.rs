@@ -18,7 +18,7 @@ use tokio_util::sync::CancellationToken;
 use crate::ConnCtrl;
 #[cfg(any(feature = "http1", feature = "http2"))]
 use crate::conn::ctrl::ConnState;
-use crate::fuse::ArcFusewire;
+use crate::fuse::FuseConfig;
 use crate::http::body::{Body, HyperBody};
 #[cfg(any(feature = "http1", feature = "http2"))]
 use crate::rt::tokio::TokioIo;
@@ -37,12 +37,12 @@ use crate::rt::tokio::TokioExecutor;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-/// Fallback timeout for the initial protocol-detection read when no fusewire is
+/// Fallback timeout for the initial protocol-detection read when no fuse_config is
 /// configured. A connection that opens but never sends bytes would otherwise keep
 /// the detection read pending forever (Slowloris-style connection leak). The value
 /// is intentionally generous — real clients send the request line / HTTP/2 preface
 /// immediately — and only bounds this one initial read, not established connections.
-/// Configure a [`fuse_factory`](crate::Server::fuse_factory) for finer-grained
+/// Configure a [`fuse_policy`](crate::Server::fuse_policy) for finer-grained
 /// handshake/idle timeouts.
 ///
 /// This relies on the Tokio **time driver**, so the server must run on a runtime
@@ -91,7 +91,7 @@ impl HttpBuilder {
         &self,
         socket: I,
         service: S,
-        fusewire: Option<ArcFusewire>,
+        fuse_config: Option<FuseConfig>,
         conn_ctrl: ConnCtrl,
         graceful_stop_token: Option<CancellationToken>,
     ) -> Result<()>
@@ -105,22 +105,12 @@ impl HttpBuilder {
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         #[cfg(all(feature = "http1", feature = "http2"))]
-        let (version, socket) = if let Some(fusewire) = &fusewire {
+        let (version, socket) = {
+            let timeout = fuse_config
+                .and_then(|config| config.http1_header_timeout)
+                .unwrap_or(PROTOCOL_DETECT_READ_TIMEOUT);
             tokio::select! {
-                result = read_version(socket) => {
-                    result?
-                },
-                _ = fusewire.fused() => {
-                    tracing::info!("closing connection due to fused");
-                    return Ok(());
-                },
-                _ = conn_ctrl.notified() => return Ok(()),
-            }
-        } else {
-            // No fusewire: still bound the protocol-detection read so a connection
-            // that never sends bytes can't leak a task indefinitely.
-            tokio::select! {
-                result = tokio::time::timeout(PROTOCOL_DETECT_READ_TIMEOUT, read_version(socket)) => {
+                result = tokio::time::timeout(timeout, read_version(socket)) => {
                     if let Ok(result) = result {
                         result?
                     } else {
@@ -144,19 +134,16 @@ impl HttpBuilder {
                 return Err(std::io::Error::other("http1 feature not enabled").into());
                 #[cfg(feature = "http1")]
                 {
-                    let mut conn = self
-                        .http1
+                    let mut http1 = self.http1.clone();
+                    http1.timer(crate::rt::tokio::TokioTimer::new());
+                    http1.header_read_timeout(
+                        fuse_config.and_then(|config| config.http1_header_timeout),
+                    );
+                    let mut conn = http1
                         .serve_connection(TokioIo::new(socket), service)
                         .with_upgrades();
                     tokio::select! {
                         _ = &mut conn => return Ok(()),
-                        _ = async {
-                            if let Some(fusewire) = &fusewire {
-                                fusewire.fused().await;
-                            } else {
-                                pending::<()>().await;
-                            }
-                        } => tracing::info!("closing connection due to fused"),
                         _ = async {
                             if let Some(token) = &graceful_stop_token {
                                 token.cancelled().await;
@@ -187,13 +174,6 @@ impl HttpBuilder {
                     let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
                     tokio::select! {
                         _ = &mut conn => return Ok(()),
-                        _ = async {
-                            if let Some(fusewire) = &fusewire {
-                                fusewire.fused().await;
-                            } else {
-                                pending::<()>().await;
-                            }
-                        } => tracing::info!("closing connection due to fused"),
                         _ = async {
                             if let Some(token) = &graceful_stop_token {
                                 token.cancelled().await;

@@ -13,7 +13,7 @@ use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 
 use super::{Accepted, Acceptor, Listener};
@@ -163,27 +163,32 @@ impl Acceptor for UnixAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<TcpCoupler<Self::Stream>, Self::Stream>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| {
+        loop {
+            let (conn, remote_addr) = self.inner.accept().await?;
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
-            let fusewire = fuse_factory.map(|f| {
-                f.create(FuseInfo {
+            let fuse_config = match &fuse_policy {
+                Some(policy) => match policy.decide(&FuseInfo {
                     trans_proto: TransProto::Tcp,
                     remote_addr: remote_addr.clone().into(),
                     local_addr: local_addr.clone(),
-                })
-            });
-            Accepted {
+                }) {
+                    FuseAction::Accept(config) => Some(config),
+                    FuseAction::Reject => continue,
+                },
+                None => None,
+            };
+            return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fusewire.clone()),
-                fusewire,
+                stream: StraightStream::new(conn, fuse_config),
+                fuse_config,
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,
-            }
-        })
+            });
+        }
     }
 }
 
