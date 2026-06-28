@@ -200,16 +200,16 @@ impl Acceptor for QuinnAcceptor {
             };
             match connected {
                 Ok(conn) => {
-                    return Ok(Accepted {
+                    Ok(Accepted {
                         coupler: QuinnCoupler,
                         stream: QuinnConnection::new(conn),
                         fuse_config,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
-                    });
+                    })
                 }
-                Err(e) => return Err(IoError::other(e.to_string())),
+                Err(e) => Err(IoError::other(e.to_string()))
             }
         }
     }

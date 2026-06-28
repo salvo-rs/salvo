@@ -556,7 +556,7 @@ where
         } = self.inner.accept(fuse_policy).await?;
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fuse_config.clone()),
+            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fuse_config),
             fuse_config,
             local_addr,
             remote_addr,
