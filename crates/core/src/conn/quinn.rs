@@ -12,8 +12,6 @@ use salvo_http3::quinn as http3_quinn;
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::{Coupler, HttpBuilder, IntoConfigStream};
-use crate::fuse::FuseConfig;
-
 use crate::service::HyperHandler;
 
 mod builder;
@@ -26,14 +24,12 @@ pub use listener::{QuinnAcceptor, QuinnListener};
 pub struct QuinnConnection {
     inner: http3_quinn::Connection,
     raw: quinn::Connection,
-    fuse_config: Option<FuseConfig>,
 }
 impl QuinnConnection {
-    pub(crate) fn new(raw: quinn::Connection, fuse_config: Option<FuseConfig>) -> Self {
+    pub(crate) fn new(raw: quinn::Connection) -> Self {
         Self {
             inner: http3_quinn::Connection::new(raw.clone()),
             raw,
-            fuse_config,
         }
     }
     /// Get inner quinn connection.

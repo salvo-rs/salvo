@@ -180,22 +180,29 @@ impl Acceptor for QuinnAcceptor {
             };
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
-            match new_conn.await {
+            let fuse_config = match &fuse_policy {
+                Some(policy) => match policy.decide(&FuseInfo {
+                    trans_proto: TransProto::Quic,
+                    remote_addr: remote_addr.into(),
+                    local_addr: local_addr.clone(),
+                }) {
+                    FuseAction::Accept(config) => Some(config),
+                    FuseAction::Reject => continue,
+                },
+                None => None,
+            };
+            let connected = match fuse_config.and_then(|config| config.tls_handshake_timeout) {
+                Some(timeout) => match tokio::time::timeout(timeout, new_conn).await {
+                    Ok(result) => result,
+                    Err(_) => continue,
+                },
+                None => new_conn.await,
+            };
+            match connected {
                 Ok(conn) => {
-                    let fuse_config = match &fuse_policy {
-                        Some(policy) => match policy.decide(&FuseInfo {
-                            trans_proto: TransProto::Quic,
-                            remote_addr: remote_addr.into(),
-                            local_addr: local_addr.clone(),
-                        }) {
-                            FuseAction::Accept(config) => Some(config),
-                            FuseAction::Reject => continue,
-                        },
-                        None => None,
-                    };
                     return Ok(Accepted {
                         coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(conn, fuse_config.clone()),
+                        stream: QuinnConnection::new(conn),
                         fuse_config,
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),

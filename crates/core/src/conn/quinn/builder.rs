@@ -15,7 +15,6 @@ use salvo_http3::server::RequestStream;
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::ctrl::ConnState;
-use crate::fuse::FuseConfig;
 use crate::http::Method;
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::proto::WebTransportSession;
@@ -92,7 +91,6 @@ impl Builder {
         hyper_handler: crate::service::HyperHandler,
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
-        let fuse_config = hyper_handler.fuse_config.clone();
         let conn_ctrl = hyper_handler.conn_ctrl.clone();
         let raw_conn = conn.quinn().clone();
         let mut conn = self
@@ -166,7 +164,6 @@ impl Builder {
                                     request,
                                     stream,
                                     hyper_handler,
-                                    fuse_config.clone(),
                                     raw_conn.clone(),
                                 ) => processed?,
                                 _ = conn_ctrl.aborted() => {
@@ -181,11 +178,8 @@ impl Builder {
                             }
                         }
                         _ => {
-                            let fuse_config = fuse_config.clone();
                             tokio::spawn(async move {
-                                match process_request(request, stream, hyper_handler, fuse_config)
-                                    .await
-                                {
+                                match process_request(request, stream, hyper_handler).await {
                                     Ok(_) => {}
                                     Err(e) => {
                                         tracing::error!(error = ?e, "process request failed")
@@ -215,7 +209,6 @@ async fn process_web_transport(
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fuse_config: Option<FuseConfig>,
     raw_conn: crate::proto::quinn::Connection,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
@@ -317,7 +310,6 @@ async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fuse_config: Option<FuseConfig>,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
