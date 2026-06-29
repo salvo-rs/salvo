@@ -98,18 +98,24 @@ impl Builder {
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
+        // In-flight request handlers are tracked here so a graceful stop can wait
+        // for them to finish (instead of aborting an in-progress HTTP/3 response),
+        // while still terminating promptly once they are all done.
+        let mut request_tasks = tokio::task::JoinSet::new();
         // Once a graceful stop has been requested we send GOAWAY and switch to
-        // draining: keep driving `accept()` (which also drives in-flight request
-        // streams) until it returns `None`, i.e. the peer has acknowledged GOAWAY
-        // and all outstanding requests have completed. This avoids aborting an
-        // in-progress HTTP/3 response during shutdown.
+        // draining: keep driving `accept()` so in-flight request streams make
+        // progress, but stop as soon as there are no outstanding requests rather
+        // than waiting on `accept()` (which only returns `None` after the peer
+        // closes — an idle keep-alive client could otherwise hang shutdown).
         let mut draining = false;
         loop {
-            // Until draining, race `accept()` against the graceful-stop token so an
-            // idle keep-alive connection (one not issuing new requests) still
-            // observes the stop signal instead of blocking in `accept()` until
-            // force-stop.
+            // Reap finished request handlers so the set stays bounded to the work
+            // actually in flight on a long-lived connection.
+            while request_tasks.try_join_next().is_some() {}
             let accepted = match (&graceful_stop_token, draining) {
+                // Race `accept()` against the graceful-stop token so an idle
+                // keep-alive connection still observes the stop signal instead of
+                // blocking in `accept()` until force-stop.
                 (Some(token), false) => {
                     let outcome = tokio::select! {
                         biased;
@@ -119,11 +125,22 @@ impl Builder {
                     match outcome {
                         Some(accepted) => accepted,
                         None => {
-                            // GOAWAY, then drain remaining requests via `accept()`.
+                            // GOAWAY, then drain any in-flight requests.
                             let _ = conn.shutdown(0).await;
                             draining = true;
                             continue;
                         }
+                    }
+                }
+                // Draining and nothing left in flight → done.
+                (_, true) if request_tasks.is_empty() => break,
+                // Draining with work still in flight: keep driving `accept()`, but
+                // also wake when a request task finishes so we can re-check.
+                (_, true) => {
+                    tokio::select! {
+                        biased;
+                        _ = request_tasks.join_next() => continue,
+                        accepted = conn.accept() => accepted,
                     }
                 }
                 _ => conn.accept().await,
@@ -161,7 +178,7 @@ impl Builder {
                         }
                         _ => {
                             let fusewire = fusewire.clone();
-                            tokio::spawn(async move {
+                            request_tasks.spawn(async move {
                                 match process_request(request, stream, hyper_handler, fusewire)
                                     .await
                                 {
