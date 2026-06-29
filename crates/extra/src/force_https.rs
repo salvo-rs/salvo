@@ -190,11 +190,18 @@ impl Handler for ForceHttps {
 }
 
 fn redirect_host(host: &str, https_port: Option<u16>) -> Cow<'_, str> {
-    match (host.split_once(':'), https_port) {
-        (Some((host, _)), Some(port)) => Cow::Owned(format!("{host}:{port}")),
-        (None, Some(port)) => Cow::Owned(format!("{host}:{port}")),
-        (_, None) => Cow::Borrowed(host),
-    }
+    let Some(port) = https_port else {
+        return Cow::Borrowed(host);
+    };
+    // Strip any existing port before appending the configured one. IPv6 literals
+    // are bracketed (`[::1]` / `[::1]:8080`), so the port separator is the colon
+    // *after* the closing bracket — splitting on the first colon would land in
+    // the middle of the address and corrupt it (`[:PORT`).
+    let host_part = match host.rfind(']') {
+        Some(close) => &host[..=close],
+        None => host.split_once(':').map_or(host, |(h, _)| h),
+    };
+    Cow::Owned(format!("{host_part}:{port}"))
 }
 
 #[cfg(test)]
@@ -215,6 +222,17 @@ mod tests {
         assert_eq!(redirect_host("example.com", Some(1234)), "example.com:1234");
         assert_eq!(redirect_host("example.com:1234", None), "example.com:1234");
         assert_eq!(redirect_host("example.com", None), "example.com");
+
+        // IPv6 literals must keep the bracketed address intact and only swap the
+        // trailing port, instead of being split at the first colon.
+        assert_eq!(redirect_host("[::1]", Some(5443)), "[::1]:5443");
+        assert_eq!(redirect_host("[::1]:8698", Some(5443)), "[::1]:5443");
+        assert_eq!(
+            redirect_host("[2001:db8::1]:8698", Some(5443)),
+            "[2001:db8::1]:5443"
+        );
+        assert_eq!(redirect_host("[::1]:8698", None), "[::1]:8698");
+        assert_eq!(redirect_host("[::1]", None), "[::1]");
     }
 
     #[handler]
