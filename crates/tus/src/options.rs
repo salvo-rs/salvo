@@ -261,13 +261,21 @@ impl TusOptions {
     }
 
     /// Extracts and validates the upload ID from the request path.
+    ///
+    /// Prefers the decoded `{id}` route parameter so the id matches exactly what
+    /// the router parsed (avoiding any divergence between the route decoding and a
+    /// separate regex over the raw URI). Falls back to scanning the raw URI path
+    /// for callers that invoke this without the upload routes mounted.
     pub fn extract_file_id_from_request(&self, req: &Request) -> TusResult<String> {
-        let path = req.uri().path();
-        let re = file_id_regex();
-
-        re.captures(path)
-            .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str().to_owned())
+        req.params()
+            .get("id")
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                file_id_regex()
+                    .captures(req.uri().path())
+                    .and_then(|caps| caps.get(1))
+                    .map(|m| m.as_str().to_owned())
+            })
             .filter(|id| is_safe_upload_id(id))
             .ok_or(TusError::FileIdError)
     }

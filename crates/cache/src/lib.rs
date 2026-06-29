@@ -153,10 +153,10 @@ where
 /// relevant headers into the key.
 ///
 /// Note that a `Vary` response header is **not** a fix here: the store never
-/// evaluates `Vary` at lookup time. With the default `cache_private(false)` a
-/// `Vary` response is simply not cached at all, and with `cache_private(true)`
-/// it is cached under the same key and replayed regardless of the request's
-/// negotiation headers.
+/// evaluates `Vary` at lookup time, so a `Vary` response is never cached (in
+/// either `cache_private` mode) — it would otherwise be replayed under the same
+/// key regardless of the request's negotiation headers. Fold the relevant headers
+/// into a custom [`CacheIssuer`] key instead.
 #[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,
@@ -681,17 +681,23 @@ fn request_has_private_cache_headers(req: &Request) -> bool {
 }
 
 fn response_has_private_cache_headers(headers: &HeaderMap) -> bool {
-    headers.contains_key(SET_COOKIE)
-        || headers.contains_key(VARY)
-        || cache_control_contains(headers, "private")
+    headers.contains_key(SET_COOKIE) || cache_control_contains(headers, "private")
 }
 
-/// `Cache-Control` directives that forbid caching regardless of whether this is
-/// a shared or private cache. `no-store` bans storing the response anywhere;
-/// `no-cache` requires revalidation before reuse, which this middleware does not
-/// perform, so both are treated as non-cacheable rather than served blindly.
+/// Directives/headers that forbid caching regardless of whether this is a shared
+/// or private cache. `no-store` bans storing the response anywhere; `no-cache`
+/// requires revalidation before reuse, which this middleware does not perform, so
+/// both are treated as non-cacheable rather than served blindly.
+///
+/// `Vary` is also handled here: this middleware never folds the varied request
+/// headers into the cache key, so it cannot tell two representations apart. Caching
+/// a `Vary` response (even in private mode) would replay one client's representation
+/// (e.g. a `gzip` body, or a specific `Accept-Language`) to clients that negotiated
+/// differently, so such responses are not cached at all.
 fn response_disallows_caching(headers: &HeaderMap) -> bool {
-    cache_control_contains(headers, "no-store") || cache_control_contains(headers, "no-cache")
+    cache_control_contains(headers, "no-store")
+        || cache_control_contains(headers, "no-cache")
+        || headers.contains_key(VARY)
 }
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
@@ -1347,17 +1353,27 @@ mod tests {
     fn cached_response_skips_private_cache_headers_by_default() {
         // Privacy heuristics only restrict a *shared* cache; a private cache
         // (`cache_private(true)`) may still store these.
-        for (name, value) in [
-            (SET_COOKIE, "sid=abc"),
-            (VARY, "accept-language"),
-            (CACHE_CONTROL, "private"),
-        ] {
+        for (name, value) in [(SET_COOKIE, "sid=abc"), (CACHE_CONTROL, "private")] {
             let mut res = Response::new();
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut().insert(name, value.parse().unwrap());
             assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
             assert!(cached_response(&res, &HeaderMap::new(), true).is_some());
         }
+    }
+
+    #[test]
+    fn cached_response_never_stores_vary() {
+        // The store never folds the varied request headers into the key, so a
+        // `Vary` response cannot be told apart from another representation and is
+        // not cached in either mode (otherwise one client's representation would be
+        // replayed to clients that negotiated differently).
+        let mut res = Response::new();
+        res.body(ResBody::Once(Bytes::from_static(b"cached")));
+        res.headers_mut()
+            .insert(VARY, "accept-language".parse().unwrap());
+        assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
+        assert!(cached_response(&res, &HeaderMap::new(), true).is_none());
     }
 
     #[test]
