@@ -107,9 +107,17 @@ impl AcmeConfigBuilder {
     #[inline]
     #[must_use]
     pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+        let url = url.into();
+        if !url.starts_with("https://") {
+            tracing::warn!(
+                directory_url = %url,
+                "ACME directory URL is not HTTPS; the ACME exchange is not protected against \
+                 man-in-the-middle tampering. Use an https:// directory in production."
+            );
+        }
         Self {
             directory_name: name.into(),
-            directory_url: url.into(),
+            directory_url: url,
             ..self
         }
     }

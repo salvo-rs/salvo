@@ -49,7 +49,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use salvo_core::handler::Skipper;
 use salvo_core::http::header;
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::{Request, ResBody, Response};
+use salvo_core::http::{Request, ResBody, Response, StatusCode};
 use salvo_core::writing::Redirect;
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
@@ -178,17 +178,32 @@ impl Handler for ForceHttps {
                 res.body(ResBody::None);
                 res.render(Redirect::permanent(uri.to_string()));
                 ctrl.skip_rest();
+            } else {
+                // Fail closed: a malformed redirect target must not fall through to
+                // serving the request over plaintext HTTP, which would defeat the
+                // purpose of this middleware. Clear any body an earlier hoop may
+                // have written so it cannot be leaked alongside the 400 status.
+                res.body(ResBody::None);
+                res.status_code(StatusCode::BAD_REQUEST);
+                ctrl.skip_rest();
             }
         }
     }
 }
 
 fn redirect_host(host: &str, https_port: Option<u16>) -> Cow<'_, str> {
-    match (host.split_once(':'), https_port) {
-        (Some((host, _)), Some(port)) => Cow::Owned(format!("{host}:{port}")),
-        (None, Some(port)) => Cow::Owned(format!("{host}:{port}")),
-        (_, None) => Cow::Borrowed(host),
-    }
+    let Some(port) = https_port else {
+        return Cow::Borrowed(host);
+    };
+    // Strip any existing port before appending the configured one. IPv6 literals
+    // are bracketed (`[::1]` / `[::1]:8080`), so the port separator is the colon
+    // *after* the closing bracket — splitting on the first colon would land in
+    // the middle of the address and corrupt it (`[:PORT`).
+    let host_part = match host.rfind(']') {
+        Some(close) => &host[..=close],
+        None => host.split_once(':').map_or(host, |(h, _)| h),
+    };
+    Cow::Owned(format!("{host_part}:{port}"))
 }
 
 #[cfg(test)]
@@ -209,12 +224,49 @@ mod tests {
         assert_eq!(redirect_host("example.com", Some(1234)), "example.com:1234");
         assert_eq!(redirect_host("example.com:1234", None), "example.com:1234");
         assert_eq!(redirect_host("example.com", None), "example.com");
+
+        // IPv6 literals must keep the bracketed address intact and only swap the
+        // trailing port, instead of being split at the first colon.
+        assert_eq!(redirect_host("[::1]", Some(5443)), "[::1]:5443");
+        assert_eq!(redirect_host("[::1]:8698", Some(5443)), "[::1]:5443");
+        assert_eq!(
+            redirect_host("[2001:db8::1]:8698", Some(5443)),
+            "[2001:db8::1]:5443"
+        );
+        assert_eq!(redirect_host("[::1]:8698", None), "[::1]:8698");
+        assert_eq!(redirect_host("[::1]", None), "[::1]");
     }
 
     #[handler]
     async fn hello() -> &'static str {
         "Hello World"
     }
+
+    #[handler]
+    async fn leak_plaintext(res: &mut Response) {
+        res.render("leaked plaintext");
+    }
+
+    #[tokio::test]
+    async fn test_fail_closed_clears_earlier_body() {
+        // An earlier hoop writes a body, then `ForceHttps` hits a malformed
+        // redirect target (`Host` with a space is not a valid authority) and
+        // fails closed. The 400 must not leak the earlier plaintext body.
+        let router = Router::with_hoop(leak_plaintext)
+            .hoop(ForceHttps::new().trust_host_header(true))
+            .goal(hello);
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
+            .add_header(HOST, "bad host", true)
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_ne!(
+            response.take_string().await.unwrap_or_default(),
+            "leaked plaintext"
+        );
+    }
+
     #[tokio::test]
     async fn test_redirect_handler() {
         let router =
