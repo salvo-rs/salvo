@@ -558,7 +558,9 @@ where
     /// Allow caching requests or responses that contain private-user cache signals.
     ///
     /// By default, requests with `Authorization` or `Cookie`, and responses with `Set-Cookie`,
-    /// `Vary`, or `Cache-Control: private/no-store`, are not cached.
+    /// `Vary`, or `Cache-Control: private`, are not cached. Enabling this lifts those
+    /// privacy restrictions. `Cache-Control: no-store`/`no-cache` responses are never
+    /// cached regardless of this setting.
     #[inline]
     #[must_use]
     pub fn cache_private(mut self, cache_private: bool) -> Self {
@@ -616,6 +618,11 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     if !effective_status.is_success() {
         return None;
     }
+    // `no-store`/`no-cache` forbid storing or reusing without revalidation in
+    // *any* cache, so they apply even in private-cache mode.
+    if response_disallows_caching(res.headers()) {
+        return None;
+    }
     if !cache_private && response_has_private_cache_headers(res.headers()) {
         return None;
     }
@@ -638,10 +645,14 @@ fn response_has_private_cache_headers(headers: &HeaderMap) -> bool {
     headers.contains_key(SET_COOKIE)
         || headers.contains_key(VARY)
         || cache_control_contains(headers, "private")
-        || cache_control_contains(headers, "no-store")
-        // `no-cache` requires revalidation before reuse; this middleware does not
-        // revalidate, so treat it as non-cacheable rather than serving it blindly.
-        || cache_control_contains(headers, "no-cache")
+}
+
+/// `Cache-Control` directives that forbid caching regardless of whether this is
+/// a shared or private cache. `no-store` bans storing the response anywhere;
+/// `no-cache` requires revalidation before reuse, which this middleware does not
+/// perform, so both are treated as non-cacheable rather than served blindly.
+fn response_disallows_caching(headers: &HeaderMap) -> bool {
+    cache_control_contains(headers, "no-store") || cache_control_contains(headers, "no-cache")
 }
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
@@ -1178,17 +1189,32 @@ mod tests {
 
     #[test]
     fn cached_response_skips_private_cache_headers_by_default() {
+        // Privacy heuristics only restrict a *shared* cache; a private cache
+        // (`cache_private(true)`) may still store these.
         for (name, value) in [
             (SET_COOKIE, "sid=abc"),
             (VARY, "accept-language"),
             (CACHE_CONTROL, "private"),
-            (CACHE_CONTROL, "max-age=60, no-store"),
         ] {
             let mut res = Response::new();
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut().insert(name, value.parse().unwrap());
             assert!(cached_response(&res, false).is_none());
             assert!(cached_response(&res, true).is_some());
+        }
+    }
+
+    #[test]
+    fn cached_response_never_stores_no_store_or_no_cache() {
+        // `no-store`/`no-cache` forbid caching in any cache, so they must be
+        // honored even in private-cache mode.
+        for value in ["max-age=60, no-store", "no-cache", "public, no-cache"] {
+            let mut res = Response::new();
+            res.body(ResBody::Once(Bytes::from_static(b"cached")));
+            res.headers_mut()
+                .insert(CACHE_CONTROL, value.parse().unwrap());
+            assert!(cached_response(&res, false).is_none());
+            assert!(cached_response(&res, true).is_none());
         }
     }
 
