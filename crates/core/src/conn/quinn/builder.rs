@@ -99,7 +99,25 @@ impl Builder {
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
         loop {
-            match conn.accept().await {
+            // Race `accept()` against the graceful-stop token so an idle keep-alive
+            // connection (one not issuing new requests) still observes the stop
+            // signal instead of blocking in `accept()` until force-stop. `None`
+            // signals the token fired.
+            let accepted = match &graceful_stop_token {
+                Some(token) => tokio::select! {
+                    biased;
+                    _ = token.cancelled() => None,
+                    accepted = conn.accept() => Some(accepted),
+                },
+                None => Some(conn.accept().await),
+            };
+            let Some(accepted) = accepted else {
+                // Send GOAWAY so the peer stops opening new streams, then stop
+                // accepting. Requests already dispatched continue on their tasks.
+                let _ = conn.shutdown(0).await;
+                break;
+            };
+            match accepted {
                 Ok(Some(resolver)) => {
                     let hyper_handler = hyper_handler.clone();
                     let (request, stream) = match resolver.resolve_request().await {
@@ -154,11 +172,6 @@ impl Builder {
                     }
                     break;
                 }
-            }
-            if let Some(graceful_stop_token) = &graceful_stop_token
-                && graceful_stop_token.is_cancelled()
-            {
-                break;
             }
         }
         Ok(())

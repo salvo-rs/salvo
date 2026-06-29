@@ -124,7 +124,15 @@ where
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
                     }
-                    Poll::Pending => return Poll::Pending,
+                    Poll::Pending => {
+                        // Keep the connection marked alive while the handshake is
+                        // still in progress on the write side, mirroring `poll_read`
+                        // so the idle/frame timers are not tripped mid-handshake.
+                        if let Some(fusewire) = &self.fusewire {
+                            fusewire.event(FuseEvent::Alive);
+                        }
+                        return Poll::Pending;
+                    }
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_write(cx, buf),
                 State::Error => {
@@ -145,7 +153,15 @@ where
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
                     }
-                    Poll::Pending => return Poll::Pending,
+                    Poll::Pending => {
+                        // Keep the connection marked alive while the handshake is
+                        // still in progress on the write side, mirroring `poll_read`
+                        // so the idle/frame timers are not tripped mid-handshake.
+                        if let Some(fusewire) = &self.fusewire {
+                            fusewire.event(FuseEvent::Alive);
+                        }
+                        return Poll::Pending;
+                    }
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_flush(cx),
                 State::Error => {
@@ -166,7 +182,15 @@ where
                         this.state = State::Error;
                         return Poll::Ready(Err(err));
                     }
-                    Poll::Pending => return Poll::Pending,
+                    Poll::Pending => {
+                        // Keep the connection marked alive while the handshake is
+                        // still in progress on the write side, mirroring `poll_read`
+                        // so the idle/frame timers are not tripped mid-handshake.
+                        if let Some(fusewire) = &self.fusewire {
+                            fusewire.event(FuseEvent::Alive);
+                        }
+                        return Poll::Pending;
+                    }
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_shutdown(cx),
                 State::Error => {

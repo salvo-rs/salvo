@@ -181,7 +181,7 @@ impl Acceptor for QuinnAcceptor {
                 Ok(conn) => {
                     let fusewire = fuse_factory.map(|f| {
                         f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
+                            trans_proto: TransProto::Quic,
                             remote_addr: remote_addr.into(),
                             local_addr: local_addr.clone(),
                         })

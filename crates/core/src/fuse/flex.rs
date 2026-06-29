@@ -179,7 +179,7 @@ type TimeoutWatchStateRef = Arc<Mutex<TimeoutWatchState>>;
 /// ```
 pub struct FlexFusewire {
     info: FuseInfo,
-    guards: Arc<Vec<Box<dyn Guard>>>,
+    guards: Vec<Arc<dyn Guard>>,
 
     reject_token: CancellationToken,
 
@@ -421,7 +421,7 @@ pub struct FlexFactory {
     tcp_frame_timeout: Duration,
     tls_handshake_timeout: Duration,
 
-    guards: Arc<Vec<Box<dyn Guard>>>,
+    guards: Vec<Arc<dyn Guard>>,
 }
 
 impl Debug for FlexFactory {
@@ -448,7 +448,7 @@ impl FlexFactory {
             tcp_idle_timeout: Duration::from_secs(30),
             tcp_frame_timeout: Duration::from_secs(60),
             tls_handshake_timeout: Duration::from_secs(10),
-            guards: Arc::new(vec![Box::new(skip_quic)]),
+            guards: vec![Arc::new(skip_quic)],
         }
     }
 
@@ -468,15 +468,16 @@ impl FlexFactory {
     /// Set guards to new value.
     #[must_use]
     pub fn guards(mut self, guards: Vec<Box<dyn Guard>>) -> Self {
-        self.guards = Arc::new(guards);
+        self.guards = guards.into_iter().map(Arc::from).collect();
         self
     }
     /// Add a guard.
     #[must_use]
     pub fn add_guard(mut self, guard: impl Guard) -> Self {
-        Arc::get_mut(&mut self.guards)
-            .expect("guards get mut failed")
-            .push(Box::new(guard));
+        // `guards` is a `Vec<Arc<dyn Guard>>` so a guard can be appended after the
+        // factory has been cloned, instead of panicking when the previous
+        // `Arc<Vec<..>>` was shared (`Arc::get_mut` returning `None`).
+        self.guards.push(Arc::new(guard));
         self
     }
 
