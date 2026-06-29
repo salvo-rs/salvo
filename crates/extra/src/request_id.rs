@@ -178,7 +178,11 @@ impl Handler for RequestId {
             }
         };
 
-        let _ = req.add_header(self.header_name.clone(), &request_id, false);
+        // Overwrite (not append) so the request carries exactly the resolved id:
+        // appending left a client-supplied id in place when `overwrite` generated a
+        // new one (downstream `req.header(..)` then read the stale value), and
+        // duplicated the header in the pass-through case.
+        let _ = req.add_header(self.header_name.clone(), &request_id, true);
 
         let span = tracing::info_span!("request", ?request_id);
         res.headers_mut()
