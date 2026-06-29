@@ -558,7 +558,9 @@ where
     /// Allow caching requests or responses that contain private-user cache signals.
     ///
     /// By default, requests with `Authorization` or `Cookie`, and responses with `Set-Cookie`,
-    /// `Vary`, or `Cache-Control: private/no-store`, are not cached.
+    /// `Vary`, or `Cache-Control: private`, are not cached. Enabling this lifts those
+    /// privacy restrictions. `Cache-Control: no-store`/`no-cache` responses are never
+    /// cached regardless of this setting.
     #[inline]
     #[must_use]
     pub fn cache_private(mut self, cache_private: bool) -> Self {
@@ -590,15 +592,25 @@ async fn call_next_and_cache<S>(
 where
     S: CacheStore,
 {
+    // Snapshot the headers set by outer middleware *before* the inner handler
+    // runs, so only the headers the handler itself adds or changes are cached.
+    // This keeps per-request outer headers (e.g. `x-request-id`) out of the
+    // entry while still capturing headers the handler overwrites (e.g. CORS
+    // headers under `CallNext::After`).
+    let headers_before = res.headers().clone();
     ctrl.call_next(req, depot, res).await;
-    let cached_data = cached_response(res, cache_private)?;
+    let cached_data = cached_response(res, &headers_before, cache_private)?;
     if let Err(e) = store.save_entry(key, cached_data.clone()).await {
         tracing::error!(error = ?e, "cache failed");
     }
     Some(cached_data)
 }
 
-fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
+fn cached_response(
+    res: &Response,
+    headers_before: &HeaderMap,
+    cache_private: bool,
+) -> Option<CachedEntry> {
     if res.body.is_stream() || res.body.is_error() {
         return None;
     }
@@ -616,10 +628,26 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     if !effective_status.is_success() {
         return None;
     }
+    // `no-store`/`no-cache` forbid storing or reusing without revalidation in
+    // *any* cache, so they apply even in private-cache mode.
+    if response_disallows_caching(res.headers()) {
+        return None;
+    }
     if !cache_private && response_has_private_cache_headers(res.headers()) {
         return None;
     }
-    let headers = res.headers().clone();
+    // The entry can only record headers still present on the response, so a
+    // header the handler *removed* (one set by an outer middleware before the
+    // cache, now gone) cannot be represented. Replaying such an entry on a hit
+    // would leave the stale outer header in place, making hits differ from the
+    // cached miss. Skip caching instead of serving an inconsistent response.
+    if headers_before
+        .keys()
+        .any(|name| !res.headers().contains_key(name))
+    {
+        return None;
+    }
+    let headers = handler_response_headers(headers_before, res.headers());
     let body = match TryInto::<CachedBody>::try_into(&res.body) {
         Ok(body) => body,
         Err(e) => {
@@ -630,6 +658,24 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     Some(CachedEntry::new(res.status_code, headers, body))
 }
 
+/// Headers the inner handler contributed, i.e. names whose values changed
+/// between `before` (set by outer middleware) and `after` (the final response).
+/// Headers left untouched by the handler are excluded so the cache does not
+/// replay a stale per-request value over the fresh one on later hits.
+fn handler_response_headers(before: &HeaderMap, after: &HeaderMap) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    for name in after.keys() {
+        let after_values = after.get_all(name).iter().collect::<Vec<_>>();
+        let before_values = before.get_all(name).iter().collect::<Vec<_>>();
+        if after_values != before_values {
+            for value in after_values {
+                headers.append(name.clone(), value.clone());
+            }
+        }
+    }
+    headers
+}
+
 fn request_has_private_cache_headers(req: &Request) -> bool {
     req.headers().contains_key(AUTHORIZATION) || req.headers().contains_key(COOKIE)
 }
@@ -638,7 +684,14 @@ fn response_has_private_cache_headers(headers: &HeaderMap) -> bool {
     headers.contains_key(SET_COOKIE)
         || headers.contains_key(VARY)
         || cache_control_contains(headers, "private")
-        || cache_control_contains(headers, "no-store")
+}
+
+/// `Cache-Control` directives that forbid caching regardless of whether this is
+/// a shared or private cache. `no-store` bans storing the response anywhere;
+/// `no-cache` requires revalidation before reuse, which this middleware does not
+/// perform, so both are treated as non-cacheable rather than served blindly.
+fn response_disallows_caching(headers: &HeaderMap) -> bool {
+    cache_control_contains(headers, "no-store") || cache_control_contains(headers, "no-cache")
 }
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
@@ -744,7 +797,21 @@ fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
     if let Some(status) = status {
         res.status_code(status);
     }
-    *res.headers_mut() = headers;
+    // Merge the cached headers into the response rather than replacing the whole
+    // map, so headers set by outer middleware (request id, CORS, security
+    // headers) on *this* request are preserved. The entry only holds the headers
+    // the cached handler itself produced (see `handler_response_headers`), so a
+    // cached header fully replaces any same-named value — restoring handler
+    // overrides — while untouched outer headers are left as their fresh value.
+    let res_headers = res.headers_mut();
+    for name in headers.keys() {
+        res_headers.remove(name);
+        // Re-insert every cached value, keeping multi-valued headers such as
+        // `Set-Cookie` intact.
+        for value in headers.get_all(name) {
+            res_headers.append(name.clone(), value.clone());
+        }
+    }
     *res.body_mut() = body.into();
 }
 
@@ -884,7 +951,7 @@ mod tests {
         // and it must not be cached.
         let res = Response::new();
         assert!(res.status_code.is_none() && res.body.is_none());
-        assert!(cached_response(&res, false).is_none());
+        assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
     }
 
     #[test]
@@ -893,7 +960,7 @@ mod tests {
         let mut res = Response::new();
         res.render("ok");
         assert!(res.status_code.is_none());
-        assert!(cached_response(&res, false).is_some());
+        assert!(cached_response(&res, &HeaderMap::new(),false).is_some());
     }
 
     // Tests for RequestIssuer
@@ -1120,6 +1187,119 @@ mod tests {
     }
 
     #[test]
+    fn handler_response_headers_excludes_untouched_outer_headers() {
+        // An outer middleware set `x-request-id` before the handler ran; the
+        // handler only added `content-type`. The per-request `x-request-id` must
+        // be left out of the entry so later hits keep their own fresh value.
+        let mut before = HeaderMap::new();
+        before.insert("x-request-id", "req-1".parse().unwrap());
+        let mut after = before.clone();
+        after.insert("content-type", "text/plain".parse().unwrap());
+
+        let stored = handler_response_headers(&before, &after);
+        assert!(!stored.contains_key("x-request-id"));
+        assert_eq!(stored.get("content-type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn cached_response_skips_when_handler_removes_outer_header() {
+        // An outer middleware set `x-default` before the cache; the handler
+        // removed it. The entry cannot represent that deletion, so the response
+        // must not be cached (otherwise hits would keep the stale `x-default`).
+        let mut before = HeaderMap::new();
+        before.insert("x-default", "from-outer".parse().unwrap());
+
+        let mut res = Response::new();
+        res.body(ResBody::Once(Bytes::from_static(b"cached")));
+        // `res` does not carry `x-default`, i.e. the handler dropped it.
+        assert!(cached_response(&res, &before, false).is_none());
+        assert!(cached_response(&res, &before, true).is_none());
+
+        // Sanity: with no pre-cache header to drop, the same response caches.
+        assert!(cached_response(&res, &HeaderMap::new(), false).is_some());
+    }
+
+    #[test]
+    fn handler_response_headers_includes_handler_overrides() {
+        // CORS `CallNext::After` writes a default before the handler runs; the
+        // handler overwrites it. The overridden value must be cached so hits
+        // reproduce it instead of the pre-cache default.
+        let mut before = HeaderMap::new();
+        before.insert(
+            "access-control-allow-origin",
+            "https://default.example".parse().unwrap(),
+        );
+        let mut after = HeaderMap::new();
+        after.insert(
+            "access-control-allow-origin",
+            "https://handler.example".parse().unwrap(),
+        );
+
+        let stored = handler_response_headers(&before, &after);
+        assert_eq!(
+            stored.get("access-control-allow-origin").unwrap(),
+            "https://handler.example"
+        );
+    }
+
+    #[test]
+    fn respond_from_cache_overrides_handler_headers_but_keeps_outer() {
+        // The entry only carries handler-produced headers. On a hit they must
+        // override same-named pre-cache defaults, while outer headers absent
+        // from the entry (a fresh per-request `x-request-id`) are preserved.
+        let mut entry_headers = HeaderMap::new();
+        entry_headers.insert(
+            "access-control-allow-origin",
+            "https://handler.example".parse().unwrap(),
+        );
+        entry_headers.insert("content-type", "text/plain".parse().unwrap());
+        let entry = CachedEntry::new(
+            Some(StatusCode::OK),
+            entry_headers,
+            CachedBody::Once(Bytes::from_static(b"cached")),
+        );
+
+        let mut res = Response::new();
+        res.headers_mut()
+            .insert("x-request-id", "fresh-for-this-request".parse().unwrap());
+        res.headers_mut().insert(
+            "access-control-allow-origin",
+            "https://default.example".parse().unwrap(),
+        );
+
+        respond_from_cache(&mut res, entry);
+
+        assert_eq!(
+            res.headers().get("x-request-id").unwrap(),
+            "fresh-for-this-request"
+        );
+        assert_eq!(
+            res.headers().get("access-control-allow-origin").unwrap(),
+            "https://handler.example"
+        );
+        assert_eq!(res.headers().get("content-type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn respond_from_cache_restores_multi_valued_headers() {
+        let mut cached_headers = HeaderMap::new();
+        cached_headers.append(SET_COOKIE, "a=1".parse().unwrap());
+        cached_headers.append(SET_COOKIE, "b=2".parse().unwrap());
+        let entry = CachedEntry::new(Some(StatusCode::OK), cached_headers, CachedBody::None);
+
+        let mut res = Response::new();
+        respond_from_cache(&mut res, entry);
+
+        let cookies: Vec<_> = res
+            .headers()
+            .get_all(SET_COOKIE)
+            .iter()
+            .map(|v| v.to_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(cookies, vec!["a=1", "b=2"]);
+    }
+
+    #[test]
     fn test_cached_entry_clone() {
         let entry = CachedEntry::new(
             Some(StatusCode::OK),
@@ -1165,17 +1345,32 @@ mod tests {
 
     #[test]
     fn cached_response_skips_private_cache_headers_by_default() {
+        // Privacy heuristics only restrict a *shared* cache; a private cache
+        // (`cache_private(true)`) may still store these.
         for (name, value) in [
             (SET_COOKIE, "sid=abc"),
             (VARY, "accept-language"),
             (CACHE_CONTROL, "private"),
-            (CACHE_CONTROL, "max-age=60, no-store"),
         ] {
             let mut res = Response::new();
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut().insert(name, value.parse().unwrap());
-            assert!(cached_response(&res, false).is_none());
-            assert!(cached_response(&res, true).is_some());
+            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(),true).is_some());
+        }
+    }
+
+    #[test]
+    fn cached_response_never_stores_no_store_or_no_cache() {
+        // `no-store`/`no-cache` forbid caching in any cache, so they must be
+        // honored even in private-cache mode.
+        for value in ["max-age=60, no-store", "no-cache", "public, no-cache"] {
+            let mut res = Response::new();
+            res.body(ResBody::Once(Bytes::from_static(b"cached")));
+            res.headers_mut()
+                .insert(CACHE_CONTROL, value.parse().unwrap());
+            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(),true).is_none());
         }
     }
 
