@@ -44,9 +44,13 @@ where
                 "application/x-www-form-urlencoded",
                 Content::new(schema.clone()),
             )
-            // `multipart/*` is not a valid OpenAPI media-type key; the concrete
-            // `multipart/form-data` is what form submissions use.
-            .add_content("multipart/form-data", Content::new(schema))
+            // NOTE: `multipart/*` is not a strictly valid OpenAPI media-type key, but
+            // keeping it distinct from `multipart/form-data` avoids clobbering the
+            // file schema that `FormFile`/`FormFiles` register under
+            // `multipart/form-data` when both are used on the same endpoint. Properly
+            // emitting `multipart/form-data` requires merging the form and file
+            // schemas; left as follow-up.
+            .add_content("multipart/*", Content::new(schema))
     }
 }
 
@@ -155,7 +159,7 @@ mod tests {
                             "type": "string"
                         }
                     },
-                    "multipart/form-data": {
+                    "multipart/*": {
                         "schema": {
                             "type": "string"
                         }
@@ -211,7 +215,7 @@ mod tests {
                                 "type": "string"
                             }
                         },
-                        "multipart/form-data": {
+                        "multipart/*": {
                             "schema": {
                                 "type": "string"
                             }
