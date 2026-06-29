@@ -311,7 +311,8 @@ impl RateIssuer for TrustedProxyIssuer {
         let remote_ip = req.remote_addr().ip();
         if let Some(remote_ip) = remote_ip
             && self.trusted_proxies.contains(&remote_ip)
-            && let Some(forwarded) = extract_client_ip_via_trusted_proxies(req, &self.trusted_proxies)
+            && let Some(forwarded) =
+                extract_client_ip_via_trusted_proxies(req, &self.trusted_proxies)
         {
             return Some(forwarded);
         }
@@ -881,7 +882,8 @@ mod tests {
             "10.0.0.5".parse::<IpAddr>().unwrap(),
             "10.0.0.6".parse::<IpAddr>().unwrap(),
         ]);
-        let mut req = make_req_from_proxy("10.0.0.6", Some("198.51.100.7, 10.0.0.5, 10.0.0.6"), None);
+        let mut req =
+            make_req_from_proxy("10.0.0.6", Some("198.51.100.7, 10.0.0.5, 10.0.0.6"), None);
         let depot = Depot::new();
 
         let ip = issuer.issue(&mut req, &depot).await.expect("ip");

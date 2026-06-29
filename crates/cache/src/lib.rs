@@ -951,7 +951,7 @@ mod tests {
         // and it must not be cached.
         let res = Response::new();
         assert!(res.status_code.is_none() && res.body.is_none());
-        assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
+        assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
     }
 
     #[test]
@@ -960,7 +960,7 @@ mod tests {
         let mut res = Response::new();
         res.render("ok");
         assert!(res.status_code.is_none());
-        assert!(cached_response(&res, &HeaderMap::new(),false).is_some());
+        assert!(cached_response(&res, &HeaderMap::new(), false).is_some());
     }
 
     // Tests for RequestIssuer
@@ -1355,8 +1355,8 @@ mod tests {
             let mut res = Response::new();
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut().insert(name, value.parse().unwrap());
-            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
-            assert!(cached_response(&res, &HeaderMap::new(),true).is_some());
+            assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(), true).is_some());
         }
     }
 
@@ -1369,8 +1369,8 @@ mod tests {
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut()
                 .insert(CACHE_CONTROL, value.parse().unwrap());
-            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
-            assert!(cached_response(&res, &HeaderMap::new(),true).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(), true).is_none());
         }
     }
 
