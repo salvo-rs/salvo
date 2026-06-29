@@ -50,7 +50,7 @@ salvo-tus = { version = "0.93.0", path = "crates/tus", default-features = false 
 certon = "0.2"
 
 aead = "0.5"
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 arc-swap = "1.9"
 anyhow = "1"
 async-trait = "0.1"
