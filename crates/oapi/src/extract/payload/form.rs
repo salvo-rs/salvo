@@ -36,13 +36,17 @@ where
     T: Deserialize<'de> + ToSchema,
 {
     fn to_request_body(components: &mut Components) -> RequestBody {
+        // Build (and register) the schema once and reuse it for both media types.
+        let schema = T::to_schema(components);
         RequestBody::new()
             .description("Extract form format data from request.")
             .add_content(
                 "application/x-www-form-urlencoded",
-                Content::new(T::to_schema(components)),
+                Content::new(schema.clone()),
             )
-            .add_content("multipart/*", Content::new(T::to_schema(components)))
+            // `multipart/*` is not a valid OpenAPI media-type key; the concrete
+            // `multipart/form-data` is what form submissions use.
+            .add_content("multipart/form-data", Content::new(schema))
     }
 }
 
@@ -102,8 +106,9 @@ where
     T: Deserialize<'de> + ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+        // `to_request_body` already builds and registers the schema; no extra
+        // `to_schema` call is needed here.
         let request_body = Self::to_request_body(components);
-        let _ = <T as ToSchema>::to_schema(components);
         operation.request_body = Some(request_body);
     }
 }
@@ -150,7 +155,7 @@ mod tests {
                             "type": "string"
                         }
                     },
-                    "multipart/*": {
+                    "multipart/form-data": {
                         "schema": {
                             "type": "string"
                         }
@@ -206,7 +211,7 @@ mod tests {
                                 "type": "string"
                             }
                         },
-                        "multipart/*": {
+                        "multipart/form-data": {
                             "schema": {
                                 "type": "string"
                             }
