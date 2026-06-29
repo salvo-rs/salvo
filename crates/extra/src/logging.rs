@@ -72,10 +72,13 @@ impl Handler for Logger {
         let span = tracing::span!(
             Level::INFO,
             "Request",
-            remote_addr = %req.remote_addr().to_string(),
+            remote_addr = %req.remote_addr(),
             version = ?req.version(),
             method = %req.method(),
-            path = %req.uri(),
+            // Log only the path, not the full URI: the query string can carry
+            // secrets (`?token=`, `?api_key=`, signed URLs) that should not land
+            // in logs by default.
+            path = %req.uri().path(),
         );
 
         async move {
