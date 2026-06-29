@@ -636,6 +636,17 @@ fn cached_response(
     if !cache_private && response_has_private_cache_headers(res.headers()) {
         return None;
     }
+    // The entry can only record headers still present on the response, so a
+    // header the handler *removed* (one set by an outer middleware before the
+    // cache, now gone) cannot be represented. Replaying such an entry on a hit
+    // would leave the stale outer header in place, making hits differ from the
+    // cached miss. Skip caching instead of serving an inconsistent response.
+    if headers_before
+        .keys()
+        .any(|name| !res.headers().contains_key(name))
+    {
+        return None;
+    }
     let headers = handler_response_headers(headers_before, res.headers());
     let body = match TryInto::<CachedBody>::try_into(&res.body) {
         Ok(body) => body,
@@ -1188,6 +1199,24 @@ mod tests {
         let stored = handler_response_headers(&before, &after);
         assert!(!stored.contains_key("x-request-id"));
         assert_eq!(stored.get("content-type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn cached_response_skips_when_handler_removes_outer_header() {
+        // An outer middleware set `x-default` before the cache; the handler
+        // removed it. The entry cannot represent that deletion, so the response
+        // must not be cached (otherwise hits would keep the stale `x-default`).
+        let mut before = HeaderMap::new();
+        before.insert("x-default", "from-outer".parse().unwrap());
+
+        let mut res = Response::new();
+        res.body(ResBody::Once(Bytes::from_static(b"cached")));
+        // `res` does not carry `x-default`, i.e. the handler dropped it.
+        assert!(cached_response(&res, &before, false).is_none());
+        assert!(cached_response(&res, &before, true).is_none());
+
+        // Sanity: with no pre-cache header to drop, the same response caches.
+        assert!(cached_response(&res, &HeaderMap::new(), false).is_some());
     }
 
     #[test]
