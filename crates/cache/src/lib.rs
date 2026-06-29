@@ -592,15 +592,25 @@ async fn call_next_and_cache<S>(
 where
     S: CacheStore,
 {
+    // Snapshot the headers set by outer middleware *before* the inner handler
+    // runs, so only the headers the handler itself adds or changes are cached.
+    // This keeps per-request outer headers (e.g. `x-request-id`) out of the
+    // entry while still capturing headers the handler overwrites (e.g. CORS
+    // headers under `CallNext::After`).
+    let headers_before = res.headers().clone();
     ctrl.call_next(req, depot, res).await;
-    let cached_data = cached_response(res, cache_private)?;
+    let cached_data = cached_response(res, &headers_before, cache_private)?;
     if let Err(e) = store.save_entry(key, cached_data.clone()).await {
         tracing::error!(error = ?e, "cache failed");
     }
     Some(cached_data)
 }
 
-fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
+fn cached_response(
+    res: &Response,
+    headers_before: &HeaderMap,
+    cache_private: bool,
+) -> Option<CachedEntry> {
     if res.body.is_stream() || res.body.is_error() {
         return None;
     }
@@ -626,7 +636,7 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
     if !cache_private && response_has_private_cache_headers(res.headers()) {
         return None;
     }
-    let headers = res.headers().clone();
+    let headers = handler_response_headers(headers_before, res.headers());
     let body = match TryInto::<CachedBody>::try_into(&res.body) {
         Ok(body) => body,
         Err(e) => {
@@ -635,6 +645,24 @@ fn cached_response(res: &Response, cache_private: bool) -> Option<CachedEntry> {
         }
     };
     Some(CachedEntry::new(res.status_code, headers, body))
+}
+
+/// Headers the inner handler contributed, i.e. names whose values changed
+/// between `before` (set by outer middleware) and `after` (the final response).
+/// Headers left untouched by the handler are excluded so the cache does not
+/// replay a stale per-request value over the fresh one on later hits.
+fn handler_response_headers(before: &HeaderMap, after: &HeaderMap) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    for name in after.keys() {
+        let after_values = after.get_all(name).iter().collect::<Vec<_>>();
+        let before_values = before.get_all(name).iter().collect::<Vec<_>>();
+        if after_values != before_values {
+            for value in after_values {
+                headers.append(name.clone(), value.clone());
+            }
+        }
+    }
+    headers
 }
 
 fn request_has_private_cache_headers(req: &Request) -> bool {
@@ -758,19 +786,17 @@ fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
     if let Some(status) = status {
         res.status_code(status);
     }
-    // Merge cached headers into the response rather than replacing the whole map,
-    // so headers set by outer middleware (request id, CORS, security headers) are
-    // preserved. A header already present on the current response was set by an
-    // outer middleware for *this* request, so its fresh value must win — only
-    // headers absent from the response are filled in from the cache (which is
-    // where the cached handler's own headers, e.g. `Content-Type`, come back).
+    // Merge the cached headers into the response rather than replacing the whole
+    // map, so headers set by outer middleware (request id, CORS, security
+    // headers) on *this* request are preserved. The entry only holds the headers
+    // the cached handler itself produced (see `handler_response_headers`), so a
+    // cached header fully replaces any same-named value — restoring handler
+    // overrides — while untouched outer headers are left as their fresh value.
     let res_headers = res.headers_mut();
     for name in headers.keys() {
-        if res_headers.contains_key(name) {
-            continue;
-        }
-        // Insert every cached value for this name, keeping multi-valued headers
-        // such as `Set-Cookie` intact.
+        res_headers.remove(name);
+        // Re-insert every cached value, keeping multi-valued headers such as
+        // `Set-Cookie` intact.
         for value in headers.get_all(name) {
             res_headers.append(name.clone(), value.clone());
         }
@@ -914,7 +940,7 @@ mod tests {
         // and it must not be cached.
         let res = Response::new();
         assert!(res.status_code.is_none() && res.body.is_none());
-        assert!(cached_response(&res, false).is_none());
+        assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
     }
 
     #[test]
@@ -923,7 +949,7 @@ mod tests {
         let mut res = Response::new();
         res.render("ok");
         assert!(res.status_code.is_none());
-        assert!(cached_response(&res, false).is_some());
+        assert!(cached_response(&res, &HeaderMap::new(),false).is_some());
     }
 
     // Tests for RequestIssuer
@@ -1150,31 +1176,78 @@ mod tests {
     }
 
     #[test]
-    fn respond_from_cache_preserves_fresh_per_request_headers() {
-        // Outer middleware (e.g. `RequestId`) already set a fresh header on the
-        // response for *this* request; the stored entry also carries a stale
-        // value from when it was first cached, plus a handler header.
-        let mut cached_headers = HeaderMap::new();
-        cached_headers.insert("x-request-id", "stale-from-first-request".parse().unwrap());
-        cached_headers.insert("content-type", "text/plain".parse().unwrap());
+    fn handler_response_headers_excludes_untouched_outer_headers() {
+        // An outer middleware set `x-request-id` before the handler ran; the
+        // handler only added `content-type`. The per-request `x-request-id` must
+        // be left out of the entry so later hits keep their own fresh value.
+        let mut before = HeaderMap::new();
+        before.insert("x-request-id", "req-1".parse().unwrap());
+        let mut after = before.clone();
+        after.insert("content-type", "text/plain".parse().unwrap());
+
+        let stored = handler_response_headers(&before, &after);
+        assert!(!stored.contains_key("x-request-id"));
+        assert_eq!(stored.get("content-type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn handler_response_headers_includes_handler_overrides() {
+        // CORS `CallNext::After` writes a default before the handler runs; the
+        // handler overwrites it. The overridden value must be cached so hits
+        // reproduce it instead of the pre-cache default.
+        let mut before = HeaderMap::new();
+        before.insert(
+            "access-control-allow-origin",
+            "https://default.example".parse().unwrap(),
+        );
+        let mut after = HeaderMap::new();
+        after.insert(
+            "access-control-allow-origin",
+            "https://handler.example".parse().unwrap(),
+        );
+
+        let stored = handler_response_headers(&before, &after);
+        assert_eq!(
+            stored.get("access-control-allow-origin").unwrap(),
+            "https://handler.example"
+        );
+    }
+
+    #[test]
+    fn respond_from_cache_overrides_handler_headers_but_keeps_outer() {
+        // The entry only carries handler-produced headers. On a hit they must
+        // override same-named pre-cache defaults, while outer headers absent
+        // from the entry (a fresh per-request `x-request-id`) are preserved.
+        let mut entry_headers = HeaderMap::new();
+        entry_headers.insert(
+            "access-control-allow-origin",
+            "https://handler.example".parse().unwrap(),
+        );
+        entry_headers.insert("content-type", "text/plain".parse().unwrap());
         let entry = CachedEntry::new(
             Some(StatusCode::OK),
-            cached_headers,
+            entry_headers,
             CachedBody::Once(Bytes::from_static(b"cached")),
         );
 
         let mut res = Response::new();
         res.headers_mut()
             .insert("x-request-id", "fresh-for-this-request".parse().unwrap());
+        res.headers_mut().insert(
+            "access-control-allow-origin",
+            "https://default.example".parse().unwrap(),
+        );
 
         respond_from_cache(&mut res, entry);
 
-        // The fresh per-request value wins over the cached one...
         assert_eq!(
             res.headers().get("x-request-id").unwrap(),
             "fresh-for-this-request"
         );
-        // ...while headers only present in the cache are still restored.
+        assert_eq!(
+            res.headers().get("access-control-allow-origin").unwrap(),
+            "https://handler.example"
+        );
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain");
     }
 
@@ -1253,8 +1326,8 @@ mod tests {
             let mut res = Response::new();
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut().insert(name, value.parse().unwrap());
-            assert!(cached_response(&res, false).is_none());
-            assert!(cached_response(&res, true).is_some());
+            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(),true).is_some());
         }
     }
 
@@ -1267,8 +1340,8 @@ mod tests {
             res.body(ResBody::Once(Bytes::from_static(b"cached")));
             res.headers_mut()
                 .insert(CACHE_CONTROL, value.parse().unwrap());
-            assert!(cached_response(&res, false).is_none());
-            assert!(cached_response(&res, true).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(),false).is_none());
+            assert!(cached_response(&res, &HeaderMap::new(),true).is_none());
         }
     }
 
