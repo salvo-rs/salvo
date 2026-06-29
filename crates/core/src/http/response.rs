@@ -544,18 +544,12 @@ impl Response {
                     "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));
             }
-            ResBody::Error(_) => {
-                // An error body usually accompanies a 4xx/5xx status set elsewhere;
-                // silently replacing it with plain bytes (leaving the status intact)
-                // would yield an inconsistent "error status + normal body" response.
-                tracing::error!(
-                    "current body's kind is `ResBody::Error`, it is not allowed to write bytes"
-                );
-                return Err(Error::other(
-                    "current body's kind is `ResBody::Error`, it is not allowed to write bytes",
-                ));
-            }
-            ResBody::None => {
+            // `ResBody::Error` is treated like `None` on purpose: the catcher
+            // (`write_error_default`) reads the `StatusError`, renders the negotiated
+            // error page, and then calls `write_body` to install it. Returning an
+            // error here would leave the body as `ResBody::Error` (which polls empty),
+            // dropping the error page.
+            ResBody::None | ResBody::Error(_) => {
                 self.body = ResBody::Once(data.into());
             }
         }
