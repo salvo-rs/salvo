@@ -14,9 +14,16 @@ pub(crate) fn escape_html(value: &str) -> String {
 }
 
 pub(crate) fn json_string(value: &str) -> String {
-    serde_json::to_string(value)
-        .unwrap_or_else(|_| "\"\"".to_owned())
-        .replace('<', "\\u003c")
+    script_safe_json(serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_owned()))
+}
+
+/// Escapes characters that could break out of a `<script>` context when serialized
+/// JSON is embedded directly into an inline script (`<`, `>`, `&`, U+2028, U+2029).
+///
+/// Use this for already-serialized JSON values (e.g. a whole config object); for a
+/// plain string that still needs quoting use [`json_string`] instead.
+pub(crate) fn script_safe_json(json: String) -> String {
+    json.replace('<', "\\u003c")
         .replace('>', "\\u003e")
         .replace('&', "\\u0026")
         .replace('\u{2028}', "\\u2028")

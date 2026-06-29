@@ -519,7 +519,14 @@ where
             return Err(Error::other("upstreams is empty"));
         }
 
-        let path = (self.url_path_getter)(req, depot).unwrap_or_default();
+        let path = (self.url_path_getter)(req, depot).unwrap_or_else(|| {
+            // A `None` from the path getter means "no extra path"; the request is
+            // forwarded to the upstream root. Log it so a misconfigured custom getter
+            // (one that fails to extract the intended segment) is observable instead
+            // of silently proxying to the upstream root.
+            tracing::debug!("url_path_getter returned None; forwarding to upstream root path");
+            String::new()
+        });
         if self.strict_path_normalization_enabled {
             if contains_ambiguous_path_escape(&path) {
                 return Err(Error::other("ambiguous percent-encoded path"));

@@ -63,8 +63,15 @@ impl Client for ReqwestClient {
         let request_upgrade_type =
             crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request = proxied_request
-            .map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
+        let proxied_request = proxied_request.map(|body| {
+            // Forward only data frames; drop non-data frames (e.g. trailers, which
+            // reqwest cannot send anyway) instead of turning them into empty bytes,
+            // and propagate stream errors so a failed/aborted upstream body surfaces
+            // as an error rather than being silently truncated into a "successful" body.
+            reqwest::Body::wrap_stream(
+                body.try_filter_map(|frame| std::future::ready(Ok(frame.into_data().ok()))),
+            )
+        });
         let response = self
             .inner
             .execute(proxied_request.try_into().map_err(Error::other)?)
