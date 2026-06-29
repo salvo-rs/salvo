@@ -277,10 +277,20 @@ pub trait FlashDepotExt {
     fn incoming_flash(&mut self) -> Option<&Flash>;
     /// Get outgoing flash, or `None` if no [`FlashHandler`] is installed on the
     /// route (so the outgoing flash was never initialized).
-    fn try_outgoing_flash(&self) -> Option<&Flash>;
+    ///
+    /// Defaulted so that adding it is not a breaking change for existing
+    /// implementors of this trait; [`Depot`] overrides it with the real lookup.
+    fn try_outgoing_flash(&self) -> Option<&Flash> {
+        None
+    }
     /// Get mutable outgoing flash, or `None` if no [`FlashHandler`] is installed on
     /// the route.
-    fn try_outgoing_flash_mut(&mut self) -> Option<&mut Flash>;
+    ///
+    /// Defaulted so that adding it is not a breaking change for existing
+    /// implementors of this trait; [`Depot`] overrides it with the real lookup.
+    fn try_outgoing_flash_mut(&mut self) -> Option<&mut Flash> {
+        None
+    }
     /// Get outgoing flash.
     ///
     /// # Panics
