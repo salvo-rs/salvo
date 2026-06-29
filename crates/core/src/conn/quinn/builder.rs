@@ -98,24 +98,35 @@ impl Builder {
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
+        // Once a graceful stop has been requested we send GOAWAY and switch to
+        // draining: keep driving `accept()` (which also drives in-flight request
+        // streams) until it returns `None`, i.e. the peer has acknowledged GOAWAY
+        // and all outstanding requests have completed. This avoids aborting an
+        // in-progress HTTP/3 response during shutdown.
+        let mut draining = false;
         loop {
-            // Race `accept()` against the graceful-stop token so an idle keep-alive
-            // connection (one not issuing new requests) still observes the stop
-            // signal instead of blocking in `accept()` until force-stop. `None`
-            // signals the token fired.
-            let accepted = match &graceful_stop_token {
-                Some(token) => tokio::select! {
-                    biased;
-                    _ = token.cancelled() => None,
-                    accepted = conn.accept() => Some(accepted),
-                },
-                None => Some(conn.accept().await),
-            };
-            let Some(accepted) = accepted else {
-                // Send GOAWAY so the peer stops opening new streams, then stop
-                // accepting. Requests already dispatched continue on their tasks.
-                let _ = conn.shutdown(0).await;
-                break;
+            // Until draining, race `accept()` against the graceful-stop token so an
+            // idle keep-alive connection (one not issuing new requests) still
+            // observes the stop signal instead of blocking in `accept()` until
+            // force-stop.
+            let accepted = match (&graceful_stop_token, draining) {
+                (Some(token), false) => {
+                    let outcome = tokio::select! {
+                        biased;
+                        _ = token.cancelled() => None,
+                        accepted = conn.accept() => Some(accepted),
+                    };
+                    match outcome {
+                        Some(accepted) => accepted,
+                        None => {
+                            // GOAWAY, then drain remaining requests via `accept()`.
+                            let _ = conn.shutdown(0).await;
+                            draining = true;
+                            continue;
+                        }
+                    }
+                }
+                _ => conn.accept().await,
             };
             match accepted {
                 Ok(Some(resolver)) => {
