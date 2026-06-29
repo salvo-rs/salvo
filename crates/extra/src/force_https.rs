@@ -181,7 +181,9 @@ impl Handler for ForceHttps {
             } else {
                 // Fail closed: a malformed redirect target must not fall through to
                 // serving the request over plaintext HTTP, which would defeat the
-                // purpose of this middleware.
+                // purpose of this middleware. Clear any body an earlier hoop may
+                // have written so it cannot be leaked alongside the 400 status.
+                res.body(ResBody::None);
                 res.status_code(StatusCode::BAD_REQUEST);
                 ctrl.skip_rest();
             }
@@ -239,6 +241,32 @@ mod tests {
     async fn hello() -> &'static str {
         "Hello World"
     }
+
+    #[handler]
+    async fn leak_plaintext(res: &mut Response) {
+        res.render("leaked plaintext");
+    }
+
+    #[tokio::test]
+    async fn test_fail_closed_clears_earlier_body() {
+        // An earlier hoop writes a body, then `ForceHttps` hits a malformed
+        // redirect target (`Host` with a space is not a valid authority) and
+        // fails closed. The 400 must not leak the earlier plaintext body.
+        let router = Router::with_hoop(leak_plaintext)
+            .hoop(ForceHttps::new().trust_host_header(true))
+            .goal(hello);
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
+            .add_header(HOST, "bad host", true)
+            .send(router)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_ne!(
+            response.take_string().await.unwrap_or_default(),
+            "leaked plaintext"
+        );
+    }
+
     #[tokio::test]
     async fn test_redirect_handler() {
         let router =
