@@ -760,14 +760,20 @@ fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
     }
     // Merge cached headers into the response rather than replacing the whole map,
     // so headers set by outer middleware (request id, CORS, security headers) are
-    // preserved. Cached values fully replace any same-named header (keeping
-    // multi-valued headers such as `Set-Cookie` intact).
+    // preserved. A header already present on the current response was set by an
+    // outer middleware for *this* request, so its fresh value must win — only
+    // headers absent from the response are filled in from the cache (which is
+    // where the cached handler's own headers, e.g. `Content-Type`, come back).
     let res_headers = res.headers_mut();
     for name in headers.keys() {
-        res_headers.remove(name);
-    }
-    for (name, value) in &headers {
-        res_headers.append(name.clone(), value.clone());
+        if res_headers.contains_key(name) {
+            continue;
+        }
+        // Insert every cached value for this name, keeping multi-valued headers
+        // such as `Set-Cookie` intact.
+        for value in headers.get_all(name) {
+            res_headers.append(name.clone(), value.clone());
+        }
     }
     *res.body_mut() = body.into();
 }
@@ -1141,6 +1147,54 @@ mod tests {
         let debug_str = format!("{entry:?}");
         assert!(debug_str.contains("CachedEntry"));
         assert!(debug_str.contains("status"));
+    }
+
+    #[test]
+    fn respond_from_cache_preserves_fresh_per_request_headers() {
+        // Outer middleware (e.g. `RequestId`) already set a fresh header on the
+        // response for *this* request; the stored entry also carries a stale
+        // value from when it was first cached, plus a handler header.
+        let mut cached_headers = HeaderMap::new();
+        cached_headers.insert("x-request-id", "stale-from-first-request".parse().unwrap());
+        cached_headers.insert("content-type", "text/plain".parse().unwrap());
+        let entry = CachedEntry::new(
+            Some(StatusCode::OK),
+            cached_headers,
+            CachedBody::Once(Bytes::from_static(b"cached")),
+        );
+
+        let mut res = Response::new();
+        res.headers_mut()
+            .insert("x-request-id", "fresh-for-this-request".parse().unwrap());
+
+        respond_from_cache(&mut res, entry);
+
+        // The fresh per-request value wins over the cached one...
+        assert_eq!(
+            res.headers().get("x-request-id").unwrap(),
+            "fresh-for-this-request"
+        );
+        // ...while headers only present in the cache are still restored.
+        assert_eq!(res.headers().get("content-type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn respond_from_cache_restores_multi_valued_headers() {
+        let mut cached_headers = HeaderMap::new();
+        cached_headers.append(SET_COOKIE, "a=1".parse().unwrap());
+        cached_headers.append(SET_COOKIE, "b=2".parse().unwrap());
+        let entry = CachedEntry::new(Some(StatusCode::OK), cached_headers, CachedBody::None);
+
+        let mut res = Response::new();
+        respond_from_cache(&mut res, entry);
+
+        let cookies: Vec<_> = res
+            .headers()
+            .get_all(SET_COOKIE)
+            .iter()
+            .map(|v| v.to_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(cookies, vec!["a=1", "b=2"]);
     }
 
     #[test]
