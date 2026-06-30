@@ -70,7 +70,7 @@ cfg_feature! {
     pub use proto::webtransport;
 }
 
-pub use self::conn::Listener;
+pub use self::conn::{ConnCtrl, Listener};
 pub use self::depot::Depot;
 pub use self::error::{BoxedError, Error};
 pub use self::extract::Extractible;
@@ -109,7 +109,7 @@ pub mod prelude {
         #![all(feature = "unix", unix)]
         pub use crate::conn::UnixListener;
     }
-    pub use crate::conn::{JoinedListener, Listener, TcpListener};
+    pub use crate::conn::{ConnCtrl, JoinedListener, Listener, TcpListener};
     pub use crate::handler::{self, Handler};
     pub use crate::routing::{FlowCtrl, Router};
     cfg_feature! {

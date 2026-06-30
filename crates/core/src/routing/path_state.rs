@@ -2,6 +2,14 @@ use std::borrow::Cow;
 
 use super::{PathParams, decode_url_path};
 
+#[derive(Clone, Copy)]
+pub(crate) struct PathStateCheckpoint {
+    cursor: (usize, usize),
+    params_len: usize,
+    #[cfg(feature = "matched-path")]
+    matched_parts_len: usize,
+}
+
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PathState {
@@ -108,5 +116,23 @@ impl PathState {
     #[must_use]
     pub fn is_ended(&self) -> bool {
         self.cursor.0 >= self.parts.len()
+    }
+
+    #[inline]
+    pub(crate) fn checkpoint(&self) -> PathStateCheckpoint {
+        PathStateCheckpoint {
+            cursor: self.cursor,
+            params_len: self.params.len(),
+            #[cfg(feature = "matched-path")]
+            matched_parts_len: self.matched_parts.len(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn restore(&mut self, checkpoint: PathStateCheckpoint) {
+        self.cursor = checkpoint.cursor;
+        self.params.truncate(checkpoint.params_len);
+        #[cfg(feature = "matched-path")]
+        self.matched_parts.truncate(checkpoint.matched_parts_len);
     }
 }

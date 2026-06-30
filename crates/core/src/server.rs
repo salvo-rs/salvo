@@ -14,6 +14,7 @@ compile_error!(
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
+use tokio::sync::Semaphore;
 #[cfg(feature = "server-handle")]
 use tokio::{
     sync::{
@@ -25,13 +26,11 @@ use tokio::{
 #[cfg(feature = "server-handle")]
 use tokio_util::sync::CancellationToken;
 
-use tokio::sync::Semaphore;
-
 use crate::Service;
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
-use crate::fuse::{ArcFuseFactory, FuseFactory};
+use crate::fuse::{ArcFusePolicy, FuseConfig, FusePolicy};
 
 cfg_feature! {
     #![feature ="server-handle"]
@@ -94,7 +93,7 @@ impl ServerHandle {
     ///     let handle = server.handle();
     ///
     ///     // Graceful shutdown the server
-    ///       tokio::spawn(async move {
+    ///     tokio::spawn(async move {
     ///         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     ///         handle.stop_graceful(None);
     ///     });
@@ -116,11 +115,12 @@ enum ServerCommand {
 
 /// HTTP Server.
 ///
-/// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
+/// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a
+/// [`Service`].
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    fuse_factory: Option<ArcFuseFactory>,
+    fuse_policy: Option<ArcFusePolicy>,
     /// Maximum number of concurrent connections; `None` means unlimited.
     max_connections: Option<usize>,
     #[cfg(feature = "server-handle")]
@@ -160,7 +160,7 @@ impl<A: Acceptor + Send> Server<A> {
         Self {
             acceptor,
             builder,
-            fuse_factory: None,
+            fuse_policy: Some(Arc::new(FuseConfig::default())),
             max_connections: None,
             #[cfg(feature = "server-handle")]
             tx_cmd,
@@ -169,13 +169,27 @@ impl<A: Acceptor + Send> Server<A> {
         }
     }
 
-    /// Set the fuse factory.
+    /// Sets a per-connection fuse policy.
     #[must_use]
-    pub fn fuse_factory<F>(mut self, factory: F) -> Self
+    pub fn fuse_policy<F>(mut self, policy: F) -> Self
     where
-        F: FuseFactory + Send + Sync + 'static,
+        F: FusePolicy + Send + Sync + 'static,
     {
-        self.fuse_factory = Some(Arc::new(factory));
+        self.fuse_policy = Some(Arc::new(policy));
+        self
+    }
+
+    /// Uses the same fuse configuration for every accepted connection.
+    #[must_use]
+    pub fn fuse_config(mut self, config: FuseConfig) -> Self {
+        self.fuse_policy = Some(Arc::new(config));
+        self
+    }
+
+    /// Disables connection fuse protection.
+    #[must_use]
+    pub fn disable_fuse(mut self) -> Self {
+        self.fuse_policy = None;
         self
     }
 
@@ -292,7 +306,7 @@ impl<A: Acceptor + Send> Server<A> {
             let Self {
                 mut acceptor,
                 builder,
-                fuse_factory,
+                fuse_policy,
                 max_connections,
                 mut rx_cmd,
                 ..
@@ -379,15 +393,22 @@ impl<A: Acceptor + Send> Server<A> {
                     None
                 };
                 tokio::select! {
-                    accepted = acceptor.accept(fuse_factory.clone()) => {
+                    accepted = acceptor.accept(fuse_policy.clone()) => {
                         match accepted {
-                            Ok(Accepted { coupler, stream, fusewire, local_addr, remote_addr, http_scheme}) => {
+                            Ok(Accepted { coupler, stream, fuse_config, local_addr, remote_addr, http_scheme}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
                                 let alive_connections = alive_connections.clone();
                                 let notify = notify.clone();
-                                let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, fusewire, alt_svc_h3.clone());
+                                let handler = service.hyper_handler(
+                                    local_addr,
+                                    remote_addr,
+                                    http_scheme,
+                                    fuse_config,
+                                    crate::ConnCtrl::new(),
+                                    alt_svc_h3.clone(),
+                                );
                                 let builder = builder.clone();
 
                                 let force_stop_token = force_stop_token.clone();
@@ -461,7 +482,7 @@ impl<A: Acceptor + Send> Server<A> {
         let Self {
             mut acceptor,
             builder,
-            fuse_factory,
+            fuse_policy,
             max_connections,
             ..
         } = self;
@@ -509,11 +530,11 @@ impl<A: Acceptor + Send> Server<A> {
                 ),
                 None => None,
             };
-            match acceptor.accept(fuse_factory.clone()).await {
+            match acceptor.accept(fuse_policy.clone()).await {
                 Ok(Accepted {
                     coupler,
                     stream,
-                    fusewire,
+                    fuse_config,
                     local_addr,
                     remote_addr,
                     http_scheme,
@@ -524,7 +545,8 @@ impl<A: Acceptor + Send> Server<A> {
                         local_addr,
                         remote_addr,
                         http_scheme,
-                        fusewire,
+                        fuse_config,
+                        crate::ConnCtrl::new(),
                         alt_svc_h3.clone(),
                     );
                     let builder = builder.clone();
@@ -626,8 +648,54 @@ mod tests {
 
     #[cfg(feature = "server-handle")]
     #[tokio::test]
+    async fn handler_abort_discards_the_response() {
+        use std::time::Duration;
+
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        use crate::conn::Acceptor;
+
+        #[handler]
+        async fn abort(res: &mut Response, conn: &mut ConnCtrl) {
+            conn.abort();
+            res.body("must not be sent");
+        }
+
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new().goal(abort)));
+
+        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut received = Vec::new();
+        tokio::time::timeout(Duration::from_secs(1), client.read_to_end(&mut received))
+            .await
+            .expect("aborted connection should close promptly")
+            .unwrap();
+
+        assert!(
+            received.is_empty(),
+            "an aborted connection must not send an HTTP response"
+        );
+
+        handle.stop_forceful();
+        server_task.await.unwrap().unwrap();
+    }
+
+    #[cfg(feature = "server-handle")]
+    #[tokio::test]
     async fn test_server_handle_stop() {
         use std::time::Duration;
+
         use tokio::time::timeout;
 
         // Test forcible stop
@@ -720,7 +788,10 @@ mod tests {
             result.is_ok(),
             "saturated connection-limited server must still force-stop"
         );
-        assert!(result.unwrap().unwrap().is_ok(), "try_serve should return Ok");
+        assert!(
+            result.unwrap().unwrap().is_ok(),
+            "try_serve should return Ok"
+        );
         drop(stream);
     }
 

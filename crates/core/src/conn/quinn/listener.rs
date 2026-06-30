@@ -3,8 +3,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
 
 use futures_util::stream::{BoxStream, StreamExt};
@@ -13,11 +12,11 @@ use salvo_http3::quinn::Endpoint;
 use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
+use crate::Error;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
-use crate::Error;
 
 /// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
@@ -70,10 +69,9 @@ where
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
 
         let mut config_stream = config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("quinn: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("quinn: config stream ended before yielding an initial tls config")
+        })?;
         let initial = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
@@ -172,32 +170,43 @@ impl Acceptor for QuinnAcceptor {
 
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        if let Some(new_conn) = self.endpoint.accept().await {
+        loop {
+            let Some(new_conn) = self.endpoint.accept().await else {
+                return Err(IoError::other("quinn accept error"));
+            };
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
-            return match new_conn.await {
-                Ok(conn) => {
-                    let fusewire = fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.into(),
-                            local_addr: local_addr.clone(),
-                        })
-                    });
-                    Ok(Accepted {
-                        coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(conn, fusewire.clone()),
-                        fusewire,
-                        local_addr: self.holdings[0].local_addr.clone(),
-                        remote_addr: remote_addr.into(),
-                        http_scheme: self.holdings[0].http_scheme.clone(),
-                    })
-                }
+            let fuse_config = match &fuse_policy {
+                Some(policy) => match policy.decide(&FuseInfo {
+                    trans_proto: TransProto::Quic,
+                    remote_addr: remote_addr.into(),
+                    local_addr: local_addr.clone(),
+                }) {
+                    FuseAction::Accept(config) => Some(config),
+                    FuseAction::Reject => continue,
+                },
+                None => None,
+            };
+            let connected = match fuse_config.and_then(|config| config.tls_handshake_timeout) {
+                Some(timeout) => match tokio::time::timeout(timeout, new_conn).await {
+                    Ok(result) => result,
+                    Err(_) => continue,
+                },
+                None => new_conn.await,
+            };
+            return match connected {
+                Ok(conn) => Ok(Accepted {
+                    coupler: QuinnCoupler,
+                    stream: QuinnConnection::new(conn),
+                    fuse_config,
+                    local_addr: self.holdings[0].local_addr.clone(),
+                    remote_addr: remote_addr.into(),
+                    http_scheme: self.holdings[0].http_scheme.clone(),
+                }),
                 Err(e) => Err(IoError::other(e.to_string())),
-            }
+            };
         }
-        Err(IoError::other("quinn accept error"))
     }
 }

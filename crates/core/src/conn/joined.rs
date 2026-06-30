@@ -12,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::{Accepted, Acceptor, Listener};
 use crate::conn::{Coupler, Holding, HttpBuilder};
-use crate::fuse::ArcFuseFactory;
+use crate::fuse::ArcFusePolicy;
 use crate::service::HyperHandler;
 
 /// An Coupler for JoinedListener.
@@ -218,13 +218,13 @@ where
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         tokio::select! {
-            accepted = self.a.accept(fuse_factory.clone()) => {
+            accepted = self.a.accept(fuse_policy.clone()) => {
                 Ok(accepted?.map_into(JoinedCoupler::A, JoinedStream::A))
             }
-            accepted = self.b.accept(fuse_factory) => {
+            accepted = self.b.accept(fuse_policy) => {
                 Ok(accepted?.map_into(JoinedCoupler::B, JoinedStream::B))
             }
         }

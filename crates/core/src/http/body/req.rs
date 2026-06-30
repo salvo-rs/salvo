@@ -1,5 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -8,7 +8,55 @@ use futures_util::stream::Stream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use crate::BoxedError;
-use crate::fuse::{ArcFusewire, FuseEvent};
+use crate::fuse::FuseConfig;
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct BodyTimeout {
+    duration: std::time::Duration,
+    sleep: Pin<Box<tokio::time::Sleep>>,
+    armed: bool,
+    conn: crate::ConnCtrl,
+}
+
+impl BodyTimeout {
+    fn new(duration: std::time::Duration, conn: crate::ConnCtrl) -> Self {
+        Self {
+            duration,
+            sleep: Box::pin(tokio::time::sleep(std::time::Duration::from_secs(
+                86400 * 365,
+            ))),
+            armed: false,
+            conn,
+        }
+    }
+
+    fn apply(&mut self, poll: PollFrame, cx: &mut Context<'_>) -> PollFrame {
+        match poll {
+            Poll::Pending => {
+                if !self.armed {
+                    self.armed = true;
+                    self.sleep
+                        .as_mut()
+                        .reset(tokio::time::Instant::now() + self.duration);
+                }
+                if self.sleep.as_mut().poll(cx).is_ready() {
+                    self.conn.abort();
+                    Poll::Ready(Some(Err(IoError::new(
+                        ErrorKind::TimedOut,
+                        "request body timeout",
+                    ))))
+                } else {
+                    Poll::Pending
+                }
+            }
+            ready => {
+                self.armed = false;
+                ready
+            }
+        }
+    }
+}
 
 pub(crate) type BoxedBody =
     Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
@@ -27,24 +75,26 @@ pub enum ReqBody {
     Hyper {
         /// Inner body.
         inner: Incoming,
-        /// Fusewire.
-        fusewire: Option<ArcFusewire>,
+        /// Request-body timeout state.
+        fuse_config: Option<BodyTimeout>,
     },
     /// Boxed body.
     Boxed {
         /// Inner body.
         inner: BoxedBody,
-        /// Fusewire.
-        fusewire: Option<ArcFusewire>,
+        /// Request-body timeout state.
+        fuse_config: Option<BodyTimeout>,
     },
 }
 impl ReqBody {
     #[doc(hidden)]
-    pub fn set_fusewire(&mut self, value: Option<ArcFusewire>) {
+    pub fn set_fuse_config(&mut self, value: Option<FuseConfig>, conn: crate::ConnCtrl) {
         match self {
             Self::None | Self::Once(_) => {}
-            Self::Hyper { fusewire, .. } | Self::Boxed { fusewire, .. } => {
-                *fusewire = value;
+            Self::Hyper { fuse_config, .. } | Self::Boxed { fuse_config, .. } => {
+                *fuse_config = value
+                    .and_then(|config| config.request_body_timeout)
+                    .map(|duration| BodyTimeout::new(duration, conn));
             }
         }
     }
@@ -83,22 +133,14 @@ impl Body for ReqBody {
 
     fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> PollFrame {
         #[inline]
-        fn through_fusewire(poll: PollFrame, fusewire: Option<&ArcFusewire>) -> PollFrame {
-            match poll {
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Ready(Some(Ok(data))) => {
-                    if let Some(fusewire) = fusewire {
-                        fusewire.event(FuseEvent::GainFrame);
-                    }
-                    Poll::Ready(Some(Ok(data)))
-                }
-                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
-                Poll::Pending => {
-                    if let Some(fusewire) = fusewire {
-                        fusewire.event(FuseEvent::WaitFrame);
-                    }
-                    Poll::Pending
-                }
+        fn through_fuse_config(
+            poll: PollFrame,
+            fuse_config: Option<&mut BodyTimeout>,
+            cx: &mut Context<'_>,
+        ) -> PollFrame {
+            match fuse_config {
+                Some(timeout) => timeout.apply(poll, cx),
+                None => poll,
             }
         }
         match &mut *self {
@@ -111,13 +153,13 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            Self::Hyper { inner, fusewire } => {
+            Self::Hyper { inner, fuse_config } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire.as_ref())
+                through_fuse_config(poll, fuse_config.as_mut(), cx)
             }
-            Self::Boxed { inner, fusewire } => {
+            Self::Boxed { inner, fuse_config } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire.as_ref())
+                through_fuse_config(poll, fuse_config.as_mut(), cx)
             }
         }
     }
@@ -162,7 +204,7 @@ impl From<Incoming> for ReqBody {
     fn from(inner: Incoming) -> Self {
         Self::Hyper {
             inner,
-            fusewire: None,
+            fuse_config: None,
         }
     }
 }
@@ -311,7 +353,7 @@ cfg_feature! {
             fn from(value: H3ReqBody<S, B>) -> Self {
                 Self::Boxed {
                     inner: Box::pin(value),
-                    fusewire: None,
+                    fuse_config: None,
                 }
             }
         }

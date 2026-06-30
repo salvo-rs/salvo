@@ -63,4 +63,12 @@ impl PathParams {
             self.inner.insert(name.to_owned(), value);
         }
     }
+
+    #[inline]
+    pub(crate) fn truncate(&mut self, len: usize) {
+        if self.inner.len() > len {
+            self.inner.truncate(len);
+            self.greedy = false;
+        }
+    }
 }

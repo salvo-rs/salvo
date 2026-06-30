@@ -52,6 +52,17 @@
 //! - Required parameters can be listed in any supported order.
 //! - Return values that implement [`Writer`](crate::writing::Writer) or
 //!   [`Scribe`](crate::writing::Scribe) can be returned directly.
+//! - A handler can request [`ConnCtrl`](crate::ConnCtrl) to gracefully shut down or immediately
+//!   abort the transport connection.
+//!
+//! ```
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn disconnect(conn: &mut ConnCtrl) {
+//!     conn.abort();
+//! }
+//! ```
 //!
 //! `#[handler]` can also be added to an `impl` block. In that form, the `handle`
 //! method becomes the [`Handler::handle`] implementation for the struct:
