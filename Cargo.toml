@@ -131,7 +131,10 @@ syn = "2"
 sync_wrapper = "1"
 tempfile = ">= 3.20"
 thiserror = "2"
-time = "0.3"
+# `time` 0.3.52 changed the `Parsable::parse` signature, which breaks the
+# current `cookie` 0.18.1 (the latest release). Cap below 0.3.52 until a
+# compatible `cookie` ships.
+time = ">=0.3, <0.3.52"
 tokio = "1"
 tokio-native-tls = "0.3"
 tokio-rustls = { version = "0.26", default-features = false }

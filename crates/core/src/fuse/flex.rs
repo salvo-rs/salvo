@@ -103,15 +103,17 @@ where
 /// so the TCP-oriented timeouts in [`FlexFusewire`] are not applicable.
 /// This guard permits all QUIC connections to bypass the fuse checks.
 ///
-/// This guard is included by default in [`FlexFactory::new()`].
+/// Note: [`FlexFusewire`] already bypasses the TCP timers for QUIC connections
+/// intrinsically, *after* running the configured guards, so adding this guard is
+/// usually unnecessary. It is kept as a building block for callers that want the
+/// bypass to short-circuit earlier in a custom guard chain.
 ///
 /// # Example
 ///
 /// ```ignore
-/// use salvo_core::fuse::{FlexFactory, skip_quic};
+/// use salvo_core::fuse::{FlexFactory, flex::skip_quic};
 ///
-/// // skip_quic is included by default
-/// let factory = FlexFactory::new();
+/// let factory = FlexFactory::new().add_guard(skip_quic);
 /// ```
 #[must_use]
 pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
@@ -179,7 +181,7 @@ type TimeoutWatchStateRef = Arc<Mutex<TimeoutWatchState>>;
 /// ```
 pub struct FlexFusewire {
     info: FuseInfo,
-    guards: Arc<Vec<Box<dyn Guard>>>,
+    guards: Vec<Arc<dyn Guard>>,
 
     reject_token: CancellationToken,
 
@@ -340,6 +342,13 @@ impl Fusewire for FlexFusewire {
                 GuardAction::ToNext => {}
             }
         }
+        // QUIC manages its own connection lifecycle and timeouts, so the
+        // TCP-oriented timers below do not apply. Bypass them here, after the
+        // user guards above have had a chance to reject the connection — doing
+        // this as a default `Permit` guard would short-circuit those guards.
+        if self.info.trans_proto.is_quic() {
+            return;
+        }
         self.tcp_idle_notify.notify_waiters();
         match event {
             FuseEvent::TlsHandshaking => {
@@ -387,7 +396,7 @@ impl Fusewire for FlexFusewire {
 /// | TCP Idle Timeout | 30 seconds |
 /// | TCP Frame Timeout | 60 seconds |
 /// | TLS Handshake Timeout | 10 seconds |
-/// | Guards | [`skip_quic`] only |
+/// | Guards | none (QUIC timer bypass is built in) |
 ///
 /// # Example
 ///
@@ -421,7 +430,7 @@ pub struct FlexFactory {
     tcp_frame_timeout: Duration,
     tls_handshake_timeout: Duration,
 
-    guards: Arc<Vec<Box<dyn Guard>>>,
+    guards: Vec<Arc<dyn Guard>>,
 }
 
 impl Debug for FlexFactory {
@@ -448,7 +457,7 @@ impl FlexFactory {
             tcp_idle_timeout: Duration::from_secs(30),
             tcp_frame_timeout: Duration::from_secs(60),
             tls_handshake_timeout: Duration::from_secs(10),
-            guards: Arc::new(vec![Box::new(skip_quic)]),
+            guards: Vec::new(),
         }
     }
 
@@ -468,15 +477,16 @@ impl FlexFactory {
     /// Set guards to new value.
     #[must_use]
     pub fn guards(mut self, guards: Vec<Box<dyn Guard>>) -> Self {
-        self.guards = Arc::new(guards);
+        self.guards = guards.into_iter().map(Arc::from).collect();
         self
     }
     /// Add a guard.
     #[must_use]
     pub fn add_guard(mut self, guard: impl Guard) -> Self {
-        Arc::get_mut(&mut self.guards)
-            .expect("guards get mut failed")
-            .push(Box::new(guard));
+        // `guards` is a `Vec<Arc<dyn Guard>>` so a guard can be appended after the
+        // factory has been cloned, instead of panicking when the previous
+        // `Arc<Vec<..>>` was shared (`Arc::get_mut` returning `None`).
+        self.guards.push(Arc::new(guard));
         self
     }
 
