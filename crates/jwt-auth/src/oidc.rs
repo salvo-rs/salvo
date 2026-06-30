@@ -39,6 +39,9 @@ fn default_http_client() -> Result<HyperClient, JwtAuthError> {
         .map_err(|error| JwtAuthError::NativeRootCerts(error.to_string()))?
         .https_only()
         .enable_http1()
+        // Also negotiate HTTP/2: some IdP discovery/JWKS endpoints (often behind a
+        // CDN) prefer or require h2 via ALPN, and http1-only would fail the handshake.
+        .enable_http2()
         .build();
     Ok(Client::builder(TokioExecutor::new()).build(https))
 }
@@ -559,9 +562,11 @@ fn b64_decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, base64::DecodeError> 
 }
 
 pub(crate) fn current_time() -> u64 {
+    // Called on the token-validation hot path; treat a clock set before the epoch
+    // (NTP step / VM time travel) as `0` rather than panicking.
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("Time Went Backwards")
+        .unwrap_or_default()
         .as_secs()
 }
 
