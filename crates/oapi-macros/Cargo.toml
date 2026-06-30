@@ -39,7 +39,6 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 proc-macro-crate = { workspace = true }
 proc-macro2-diagnostics = { workspace = true }
-regex = { workspace = true }
 salvo-serde-util = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits", "visit-mut"] }
 salvo_core = { workspace = true }

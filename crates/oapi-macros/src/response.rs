@@ -651,8 +651,11 @@ impl Parse for ResponseStatusCode {
                 .and_then(|lit_str| {
                     let value = lit_str.value();
                     if !VALID_STATUS_RANGES.contains(&value.as_str()) {
+                        // Point at the string literal, not call-site: `value` is a
+                        // `String`, and `String::span()` (via `quote`'s `ToTokens`)
+                        // resolves to `Span::call_site()`, mislocating the error.
                         Err(Error::new(
-                            value.span(),
+                            lit_str.span(),
                             format!(
                                 "Invalid status code range, expected one of: {}",
                                 VALID_STATUS_RANGES.join(", "),

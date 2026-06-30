@@ -36,13 +36,21 @@ where
     T: Deserialize<'de> + ToSchema,
 {
     fn to_request_body(components: &mut Components) -> RequestBody {
+        // Build (and register) the schema once and reuse it for both media types.
+        let schema = T::to_schema(components);
         RequestBody::new()
             .description("Extract form format data from request.")
             .add_content(
                 "application/x-www-form-urlencoded",
-                Content::new(T::to_schema(components)),
+                Content::new(schema.clone()),
             )
-            .add_content("multipart/*", Content::new(T::to_schema(components)))
+            // NOTE: `multipart/*` is not a strictly valid OpenAPI media-type key, but
+            // keeping it distinct from `multipart/form-data` avoids clobbering the
+            // file schema that `FormFile`/`FormFiles` register under
+            // `multipart/form-data` when both are used on the same endpoint. Properly
+            // emitting `multipart/form-data` requires merging the form and file
+            // schemas; left as follow-up.
+            .add_content("multipart/*", Content::new(schema))
     }
 }
 
@@ -102,8 +110,9 @@ where
     T: Deserialize<'de> + ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+        // `to_request_body` already builds and registers the schema; no extra
+        // `to_schema` call is needed here.
         let request_body = Self::to_request_body(components);
-        let _ = <T as ToSchema>::to_schema(components);
         operation.request_body = Some(request_body);
     }
 }

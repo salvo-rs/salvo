@@ -33,7 +33,13 @@ impl PartialEq for Number {
         match (self, other) {
             (Self::Int(left), Self::Int(right)) => left == right,
             (Self::UInt(left), Self::UInt(right)) => left == right,
-            (Self::Float(left), Self::Float(right)) => left == right,
+            // A float is equal when numerically equal (so `-0.0 == 0.0`) or when the
+            // bit patterns match, so `NaN == NaN`. Without the bit check, `Eq` would
+            // be unsound: a plain `f64 == f64` makes `Number::Float(NaN)` unequal to
+            // itself, violating the reflexivity `Eq` promises.
+            (Self::Float(left), Self::Float(right)) => {
+                left == right || left.to_bits() == right.to_bits()
+            }
             _ => false,
         }
     }
@@ -207,5 +213,15 @@ mod tests {
         assert_eq!(Number::UInt(1), Number::UInt(1));
         assert_eq!(Number::Float(1.5), Number::Float(1.5));
         assert_ne!(Number::Int(1), Number::UInt(1));
+    }
+
+    #[test]
+    fn test_eq_is_reflexive_for_nan() {
+        // `Eq` requires `a == a`; the bit-pattern comparison must hold for NaN even
+        // though `f64::NAN != f64::NAN`.
+        let nan = Number::Float(f64::NAN);
+        assert_eq!(nan, nan);
+        // `-0.0` and `0.0` remain equal (numerically equal).
+        assert_eq!(Number::Float(-0.0), Number::Float(0.0));
     }
 }

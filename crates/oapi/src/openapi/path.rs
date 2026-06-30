@@ -61,8 +61,10 @@ impl Paths {
     }
     /// Moves all elements from `other` into `self`, leaving `other` empty.
     ///
-    /// If a key from `other` is already present in `self`, the respective
-    /// value from `self` will be overwritten with the respective value from `other`.
+    /// If a key from `other` is already present in `self`, the two [`PathItem`]s are
+    /// merged field by field (see [`insert`](Self::insert)): `servers`, `parameters`
+    /// and `operations` are appended, while the scalar fields (`ref_location`,
+    /// `summary`, `description`) are overwritten by `other`'s non-empty values.
     pub fn append(&mut self, other: &mut Self) {
         let items = std::mem::take(&mut other.0);
         for item in items {

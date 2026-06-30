@@ -242,7 +242,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
         }
         _ => Err(syn::Error::new_spanned(
             input,
-            "#[handler] must added to `impl` or `fn`",
+            "#[endpoint] must be added to `impl` or `fn`",
         )),
     }
 }
