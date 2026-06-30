@@ -49,8 +49,8 @@ salvo-tus = { version = "0.93.0", path = "crates/tus", default-features = false 
 
 certon = "0.2"
 
-aead = "0.5"
-aes-gcm = "0.10"
+aead = "0.6"
+aes-gcm = "0.11"
 arc-swap = "1.9"
 anyhow = "1"
 async-trait = "0.1"
@@ -59,7 +59,7 @@ base64 = "0.22"
 bytes = "1"
 bcrypt = "0.19"
 cookie = "0.18"
-chacha20poly1305 = "0.10"
+chacha20poly1305 = "0.11"
 chardetng = "1.0"
 chrono = "0.4"
 compact_str = { version = "0.9", features = ["serde"] }
