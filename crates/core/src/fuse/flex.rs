@@ -103,15 +103,17 @@ where
 /// so the TCP-oriented timeouts in [`FlexFusewire`] are not applicable.
 /// This guard permits all QUIC connections to bypass the fuse checks.
 ///
-/// This guard is included by default in [`FlexFactory::new()`].
+/// Note: [`FlexFusewire`] already bypasses the TCP timers for QUIC connections
+/// intrinsically, *after* running the configured guards, so adding this guard is
+/// usually unnecessary. It is kept as a building block for callers that want the
+/// bypass to short-circuit earlier in a custom guard chain.
 ///
 /// # Example
 ///
 /// ```ignore
-/// use salvo_core::fuse::{FlexFactory, skip_quic};
+/// use salvo_core::fuse::{FlexFactory, flex::skip_quic};
 ///
-/// // skip_quic is included by default
-/// let factory = FlexFactory::new();
+/// let factory = FlexFactory::new().add_guard(skip_quic);
 /// ```
 #[must_use]
 pub fn skip_quic(info: &FuseInfo, _event: &FuseEvent) -> GuardAction {
@@ -340,6 +342,13 @@ impl Fusewire for FlexFusewire {
                 GuardAction::ToNext => {}
             }
         }
+        // QUIC manages its own connection lifecycle and timeouts, so the
+        // TCP-oriented timers below do not apply. Bypass them here, after the
+        // user guards above have had a chance to reject the connection — doing
+        // this as a default `Permit` guard would short-circuit those guards.
+        if self.info.trans_proto.is_quic() {
+            return;
+        }
         self.tcp_idle_notify.notify_waiters();
         match event {
             FuseEvent::TlsHandshaking => {
@@ -387,7 +396,7 @@ impl Fusewire for FlexFusewire {
 /// | TCP Idle Timeout | 30 seconds |
 /// | TCP Frame Timeout | 60 seconds |
 /// | TLS Handshake Timeout | 10 seconds |
-/// | Guards | [`skip_quic`] only |
+/// | Guards | none (QUIC timer bypass is built in) |
 ///
 /// # Example
 ///
@@ -448,7 +457,7 @@ impl FlexFactory {
             tcp_idle_timeout: Duration::from_secs(30),
             tcp_frame_timeout: Duration::from_secs(60),
             tls_handshake_timeout: Duration::from_secs(10),
-            guards: vec![Arc::new(skip_quic)],
+            guards: Vec::new(),
         }
     }
 
