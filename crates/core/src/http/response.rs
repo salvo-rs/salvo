@@ -544,6 +544,11 @@ impl Response {
                     "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));
             }
+            // `ResBody::Error` is treated like `None` on purpose: the catcher
+            // (`write_error_default`) reads the `StatusError`, renders the negotiated
+            // error page, and then calls `write_body` to install it. Returning an
+            // error here would leave the body as `ResBody::Error` (which polls empty),
+            // dropping the error page.
             ResBody::None | ResBody::Error(_) => {
                 self.body = ResBody::Once(data.into());
             }

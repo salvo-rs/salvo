@@ -433,12 +433,6 @@ impl PathWisp for CombWisp {
         let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
-        let wild_path_buf = if self.wild_regex.is_some() {
-            state.all_rest().unwrap_or_default().into_owned()
-        } else {
-            String::new()
-        };
-        let mut wild_path: &str = &wild_path_buf;
         let caps = self.comb_regex.captures(&picked);
         if let Some(caps) = caps {
             let take_count = if self.wild_regex.is_some() {
@@ -453,13 +447,6 @@ impl PathWisp for CombWisp {
             for name in self.names.iter().take(take_count) {
                 if let Some(value) = caps.name(name) {
                     state.params.insert(name, value.as_str().to_owned());
-                    if self.wild_regex.is_some() {
-                        // Strip the captured value exactly once. `trim_start_matches`
-                        // removes every leading repetition (e.g. a value of "a"
-                        // would strip all of "aaa…"), corrupting the remaining wild
-                        // path.
-                        wild_path = wild_path.strip_prefix(value.as_str()).unwrap_or(wild_path);
-                    }
                     #[cfg(feature = "matched-path")]
                     {
                         if value.start() > start {
@@ -504,6 +491,11 @@ impl PathWisp for CombWisp {
             self.wild_regex.as_ref(),
             self.wild_start.as_ref(),
         ) {
+            // Read the remaining path *after* the comb part has been consumed by
+            // `state.forward(len)` above, so the wild capture sees only the tail
+            // (e.g. `.ext` for `/first{id}world{**rest}` vs `first123world.ext`).
+            let wild_path_buf = state.all_rest().unwrap_or_default().into_owned();
+            let wild_path: &str = &wild_path_buf;
             if wild_start.starts_with("*?")
                 && wild_path
                     .trim_start_matches('/')
@@ -1347,6 +1339,9 @@ mod tests {
         let filter = PathFilter::new("/first{id}world{**rest}");
         let mut state = PathState::new("first123world.ext");
         assert!(filter.detect(&mut state));
+        // The wild capture must be the tail only, not include the comb prefix.
+        assert_eq!(state.params.get("id").map(String::as_str), Some("123"));
+        assert_eq!(state.params.get("rest").map(String::as_str), Some(".ext"));
     }
 
     #[test]
@@ -1374,9 +1369,14 @@ mod tests {
     #[test]
     fn test_parse_comb_5() {
         let filter = PathFilter::new(r"/abc/t{**rest|\d+}");
+        // After the literal `t` is consumed, the remaining `11` matches `\d+`, so
+        // this is a match with `rest = "11"` (the wild regex is checked against the
+        // tail, not the already-consumed `t` prefix).
         let mut state = PathState::new("abc/t11");
-        assert!(!filter.detect(&mut state));
+        assert!(filter.detect(&mut state));
+        assert_eq!(state.params.get("rest").map(String::as_str), Some("11"));
 
+        // `lo1` / `11a` tails are not all digits, so `\d+` rejects them.
         let mut state = PathState::new("abc/tlo1");
         assert!(!filter.detect(&mut state));
         let mut state = PathState::new("abc/t11a");

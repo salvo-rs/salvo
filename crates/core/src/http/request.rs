@@ -1251,7 +1251,7 @@ impl Request {
     #[inline]
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
         if let Some(ctype) = self.content_type() {
-            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
+            if is_form_content_type(&ctype) {
                 let body = self.take_body();
                 if body.is_none() {
                     let bytes = self.payload_with_max_size(max_size).await?.to_owned();
@@ -1435,7 +1435,7 @@ impl Request {
         T: Deserialize<'de>,
     {
         if let Some(ctype) = self.content_type()
-            && (ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA)
+            && is_form_content_type(&ctype)
         {
             from_str_multi_map(self.form_data().await?.fields.iter_all())
                 .map_err(ParseError::Deserialize)
@@ -1478,7 +1478,7 @@ impl Request {
         T: Deserialize<'de>,
     {
         if let Some(ctype) = self.content_type() {
-            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+            if is_form_content_type(&ctype) {
                 return from_str_multi_map(
                     self.form_data_max_size(max_size).await?.fields.iter_all(),
                 )
@@ -1491,6 +1491,15 @@ impl Request {
         }
         Err(ParseError::InvalidContentType)
     }
+}
+
+/// Whether a content type denotes form data this request can parse, i.e.
+/// `application/x-www-form-urlencoded` or any `multipart/*` (the underlying
+/// [`FormData`] reader keys off the multipart boundary). Keeping the predicate in
+/// one place ensures `form_data*`, `parse_form` and `parse_body*` agree on what is
+/// accepted instead of diverging on exotic `multipart/*` subtypes.
+fn is_form_content_type(ctype: &Mime) -> bool {
+    ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART
 }
 
 fn is_length_limit_error(error: &(dyn StdError + 'static)) -> bool {
