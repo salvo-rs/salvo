@@ -6,6 +6,7 @@ use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+use std::sync::{Arc, PoisonError, RwLock};
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
@@ -179,6 +180,9 @@ pub struct StaticDir {
     pub defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
+    /// Cache of canonicalized roots, revalidated against the current (public,
+    /// mutable) `roots` value on every request. See [`StaticDir::canonical_roots`].
+    canonical_cache: RwLock<Arc<CanonicalCache>>,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -214,6 +218,7 @@ impl StaticDir {
             compressed_variations,
             defaults: vec![],
             fallback: None,
+            canonical_cache: RwLock::new(Arc::new(CanonicalCache::default())),
         }
     }
 
@@ -319,6 +324,24 @@ struct CanonicalRoot {
     canonical_path: PathBuf,
 }
 
+/// Canonicalized roots together with the `roots` value they were derived from.
+#[derive(Default)]
+struct CanonicalCache {
+    /// The `StaticDir::roots` value this cache was computed from.
+    source: Vec<PathBuf>,
+    entries: Vec<CanonicalRoot>,
+}
+
+impl CanonicalCache {
+    /// The cache is usable when it was computed from the current `roots` value and
+    /// every root resolved successfully. A root can fail to canonicalize when its
+    /// directory does not exist yet (e.g. it is created after startup); keeping such
+    /// a cache stale would hide the root forever, so re-resolve until all succeed.
+    fn is_fresh(&self, current_roots: &[PathBuf]) -> bool {
+        self.entries.len() == self.source.len() && self.source == current_roots
+    }
+}
+
 struct ResolvedPath {
     path: PathBuf,
     canonical_root: PathBuf,
@@ -326,18 +349,45 @@ struct ResolvedPath {
 }
 
 impl StaticDir {
-    async fn canonical_roots(&self) -> Vec<CanonicalRoot> {
-        // `roots` is public, so derive canonical roots from the current value.
-        let mut roots = Vec::with_capacity(self.roots.len());
-        for root in &self.roots {
+    /// Canonicalized roots, cached across requests.
+    ///
+    /// Canonicalizing every root used to run on each request, costing filesystem
+    /// syscalls before any file was served. The result is now cached and revalidated
+    /// against the current `roots` value (which is public and mutable) with a cheap
+    /// path comparison.
+    ///
+    /// Note: if a root directory is itself replaced by a symlink to a different
+    /// target while the server is running, the cached canonical path keeps pointing
+    /// at the old target until `roots` is modified.
+    async fn canonical_roots(&self) -> Arc<CanonicalCache> {
+        {
+            let cached = self
+                .canonical_cache
+                .read()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone();
+            if cached.is_fresh(&self.roots) {
+                return cached;
+            }
+        }
+        // Recompute outside the lock; concurrent requests may race here, but they
+        // all produce the same value and the last write simply wins.
+        let source = self.roots.clone();
+        let mut entries = Vec::with_capacity(source.len());
+        for root in &source {
             if let Ok(canonical) = tokio::fs::canonicalize(root).await {
-                roots.push(CanonicalRoot {
+                entries.push(CanonicalRoot {
                     path: root.clone(),
                     canonical_path: canonical,
                 });
             }
         }
-        roots
+        let fresh = Arc::new(CanonicalCache { source, entries });
+        *self
+            .canonical_cache
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = fresh.clone();
+        fresh
     }
 
     async fn resolve_root_path(
@@ -460,7 +510,7 @@ impl Handler for StaticDir {
         let mut abs_path = None;
         let roots = self.canonical_roots().await;
         if self.include_dot_files || !is_dot_file {
-            for root in &roots {
+            for root in &roots.entries {
                 // Use a single async symlink_metadata call for file type checks, then verify
                 // the canonical target stays under the canonical root before serving it.
                 if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
@@ -498,7 +548,7 @@ impl Handler for StaticDir {
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
-            for root in &roots {
+            for root in &roots.entries {
                 if let Some(path) = self.resolve_relative_path(root, fallback).await {
                     if !path.metadata.is_file() {
                         continue;
@@ -856,7 +906,50 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 
 #[cfg(test)]
 mod tests {
-    use crate::dir::{human_size, is_safe_relative_path, xml_escape};
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use crate::dir::{StaticDir, human_size, is_safe_relative_path, xml_escape};
+
+    #[tokio::test]
+    async fn test_canonical_roots_cached_and_invalidated() {
+        let dir_a = tempfile::tempdir().expect("create temp dir");
+        let dir_b = tempfile::tempdir().expect("create temp dir");
+
+        let mut static_dir = StaticDir::new(dir_a.path().to_path_buf());
+
+        // First call resolves and caches; second call must return the same Arc.
+        let first = static_dir.canonical_roots().await;
+        assert_eq!(first.entries.len(), 1);
+        let second = static_dir.canonical_roots().await;
+        assert!(Arc::ptr_eq(&first, &second), "fresh cache should be reused");
+
+        // Mutating the public `roots` field must invalidate the cache.
+        static_dir.roots = vec![dir_b.path().to_path_buf()];
+        let third = static_dir.canonical_roots().await;
+        assert!(!Arc::ptr_eq(&second, &third));
+        assert_eq!(third.entries.len(), 1);
+        assert_eq!(third.entries[0].path, dir_b.path());
+    }
+
+    #[tokio::test]
+    async fn test_canonical_roots_retries_missing_root() {
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let missing: PathBuf = parent.path().join("created-later");
+
+        let static_dir = StaticDir::new(missing.clone());
+
+        // The root does not exist yet, so it cannot be canonicalized...
+        let before = static_dir.canonical_roots().await;
+        assert!(before.entries.is_empty());
+
+        // ...and an incomplete resolution must not be cached: once the directory
+        // exists, the next request must pick it up.
+        std::fs::create_dir(&missing).expect("create root dir");
+        let after = static_dir.canonical_roots().await;
+        assert_eq!(after.entries.len(), 1);
+        assert_eq!(after.entries[0].path, missing);
+    }
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
