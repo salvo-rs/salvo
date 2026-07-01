@@ -44,7 +44,10 @@ where
 {
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.render(res)
+        // Route through `Response::render` (not `Scribe::render` directly) so a
+        // handler that already wrote body bytes and then *returns* a `Scribe`
+        // still triggers the double-render diagnostic in debug builds.
+        res.render(self);
     }
 }
 
@@ -56,7 +59,7 @@ where
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self {
-            Some(v) => v.render(res),
+            Some(v) => res.render(v),
             None => {
                 res.status_code(StatusCode::NOT_FOUND);
             }
