@@ -451,13 +451,69 @@ impl StaticDir {
         let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
         let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
         if !canonical_path.starts_with(&root.canonical_path) {
-            return None;
+            // The mismatch means either a symlink-escape attempt or a root whose
+            // canonical target changed after being cached (e.g. a retargeted
+            // `current -> release-N` deployment symlink). Re-resolve the root once
+            // to tell the two apart, so a deploy swap serves the new release
+            // immediately instead of returning 404 until the cache TTL expires.
+            let fresh_root = tokio::fs::canonicalize(&root.path).await.ok()?;
+            if fresh_root == root.canonical_path || !canonical_path.starts_with(&fresh_root) {
+                // The root is unchanged (or still does not contain the target):
+                // this is a genuine escape attempt.
+                return None;
+            }
+            self.heal_canonical_root(&root.path, &root.canonical_path, fresh_root.clone());
+            return Some(ResolvedPath {
+                path,
+                canonical_root: fresh_root,
+                metadata,
+            });
         }
         Some(ResolvedPath {
             path,
             canonical_root: root.canonical_path.clone(),
             metadata,
         })
+    }
+
+    /// Patch the cached canonical path of `root_path` after detecting that its
+    /// canonical target changed, so subsequent requests stop paying the extra
+    /// root re-resolution until the TTL refresh.
+    fn heal_canonical_root(&self, root_path: &Path, old_canonical: &Path, fresh: PathBuf) {
+        let mut guard = self
+            .canonical_cache
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        let Some(cached) = guard.as_ref() else {
+            return;
+        };
+        // Only patch the cache generation the stale value came from; a concurrent
+        // full refresh already has up-to-date data.
+        if !cached
+            .entries
+            .iter()
+            .any(|entry| entry.path == root_path && entry.canonical_path == old_canonical)
+        {
+            return;
+        }
+        let entries = cached
+            .entries
+            .iter()
+            .map(|entry| CanonicalRoot {
+                path: entry.path.clone(),
+                canonical_path: if entry.path == root_path && entry.canonical_path == old_canonical
+                {
+                    fresh.clone()
+                } else {
+                    entry.canonical_path.clone()
+                },
+            })
+            .collect();
+        *guard = Some(Arc::new(CanonicalCache {
+            source: cached.source.clone(),
+            entries,
+            resolved_at: cached.resolved_at,
+        }));
     }
 
     async fn resolve_relative_path(
@@ -1072,6 +1128,52 @@ mod tests {
         expire_canonical_cache(&static_dir);
         let refreshed = static_dir.canonical_roots().await;
         assert!(!Arc::ptr_eq(&served, &refreshed));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_resolve_heals_retargeted_symlink_root_immediately() {
+        // A deploy swap (`current -> release-a` retargeted to `release-b`) must be
+        // served immediately — not 404 until the cache TTL expires — while a
+        // genuine escape attempt is still rejected.
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let release_a = parent.path().join("release-a");
+        let release_b = parent.path().join("release-b");
+        let current = parent.path().join("current");
+        std::fs::create_dir(&release_a).expect("create release-a");
+        std::fs::create_dir(&release_b).expect("create release-b");
+        std::fs::write(release_b.join("app.js"), b"new release").expect("write file");
+        std::fs::write(parent.path().join("secret.txt"), b"secret").expect("write file");
+        std::os::unix::fs::symlink(&release_a, &current).expect("create symlink");
+
+        let static_dir = StaticDir::new(current.clone());
+        let cache = static_dir.canonical_roots().await;
+
+        // Retarget the deployment symlink *without* touching `roots` or the cache.
+        std::fs::remove_file(&current).expect("remove symlink");
+        std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
+
+        // Resolution against the stale cached root must heal and serve the file.
+        let resolved = static_dir
+            .resolve_relative_path(&cache.entries[0], "app.js")
+            .await
+            .expect("retargeted root should heal, not 404");
+        let fresh_canonical = std::fs::canonicalize(&release_b).expect("canonicalize release-b");
+        assert_eq!(resolved.canonical_root, fresh_canonical);
+
+        // The cache entry was patched in place for subsequent requests.
+        let healed = static_dir.canonical_roots().await;
+        assert_eq!(healed.entries[0].canonical_path, fresh_canonical);
+
+        // An escape attempt out of the (healed) root is still rejected.
+        std::os::unix::fs::symlink(parent.path().join("secret.txt"), release_b.join("leak"))
+            .expect("create escape symlink");
+        assert!(
+            static_dir
+                .resolve_relative_path(&healed.entries[0], "leak")
+                .await
+                .is_none()
+        );
     }
 
     #[cfg(unix)]
