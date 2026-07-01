@@ -803,4 +803,24 @@ mod tests {
         assert!(!path_state.params.contains_key("id"));
         assert_eq!(path_state.params.len(), 1);
     }
+
+    #[tokio::test]
+    async fn test_router_detect_overwritten_param_rollback() {
+        // An ancestor captures `id`, then a failed descendant sibling reuses the same
+        // name and overwrites it in place before failing. The ancestor's original value
+        // must be restored so the sibling that finally matches sees the correct params.
+        let router = Router::with_path("{id}")
+            // Tried first: captures `id` again (overwriting the ancestor's value) then
+            // fails because the request has no trailing `/profile`.
+            .push(Router::with_path("{id}/profile").get(fake_handler))
+            // Matches on the trailing literal segment, capturing no param of its own.
+            .push(Router::with_path("edit").get(fake_handler));
+
+        let mut req = TestClient::get("http://local.host/alice/edit").build();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+        // Must be the ancestor's value, not the overwritten-then-rolled-back "edit".
+        assert_eq!(path_state.params["id"], "alice");
+    }
 }
