@@ -38,6 +38,25 @@ impl PathParams {
         }
     }
 
+    /// Snapshot the current state so it can be rolled back after a failed match attempt.
+    ///
+    /// During routing a child router may capture params and then fail to match, in which
+    /// case its captures must be discarded before the next sibling is tried. Because
+    /// matching only ever *appends* params via [`insert`](Self::insert), the state is fully
+    /// described by the current length plus the `greedy` flag, so a snapshot is just two
+    /// `Copy` values and rolling back is `O(1)` instead of cloning the whole map.
+    #[inline]
+    pub(crate) fn snapshot(&self) -> (usize, bool) {
+        (self.inner.len(), self.greedy)
+    }
+
+    /// Roll back to a state previously captured by [`snapshot`](Self::snapshot).
+    #[inline]
+    pub(crate) fn rollback(&mut self, (len, greedy): (usize, bool)) {
+        self.inner.truncate(len);
+        self.greedy = greedy;
+    }
+
     /// Insert new param.
     pub fn insert(&mut self, name: &str, value: String) {
         if self.greedy {

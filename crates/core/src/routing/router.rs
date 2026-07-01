@@ -96,7 +96,7 @@ impl Router {
             }
             if !self.routers.is_empty() {
                 let original_cursor = path_state.cursor;
-                let original_params = path_state.params.clone();
+                let params_snapshot = path_state.params.snapshot();
                 #[cfg(feature = "matched-path")]
                 let original_matched_parts_len = path_state.matched_parts.len();
                 for child in &self.routers {
@@ -119,7 +119,7 @@ impl Router {
                             .matched_parts
                             .truncate(original_matched_parts_len);
                         path_state.cursor = original_cursor;
-                        path_state.params = original_params.clone();
+                        path_state.params.rollback(params_snapshot);
                     }
                 }
             }
@@ -775,5 +775,32 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert_eq!(path_state.params["p"], "a/b/c");
+    }
+
+    #[tokio::test]
+    async fn test_router_detect_sibling_param_rollback() {
+        // A sibling captures a named param but then fails on a nested path, so its
+        // capture must be rolled back before the next sibling is tried. Only the
+        // params captured along the finally-matched branch may remain.
+        let router = Router::new().push(
+            Router::with_path("users").push(
+                Router::new()
+                    // Tried first: captures `id`, then fails because it requires a
+                    // deeper `/profile` segment the request does not have.
+                    .push(Router::with_path("{id}/profile").get(fake_handler))
+                    // Matches: captures `name`.
+                    .push(Router::with_path("{name}").get(fake_handler)),
+            ),
+        );
+
+        let mut req = TestClient::get("http://local.host/users/alice").build();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+        // The winning branch's param is present...
+        assert_eq!(path_state.params["name"], "alice");
+        // ...and the failed sibling's `id` capture did not leak through.
+        assert!(!path_state.params.contains_key("id"));
+        assert_eq!(path_state.params.len(), 1);
     }
 }
