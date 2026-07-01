@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId, type_name};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
+use std::hash::{BuildHasherDefault, Hasher};
 
 /// Store temporary data for the current request.
 ///
@@ -39,7 +40,46 @@ pub struct Depot {
     /// Values stored under an explicit string key.
     named: HashMap<String, Box<dyn Any + Send + Sync>>,
     /// Values stored by their type, keyed on [`TypeId`].
-    typed: HashMap<TypeId, TypedEntry>,
+    typed: TypedMap,
+}
+
+/// The type-keyed storage, using a pass-through hasher instead of the default SipHash.
+type TypedMap = HashMap<TypeId, TypedEntry, BuildHasherDefault<TypeIdHasher>>;
+
+/// A pass-through hasher for `TypeId` keys.
+///
+/// A `TypeId` is already a unique, well-distributed identifier produced by the
+/// compiler, and type ids are never attacker-controlled, so running it through the
+/// default DoS-resistant SipHash adds cost without any benefit. Middleware touches
+/// the typed storage on every request (`get_typed`/`insert_typed`), making this a
+/// hot lookup. Same technique as `http::Extensions` uses for its type-keyed map.
+#[derive(Default)]
+struct TypeIdHasher(u64);
+
+impl Hasher for TypeIdHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        // `TypeId`'s `Hash` impl currently emits a single `write_u64`/`write_u128`
+        // call; this byte fallback only exists to stay correct if that internal
+        // detail ever changes.
+        for &b in bytes {
+            self.0 = self.0.rotate_left(8) ^ u64::from(b);
+        }
+    }
+
+    #[inline]
+    fn write_u64(&mut self, n: u64) {
+        self.0 = n;
+    }
+
+    #[inline]
+    fn write_u128(&mut self, n: u128) {
+        self.0 = n as u64;
+    }
+
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
 }
 
 /// A type-keyed value, tagged with its Rust type name for diagnostics.
@@ -68,7 +108,7 @@ impl Depot {
     pub fn new() -> Self {
         Self {
             named: HashMap::new(),
-            typed: HashMap::new(),
+            typed: TypedMap::default(),
         }
     }
 
@@ -91,7 +131,7 @@ impl Depot {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             named: HashMap::with_capacity(capacity),
-            typed: HashMap::new(),
+            typed: TypedMap::default(),
         }
     }
     /// Returns the number of string-keyed elements the depot can hold without reallocating.
