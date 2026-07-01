@@ -482,7 +482,10 @@ impl Response {
             }
             let before = committed_len(&self.body);
             scribe.render(self);
+            // `before > 0`: appending to an *empty* committed body yields exactly the
+            // new render's bytes, so nothing is corrupted and no warning is needed.
             if let (Some(before), Some(after)) = (before, committed_len(&self.body))
+                && before > 0
                 && after > before
             {
                 tracing::warn!(
