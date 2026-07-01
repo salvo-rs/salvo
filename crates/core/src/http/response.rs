@@ -446,6 +446,14 @@ impl Response {
     /// `Scribe` impl is responsible for converting the error into a `5xx` response
     /// instead of panicking or returning an error here.
     ///
+    /// **Note**: the built-in `Scribe` implementations write through
+    /// [`write_body`](Response::write_body), which *appends* to any body bytes
+    /// already present — it does not overwrite them. Calling `render` twice on the
+    /// same response therefore concatenates both outputs, which for `Json` produces
+    /// invalid JSON. Debug builds log a warning when this happens. To replace an
+    /// already-written body, set it explicitly via
+    /// [`replace_body`](Response::replace_body) or [`body`](Response::body) first.
+    ///
     /// # Example
     ///
     /// ```
@@ -458,17 +466,30 @@ impl Response {
     where
         P: Scribe,
     {
+        #[cfg(debug_assertions)]
+        if matches!(&self.body, ResBody::Once(_) | ResBody::Chunks(_)) {
+            tracing::warn!(
+                "`Response::render` called on a response that already contains body bytes; \
+                 the new content will be appended, not overwrite the old one. This is rarely \
+                 intended (e.g. rendering `Json` twice produces invalid JSON). To replace the \
+                 body, use `Response::replace_body` or `Response::body` first; to append on \
+                 purpose, call `Response::write_body` directly."
+            );
+        }
         scribe.render(self);
     }
 
     /// Sets the status code and renders content into this response.
+    ///
+    /// See [`render`](Response::render) for the append semantics when the response
+    /// already contains body bytes.
     #[inline]
     pub fn render_with_status<P>(&mut self, code: StatusCode, scribe: P)
     where
         P: Scribe,
     {
         self.status_code = Some(code);
-        scribe.render(self);
+        self.render(scribe);
     }
 
     /// Sets the status code and renders content into this response.
@@ -500,7 +521,14 @@ impl Response {
         }
     }
 
-    /// Write bytes data to body. If body is none, a new `ResBody` will created.
+    /// Write bytes data to body.
+    ///
+    /// This **appends**: if the body is [`ResBody::None`] (or an error placeholder) a
+    /// new [`ResBody::Once`] is created, but if the body already contains bytes
+    /// (`Once` or `Chunks`) the data is added after the existing content. Streaming
+    /// body kinds (`Hyper`, `Boxed`, `Stream`, `Channel`) cannot be written to and
+    /// return an error. To replace the body instead of appending, use
+    /// [`replace_body`](Response::replace_body) or [`body`](Response::body).
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
             ResBody::Once(bytes) => {
