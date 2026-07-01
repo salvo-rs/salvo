@@ -6,6 +6,7 @@ use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -184,6 +185,9 @@ pub struct StaticDir {
     /// mutable) `roots` value on every request and re-resolved after a short TTL.
     /// See [`StaticDir::canonical_roots`].
     canonical_cache: RwLock<Option<Arc<CanonicalCache>>>,
+    /// Claimed by the single request that re-resolves an expired cache, so a TTL
+    /// expiry under concurrent traffic does not stampede `canonicalize` calls.
+    canonical_refreshing: AtomicBool,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -220,6 +224,7 @@ impl StaticDir {
             defaults: vec![],
             fallback: None,
             canonical_cache: RwLock::new(None),
+            canonical_refreshing: AtomicBool::new(false),
         }
     }
 
@@ -372,20 +377,42 @@ impl StaticDir {
     /// canonical target changes without `roots` being touched — e.g. a retargeted
     /// `current -> release-N` deployment symlink — is picked up within the TTL.
     async fn canonical_roots(&self) -> Arc<CanonicalCache> {
+        let cached = self
+            .canonical_cache
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        if let Some(cached) = &cached
+            && cached.is_fresh(&self.roots)
         {
-            let cached = self
-                .canonical_cache
-                .read()
-                .unwrap_or_else(PoisonError::into_inner)
-                .clone();
-            if let Some(cached) = cached
-                && cached.is_fresh(&self.roots)
-            {
-                return cached;
+            return cached.clone();
+        }
+        // The cache is stale or absent. Only one request re-resolves it; the others
+        // keep serving the previous value when it was built from the same `roots`
+        // (staleness stays bounded by the refresh duration), so a TTL expiry under
+        // concurrent traffic does not stampede `canonicalize` calls.
+        let refresh_claimed = self
+            .canonical_refreshing
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok();
+        if !refresh_claimed
+            && let Some(cached) = cached
+            && cached.source == self.roots
+        {
+            return cached;
+        }
+        // Release the claim even if this future is cancelled mid-resolution
+        // (e.g. the client disconnects), otherwise refreshes would stop forever.
+        struct RefreshGuard<'a>(&'a AtomicBool);
+        impl Drop for RefreshGuard<'_> {
+            fn drop(&mut self) {
+                self.0.store(false, Ordering::Release);
             }
         }
-        // Recompute outside the lock; concurrent requests may race here, but they
-        // all produce the same value and the last write simply wins.
+        let _guard = refresh_claimed.then(|| RefreshGuard(&self.canonical_refreshing));
+        // Reaching here without the claim means the cache cannot be served at all
+        // (first request, or `roots` was just mutated); duplicated resolution in
+        // that rare window is acceptable.
         let source = self.roots.clone();
         let mut entries = Vec::with_capacity(source.len());
         for root in &source {
@@ -1005,6 +1032,46 @@ mod tests {
         let second = static_dir.canonical_roots().await;
         assert!(!Arc::ptr_eq(&first, &second));
         assert_eq!(second.entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_canonical_roots_stale_while_revalidate() {
+        use std::sync::atomic::Ordering;
+
+        let dir_a = tempfile::tempdir().expect("create temp dir");
+        let dir_b = tempfile::tempdir().expect("create temp dir");
+        let mut static_dir = StaticDir::new(dir_a.path().to_path_buf());
+
+        let _ = static_dir.canonical_roots().await;
+        expire_canonical_cache(&static_dir);
+        let stale = static_dir
+            .canonical_cache
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .expect("cache should be populated");
+
+        // While another request holds the refresh claim, an expired cache built
+        // from the same `roots` keeps being served instead of stampeding.
+        static_dir.canonical_refreshing.store(true, Ordering::Release);
+        let served = static_dir.canonical_roots().await;
+        assert!(Arc::ptr_eq(&stale, &served));
+
+        // But a cache built from *different* roots must never be served stale:
+        // it is re-resolved even while the refresh claim is held elsewhere.
+        static_dir.roots = vec![dir_b.path().to_path_buf()];
+        let served = static_dir.canonical_roots().await;
+        assert_eq!(served.entries[0].path, dir_b.path());
+        // The non-claiming resolution must not release the foreign claim.
+        assert!(static_dir.canonical_refreshing.load(Ordering::Acquire));
+        static_dir
+            .canonical_refreshing
+            .store(false, Ordering::Release);
+
+        // With the claim released, a later request can refresh normally again.
+        expire_canonical_cache(&static_dir);
+        let refreshed = static_dir.canonical_roots().await;
+        assert!(!Arc::ptr_eq(&served, &refreshed));
     }
 
     #[cfg(unix)]
