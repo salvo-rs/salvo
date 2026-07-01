@@ -36,7 +36,7 @@
 //! let service = UserService { prefix: "hello" };
 //! let _router = Router::new()
 //!     .push(Router::with_path("users").get(service.list_users()))
-//!     .push(Router::with_path("users/<id>").get(service.get_user()));
+//!     .push(Router::with_path("users/{id}").get(service.get_user()));
 //! ```
 //!
 //! # Usage
