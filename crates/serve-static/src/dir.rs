@@ -7,7 +7,7 @@ use std::fs::Metadata;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, PoisonError, RwLock};
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
@@ -181,8 +181,9 @@ pub struct StaticDir {
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
     /// Cache of canonicalized roots, revalidated against the current (public,
-    /// mutable) `roots` value on every request. See [`StaticDir::canonical_roots`].
-    canonical_cache: RwLock<Arc<CanonicalCache>>,
+    /// mutable) `roots` value on every request and re-resolved after a short TTL.
+    /// See [`StaticDir::canonical_roots`].
+    canonical_cache: RwLock<Option<Arc<CanonicalCache>>>,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -218,7 +219,7 @@ impl StaticDir {
             compressed_variations,
             defaults: vec![],
             fallback: None,
-            canonical_cache: RwLock::new(Arc::new(CanonicalCache::default())),
+            canonical_cache: RwLock::new(None),
         }
     }
 
@@ -324,21 +325,34 @@ struct CanonicalRoot {
     canonical_path: PathBuf,
 }
 
+/// How long resolved canonical roots stay fresh before they are re-resolved.
+///
+/// The TTL bounds how long a root that is (or contains) a retargeted symlink —
+/// e.g. a `current -> release-N` deployment layout — can keep serving from the
+/// old canonical target: at most one second, at a cost of at most one
+/// re-resolution per root per second regardless of request rate.
+const CANONICAL_ROOTS_TTL: Duration = Duration::from_secs(1);
+
 /// Canonicalized roots together with the `roots` value they were derived from.
-#[derive(Default)]
 struct CanonicalCache {
     /// The `StaticDir::roots` value this cache was computed from.
     source: Vec<PathBuf>,
     entries: Vec<CanonicalRoot>,
+    /// When the roots were resolved; freshness expires after [`CANONICAL_ROOTS_TTL`].
+    resolved_at: Instant,
 }
 
 impl CanonicalCache {
-    /// The cache is usable when it was computed from the current `roots` value and
-    /// every root resolved successfully. A root can fail to canonicalize when its
-    /// directory does not exist yet (e.g. it is created after startup); keeping such
-    /// a cache stale would hide the root forever, so re-resolve until all succeed.
+    /// The cache is usable when it was computed from the current `roots` value,
+    /// every root resolved successfully, and the TTL has not elapsed. A root can
+    /// fail to canonicalize when its directory does not exist yet (e.g. it is
+    /// created after startup); keeping such a cache would hide the root forever,
+    /// so re-resolve until all succeed. The TTL bounds staleness for roots whose
+    /// canonical target changes without `roots` being touched (symlink retarget).
     fn is_fresh(&self, current_roots: &[PathBuf]) -> bool {
-        self.entries.len() == self.source.len() && self.source == current_roots
+        self.entries.len() == self.source.len()
+            && self.resolved_at.elapsed() < CANONICAL_ROOTS_TTL
+            && self.source == current_roots
     }
 }
 
@@ -354,11 +368,9 @@ impl StaticDir {
     /// Canonicalizing every root used to run on each request, costing filesystem
     /// syscalls before any file was served. The result is now cached and revalidated
     /// against the current `roots` value (which is public and mutable) with a cheap
-    /// path comparison.
-    ///
-    /// Note: if a root directory is itself replaced by a symlink to a different
-    /// target while the server is running, the cached canonical path keeps pointing
-    /// at the old target until `roots` is modified.
+    /// path comparison, and re-resolved after [`CANONICAL_ROOTS_TTL`] so a root whose
+    /// canonical target changes without `roots` being touched — e.g. a retargeted
+    /// `current -> release-N` deployment symlink — is picked up within the TTL.
     async fn canonical_roots(&self) -> Arc<CanonicalCache> {
         {
             let cached = self
@@ -366,7 +378,9 @@ impl StaticDir {
                 .read()
                 .unwrap_or_else(PoisonError::into_inner)
                 .clone();
-            if cached.is_fresh(&self.roots) {
+            if let Some(cached) = cached
+                && cached.is_fresh(&self.roots)
+            {
                 return cached;
             }
         }
@@ -382,11 +396,15 @@ impl StaticDir {
                 });
             }
         }
-        let fresh = Arc::new(CanonicalCache { source, entries });
+        let fresh = Arc::new(CanonicalCache {
+            source,
+            entries,
+            resolved_at: Instant::now(),
+        });
         *self
             .canonical_cache
             .write()
-            .unwrap_or_else(PoisonError::into_inner) = fresh.clone();
+            .unwrap_or_else(PoisonError::into_inner) = Some(fresh.clone());
         fresh
     }
 
@@ -949,6 +967,75 @@ mod tests {
         let after = static_dir.canonical_roots().await;
         assert_eq!(after.entries.len(), 1);
         assert_eq!(after.entries[0].path, missing);
+    }
+
+    /// Age the currently cached canonical roots so the TTL freshness check fails.
+    fn expire_canonical_cache(static_dir: &StaticDir) {
+        let mut guard = static_dir
+            .canonical_cache
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let cached = guard.take().expect("cache should be populated");
+        let expired = std::time::Instant::now()
+            .checked_sub(super::CANONICAL_ROOTS_TTL * 2)
+            .expect("process uptime exceeds twice the TTL");
+        *guard = Some(Arc::new(super::CanonicalCache {
+            source: cached.source.clone(),
+            entries: cached
+                .entries
+                .iter()
+                .map(|entry| super::CanonicalRoot {
+                    path: entry.path.clone(),
+                    canonical_path: entry.canonical_path.clone(),
+                })
+                .collect(),
+            resolved_at: expired,
+        }));
+    }
+
+    #[tokio::test]
+    async fn test_canonical_roots_reresolved_after_ttl() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let static_dir = StaticDir::new(dir.path().to_path_buf());
+
+        let first = static_dir.canonical_roots().await;
+        expire_canonical_cache(&static_dir);
+
+        // An expired cache must be re-resolved even though `roots` is unchanged.
+        let second = static_dir.canonical_roots().await;
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(second.entries.len(), 1);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_canonical_roots_pick_up_symlink_retarget() {
+        // The `current -> release-N` deployment layout: retargeting the symlink
+        // must be picked up once the TTL elapses, without touching `roots`.
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let release_a = parent.path().join("release-a");
+        let release_b = parent.path().join("release-b");
+        let current = parent.path().join("current");
+        std::fs::create_dir(&release_a).expect("create release-a");
+        std::fs::create_dir(&release_b).expect("create release-b");
+        std::os::unix::fs::symlink(&release_a, &current).expect("create symlink");
+
+        let static_dir = StaticDir::new(current.clone());
+        let before = static_dir.canonical_roots().await;
+        assert_eq!(
+            before.entries[0].canonical_path,
+            std::fs::canonicalize(&release_a).expect("canonicalize release-a")
+        );
+
+        std::fs::remove_file(&current).expect("remove symlink");
+        std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
+        expire_canonical_cache(&static_dir);
+
+        let after = static_dir.canonical_roots().await;
+        assert_eq!(
+            after.entries[0].canonical_path,
+            std::fs::canonicalize(&release_b).expect("canonicalize release-b")
+        );
     }
 
     #[tokio::test]
