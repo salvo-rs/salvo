@@ -314,11 +314,6 @@ impl StaticDir {
     }
 }
 
-struct CanonicalRoot {
-    path: PathBuf,
-    canonical_path: PathBuf,
-}
-
 struct ResolvedPath {
     path: PathBuf,
     canonical_root: PathBuf,
@@ -326,62 +321,66 @@ struct ResolvedPath {
 }
 
 impl StaticDir {
-    async fn canonical_roots(&self) -> Vec<CanonicalRoot> {
-        // `roots` is public, so derive canonical roots from the current value.
-        let mut roots = Vec::with_capacity(self.roots.len());
-        for root in &self.roots {
-            if let Ok(canonical) = tokio::fs::canonicalize(root).await {
-                roots.push(CanonicalRoot {
-                    path: root.clone(),
-                    canonical_path: canonical,
-                });
-            }
-        }
-        roots
-    }
-
+    /// Resolve `path` (a candidate under the configured `root`) and verify that
+    /// its canonical target stays inside the root.
+    ///
+    /// The canonical root used for the containment check is derived **at
+    /// acceptance time**: `trusted_canonical_root` carries a canonical root that
+    /// was freshly resolved earlier in the *same request* (default-file and
+    /// compressed-variant probes); otherwise the root is canonicalized here,
+    /// lazily — only for candidates that actually exist on disk. The canonical
+    /// root is deliberately never cached across requests: a symlinked root can be
+    /// retargeted at any time (`current -> release-N` deploy swaps), and a stale
+    /// canonical prefix does not merely 404 — when the old prefix is broader than
+    /// the new root (e.g. retargeted from an ancestor into a subdirectory), it
+    /// would *accept* symlink escapes that the current root rejects.
     async fn resolve_root_path(
         &self,
-        root: &CanonicalRoot,
+        root: &Path,
+        trusted_canonical_root: Option<&Path>,
         path: PathBuf,
-        apply_exclude_filters: bool,
     ) -> Option<ResolvedPath> {
-        if apply_exclude_filters {
-            let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
-            if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
-                return None;
-            }
+        // Applied to every candidate: default files (e.g. `index.html`) and
+        // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
+        let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
+        if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+            return None;
         }
 
         let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
         let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
-        if !canonical_path.starts_with(&root.canonical_path) {
+        let canonical_root = match trusted_canonical_root {
+            Some(canonical_root) => canonical_root.to_owned(),
+            None => tokio::fs::canonicalize(root).await.ok()?,
+        };
+        if !canonical_path.starts_with(&canonical_root) {
             return None;
         }
         Some(ResolvedPath {
             path,
-            canonical_root: root.canonical_path.clone(),
+            canonical_root,
             metadata,
         })
     }
 
     async fn resolve_relative_path(
         &self,
-        root: &CanonicalRoot,
+        root: &Path,
         rel_path: impl AsRef<Path>,
     ) -> Option<ResolvedPath> {
-        self.resolve_root_path(root, root.path.join(rel_path), true)
+        self.resolve_root_path(root, None, root.join(rel_path))
             .await
     }
 
-    async fn resolve_child_path(&self, root: &Path, path: PathBuf) -> Option<ResolvedPath> {
-        let synthetic_root = CanonicalRoot {
-            path: root.to_owned(),
-            canonical_path: root.to_owned(),
-        };
-        // Apply exclude filters here too: default files (e.g. `index.html`) and
-        // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
-        self.resolve_root_path(&synthetic_root, path, true).await
+    /// Resolve a child candidate (default file or compressed variant) against a
+    /// canonical root freshly derived earlier in the same request.
+    async fn resolve_child_path(
+        &self,
+        canonical_root: &Path,
+        path: PathBuf,
+    ) -> Option<ResolvedPath> {
+        self.resolve_root_path(canonical_root, Some(canonical_root), path)
+            .await
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -458,9 +457,8 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        let roots = self.canonical_roots().await;
         if self.include_dot_files || !is_dot_file {
-            for root in &roots {
+            for root in &self.roots {
                 // Use a single async symlink_metadata call for file type checks, then verify
                 // the canonical target stays under the canonical root before serving it.
                 if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
@@ -498,7 +496,7 @@ impl Handler for StaticDir {
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
-            for root in &roots {
+            for root in &self.roots {
                 if let Some(path) = self.resolve_relative_path(root, fallback).await {
                     if !path.metadata.is_file() {
                         continue;
@@ -856,7 +854,141 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 
 #[cfg(test)]
 mod tests {
-    use crate::dir::{human_size, is_safe_relative_path, xml_escape};
+    use std::path::PathBuf;
+
+    use crate::dir::{StaticDir, human_size, is_safe_relative_path, xml_escape};
+
+    #[tokio::test]
+    async fn test_resolve_picks_up_late_created_root() {
+        // A root that does not exist yet must simply resolve nothing — and be
+        // picked up as soon as it is created, since nothing is cached.
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let missing: PathBuf = parent.path().join("created-later");
+        let static_dir = StaticDir::new(missing.clone());
+
+        assert!(
+            static_dir
+                .resolve_relative_path(&missing, "app.js")
+                .await
+                .is_none()
+        );
+
+        std::fs::create_dir(&missing).expect("create root dir");
+        std::fs::write(missing.join("app.js"), b"content").expect("write file");
+        let resolved = static_dir
+            .resolve_relative_path(&missing, "app.js")
+            .await
+            .expect("late-created root should resolve");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&missing).expect("canonicalize root")
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_resolve_uses_fresh_root_after_symlink_retarget() {
+        // A deploy swap (`current -> release-a` retargeted to `release-b`) must
+        // serve the new release immediately, and escape attempts out of the new
+        // root must still be rejected.
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let release_a = parent.path().join("release-a");
+        let release_b = parent.path().join("release-b");
+        let current = parent.path().join("current");
+        std::fs::create_dir(&release_a).expect("create release-a");
+        std::fs::create_dir(&release_b).expect("create release-b");
+        std::fs::write(release_a.join("app.js"), b"old release").expect("write file");
+        std::fs::write(release_b.join("app.js"), b"new release").expect("write file");
+        std::fs::write(parent.path().join("secret.txt"), b"secret").expect("write file");
+        std::os::unix::fs::symlink(&release_a, &current).expect("create symlink");
+
+        let static_dir = StaticDir::new(current.clone());
+        let resolved = static_dir
+            .resolve_relative_path(&current, "app.js")
+            .await
+            .expect("resolve against release-a");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&release_a).expect("canonicalize release-a")
+        );
+
+        // Retarget the deployment symlink; the very next resolution must already
+        // be anchored to the new release.
+        std::fs::remove_file(&current).expect("remove symlink");
+        std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
+        let resolved = static_dir
+            .resolve_relative_path(&current, "app.js")
+            .await
+            .expect("resolve against release-b");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&release_b).expect("canonicalize release-b")
+        );
+
+        // An escape symlink inside the new release is rejected.
+        std::os::unix::fs::symlink(parent.path().join("secret.txt"), release_b.join("leak"))
+            .expect("create escape symlink");
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "leak")
+                .await
+                .is_none()
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_resolve_rejects_escape_after_root_narrowing_retarget() {
+        // Regression test for the stale-canonical-prefix hole: `current` first
+        // points at an ancestor (`www`), then is retargeted into a subdirectory
+        // (`www/release-b`). An escape symlink whose target canonicalizes under
+        // the *old, broader* prefix (`www/secret.txt`) must be rejected against
+        // the *current* root — a canonical root cached from the first request
+        // would have accepted it.
+        let parent = tempfile::tempdir().expect("create temp dir");
+        let www = parent.path().join("www");
+        let release_b = www.join("release-b");
+        let current = parent.path().join("current");
+        std::fs::create_dir(&www).expect("create www");
+        std::fs::create_dir(&release_b).expect("create release-b");
+        std::fs::write(www.join("secret.txt"), b"secret").expect("write file");
+        std::fs::write(release_b.join("app.js"), b"app").expect("write file");
+        std::os::unix::fs::symlink(&release_b.join("app.js"), www.join("alias.js"))
+            .expect("create in-root symlink");
+        std::os::unix::fs::symlink(&www, &current).expect("create symlink");
+
+        let static_dir = StaticDir::new(current.clone());
+        // First request resolves against the broad root; both direct files and
+        // in-root symlinks are legitimately served.
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "secret.txt")
+                .await
+                .is_some()
+        );
+
+        // Narrow the root into the subdirectory, then try to escape back into
+        // the old (broader) tree via a symlink inside the new root.
+        std::fs::remove_file(&current).expect("remove symlink");
+        std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
+        std::os::unix::fs::symlink(www.join("secret.txt"), release_b.join("leak"))
+            .expect("create escape symlink");
+
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "leak")
+                .await
+                .is_none(),
+            "escape into the old broader root must be rejected"
+        );
+        // Regular files under the new root still resolve.
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "app.js")
+                .await
+                .is_some()
+        );
+    }
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {
