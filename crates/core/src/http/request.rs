@@ -559,7 +559,8 @@ impl Request {
     /// Use with caution.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ReqBody {
-        self.clear_body_cache();
+        self.payload = tokio::sync::OnceCell::new();
+        self.form_data = tokio::sync::OnceCell::new();
         &mut self.body
     }
 
@@ -572,20 +573,10 @@ impl Request {
     /// read from the new body.
     #[inline]
     pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
-        let old_body = self.replace_body_preserving_cache(body);
-        self.clear_body_cache();
-        old_body
-    }
-
-    #[inline]
-    fn replace_body_preserving_cache(&mut self, body: ReqBody) -> ReqBody {
-        std::mem::replace(&mut self.body, body)
-    }
-
-    #[inline]
-    fn clear_body_cache(&mut self) {
+        let old_body = std::mem::replace(&mut self.body, body);
         self.payload = tokio::sync::OnceCell::new();
         self.form_data = tokio::sync::OnceCell::new();
+        old_body
     }
 
     /// Takes the body from the request, leaving [`ReqBody::None`] in its place.
@@ -605,12 +596,10 @@ impl Request {
     /// manage their own internal body consumption while building fresh cache entries.
     #[inline]
     pub fn take_body(&mut self) -> ReqBody {
-        self.replace_body(ReqBody::None)
-    }
-
-    #[inline]
-    fn take_body_preserving_cache(&mut self) -> ReqBody {
-        self.replace_body_preserving_cache(ReqBody::None)
+        let old_body = std::mem::replace(&mut self.body, ReqBody::None);
+        self.payload = tokio::sync::OnceCell::new();
+        self.form_data = tokio::sync::OnceCell::new();
+        old_body
     }
 
     /// Returns a reference to the associated extensions.
@@ -1160,7 +1149,7 @@ impl Request {
     #[inline]
     pub async fn payload_with_max_size(&mut self, max_size: usize) -> ParseResult<&Bytes> {
         if self.payload.get().is_none() {
-            let body = self.take_body_preserving_cache();
+            let body = std::mem::replace(&mut self.body, ReqBody::None);
             self.payload
                 .get_or_try_init(|| async {
                     let limited = Limited::new(body, max_size);
@@ -1262,7 +1251,7 @@ impl Request {
         }
         if let Some(ctype) = self.content_type() {
             if is_form_content_type(&ctype) {
-                let body = self.take_body_preserving_cache();
+                let body = std::mem::replace(&mut self.body, ReqBody::None);
                 if body.is_none() {
                     let bytes = self.payload_with_max_size(max_size).await?.to_owned();
                     let headers = self.headers();
