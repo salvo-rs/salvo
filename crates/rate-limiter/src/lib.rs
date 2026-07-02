@@ -18,11 +18,12 @@
 //!
 //! ## Issuers
 //! - [`RemoteIpIssuer`]: Identifies clients by their direct connection IP
-//! - [`ForwardedHeaderIssuer`]: Unconditionally trusts `X-Forwarded-For` / `X-Real-IP` (legacy;
-//!   **use only when the application is unreachable except through a header-rewriting proxy**)
-//! - [`TrustedProxyIssuer`]: Same idea as [`ForwardedHeaderIssuer`], but only honours the forwarded
-//!   headers when the request actually arrived from a configured proxy IP. **This is the safer
-//!   choice for any deployment that might also accept direct connections.**
+//! - [`TrustedProxyIssuer`]: Honours `X-Forwarded-For` / `X-Real-IP` only when the request
+//!   actually arrived from a configured proxy IP. **This is the safe choice for deployments
+//!   behind a reverse proxy.**
+//! - `ForwardedHeaderIssuer` (deprecated): Unconditionally trusts the forwarded headers, so a
+//!   client that reaches the application directly can spoof its IP and bypass rate limiting —
+//!   use [`TrustedProxyIssuer`] instead.
 //!
 //! ## Guards (Algorithms)
 //! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)
@@ -167,11 +168,10 @@ where
 /// connection. When your application is behind a reverse proxy or load balancer,
 /// this will be the proxy's IP, not the client's real IP.
 ///
-/// For applications behind proxies, use [`ForwardedHeaderIssuer`] instead, which
-/// can extract the client IP from headers like `X-Forwarded-For` or `X-Real-IP`.
-///
-/// **Warning**: Never use [`ForwardedHeaderIssuer`] without a trusted proxy, as
-/// clients can forge these headers to bypass rate limiting.
+/// For applications behind proxies, use [`TrustedProxyIssuer`] instead, which
+/// extracts the client IP from headers like `X-Forwarded-For` or `X-Real-IP`,
+/// but only when the request actually arrived from a configured proxy address —
+/// so those headers cannot be forged by clients connecting directly.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RemoteIpIssuer;
 impl RateIssuer for RemoteIpIssuer {
@@ -205,23 +205,19 @@ impl RateIssuer for RemoteIpIssuer {
 /// [`TrustedProxyIssuer`] instead — it only honours the forwarded headers when
 /// the request actually arrived from a configured proxy address.
 ///
-/// # Example
-///
-/// ```ignore
-/// use salvo_rate_limiter::{
-///     RateLimiter, ForwardedHeaderIssuer, BasicQuota, FixedGuard, MokaStore,
-/// };
-///
-/// let limiter = RateLimiter::new(
-///     FixedGuard::default(),
-///     MokaStore::default(),
-///     ForwardedHeaderIssuer::new(),
-///     BasicQuota::per_minute(100),
-/// );
-/// ```
+/// Migrating: [`TrustedProxyIssuer::new`] takes the set of proxy addresses your
+/// deployment actually uses, e.g.
+/// `TrustedProxyIssuer::new(["10.0.0.1".parse::<IpAddr>().unwrap()])`.
 #[derive(Debug, Clone, Copy, Default)]
+#[deprecated(
+    since = "0.94.0",
+    note = "unconditionally trusts client-controlled forwarded headers, letting direct \
+            connections spoof their IP and bypass rate limiting; use `TrustedProxyIssuer` \
+            (verifies the request came from a configured proxy) or `RemoteIpIssuer` instead"
+)]
 pub struct ForwardedHeaderIssuer;
 
+#[allow(deprecated)]
 impl ForwardedHeaderIssuer {
     /// Create a new `ForwardedHeaderIssuer`.
     #[inline]
@@ -231,6 +227,7 @@ impl ForwardedHeaderIssuer {
     }
 }
 
+#[allow(deprecated)]
 impl RateIssuer for ForwardedHeaderIssuer {
     type Key = IpAddr;
 
