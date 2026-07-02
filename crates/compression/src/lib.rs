@@ -370,13 +370,19 @@ impl Compression {
             }
             // Only the `type/subtype` essence is compared, so extract it from the raw
             // header instead of running the full `Mime` parser (parameters, quoting,
-            // validation) on every response. MIME types compare case-insensitively.
+            // validation) on every response. MIME types compare case-insensitively,
+            // and — matching `Mime::subtype()`, which excludes the structured suffix —
+            // the `+suffix` is ignored so `image/svg+xml` matches a configured
+            // `image/svg+xml` entry (whose `subtype()` is just `svg`).
             let essence = content_type
                 .split(';')
                 .next()
                 .unwrap_or_default()
                 .trim_ascii();
             let (main_type, subtype) = essence.split_once('/')?;
+            let subtype = subtype
+                .rsplit_once('+')
+                .map_or(subtype, |(base, _suffix)| base);
             if main_type.is_empty() || subtype.is_empty() {
                 return None;
             }
@@ -677,6 +683,29 @@ mod tests {
             .content_types(&[mime::TEXT_HTML]);
         let router = Router::with_hoop(comp_handler)
             .push(Router::with_path("hello").get(hello_uppercase_ct));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_some());
+    }
+
+    #[handler]
+    async fn hello_svg(res: &mut Response) {
+        res.headers_mut().insert(
+            salvo_core::http::header::CONTENT_TYPE,
+            "image/svg+xml".parse().unwrap(),
+        );
+        let _ = res.write_body("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
+    }
+    #[tokio::test]
+    async fn test_content_types_structured_suffix_compress() {
+        // `image/svg+xml` is in the default list; the `+xml` structured suffix
+        // must not break matching.
+        let comp_handler = Compression::new().min_length(1);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_svg));
 
         let res = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header(ACCEPT_ENCODING, "gzip", true)
