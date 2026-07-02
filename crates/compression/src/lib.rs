@@ -368,14 +368,29 @@ impl Compression {
             if content_type.is_empty() {
                 return None;
             }
-            if let Ok(content_type) = content_type.parse::<Mime>() {
-                if !self.content_types.iter().any(|citem| {
-                    citem.type_() == content_type.type_()
-                        && (citem.subtype() == "*" || citem.subtype() == content_type.subtype())
-                }) {
-                    return None;
-                }
-            } else {
+            // Only the `type/subtype` essence is compared, so extract it from the raw
+            // header instead of running the full `Mime` parser (parameters, quoting,
+            // validation) on every response. MIME types compare case-insensitively,
+            // and — matching `Mime::subtype()`, which excludes the structured suffix —
+            // the `+suffix` is ignored so `image/svg+xml` matches a configured
+            // `image/svg+xml` entry (whose `subtype()` is just `svg`).
+            let essence = content_type
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .trim_ascii();
+            let (main_type, subtype) = essence.split_once('/')?;
+            let subtype = subtype
+                .rsplit_once('+')
+                .map_or(subtype, |(base, _suffix)| base);
+            if main_type.is_empty() || subtype.is_empty() {
+                return None;
+            }
+            if !self.content_types.iter().any(|citem| {
+                citem.type_().as_str().eq_ignore_ascii_case(main_type)
+                    && (citem.subtype() == "*"
+                        || citem.subtype().as_str().eq_ignore_ascii_case(subtype))
+            }) {
                 return None;
             }
         }
@@ -643,6 +658,78 @@ mod tests {
             .content_types(&[mime::APPLICATION_JSON]);
         let router =
             Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_html));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_none());
+    }
+
+    #[handler]
+    async fn hello_uppercase_ct(res: &mut Response) {
+        res.headers_mut().insert(
+            salvo_core::http::header::CONTENT_TYPE,
+            "TEXT/HTML; Charset=UTF-8".parse().unwrap(),
+        );
+        let _ = res.write_body("<html><body>hello</body></html>");
+    }
+    #[tokio::test]
+    async fn test_content_types_match_is_case_insensitive_and_ignores_params() {
+        // MIME types compare case-insensitively and parameters are not part of
+        // the match — `TEXT/HTML; Charset=UTF-8` must match `text/html`.
+        let comp_handler = Compression::new()
+            .min_length(1)
+            .content_types(&[mime::TEXT_HTML]);
+        let router = Router::with_hoop(comp_handler)
+            .push(Router::with_path("hello").get(hello_uppercase_ct));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_some());
+    }
+
+    #[handler]
+    async fn hello_svg(res: &mut Response) {
+        res.headers_mut().insert(
+            salvo_core::http::header::CONTENT_TYPE,
+            "image/svg+xml".parse().unwrap(),
+        );
+        let _ = res.write_body("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
+    }
+    #[tokio::test]
+    async fn test_content_types_structured_suffix_compress() {
+        // `image/svg+xml` is in the default list; the `+xml` structured suffix
+        // must not break matching.
+        let comp_handler = Compression::new().min_length(1);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_svg));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+        assert!(res.headers().get(CONTENT_ENCODING).is_some());
+    }
+
+    #[handler]
+    async fn hello_bad_ct(res: &mut Response) {
+        res.headers_mut().insert(
+            salvo_core::http::header::CONTENT_TYPE,
+            "texthtml".parse().unwrap(),
+        );
+        let _ = res.write_body("<html><body>hello</body></html>");
+    }
+    #[tokio::test]
+    async fn test_content_types_malformed_not_compress() {
+        // A content type without a `/` cannot match any configured type.
+        let comp_handler = Compression::new()
+            .min_length(1)
+            .content_types(&[mime::TEXT_HTML]);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_bad_ct));
 
         let res = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header(ACCEPT_ENCODING, "gzip", true)
