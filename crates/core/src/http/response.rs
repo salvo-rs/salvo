@@ -446,6 +446,14 @@ impl Response {
     /// `Scribe` impl is responsible for converting the error into a `5xx` response
     /// instead of panicking or returning an error here.
     ///
+    /// **Note**: the built-in `Scribe` implementations write through
+    /// [`write_body`](Response::write_body), which *appends* to any body bytes
+    /// already present — it does not overwrite them. Calling `render` twice on the
+    /// same response therefore concatenates both outputs, which for `Json` produces
+    /// invalid JSON. Debug builds log a warning when a render appends onto existing
+    /// body bytes. To replace an already-written body, set it explicitly via
+    /// [`replace_body`](Response::replace_body) or [`body`](Response::body) first.
+    ///
     /// # Example
     ///
     /// ```
@@ -458,17 +466,52 @@ impl Response {
     where
         P: Scribe,
     {
+        // In debug builds, detect a render that appends onto body bytes that were
+        // already committed — almost always an accidental double render (rendering
+        // `Json` twice produces invalid JSON). Comparing sizes after the fact (rather
+        // than warning whenever bytes pre-exist) avoids false positives for scribes
+        // that write nothing, e.g. the `()` rendered by `Ok(())`-returning handlers.
+        #[cfg(debug_assertions)]
+        {
+            fn committed_len(body: &ResBody) -> Option<usize> {
+                match body {
+                    ResBody::Once(bytes) => Some(bytes.len()),
+                    ResBody::Chunks(chunks) => Some(chunks.iter().map(Bytes::len).sum()),
+                    _ => None,
+                }
+            }
+            let before = committed_len(&self.body);
+            scribe.render(self);
+            // `before > 0`: appending to an *empty* committed body yields exactly the
+            // new render's bytes, so nothing is corrupted and no warning is needed.
+            if let (Some(before), Some(after)) = (before, committed_len(&self.body))
+                && before > 0
+                && after > before
+            {
+                tracing::warn!(
+                    "`Response::render` appended to a response that already contains body \
+                     bytes; the previous content is kept, not overwritten. This is rarely \
+                     intended (e.g. rendering `Json` twice produces invalid JSON). To replace \
+                     the body, use `Response::replace_body` or `Response::body` first; to \
+                     append on purpose, call `Response::write_body` directly."
+                );
+            }
+        }
+        #[cfg(not(debug_assertions))]
         scribe.render(self);
     }
 
     /// Sets the status code and renders content into this response.
+    ///
+    /// See [`render`](Response::render) for the append semantics when the response
+    /// already contains body bytes.
     #[inline]
     pub fn render_with_status<P>(&mut self, code: StatusCode, scribe: P)
     where
         P: Scribe,
     {
         self.status_code = Some(code);
-        scribe.render(self);
+        self.render(scribe);
     }
 
     /// Sets the status code and renders content into this response.
@@ -500,7 +543,14 @@ impl Response {
         }
     }
 
-    /// Write bytes data to body. If body is none, a new `ResBody` will created.
+    /// Write bytes data to body.
+    ///
+    /// This **appends**: if the body is [`ResBody::None`] (or an error placeholder) a
+    /// new [`ResBody::Once`] is created, but if the body already contains bytes
+    /// (`Once` or `Chunks`) the data is added after the existing content. Streaming
+    /// body kinds (`Hyper`, `Boxed`, `Stream`, `Channel`) cannot be written to and
+    /// return an error. To replace the body instead of appending, use
+    /// [`replace_body`](Response::replace_body) or [`body`](Response::body).
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
             ResBody::Once(bytes) => {
