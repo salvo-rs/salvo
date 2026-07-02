@@ -153,7 +153,7 @@ where
 /// use salvo_serve_static::StaticDir;
 ///
 /// let router = Router::new().push(
-///     Router::with_path("static/<**>").get(
+///     Router::with_path("static/{**}").get(
 ///         StaticDir::new(["assets", "static"])
 ///             .defaults("index.html")
 ///             .auto_list(true),
