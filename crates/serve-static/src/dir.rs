@@ -6,9 +6,7 @@ use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, PoisonError, RwLock};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
@@ -181,13 +179,6 @@ pub struct StaticDir {
     pub defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
-    /// Cache of canonicalized roots, revalidated against the current (public,
-    /// mutable) `roots` value on every request and re-resolved after a short TTL.
-    /// See [`StaticDir::canonical_roots`].
-    canonical_cache: RwLock<Option<Arc<CanonicalCache>>>,
-    /// Claimed by the single request that re-resolves an expired cache, so a TTL
-    /// expiry under concurrent traffic does not stampede `canonicalize` calls.
-    canonical_refreshing: AtomicBool,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -223,8 +214,6 @@ impl StaticDir {
             compressed_variations,
             defaults: vec![],
             fallback: None,
-            canonical_cache: RwLock::new(None),
-            canonical_refreshing: AtomicBool::new(false),
         }
     }
 
@@ -325,42 +314,6 @@ impl StaticDir {
     }
 }
 
-struct CanonicalRoot {
-    path: PathBuf,
-    canonical_path: PathBuf,
-}
-
-/// How long resolved canonical roots stay fresh before they are re-resolved.
-///
-/// The TTL bounds how long a root that is (or contains) a retargeted symlink —
-/// e.g. a `current -> release-N` deployment layout — can keep serving from the
-/// old canonical target: at most one second, at a cost of at most one
-/// re-resolution per root per second regardless of request rate.
-const CANONICAL_ROOTS_TTL: Duration = Duration::from_secs(1);
-
-/// Canonicalized roots together with the `roots` value they were derived from.
-struct CanonicalCache {
-    /// The `StaticDir::roots` value this cache was computed from.
-    source: Vec<PathBuf>,
-    entries: Vec<CanonicalRoot>,
-    /// When the roots were resolved; freshness expires after [`CANONICAL_ROOTS_TTL`].
-    resolved_at: Instant,
-}
-
-impl CanonicalCache {
-    /// The cache is usable when it was computed from the current `roots` value,
-    /// every root resolved successfully, and the TTL has not elapsed. A root can
-    /// fail to canonicalize when its directory does not exist yet (e.g. it is
-    /// created after startup); keeping such a cache would hide the root forever,
-    /// so re-resolve until all succeed. The TTL bounds staleness for roots whose
-    /// canonical target changes without `roots` being touched (symlink retarget).
-    fn is_fresh(&self, current_roots: &[PathBuf]) -> bool {
-        self.entries.len() == self.source.len()
-            && self.resolved_at.elapsed() < CANONICAL_ROOTS_TTL
-            && self.source == current_roots
-    }
-}
-
 struct ResolvedPath {
     path: PathBuf,
     canonical_root: PathBuf,
@@ -368,171 +321,66 @@ struct ResolvedPath {
 }
 
 impl StaticDir {
-    /// Canonicalized roots, cached across requests.
+    /// Resolve `path` (a candidate under the configured `root`) and verify that
+    /// its canonical target stays inside the root.
     ///
-    /// Canonicalizing every root used to run on each request, costing filesystem
-    /// syscalls before any file was served. The result is now cached and revalidated
-    /// against the current `roots` value (which is public and mutable) with a cheap
-    /// path comparison, and re-resolved after [`CANONICAL_ROOTS_TTL`] so a root whose
-    /// canonical target changes without `roots` being touched — e.g. a retargeted
-    /// `current -> release-N` deployment symlink — is picked up within the TTL.
-    async fn canonical_roots(&self) -> Arc<CanonicalCache> {
-        let cached = self
-            .canonical_cache
-            .read()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone();
-        if let Some(cached) = &cached
-            && cached.is_fresh(&self.roots)
-        {
-            return cached.clone();
-        }
-        // The cache is stale or absent. Only one request re-resolves it; the others
-        // keep serving the previous value when it was built from the same `roots`
-        // (staleness stays bounded by the refresh duration), so a TTL expiry under
-        // concurrent traffic does not stampede `canonicalize` calls.
-        let refresh_claimed = self
-            .canonical_refreshing
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok();
-        if !refresh_claimed
-            && let Some(cached) = cached
-            && cached.source == self.roots
-        {
-            return cached;
-        }
-        // Release the claim even if this future is cancelled mid-resolution
-        // (e.g. the client disconnects), otherwise refreshes would stop forever.
-        struct RefreshGuard<'a>(&'a AtomicBool);
-        impl Drop for RefreshGuard<'_> {
-            fn drop(&mut self) {
-                self.0.store(false, Ordering::Release);
-            }
-        }
-        let _guard = refresh_claimed.then(|| RefreshGuard(&self.canonical_refreshing));
-        // Reaching here without the claim means the cache cannot be served at all
-        // (first request, or `roots` was just mutated); duplicated resolution in
-        // that rare window is acceptable.
-        let source = self.roots.clone();
-        let mut entries = Vec::with_capacity(source.len());
-        for root in &source {
-            if let Ok(canonical) = tokio::fs::canonicalize(root).await {
-                entries.push(CanonicalRoot {
-                    path: root.clone(),
-                    canonical_path: canonical,
-                });
-            }
-        }
-        let fresh = Arc::new(CanonicalCache {
-            source,
-            entries,
-            resolved_at: Instant::now(),
-        });
-        *self
-            .canonical_cache
-            .write()
-            .unwrap_or_else(PoisonError::into_inner) = Some(fresh.clone());
-        fresh
-    }
-
+    /// The canonical root used for the containment check is derived **at
+    /// acceptance time**: `trusted_canonical_root` carries a canonical root that
+    /// was freshly resolved earlier in the *same request* (default-file and
+    /// compressed-variant probes); otherwise the root is canonicalized here,
+    /// lazily — only for candidates that actually exist on disk. The canonical
+    /// root is deliberately never cached across requests: a symlinked root can be
+    /// retargeted at any time (`current -> release-N` deploy swaps), and a stale
+    /// canonical prefix does not merely 404 — when the old prefix is broader than
+    /// the new root (e.g. retargeted from an ancestor into a subdirectory), it
+    /// would *accept* symlink escapes that the current root rejects.
     async fn resolve_root_path(
         &self,
-        root: &CanonicalRoot,
+        root: &Path,
+        trusted_canonical_root: Option<&Path>,
         path: PathBuf,
-        apply_exclude_filters: bool,
     ) -> Option<ResolvedPath> {
-        if apply_exclude_filters {
-            let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
-            if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
-                return None;
-            }
+        // Applied to every candidate: default files (e.g. `index.html`) and
+        // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
+        let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
+        if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
+            return None;
         }
 
         let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
         let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
-        if !canonical_path.starts_with(&root.canonical_path) {
-            // The mismatch means either a symlink-escape attempt or a root whose
-            // canonical target changed after being cached (e.g. a retargeted
-            // `current -> release-N` deployment symlink). Re-resolve the root once
-            // to tell the two apart, so a deploy swap serves the new release
-            // immediately instead of returning 404 until the cache TTL expires.
-            let fresh_root = tokio::fs::canonicalize(&root.path).await.ok()?;
-            if fresh_root == root.canonical_path || !canonical_path.starts_with(&fresh_root) {
-                // The root is unchanged (or still does not contain the target):
-                // this is a genuine escape attempt.
-                return None;
-            }
-            self.heal_canonical_root(&root.path, &root.canonical_path, fresh_root.clone());
-            return Some(ResolvedPath {
-                path,
-                canonical_root: fresh_root,
-                metadata,
-            });
+        let canonical_root = match trusted_canonical_root {
+            Some(canonical_root) => canonical_root.to_owned(),
+            None => tokio::fs::canonicalize(root).await.ok()?,
+        };
+        if !canonical_path.starts_with(&canonical_root) {
+            return None;
         }
         Some(ResolvedPath {
             path,
-            canonical_root: root.canonical_path.clone(),
+            canonical_root,
             metadata,
         })
     }
 
-    /// Patch the cached canonical path of `root_path` after detecting that its
-    /// canonical target changed, so subsequent requests stop paying the extra
-    /// root re-resolution until the TTL refresh.
-    fn heal_canonical_root(&self, root_path: &Path, old_canonical: &Path, fresh: PathBuf) {
-        let mut guard = self
-            .canonical_cache
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
-        let Some(cached) = guard.as_ref() else {
-            return;
-        };
-        // Only patch the cache generation the stale value came from; a concurrent
-        // full refresh already has up-to-date data.
-        if !cached
-            .entries
-            .iter()
-            .any(|entry| entry.path == root_path && entry.canonical_path == old_canonical)
-        {
-            return;
-        }
-        let entries = cached
-            .entries
-            .iter()
-            .map(|entry| CanonicalRoot {
-                path: entry.path.clone(),
-                canonical_path: if entry.path == root_path && entry.canonical_path == old_canonical
-                {
-                    fresh.clone()
-                } else {
-                    entry.canonical_path.clone()
-                },
-            })
-            .collect();
-        *guard = Some(Arc::new(CanonicalCache {
-            source: cached.source.clone(),
-            entries,
-            resolved_at: cached.resolved_at,
-        }));
-    }
-
     async fn resolve_relative_path(
         &self,
-        root: &CanonicalRoot,
+        root: &Path,
         rel_path: impl AsRef<Path>,
     ) -> Option<ResolvedPath> {
-        self.resolve_root_path(root, root.path.join(rel_path), true)
+        self.resolve_root_path(root, None, root.join(rel_path))
             .await
     }
 
-    async fn resolve_child_path(&self, root: &Path, path: PathBuf) -> Option<ResolvedPath> {
-        let synthetic_root = CanonicalRoot {
-            path: root.to_owned(),
-            canonical_path: root.to_owned(),
-        };
-        // Apply exclude filters here too: default files (e.g. `index.html`) and
-        // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
-        self.resolve_root_path(&synthetic_root, path, true).await
+    /// Resolve a child candidate (default file or compressed variant) against a
+    /// canonical root freshly derived earlier in the same request.
+    async fn resolve_child_path(
+        &self,
+        canonical_root: &Path,
+        path: PathBuf,
+    ) -> Option<ResolvedPath> {
+        self.resolve_root_path(canonical_root, Some(canonical_root), path)
+            .await
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -609,9 +457,8 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        let roots = self.canonical_roots().await;
         if self.include_dot_files || !is_dot_file {
-            for root in &roots.entries {
+            for root in &self.roots {
                 // Use a single async symlink_metadata call for file type checks, then verify
                 // the canonical target stays under the canonical root before serving it.
                 if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
@@ -649,7 +496,7 @@ impl Handler for StaticDir {
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
-            for root in &roots.entries {
+            for root in &self.roots {
                 if let Some(path) = self.resolve_relative_path(root, fallback).await {
                     if !path.metadata.is_file() {
                         continue;
@@ -1008,169 +855,82 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::sync::Arc;
 
     use crate::dir::{StaticDir, human_size, is_safe_relative_path, xml_escape};
 
     #[tokio::test]
-    async fn test_canonical_roots_cached_and_invalidated() {
-        let dir_a = tempfile::tempdir().expect("create temp dir");
-        let dir_b = tempfile::tempdir().expect("create temp dir");
-
-        let mut static_dir = StaticDir::new(dir_a.path().to_path_buf());
-
-        // First call resolves and caches; second call must return the same Arc.
-        let first = static_dir.canonical_roots().await;
-        assert_eq!(first.entries.len(), 1);
-        let second = static_dir.canonical_roots().await;
-        assert!(Arc::ptr_eq(&first, &second), "fresh cache should be reused");
-
-        // Mutating the public `roots` field must invalidate the cache.
-        static_dir.roots = vec![dir_b.path().to_path_buf()];
-        let third = static_dir.canonical_roots().await;
-        assert!(!Arc::ptr_eq(&second, &third));
-        assert_eq!(third.entries.len(), 1);
-        assert_eq!(third.entries[0].path, dir_b.path());
-    }
-
-    #[tokio::test]
-    async fn test_canonical_roots_retries_missing_root() {
+    async fn test_resolve_picks_up_late_created_root() {
+        // A root that does not exist yet must simply resolve nothing — and be
+        // picked up as soon as it is created, since nothing is cached.
         let parent = tempfile::tempdir().expect("create temp dir");
         let missing: PathBuf = parent.path().join("created-later");
-
         let static_dir = StaticDir::new(missing.clone());
 
-        // The root does not exist yet, so it cannot be canonicalized...
-        let before = static_dir.canonical_roots().await;
-        assert!(before.entries.is_empty());
+        assert!(
+            static_dir
+                .resolve_relative_path(&missing, "app.js")
+                .await
+                .is_none()
+        );
 
-        // ...and an incomplete resolution must not be cached: once the directory
-        // exists, the next request must pick it up.
         std::fs::create_dir(&missing).expect("create root dir");
-        let after = static_dir.canonical_roots().await;
-        assert_eq!(after.entries.len(), 1);
-        assert_eq!(after.entries[0].path, missing);
-    }
-
-    /// Age the currently cached canonical roots so the TTL freshness check fails.
-    fn expire_canonical_cache(static_dir: &StaticDir) {
-        let mut guard = static_dir
-            .canonical_cache
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let cached = guard.take().expect("cache should be populated");
-        let expired = std::time::Instant::now()
-            .checked_sub(super::CANONICAL_ROOTS_TTL * 2)
-            .expect("process uptime exceeds twice the TTL");
-        *guard = Some(Arc::new(super::CanonicalCache {
-            source: cached.source.clone(),
-            entries: cached
-                .entries
-                .iter()
-                .map(|entry| super::CanonicalRoot {
-                    path: entry.path.clone(),
-                    canonical_path: entry.canonical_path.clone(),
-                })
-                .collect(),
-            resolved_at: expired,
-        }));
-    }
-
-    #[tokio::test]
-    async fn test_canonical_roots_reresolved_after_ttl() {
-        let dir = tempfile::tempdir().expect("create temp dir");
-        let static_dir = StaticDir::new(dir.path().to_path_buf());
-
-        let first = static_dir.canonical_roots().await;
-        expire_canonical_cache(&static_dir);
-
-        // An expired cache must be re-resolved even though `roots` is unchanged.
-        let second = static_dir.canonical_roots().await;
-        assert!(!Arc::ptr_eq(&first, &second));
-        assert_eq!(second.entries.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_canonical_roots_stale_while_revalidate() {
-        use std::sync::atomic::Ordering;
-
-        let dir_a = tempfile::tempdir().expect("create temp dir");
-        let dir_b = tempfile::tempdir().expect("create temp dir");
-        let mut static_dir = StaticDir::new(dir_a.path().to_path_buf());
-
-        let _ = static_dir.canonical_roots().await;
-        expire_canonical_cache(&static_dir);
-        let stale = static_dir
-            .canonical_cache
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .expect("cache should be populated");
-
-        // While another request holds the refresh claim, an expired cache built
-        // from the same `roots` keeps being served instead of stampeding.
-        static_dir.canonical_refreshing.store(true, Ordering::Release);
-        let served = static_dir.canonical_roots().await;
-        assert!(Arc::ptr_eq(&stale, &served));
-
-        // But a cache built from *different* roots must never be served stale:
-        // it is re-resolved even while the refresh claim is held elsewhere.
-        static_dir.roots = vec![dir_b.path().to_path_buf()];
-        let served = static_dir.canonical_roots().await;
-        assert_eq!(served.entries[0].path, dir_b.path());
-        // The non-claiming resolution must not release the foreign claim.
-        assert!(static_dir.canonical_refreshing.load(Ordering::Acquire));
-        static_dir
-            .canonical_refreshing
-            .store(false, Ordering::Release);
-
-        // With the claim released, a later request can refresh normally again.
-        expire_canonical_cache(&static_dir);
-        let refreshed = static_dir.canonical_roots().await;
-        assert!(!Arc::ptr_eq(&served, &refreshed));
+        std::fs::write(missing.join("app.js"), b"content").expect("write file");
+        let resolved = static_dir
+            .resolve_relative_path(&missing, "app.js")
+            .await
+            .expect("late-created root should resolve");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&missing).expect("canonicalize root")
+        );
     }
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn test_resolve_heals_retargeted_symlink_root_immediately() {
-        // A deploy swap (`current -> release-a` retargeted to `release-b`) must be
-        // served immediately — not 404 until the cache TTL expires — while a
-        // genuine escape attempt is still rejected.
+    async fn test_resolve_uses_fresh_root_after_symlink_retarget() {
+        // A deploy swap (`current -> release-a` retargeted to `release-b`) must
+        // serve the new release immediately, and escape attempts out of the new
+        // root must still be rejected.
         let parent = tempfile::tempdir().expect("create temp dir");
         let release_a = parent.path().join("release-a");
         let release_b = parent.path().join("release-b");
         let current = parent.path().join("current");
         std::fs::create_dir(&release_a).expect("create release-a");
         std::fs::create_dir(&release_b).expect("create release-b");
+        std::fs::write(release_a.join("app.js"), b"old release").expect("write file");
         std::fs::write(release_b.join("app.js"), b"new release").expect("write file");
         std::fs::write(parent.path().join("secret.txt"), b"secret").expect("write file");
         std::os::unix::fs::symlink(&release_a, &current).expect("create symlink");
 
         let static_dir = StaticDir::new(current.clone());
-        let cache = static_dir.canonical_roots().await;
+        let resolved = static_dir
+            .resolve_relative_path(&current, "app.js")
+            .await
+            .expect("resolve against release-a");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&release_a).expect("canonicalize release-a")
+        );
 
-        // Retarget the deployment symlink *without* touching `roots` or the cache.
+        // Retarget the deployment symlink; the very next resolution must already
+        // be anchored to the new release.
         std::fs::remove_file(&current).expect("remove symlink");
         std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
-
-        // Resolution against the stale cached root must heal and serve the file.
         let resolved = static_dir
-            .resolve_relative_path(&cache.entries[0], "app.js")
+            .resolve_relative_path(&current, "app.js")
             .await
-            .expect("retargeted root should heal, not 404");
-        let fresh_canonical = std::fs::canonicalize(&release_b).expect("canonicalize release-b");
-        assert_eq!(resolved.canonical_root, fresh_canonical);
+            .expect("resolve against release-b");
+        assert_eq!(
+            resolved.canonical_root,
+            std::fs::canonicalize(&release_b).expect("canonicalize release-b")
+        );
 
-        // The cache entry was patched in place for subsequent requests.
-        let healed = static_dir.canonical_roots().await;
-        assert_eq!(healed.entries[0].canonical_path, fresh_canonical);
-
-        // An escape attempt out of the (healed) root is still rejected.
+        // An escape symlink inside the new release is rejected.
         std::os::unix::fs::symlink(parent.path().join("secret.txt"), release_b.join("leak"))
             .expect("create escape symlink");
         assert!(
             static_dir
-                .resolve_relative_path(&healed.entries[0], "leak")
+                .resolve_relative_path(&current, "leak")
                 .await
                 .is_none()
         );
@@ -1178,32 +938,55 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn test_canonical_roots_pick_up_symlink_retarget() {
-        // The `current -> release-N` deployment layout: retargeting the symlink
-        // must be picked up once the TTL elapses, without touching `roots`.
+    async fn test_resolve_rejects_escape_after_root_narrowing_retarget() {
+        // Regression test for the stale-canonical-prefix hole: `current` first
+        // points at an ancestor (`www`), then is retargeted into a subdirectory
+        // (`www/release-b`). An escape symlink whose target canonicalizes under
+        // the *old, broader* prefix (`www/secret.txt`) must be rejected against
+        // the *current* root — a canonical root cached from the first request
+        // would have accepted it.
         let parent = tempfile::tempdir().expect("create temp dir");
-        let release_a = parent.path().join("release-a");
-        let release_b = parent.path().join("release-b");
+        let www = parent.path().join("www");
+        let release_b = www.join("release-b");
         let current = parent.path().join("current");
-        std::fs::create_dir(&release_a).expect("create release-a");
+        std::fs::create_dir(&www).expect("create www");
         std::fs::create_dir(&release_b).expect("create release-b");
-        std::os::unix::fs::symlink(&release_a, &current).expect("create symlink");
+        std::fs::write(www.join("secret.txt"), b"secret").expect("write file");
+        std::fs::write(release_b.join("app.js"), b"app").expect("write file");
+        std::os::unix::fs::symlink(&release_b.join("app.js"), www.join("alias.js"))
+            .expect("create in-root symlink");
+        std::os::unix::fs::symlink(&www, &current).expect("create symlink");
 
         let static_dir = StaticDir::new(current.clone());
-        let before = static_dir.canonical_roots().await;
-        assert_eq!(
-            before.entries[0].canonical_path,
-            std::fs::canonicalize(&release_a).expect("canonicalize release-a")
+        // First request resolves against the broad root; both direct files and
+        // in-root symlinks are legitimately served.
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "secret.txt")
+                .await
+                .is_some()
         );
 
+        // Narrow the root into the subdirectory, then try to escape back into
+        // the old (broader) tree via a symlink inside the new root.
         std::fs::remove_file(&current).expect("remove symlink");
         std::os::unix::fs::symlink(&release_b, &current).expect("retarget symlink");
-        expire_canonical_cache(&static_dir);
+        std::os::unix::fs::symlink(www.join("secret.txt"), release_b.join("leak"))
+            .expect("create escape symlink");
 
-        let after = static_dir.canonical_roots().await;
-        assert_eq!(
-            after.entries[0].canonical_path,
-            std::fs::canonicalize(&release_b).expect("canonicalize release-b")
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "leak")
+                .await
+                .is_none(),
+            "escape into the old broader root must be rejected"
+        );
+        // Regular files under the new root still resolve.
+        assert!(
+            static_dir
+                .resolve_relative_path(&current, "app.js")
+                .await
+                .is_some()
         );
     }
 
