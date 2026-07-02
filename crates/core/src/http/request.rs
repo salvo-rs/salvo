@@ -92,9 +92,9 @@ impl Handler for SecureMaxSize {
 ///   internally. Subsequent calls return the cached bytes.
 /// - [`form_data()`](Request::form_data) parses form data and caches the result. If the body has
 ///   already been consumed by `payload()`, it will use the cached bytes to parse the form.
-/// - [`replace_body()`](Request::replace_body) preserves those cached values for compatibility. Use
-///   [`replace_body_and_clear_cache()`](Request::replace_body_and_clear_cache) when replacing the
-///   body should also invalidate cached payload and form data.
+/// - [`replace_body()`](Request::replace_body), [`take_body()`](Request::take_body), and
+///   [`body_mut()`](Request::body_mut) invalidate cached payload and form data so cached data never
+///   describes an old body after the body is changed.
 ///
 /// # Size Limits
 ///
@@ -555,11 +555,11 @@ impl Request {
     ///
     /// # Note
     ///
-    /// Modifying the body directly may interfere with methods like
-    /// [`payload()`](Request::payload) and [`form_data()`](Request::form_data).
+    /// This clears cached payload and form data before exposing mutable body access.
     /// Use with caution.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ReqBody {
+        self.clear_body_cache();
         &mut self.body
     }
 
@@ -567,26 +567,19 @@ impl Request {
     ///
     /// This is useful when you need to transform or wrap the request body.
     ///
-    /// # Note
-    ///
-    /// Replacing the body does not clear the cached payload or form data.
-    /// If you've already called [`payload()`](Request::payload), those cached
-    /// values will still be returned on subsequent calls.
+    /// This clears cached payload and form data so subsequent calls to
+    /// [`payload()`](Request::payload) and [`form_data()`](Request::form_data)
+    /// read from the new body.
     #[inline]
     pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
-        std::mem::replace(&mut self.body, body)
-    }
-
-    /// Replaces the body with a new value, clears cached payload and form data, and returns the
-    /// old body.
-    ///
-    /// This is useful for middleware that transforms the request body and wants subsequent calls to
-    /// [`payload()`](Request::payload) or [`form_data()`](Request::form_data) to read the new body.
-    #[inline]
-    pub fn replace_body_and_clear_cache(&mut self, body: ReqBody) -> ReqBody {
-        let old_body = self.replace_body(body);
+        let old_body = self.replace_body_preserving_cache(body);
         self.clear_body_cache();
         old_body
+    }
+
+    #[inline]
+    fn replace_body_preserving_cache(&mut self, body: ReqBody) -> ReqBody {
+        std::mem::replace(&mut self.body, body)
     }
 
     #[inline]
@@ -597,8 +590,8 @@ impl Request {
 
     /// Takes the body from the request, leaving [`ReqBody::None`] in its place.
     ///
-    /// This consumes the body, making it unavailable for subsequent reads unless
-    /// it was already cached via [`payload()`](Request::payload).
+    /// This consumes the body and clears cached payload and form data so later
+    /// reads cannot observe data from the old body.
     ///
     /// # When to Use
     ///
@@ -609,11 +602,15 @@ impl Request {
     /// # Note
     ///
     /// Methods like [`payload()`](Request::payload) and [`form_data()`](Request::form_data)
-    /// call this internally. If those methods have already been called successfully,
-    /// the data is cached and can still be accessed.
+    /// manage their own internal body consumption while building fresh cache entries.
     #[inline]
     pub fn take_body(&mut self) -> ReqBody {
         self.replace_body(ReqBody::None)
+    }
+
+    #[inline]
+    fn take_body_preserving_cache(&mut self) -> ReqBody {
+        self.replace_body_preserving_cache(ReqBody::None)
     }
 
     /// Returns a reference to the associated extensions.
@@ -1162,20 +1159,27 @@ impl Request {
     /// ```
     #[inline]
     pub async fn payload_with_max_size(&mut self, max_size: usize) -> ParseResult<&Bytes> {
-        let body = self.take_body();
-        self.payload
-            .get_or_try_init(|| async {
-                let limited = Limited::new(body, max_size);
-                let collected = limited.collect().await.map_err(|e| {
-                    if is_length_limit_error(e.as_ref()) {
-                        ParseError::PayloadTooLarge
-                    } else {
-                        ParseError::other(e)
-                    }
-                })?;
-                Ok(collected.to_bytes())
-            })
-            .await
+        if self.payload.get().is_none() {
+            let body = self.take_body_preserving_cache();
+            self.payload
+                .get_or_try_init(|| async {
+                    let limited = Limited::new(body, max_size);
+                    let collected = limited.collect().await.map_err(|e| {
+                        if is_length_limit_error(e.as_ref()) {
+                            ParseError::PayloadTooLarge
+                        } else {
+                            ParseError::other(e)
+                        }
+                    })?;
+                    Ok(collected.to_bytes())
+                })
+                .await
+        } else {
+            Ok(self
+                .payload
+                .get()
+                .expect("payload cache should be initialized"))
+        }
     }
 
     /// Get [`FormData`] reference from request with the default size limit.
@@ -1250,9 +1254,15 @@ impl Request {
     /// ```
     #[inline]
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
+        if self.form_data.get().is_some() {
+            return Ok(self
+                .form_data
+                .get()
+                .expect("form data cache should be initialized"));
+        }
         if let Some(ctype) = self.content_type() {
             if is_form_content_type(&ctype) {
-                let body = self.take_body();
+                let body = self.take_body_preserving_cache();
                 if body.is_none() {
                     let bytes = self.payload_with_max_size(max_size).await?.to_owned();
                     let headers = self.headers();
@@ -1717,7 +1727,7 @@ Hello World\r\n\
     }
 
     #[tokio::test]
-    async fn test_replace_body_preserves_cached_payload() {
+    async fn test_replace_body_refreshes_payload() {
         let mut req = TestClient::post("http://127.0.0.1:8698/form")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=first")
@@ -1729,27 +1739,11 @@ Hello World\r\n\
         req.replace_body(ReqBody::from("username=second"));
 
         let payload = req.payload().await.unwrap();
-        assert_eq!(payload.as_ref(), b"username=first");
-    }
-
-    #[tokio::test]
-    async fn test_replace_body_and_clear_cache_refreshes_payload() {
-        let mut req = TestClient::post("http://127.0.0.1:8698/form")
-            .add_header("content-type", "application/x-www-form-urlencoded", true)
-            .raw_form("username=first")
-            .build();
-
-        let payload = req.payload().await.unwrap().clone();
-        assert_eq!(payload.as_ref(), b"username=first");
-
-        req.replace_body_and_clear_cache(ReqBody::from("username=second"));
-
-        let payload = req.payload().await.unwrap();
         assert_eq!(payload.as_ref(), b"username=second");
     }
 
     #[tokio::test]
-    async fn test_replace_body_and_clear_cache_refreshes_form_data() {
+    async fn test_replace_body_refreshes_form_data() {
         let mut req = TestClient::post("http://127.0.0.1:8698/form")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("username=first")
@@ -1758,10 +1752,43 @@ Hello World\r\n\
         let form_data = req.form_data().await.unwrap();
         assert_eq!(form_data.fields.get("username").unwrap(), "first");
 
-        req.replace_body_and_clear_cache(ReqBody::from("username=second"));
+        req.replace_body(ReqBody::from("username=second"));
 
         let form_data = req.form_data().await.unwrap();
         assert_eq!(form_data.fields.get("username").unwrap(), "second");
+    }
+
+    #[tokio::test]
+    async fn test_take_body_clears_cached_payload() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=first")
+            .build();
+
+        let payload = req.payload().await.unwrap().clone();
+        assert_eq!(payload.as_ref(), b"username=first");
+
+        let old_body = req.take_body();
+        assert!(old_body.is_none());
+
+        let payload = req.payload().await.unwrap();
+        assert!(payload.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_body_mut_clears_cached_payload() {
+        let mut req = TestClient::post("http://127.0.0.1:8698/form")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .raw_form("username=first")
+            .build();
+
+        let payload = req.payload().await.unwrap().clone();
+        assert_eq!(payload.as_ref(), b"username=first");
+
+        *req.body_mut() = ReqBody::from("username=second");
+
+        let payload = req.payload().await.unwrap();
+        assert_eq!(payload.as_ref(), b"username=second");
     }
 
     #[tokio::test]
