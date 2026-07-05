@@ -29,7 +29,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use tokio::sync::Notify;
-use tokio::time::Duration;
+use tokio::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
 use super::{ArcFusewire, FuseEvent, FuseFactory, FuseInfo, Fusewire, async_trait};
@@ -184,7 +184,7 @@ pub struct FlexFusewire {
     reject_token: CancellationToken,
 
     tcp_idle_timeout: Duration,
-    tcp_idle_token: CancellationToken,
+    tcp_idle_last_activity: Mutex<Instant>,
     tcp_idle_notify: Arc<Notify>,
 
     tcp_frame_timeout: Duration,
@@ -309,6 +309,37 @@ impl FlexFusewire {
     fn advance_generation(state: &mut TimeoutWatchState) {
         state.generation = state.generation.wrapping_add(1);
     }
+
+    fn reset_tcp_idle_timeout(&self) {
+        *self
+            .tcp_idle_last_activity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Instant::now();
+        self.tcp_idle_notify.notify_waiters();
+    }
+
+    async fn wait_tcp_idle_timeout(&self) {
+        loop {
+            let last_activity = *self
+                .tcp_idle_last_activity
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let deadline = last_activity + self.tcp_idle_timeout;
+            tokio::select! {
+                _ = tokio::time::sleep_until(deadline) => {
+                    let last_activity = *self
+                        .tcp_idle_last_activity
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    if Instant::now() >= last_activity + self.tcp_idle_timeout {
+                        return;
+                    }
+                }
+                _ = self.tcp_idle_notify.notified() => {}
+            }
+        }
+    }
+
     /// Get the timeout for close the idle tcp connection.
     #[must_use]
     pub fn tcp_idle_timeout(&self) -> Duration {
@@ -340,7 +371,7 @@ impl Fusewire for FlexFusewire {
                 GuardAction::ToNext => {}
             }
         }
-        self.tcp_idle_notify.notify_waiters();
+        self.reset_tcp_idle_timeout();
         match event {
             FuseEvent::TlsHandshaking => {
                 Self::arm_timeout_task(
@@ -368,7 +399,7 @@ impl Fusewire for FlexFusewire {
     async fn fused(&self) {
         tokio::select! {
             _ = self.reject_token.cancelled() => {}
-            _ = self.tcp_idle_token.cancelled() => {}
+            _ = self.wait_tcp_idle_timeout() => {}
             _ = self.tcp_frame_token.cancelled() => {}
             _ = self.tls_handshake_token.cancelled() => {}
         }
@@ -490,23 +521,7 @@ impl FlexFactory {
             guards,
         } = self.clone();
 
-        let tcp_idle_token = CancellationToken::new();
         let tcp_idle_notify = Arc::new(Notify::new());
-        tokio::spawn({
-            let tcp_idle_notify = tcp_idle_notify.clone();
-            let tcp_idle_token = tcp_idle_token.clone();
-            async move {
-                loop {
-                    if tokio::time::timeout(tcp_idle_timeout, tcp_idle_notify.notified())
-                        .await
-                        .is_err()
-                    {
-                        tcp_idle_token.cancel();
-                        break;
-                    }
-                }
-            }
-        });
         FlexFusewire {
             info,
             guards,
@@ -514,7 +529,7 @@ impl FlexFactory {
             reject_token: CancellationToken::new(),
 
             tcp_idle_timeout,
-            tcp_idle_token,
+            tcp_idle_last_activity: Mutex::new(Instant::now()),
             tcp_idle_notify,
 
             tcp_frame_timeout,
@@ -557,6 +572,42 @@ mod tests {
         })
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn tcp_idle_timeout_is_driven_by_fused_future() {
+        let fusewire = FlexFactory::new()
+            .tcp_idle_timeout(Duration::from_millis(20))
+            .build(test_info());
+
+        tokio::select! {
+            _ = fusewire.fused() => {}
+            _ = tokio::time::sleep(Duration::from_millis(80)) => {
+                panic!("idle timeout should fuse the connection")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn tcp_idle_activity_resets_inline_timer() {
+        let fusewire = FlexFactory::new()
+            .tcp_idle_timeout(Duration::from_millis(50))
+            .build(test_info());
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        fusewire.event(FuseEvent::Alive);
+
+        tokio::select! {
+            _ = fusewire.fused() => panic!("recent activity should reset the idle timer"),
+            _ = tokio::time::sleep(Duration::from_millis(25)) => {}
+        }
+
+        tokio::select! {
+            _ = fusewire.fused() => {}
+            _ = tokio::time::sleep(Duration::from_millis(80)) => {
+                panic!("idle timeout should still fuse after the reset window")
+            }
+        }
     }
 
     #[tokio::test]
