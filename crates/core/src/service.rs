@@ -268,6 +268,7 @@ impl HyperHandler {
 
         async move {
             if let Some(dm) = state.router.detect(&mut req, &mut path_state).await {
+                path_state.params.seal();
                 req.params = path_state.params;
                 #[cfg(feature = "matched-path")]
                 {
@@ -287,6 +288,7 @@ impl HyperHandler {
                     res.status_code = Some(StatusCode::OK);
                 }
             } else if !state.hoops.is_empty() {
+                path_state.params.seal();
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
