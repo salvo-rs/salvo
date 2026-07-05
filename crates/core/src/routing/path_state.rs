@@ -162,3 +162,51 @@ fn parse_path_parts(path: &str) -> Vec<PathPart> {
     }
     parts
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PathState;
+
+    #[test]
+    fn raw_utf8_ranges_stay_on_char_boundaries() {
+        let user = "\u{7528}\u{6237}";
+        let emoji = "\u{1f600}";
+        let e_accent = "\u{e9}";
+        let mut state = PathState::new(&format!("/{user}/{emoji}/{e_accent}/rest/"));
+
+        assert_eq!(
+            state.parts().collect::<Vec<_>>(),
+            vec![user, emoji, e_accent, "rest"]
+        );
+        assert_eq!(state.pick(), Some(user));
+
+        state.forward(user.len());
+        assert_eq!(state.pick(), Some(emoji));
+
+        state.forward(emoji.len());
+        assert_eq!(state.pick(), Some(e_accent));
+        assert_eq!(state.all_rest().as_deref(), Some("\u{e9}/rest/"));
+    }
+
+    #[test]
+    fn decoded_utf8_parts_advance_by_bytes() {
+        let user = "\u{7528}\u{6237}";
+        let emoji = "\u{1f600}";
+        let mut state = PathState::new("/%E7%94%A8%E6%88%B7/%F0%9F%98%80/a%2Fb/rest");
+
+        assert_eq!(
+            state.parts().collect::<Vec<_>>(),
+            vec![user, emoji, "a/b", "rest"]
+        );
+        assert_eq!(state.pick(), Some(user));
+
+        state.forward(user.len());
+        assert_eq!(state.pick(), Some(emoji));
+
+        state.forward(emoji.len());
+        assert_eq!(state.pick(), Some("a/b"));
+
+        state.forward("a/b".len());
+        assert_eq!(state.pick(), Some("rest"));
+    }
+}
