@@ -43,9 +43,24 @@ pub struct StatusError {
     pub brief: String,
     /// Detailed information about the HTTP error.
     pub detail: Option<String>,
-    /// Cause of the HTTP error. Similar to the `origin` field, but using [`std::error::Error`].
+    /// The underlying error, as a [`std::error::Error`] trait object.
+    ///
+    /// Choose `cause` when you have a real error value and want it reported
+    /// through standard error tooling: it is exposed as this type's
+    /// [`Error::source`](std::error::Error::source) (the standard method that
+    /// replaced the deprecated `Error::cause` in Rust 1.30 — "cause" survives
+    /// here as the field name, `source()` is the API that reports it), so both
+    /// `Display` output and error-chain walkers see it. Choose
+    /// [`origin`](Self::origin) instead when a later handler or catcher needs the
+    /// concrete value back via [`StatusError::downcast_origin`].
     pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
-    /// Origin of the HTTP error. Similar to the `cause` field, but using [`std::any::Any`].
+    /// The value that produced this error, as a [`std::any::Any`] trait object.
+    ///
+    /// Unlike [`cause`](Self::cause), this keeps the concrete type recoverable:
+    /// store a value here when downstream code needs to inspect it via
+    /// [`StatusError::downcast_origin`] — e.g. a custom error page that branches
+    /// on a domain error type. The stored type does not need to implement
+    /// `Error`.
     pub origin: Option<Box<dyn std::any::Any + Sync + Send + 'static>>,
 }
 
@@ -207,7 +222,13 @@ impl StatusError {
     }
 }
 
-impl StdError for StatusError {}
+impl StdError for StatusError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.cause
+            .as_deref()
+            .map(|cause| cause as &(dyn StdError + 'static))
+    }
+}
 
 impl Display for StatusError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -306,5 +327,20 @@ impl Scribe for StatusError {
     fn render(self, res: &mut Response) {
         res.status_code = Some(self.code);
         res.body = ResBody::Error(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_source_exposes_cause() {
+        let io_err = std::io::Error::other("disk offline");
+        let err = StatusError::internal_server_error().cause(io_err);
+        let source = err.source().expect("cause should surface through source()");
+        assert_eq!(source.to_string(), "disk offline");
+
+        assert!(StatusError::internal_server_error().source().is_none());
     }
 }

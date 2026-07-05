@@ -845,6 +845,13 @@ impl Request {
     }
 
     /// Get param value from params.
+    ///
+    /// Returns `None` both when the key does not exist **and** when the value is
+    /// present but fails to deserialize to `T` — the two cases are
+    /// indistinguishable here. Use [`try_param()`](Request::try_param) when you
+    /// need to tell them apart or propagate the error with `?`, or declare a
+    /// strongly-typed extractor (see [`Extractible`])
+    /// to move parsing and validation out of the handler body entirely.
     #[inline]
     pub fn param<'de, T>(&'de self, key: &str) -> Option<T>
     where
@@ -854,6 +861,9 @@ impl Request {
     }
 
     /// Try to get param value from params.
+    ///
+    /// Unlike [`param()`](Request::param), a missing key and a failed parse are
+    /// reported as distinct [`ParseError`]s, so this is the `?`-friendly variant.
     #[inline]
     pub fn try_param<'de, T>(&'de self, key: &str) -> ParseResult<T>
     where
