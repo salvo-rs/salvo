@@ -47,7 +47,7 @@ fn test_endpoint_hello() {
 
 #[test]
 fn test_salvo_endpoint_aliases() {
-    #[salvo::oapi::salvo(endpoint(
+    #[salvo::oapi::attr::salvo(endpoint(
         tag("pets"),
         parameter("id" = String, Path, description = "Pet id"),
         response(status_code = 404, description = "Not found")
@@ -93,4 +93,19 @@ fn test_salvo_endpoint_aliases() {
             }
         })
     );
+}
+
+#[test]
+fn test_oapi_glob_import_does_not_shadow_salvo_helper_attrs() {
+    mod glob_import {
+        use salvo::oapi::*;
+
+        #[derive(ToSchema)]
+        #[salvo(schema(rename_all = "camelCase"))]
+        pub(crate) struct Pet {
+            _pet_name: String,
+        }
+    }
+
+    let _ = std::any::TypeId::of::<glob_import::Pet>();
 }

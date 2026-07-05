@@ -48,9 +48,9 @@ impl Parse for EndpointAttr<'_> {
                 "responses" => {
                     let responses;
                     parenthesized!(responses in input);
-                    attr.responses =
-                        Punctuated::<Response, Token![,]>::parse_terminated(&responses)
-                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                    let responses = Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                    attr.responses.extend(responses);
                 }
                 "response" => {
                     attr.responses.push(parse_response_alias(input)?);
@@ -58,9 +58,10 @@ impl Parse for EndpointAttr<'_> {
                 "status_codes" => {
                     let status_codes;
                     parenthesized!(status_codes in input);
-                    attr.status_codes =
+                    let status_codes =
                         Punctuated::<Expr, Token![,]>::parse_terminated(&status_codes)
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?;
+                    attr.status_codes.extend(status_codes);
                 }
                 "status_code" => {
                     if input.peek(Token![=]) {
@@ -80,9 +81,10 @@ impl Parse for EndpointAttr<'_> {
                 "parameters" => {
                     let parameters;
                     parenthesized!(parameters in input);
-                    attr.parameters =
+                    let parameters =
                         Punctuated::<Parameter, Token![,]>::parse_terminated(&parameters)
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
+                    attr.parameters.extend(parameters);
                 }
                 "parameter" => {
                     attr.parameters.push(parse_parameter_alias(input)?);
@@ -92,7 +94,9 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(tags in input);
                     let parsed: Punctuated<Expr, Token![,]> =
                         Punctuated::<Expr, Token![,]>::parse_terminated(&tags)?;
-                    attr.tags = Some(parsed.into_iter().collect());
+                    attr.tags
+                        .get_or_insert_with(Vec::new)
+                        .extend(parsed.into_iter());
                 }
                 "tag" => {
                     let tag;
@@ -258,6 +262,26 @@ mod tests {
         let input = r#"tag("pet"), tag("store")"#;
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert_eq!(attr.tags.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_parse_singular_then_plural_aliases_append() {
+        let input = r#"
+            response(status_code = 404),
+            responses((status_code = 200)),
+            status_code(201),
+            status_codes(202, 203),
+            parameter("id" = String, Path),
+            parameters(MyParameters),
+            tag("pet"),
+            tags("store", "admin")
+        "#;
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+
+        assert_eq!(attr.responses.len(), 2);
+        assert_eq!(attr.status_codes.len(), 3);
+        assert_eq!(attr.parameters.len(), 2);
+        assert_eq!(attr.tags.unwrap().len(), 3);
     }
 
     #[test]

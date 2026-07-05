@@ -56,9 +56,14 @@ pub use salvo_oapi_macros::ToResponse;
 pub use salvo_oapi_macros::ToResponses;
 #[doc = include_str!("../docs/derive_to_schema.md")]
 pub use salvo_oapi_macros::ToSchema;
-pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/endpoint.md")]
-pub use salvo_oapi_macros::{endpoint, salvo};
+pub use salvo_oapi_macros::endpoint;
+pub(crate) use salvo_oapi_macros::schema;
+
+/// Attribute macro entry points kept out of wildcard imports.
+pub mod attr {
+    pub use salvo_oapi_macros::salvo;
+}
 
 use crate::oapi::openapi::schema::OneOf;
 

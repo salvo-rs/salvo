@@ -128,9 +128,10 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// Unified Salvo OpenAPI attribute entry point.
 ///
 /// This currently accepts `#[salvo(endpoint(...))]` and forwards to the existing
-/// [`endpoint`] macro implementation. The fully qualified form
-/// `#[salvo_oapi::salvo(endpoint(...))]` avoids interfering with derive helper
-/// attributes such as `#[salvo(schema(...))]`.
+/// [`endpoint`] macro implementation. Use a qualified path such as
+/// `#[salvo_oapi_macros::salvo(endpoint(...))]` or
+/// `#[salvo_oapi::attr::salvo(endpoint(...))]` to avoid interfering with
+/// derive helper attributes such as `#[salvo(schema(...))]`.
 #[proc_macro_attribute]
 pub fn salvo(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr as SalvoAttr);
