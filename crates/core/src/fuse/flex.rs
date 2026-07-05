@@ -138,6 +138,12 @@ struct TimeoutWatch {
 
 type TimeoutWatchStateRef = Arc<Mutex<TimeoutWatchState>>;
 
+#[derive(Debug)]
+struct TcpIdleState {
+    last_activity: Instant,
+    expired: bool,
+}
+
 /// A flexible, configurable fusewire implementation.
 ///
 /// `FlexFusewire` monitors a single connection and terminates it if any of
@@ -184,7 +190,7 @@ pub struct FlexFusewire {
     reject_token: CancellationToken,
 
     tcp_idle_timeout: Duration,
-    tcp_idle_last_activity: Mutex<Instant>,
+    tcp_idle_state: Mutex<TcpIdleState>,
     tcp_idle_notify: Arc<Notify>,
 
     tcp_frame_timeout: Duration,
@@ -311,27 +317,46 @@ impl FlexFusewire {
     }
 
     fn reset_tcp_idle_timeout(&self) {
-        *self
-            .tcp_idle_last_activity
+        let now = Instant::now();
+        let mut state = self
+            .tcp_idle_state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Instant::now();
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.expired {
+            return;
+        }
+        if now >= state.last_activity + self.tcp_idle_timeout {
+            state.expired = true;
+        } else {
+            state.last_activity = now;
+        }
         self.tcp_idle_notify.notify_waiters();
     }
 
     async fn wait_tcp_idle_timeout(&self) {
         loop {
-            let last_activity = *self
-                .tcp_idle_last_activity
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let deadline = last_activity + self.tcp_idle_timeout;
+            let deadline = {
+                let state = self
+                    .tcp_idle_state
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if state.expired {
+                    return;
+                }
+                state.last_activity + self.tcp_idle_timeout
+            };
             tokio::select! {
                 _ = tokio::time::sleep_until(deadline) => {
-                    let last_activity = *self
-                        .tcp_idle_last_activity
+                    let now = Instant::now();
+                    let mut state = self
+                        .tcp_idle_state
                         .lock()
                         .unwrap_or_else(|poisoned| poisoned.into_inner());
-                    if Instant::now() >= last_activity + self.tcp_idle_timeout {
+                    if state.expired {
+                        return;
+                    }
+                    if now >= state.last_activity + self.tcp_idle_timeout {
+                        state.expired = true;
                         return;
                     }
                 }
@@ -529,7 +554,10 @@ impl FlexFactory {
             reject_token: CancellationToken::new(),
 
             tcp_idle_timeout,
-            tcp_idle_last_activity: Mutex::new(Instant::now()),
+            tcp_idle_state: Mutex::new(TcpIdleState {
+                last_activity: Instant::now(),
+                expired: false,
+            }),
             tcp_idle_notify,
 
             tcp_frame_timeout,
@@ -606,6 +634,23 @@ mod tests {
             _ = fusewire.fused() => {}
             _ = tokio::time::sleep(Duration::from_millis(80)) => {
                 panic!("idle timeout should still fuse after the reset window")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn tcp_idle_activity_after_deadline_does_not_rearm_timer() {
+        let fusewire = FlexFactory::new()
+            .tcp_idle_timeout(Duration::from_millis(20))
+            .build(test_info());
+
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        fusewire.event(FuseEvent::Alive);
+
+        tokio::select! {
+            _ = fusewire.fused() => {}
+            _ = tokio::time::sleep(Duration::from_millis(40)) => {
+                panic!("idle timeout should remain expired after its deadline passes")
             }
         }
     }
