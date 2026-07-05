@@ -1,9 +1,11 @@
 use proc_macro2::Ident;
-use syn::parse::Parse;
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Expr, parenthesized};
+use syn::{Expr, ExprPath, parenthesized};
 
 use crate::operation::request_body::RequestBodyAttr;
+use crate::parameter::StructParameter;
+use crate::response::ResponseTuple;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::{Array, Parameter, Response, Token, parse_utils};
 
@@ -25,7 +27,7 @@ pub(crate) struct EndpointAttr<'p> {
 
 impl Parse for EndpointAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, request_body, responses, status_codes, parameters, tags, security, description, summary";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, request_body, response, responses, status_code, status_codes, parameter, parameters, tag, tags, security, description, summary";
         let mut attr = EndpointAttr::default();
 
         while !input.is_empty() {
@@ -46,30 +48,67 @@ impl Parse for EndpointAttr<'_> {
                 "responses" => {
                     let responses;
                     parenthesized!(responses in input);
-                    attr.responses =
-                        Punctuated::<Response, Token![,]>::parse_terminated(&responses)
-                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                    let responses = Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                    attr.responses.extend(responses);
+                }
+                "response" => {
+                    attr.responses.push(parse_response_alias(input)?);
                 }
                 "status_codes" => {
                     let status_codes;
                     parenthesized!(status_codes in input);
-                    attr.status_codes =
+                    let status_codes =
                         Punctuated::<Expr, Token![,]>::parse_terminated(&status_codes)
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?;
+                    attr.status_codes.extend(status_codes);
+                }
+                "status_code" => {
+                    if input.peek(Token![=]) {
+                        attr.status_codes
+                            .push(parse_utils::parse_next(input, || Expr::parse(input))?);
+                    } else {
+                        let status_code;
+                        parenthesized!(status_code in input);
+                        attr.status_codes.push(status_code.parse::<Expr>()?);
+                        if !status_code.is_empty() {
+                            return Err(status_code.error(
+                                "`status_code(...)` accepts one status code; use `status_codes(...)` for a list",
+                            ));
+                        }
+                    }
                 }
                 "parameters" => {
                     let parameters;
                     parenthesized!(parameters in input);
-                    attr.parameters =
+                    let parameters =
                         Punctuated::<Parameter, Token![,]>::parse_terminated(&parameters)
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
+                    attr.parameters.extend(parameters);
+                }
+                "parameter" => {
+                    attr.parameters.push(parse_parameter_alias(input)?);
                 }
                 "tags" => {
                     let tags;
                     parenthesized!(tags in input);
                     let parsed: Punctuated<Expr, Token![,]> =
                         Punctuated::<Expr, Token![,]>::parse_terminated(&tags)?;
-                    attr.tags = Some(parsed.into_iter().collect());
+                    attr.tags
+                        .get_or_insert_with(Vec::new)
+                        .extend(parsed.into_iter());
+                }
+                "tag" => {
+                    let tag;
+                    parenthesized!(tag in input);
+                    attr.tags
+                        .get_or_insert_with(Vec::new)
+                        .push(tag.parse::<Expr>()?);
+                    if !tag.is_empty() {
+                        return Err(
+                            tag.error("`tag(...)` accepts one tag; use `tags(...)` for a list")
+                        );
+                    }
                 }
                 "security" => {
                     let security;
@@ -92,6 +131,44 @@ impl Parse for EndpointAttr<'_> {
 
         Ok(attr)
     }
+}
+
+fn parse_response_alias<'p>(input: ParseStream) -> syn::Result<Response<'p>> {
+    let response;
+    parenthesized!(response in input);
+
+    let fork = response.fork();
+    if let Ok(path) = fork.parse::<ExprPath>()
+        && fork.is_empty()
+    {
+        response.parse::<ExprPath>()?;
+        return Ok(Response::ToResponses(path));
+    }
+
+    let tuple = response.parse::<ResponseTuple>()?;
+    if !response.is_empty() {
+        return Err(
+            response.error("`response(...)` accepts one response; use `responses(...)` for a list")
+        );
+    }
+    Ok(Response::Tuple(Box::new(tuple)))
+}
+
+fn parse_parameter_alias<'p>(input: ParseStream) -> syn::Result<Parameter<'p>> {
+    let fork = input.fork();
+    let parameter_input;
+    parenthesized!(parameter_input in fork);
+    let path_fork = parameter_input.fork();
+    if let Ok(path) = path_fork.parse::<ExprPath>()
+        && path_fork.is_empty()
+    {
+        let consumed;
+        parenthesized!(consumed in input);
+        consumed.parse::<ExprPath>()?;
+        return Ok(Parameter::Struct(StructParameter { path }));
+    }
+
+    input.parse::<Parameter>()
 }
 
 #[cfg(test)]
@@ -122,8 +199,30 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_response_alias() {
+        let input = "response(status_code = 200)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.responses.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_response_alias_to_responses_path() {
+        let input = "response(MyResponses)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.responses.len(), 1);
+        assert!(matches!(attr.responses[0], Response::ToResponses(_)));
+    }
+
+    #[test]
     fn test_parse_status_codes() {
         let input = "status_codes(200, 404)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.status_codes.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_status_code_alias() {
+        let input = "status_code(200), status_code = 404";
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert_eq!(attr.status_codes.len(), 2);
     }
@@ -137,10 +236,52 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_parameter_alias() {
+        let input = r#"parameter("id" = String, Path, description = "Pet id")"#;
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.parameters.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_parameter_alias_to_parameters_path() {
+        let input = "parameter(MyParameters)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.parameters.len(), 1);
+        assert!(matches!(attr.parameters[0], Parameter::Struct(_)));
+    }
+
+    #[test]
     fn test_parse_tags() {
         let input = "tags(\"pet\", \"store\")";
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert_eq!(attr.tags.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_parse_tag_alias() {
+        let input = r#"tag("pet"), tag("store")"#;
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.tags.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_parse_singular_then_plural_aliases_append() {
+        let input = r#"
+            response(status_code = 404),
+            responses((status_code = 200)),
+            status_code(201),
+            status_codes(202, 203),
+            parameter("id" = String, Path),
+            parameters(MyParameters),
+            tag("pet"),
+            tags("store", "admin")
+        "#;
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+
+        assert_eq!(attr.responses.len(), 2);
+        assert_eq!(attr.status_codes.len(), 3);
+        assert_eq!(attr.parameters.len(), 2);
+        assert_eq!(attr.tags.unwrap().len(), 3);
     }
 
     #[test]

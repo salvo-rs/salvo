@@ -38,10 +38,12 @@ impl TryFrom<&Field> for FieldInfo {
                 let info: ExtractFieldInfo = metas.parse_args()?;
                 sources.extend(info.sources);
                 aliases.extend(info.aliases);
-                flatten = info.flatten;
                 if info.rename.is_some() {
                     rename = info.rename;
                 }
+                // Only override when this attribute actually specified `flatten`,
+                // so a later `#[salvo(extract)]` without it cannot reset an earlier
+                // `flatten = true` back to `None`.
                 if info.flatten.is_some() {
                     flatten = info.flatten;
                 }

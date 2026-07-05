@@ -1334,6 +1334,57 @@ mod tests {
     }
 
     #[test]
+    fn to_parameters_accepts_singular_and_plural_keys() {
+        // The container key was `parameters(...)` and the field key `parameter(...)`;
+        // the opposite spelling used to be a hard error / silently ignored. Both
+        // spellings are now accepted at both levels, so the drift is invisible to
+        // users. This test drives each level with its *alias* spelling.
+        #[derive(Deserialize, crate::ToParameters)]
+        // singular `parameter(...)` on the container (previously an error):
+        #[salvo(parameter(default_parameter_in = Header))]
+        #[allow(dead_code)]
+        struct AliasQuery {
+            page: i32,
+            // plural `parameters(...)` on a field (previously ignored):
+            #[salvo(parameters(rename = "renamed"))]
+            raw: String,
+        }
+
+        #[salvo_oapi::endpoint]
+        async fn list(query: AliasQuery) -> &'static str {
+            let _ = query;
+            "ok"
+        }
+
+        let router = Router::with_path("/alias").get(list);
+        let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+        let operation = doc
+            .paths
+            .get("/alias")
+            .and_then(|item| item.operations.get(&PathItemType::Get))
+            .expect("get operation should exist");
+        let names: Vec<&str> = operation
+            .parameters
+            .0
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+
+        // container singular alias honored: every parameter is in `header`.
+        for param in &operation.parameters.0 {
+            assert_eq!(
+                param.parameter_in,
+                ParameterIn::Header,
+                "parameter `{}` should inherit the container `default_parameter_in`",
+                param.name
+            );
+        }
+        // field plural alias honored: `raw` was renamed to `renamed`.
+        assert!(names.contains(&"renamed"), "field rename alias not applied: {names:?}");
+        assert!(!names.contains(&"raw"));
+    }
+
+    #[test]
     fn merge_router_skips_route_without_method_filter() {
         #[salvo_oapi::endpoint]
         async fn any_handler() -> &'static str {

@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 
-use aead::generic_array::GenericArray;
-use aead::{Aead, KeyInit};
+use aead::array::Array;
+use aead::consts::U12;
+use aead::{Aead, Key, KeyInit};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chacha20poly1305::ChaCha20Poly1305;
@@ -38,7 +39,7 @@ impl CcpCipher {
 
     #[inline]
     fn aead(&self) -> ChaCha20Poly1305 {
-        let key = GenericArray::clone_from_slice(&self.aead_key);
+        let key = Key::<ChaCha20Poly1305>::try_from(&self.aead_key[..]).expect("invalid key length");
         ChaCha20Poly1305::new(&key)
     }
 }
@@ -52,9 +53,9 @@ impl CsrfCipher for CcpCipher {
             if token.len() < 8 || proof.len() < 20 {
                 false
             } else {
-                let nonce = GenericArray::from_slice(&proof[0..12]);
+                let nonce = Array::<u8, U12>::try_from(&proof[0..12]).expect("invalid nonce");
                 let aead = self.aead();
-                aead.decrypt(nonce, &proof[12..])
+                aead.decrypt(&nonce, &proof[12..])
                     .map(|p| {
                         // Compare lengths first, then use constant-time compare
                         // on the recovered plaintext vs. the client-supplied
@@ -72,10 +73,10 @@ impl CsrfCipher for CcpCipher {
         let token = self.random_bytes(self.token_size);
         let aead = self.aead();
         let mut proof = self.random_bytes(12);
-        let nonce = GenericArray::from_slice(&proof);
+        let nonce = Array::<u8, U12>::try_from(&proof[..]).expect("invalid nonce");
         proof.append(
             &mut aead
-                .encrypt(nonce, token.as_slice())
+                .encrypt(&nonce, token.as_slice())
                 .expect("encryption failed"),
         );
         (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))

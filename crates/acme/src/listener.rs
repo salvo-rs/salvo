@@ -140,7 +140,10 @@ impl<T> AcmeListenerBuilder<T> {
                 Router::with_path(format!("{WELL_KNOWN_PATH}/{{token}}")).goal(handler),
             );
         } else {
-            panic!("`HTTP-01` challenge's key should not be none");
+            // `AcmeConfigBuilder::http01_challenge()` always populates
+            // `keys_for_http01`, so this branch is an internal invariant violation
+            // rather than a user-triggerable error.
+            unreachable!("`http01_challenge()` must populate `keys_for_http01`");
         }
         Self {
             config_builder,

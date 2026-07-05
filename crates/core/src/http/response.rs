@@ -138,6 +138,17 @@ impl Response {
         }
     }
 
+    #[cfg(feature = "cookie")]
+    #[inline]
+    #[must_use]
+    pub(crate) fn with_request_cookies(cookies: &CookieJar) -> Self {
+        if cookies.iter().next().is_some() {
+            Self::with_cookies(cookies.clone())
+        } else {
+            Self::new()
+        }
+    }
+
     /// Get headers reference.
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
@@ -446,6 +457,14 @@ impl Response {
     /// `Scribe` impl is responsible for converting the error into a `5xx` response
     /// instead of panicking or returning an error here.
     ///
+    /// **Note**: how a render interacts with body bytes that were already written
+    /// is defined by each `Scribe`, not by this method. Whole-document scribes like
+    /// [`Json`](crate::writing::Json) *replace* previously buffered bytes (two
+    /// concatenated JSON documents would be invalid); text-like scribes (`&str`,
+    /// `String`, [`Text`](crate::writing::Text)) *append* through
+    /// [`write_body`](Response::write_body), since concatenated text is still valid
+    /// text. See [`Scribe`] for how to pick semantics when implementing your own.
+    ///
     /// # Example
     ///
     /// ```
@@ -462,6 +481,9 @@ impl Response {
     }
 
     /// Sets the status code and renders content into this response.
+    ///
+    /// See [`render`](Response::render) for how scribes interact with an
+    /// already-written body.
     #[inline]
     pub fn render_with_status<P>(&mut self, code: StatusCode, scribe: P)
     where
@@ -500,7 +522,14 @@ impl Response {
         }
     }
 
-    /// Write bytes data to body. If body is none, a new `ResBody` will created.
+    /// Write bytes data to body.
+    ///
+    /// This **appends**: if the body is [`ResBody::None`] (or an error placeholder) a
+    /// new [`ResBody::Once`] is created, but if the body already contains bytes
+    /// (`Once` or `Chunks`) the data is added after the existing content. Streaming
+    /// body kinds (`Hyper`, `Boxed`, `Stream`, `Channel`) cannot be written to and
+    /// return an error. To replace the body instead of appending, use
+    /// [`replace_body`](Response::replace_body) or [`body`](Response::body).
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
             ResBody::Once(bytes) => {
@@ -544,6 +573,11 @@ impl Response {
                     "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));
             }
+            // `ResBody::Error` is treated like `None` on purpose: the catcher
+            // (`write_error_default`) reads the `StatusError`, renders the negotiated
+            // error page, and then calls `write_body` to install it. Returning an
+            // error here would leave the body as `ResBody::Error` (which polls empty),
+            // dropping the error page.
             ResBody::None | ResBody::Error(_) => {
                 self.body = ResBody::Once(data.into());
             }
@@ -723,6 +757,32 @@ mod test {
         );
         assert!(cookie_headers.iter().any(|v| v.starts_with("sid=abc")));
         assert!(cookie_headers.iter().any(|v| v.starts_with("theme=dark")));
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_with_request_cookies_preserves_non_empty_request_jar() {
+        let mut cookies = CookieJar::new();
+        cookies.add_original(Cookie::new("sid", "abc"));
+
+        let res = Response::with_request_cookies(&cookies);
+
+        assert_eq!(
+            res.cookies.get("sid").map(|cookie| cookie.value()),
+            Some("abc")
+        );
+        assert_eq!(res.cookies.delta().count(), 0);
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_with_request_cookies_uses_empty_response_for_empty_request_jar() {
+        let cookies = CookieJar::new();
+
+        let res = Response::with_request_cookies(&cookies);
+
+        assert_eq!(res.cookies.iter().count(), 0);
+        assert_eq!(res.cookies.delta().count(), 0);
     }
 
     #[cfg(feature = "cookie")]

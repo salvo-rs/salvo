@@ -40,7 +40,9 @@ pub fn normalize_path(p: &str) -> String {
 /// This prevents path traversal attacks via malicious upload IDs.
 #[must_use]
 pub fn is_safe_upload_id(id: &str) -> bool {
-    if id.is_empty() {
+    // Reject empty or excessively long IDs. A length cap bounds the resulting file
+    // path length and limits abuse of the endpoint with attacker-chosen IDs.
+    if id.is_empty() || id.len() > 256 {
         return false;
     }
     // Only allow alphanumeric characters, dashes, and underscores

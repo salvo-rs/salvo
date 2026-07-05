@@ -209,7 +209,13 @@ struct FlatParser<'de> {
 }
 impl<'de> FlatParser<'de> {
     fn new(input: Cow<'de, str>) -> Self {
-        Self { input, start: 1 }
+        // `looks_like_list` only checks the *trimmed* value, so the raw input may
+        // have leading whitespace (or otherwise not start with `[`). Locate the
+        // opening `[` instead of assuming it is byte 0 — a hardcoded `start = 1`
+        // would otherwise scan from the wrong offset (or land inside a multi-byte
+        // char and silently yield nothing).
+        let start = input.find('[').map_or(0, |index| index + 1);
+        Self { input, start }
     }
 }
 impl<'de> Iterator for FlatParser<'de> {
@@ -293,6 +299,18 @@ mod tests {
         let mut iter = parser.into_iter();
         assert_eq!(iter.next().unwrap().0, "\u{4E2D}\u{6587}");
         assert_eq!(iter.next().unwrap().0, "\u{1F600}");
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_flat_parser_leading_whitespace() {
+        // A list value may arrive with leading whitespace; the parser must locate
+        // the `[` rather than assume it is byte 0.
+        let parser = super::FlatParser::new("  [1,2,3]".into());
+        let mut iter = parser.into_iter();
+        assert_eq!(iter.next().unwrap().0, "1");
+        assert_eq!(iter.next().unwrap().0, "2");
+        assert_eq!(iter.next().unwrap().0, "3");
         assert!(iter.next().is_none());
     }
 }

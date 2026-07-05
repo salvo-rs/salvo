@@ -153,7 +153,7 @@ where
 /// use salvo_serve_static::StaticDir;
 ///
 /// let router = Router::new().push(
-///     Router::with_path("static/<**>").get(
+///     Router::with_path("static/{**}").get(
 ///         StaticDir::new(["assets", "static"])
 ///             .defaults("index.html")
 ///             .auto_list(true),
@@ -444,10 +444,12 @@ impl Handler for StaticDir {
         _ctrl: &mut FlowCtrl,
     ) {
         let req_path = req.uri().path();
+        let decoded_path;
         let rel_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
-            &*decode_url_path(req_path)
+            decoded_path = decode_url_path(req_path);
+            decoded_path.as_ref()
         };
         let rel_path = normalize_url_path(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
@@ -638,7 +640,7 @@ impl Handler for StaticDir {
                 .map(|(name, metadata)| DirInfo::new(name, &metadata))
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
-            let root = CurrentInfo::new(decode_url_path(req_path), files, dirs);
+            let root = CurrentInfo::new(decode_url_path(req_path).into_owned(), files, dirs);
             res.status_code(StatusCode::OK);
             match format.subtype().as_ref() {
                 "plain" => res.render(Text::Plain(list_text(&root))),
@@ -665,7 +667,7 @@ fn list_xml(current: &CurrentInfo) -> String {
                 xml,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 xml_escape(&dir.name),
-                dir.modified.format(&format).expect("format time failed"),
+                dir.modified.format(&format).unwrap_or_else(|_| "-".into()),
                 encode_url_path(&dir.name),
             );
         }
@@ -674,7 +676,7 @@ fn list_xml(current: &CurrentInfo) -> String {
                 xml,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 xml_escape(&file.name),
-                file.modified.format(&format).expect("format time failed"),
+                file.modified.format(&format).unwrap_or_else(|_| "-".into()),
                 file.size,
                 encode_url_path(&file.name),
             );
@@ -692,6 +694,9 @@ fn is_safe_relative_path(path: &str) -> bool {
             .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
+/// Escape the five XML special characters. Also used for HTML text nodes and
+/// the page title in the directory listing: the escape set is identical, and
+/// unlike percent-encoding it is an actual markup escaper.
 fn xml_escape(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for ch in value.chars() {
@@ -733,10 +738,12 @@ fn list_html(current: &CurrentInfo) -> String {
             .trim_end_matches('/')
             .split('/')
         {
-            let encoded = encode_url_path(seg);
+            // URL-encode the href, but entity-escape the visible text: percent
+            // encoding is a URL escaper, not an HTML one, and it also renders
+            // non-ASCII names as unreadable `%xx` runs.
             link.push('/');
-            link.push_str(&encoded);
-            let _ = write!(out, r#"/<a href="{link}">{encoded}</a>"#);
+            link.push_str(&encode_url_path(seg));
+            let _ = write!(out, r#"/<a href="{link}">{}</a>"#, xml_escape(seg));
         }
     }
     let mut html = format!(
@@ -745,7 +752,7 @@ fn list_html(current: &CurrentInfo) -> String {
         <meta name="viewport" content="width=device-width">
         <title>{}</title>
         <style>{}</style></head><body><header><h3>Index of: "#,
-        encode_url_path(&current.path),
+        xml_escape(&current.path),
         HTML_STYLE,
     );
     header_link(&mut html, &current.path);
@@ -763,25 +770,23 @@ fn list_html(current: &CurrentInfo) -> String {
         );
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
-            let encoded = encode_url_path(&dir.name);
             let _ = write!(
                 html,
                 r#"<tr><td>{}</td><td><a href="./{}/">{}</a></td><td>{}</td><td></td></tr>"#,
                 DIR_ICON,
-                encoded,
-                encoded,
-                dir.modified.format(&format).expect("format time failed"),
+                encode_url_path(&dir.name),
+                xml_escape(&dir.name),
+                dir.modified.format(&format).unwrap_or_else(|_| "-".into()),
             );
         }
         for file in &current.files {
-            let encoded = encode_url_path(&file.name);
             let _ = write!(
                 html,
                 r#"<tr><td>{}</td><td><a href="./{}">{}</a></td><td>{}</td><td>{}</td></tr>"#,
                 FILE_ICON,
-                encoded,
-                encoded,
-                file.modified.format(&format).expect("format time failed"),
+                encode_url_path(&file.name),
+                xml_escape(&file.name),
+                file.modified.format(&format).unwrap_or_else(|_| "-".into()),
                 human_size(file.size)
             );
         }
@@ -801,7 +806,7 @@ fn list_text(current: &CurrentInfo) -> String {
         let _ = writeln!(
             txt,
             "[DIR]  {}  {}",
-            dir.modified.format(&format).expect("format time failed"),
+            dir.modified.format(&format).unwrap_or_else(|_| "-".into()),
             dir.name,
         );
     }
@@ -810,7 +815,7 @@ fn list_text(current: &CurrentInfo) -> String {
             txt,
             "{:>10}  {}  {}",
             human_size(file.size),
-            file.modified.format(&format).expect("format time failed"),
+            file.modified.format(&format).unwrap_or_else(|_| "-".into()),
             file.name,
         );
     }
@@ -856,7 +861,33 @@ const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0
 
 #[cfg(test)]
 mod tests {
-    use crate::dir::{human_size, is_safe_relative_path, xml_escape};
+    use crate::dir::{
+        CurrentInfo, DirInfo, FileInfo, human_size, is_safe_relative_path, list_html, xml_escape,
+    };
+
+    #[test]
+    fn test_list_html_escapes_visible_names() {
+        // Names in the listing are attacker-influenced only when the served
+        // directory is writable by untrusted parties, but the text nodes must be
+        // entity-escaped regardless — percent-encoding is a URL escaper, not an
+        // HTML one. (Names here need not be creatable on every filesystem; the
+        // renderer takes them as plain strings.)
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let file = temp.path().join("probe");
+        std::fs::write(&file, b"x").expect("write file");
+        let metadata = std::fs::metadata(&file).expect("metadata");
+
+        let files = vec![FileInfo::new("a&b'<c>.txt".to_owned(), &metadata)];
+        let dirs = vec![DirInfo::new(r#"d"ir&"#.to_owned(), &metadata)];
+        let html = list_html(&CurrentInfo::new("pa&th".to_owned(), files, dirs));
+
+        // Visible text is entity-escaped...
+        assert!(html.contains("a&amp;b&apos;&lt;c&gt;.txt"));
+        assert!(html.contains("d&quot;ir&amp;"));
+        assert!(html.contains("<title>pa&amp;th</title>"));
+        // ...and the raw markup-significant name never appears anywhere.
+        assert!(!html.contains("<c>.txt"));
+    }
 
     #[tokio::test]
     async fn test_convert_bytes_to_units() {

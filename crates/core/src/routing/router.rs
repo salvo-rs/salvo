@@ -25,6 +25,37 @@ pub struct Router {
     pub goal: Option<Arc<dyn Handler>>,
 }
 
+struct DetectFrame<'a> {
+    router: &'a Router,
+    next_child: usize,
+    original_cursor: (usize, usize),
+    params_snapshot: (usize, bool, usize),
+    #[cfg(feature = "matched-path")]
+    original_matched_parts_len: usize,
+}
+
+impl<'a> DetectFrame<'a> {
+    fn new(router: &'a Router, path_state: &PathState) -> Self {
+        Self {
+            router,
+            next_child: 0,
+            original_cursor: path_state.cursor,
+            params_snapshot: path_state.params.snapshot(),
+            #[cfg(feature = "matched-path")]
+            original_matched_parts_len: path_state.matched_parts.len(),
+        }
+    }
+
+    fn rollback(&self, path_state: &mut PathState) {
+        #[cfg(feature = "matched-path")]
+        path_state
+            .matched_parts
+            .truncate(self.original_matched_parts_len);
+        path_state.cursor = self.original_cursor;
+        path_state.params.rollback(self.params_snapshot);
+    }
+}
+
 impl Default for Router {
     #[inline]
     fn default() -> Self {
@@ -86,73 +117,77 @@ impl Router {
     pub async fn detect(
         &self,
         req: &mut Request,
-        path_state: &mut PathState,
+        path_state: &mut PathState<'_>,
     ) -> Option<DetectMatched> {
-        struct Frame<'a> {
-            router: &'a Router,
-            next_child: usize,
-            checkpoint: super::path_state::PathStateCheckpoint,
-            hoops_len: usize,
-            entered: bool,
+        if !self.filters_match(req, path_state).await {
+            return None;
         }
 
-        let mut hoops = Vec::new();
-        let mut stack = vec![Frame {
-            router: self,
-            next_child: 0,
-            checkpoint: path_state.checkpoint(),
-            hoops_len: 0,
-            entered: false,
-        }];
-
-        while let Some(frame) = stack.last_mut() {
-            if !frame.entered {
-                let mut matched = true;
-                for filter in &frame.router.filters {
-                    if !filter.filter(req, path_state).await {
-                        matched = false;
-                        break;
-                    }
+        let mut stack = vec![DetectFrame::new(self, path_state)];
+        loop {
+            let child = {
+                let frame = stack
+                    .last_mut()
+                    .expect("detect stack always contains the current router");
+                if frame.next_child < frame.router.routers.len() {
+                    let child = &frame.router.routers[frame.next_child];
+                    frame.next_child += 1;
+                    Some(child)
+                } else {
+                    None
                 }
-                if !matched {
-                    if let Some(frame) = stack.pop() {
-                        path_state.restore(frame.checkpoint);
-                        hoops.truncate(frame.hoops_len);
-                    }
-                    continue;
-                }
-                hoops.extend(&frame.router.hoops);
-                frame.entered = true;
-            }
+            };
 
-            if let Some(child) = frame.router.routers.get(frame.next_child) {
-                frame.next_child += 1;
-                stack.push(Frame {
-                    router: child,
-                    next_child: 0,
-                    checkpoint: path_state.checkpoint(),
-                    hoops_len: hoops.len(),
-                    entered: false,
-                });
+            if let Some(child) = child {
+                if child.filters_match(req, path_state).await {
+                    stack.push(DetectFrame::new(child, path_state));
+                } else {
+                    stack
+                        .last()
+                        .expect("parent frame exists while testing a child")
+                        .rollback(path_state);
+                }
                 continue;
             }
 
+            let frame = stack
+                .last()
+                .expect("detect stack always contains the current router");
             if path_state.is_ended() {
                 path_state.once_ended = true;
                 if let Some(goal) = &frame.router.goal {
-                    return Some(DetectMatched {
-                        hoops: hoops.into_iter().cloned().collect(),
-                        goal: goal.clone(),
-                    });
+                    return Some(Self::matched_from_stack(&stack, goal));
                 }
             }
 
-            if let Some(frame) = stack.pop() {
-                path_state.restore(frame.checkpoint);
-                hoops.truncate(frame.hoops_len);
+            stack.pop();
+            if let Some(parent) = stack.last() {
+                parent.rollback(path_state);
+            } else {
+                return None;
             }
         }
-        None
+    }
+
+    async fn filters_match(&self, req: &mut Request, path_state: &mut PathState<'_>) -> bool {
+        for filter in &self.filters {
+            if !filter.filter(req, path_state).await {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn matched_from_stack(stack: &[DetectFrame<'_>], goal: &Arc<dyn Handler>) -> DetectMatched {
+        let hoops_len = stack.iter().map(|frame| frame.router.hoops.len()).sum();
+        let mut hoops = Vec::with_capacity(hoops_len);
+        for frame in stack {
+            hoops.extend_from_slice(&frame.router.hoops);
+        }
+        DetectMatched {
+            hoops,
+            goal: goal.clone(),
+        }
     }
 
     /// Insert a router at the beginning of current router, shifting all routers after it to the
@@ -291,7 +326,7 @@ impl Router {
     #[must_use]
     pub fn with_filter_fn<T>(func: T) -> Self
     where
-        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        T: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
     {
         Self::with_filter(FnFilter(func))
     }
@@ -300,15 +335,28 @@ impl Router {
     #[must_use]
     pub fn filter_fn<T>(self, func: T) -> Self
     where
-        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        T: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
     {
         self.filter(FnFilter(func))
     }
 
     /// Sets current router's handler.
+    ///
+    /// Calling `goal` on a router that already has one **replaces** the previous
+    /// handler (a warning is logged, since this usually indicates route-building
+    /// code overwriting itself by accident). Note that the method helpers
+    /// ([`get`](Router::get), [`post`](Router::post), ...) do not set this
+    /// router's goal — each pushes a filtered child router with its own goal.
     #[inline]
     #[must_use]
     pub fn goal<H: Handler>(mut self, goal: H) -> Self {
+        if self.goal.is_some() {
+            tracing::warn!(
+                "`Router::goal` called on a router that already has a goal handler; \
+                 the previous handler is replaced. If you meant to serve multiple \
+                 methods or paths, push child routers instead."
+            );
+        }
         self.goal = Some(Arc::new(goal));
         self
     }
@@ -372,6 +420,14 @@ impl Router {
     /// Creates a new child router with [`MethodFilter`] to filter GET method and set this child
     /// router's handler.
     ///
+    /// Each method helper (`get`, `post`, ...) pushes a filtered **child** router;
+    /// it does not set the goal of `self`. Two consequences worth knowing:
+    ///
+    /// - `Router::with_path("x").get(a).post(b)` builds one path router with two
+    ///   method children — the usual pattern.
+    /// - `.get(a).get(b)` registers two **sibling** GET routes rather than
+    ///   replacing `a`; the first match wins, so `b` is unreachable.
+    ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     #[must_use]
@@ -381,6 +437,8 @@ impl Router {
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child
     /// router's handler.
+    ///
+    /// See [`get`](Router::get) for how method helpers compose as child routers.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -558,7 +616,7 @@ mod tests {
                 Router::with_path("{id}").push(Router::with_path("emails").get(fake_handler)),
             ));
         let mut req = TestClient::get("http://local.host/users/12/emails").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -570,9 +628,21 @@ mod tests {
                 Router::with_path("{id}").push(Router::with_path("emails").get(fake_handler)),
             ));
         let mut req = TestClient::get("http://local.host/users/12/emails").build();
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+    }
+    #[tokio::test]
+    async fn test_router_detect_parent_goal_after_child_mismatch() {
+        let router = Router::with_path("users")
+            .get(fake_handler)
+            .push(Router::with_path("{id}/profile").get(fake_handler));
+        let mut req = TestClient::get("http://local.host/users").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
+        assert!(path_state.params.is_empty());
+        assert!(path_state.is_ended());
     }
     #[tokio::test]
     async fn test_router_detect3() {
@@ -585,12 +655,12 @@ mod tests {
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
 
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_some());
@@ -606,13 +676,13 @@ mod tests {
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_none());
 
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -629,12 +699,12 @@ mod tests {
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
 
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert_eq!(path_state.params["id"], "12");
@@ -652,12 +722,12 @@ mod tests {
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -675,13 +745,13 @@ mod tests {
         );
         let mut req =
             TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         let mut req =
             TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -690,12 +760,12 @@ mod tests {
         let router = Router::new()
             .push(Router::with_path("users/{sub|(images|css)}/{filename}").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         let mut req = TestClient::get("http://local.host/users/css/m.jpg").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -704,12 +774,12 @@ mod tests {
         let router = Router::new()
             .push(Router::with_path(r"users/{*sub|(images|css)/.+}").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         let mut req = TestClient::get("http://local.host/users/css/abc/m.jpg").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -718,12 +788,12 @@ mod tests {
         let router = Router::new()
             .push(Router::with_path(r"avatars/{width|\d+}x{height|\d+}.{ext}").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/avatars/321x641f.webp").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         let mut req = TestClient::get("http://local.host/avatars/320x640.webp").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -735,7 +805,7 @@ mod tests {
         let mut req =
             TestClient::get("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I")
                 .build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
     }
@@ -747,12 +817,12 @@ mod tests {
             .get(fake_handler);
         let mut req =
             TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         let mut req =
             TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
     }
@@ -771,14 +841,14 @@ mod tests {
 
         // A HEAD request does not match the GET method filter of the first route.
         let mut req = TestClient::head("http://local.host/b33f/subpath.txt").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         // Must not panic, and should fall through with no matched goal.
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_none());
 
         // A GET request still matches the first route as before.
         let mut req = TestClient::get("http://local.host/b33f/subpath.txt").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert_eq!(path_state.params["foo"], "b33f");
@@ -789,26 +859,56 @@ mod tests {
     async fn test_router_detect_path_encoded() {
         let router = Router::new().path("api/{p}").get(fake_handler);
         let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert_eq!(path_state.params["p"], "a/b/c");
     }
 
     #[tokio::test]
-    async fn deeply_nested_router_is_matched_iteratively() {
-        let depth = 256;
-        let mut router = Router::new().goal(fake_handler);
-        for index in (0..depth).rev() {
-            router = Router::with_path(format!("p{index}")).push(router);
-        }
-        let path = (0..depth)
-            .map(|index| format!("p{index}"))
-            .collect::<Vec<_>>()
-            .join("/");
-        let mut req = TestClient::get(format!("http://local.host/{path}")).build();
-        let mut path_state = PathState::new(req.uri().path());
+    async fn test_router_detect_sibling_param_rollback() {
+        // A sibling captures a named param but then fails on a nested path, so its
+        // capture must be rolled back before the next sibling is tried. Only the
+        // params captured along the finally-matched branch may remain.
+        let router = Router::new().push(
+            Router::with_path("users").push(
+                Router::new()
+                    // Tried first: captures `id`, then fails because it requires a
+                    // deeper `/profile` segment the request does not have.
+                    .push(Router::with_path("{id}/profile").get(fake_handler))
+                    // Matches: captures `name`.
+                    .push(Router::with_path("{name}").get(fake_handler)),
+            ),
+        );
 
-        assert!(router.detect(&mut req, &mut path_state).await.is_some());
+        let mut req = TestClient::get("http://local.host/users/alice").build();
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+        // The winning branch's param is present...
+        assert_eq!(path_state.params["name"], "alice");
+        // ...and the failed sibling's `id` capture did not leak through.
+        assert!(!path_state.params.contains_key("id"));
+        assert_eq!(path_state.params.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_router_detect_overwritten_param_rollback() {
+        // An ancestor captures `id`, then a failed descendant sibling reuses the same
+        // name and overwrites it in place before failing. The ancestor's original value
+        // must be restored so the sibling that finally matches sees the correct params.
+        let router = Router::with_path("{id}")
+            // Tried first: captures `id` again (overwriting the ancestor's value) then
+            // fails because the request has no trailing `/profile`.
+            .push(Router::with_path("{id}/profile").get(fake_handler))
+            // Matches on the trailing literal segment, capturing no param of its own.
+            .push(Router::with_path("edit").get(fake_handler));
+
+        let mut req = TestClient::get("http://local.host/alice/edit").build();
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+        // Must be the ancestor's value, not the overwritten-then-rolled-back "edit".
+        assert_eq!(path_state.params["id"], "alice");
     }
 }

@@ -80,6 +80,9 @@ async fn main() {
 
 For development-only APIs you can use `Cors::permissive()`. For authenticated
 production APIs, prefer explicit origins and avoid `Cors::very_permissive()`.
+`Cors::very_permissive()` reflects each request's `Origin` while allowing
+credentials, so browsers treat arbitrary calling sites as explicitly trusted
+for authenticated responses.
 
 ## Documentation & Resources
 

@@ -1,8 +1,11 @@
-//! This is **private** salvo_oapi codegen library and is not used alone.
+//! Procedural macros used by `salvo_oapi`.
 //!
-//! The library contains macro implementations for salvo_oapi library. Content
-//! of the library documentation is available through **salvo_oapi** library itself.
-//! Consider browsing via the **salvo_oapi** crate so all links will work correctly.
+//! This crate contains the implementation of the `#[endpoint]`,
+//! `#[derive(ToSchema)]`, `#[derive(ToParameters)]`,
+//! `#[derive(ToResponse)]`, and `#[derive(ToResponses)]` macros. Most users
+//! should import these macros from `salvo_oapi` or from `salvo` with the
+//! `oapi` feature enabled so the generated paths and documentation links line
+//! up with the public API.
 
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -45,10 +48,44 @@ pub(crate) use self::server::Server;
 pub(crate) use self::shared::*;
 pub(crate) use self::type_tree::TypeTree;
 
-/// Enhanced of [handler][handler] for generate OpenAPI documentation, [Read more][more].
+/// Turns a Salvo handler function into an OpenAPI-aware endpoint.
 ///
-/// [handler]: ../salvo_core/attr.handler.html
-/// [more]: ../salvo_oapi/endpoint/index.html
+/// `#[endpoint]` behaves like Salvo's `#[handler]` macro and also records
+/// OpenAPI operation metadata. The generated endpoint can be registered on a
+/// router and later collected with `OpenApi::merge_router`.
+///
+/// Function doc comments are used for generated operation text: the first
+/// paragraph becomes the summary and the remaining paragraphs become the
+/// description.
+///
+/// Common attributes:
+///
+/// - `operation_id = ...`
+/// - `tags(...)`
+/// - `parameters(...)`
+/// - `request_body = ...` or `request_body(...)`
+/// - `responses(...)`
+/// - `status_codes(...)`
+/// - `security(...)`
+///
+/// Rust's own `#[deprecated]` attribute is reflected as OpenAPI deprecation.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use salvo_oapi::endpoint;
+///
+/// /// Fetch one user.
+/// ///
+/// /// Returns `404` when the user does not exist.
+/// #[endpoint(tags("users"), responses((status_code = 200, body = String)))]
+/// async fn get_user() -> String {
+///     "Alice".to_owned()
+/// }
+/// ```
+///
+/// Full attribute reference:
+/// <https://docs.rs/salvo-oapi/latest/salvo_oapi/attr.endpoint.html>
 #[proc_macro_attribute]
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
@@ -58,10 +95,32 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
-/// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait, [Read more][more].
+
+/// Derives `salvo_oapi::ToSchema` for a Rust type.
 ///
-/// [to_schema]: ../salvo_oapi/trait.ToSchema.html
-/// [more]: ../salvo_oapi/derive.ToSchema.html
+/// The generated implementation produces an OpenAPI schema for structs and
+/// enums. Type and field doc comments become schema descriptions unless they
+/// are overridden with `#[salvo(schema(...))]`.
+///
+/// Common `#[salvo(schema(...))]` options include:
+///
+/// - `description = ...`
+/// - `example = json!(...)`
+/// - `default` or `default = ...`
+/// - `rename_all = "..."`
+/// - `rename = "..."`
+/// - `value_type = ...`
+/// - `format = ...`
+/// - `inline`
+/// - `required = ...`
+/// - `nullable`
+/// - `skip`
+///
+/// The derive also reflects supported serde rename/default/skip attributes and
+/// Rust's `#[deprecated]` attribute into the generated OpenAPI schema.
+///
+/// Full attribute reference:
+/// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToSchema.html>
 #[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     match schema::to_schema(syn::parse_macro_input!(input)) {
@@ -70,9 +129,37 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Generate parameters from struct's fields, [Read more][more].
+/// Derives `salvo_oapi::ToParameters` for a parameter struct.
 ///
-/// [more]: ../salvo_oapi/derive.ToParameters.html
+/// The generated implementation converts fields into OpenAPI parameters,
+/// usually for query, path, header, or cookie data used by an endpoint.
+/// Field doc comments become parameter descriptions.
+///
+/// Container attributes use `#[salvo(parameters(...))]` and include:
+///
+/// - `names(...)` for unnamed tuple fields.
+/// - `style = ...`
+/// - `default_parameter_in = ...`
+/// - `rename_all = "..."`
+///
+/// Field attributes use `#[salvo(parameter(...))]` and include:
+///
+/// - `parameter_in = ...`
+/// - `style = ...`
+/// - `explode`
+/// - `allow_reserved`
+/// - `example = ...`
+/// - `value_type = ...`
+/// - `inline`
+/// - `required = ...`
+/// - `nullable`
+/// - `rename = "..."`
+///
+/// The derive also reflects supported serde rename/default/skip attributes and
+/// Rust's `#[deprecated]` attribute into the generated parameters.
+///
+/// Full attribute reference:
+/// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToParameters.html>
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     match parameter::to_parameters(syn::parse_macro_input!(input)) {
@@ -81,10 +168,26 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Generate reusable [OpenApi][openapi] response, [Read more][more].
+/// Derives `salvo_oapi::ToResponse` for one reusable OpenAPI response.
 ///
-/// [openapi]: ../salvo_oapi/struct.OpenApi.html
-/// [more]: ../salvo_oapi/derive.ToResponse.html
+/// Use this derive when a type should describe a single response component
+/// that can be referenced from endpoint `responses(...)` attributes. Struct
+/// and enum doc comments become the response description unless overridden.
+///
+/// Common `#[salvo(response(...))]` options include:
+///
+/// - `description = "..."`
+/// - `content_type = "..."`
+/// - `headers(...)`
+/// - `example = json!(...)`
+/// - `examples(...)`
+///
+/// Enum variants can use `#[salvo(content(...))]` to describe alternate
+/// response content types. `#[salvo(schema(...))]` can inline a schema for
+/// unnamed fields or content variants whose type implements `ToSchema`.
+///
+/// Full attribute reference:
+/// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToResponse.html>
 #[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
     match response::to_response(syn::parse_macro_input!(input)) {
@@ -93,10 +196,23 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Generate responses with status codes what can be used in [OpenAPI][openapi], [Read more][more].
+/// Derives `salvo_oapi::ToResponses` for a response map.
 ///
-/// [openapi]: ../salvo_oapi/struct.OpenApi.html
-/// [more]: ../salvo_oapi/derive.ToResponses.html
+/// Use this derive when a type should describe all responses for an endpoint.
+/// A struct produces one response entry; an enum produces one response entry
+/// per variant. The generated map can be used directly in
+/// `#[endpoint(responses(...))]`.
+///
+/// `#[salvo(response(status_code = ...))]` is the central attribute and is
+/// required on most response structs or enum variants. It also accepts the same
+/// response metadata options as `ToResponse`, including `description`,
+/// `content_type`, `headers`, `example`, and `examples`.
+///
+/// Unnamed response fields are represented as schemas by default; use
+/// `#[salvo(response(inline))]` on a field to inline that schema.
+///
+/// Full attribute reference:
+/// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToResponses.html>
 #[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
     match response::to_responses(syn::parse_macro_input!(input)) {

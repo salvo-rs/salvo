@@ -262,13 +262,14 @@ impl<'u> UnnamedStructResponse<'u> {
                 break;
             }
         }
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
-            Diagnostic::spanned(
-                Span::call_site(),
-                DiagLevel::Error,
-                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
-            )
-        })?;
+        let mut derive_value =
+            DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+                Diagnostic::spanned(
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+                )
+            })?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
@@ -308,13 +309,14 @@ impl NamedStructResponse<'_> {
             return Err(diag);
         }
 
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
-            Diagnostic::spanned(
-                Span::call_site(),
-                DiagLevel::Error,
-                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
-            )
-        })?;
+        let mut derive_value =
+            DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+                Diagnostic::spanned(
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+                )
+            })?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
@@ -363,13 +365,14 @@ impl UnitStructResponse<'_> {
             return Err(diagnostics);
         }
 
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
-            Diagnostic::spanned(
-                Span::call_site(),
-                DiagLevel::Error,
-                "`ToResponses` requires a `#[salvo(response(...))]` attribute",
-            )
-        })?;
+        let mut derive_value =
+            DeriveToResponsesValue::from_attributes(attributes)?.ok_or_else(|| {
+                Diagnostic::spanned(
+                    Span::call_site(),
+                    DiagLevel::Error,
+                    "`ToResponses` requires a `#[salvo(response(...))]` attribute",
+                )
+            })?;
         let status_code = mem::take(&mut derive_value.status_code);
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();

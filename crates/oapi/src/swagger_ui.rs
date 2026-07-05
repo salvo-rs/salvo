@@ -16,7 +16,7 @@ use salvo_core::routing::redirect_to_dir_url;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, Router, async_trait};
 use serde::Serialize;
 
-use crate::html::{description_meta, escape_html, keywords_meta};
+use crate::html::{description_meta, escape_html, keywords_meta, script_safe_json};
 
 #[derive(RustEmbed)]
 #[folder = "src/swagger_ui/v5.32.4"]
@@ -377,7 +377,9 @@ pub fn serve<'a>(
     };
 
     let bytes = if path == "index.html" {
-        let config_json = serde_json::to_string(&config)?;
+        // The config is embedded into an inline `<script>` block, so escape any
+        // characters that could break out of the script context (e.g. `</script>`).
+        let config_json = script_safe_json(serde_json::to_string(&config)?);
 
         // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
         let mut index = INDEX_TMPL
@@ -387,7 +389,7 @@ pub fn serve<'a>(
             .replacen("{{title}}", &escape_html(title), 1);
 
         if let Some(oauth) = &config.oauth {
-            let oauth_json = serde_json::to_string(oauth)?;
+            let oauth_json = script_safe_json(serde_json::to_string(oauth)?);
             index = index.replace(
                 "//{{oauth}}",
                 &format!("window.ui.initOAuth({});", &oauth_json),
@@ -405,4 +407,27 @@ pub fn serve<'a>(
     });
 
     Ok(file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serve_index_escapes_config_for_script_context() {
+        // A url containing `</script>` must not be able to break out of the inline script.
+        let config = Config::new(["</script><script>alert(1)</script>"]);
+        let file = serve("index.html", "title", "", "", &config)
+            .expect("serve should succeed")
+            .expect("index.html should be served");
+        let html = String::from_utf8(file.bytes.into_owned()).expect("utf8");
+        assert!(
+            !html.contains("</script><script>alert(1)</script>"),
+            "raw script-breaking payload must not be present"
+        );
+        assert!(
+            html.contains("\\u003c/script\\u003e"),
+            "`<` must be escaped to \\u003c inside the config json"
+        );
+    }
 }

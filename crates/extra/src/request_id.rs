@@ -178,12 +178,21 @@ impl Handler for RequestId {
             }
         };
 
-        let _ = req.add_header(self.header_name.clone(), &request_id, false);
+        // Overwrite (not append) so the request carries exactly the resolved id:
+        // appending left a client-supplied id in place when `overwrite` generated a
+        // new one (downstream `req.header(..)` then read the stale value), and
+        // duplicated the header in the pass-through case.
+        let _ = req.add_header(self.header_name.clone(), &request_id, true);
 
         let span = tracing::info_span!("request", ?request_id);
         res.headers_mut()
             .insert(self.header_name.clone(), request_id.clone());
-        depot.insert(REQUEST_ID_KEY, request_id);
+        // Store the id as a `String` so `RequestIdDepotExt::request_id()`, which
+        // looks it up by the `String` type, can actually retrieve it. Inserting the
+        // raw `HeaderValue` made that accessor always return `None`.
+        if let Ok(id) = request_id.to_str() {
+            depot.insert(REQUEST_ID_KEY, id.to_owned());
+        }
 
         async move {
             ctrl.call_next(req, depot, res).await;
@@ -278,8 +287,12 @@ mod tests {
         let handler = RequestId::new();
         #[handler]
         async fn depot_checker(depot: &mut Depot, res: &mut Response) {
-            let id = depot.get::<HeaderValue>(REQUEST_ID_KEY).unwrap().clone();
-            res.render(Text::Plain(id.to_str().unwrap().to_owned()));
+            // Exercise the public accessor, which reads the id back as a `String`.
+            let id = depot
+                .request_id()
+                .expect("request id should be retrievable via RequestIdDepotExt")
+                .to_owned();
+            res.render(Text::Plain(id));
         }
         let router = Router::new().hoop(handler).get(depot_checker);
         let service = Service::new(router);

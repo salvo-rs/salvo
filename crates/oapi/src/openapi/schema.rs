@@ -151,7 +151,7 @@ pub enum Schema {
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 
-    /// Creates a _AnyOf_ type [composite Object][composite] schema.
+    /// Creates an _AllOf_ type [composite Object][composite] schema.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),

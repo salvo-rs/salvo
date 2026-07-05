@@ -275,9 +275,37 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
 pub trait FlashDepotExt {
     /// Get incoming flash.
     fn incoming_flash(&mut self) -> Option<&Flash>;
+    /// Get outgoing flash, or `None` if no [`FlashHandler`] is installed on the
+    /// route (so the outgoing flash was never initialized).
+    ///
+    /// Defaulted so that adding it is not a breaking change for existing
+    /// implementors of this trait; [`Depot`] overrides it with the real lookup.
+    fn try_outgoing_flash(&self) -> Option<&Flash> {
+        None
+    }
+    /// Get mutable outgoing flash, or `None` if no [`FlashHandler`] is installed on
+    /// the route.
+    ///
+    /// Defaulted so that adding it is not a breaking change for existing
+    /// implementors of this trait; [`Depot`] overrides it with the real lookup.
+    fn try_outgoing_flash_mut(&mut self) -> Option<&mut Flash> {
+        None
+    }
     /// Get outgoing flash.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no [`FlashHandler`] is installed on the route. Use
+    /// [`try_outgoing_flash`](Self::try_outgoing_flash) to handle that case without
+    /// panicking.
     fn outgoing_flash(&self) -> &Flash;
     /// Get mutable outgoing flash.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no [`FlashHandler`] is installed on the route. Use
+    /// [`try_outgoing_flash_mut`](Self::try_outgoing_flash_mut) to handle that case
+    /// without panicking.
     fn outgoing_flash_mut(&mut self) -> &mut Flash;
 }
 
@@ -288,15 +316,25 @@ impl FlashDepotExt for Depot {
     }
 
     #[inline]
+    fn try_outgoing_flash(&self) -> Option<&Flash> {
+        self.get::<Flash>(OUTGOING_FLASH_KEY).ok()
+    }
+
+    #[inline]
+    fn try_outgoing_flash_mut(&mut self) -> Option<&mut Flash> {
+        self.get_mut::<Flash>(OUTGOING_FLASH_KEY).ok()
+    }
+
+    #[inline]
     fn outgoing_flash(&self) -> &Flash {
-        self.get::<Flash>(OUTGOING_FLASH_KEY)
-            .expect("Flash should be initialized")
+        self.try_outgoing_flash()
+            .expect("`FlashHandler` must be installed to use the outgoing flash")
     }
 
     #[inline]
     fn outgoing_flash_mut(&mut self) -> &mut Flash {
-        self.get_mut::<Flash>(OUTGOING_FLASH_KEY)
-            .expect("Flash should be initialized")
+        self.try_outgoing_flash_mut()
+            .expect("`FlashHandler` must be installed to use the outgoing flash")
     }
 }
 
