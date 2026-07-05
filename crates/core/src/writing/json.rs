@@ -22,12 +22,13 @@ impl JsonBodyWriter {
     fn new() -> Self {
         Self {
             chunks: VecDeque::new(),
-            current: Vec::with_capacity(JSON_CHUNK_SIZE),
+            current: Vec::new(),
         }
     }
 
     fn finish(mut self) -> ResBody {
         if !self.current.is_empty() {
+            self.current.shrink_to_fit();
             self.chunks.push_back(Bytes::from(self.current));
         }
         match self.chunks.len() {
@@ -38,7 +39,7 @@ impl JsonBodyWriter {
     }
 
     fn push_current(&mut self) {
-        let chunk = std::mem::replace(&mut self.current, Vec::with_capacity(JSON_CHUNK_SIZE));
+        let chunk = std::mem::take(&mut self.current);
         if !chunk.is_empty() {
             self.chunks.push_back(Bytes::from(chunk));
         }
@@ -55,6 +56,10 @@ impl Write for JsonBodyWriter {
                 continue;
             }
             let next = available.min(buf.len());
+            let target_capacity = (self.current.len() + next).min(JSON_CHUNK_SIZE);
+            if self.current.capacity() < target_capacity {
+                self.current.reserve(target_capacity - self.current.len());
+            }
             self.current.extend_from_slice(&buf[..next]);
             buf = &buf[next..];
             if self.current.len() == JSON_CHUNK_SIZE {
@@ -194,9 +199,20 @@ impl<T: Display> Display for Json<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write as _;
+
     use super::*;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+
+    #[test]
+    fn json_body_writer_does_not_preallocate_full_chunk_for_tiny_body() {
+        let mut writer = JsonBodyWriter::new();
+
+        writer.write_all(br#"{"ok":true}"#).unwrap();
+
+        assert!(writer.current.capacity() < JSON_CHUNK_SIZE);
+    }
 
     #[tokio::test]
     async fn test_write_json_content() {
