@@ -25,6 +25,37 @@ pub struct Router {
     pub goal: Option<Arc<dyn Handler>>,
 }
 
+struct DetectFrame<'a> {
+    router: &'a Router,
+    next_child: usize,
+    original_cursor: (usize, usize),
+    params_snapshot: (usize, bool, usize),
+    #[cfg(feature = "matched-path")]
+    original_matched_parts_len: usize,
+}
+
+impl<'a> DetectFrame<'a> {
+    fn new(router: &'a Router, path_state: &PathState) -> Self {
+        Self {
+            router,
+            next_child: 0,
+            original_cursor: path_state.cursor,
+            params_snapshot: path_state.params.snapshot(),
+            #[cfg(feature = "matched-path")]
+            original_matched_parts_len: path_state.matched_parts.len(),
+        }
+    }
+
+    fn rollback(&self, path_state: &mut PathState) {
+        #[cfg(feature = "matched-path")]
+        path_state
+            .matched_parts
+            .truncate(self.original_matched_parts_len);
+        path_state.cursor = self.original_cursor;
+        path_state.params.rollback(self.params_snapshot);
+    }
+}
+
 impl Default for Router {
     #[inline]
     fn default() -> Self {
@@ -88,53 +119,75 @@ impl Router {
         req: &mut Request,
         path_state: &mut PathState<'_>,
     ) -> Option<DetectMatched> {
-        Box::pin(async move {
-            for filter in &self.filters {
-                if !filter.filter(req, path_state).await {
-                    return None;
+        if !self.filters_match(req, path_state).await {
+            return None;
+        }
+
+        let mut stack = vec![DetectFrame::new(self, path_state)];
+        loop {
+            let child = {
+                let frame = stack
+                    .last_mut()
+                    .expect("detect stack always contains the current router");
+                if frame.next_child < frame.router.routers.len() {
+                    let child = &frame.router.routers[frame.next_child];
+                    frame.next_child += 1;
+                    Some(child)
+                } else {
+                    None
                 }
-            }
-            if !self.routers.is_empty() {
-                let original_cursor = path_state.cursor;
-                let params_snapshot = path_state.params.snapshot();
-                #[cfg(feature = "matched-path")]
-                let original_matched_parts_len = path_state.matched_parts.len();
-                for child in &self.routers {
-                    if let Some(dm) = child.detect(req, path_state).await {
-                        let hoops = if self.hoops.is_empty() {
-                            dm.hoops
-                        } else {
-                            let mut hoops = Vec::with_capacity(self.hoops.len() + dm.hoops.len());
-                            hoops.extend_from_slice(&self.hoops);
-                            hoops.extend_from_slice(&dm.hoops);
-                            hoops
-                        };
-                        return Some(DetectMatched {
-                            hoops,
-                            goal: dm.goal.clone(),
-                        });
-                    } else {
-                        #[cfg(feature = "matched-path")]
-                        path_state
-                            .matched_parts
-                            .truncate(original_matched_parts_len);
-                        path_state.cursor = original_cursor;
-                        path_state.params.rollback(params_snapshot);
-                    }
+            };
+
+            if let Some(child) = child {
+                if child.filters_match(req, path_state).await {
+                    stack.push(DetectFrame::new(child, path_state));
+                } else {
+                    stack
+                        .last()
+                        .expect("parent frame exists while testing a child")
+                        .rollback(path_state);
                 }
+                continue;
             }
+
+            let frame = stack
+                .last()
+                .expect("detect stack always contains the current router");
             if path_state.is_ended() {
                 path_state.once_ended = true;
-                if let Some(goal) = &self.goal {
-                    return Some(DetectMatched {
-                        hoops: self.hoops.clone(),
-                        goal: goal.clone(),
-                    });
+                if let Some(goal) = &frame.router.goal {
+                    return Some(Self::matched_from_stack(&stack, goal));
                 }
             }
-            None
-        })
-        .await
+
+            stack.pop();
+            if let Some(parent) = stack.last() {
+                parent.rollback(path_state);
+            } else {
+                return None;
+            }
+        }
+    }
+
+    async fn filters_match(&self, req: &mut Request, path_state: &mut PathState) -> bool {
+        for filter in &self.filters {
+            if !filter.filter(req, path_state).await {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn matched_from_stack(stack: &[DetectFrame<'_>], goal: &Arc<dyn Handler>) -> DetectMatched {
+        let hoops_len = stack.iter().map(|frame| frame.router.hoops.len()).sum();
+        let mut hoops = Vec::with_capacity(hoops_len);
+        for frame in stack {
+            hoops.extend_from_slice(&frame.router.hoops);
+        }
+        DetectMatched {
+            hoops,
+            goal: goal.clone(),
+        }
     }
 
     /// Insert a router at the beginning of current router, shifting all routers after it to the
@@ -578,6 +631,18 @@ mod tests {
         let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
+    }
+    #[tokio::test]
+    async fn test_router_detect_parent_goal_after_child_mismatch() {
+        let router = Router::with_path("users")
+            .get(fake_handler)
+            .push(Router::with_path("{id}/profile").get(fake_handler));
+        let mut req = TestClient::get("http://local.host/users").build();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state).await;
+        assert!(matched.is_some());
+        assert!(path_state.params.is_empty());
+        assert!(path_state.is_ended());
     }
     #[tokio::test]
     async fn test_router_detect3() {
