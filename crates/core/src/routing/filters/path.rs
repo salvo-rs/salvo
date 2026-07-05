@@ -311,7 +311,7 @@ impl PathWisp for CharsWisp {
         }
         if count >= self.min_width {
             state.forward(byte_len);
-            state.params.insert(&self.name, value);
+            state.params.insert_tracked(&self.name, value);
             #[cfg(feature = "matched-path")]
             push_named_part(&mut state.matched_parts, &self.name);
             true
@@ -446,7 +446,7 @@ impl PathWisp for CombWisp {
             let mut matched_part = String::new();
             for name in self.names.iter().take(take_count) {
                 if let Some(value) = caps.name(name) {
-                    state.params.insert(name, value.as_str().to_owned());
+                    state.params.insert_tracked(name, value.as_str().to_owned());
                     #[cfg(feature = "matched-path")]
                     {
                         if value.start() > start {
@@ -509,7 +509,7 @@ impl PathWisp for CombWisp {
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
-                    state.params.insert(wild_name, cap);
+                    state.params.insert_tracked(wild_name, cap);
                     #[cfg(feature = "matched-path")]
                     push_named_part(&mut state.matched_parts, wild_name);
                     true
@@ -544,7 +544,7 @@ impl PathWisp for NamedWisp {
             }
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.into_owned();
-                state.params.insert(&self.0, rest);
+                state.params.insert_tracked(&self.0, rest);
                 state.cursor.0 = state.parts.len();
                 #[cfg(feature = "matched-path")]
                 push_named_part(&mut state.matched_parts, &self.0);
@@ -559,7 +559,7 @@ impl PathWisp for NamedWisp {
             }
             let picked = picked.expect("picked should not be `None`").to_owned();
             state.forward(picked.len());
-            state.params.insert(&self.0, picked);
+            state.params.insert_tracked(&self.0, picked);
             #[cfg(feature = "matched-path")]
             push_named_part(&mut state.matched_parts, &self.0);
             true
@@ -620,7 +620,7 @@ impl PathWisp for RegexWisp {
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
-                    state.params.insert(&self.name, cap);
+                    state.params.insert_tracked(&self.name, cap);
                     #[cfg(feature = "matched-path")]
                     push_named_part(&mut state.matched_parts, &self.name);
                     true
@@ -638,7 +638,7 @@ impl PathWisp for RegexWisp {
             if let Some(cap) = cap {
                 let cap = cap.as_str().to_owned();
                 state.forward(cap.len());
-                state.params.insert(&self.name, cap);
+                state.params.insert_tracked(&self.name, cap);
                 #[cfg(feature = "matched-path")]
                 push_named_part(&mut state.matched_parts, &self.name);
                 true
