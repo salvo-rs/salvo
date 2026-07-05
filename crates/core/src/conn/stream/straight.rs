@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::{Instant, Sleep};
 
 use crate::conn::ConnCtrl;
-use crate::fuse::FuseConfig;
+use crate::fuse::{ArcConnObserver, FuseConfig};
 
 #[pin_project]
 /// A transport stream with inline idle and stalled-write timeouts.
@@ -25,6 +25,8 @@ pub struct StraightStream<C> {
     // protocol (e.g. WebSocket) and calls `ConnCtrl::relax_timeouts`, the idle and
     // write-stall timers below must stop firing, since silence is then expected.
     conn_ctrl: ConnCtrl,
+    // Optional custom monitor for bytes transferred. `None` on the default fast path.
+    observer: Option<ArcConnObserver>,
 }
 
 impl<C> Debug for StraightStream<C> {
@@ -38,7 +40,13 @@ impl<C> StraightStream<C> {
     ///
     /// `conn_ctrl` is shared with the connection's handlers so an upgrade to a long-lived
     /// protocol can [relax](ConnCtrl::relax_timeouts) the idle and write-stall timers.
-    pub fn new(inner: C, fuse: Option<FuseConfig>, conn_ctrl: ConnCtrl) -> Self {
+    /// `observer`, when set, is notified of the bytes read and written on this transport.
+    pub fn new(
+        inner: C,
+        fuse: Option<FuseConfig>,
+        conn_ctrl: ConnCtrl,
+        observer: Option<ArcConnObserver>,
+    ) -> Self {
         let idle_timeout = fuse.and_then(|f| f.connection_idle_timeout);
         let write_timeout = fuse.and_then(|f| f.write_stall_timeout);
         Self {
@@ -50,6 +58,7 @@ impl<C> StraightStream<C> {
                 .map(|_| Box::pin(tokio::time::sleep(Duration::from_secs(86400 * 365)))),
             write_pending: false,
             conn_ctrl,
+            observer,
         }
     }
 }
@@ -68,11 +77,16 @@ impl<C: AsyncRead> AsyncRead for StraightStream<C> {
         let before = buf.filled().len();
         match this.inner.as_mut().poll_read(cx, buf) {
             Poll::Ready(Ok(())) => {
-                if buf.filled().len() > before
-                    && let (Some(timeout), Some(sleep)) =
+                let read = buf.filled().len() - before;
+                if read > 0 {
+                    if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
-                {
-                    sleep.as_mut().reset(Instant::now() + timeout);
+                    {
+                        sleep.as_mut().reset(Instant::now() + timeout);
+                    }
+                    if let Some(observer) = this.observer.as_ref() {
+                        observer.on_read(read);
+                    }
                 }
                 Poll::Ready(Ok(()))
             }
@@ -96,11 +110,15 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
         match this.inner.as_mut().poll_write(cx, buf) {
             Poll::Ready(Ok(written)) => {
                 *this.write_pending = false;
-                if written > 0
-                    && let (Some(timeout), Some(sleep)) =
+                if written > 0 {
+                    if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
-                {
-                    sleep.as_mut().reset(Instant::now() + timeout);
+                    {
+                        sleep.as_mut().reset(Instant::now() + timeout);
+                    }
+                    if let Some(observer) = this.observer.as_ref() {
+                        observer.on_write(written);
+                    }
                 }
                 Poll::Ready(Ok(written))
             }
@@ -151,11 +169,15 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
         match this.inner.as_mut().poll_write_vectored(cx, bufs) {
             Poll::Ready(Ok(written)) => {
                 *this.write_pending = false;
-                if written > 0
-                    && let (Some(timeout), Some(sleep)) =
+                if written > 0 {
+                    if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
-                {
-                    sleep.as_mut().reset(Instant::now() + timeout);
+                    {
+                        sleep.as_mut().reset(Instant::now() + timeout);
+                    }
+                    if let Some(observer) = this.observer.as_ref() {
+                        observer.on_write(written);
+                    }
                 }
                 Poll::Ready(Ok(written))
             }
@@ -208,7 +230,7 @@ mod tests {
             write_stall_timeout: None,
             ..FuseConfig::disabled()
         };
-        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new());
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new(), None);
 
         let error = stream.read_u8().await.unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
@@ -222,7 +244,7 @@ mod tests {
             write_stall_timeout: Some(Duration::from_millis(10)),
             ..FuseConfig::disabled()
         };
-        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new());
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new(), None);
         stream.write_all(b"a").await.unwrap();
 
         let error = stream.write_all(b"b").await.unwrap_err();
@@ -239,10 +261,45 @@ mod tests {
         let conn_ctrl = ConnCtrl::new();
         // A handler that upgraded to a long-lived protocol relaxed the timers.
         conn_ctrl.relax_timeouts();
-        let mut stream = StraightStream::new(client, Some(config), conn_ctrl);
+        let mut stream = StraightStream::new(client, Some(config), conn_ctrl, None);
 
         // With the idle timer relaxed the read must stay pending, not time out.
         let result = tokio::time::timeout(Duration::from_millis(50), stream.read_u8()).await;
         assert!(result.is_err(), "relaxed idle timeout must not fire");
+    }
+
+    #[tokio::test]
+    async fn observer_sees_bytes_transferred() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        use crate::fuse::ConnObserver;
+
+        #[derive(Default)]
+        struct Counter {
+            read: AtomicUsize,
+            write: AtomicUsize,
+        }
+        impl ConnObserver for Counter {
+            fn on_read(&self, bytes: usize) {
+                self.read.fetch_add(bytes, Ordering::Relaxed);
+            }
+            fn on_write(&self, bytes: usize) {
+                self.write.fetch_add(bytes, Ordering::Relaxed);
+            }
+        }
+
+        let counter = Arc::new(Counter::default());
+        let (client, server) = tokio::io::duplex(64);
+        let mut stream = StraightStream::new(client, None, ConnCtrl::new(), Some(counter.clone()));
+
+        stream.write_all(b"hello").await.unwrap();
+        let mut server = server;
+        server.write_all(b"hi").await.unwrap();
+        let mut buf = [0u8; 2];
+        stream.read_exact(&mut buf).await.unwrap();
+
+        assert_eq!(counter.write.load(Ordering::Relaxed), 5);
+        assert_eq!(counter.read.load(Ordering::Relaxed), 2);
     }
 }

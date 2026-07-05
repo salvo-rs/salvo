@@ -168,21 +168,24 @@ impl Acceptor for UnixAcceptor {
             let (conn, remote_addr) = self.inner.accept().await?;
             let remote_addr = Arc::new(remote_addr);
             let local_addr = self.holdings[0].local_addr.clone();
-            let fuse_config = match &fuse_policy {
-                Some(policy) => match policy.decide(&FuseInfo {
-                    trans_proto: TransProto::Tcp,
-                    remote_addr: remote_addr.clone().into(),
-                    local_addr: local_addr.clone(),
-                }) {
-                    FuseAction::Accept(config) => Some(config),
-                    FuseAction::Reject => continue,
-                },
-                None => None,
+            let (fuse_config, observer) = match &fuse_policy {
+                Some(policy) => {
+                    let info = FuseInfo {
+                        trans_proto: TransProto::Tcp,
+                        remote_addr: remote_addr.clone().into(),
+                        local_addr: local_addr.clone(),
+                    };
+                    match policy.decide(&info) {
+                        FuseAction::Accept(config) => (Some(config), policy.observe(&info)),
+                        FuseAction::Reject => continue,
+                    }
+                }
+                None => (None, None),
             };
             let conn_ctrl = ConnCtrl::new();
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone()),
+                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
                 fuse_config,
                 conn_ctrl,
                 local_addr: self.holdings[0].local_addr.clone(),

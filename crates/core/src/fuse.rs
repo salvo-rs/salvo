@@ -83,10 +83,50 @@ pub enum FuseAction {
     Reject,
 }
 
+/// A per-connection observer for transport activity.
+///
+/// The fuse system enforces protection with fixed inline timeouts, which covers almost
+/// every server. This trait is the escape hatch for the rest: a [`FusePolicy`] may attach a
+/// custom observer to feed the bytes a connection transfers into adaptive rate limiting,
+/// metrics, or an external security system — the kind of per-event logic the timeout knobs
+/// cannot express.
+///
+/// Attaching an observer is opt-in. When a policy returns no observer (the default), the
+/// transport hot path allocates nothing and dispatches nothing.
+///
+/// Only transport reads and writes are reported. The TLS handshake and the request body have
+/// dedicated timeouts ([`tls_handshake_timeout`](FuseConfig::tls_handshake_timeout),
+/// [`request_body_timeout`](FuseConfig::request_body_timeout)) and are not surfaced here.
+/// New reporting points can be added later as further defaulted methods without breaking
+/// existing implementations.
+pub trait ConnObserver: Send + Sync + 'static {
+    /// Called after `bytes` (always non-zero) were read from the transport.
+    fn on_read(&self, bytes: usize) {
+        let _ = bytes;
+    }
+    /// Called after `bytes` (always non-zero) were written to the transport.
+    fn on_write(&self, bytes: usize) {
+        let _ = bytes;
+    }
+}
+
+/// Shared per-connection transport observer.
+pub type ArcConnObserver = Arc<dyn ConnObserver>;
+
 /// Selects protection settings once per accepted connection.
 pub trait FusePolicy: Send + Sync + 'static {
     /// Decides whether and how to protect a connection.
     fn decide(&self, info: &FuseInfo) -> FuseAction;
+
+    /// Creates an optional [`ConnObserver`] for an accepted connection.
+    ///
+    /// Returns `None` by default, which keeps the transport hot path free of any observer
+    /// dispatch. Override it to attach custom per-connection monitoring; it is called once,
+    /// right after [`decide`](Self::decide) admits the connection.
+    fn observe(&self, info: &FuseInfo) -> Option<ArcConnObserver> {
+        let _ = info;
+        None
+    }
 }
 
 impl FusePolicy for FuseConfig {
