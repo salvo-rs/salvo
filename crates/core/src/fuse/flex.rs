@@ -502,21 +502,23 @@ impl FlexFactory {
 
         let tcp_idle_token = CancellationToken::new();
         let tcp_idle_notify = Arc::new(Notify::new());
-        tokio::spawn({
-            let tcp_idle_notify = tcp_idle_notify.clone();
-            let tcp_idle_token = tcp_idle_token.clone();
-            async move {
-                loop {
-                    if tokio::time::timeout(tcp_idle_timeout, tcp_idle_notify.notified())
-                        .await
-                        .is_err()
-                    {
-                        tcp_idle_token.cancel();
-                        break;
+        if !info.trans_proto.is_quic() {
+            tokio::spawn({
+                let tcp_idle_notify = tcp_idle_notify.clone();
+                let tcp_idle_token = tcp_idle_token.clone();
+                async move {
+                    loop {
+                        if tokio::time::timeout(tcp_idle_timeout, tcp_idle_notify.notified())
+                            .await
+                            .is_err()
+                        {
+                            tcp_idle_token.cancel();
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
         FlexFusewire {
             info,
             guards,
@@ -646,6 +648,18 @@ mod tests {
             _ = tokio::time::sleep(Duration::from_millis(20)) => {
                 panic!("custom guards must run before QUIC skips TCP timer handling")
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn quic_connections_do_not_arm_tcp_idle_timeout() {
+        let fusewire = FlexFactory::new()
+            .tcp_idle_timeout(Duration::from_millis(20))
+            .build(quic_test_info());
+
+        tokio::select! {
+            _ = fusewire.fused() => panic!("QUIC connections should not be fused by TCP idle timeout"),
+            _ = tokio::time::sleep(Duration::from_millis(60)) => {}
         }
     }
 
