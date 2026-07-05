@@ -1,5 +1,10 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
-//! [`Salvo`](https://github.com/salvo-rs/salvo) `Handler` modular craft macros.
+//! Procedural macros for building Salvo handlers from service methods.
+//!
+//! This crate is normally used through `salvo_craft::craft`. The macro keeps
+//! related handlers inside an `impl` block and generates small callable handler
+//! values for the methods marked with `#[craft(handler)]` or
+//! `#[craft(endpoint(...))]`.
 
 mod craft;
 mod utils;
@@ -7,7 +12,28 @@ mod utils;
 use proc_macro::TokenStream;
 use syn::{Item, parse_macro_input};
 
-/// `#[craft]` is an attribute macro that converts methods in an `impl` block into [`Salvo`'s `Handler`](https://github.com/salvo-rs/salvo) implementations.
+/// Converts selected methods in an `impl` block into Salvo handlers.
+///
+/// Apply `#[craft]` to an `impl` block, then mark individual methods with:
+///
+/// - `#[craft(handler)]` for a regular Salvo handler.
+/// - `#[craft(endpoint(...))]` for a Salvo OpenAPI endpoint handler. The
+///   arguments are forwarded to `salvo_oapi::endpoint`.
+///
+/// Each marked method is rewritten into a handler factory with the same method
+/// name. Calling that method returns a handler value suitable for
+/// `Router::get`, `Router::post`, and other routing methods; the original
+/// method body is moved into the generated handler implementation.
+///
+/// Supported receivers:
+///
+/// - `&self`: clones the containing value into the generated handler, so the
+///   type must implement `Clone`.
+/// - `self: Arc<Self>`: reuses the existing `Arc`.
+/// - no receiver: generates a static handler constructor.
+///
+/// Handler parameters and return values follow the same rules as Salvo's
+/// `#[handler]` macro.
 ///
 /// ## Example
 /// ```

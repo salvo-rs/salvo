@@ -1,5 +1,10 @@
 //! Procedural macros for the Salvo web framework.
 //!
+//! This crate is normally used through the re-exports from `salvo` or
+//! `salvo_core::prelude`. It provides the `#[handler]` attribute for turning
+//! functions or `impl` blocks into Salvo handlers, and the `Extractible` derive
+//! for request extraction metadata.
+//!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -17,13 +22,50 @@ mod shared;
 pub(crate) use salvo_serde_util as serde_util;
 use shared::*;
 
-/// `handler` is a macro to help create `Handler` from function or impl block easily.
+/// Converts a function or `impl` block into a Salvo `Handler`.
 ///
-/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and
-/// then implement `Handler`, after use `handler`, you don't need to care arguments' order, omit
-/// unused arguments.
+/// On a function, `#[handler]` generates a zero-sized handler type with the
+/// same name as the function and implements `salvo::Handler` for it. Salvo
+/// injects any supported arguments by type, so handlers can list only the
+/// values they need and in any order:
 ///
-/// View `salvo_core::handler` for more details.
+/// - `&mut Request`
+/// - `&mut Depot`
+/// - `&mut Response`
+/// - `&mut FlowCtrl`
+/// - extractible request data
+///
+/// A return value that implements Salvo's writer traits is written to the
+/// response automatically.
+///
+/// On an `impl` block, the method named `handle` is used as the implementation
+/// of `Handler` for the implementing type.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use salvo_core::prelude::*;
+///
+/// #[handler]
+/// async fn hello() -> &'static str {
+///     "Hello, world!"
+/// }
+/// ```
+///
+/// ```rust,ignore
+/// use salvo_core::prelude::*;
+///
+/// struct Health;
+///
+/// #[handler]
+/// impl Health {
+///     fn handle() -> &'static str {
+///         "ok"
+///     }
+/// }
+/// ```
+///
+/// See `salvo_core::handler` for the full handler guide.
 #[proc_macro_attribute]
 pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
@@ -33,7 +75,56 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
-/// Generate code for extractible type.
+/// Implements `salvo::extract::Extractible` for a request data struct.
+///
+/// `Extractible` describes where each field should be read from and then uses
+/// Salvo's request deserialization support to build the struct in a handler.
+/// The derive is intended for named or tuple structs that also implement
+/// `serde::Deserialize`.
+///
+/// Container attributes:
+///
+/// - `#[salvo(extract(default_source(from = "query")))]` sets a fallback source
+///   for fields without an explicit source.
+/// - `from` accepts `param`, `query`, `header`, `body`, or `depot`.
+/// - `parse` accepts `smart`, `json`, or `multimap`.
+/// - `#[salvo(extract(rename_all = "camelCase"))]` renames fields with the same
+///   case rules used by serde.
+///
+/// Field attributes:
+///
+/// - `#[salvo(extract(source(from = "param")))]` reads a field from a specific
+///   request source.
+/// - `#[salvo(extract(rename = "userId"))]` overrides the request field name.
+/// - `#[salvo(extract(alias = "uid"))]` accepts an alternate field name.
+/// - `#[salvo(extract(flatten))]` flattens another `Extractible` struct into
+///   the same request metadata.
+///
+/// `#[serde(rename)]`, `#[serde(rename_all)]`, `#[serde(alias)]`, and serde
+/// defaults are honored where they map to Salvo extraction metadata.
+/// `#[serde(flatten)]` is intentionally rejected; use
+/// `#[salvo(extract(flatten))]` instead.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use salvo_core::prelude::*;
+/// use serde::Deserialize;
+///
+/// #[derive(Deserialize, Extractible)]
+/// #[salvo(extract(default_source(from = "query")))]
+/// struct Search<'a> {
+///     #[salvo(extract(source(from = "param")))]
+///     id: i64,
+///     term: &'a str,
+/// }
+///
+/// #[handler]
+/// async fn search(req: &mut Request, depot: &mut Depot) {
+///     let value: Search<'_> = req.extract(depot).await.unwrap();
+///     let _ = value;
+/// }
+/// ```
 #[proc_macro_derive(Extractible, attributes(salvo))]
 pub fn derive_extractible(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as DeriveInput);
