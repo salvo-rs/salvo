@@ -17,7 +17,7 @@ where
     U: Filter + Send,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         if self.first.filter(req, state).await {
             true
         } else {
@@ -35,10 +35,10 @@ pub struct OrElse<T, F> {
 impl<T, F> Filter for OrElse<T, F>
 where
     T: Filter,
-    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         if self.filter.filter(req, state).await {
             true
         } else {
@@ -66,7 +66,7 @@ where
     U: Filter,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         if !self.first.filter(req, state).await {
             false
         } else {
@@ -85,10 +85,10 @@ pub struct AndThen<T, F> {
 impl<T, F> Filter for AndThen<T, F>
 where
     T: Filter,
-    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         if !self.filter.filter(req, state).await {
             false
         } else {

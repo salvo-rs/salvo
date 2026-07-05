@@ -4,8 +4,8 @@ use super::{PathParams, decode_url_path};
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PathState {
-    pub(crate) parts: Vec<String>,
+pub struct PathState<'a> {
+    pub(crate) parts: Vec<Cow<'a, str>>,
     /// (row, col), row is the index of parts, col is the index of char in the part.
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
@@ -15,11 +15,11 @@ pub struct PathState {
     pub(crate) once_ended: bool, /* Once it has ended, used to determine whether the error code
                                  * returned is 404 or 405. */
 }
-impl PathState {
+impl<'a> PathState<'a> {
     /// Creates a new `PathState`.
     #[inline]
     #[must_use]
-    pub fn new(url_path: &str) -> Self {
+    pub fn new(url_path: &'a str) -> Self {
         let end_slash = url_path.ends_with('/');
         let parts = url_path
             .trim_start_matches('/')

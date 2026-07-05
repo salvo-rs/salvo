@@ -41,7 +41,7 @@ pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
         Ok(())
     }
     /// Return whether the path matches.
-    fn detect(&self, state: &mut PathState) -> bool;
+    fn detect(&self, state: &mut PathState<'_>) -> bool;
 }
 /// Builds a [`PathWisp`] from a parsed pattern fragment.
 ///
@@ -110,7 +110,7 @@ impl PathWisp for WispKind {
         }
     }
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         match self {
             Self::Const(wisp) => wisp.detect(state),
             Self::Named(wisp) => wisp.detect(state),
@@ -286,7 +286,7 @@ impl Debug for CharsWisp {
     }
 }
 impl PathWisp for CharsWisp {
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };
@@ -429,7 +429,7 @@ impl CombWisp {
 }
 impl PathWisp for CombWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
@@ -531,7 +531,7 @@ impl PathWisp for CombWisp {
 pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.0.starts_with("*?")
@@ -603,7 +603,7 @@ impl PartialEq for RegexWisp {
 }
 impl PathWisp for RegexWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.name.starts_with("*?")
@@ -654,7 +654,7 @@ impl PathWisp for RegexWisp {
 pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };
@@ -1043,7 +1043,7 @@ impl Debug for PathFilter {
 #[async_trait]
 impl Filter for PathFilter {
     #[inline]
-    async fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, _req: &mut Request, state: &mut PathState<'_>) -> bool {
         self.detect(state)
     }
     #[inline]
@@ -1128,7 +1128,7 @@ impl PathFilter {
         builders.insert(name.into(), Arc::new(RegexWispBuilder::new(regex)));
     }
     /// Detect is that path is match.
-    pub fn detect(&self, state: &mut PathState) -> bool {
+    pub fn detect(&self, state: &mut PathState<'_>) -> bool {
         let original_cursor = state.cursor;
         for ps in &self.path_wisps {
             let row = state.cursor.0;
