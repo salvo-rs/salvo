@@ -1,9 +1,11 @@
 use proc_macro2::Ident;
-use syn::parse::Parse;
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Expr, parenthesized};
+use syn::{Expr, ExprPath, parenthesized};
 
 use crate::operation::request_body::RequestBodyAttr;
+use crate::parameter::StructParameter;
+use crate::response::ResponseTuple;
 use crate::security_requirement::SecurityRequirementsAttr;
 use crate::{Array, Parameter, Response, Token, parse_utils};
 
@@ -51,7 +53,7 @@ impl Parse for EndpointAttr<'_> {
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
                 }
                 "response" => {
-                    attr.responses.push(input.parse::<Response>()?);
+                    attr.responses.push(parse_response_alias(input)?);
                 }
                 "status_codes" => {
                     let status_codes;
@@ -83,7 +85,7 @@ impl Parse for EndpointAttr<'_> {
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "parameter" => {
-                    attr.parameters.push(input.parse::<Parameter>()?);
+                    attr.parameters.push(parse_parameter_alias(input)?);
                 }
                 "tags" => {
                     let tags;
@@ -127,6 +129,44 @@ impl Parse for EndpointAttr<'_> {
     }
 }
 
+fn parse_response_alias<'p>(input: ParseStream) -> syn::Result<Response<'p>> {
+    let response;
+    parenthesized!(response in input);
+
+    let fork = response.fork();
+    if let Ok(path) = fork.parse::<ExprPath>()
+        && fork.is_empty()
+    {
+        response.parse::<ExprPath>()?;
+        return Ok(Response::ToResponses(path));
+    }
+
+    let tuple = response.parse::<ResponseTuple>()?;
+    if !response.is_empty() {
+        return Err(
+            response.error("`response(...)` accepts one response; use `responses(...)` for a list")
+        );
+    }
+    Ok(Response::Tuple(Box::new(tuple)))
+}
+
+fn parse_parameter_alias<'p>(input: ParseStream) -> syn::Result<Parameter<'p>> {
+    let fork = input.fork();
+    let parameter_input;
+    parenthesized!(parameter_input in fork);
+    let path_fork = parameter_input.fork();
+    if let Ok(path) = path_fork.parse::<ExprPath>()
+        && path_fork.is_empty()
+    {
+        let consumed;
+        parenthesized!(consumed in input);
+        consumed.parse::<ExprPath>()?;
+        return Ok(Parameter::Struct(StructParameter { path }));
+    }
+
+    input.parse::<Parameter>()
+}
+
 #[cfg(test)]
 mod tests {
     use syn::parse_str;
@@ -162,6 +202,14 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_response_alias_to_responses_path() {
+        let input = "response(MyResponses)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.responses.len(), 1);
+        assert!(matches!(attr.responses[0], Response::ToResponses(_)));
+    }
+
+    #[test]
     fn test_parse_status_codes() {
         let input = "status_codes(200, 404)";
         let attr = parse_str::<EndpointAttr>(input).unwrap();
@@ -188,6 +236,14 @@ mod tests {
         let input = r#"parameter("id" = String, Path, description = "Pet id")"#;
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert_eq!(attr.parameters.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_parameter_alias_to_parameters_path() {
+        let input = "parameter(MyParameters)";
+        let attr = parse_str::<EndpointAttr>(input).unwrap();
+        assert_eq!(attr.parameters.len(), 1);
+        assert!(matches!(attr.parameters[0], Parameter::Struct(_)));
     }
 
     #[test]
