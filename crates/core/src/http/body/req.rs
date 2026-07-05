@@ -16,18 +16,16 @@ pub struct BodyTimeout {
     duration: std::time::Duration,
     sleep: Pin<Box<tokio::time::Sleep>>,
     armed: bool,
-    conn: crate::ConnCtrl,
 }
 
 impl BodyTimeout {
-    fn new(duration: std::time::Duration, conn: crate::ConnCtrl) -> Self {
+    fn new(duration: std::time::Duration) -> Self {
         Self {
             duration,
             sleep: Box::pin(tokio::time::sleep(std::time::Duration::from_secs(
                 86400 * 365,
             ))),
             armed: false,
-            conn,
         }
     }
 
@@ -41,7 +39,12 @@ impl BodyTimeout {
                         .reset(tokio::time::Instant::now() + self.duration);
                 }
                 if self.sleep.as_mut().poll(cx).is_ready() {
-                    self.conn.abort();
+                    // Fail only this request body. On HTTP/2 and HTTP/3 the error ends the
+                    // offending stream (RST_STREAM) while sibling streams multiplexed over
+                    // the same connection keep running; on HTTP/1 the connection carries a
+                    // single request, so it is torn down as before. Deliberately does not
+                    // abort the whole transport connection, which would take down unrelated
+                    // in-flight streams.
                     Poll::Ready(Some(Err(IoError::new(
                         ErrorKind::TimedOut,
                         "request body timeout",
@@ -88,13 +91,13 @@ pub enum ReqBody {
 }
 impl ReqBody {
     #[doc(hidden)]
-    pub fn set_fuse_config(&mut self, value: Option<FuseConfig>, conn: crate::ConnCtrl) {
+    pub fn set_fuse_config(&mut self, value: Option<FuseConfig>) {
         match self {
             Self::None | Self::Once(_) => {}
             Self::Hyper { fuse_config, .. } | Self::Boxed { fuse_config, .. } => {
                 *fuse_config = value
                     .and_then(|config| config.request_body_timeout)
-                    .map(|duration| BodyTimeout::new(duration, conn));
+                    .map(BodyTimeout::new);
             }
         }
     }
@@ -401,5 +404,38 @@ mod tests {
         assert!(b.is_end_stream());
         let b = ReqBody::Once(Bytes::new());
         assert!(b.is_end_stream());
+    }
+
+    #[tokio::test]
+    async fn request_body_timeout_fails_only_the_body() {
+        use std::future::poll_fn;
+        use std::time::Duration;
+
+        struct PendingBody;
+        impl Body for PendingBody {
+            type Data = Bytes;
+            type Error = BoxedError;
+            fn poll_frame(
+                self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+            ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+                Poll::Pending
+            }
+        }
+
+        let mut body = ReqBody::Boxed {
+            inner: Box::pin(PendingBody),
+            fuse_config: None,
+        };
+        body.set_fuse_config(Some(FuseConfig {
+            request_body_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        }));
+
+        // The stalled body must surface a `TimedOut` error to its reader. That error
+        // ends only this request stream; no connection-wide abort is involved.
+        let frame = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await;
+        let error = frame.expect("body must yield a frame").unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
     }
 }

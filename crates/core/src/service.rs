@@ -444,9 +444,7 @@ where
             }
         }
         let mut request = Request::from_hyper(req, scheme);
-        request
-            .body
-            .set_fuse_config(self.fuse_config, self.conn_ctrl.clone());
+        request.body.set_fuse_config(self.fuse_config);
         let response = self.handle(request);
         let conn_ctrl = self.conn_ctrl.clone();
         Box::pin(async move {
