@@ -288,9 +288,22 @@ impl Router {
     }
 
     /// Sets current router's handler.
+    ///
+    /// Calling `goal` on a router that already has one **replaces** the previous
+    /// handler (a warning is logged, since this usually indicates route-building
+    /// code overwriting itself by accident). Note that the method helpers
+    /// ([`get`](Router::get), [`post`](Router::post), ...) do not set this
+    /// router's goal — each pushes a filtered child router with its own goal.
     #[inline]
     #[must_use]
     pub fn goal<H: Handler>(mut self, goal: H) -> Self {
+        if self.goal.is_some() {
+            tracing::warn!(
+                "`Router::goal` called on a router that already has a goal handler; \
+                 the previous handler is replaced. If you meant to serve multiple \
+                 methods or paths, push child routers instead."
+            );
+        }
         self.goal = Some(Arc::new(goal));
         self
     }
@@ -354,6 +367,14 @@ impl Router {
     /// Creates a new child router with [`MethodFilter`] to filter GET method and set this child
     /// router's handler.
     ///
+    /// Each method helper (`get`, `post`, ...) pushes a filtered **child** router;
+    /// it does not set the goal of `self`. Two consequences worth knowing:
+    ///
+    /// - `Router::with_path("x").get(a).post(b)` builds one path router with two
+    ///   method children — the usual pattern.
+    /// - `.get(a).get(b)` registers two **sibling** GET routes rather than
+    ///   replacing `a`; the first match wins, so `b` is unreachable.
+    ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     #[must_use]
@@ -363,6 +384,8 @@ impl Router {
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child
     /// router's handler.
+    ///
+    /// See [`get`](Router::get) for how method helpers compose as child routers.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
