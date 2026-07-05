@@ -22,12 +22,8 @@ fn endpoint() {}
 
 # Endpoint Attributes
 
-The endpoint macro can be written directly as `#[salvo_oapi::endpoint(...)]`, or through the
-unified entry point as `#[salvo_oapi::attr::salvo(endpoint(...))]`. The unified form is also
-available from the umbrella crate as `#[salvo::oapi::attr::salvo(endpoint(...))]`. The unified
-macro intentionally lives under `attr` so wildcard imports such as `use salvo_oapi::*` do not bring
-an active attribute macro named `salvo` into scope and interfere with derive helper attributes like
-`#[salvo(schema(...))]`.
+If the unqualified attribute name conflicts with another crate, use a fully qualified path such as
+`#[salvo_oapi::endpoint(...)]` or `#[salvo::oapi::endpoint(...)]`.
 
 The plural list attributes remain supported. For codebases that prefer one item per attribute,
 the following singular aliases are accepted as well: `tag(...)` for `tags(...)`, `parameter(...)`

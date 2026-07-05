@@ -60,11 +60,6 @@ pub use salvo_oapi_macros::ToSchema;
 pub use salvo_oapi_macros::endpoint;
 pub(crate) use salvo_oapi_macros::schema;
 
-/// Attribute macro entry points kept out of wildcard imports.
-pub mod attr {
-    pub use salvo_oapi_macros::salvo;
-}
-
 use crate::oapi::openapi::schema::OneOf;
 
 // https://github.com/bkchr/proc-macro-crate/issues/10

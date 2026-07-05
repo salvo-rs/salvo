@@ -46,12 +46,12 @@ fn test_endpoint_hello() {
 }
 
 #[test]
-fn test_salvo_endpoint_aliases() {
-    #[salvo::oapi::attr::salvo(endpoint(
+fn test_endpoint_singular_aliases() {
+    #[endpoint(
         tag("pets"),
         parameter("id" = String, Path, description = "Pet id"),
         response(status_code = 404, description = "Not found")
-    ))]
+    )]
     async fn show_pet() -> String {
         "pet".to_owned()
     }
@@ -70,7 +70,7 @@ fn test_salvo_endpoint_aliases() {
             "paths":{
                 "/pets/{id}":{
                     "get":{
-                        "operationId":"endpoint_tests.test_salvo_endpoint_aliases.show_pet",
+                        "operationId":"endpoint_tests.test_endpoint_singular_aliases.show_pet",
                         "tags":["pets"],
                         "parameters":[{
                             "name":"id",
@@ -93,19 +93,4 @@ fn test_salvo_endpoint_aliases() {
             }
         })
     );
-}
-
-#[test]
-fn test_oapi_glob_import_does_not_shadow_salvo_helper_attrs() {
-    mod glob_import {
-        use salvo::oapi::*;
-
-        #[derive(ToSchema)]
-        #[salvo(schema(rename_all = "camelCase"))]
-        pub(crate) struct Pet {
-            _pet_name: String,
-        }
-    }
-
-    let _ = std::any::TypeId::of::<glob_import::Pet>();
 }

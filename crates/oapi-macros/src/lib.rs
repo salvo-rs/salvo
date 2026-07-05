@@ -16,7 +16,7 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::token::Bracket;
-use syn::{Ident, Item, Token, bracketed, parenthesized, parse_macro_input};
+use syn::{Ident, Item, Token, bracketed, parse_macro_input};
 
 mod attribute;
 pub(crate) mod bound;
@@ -47,35 +47,6 @@ pub(crate) use self::response::Response;
 pub(crate) use self::server::Server;
 pub(crate) use self::shared::*;
 pub(crate) use self::type_tree::TypeTree;
-
-enum SalvoAttr<'p> {
-    Endpoint(EndpointAttr<'p>),
-}
-
-impl Parse for SalvoAttr<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        match &*ident.to_string() {
-            "endpoint" => {
-                let attr = if input.is_empty() {
-                    EndpointAttr::default()
-                } else {
-                    let content;
-                    parenthesized!(content in input);
-                    content.parse::<EndpointAttr>()?
-                };
-                if !input.is_empty() {
-                    return Err(input.error("unexpected tokens after `endpoint(...)`"));
-                }
-                Ok(Self::Endpoint(attr))
-            }
-            _ => Err(syn::Error::new(
-                ident.span(),
-                "unexpected identifier, expected `endpoint`",
-            )),
-        }
-    }
-}
 
 /// Turns a Salvo handler function into an OpenAPI-aware endpoint.
 ///
@@ -122,25 +93,6 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
-}
-
-/// Unified Salvo OpenAPI attribute entry point.
-///
-/// This currently accepts `#[salvo(endpoint(...))]` and forwards to the existing
-/// [`endpoint`] macro implementation. Use a qualified path such as
-/// `#[salvo_oapi_macros::salvo(endpoint(...))]` or
-/// `#[salvo_oapi::attr::salvo(endpoint(...))]` to avoid interfering with
-/// derive helper attributes such as `#[salvo(schema(...))]`.
-#[proc_macro_attribute]
-pub fn salvo(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let attr = parse_macro_input!(attr as SalvoAttr);
-    let item = parse_macro_input!(input as Item);
-    match attr {
-        SalvoAttr::Endpoint(attr) => match endpoint::generate(attr, item) {
-            Ok(stream) => stream.into(),
-            Err(e) => e.to_compile_error().into(),
-        },
     }
 }
 
