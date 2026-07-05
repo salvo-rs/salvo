@@ -198,7 +198,7 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
             ctrl.call_next(&mut request, &mut depot, &mut response)
                 .await;
             response
-                .extensions
+                .extensions_mut()
                 .insert(Arc::new(FlowCtrlOutContext::new(ctrl, request, depot)));
             Ok(response.strip_to_hyper())
         })
@@ -421,7 +421,7 @@ mod tests {
             .send(NotReadyService.compat())
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(response.status(), Some(StatusCode::INTERNAL_SERVER_ERROR));
         let ResBody::Error(error) = response.take_body() else {
             panic!("expected an error response body");
         };
@@ -435,7 +435,7 @@ mod tests {
             .send(FailingService.compat())
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(response.status(), Some(StatusCode::INTERNAL_SERVER_ERROR));
         let ResBody::Error(error) = response.take_body() else {
             panic!("expected an error response body");
         };

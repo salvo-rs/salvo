@@ -44,18 +44,18 @@ use crate::{BoxedError, Error, Scribe};
 #[non_exhaustive]
 pub struct Response {
     /// The HTTP status code.
-    pub status_code: Option<StatusCode>,
+    pub(crate) status_code: Option<StatusCode>,
     /// The HTTP headers.
-    pub headers: HeaderMap,
+    pub(crate) headers: HeaderMap,
     /// The HTTP version.
-    pub version: Version,
+    pub(crate) version: Version,
     /// The HTTP cookies.
     #[cfg(feature = "cookie")]
-    pub cookies: CookieJar,
+    pub(crate) cookies: CookieJar,
     /// The HTTP body.
-    pub body: ResBody,
+    pub(crate) body: ResBody,
     /// Used to store extra data derived from the underlying protocol.
-    pub extensions: Extensions,
+    pub(crate) extensions: Extensions,
 }
 impl Default for Response {
     #[inline]
@@ -199,6 +199,12 @@ impl Response {
         }
     }
 
+    /// Get body reference.
+    #[inline]
+    #[must_use]
+    pub fn body_ref(&self) -> &ResBody {
+        &self.body
+    }
     /// Get mutable body reference.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ResBody {
@@ -422,6 +428,18 @@ impl Response {
             .and_then(|v| v.parse().ok())
     }
 
+    /// Get status code.
+    #[inline]
+    #[must_use]
+    pub fn status(&self) -> Option<StatusCode> {
+        self.status_code
+    }
+    /// Get mutable status code reference.
+    #[inline]
+    pub fn status_mut(&mut self) -> &mut Option<StatusCode> {
+        &mut self.status_code
+    }
+
     /// Sets status code and returns `&mut Self`.
     ///
     /// # Example
@@ -437,6 +455,18 @@ impl Response {
     pub fn status_code(&mut self, code: StatusCode) -> &mut Self {
         self.status_code = Some(code);
         self
+    }
+
+    /// Get extensions reference.
+    #[inline]
+    #[must_use]
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+    /// Get mutable extensions reference.
+    #[inline]
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.extensions
     }
 
     /// Render content into this response.

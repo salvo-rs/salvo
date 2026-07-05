@@ -175,10 +175,10 @@ mod tests {
         let second = TestClient::get("http://127.0.0.1:5801")
             .send(router)
             .await;
-        assert_eq!(second.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(second.status(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         release.notify_one();
         let first = first.await.unwrap();
-        assert_eq!(first.status_code, Some(StatusCode::OK));
+        assert_eq!(first.status(), Some(StatusCode::OK));
     }
 }

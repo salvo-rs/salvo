@@ -611,7 +611,7 @@ fn cached_response(
     headers_before: &HeaderMap,
     cache_private: bool,
 ) -> Option<CachedEntry> {
-    if res.body.is_stream() || res.body.is_error() {
+    if res.body_ref().is_stream() || res.body_ref().is_error() {
         return None;
     }
     // Only cache successful responses. Use the *effective* status: a missing
@@ -620,7 +620,7 @@ fn cached_response(
     // redirect statuses (e.g. a transient `500`, an auth-dependent `401`/`403`,
     // or an empty unmatched `404`) would replay them to every client for the
     // whole TTL.
-    let effective_status = res.status_code.unwrap_or(if res.body.is_none() {
+    let effective_status = res.status().unwrap_or(if res.body_ref().is_none() {
         StatusCode::NOT_FOUND
     } else {
         StatusCode::OK
@@ -648,14 +648,14 @@ fn cached_response(
         return None;
     }
     let headers = handler_response_headers(headers_before, res.headers());
-    let body = match TryInto::<CachedBody>::try_into(&res.body) {
+    let body = match TryInto::<CachedBody>::try_into(res.body_ref()) {
         Ok(body) => body,
         Err(e) => {
             tracing::error!(error = ?e, "cache failed");
             return None;
         }
     };
-    Some(CachedEntry::new(res.status_code, headers, body))
+    Some(CachedEntry::new(res.status(), headers, body))
 }
 
 /// Headers the inner handler contributed, i.e. names whose values changed
@@ -877,14 +877,14 @@ mod tests {
         let mut res = TestClient::get("http://127.0.0.1:5801")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
 
         let content0 = res.take_string().await.unwrap();
 
         let mut res = TestClient::get("http://127.0.0.1:5801")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
 
         let content1 = res.take_string().await.unwrap();
         assert_eq!(content0, content1);
@@ -918,7 +918,7 @@ mod tests {
         let mut res = TestClient::get("http://127.0.0.1:5802")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(res.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
         let content0 = res.take_string().await.unwrap();
 
         // A non-success response must not be cached, so the backend runs again
@@ -945,7 +945,7 @@ mod tests {
         let mut res = TestClient::get("http://127.0.0.1:5803")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
         let body = res.take_string().await.unwrap();
         assert!(body.contains("Hello World"));
     }
@@ -956,7 +956,7 @@ mod tests {
         // (see `Response::into_hyper`), so its effective status is non-success
         // and it must not be cached.
         let res = Response::new();
-        assert!(res.status_code.is_none() && res.body.is_none());
+        assert!(res.status().is_none() && res.body_ref().is_none());
         assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
     }
 
@@ -965,7 +965,7 @@ mod tests {
         // No status code but a body present is sent as `200 OK`, so it is cached.
         let mut res = Response::new();
         res.render("ok");
-        assert!(res.status_code.is_none());
+        assert!(res.status().is_none());
         assert!(cached_response(&res, &HeaderMap::new(), false).is_some());
     }
 
@@ -1408,7 +1408,7 @@ mod tests {
                 .add_header(AUTHORIZATION, "Bearer token", true)
                 .send(router.clone())
                 .await;
-            assert_eq!(res.status_code, Some(StatusCode::OK));
+            assert_eq!(res.status(), Some(StatusCode::OK));
             let _ = res.take_string().await.unwrap();
         }
 

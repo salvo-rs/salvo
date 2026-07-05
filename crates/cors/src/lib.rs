@@ -520,7 +520,7 @@ impl Handler for CorsHandler {
             headers.extend(self.cors.allow_methods.to_header(origin, req, depot).await);
             headers.extend(self.cors.allow_headers.to_header(origin, req, depot).await);
             headers.extend(self.cors.max_age.to_header(origin, req, depot).await);
-            res.status_code = Some(StatusCode::NO_CONTENT);
+            res.status_code(StatusCode::NO_CONTENT);
         } else {
             // This header is applied only to non-preflight requests
             headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);

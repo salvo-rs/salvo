@@ -217,8 +217,8 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-        assert!(response.headers.contains_key("x-request-id"));
+        assert_eq!(response.status(), Some(StatusCode::OK));
+        assert!(response.headers().contains_key("x-request-id"));
     }
 
     #[tokio::test]
@@ -231,8 +231,8 @@ mod tests {
             .add_header("x-request-id", "existing-id", true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-        assert_ne!(response.headers.get("x-request-id").unwrap(), "existing-id");
+        assert_eq!(response.status(), Some(StatusCode::OK));
+        assert_ne!(response.headers().get("x-request-id").unwrap(), "existing-id");
     }
 
     #[tokio::test]
@@ -245,8 +245,8 @@ mod tests {
             .add_header("x-request-id", "existing-id", true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-        assert_eq!(response.headers.get("x-request-id").unwrap(), "existing-id");
+        assert_eq!(response.status(), Some(StatusCode::OK));
+        assert_eq!(response.headers().get("x-request-id").unwrap(), "existing-id");
     }
 
     #[tokio::test]
@@ -258,8 +258,8 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
-        assert_eq!(response.headers.get("x-request-id").unwrap(), "custom-id");
+        assert_eq!(response.status(), Some(StatusCode::OK));
+        assert_eq!(response.headers().get("x-request-id").unwrap(), "custom-id");
     }
 
     #[tokio::test]
@@ -271,9 +271,9 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         let request_id = response
-            .headers
+            .headers()
             .get("x-request-id")
             .unwrap()
             .to_str()
@@ -300,9 +300,9 @@ mod tests {
         let mut response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         let header_id = response
-            .headers
+            .headers()
             .get("x-request-id")
             .unwrap()
             .to_str()

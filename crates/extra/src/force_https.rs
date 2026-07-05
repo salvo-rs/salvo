@@ -260,7 +260,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_eq!(response.status(), Some(StatusCode::BAD_REQUEST));
         assert_ne!(
             response.take_string().await.unwrap_or_default(),
             "leaked plaintext"
@@ -276,7 +276,7 @@ mod tests {
             .add_header(HOST, "127.0.0.1:8698", true)
             .send(router)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(response.status(), Some(StatusCode::PERMANENT_REDIRECT));
         assert_eq!(
             response.headers().get(LOCATION),
             Some(&"https://127.0.0.1:1234/".parse().unwrap())
@@ -291,7 +291,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         assert_eq!(response.headers().get(LOCATION), None);
         assert_eq!(response.take_string().await.unwrap(), "Hello World");
     }
@@ -309,7 +309,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(response.status(), Some(StatusCode::PERMANENT_REDIRECT));
         assert_eq!(
             response.headers().get(LOCATION),
             Some(&"https://public.example/".parse().unwrap())
@@ -325,7 +325,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(response.status(), Some(StatusCode::PERMANENT_REDIRECT));
         assert_eq!(
             response.headers().get(LOCATION),
             Some(&"https://public.example.com/".parse().unwrap())

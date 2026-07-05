@@ -22,25 +22,26 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let store = &state.store;
     let opts = &state.options;
-    apply_common_headers(req, opts, &mut res.headers);
+    apply_common_headers(req, opts, res.headers_mut());
     if let Err(e) = check_tus_version(
         req.headers()
             .get(H_TUS_RESUMABLE)
             .and_then(|v| v.to_str().ok()),
     ) {
         if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
-            res.headers
+            res.headers_mut()
                 .insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
         }
-        res.status_code = Some(TusError::Protocol(e).status());
+        res.status_code(TusError::Protocol(e).status());
         return;
     }
 
     if req.headers().get(H_UPLOAD_CONCAT).is_some()
         && !store.has_extension(Extension::Concatenation)
     {
-        res.status_code =
-            Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
+        res.status_code(
+            TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status(),
+        );
         return;
     }
 
@@ -49,7 +50,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let upload_metadata = req.headers().get(H_UPLOAD_METADATA);
 
     if upload_defer_length.is_some() && !store.has_extension(Extension::CreationDeferLength) {
-        res.status_code = Some(
+        res.status_code(
             TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status(),
         );
         return;
@@ -58,13 +59,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     if let Some(value) = upload_defer_length
         && !matches!(value.to_str(), Ok("1"))
     {
-        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+        res.status_code(TusError::Protocol(ProtocolError::InvalidLength).status());
         return;
     }
 
     // Must provide either Upload-Length or Upload-Defer-Length, but not both or neither
     if upload_length.is_none() == upload_defer_length.is_none() {
-        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+        res.status_code(TusError::Protocol(ProtocolError::InvalidLength).status());
         return;
     }
 
@@ -75,13 +76,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     {
         Some(value) if value == CT_OFFSET_OCTET_STREAM => true,
         Some(_) => {
-            res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
+            res.status_code(TusError::Protocol(ProtocolError::InvalidContentType).status());
             return;
         }
         None => false,
     };
     if creation_with_upload && !store.has_extension(Extension::CreationWithUpload) {
-        res.status_code = Some(
+        res.status_code(
             TusError::Protocol(ProtocolError::UnsupportedCreationWithUploadExtension).status(),
         );
         return;
@@ -99,7 +100,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         Ok(Some(m)) => Some(m),
         Ok(None) => None,
         Err(e) => {
-            res.status_code = Some(TusError::Protocol(e).status());
+            res.status_code(TusError::Protocol(e).status());
             return;
         }
     };
@@ -107,12 +108,12 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let upload_id = match (opts.upload_id_naming_function)(req, metadata.clone()).await {
         Ok(id) => id,
         Err(err) => {
-            res.status_code = Some(err.status());
+            res.status_code(err.status());
             return;
         }
     };
     if !is_safe_upload_id(&upload_id) {
-        res.status_code = Some(TusError::FileIdError.status());
+        res.status_code(TusError::FileIdError.status());
         return;
     }
 
@@ -122,13 +123,14 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 match parse_u64(Some(v), H_UPLOAD_LENGTH) {
                     Ok(size) => Some(size),
                     Err(e) => {
-                        res.status_code = Some(TusError::Protocol(e).status());
+                        res.status_code(TusError::Protocol(e).status());
                         return;
                     }
                 }
             } else {
-                res.status_code =
-                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+                res.status_code(
+                    TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status(),
+                );
                 return;
             }
         }
@@ -143,7 +145,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         && max_file_size > 0
         && size > max_file_size
     {
-        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+        res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
         return;
     }
 
@@ -168,13 +170,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 }
             }
             Err(e) => {
-                res.status_code = Some(e.status());
+                res.status_code(e.status());
                 return;
             }
         }
     }
 
-    res.status_code = Some(StatusCode::CREATED);
+    res.status_code(StatusCode::CREATED);
 
     let is_final = {
         let _lock = match opts
@@ -183,13 +185,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         {
             Ok(lock) => lock,
             Err(e) => {
-                res.status_code = Some(e.status());
+                res.status_code(e.status());
                 return;
             }
         };
 
         if let Err(e) = store.create(upload.clone()).await {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         };
 
@@ -200,12 +202,12 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                         match parse_u64(Some(v), H_CONTENT_LENGTH) {
                             Ok(size) => Some(size),
                             Err(e) => {
-                                res.status_code = Some(TusError::Protocol(e).status());
+                                res.status_code(TusError::Protocol(e).status());
                                 return;
                             }
                         }
                     } else {
-                        res.status_code = Some(
+                        res.status_code(
                             TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH))
                                 .status(),
                         );
@@ -225,8 +227,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed)
                 && incoming > max_allowed
             {
-                res.status_code =
-                    Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+                res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
                 return;
             }
 
@@ -238,13 +239,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             {
                 Ok(written) => written,
                 Err(e) => {
-                    res.status_code = Some(e.status());
+                    res.status_code(e.status());
                     return;
                 }
             };
 
             upload.offset = Some(written);
-            res.headers
+            res.headers_mut()
                 .insert(H_UPLOAD_OFFSET, HeaderValue::from(written));
         }
 
@@ -253,7 +254,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     };
 
     let Ok(url) = opts.generate_upload_url(req, &upload_id) else {
-        res.status_code = Some(TusError::GenerateUploadURLError.status());
+        res.status_code(TusError::GenerateUploadURLError.status());
         return;
     };
 
@@ -276,7 +277,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             let expires = created_at.with_timezone(&chrono::Utc) + delta;
             let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
             if let Ok(v) = HeaderValue::from_str(&expires_value) {
-                res.headers.insert(H_UPLOAD_EXPIRES, v);
+                res.headers_mut().insert(H_UPLOAD_EXPIRES, v);
             }
         }
     }
@@ -285,27 +286,28 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         match on_upload_finish(req, upload.clone()).await {
             Ok(patch) => {
                 if let Some(status) = patch.status_code {
-                    res.status_code = Some(status);
+                    res.status_code(status);
                 }
                 if let Some(body) = patch.body
                     && res.write_body(body).is_err()
                 {
-                    res.status_code =
-                        Some(TusError::Internal("failed to write response body".into()).status());
+                    res.status_code(
+                        TusError::Internal("failed to write response body".into()).status(),
+                    );
                     return;
                 }
                 if let Some(headers) = patch.headers {
                     for (key, value) in headers {
                         if let Some(key) = key
-                            && !res.headers.contains_key(&key)
+                            && !res.headers().contains_key(&key)
                         {
-                            res.headers.insert(key, value);
+                            res.headers_mut().insert(key, value);
                         }
                     }
                 }
             }
             Err(e) => {
-                res.status_code = Some(e.status());
+                res.status_code(e.status());
                 return;
             }
         }
@@ -315,13 +317,13 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // expires. If expiration is known at creation time, Upload-Expires header MUST be included
     // in the response
 
-    let should_set_location = matches!(res.status_code, Some(StatusCode::CREATED))
-        || res.status_code.is_some_and(|s| s.is_redirection());
+    let should_set_location = matches!(res.status(), Some(StatusCode::CREATED))
+        || res.status().is_some_and(|s| s.is_redirection());
     if should_set_location {
         if let Ok(v) = HeaderValue::from_str(&url) {
-            res.headers.insert("Location", v);
+            res.headers_mut().insert("Location", v);
         } else {
-            res.status_code = Some(
+            res.status_code(
                 TusError::Internal("Generated upload URL is not a valid header value".into())
                     .status(),
             );
@@ -329,8 +331,8 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    if res.body.is_none() {
-        let status = res.status_code.unwrap_or(StatusCode::OK);
+    if res.body_ref().is_none() {
+        let status = res.status().unwrap_or(StatusCode::OK);
         if !status.is_client_error()
             && !status.is_server_error()
             && !status.is_redirection()

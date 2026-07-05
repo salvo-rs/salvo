@@ -65,7 +65,7 @@ impl Handler for Metrics {
         ctrl.call_next(req, depot, res).await;
         let elapsed = s.elapsed();
 
-        let status = res.status_code.unwrap_or_else(|| {
+        let status = res.status().unwrap_or_else(|| {
             tracing::info!("[otel::Metrics] Treat status_code=none as 200(OK)");
             StatusCode::OK
         });
@@ -75,7 +75,7 @@ impl Handler for Metrics {
         ));
         if status.is_client_error() || status.is_server_error() {
             self.error_count.add(1, &labels);
-            let msg = if let ResBody::Error(body) = &res.body {
+            let msg = if let ResBody::Error(body) = res.body_ref() {
                 body.to_string()
             } else {
                 format!("ErrorCode: {}", status.as_u16())

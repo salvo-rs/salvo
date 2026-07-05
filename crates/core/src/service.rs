@@ -21,13 +21,13 @@ use crate::{Depot, async_trait};
 #[non_exhaustive]
 pub struct Service {
     /// The router of this service.
-    pub router: Arc<Router>,
+    pub(crate) router: Arc<Router>,
     /// The catcher of this service.
-    pub catcher: Option<Arc<Catcher>>,
+    pub(crate) catcher: Option<Arc<Catcher>>,
     /// These hoops will always be called when request received.
-    pub hoops: Vec<Arc<dyn Handler>>,
+    pub(crate) hoops: Vec<Arc<dyn Handler>>,
     /// The allowed media types of this service.
-    pub allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 
 impl Debug for Service {
@@ -63,6 +63,40 @@ impl Service {
         self.router.clone()
     }
 
+    /// Get router reference in this `Service`.
+    #[inline]
+    #[must_use]
+    pub fn router_ref(&self) -> &Arc<Router> {
+        &self.router
+    }
+
+    /// Get catcher reference in this `Service`.
+    #[inline]
+    #[must_use]
+    pub fn catcher_ref(&self) -> Option<&Arc<Catcher>> {
+        self.catcher.as_ref()
+    }
+
+    /// Get service-level middleware references.
+    #[inline]
+    #[must_use]
+    pub fn hoops(&self) -> &[Arc<dyn Handler>] {
+        &self.hoops
+    }
+
+    /// Get mutable service-level middleware references.
+    #[inline]
+    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.hoops
+    }
+
+    /// Get allowed media types.
+    #[inline]
+    #[must_use]
+    pub fn allowed_media_types_ref(&self) -> &[Mime] {
+        &self.allowed_media_types
+    }
+
     /// When the response code is 400-599 and the body is empty, capture and set the error page
     /// content. If no catcher is set, the default error page will be used.
     ///
@@ -80,7 +114,7 @@ impl Service {
     ///     res: &mut Response,
     ///     ctrl: &mut FlowCtrl,
     /// ) {
-    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code {
+    ///     if let Some(StatusCode::NOT_FOUND) = res.status() {
     ///         res.render("Custom 404 Error Page");
     ///         ctrl.skip_rest();
     ///     }

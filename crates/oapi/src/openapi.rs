@@ -1618,7 +1618,7 @@ mod tests {
         let mut ctrl = FlowCtrl::default();
         doc.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
 
-        let bytes = match res.body.take() {
+        let bytes = match res.take_body() {
             ResBody::Once(bytes) => bytes,
             _ => Bytes::new(),
         };
@@ -1650,7 +1650,7 @@ mod tests {
         let mut ctrl = FlowCtrl::default();
         doc.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
 
-        let bytes = match res.body.take() {
+        let bytes = match res.take_body() {
             ResBody::Once(bytes) => bytes,
             _ => Bytes::new(),
         };

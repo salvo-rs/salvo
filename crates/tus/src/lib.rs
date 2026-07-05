@@ -794,7 +794,7 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(response.status_code.unwrap(), StatusCode::BAD_REQUEST);
+        assert_eq!(response.status().unwrap(), StatusCode::BAD_REQUEST);
     }
 
     #[test]

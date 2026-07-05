@@ -14,15 +14,15 @@ use crate::{Depot, Request};
 #[non_exhaustive]
 pub struct Router {
     #[doc(hidden)]
-    pub id: usize,
+    pub(crate) id: usize,
     /// The children of current router.
-    pub routers: Vec<Self>,
+    pub(crate) routers: Vec<Self>,
     /// The filters of current router.
-    pub filters: Vec<Box<dyn Filter>>,
+    pub(crate) filters: Vec<Box<dyn Filter>>,
     /// The middlewares of current router.
-    pub hoops: Vec<Arc<dyn Handler>>,
+    pub(crate) hoops: Vec<Arc<dyn Handler>>,
     /// The final handler to handle request of current router.
-    pub goal: Option<Arc<dyn Handler>>,
+    pub(crate) goal: Option<Arc<dyn Handler>>,
 }
 
 impl Default for Router {
@@ -44,6 +44,13 @@ impl Router {
             hoops: Vec::new(),
             goal: None,
         }
+    }
+
+    /// Get the stable id of this router.
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     /// Get current router's children reference.
@@ -80,6 +87,13 @@ impl Router {
     #[inline]
     pub fn filters_mut(&mut self) -> &mut Vec<Box<dyn Filter>> {
         &mut self.filters
+    }
+
+    /// Get current router's final handler reference.
+    #[inline]
+    #[must_use]
+    pub fn goal_ref(&self) -> Option<&Arc<dyn Handler>> {
+        self.goal.as_ref()
     }
 
     /// Detect current router is matched for current request.

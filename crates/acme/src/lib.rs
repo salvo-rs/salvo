@@ -224,7 +224,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         assert_eq!(response.take_string().await.unwrap(), "key-authorization");
     }
 
@@ -239,6 +239,6 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
+        assert_eq!(response.status(), Some(StatusCode::NOT_FOUND));
     }
 }

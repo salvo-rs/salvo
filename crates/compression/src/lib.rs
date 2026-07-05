@@ -458,7 +458,7 @@ impl Handler for Compression {
             return;
         }
 
-        if let Some(StatusCode::SWITCHING_PROTOCOLS | StatusCode::NO_CONTENT) = res.status_code {
+        if let Some(StatusCode::SWITCHING_PROTOCOLS | StatusCode::NO_CONTENT) = res.status() {
             return;
         }
 

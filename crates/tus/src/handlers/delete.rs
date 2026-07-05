@@ -14,7 +14,7 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
-    let headers = apply_common_headers(req, opts, &mut res.headers);
+    let headers = apply_common_headers(req, opts, res.headers_mut());
 
     if let Err(e) = check_tus_version(
         req.headers()
@@ -29,8 +29,9 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     if !store.has_extension(Extension::Termination) {
-        res.status_code =
-            Some(TusError::Protocol(ProtocolError::UnsupportedTerminationExtension).status());
+        res.status_code(
+            TusError::Protocol(ProtocolError::UnsupportedTerminationExtension).status(),
+        );
         return;
     }
 
@@ -52,7 +53,7 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     {
         Ok(lock) => lock,
         Err(e) => {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
     };
@@ -62,14 +63,14 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         && let (Some(size), Some(offset)) = (info.size, info.offset)
         && size == offset
     {
-        res.status_code = Some(StatusCode::FORBIDDEN);
+        res.status_code(StatusCode::FORBIDDEN);
         return;
     }
 
     match store.remove(&id).await {
-        Ok(_) => res.status_code = Some(StatusCode::NO_CONTENT),
-        Err(e) => res.status_code = Some(e.status()),
-    }
+        Ok(_) => res.status_code(StatusCode::NO_CONTENT),
+        Err(e) => res.status_code(e.status()),
+    };
 }
 
 pub(crate) fn delete_handler() -> Router {

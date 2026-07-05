@@ -85,7 +85,7 @@ impl Handler for ETag {
             .and_then(|etag| etag.parse::<EntityTag>().ok());
 
         let etag = res_etag.or_else(|| {
-                let etag = match &res.body {
+                let etag = match res.body_ref() {
                     ResBody::Once(bytes) => Some(EntityTag::from_data(bytes)),
                     ResBody::Chunks(bytes) => {
                         let tags = bytes
@@ -200,7 +200,7 @@ impl Handler for CachingHeaders {
         ctrl: &mut FlowCtrl,
     ) {
         self.0.handle(req, depot, res, ctrl).await;
-        if res.status_code != Some(StatusCode::NOT_MODIFIED) {
+        if res.status() != Some(StatusCode::NOT_MODIFIED) {
             self.1.handle(req, depot, res, ctrl).await;
         }
     }
@@ -227,15 +227,15 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
 
         let etag = response.headers().get(ETAG).unwrap();
         let response = TestClient::get("http://127.0.0.1:8698/")
             .add_header(IF_NONE_MATCH, etag, true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
-        assert!(response.body.is_none());
+        assert_eq!(response.status(), Some(StatusCode::NOT_MODIFIED));
+        assert!(response.body_ref().is_none());
     }
 
     #[tokio::test]
@@ -253,7 +253,7 @@ mod tests {
 
         // The real body-derived ETag does not match the forged value, so the
         // response is served normally instead of a spurious 304.
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         let etag = response.headers().get(ETAG).unwrap();
         assert_ne!(etag, "\"forged\"");
     }

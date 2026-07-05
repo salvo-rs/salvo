@@ -163,22 +163,22 @@ where
 #[non_exhaustive]
 pub struct StaticDir {
     /// Static root directories to search for files
-    pub roots: Vec<PathBuf>,
+    pub(crate) roots: Vec<PathBuf>,
     /// Chunk size for file reading (in bytes)
-    pub chunk_size: Option<u64>,
+    pub(crate) chunk_size: Option<u64>,
     /// Small-file preload threshold for served files (in bytes)
-    pub preload_threshold: Option<u64>,
+    pub(crate) preload_threshold: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
-    pub include_dot_files: bool,
+    pub(crate) include_dot_files: bool,
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     /// Whether to automatically list directories when default file isn't found
-    pub auto_list: bool,
+    pub(crate) auto_list: bool,
     /// Map of compression algorithms to file extensions for compressed variants
-    pub compressed_variations: HashMap<CompressionAlgo, Vec<String>>,
+    pub(crate) compressed_variations: HashMap<CompressionAlgo, Vec<String>>,
     /// Default file names to look for in directories (e.g., "index.html")
-    pub defaults: Vec<String>,
+    pub(crate) defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
-    pub fallback: Option<String>,
+    pub(crate) fallback: Option<String>,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -215,6 +215,66 @@ impl StaticDir {
             defaults: vec![],
             fallback: None,
         }
+    }
+
+    /// Gets the configured static root directories.
+    ///
+    /// The returned roots are read-only. Build a new `StaticDir` instead of
+    /// mutating roots after construction; future versions may cache derived root
+    /// metadata from this configuration.
+    #[inline]
+    #[must_use]
+    pub fn roots(&self) -> &[PathBuf] {
+        &self.roots
+    }
+
+    /// Gets the configured file chunk size.
+    #[inline]
+    #[must_use]
+    pub fn configured_chunk_size(&self) -> Option<u64> {
+        self.chunk_size
+    }
+
+    /// Gets the configured small-file preload threshold.
+    #[inline]
+    #[must_use]
+    pub fn configured_preload_threshold(&self) -> Option<u64> {
+        self.preload_threshold
+    }
+
+    /// Returns whether dot files are included.
+    #[inline]
+    #[must_use]
+    pub fn includes_dot_files(&self) -> bool {
+        self.include_dot_files
+    }
+
+    /// Returns whether automatic directory listings are enabled.
+    #[inline]
+    #[must_use]
+    pub fn auto_list_enabled(&self) -> bool {
+        self.auto_list
+    }
+
+    /// Gets compressed variant extension configuration.
+    #[inline]
+    #[must_use]
+    pub fn compressed_variations(&self) -> &HashMap<CompressionAlgo, Vec<String>> {
+        &self.compressed_variations
+    }
+
+    /// Gets default file names.
+    #[inline]
+    #[must_use]
+    pub fn default_files(&self) -> &[String] {
+        &self.defaults
+    }
+
+    /// Gets the fallback file path.
+    #[inline]
+    #[must_use]
+    pub fn fallback_file(&self) -> Option<&str> {
+        self.fallback.as_deref()
     }
 
     /// Sets include_dot_files.

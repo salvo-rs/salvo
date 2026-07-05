@@ -613,7 +613,7 @@ mod tests {
             .raw_form("username=salvo")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(response.status(), Some(StatusCode::SEE_OTHER));
         let cookie = response.headers().get(SET_COOKIE).unwrap();
 
         let mut response = TestClient::get("http://127.0.0.1:8698/")
@@ -625,7 +625,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/logout")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(response.status(), Some(StatusCode::SEE_OTHER));
 
         let mut response = TestClient::get("http://127.0.0.1:8698/")
             .send(&service)
@@ -932,7 +932,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/destroy")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
     }
 
     #[tokio::test]
@@ -1063,7 +1063,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/nochange")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.status(), Some(StatusCode::OK));
         // When save_unchanged is false and no data is modified, no cookie should be set
         // for a new session (unless there's existing session data)
     }

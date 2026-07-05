@@ -86,12 +86,12 @@ impl Handler for Logger {
             ctrl.call_next(req, depot, res).await;
             let duration = now.elapsed();
 
-            let status = res.status_code.unwrap_or(match &res.body {
+            let status = res.status().unwrap_or(match res.body_ref() {
                 ResBody::None => StatusCode::NOT_FOUND,
                 ResBody::Error(e) => e.code,
                 _ => StatusCode::OK,
             });
-            if let ResBody::Error(error) = &res.body {
+            if let ResBody::Error(error) = res.body_ref() {
                 tracing::info!(
                     %status,
                     ?duration,

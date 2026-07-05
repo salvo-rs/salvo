@@ -135,7 +135,7 @@ impl<T> AcmeListenerBuilder<T> {
             let handler = Http01Handler {
                 keys: keys_for_http01.clone(),
             };
-            router.routers.insert(
+            router.routers_mut().insert(
                 0,
                 Router::with_path(format!("{WELL_KNOWN_PATH}/{{token}}")).goal(handler),
             );
