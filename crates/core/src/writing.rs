@@ -33,6 +33,24 @@ pub trait Writer {
 /// Depot and Request.
 ///
 /// There are several built-in implementations of the `Scribe` trait.
+///
+/// # Body semantics: replace or append?
+///
+/// Each `Scribe` decides for itself how to interact with body bytes that were
+/// already written to the response — the framework does not impose one rule:
+///
+/// - **Whole-document scribes replace.** [`Json`] emits one complete JSON
+///   document; two concatenated documents would be invalid, so rendering `Json`
+///   replaces any previously buffered body bytes.
+/// - **Incremental scribes append.** A scribe that adds a footer to a page, or
+///   emits one NDJSON record per call, should append via
+///   [`Response::write_body`] — concatenation *is* its output format. The
+///   text-like scribes (`&str`, `String`, [`Text`]) append for this reason.
+///
+/// When implementing your own `Scribe`, pick the semantics that make the final
+/// body valid in your format: use [`Response::write_body`] to append, or replace
+/// the buffered body (see how [`Json`] does it) when your output is a complete
+/// document.
 pub trait Scribe {
     /// Render data to [`Response`].
     fn render(self, res: &mut Response);
@@ -44,10 +62,7 @@ where
 {
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        // Route through `Response::render` (not `Scribe::render` directly) so a
-        // handler that already wrote body bytes and then *returns* a `Scribe`
-        // still triggers the double-render diagnostic in debug builds.
-        res.render(self);
+        self.render(res)
     }
 }
 
@@ -59,7 +74,7 @@ where
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self {
-            Some(v) => res.render(v),
+            Some(v) => v.render(res),
             None => {
                 res.status_code(StatusCode::NOT_FOUND);
             }
