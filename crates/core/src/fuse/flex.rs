@@ -559,6 +559,14 @@ mod tests {
         }
     }
 
+    fn quic_test_info() -> FuseInfo {
+        FuseInfo {
+            trans_proto: TransProto::Quic,
+            remote_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 4000)).into(),
+            local_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 8080)).into(),
+        }
+    }
+
     async fn wait_for_timeout_state_owners(state: &TimeoutWatchStateRef, expected_count: usize) {
         tokio::time::timeout(Duration::from_millis(100), async {
             while Arc::strong_count(state) != expected_count {
@@ -614,6 +622,29 @@ mod tests {
             _ = fusewire.fused() => {}
             _ = tokio::time::sleep(Duration::from_millis(60)) => {
                 panic!("re-armed frame timeout should still be able to fuse the connection")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn quic_events_run_custom_guards_before_timer_bypass() {
+        let fusewire = FlexFactory::new()
+            .tcp_idle_timeout(Duration::from_secs(60))
+            .add_guard(|info: &FuseInfo, _event: &FuseEvent| {
+                if info.trans_proto.is_quic() {
+                    GuardAction::Reject
+                } else {
+                    GuardAction::ToNext
+                }
+            })
+            .build(quic_test_info());
+
+        fusewire.event(FuseEvent::Alive);
+
+        tokio::select! {
+            _ = fusewire.fused() => {}
+            _ = tokio::time::sleep(Duration::from_millis(20)) => {
+                panic!("custom guards must run before QUIC skips TCP timer handling")
             }
         }
     }
