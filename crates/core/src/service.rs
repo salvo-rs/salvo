@@ -264,9 +264,10 @@ impl HyperHandler {
             res.headers_mut().insert(ALT_SVC, alt_svc_h3.clone());
         }
         let mut depot = Depot::new();
-        let mut path_state = PathState::new(req.uri().path());
 
         async move {
+            let path = req.uri().path().to_owned();
+            let mut path_state = PathState::from_owned_path(path);
             if let Some(dm) = state.router.detect(&mut req, &mut path_state).await {
                 path_state.params.seal();
                 req.params = path_state.params;

@@ -444,10 +444,12 @@ impl Handler for StaticDir {
         _ctrl: &mut FlowCtrl,
     ) {
         let req_path = req.uri().path();
+        let decoded_path;
         let rel_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
-            &*decode_url_path(req_path)
+            decoded_path = decode_url_path(req_path);
+            decoded_path.as_ref()
         };
         let rel_path = normalize_url_path(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
@@ -638,7 +640,7 @@ impl Handler for StaticDir {
                 .map(|(name, metadata)| DirInfo::new(name, &metadata))
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
-            let root = CurrentInfo::new(decode_url_path(req_path), files, dirs);
+            let root = CurrentInfo::new(decode_url_path(req_path).into_owned(), files, dirs);
             res.status_code(StatusCode::OK);
             match format.subtype().as_ref() {
                 "plain" => res.render(Text::Plain(list_text(&root))),
