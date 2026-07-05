@@ -19,7 +19,7 @@ impl MethodFilter {
 #[async_trait]
 impl Filter for MethodFilter {
     #[inline]
-    async fn filter(&self, req: &mut Request, _state: &mut PathState<'_>) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.method() == self.0
     }
     #[inline]
@@ -70,7 +70,7 @@ impl SchemeFilter {
 #[async_trait]
 impl Filter for SchemeFilter {
     #[inline]
-    async fn filter(&self, req: &mut Request, _state: &mut PathState<'_>) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.uri()
             .scheme()
             .map(|s| s == &self.scheme)
@@ -143,7 +143,7 @@ fn split_host_port(authority: &str) -> (&str, Option<&str>) {
 #[async_trait]
 impl Filter for HostFilter {
     #[inline]
-    async fn filter(&self, req: &mut Request, _state: &mut PathState<'_>) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // On HTTP/1 without the `fix-http1-request-uri` feature, the URI has no authority,
         // so fall back to the `Host` header. See https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
@@ -206,7 +206,7 @@ impl PortFilter {
 #[async_trait]
 impl Filter for PortFilter {
     #[inline]
-    async fn filter(&self, req: &mut Request, _state: &mut PathState<'_>) -> bool {
+    async fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         // On HTTP/1 without the `fix-http1-request-uri` feature, the URI has no authority,
         // so fall back to the `Host` header. See https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]

@@ -86,7 +86,7 @@ impl Router {
     pub async fn detect(
         &self,
         req: &mut Request,
-        path_state: &mut PathState<'_>,
+        path_state: &mut PathState,
     ) -> Option<DetectMatched> {
         Box::pin(async move {
             for filter in &self.filters {
@@ -273,7 +273,7 @@ impl Router {
     #[must_use]
     pub fn with_filter_fn<T>(func: T) -> Self
     where
-        T: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
         Self::with_filter(FnFilter(func))
     }
@@ -282,7 +282,7 @@ impl Router {
     #[must_use]
     pub fn filter_fn<T>(self, func: T) -> Self
     where
-        T: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
         self.filter(FnFilter(func))
     }

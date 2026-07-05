@@ -99,7 +99,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
-        F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
         AndThen {
             filter: self,
@@ -112,7 +112,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
         Self: Sized,
-        F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
         OrElse {
             filter: self,
@@ -121,7 +121,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Filter `Request` and returns false or true.
-    async fn filter(&self, req: &mut Request, path: &mut PathState<'_>) -> bool;
+    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
 /// `FnFilter` accepts a function as its parameter, using this function to filter requests.
@@ -132,10 +132,10 @@ pub struct FnFilter<F>(pub F);
 #[async_trait]
 impl<F> Filter for FnFilter<F>
 where
-    F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
+    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, path: &mut PathState<'_>) -> bool {
+    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
         self.0(req, path)
     }
 }
@@ -246,10 +246,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_opts() {
-        fn has_one(_req: &mut Request, path: &mut PathState<'_>) -> bool {
+        fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
             path.parts().any(|part| part == "one")
         }
-        fn has_two(_req: &mut Request, path: &mut PathState<'_>) -> bool {
+        fn has_two(_req: &mut Request, path: &mut PathState) -> bool {
             path.parts().any(|part| part == "two")
         }
 

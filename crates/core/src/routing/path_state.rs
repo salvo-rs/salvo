@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::marker::PhantomData;
 use std::ops::Range;
 
 use super::{PathParams, decode_url_path};
@@ -26,7 +25,7 @@ impl PathPart {
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PathState<'a> {
+pub struct PathState {
     path: String,
     pub(crate) parts: Vec<PathPart>,
     /// (row, col), row is the index of parts, col is the index of char in the part.
@@ -37,9 +36,8 @@ pub struct PathState<'a> {
     pub(crate) end_slash: bool, // For rest match, we want include the last slash.
     pub(crate) once_ended: bool, /* Once it has ended, used to determine whether the error code
                                  * returned is 404 or 405. */
-    marker: PhantomData<&'a ()>,
 }
-impl<'a> PathState<'a> {
+impl PathState {
     /// Creates a new `PathState`.
     #[inline]
     #[must_use]
@@ -62,7 +60,6 @@ impl<'a> PathState<'a> {
             once_ended: false,
             #[cfg(feature = "matched-path")]
             matched_parts: vec![],
-            marker: PhantomData,
         }
     }
 
