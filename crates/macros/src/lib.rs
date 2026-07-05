@@ -79,7 +79,7 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// `Extractible` describes where each field should be read from and then uses
 /// Salvo's request deserialization support to build the struct in a handler.
-/// The derive is intended for named or tuple structs that also implement
+/// The derive is intended for named-field structs that also implement
 /// `serde::Deserialize`.
 ///
 /// Container attributes:
