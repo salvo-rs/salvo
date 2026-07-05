@@ -169,7 +169,7 @@ impl Router {
         }
     }
 
-    async fn filters_match(&self, req: &mut Request, path_state: &mut PathState) -> bool {
+    async fn filters_match(&self, req: &mut Request, path_state: &mut PathState<'_>) -> bool {
         for filter in &self.filters {
             if !filter.filter(req, path_state).await {
                 return false;
