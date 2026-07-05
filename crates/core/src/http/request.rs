@@ -559,8 +559,7 @@ impl Request {
     /// Use with caution.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ReqBody {
-        self.payload = tokio::sync::OnceCell::new();
-        self.form_data = tokio::sync::OnceCell::new();
+        self.clear_body_cache();
         &mut self.body
     }
 
@@ -574,9 +573,14 @@ impl Request {
     #[inline]
     pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
         let old_body = std::mem::replace(&mut self.body, body);
+        self.clear_body_cache();
+        old_body
+    }
+
+    #[inline]
+    fn clear_body_cache(&mut self) {
         self.payload = tokio::sync::OnceCell::new();
         self.form_data = tokio::sync::OnceCell::new();
-        old_body
     }
 
     /// Takes the body from the request, leaving [`ReqBody::None`] in its place.
@@ -597,8 +601,7 @@ impl Request {
     #[inline]
     pub fn take_body(&mut self) -> ReqBody {
         let old_body = std::mem::replace(&mut self.body, ReqBody::None);
-        self.payload = tokio::sync::OnceCell::new();
-        self.form_data = tokio::sync::OnceCell::new();
+        self.clear_body_cache();
         old_body
     }
 
