@@ -44,3 +44,53 @@ fn test_endpoint_hello() {
         })
     );
 }
+
+#[test]
+fn test_endpoint_singular_aliases() {
+    #[endpoint(
+        tag("pets"),
+        parameter("id" = String, Path, description = "Pet id"),
+        response(status_code = 404, description = "Not found")
+    )]
+    async fn show_pet() -> String {
+        "pet".to_owned()
+    }
+
+    let router = Router::new().push(Router::with_path("pets/{id}").get(show_pet));
+
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+    assert_json_eq!(
+        doc,
+        json!({
+            "openapi":"3.1.0",
+            "info":{
+                "title":"test api",
+                "version":"0.0.1"
+            },
+            "paths":{
+                "/pets/{id}":{
+                    "get":{
+                        "operationId":"endpoint_tests.test_endpoint_singular_aliases.show_pet",
+                        "tags":["pets"],
+                        "parameters":[{
+                            "name":"id",
+                            "in":"path",
+                            "description":"Pet id",
+                            "required":true,
+                            "schema":{"type":"string"}
+                        }],
+                        "responses":{
+                            "200":{
+                                "description":"Ok",
+                                "content":{"text/plain":{"schema":{"type":"string"}}}
+                            },
+                            "404":{
+                                "description":"Not found"
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    );
+}

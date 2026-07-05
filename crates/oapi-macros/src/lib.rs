@@ -95,6 +95,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
+
 /// Derives `salvo_oapi::ToSchema` for a Rust type.
 ///
 /// The generated implementation produces an OpenAPI schema for structs and
