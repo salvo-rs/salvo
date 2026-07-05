@@ -54,8 +54,9 @@ pub(crate) use self::type_tree::TypeTree;
 /// OpenAPI operation metadata. The generated endpoint can be registered on a
 /// router and later collected with `OpenApi::merge_router`.
 ///
-/// Function doc comments are used for generated operation text: the first line
-/// becomes the summary and the remaining lines become the description.
+/// Function doc comments are used for generated operation text: the first
+/// paragraph becomes the summary and the remaining paragraphs become the
+/// description.
 ///
 /// Common attributes:
 ///
@@ -206,9 +207,8 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
 /// response metadata options as `ToResponse`, including `description`,
 /// `content_type`, `headers`, `example`, and `examples`.
 ///
-/// Fields can reference or inline reusable response types with
-/// `#[salvo(to_response)]` and `#[salvo(ref_response)]`, or inline schemas with
-/// `#[salvo(schema(...))]`.
+/// Unnamed response fields are represented as schemas by default; use
+/// `#[salvo(response(inline))]` on a field to inline that schema.
 ///
 /// Full attribute reference:
 /// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToResponses.html>
