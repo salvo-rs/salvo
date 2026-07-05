@@ -257,7 +257,7 @@ impl HyperHandler {
         #[cfg(not(feature = "cookie"))]
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
-        let mut res = Response::with_cookies(req.cookies.clone());
+        let mut res = Response::with_request_cookies(&req.cookies);
         if let Some(alt_svc_h3) = &self.alt_svc_h3
             && !res.headers().contains_key(ALT_SVC)
         {

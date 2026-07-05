@@ -138,6 +138,17 @@ impl Response {
         }
     }
 
+    #[cfg(feature = "cookie")]
+    #[inline]
+    #[must_use]
+    pub(crate) fn with_request_cookies(cookies: &CookieJar) -> Self {
+        if cookies.iter().next().is_some() {
+            Self::with_cookies(cookies.clone())
+        } else {
+            Self::new()
+        }
+    }
+
     /// Get headers reference.
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
@@ -746,6 +757,32 @@ mod test {
         );
         assert!(cookie_headers.iter().any(|v| v.starts_with("sid=abc")));
         assert!(cookie_headers.iter().any(|v| v.starts_with("theme=dark")));
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_with_request_cookies_preserves_non_empty_request_jar() {
+        let mut cookies = CookieJar::new();
+        cookies.add_original(Cookie::new("sid", "abc"));
+
+        let res = Response::with_request_cookies(&cookies);
+
+        assert_eq!(
+            res.cookies.get("sid").map(|cookie| cookie.value()),
+            Some("abc")
+        );
+        assert_eq!(res.cookies.delta().count(), 0);
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn test_with_request_cookies_uses_empty_response_for_empty_request_jar() {
+        let cookies = CookieJar::new();
+
+        let res = Response::with_request_cookies(&cookies);
+
+        assert_eq!(res.cookies.iter().count(), 0);
+        assert_eq!(res.cookies.delta().count(), 0);
     }
 
     #[cfg(feature = "cookie")]
