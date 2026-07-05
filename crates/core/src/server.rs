@@ -395,7 +395,7 @@ impl<A: Acceptor + Send> Server<A> {
                 tokio::select! {
                     accepted = acceptor.accept(fuse_policy.clone()) => {
                         match accepted {
-                            Ok(Accepted { coupler, stream, fuse_config, local_addr, remote_addr, http_scheme}) => {
+                            Ok(Accepted { coupler, stream, fuse_config, conn_ctrl, local_addr, remote_addr, http_scheme}) => {
                                 alive_connections.fetch_add(1, Ordering::Release);
 
                                 let service = service.clone();
@@ -406,7 +406,7 @@ impl<A: Acceptor + Send> Server<A> {
                                     remote_addr,
                                     http_scheme,
                                     fuse_config,
-                                    crate::ConnCtrl::new(),
+                                    conn_ctrl,
                                     alt_svc_h3.clone(),
                                 );
                                 let builder = builder.clone();
@@ -535,6 +535,7 @@ impl<A: Acceptor + Send> Server<A> {
                     coupler,
                     stream,
                     fuse_config,
+                    conn_ctrl,
                     local_addr,
                     remote_addr,
                     http_scheme,
@@ -546,7 +547,7 @@ impl<A: Acceptor + Send> Server<A> {
                         remote_addr,
                         http_scheme,
                         fuse_config,
-                        crate::ConnCtrl::new(),
+                        conn_ctrl,
                         alt_svc_h3.clone(),
                     );
                     let builder = builder.clone();

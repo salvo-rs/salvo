@@ -8,6 +8,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::{Instant, Sleep};
 
+use crate::conn::ConnCtrl;
 use crate::fuse::FuseConfig;
 
 #[pin_project]
@@ -20,6 +21,10 @@ pub struct StraightStream<C> {
     write_timeout: Option<Duration>,
     write_sleep: Option<Pin<Box<Sleep>>>,
     write_pending: bool,
+    // Shared with handlers: once a handler upgrades the connection to a long-lived
+    // protocol (e.g. WebSocket) and calls `ConnCtrl::relax_timeouts`, the idle and
+    // write-stall timers below must stop firing, since silence is then expected.
+    conn_ctrl: ConnCtrl,
 }
 
 impl<C> Debug for StraightStream<C> {
@@ -30,7 +35,10 @@ impl<C> Debug for StraightStream<C> {
 
 impl<C> StraightStream<C> {
     /// Wraps a transport stream with the selected fuse configuration.
-    pub fn new(inner: C, fuse: Option<FuseConfig>) -> Self {
+    ///
+    /// `conn_ctrl` is shared with the connection's handlers so an upgrade to a long-lived
+    /// protocol can [relax](ConnCtrl::relax_timeouts) the idle and write-stall timers.
+    pub fn new(inner: C, fuse: Option<FuseConfig>, conn_ctrl: ConnCtrl) -> Self {
         let idle_timeout = fuse.and_then(|f| f.connection_idle_timeout);
         let write_timeout = fuse.and_then(|f| f.write_stall_timeout);
         Self {
@@ -41,6 +49,7 @@ impl<C> StraightStream<C> {
             write_sleep: write_timeout
                 .map(|_| Box::pin(tokio::time::sleep(Duration::from_secs(86400 * 365)))),
             write_pending: false,
+            conn_ctrl,
         }
     }
 }
@@ -68,7 +77,8 @@ impl<C: AsyncRead> AsyncRead for StraightStream<C> {
                 Poll::Ready(Ok(()))
             }
             Poll::Pending => {
-                if let Some(sleep) = this.idle_sleep.as_mut()
+                if !this.conn_ctrl.is_relaxed()
+                    && let Some(sleep) = this.idle_sleep.as_mut()
                     && sleep.as_mut().poll(cx).is_ready()
                 {
                     return Poll::Ready(Err(timed_out("connection idle timeout")));
@@ -95,6 +105,11 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                 Poll::Ready(Ok(written))
             }
             Poll::Pending => {
+                // A relaxed connection (e.g. an upgraded WebSocket) may legitimately
+                // stay silent, so neither the write-stall nor the idle timer applies.
+                if this.conn_ctrl.is_relaxed() {
+                    return Poll::Pending;
+                }
                 if !*this.write_pending {
                     *this.write_pending = true;
                     if let (Some(timeout), Some(sleep)) =
@@ -145,6 +160,11 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                 Poll::Ready(Ok(written))
             }
             Poll::Pending => {
+                // A relaxed connection (e.g. an upgraded WebSocket) may legitimately
+                // stay silent, so neither the write-stall nor the idle timer applies.
+                if this.conn_ctrl.is_relaxed() {
+                    return Poll::Pending;
+                }
                 if !*this.write_pending {
                     *this.write_pending = true;
                     if let (Some(timeout), Some(sleep)) =
@@ -188,7 +208,7 @@ mod tests {
             write_stall_timeout: None,
             ..FuseConfig::disabled()
         };
-        let mut stream = StraightStream::new(client, Some(config));
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new());
 
         let error = stream.read_u8().await.unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
@@ -202,10 +222,27 @@ mod tests {
             write_stall_timeout: Some(Duration::from_millis(10)),
             ..FuseConfig::disabled()
         };
-        let mut stream = StraightStream::new(client, Some(config));
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new());
         stream.write_all(b"a").await.unwrap();
 
         let error = stream.write_all(b"b").await.unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn relaxed_connection_ignores_idle_timeout() {
+        let (client, _server) = tokio::io::duplex(64);
+        let config = FuseConfig {
+            connection_idle_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        };
+        let conn_ctrl = ConnCtrl::new();
+        // A handler that upgraded to a long-lived protocol relaxed the timers.
+        conn_ctrl.relax_timeouts();
+        let mut stream = StraightStream::new(client, Some(config), conn_ctrl);
+
+        // With the idle timer relaxed the read must stay pending, not time out.
+        let result = tokio::time::timeout(Duration::from_millis(50), stream.read_u8()).await;
+        assert!(result.is_err(), "relaxed idle timeout must not fire");
     }
 }

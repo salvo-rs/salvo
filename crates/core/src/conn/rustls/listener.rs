@@ -206,6 +206,7 @@ where
             coupler: _,
             stream,
             fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             ..
@@ -215,8 +216,9 @@ where
         };
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(tls_acceptor.accept(stream), fuse_config.clone()),
+            stream: HandshakeStream::new(tls_acceptor.accept(stream), fuse_config),
             fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

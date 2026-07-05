@@ -98,6 +98,7 @@ use salvo_core::http::headers::{
 };
 use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::rt::tokio::TokioIo;
+use salvo_core::conn::ConnCtrl;
 use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Bytes;
@@ -452,6 +453,13 @@ impl WebSocketUpgrade {
                     );
                 }
             }
+        }
+
+        // The connection is now a long-lived WebSocket tunnel: quiet stretches are
+        // expected, so relax the transport idle/write-stall fuse timers that would
+        // otherwise close it. No-op when the server runs without fuse protection.
+        if let Some(conn_ctrl) = req.extensions().get::<ConnCtrl>() {
+            conn_ctrl.relax_timeouts();
         }
 
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {

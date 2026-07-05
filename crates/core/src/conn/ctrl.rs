@@ -4,7 +4,7 @@ use std::future::Future;
 #[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 #[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
 use std::task::{Context, Poll};
 
@@ -27,6 +27,7 @@ pub struct ConnCtrl {
 struct Inner {
     state: AtomicU8,
     waker: AtomicWaker,
+    relax: AtomicBool,
 }
 
 impl Default for ConnCtrl {
@@ -51,6 +52,7 @@ impl ConnCtrl {
             inner: Arc::new(Inner {
                 state: AtomicU8::new(RUNNING),
                 waker: AtomicWaker::new(),
+                relax: AtomicBool::new(false),
             }),
         }
     }
@@ -99,6 +101,28 @@ impl ConnCtrl {
     #[must_use]
     pub fn is_aborted(&self) -> bool {
         self.inner.state.load(Ordering::Acquire) == ABORT
+    }
+
+    /// Suspends the transport idle and write-stall fuse timeouts for this
+    /// connection.
+    ///
+    /// The fuse [`connection_idle_timeout`](crate::fuse::FuseConfig::connection_idle_timeout)
+    /// and [`write_stall_timeout`](crate::fuse::FuseConfig::write_stall_timeout) exist to
+    /// close connections that stall mid-request. Long-lived protocols built on top of an HTTP
+    /// upgrade — WebSocket, or a hand-rolled tunnel — legitimately spend long stretches with no
+    /// transport activity and would otherwise trip those timers. A handler that hands the
+    /// connection off to such a protocol should call this to keep the transport open.
+    ///
+    /// This does not affect [`graceful_shutdown`](Self::graceful_shutdown) or
+    /// [`abort`](Self::abort); an aborted connection is still torn down.
+    pub fn relax_timeouts(&self) {
+        self.inner.relax.store(true, Ordering::Release);
+    }
+
+    /// Returns `true` once [`relax_timeouts`](Self::relax_timeouts) has been called.
+    #[must_use]
+    pub fn is_relaxed(&self) -> bool {
+        self.inner.relax.load(Ordering::Acquire)
     }
 
     pub(crate) fn state(&self) -> ConnState {

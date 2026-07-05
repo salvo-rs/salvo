@@ -192,6 +192,11 @@ where
     /// When set, this allows the connection to be monitored for slow HTTP attacks
     /// and other malicious behavior patterns.
     pub fuse_config: Option<FuseConfig>,
+    /// Lifecycle control for this connection.
+    ///
+    /// Created when the connection is accepted and shared with its stream, protocol driver,
+    /// and handlers so any of them can abort, gracefully shut down, or relax the fuse timers.
+    pub conn_ctrl: ConnCtrl,
     /// The local address this connection was accepted on.
     ///
     /// Useful for multi-homed servers or logging purposes.
@@ -239,6 +244,7 @@ where
             coupler,
             stream,
             fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme,
@@ -247,6 +253,7 @@ where
             coupler: coupler_fn(coupler),
             stream: stream_fn(stream),
             fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme,

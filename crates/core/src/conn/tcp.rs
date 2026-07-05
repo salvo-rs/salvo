@@ -19,7 +19,7 @@ use crate::conn::native_tls::NativeTlsListener;
 use crate::conn::openssl::OpensslListener;
 #[cfg(feature = "rustls")]
 use crate::conn::rustls::RustlsListener;
-use crate::conn::{Holding, HttpBuilder, StraightStream};
+use crate::conn::{ConnCtrl, Holding, HttpBuilder, StraightStream};
 use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
@@ -233,10 +233,12 @@ impl Acceptor for TcpAcceptor {
                 },
                 None => None,
             };
+            let conn_ctrl = ConnCtrl::new();
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fuse_config),
+                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone()),
                 fuse_config,
+                conn_ctrl,
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,

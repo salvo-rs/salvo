@@ -201,6 +201,7 @@ impl Acceptor for QuinnAcceptor {
                     coupler: QuinnCoupler,
                     stream: QuinnConnection::new(conn),
                     fuse_config,
+                    conn_ctrl: crate::conn::ConnCtrl::new(),
                     local_addr: self.holdings[0].local_addr.clone(),
                     remote_addr: remote_addr.into(),
                     http_scheme: self.holdings[0].http_scheme.clone(),

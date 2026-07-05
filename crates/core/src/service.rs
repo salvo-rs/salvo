@@ -260,6 +260,10 @@ impl HyperHandler {
         let conn_ctrl = self.conn_ctrl.clone();
         req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
+        // Expose the connection control on the request so protocol-upgrade handlers
+        // (e.g. WebSocket) can relax the transport fuse timers for the long-lived
+        // connection they are about to take over.
+        req.extensions_mut().insert(conn_ctrl.clone());
         #[cfg(not(feature = "cookie"))]
         let mut res = Response::new();
         #[cfg(feature = "cookie")]

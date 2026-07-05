@@ -13,7 +13,7 @@ use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use super::{Accepted, Acceptor, Listener};
 use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{Holding, StraightStream};
+use crate::conn::{ConnCtrl, Holding, StraightStream};
 use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 
@@ -179,10 +179,12 @@ impl Acceptor for UnixAcceptor {
                 },
                 None => None,
             };
+            let conn_ctrl = ConnCtrl::new();
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fuse_config),
+                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone()),
                 fuse_config,
+                conn_ctrl,
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,
