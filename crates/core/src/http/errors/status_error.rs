@@ -46,7 +46,11 @@ pub struct StatusError {
     /// The underlying error, as a [`std::error::Error`] trait object.
     ///
     /// Choose `cause` when you have a real error value and want it reported
-    /// through standard error tooling (logging, `source` chains). Choose
+    /// through standard error tooling: it is exposed as this type's
+    /// [`Error::source`](std::error::Error::source) (the standard method that
+    /// replaced the deprecated `Error::cause` in Rust 1.30 — "cause" survives
+    /// here as the field name, `source()` is the API that reports it), so both
+    /// `Display` output and error-chain walkers see it. Choose
     /// [`origin`](Self::origin) instead when a later handler or catcher needs the
     /// concrete value back via [`StatusError::downcast_origin`].
     pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
