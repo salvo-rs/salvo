@@ -1,9 +1,11 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::Serialize;
 
 use super::{Scribe, try_set_header};
+use crate::http::body::ResBody;
 use crate::http::header::{CONTENT_TYPE, HeaderValue};
 use crate::http::{Response, StatusError};
 
@@ -11,6 +13,16 @@ use crate::http::{Response, StatusError};
 ///
 /// `Json<T>` sets `content-type` to `application/json; charset=utf-8` and
 /// serializes the wrapped value with `serde_json`.
+///
+/// # Body semantics
+///
+/// A JSON body is one complete document, so rendering `Json` **replaces** any
+/// body bytes previously buffered on the response (appending would produce
+/// invalid JSON); debug builds log a warning when non-empty content is
+/// discarded this way. Streaming bodies cannot be replaced and are reported as
+/// an error, like [`Response::write_body`]. To emit multiple JSON records
+/// (e.g. NDJSON), serialize each record and append it via
+/// [`Response::write_body`] instead.
 ///
 /// # Examples
 ///
@@ -68,7 +80,38 @@ where
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/json; charset=utf-8"),
                 );
-                let _ = res.write_body(bytes);
+                // A JSON body is one complete document: replace previously
+                // buffered bytes instead of appending, which would concatenate
+                // two documents into invalid JSON.
+                match &res.body {
+                    ResBody::None | ResBody::Error(_) | ResBody::Once(_) | ResBody::Chunks(_) => {
+                        #[cfg(debug_assertions)]
+                        {
+                            let discarded = match &res.body {
+                                ResBody::Once(prev) => prev.len(),
+                                ResBody::Chunks(chunks) => chunks.iter().map(Bytes::len).sum(),
+                                _ => 0,
+                            };
+                            if discarded > 0 {
+                                tracing::warn!(
+                                    discarded_bytes = discarded,
+                                    "rendering `Json` replaced body bytes that were already \
+                                     written; a JSON body is one complete document. To emit \
+                                     multiple JSON records (NDJSON), serialize each record and \
+                                     append it via `Response::write_body` instead."
+                                );
+                            }
+                        }
+                        res.body(ResBody::Once(Bytes::from(bytes)));
+                    }
+                    _ => {
+                        // Streaming kinds cannot be replaced silently; mirror the
+                        // `write_body` error behavior.
+                        tracing::error!(
+                            "current body kind cannot be written or replaced by `Json`"
+                        );
+                    }
+                }
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JSON serialize error");
@@ -116,5 +159,41 @@ mod tests {
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
         );
+    }
+
+    #[tokio::test]
+    async fn test_json_render_replaces_previous_body() {
+        // A JSON body is one complete document: a second render (or a render
+        // after other body bytes were written) must replace, not concatenate
+        // into invalid JSON.
+        #[handler]
+        async fn test(res: &mut Response) {
+            res.render(Json(serde_json::json!({"first": true})));
+            res.render(Json(serde_json::json!({"second": true})));
+        }
+
+        let router = Router::new().push(Router::with_path("test").get(test));
+        let mut res = TestClient::get("http://127.0.0.1:8698/test")
+            .send(router)
+            .await;
+        let body = res.take_string().await.unwrap();
+        assert_eq!(body, r#"{"second":true}"#);
+        // The body must be valid JSON — the old append behavior produced two
+        // concatenated documents here.
+        serde_json::from_str::<serde_json::Value>(&body).expect("body must be valid JSON");
+    }
+
+    #[tokio::test]
+    async fn test_json_render_does_not_clobber_stream_body() {
+        use futures_util::stream;
+
+        use crate::http::body::ResBody;
+
+        // Streaming bodies cannot be replaced silently; `Json` must leave them
+        // untouched (mirroring `write_body`'s error behavior).
+        let mut res = Response::new();
+        res.stream(stream::iter(vec![Ok::<_, crate::BoxedError>("chunk")]));
+        Json(serde_json::json!({"x": 1})).render(&mut res);
+        assert!(matches!(res.body, ResBody::Stream(_)));
     }
 }
