@@ -43,9 +43,20 @@ pub struct StatusError {
     pub brief: String,
     /// Detailed information about the HTTP error.
     pub detail: Option<String>,
-    /// Cause of the HTTP error. Similar to the `origin` field, but using [`std::error::Error`].
+    /// The underlying error, as a [`std::error::Error`] trait object.
+    ///
+    /// Choose `cause` when you have a real error value and want it reported
+    /// through standard error tooling (logging, `source` chains). Choose
+    /// [`origin`](Self::origin) instead when a later handler or catcher needs the
+    /// concrete value back via [`StatusError::downcast_origin`].
     pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
-    /// Origin of the HTTP error. Similar to the `cause` field, but using [`std::any::Any`].
+    /// The value that produced this error, as a [`std::any::Any`] trait object.
+    ///
+    /// Unlike [`cause`](Self::cause), this keeps the concrete type recoverable:
+    /// store a value here when downstream code needs to inspect it via
+    /// [`StatusError::downcast_origin`] — e.g. a custom error page that branches
+    /// on a domain error type. The stored type does not need to implement
+    /// `Error`.
     pub origin: Option<Box<dyn std::any::Any + Sync + Send + 'static>>,
 }
 
