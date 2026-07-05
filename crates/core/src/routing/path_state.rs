@@ -26,8 +26,8 @@ impl PathPart {
 
 #[doc(hidden)]
 #[derive(Clone)]
-pub struct PathState {
-    path: String,
+pub struct PathState<'a> {
+    path: Cow<'a, str>,
     parts: Vec<PathPart>,
     /// (row, col), row is the index of parts, col is the index of char in the part.
     pub(crate) cursor: (usize, usize),
@@ -38,7 +38,7 @@ pub struct PathState {
     pub(crate) once_ended: bool, /* Once it has ended, used to determine whether the error code
                                  * returned is 404 or 405. */
 }
-impl Debug for PathState {
+impl<'a> Debug for PathState<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let parts = self.parts_iter().collect::<Vec<_>>();
         let mut debug = f.debug_struct("PathState");
@@ -54,8 +54,8 @@ impl Debug for PathState {
             .finish()
     }
 }
-impl PartialEq for PathState {
-    fn eq(&self, other: &Self) -> bool {
+impl<'a, 'b> PartialEq<PathState<'b>> for PathState<'a> {
+    fn eq(&self, other: &PathState<'b>) -> bool {
         if !self.parts_iter().eq(other.parts_iter()) {
             return false;
         }
@@ -73,21 +73,43 @@ impl PartialEq for PathState {
         true
     }
 }
-impl Eq for PathState {}
-impl PathState {
-    /// Creates a new `PathState`.
+impl<'a> Eq for PathState<'a> {}
+impl<'a> PathState<'a> {
+    /// Creates a new owned `PathState` from a borrowed path.
     #[inline]
     #[must_use]
+    #[deprecated(
+        since = "0.93.0",
+        note = "use PathState::from_owned_path or PathState::from_borrowed_path to make ownership explicit"
+    )]
     pub fn new(url_path: &str) -> Self {
-        Self::from_path(url_path.to_owned())
+        Self::from_owned_path(url_path.to_owned())
     }
 
-    /// Creates a new `PathState` from an owned path.
+    /// Creates a new `PathState` by borrowing the supplied path.
+    ///
+    /// Use this only when the borrowed path outlives the routing operation and is
+    /// not borrowed from the same [`Request`](crate::http::Request) that will be
+    /// passed mutably to router detection.
     #[inline]
     #[must_use]
-    pub fn from_path(path: String) -> Self {
+    pub fn from_borrowed_path(path: &'a str) -> Self {
+        Self::from_cow_path(Cow::Borrowed(path))
+    }
+
+    /// Creates a new `PathState` from an owned path without copying it.
+    #[inline]
+    #[must_use]
+    pub fn from_owned_path(path: String) -> Self {
+        Self::from_cow_path(Cow::Owned(path))
+    }
+
+    /// Creates a new `PathState` from a copy-on-write path.
+    #[inline]
+    #[must_use]
+    pub fn from_cow_path(path: Cow<'a, str>) -> Self {
         let end_slash = path.ends_with('/');
-        let parts = parse_path_parts(&path);
+        let parts = parse_path_parts(path.as_ref());
         Self {
             path,
             parts,
@@ -212,14 +234,29 @@ fn parse_path_parts(path: &str) -> Vec<PathPart> {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use super::PathState;
+
+    #[test]
+    fn constructors_make_path_ownership_explicit() {
+        let borrowed = PathState::from_borrowed_path("plain");
+        assert!(matches!(borrowed.path, Cow::Borrowed("plain")));
+
+        let owned = PathState::from_owned_path("plain".to_owned());
+        assert!(matches!(owned.path, Cow::Owned(ref path) if path == "plain"));
+
+        let cow = PathState::from_cow_path(Cow::Borrowed("plain"));
+        assert!(matches!(cow.path, Cow::Borrowed("plain")));
+    }
 
     #[test]
     fn raw_utf8_ranges_stay_on_char_boundaries() {
         let user = "\u{7528}\u{6237}";
         let emoji = "\u{1f600}";
         let e_accent = "\u{e9}";
-        let mut state = PathState::new(&format!("/{user}/{emoji}/{e_accent}/rest/"));
+        let path = format!("/{user}/{emoji}/{e_accent}/rest/");
+        let mut state = PathState::from_borrowed_path(&path);
 
         assert_eq!(
             state.parts().collect::<Vec<_>>(),
@@ -239,7 +276,8 @@ mod tests {
     fn decoded_utf8_parts_advance_by_bytes() {
         let user = "\u{7528}\u{6237}";
         let emoji = "\u{1f600}";
-        let mut state = PathState::new("/%E7%94%A8%E6%88%B7/%F0%9F%98%80/a%2Fb/rest");
+        let mut state =
+            PathState::from_borrowed_path("/%E7%94%A8%E6%88%B7/%F0%9F%98%80/a%2Fb/rest");
 
         assert_eq!(
             state.parts().collect::<Vec<_>>(),
@@ -260,7 +298,13 @@ mod tests {
     #[test]
     fn equality_uses_decoded_parts_not_internal_storage() {
         let user = "\u{7528}\u{6237}";
-        assert_eq!(PathState::new(user), PathState::new(&format!("/{user}")));
-        assert_eq!(PathState::new(user), PathState::new("%E7%94%A8%E6%88%B7"));
+        assert_eq!(
+            PathState::from_borrowed_path(user),
+            PathState::from_owned_path(format!("/{user}"))
+        );
+        assert_eq!(
+            PathState::from_borrowed_path(user),
+            PathState::from_borrowed_path("%E7%94%A8%E6%88%B7")
+        );
     }
 }

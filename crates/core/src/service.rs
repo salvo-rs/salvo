@@ -267,7 +267,7 @@ impl HyperHandler {
 
         async move {
             let path = req.uri().path().to_owned();
-            let mut path_state = PathState::from_path(path);
+            let mut path_state = PathState::from_owned_path(path);
             if let Some(dm) = state.router.detect(&mut req, &mut path_state).await {
                 path_state.params.seal();
                 req.params = path_state.params;
