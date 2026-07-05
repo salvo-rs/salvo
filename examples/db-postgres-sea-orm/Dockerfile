@@ -1,11 +1,11 @@
-FROM rust:1.92 AS builder
+FROM rust:1.94 AS builder
 
 WORKDIR /app
 
 COPY . .
 
 # Install Sea-orm CLI
-RUN cargo install sea-orm-cli@^2.0.0-rc
+RUN cargo install sea-orm-cli --version 2.0.0-rc.42
 
 RUN cargo build --release --target-dir target
 
