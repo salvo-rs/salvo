@@ -285,6 +285,10 @@ impl Tus {
     }
 
     /// Controls whether generated `Location` headers use relative URLs.
+    ///
+    /// If you set this to `false` without also setting a trusted origin, absolute
+    /// URLs are derived from inbound request headers. Prefer
+    /// [`Self::absolute_location`] for production absolute URLs.
     #[must_use]
     pub fn relative_location(mut self, yes: bool) -> Self {
         self.options.relative_location = yes;
@@ -292,8 +296,23 @@ impl Tus {
     }
 
     /// Sets the trusted origin used for absolute `Location` headers.
+    ///
+    /// This only sets the origin. Use [`Self::absolute_location`] when you want
+    /// to both enable absolute URLs and pin them to a trusted origin.
     #[must_use]
     pub fn canonical_origin(mut self, origin: impl Into<String>) -> Self {
+        self.options.canonical_origin = Some(origin.into());
+        self
+    }
+
+    /// Uses absolute `Location` headers with a fixed, trusted origin.
+    ///
+    /// This is a convenience for calling [`Self::relative_location`] with
+    /// `false` and then [`Self::canonical_origin`]. It avoids deriving absolute
+    /// upload URLs from client-controlled `Host` or forwarded headers.
+    #[must_use]
+    pub fn absolute_location(mut self, origin: impl Into<String>) -> Self {
+        self.options.relative_location = false;
         self.options.canonical_origin = Some(origin.into());
         self
     }
@@ -379,7 +398,7 @@ impl Tus {
                 "Tus is configured with relative_location(false) but no canonical_origin; \
                  absolute Location headers will be derived from the inbound Host / Forwarded \
                  headers, which a misbehaving client or unauthenticated proxy can spoof. \
-                 Set Tus::canonical_origin(\"https://your.host\") to pin the origin."
+                 Set Tus::absolute_location(\"https://your.host\") to pin the origin."
             );
         }
         let state = Arc::new(self);
@@ -520,6 +539,15 @@ mod tests {
         let _ = Tus::new()
             .relative_location(false)
             .canonical_origin("https://uploads.example.com")
+            .into_router();
+        assert!(!logs_contain("no canonical_origin"));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_into_router_does_not_warn_when_absolute_location_is_set() {
+        let _ = Tus::new()
+            .absolute_location("https://uploads.example.com")
             .into_router();
         assert!(!logs_contain("no canonical_origin"));
     }
@@ -676,6 +704,16 @@ mod tests {
 
         let tus = Tus::new().relative_location(true);
         assert!(tus.options.relative_location);
+    }
+
+    #[test]
+    fn test_tus_absolute_location() {
+        let tus = Tus::new().absolute_location("https://uploads.example.com");
+        assert!(!tus.options.relative_location);
+        assert_eq!(
+            tus.options.canonical_origin.as_deref(),
+            Some("https://uploads.example.com")
+        );
     }
 
     #[test]

@@ -126,9 +126,10 @@ pub struct TusOptions {
     /// `Forwarded`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and
     /// `X-Forwarded-Ssl`) headers, all of which are client-controlled. An
     /// attacker can then poison the returned upload URL via `Host` header
-    /// injection. In production prefer a relative `Location` or set
-    /// `canonical_origin` to a fixed, trusted origin so the host is never taken
-    /// from request headers.
+    /// injection. In production prefer a relative `Location`, or use
+    /// [`Tus::absolute_location`](crate::Tus::absolute_location) to switch to
+    /// absolute URLs and set a fixed, trusted origin in one step so the host is
+    /// never taken from request headers.
     pub canonical_origin: Option<String>,
 
     /// Allows trusted forwarded headers to override the host and protocol used for `Location`.
