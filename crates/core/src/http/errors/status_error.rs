@@ -218,7 +218,13 @@ impl StatusError {
     }
 }
 
-impl StdError for StatusError {}
+impl StdError for StatusError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.cause
+            .as_deref()
+            .map(|cause| cause as &(dyn StdError + 'static))
+    }
+}
 
 impl Display for StatusError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -317,5 +323,20 @@ impl Scribe for StatusError {
     fn render(self, res: &mut Response) {
         res.status_code = Some(self.code);
         res.body = ResBody::Error(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_source_exposes_cause() {
+        let io_err = std::io::Error::other("disk offline");
+        let err = StatusError::internal_server_error().cause(io_err);
+        let source = err.source().expect("cause should surface through source()");
+        assert_eq!(source.to_string(), "disk offline");
+
+        assert!(StatusError::internal_server_error().source().is_none());
     }
 }
