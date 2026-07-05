@@ -247,10 +247,10 @@ mod tests {
     #[tokio::test]
     async fn test_opts() {
         fn has_one(_req: &mut Request, path: &mut PathState<'_>) -> bool {
-            path.parts.contains(&"one".into())
+            path.parts().any(|part| part == "one")
         }
         fn has_two(_req: &mut Request, path: &mut PathState<'_>) -> bool {
-            path.parts.contains(&"two".into())
+            path.parts().any(|part| part == "two")
         }
 
         let one_filter = FnFilter(has_one);
