@@ -283,10 +283,12 @@ where
         res: &mut Response,
         _ctrl: &mut FlowCtrl,
     ) {
+        let decoded_path;
         let req_path = if let Some(rest) = req.params().tail() {
             rest
         } else {
-            &*decode_url_path(req.uri().path())
+            decoded_path = decode_url_path(req.uri().path());
+            decoded_path.as_ref()
         };
         let req_path = normalize_url_path(req_path);
         let mut key_path = Cow::Borrowed(&*req_path);

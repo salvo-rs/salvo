@@ -99,7 +99,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
-        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
     {
         AndThen {
             filter: self,
@@ -112,7 +112,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
         Self: Sized,
-        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
     {
         OrElse {
             filter: self,
@@ -121,7 +121,7 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Filter `Request` and returns false or true.
-    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
+    async fn filter(&self, req: &mut Request, path: &mut PathState<'_>) -> bool;
 }
 
 /// `FnFilter` accepts a function as its parameter, using this function to filter requests.
@@ -132,10 +132,10 @@ pub struct FnFilter<F>(pub F);
 #[async_trait]
 impl<F> Filter for FnFilter<F>
 where
-    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    F: for<'a> Fn(&mut Request, &mut PathState<'a>) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    async fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
+    async fn filter(&self, req: &mut Request, path: &mut PathState<'_>) -> bool {
         self.0(req, path)
     }
 }
@@ -246,18 +246,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_opts() {
-        fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
-            path.parts.contains(&"one".into())
+        fn has_one(_req: &mut Request, path: &mut PathState<'_>) -> bool {
+            path.parts().any(|part| part == "one")
         }
-        fn has_two(_req: &mut Request, path: &mut PathState) -> bool {
-            path.parts.contains(&"two".into())
+        fn has_two(_req: &mut Request, path: &mut PathState<'_>) -> bool {
+            path.parts().any(|part| part == "two")
         }
 
         let one_filter = FnFilter(has_one);
         let two_filter = FnFilter(has_two);
 
         let mut req = Request::default();
-        let mut path_state = PathState::new("http://localhost/one");
+        let mut path_state = PathState::from_borrowed_path("http://localhost/one");
         assert!(one_filter.filter(&mut req, &mut path_state).await);
         assert!(!two_filter.filter(&mut req, &mut path_state).await);
         assert!(
@@ -285,7 +285,7 @@ mod tests {
                 .await
         );
 
-        let mut path_state = PathState::new("http://localhost/one/two");
+        let mut path_state = PathState::from_borrowed_path("http://localhost/one/two");
         assert!(one_filter.filter(&mut req, &mut path_state).await);
         assert!(two_filter.filter(&mut req, &mut path_state).await);
         assert!(
@@ -313,7 +313,7 @@ mod tests {
                 .await
         );
 
-        let mut path_state = PathState::new("http://localhost/two");
+        let mut path_state = PathState::from_borrowed_path("http://localhost/two");
         assert!(!one_filter.filter(&mut req, &mut path_state).await);
         assert!(two_filter.filter(&mut req, &mut path_state).await);
         assert!(

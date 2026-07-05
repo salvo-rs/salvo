@@ -95,6 +95,22 @@ async fn main() {
 }
 ```
 
+## Absolute Location URLs
+
+Tus returns relative `Location` headers by default. If clients need absolute
+upload URLs in production, set a fixed trusted origin with
+`absolute_location`:
+
+```rust
+let tus = Tus::new()
+    .path("/uploads")
+    .absolute_location("https://uploads.example.com");
+```
+
+Avoid using `relative_location(false)` by itself for internet-facing services:
+without a canonical origin, absolute URLs are derived from request `Host` or
+forwarded headers.
+
 ## Lifecycle Hooks
 
 React to upload events:

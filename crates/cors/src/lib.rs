@@ -183,6 +183,10 @@ impl Cors {
     /// - Perform actions on behalf of logged-in users (CSRF attacks)
     ///
     /// **This should NEVER be used in production with authentication.**
+    /// Runtime wildcard guards do not make this pattern safe for authenticated
+    /// endpoints, because this configuration reflects each request's `Origin`
+    /// as a concrete allowed origin while also allowing credentials. Browsers
+    /// then treat the calling site as explicitly trusted for that response.
     ///
     /// Only use this for:
     /// - Local development where security is not a concern

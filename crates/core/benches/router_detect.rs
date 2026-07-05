@@ -24,9 +24,10 @@ fn bench_detect(c: &mut Criterion, name: &str, router: &Router, url: &str) {
         .build()
         .expect("build runtime");
     let mut req = TestClient::get(url).build();
+    let path = req.uri().path().to_owned();
     c.bench_function(name, |b| {
         b.iter(|| {
-            let mut state = PathState::new(req.uri().path());
+            let mut state = PathState::from_borrowed_path(&path);
             let matched = rt.block_on(router.detect(&mut req, &mut state));
             assert!(matched.is_some(), "route must match in benchmark");
             black_box(state);

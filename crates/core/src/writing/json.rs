@@ -1,4 +1,6 @@
+use std::collections::VecDeque;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::io::{self, Write};
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -8,6 +10,69 @@ use super::{Scribe, try_set_header};
 use crate::http::body::ResBody;
 use crate::http::header::{CONTENT_TYPE, HeaderValue};
 use crate::http::{Response, StatusError};
+
+const JSON_CHUNK_SIZE: usize = 8 * 1024;
+
+struct JsonBodyWriter {
+    chunks: VecDeque<Bytes>,
+    current: Vec<u8>,
+}
+
+impl JsonBodyWriter {
+    fn new() -> Self {
+        Self {
+            chunks: VecDeque::new(),
+            current: Vec::new(),
+        }
+    }
+
+    fn finish(mut self) -> ResBody {
+        if !self.current.is_empty() {
+            self.current.shrink_to_fit();
+            self.chunks.push_back(Bytes::from(self.current));
+        }
+        match self.chunks.len() {
+            0 => ResBody::Once(Bytes::new()),
+            1 => ResBody::Once(self.chunks.pop_front().expect("chunk count checked")),
+            _ => ResBody::Chunks(self.chunks),
+        }
+    }
+
+    fn push_current(&mut self) {
+        let chunk = std::mem::take(&mut self.current);
+        if !chunk.is_empty() {
+            self.chunks.push_back(Bytes::from(chunk));
+        }
+    }
+}
+
+impl Write for JsonBodyWriter {
+    fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
+        let len = buf.len();
+        while !buf.is_empty() {
+            let available = JSON_CHUNK_SIZE - self.current.len();
+            if available == 0 {
+                self.push_current();
+                continue;
+            }
+            let next = available.min(buf.len());
+            let target_capacity = (self.current.len() + next).min(JSON_CHUNK_SIZE);
+            if self.current.capacity() < target_capacity {
+                self.current.reserve(target_capacity - self.current.len());
+            }
+            self.current.extend_from_slice(&buf[..next]);
+            buf = &buf[next..];
+            if self.current.len() == JSON_CHUNK_SIZE {
+                self.push_current();
+            }
+        }
+        Ok(len)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 /// Writes serializable content to the response as JSON.
 ///
@@ -73,8 +138,9 @@ where
     T: Serialize + Send,
 {
     fn render(self, res: &mut Response) {
-        match serde_json::to_vec(&self.0) {
-            Ok(bytes) => {
+        let mut writer = JsonBodyWriter::new();
+        match serde_json::to_writer(&mut writer, &self.0) {
+            Ok(()) => {
                 try_set_header(
                     &mut res.headers,
                     CONTENT_TYPE,
@@ -102,7 +168,7 @@ where
                                 );
                             }
                         }
-                        res.body(ResBody::Once(Bytes::from(bytes)));
+                        res.body(writer.finish());
                     }
                     _ => {
                         // Streaming kinds cannot be replaced silently; mirror the
@@ -133,9 +199,20 @@ impl<T: Display> Display for Json<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write as _;
+
     use super::*;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+
+    #[test]
+    fn json_body_writer_does_not_preallocate_full_chunk_for_tiny_body() {
+        let mut writer = JsonBodyWriter::new();
+
+        writer.write_all(br#"{"ok":true}"#).unwrap();
+
+        assert!(writer.current.capacity() < JSON_CHUNK_SIZE);
+    }
 
     #[tokio::test]
     async fn test_write_json_content() {
@@ -181,6 +258,27 @@ mod tests {
         // The body must be valid JSON — the old append behavior produced two
         // concatenated documents here.
         serde_json::from_str::<serde_json::Value>(&body).expect("body must be valid JSON");
+    }
+
+    #[test]
+    fn test_json_render_chunks_large_body() {
+        let mut res = Response::new();
+        let payload = vec!["x".repeat(JSON_CHUNK_SIZE); 2];
+
+        Json(payload).render(&mut res);
+
+        let ResBody::Chunks(chunks) = &res.body else {
+            panic!("large JSON should be rendered as chunks");
+        };
+        assert!(chunks.len() > 1);
+        assert!(res.body.size().unwrap() > JSON_CHUNK_SIZE as u64);
+        let body = chunks
+            .iter()
+            .flat_map(|chunk| chunk.iter().copied())
+            .collect::<Vec<_>>();
+        let decoded =
+            serde_json::from_slice::<Vec<String>>(&body).expect("body must be valid JSON");
+        assert_eq!(decoded.len(), 2);
     }
 
     #[tokio::test]

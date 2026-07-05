@@ -409,6 +409,7 @@ pub use path_params::PathParams;
 mod path_state;
 pub use path_state::PathState;
 mod flow_ctrl;
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
@@ -457,10 +458,12 @@ pub(crate) fn split_wild_name(name: &str) -> (&str, &str) {
 #[inline]
 #[doc(hidden)]
 #[must_use]
-pub fn decode_url_path(path: &str) -> String {
-    percent_encoding::percent_decode_str(path)
-        .decode_utf8_lossy()
-        .to_string()
+pub fn decode_url_path(path: &str) -> Cow<'_, str> {
+    if path.as_bytes().contains(&b'%') {
+        percent_encoding::percent_decode_str(path).decode_utf8_lossy()
+    } else {
+        Cow::Borrowed(path)
+    }
 }
 
 #[inline]
@@ -552,7 +555,7 @@ mod tests {
     use crate::http::header::LOCATION;
     use crate::http::uri::Uri;
     use crate::prelude::*;
-    use crate::routing::{is_windows_reserved_name, normalize_url_path};
+    use crate::routing::{decode_url_path, is_windows_reserved_name, normalize_url_path};
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
@@ -649,6 +652,18 @@ mod tests {
         access(&service, "/open/alice2/bob2").await;
         access(&service, "/alice3").await;
         access(&service, "/alice1/bob3").await;
+    }
+
+    #[test]
+    fn test_decode_url_path_borrows_plain_path() {
+        assert!(matches!(
+            decode_url_path("plain-segment"),
+            std::borrow::Cow::Borrowed("plain-segment")
+        ));
+        assert!(matches!(
+            decode_url_path("hello%20world"),
+            std::borrow::Cow::Owned(ref decoded) if decoded == "hello world"
+        ));
     }
 
     #[test]

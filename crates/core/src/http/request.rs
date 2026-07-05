@@ -42,8 +42,14 @@ pub fn global_secure_max_size() -> usize {
 
 /// Set secure maximum size globally.
 ///
-/// It is recommended to use the [`SecureMaxSize`] middleware to have finer-grained
-/// control over [`Request`].
+/// This sets the process-wide fallback limit for every request that does not
+/// have a route-specific or request-specific limit. Treat this value as a
+/// denial-of-service safety boundary: raising it in shared initialization code
+/// raises the default body-read and form-parse limit for the whole process.
+///
+/// It is recommended to use the [`SecureMaxSize`] middleware or
+/// [`Request::set_secure_max_size`] when only specific routes or handlers need
+/// to accept larger bodies.
 ///
 /// **Note**: The security maximum value applies to request body reads and form parsing,
 /// including multipart file uploads. Increase the limit if you need to accept large uploads.
@@ -52,6 +58,10 @@ pub fn set_global_secure_max_size(size: usize) {
 }
 
 /// Middleware to set the secure maximum size of the request body.
+///
+/// Use this when only part of an application needs a different body limit. It
+/// avoids changing the process-wide fallback set by
+/// [`set_global_secure_max_size()`].
 ///
 /// **Note**: The security maximum value applies to request body reads and form parsing,
 /// including multipart file uploads. Increase the limit if you need to accept large uploads.
@@ -101,9 +111,11 @@ impl Handler for SecureMaxSize {
 /// To prevent denial-of-service attacks, the request body size is limited by default to 64KB.
 /// This can be configured using:
 ///
-/// - [`set_global_secure_max_size()`] - Set the global default limit
-/// - [`SecureMaxSize`] middleware - Set per-route limits
-/// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request limits
+/// - [`set_global_secure_max_size()`] - Set the process-wide fallback limit.
+/// - [`SecureMaxSize`] middleware - Set per-route limits without changing the
+///   fallback for unrelated routes.
+/// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request
+///   limits inside middleware or handlers.
 ///
 /// **Note**: Size limits apply to request body reads and form parsing, including
 /// multipart file uploads. Increase the limit if you need to accept large uploads.
@@ -622,7 +634,9 @@ impl Request {
     /// Sets the maximum allowed body size for this request.
     ///
     /// This overrides both the global default and any value set by the
-    /// [`SecureMaxSize`] middleware for this specific request.
+    /// [`SecureMaxSize`] middleware for this specific request. Prefer this or
+    /// [`SecureMaxSize`] when only one request path needs a larger body limit;
+    /// avoid raising the global fallback for route-specific upload needs.
     ///
     /// # Arguments
     ///

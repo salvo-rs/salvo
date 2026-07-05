@@ -41,7 +41,7 @@ pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
         Ok(())
     }
     /// Return whether the path matches.
-    fn detect(&self, state: &mut PathState) -> bool;
+    fn detect(&self, state: &mut PathState<'_>) -> bool;
 }
 /// Builds a [`PathWisp`] from a parsed pattern fragment.
 ///
@@ -110,7 +110,7 @@ impl PathWisp for WispKind {
         }
     }
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         match self {
             Self::Const(wisp) => wisp.detect(state),
             Self::Named(wisp) => wisp.detect(state),
@@ -286,7 +286,7 @@ impl Debug for CharsWisp {
     }
 }
 impl PathWisp for CharsWisp {
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };
@@ -429,7 +429,7 @@ impl CombWisp {
 }
 impl PathWisp for CombWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick().map(|s| s.to_owned()) else {
             return false;
         };
@@ -531,7 +531,7 @@ impl PathWisp for CombWisp {
 pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.0.starts_with("*?")
@@ -545,7 +545,7 @@ impl PathWisp for NamedWisp {
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.into_owned();
                 state.params.insert_tracked(&self.0, rest);
-                state.cursor.0 = state.parts.len();
+                state.cursor.0 = state.parts_len();
                 #[cfg(feature = "matched-path")]
                 push_named_part(&mut state.matched_parts, &self.0);
                 true
@@ -603,7 +603,7 @@ impl PartialEq for RegexWisp {
 }
 impl PathWisp for RegexWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if self.name.starts_with("*?")
@@ -654,7 +654,7 @@ impl PathWisp for RegexWisp {
 pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
-    fn detect(&self, state: &mut PathState) -> bool {
+    fn detect(&self, state: &mut PathState<'_>) -> bool {
         let Some(picked) = state.pick() else {
             return false;
         };
@@ -1043,7 +1043,7 @@ impl Debug for PathFilter {
 #[async_trait]
 impl Filter for PathFilter {
     #[inline]
-    async fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
+    async fn filter(&self, _req: &mut Request, state: &mut PathState<'_>) -> bool {
         self.detect(state)
     }
     #[inline]
@@ -1128,12 +1128,12 @@ impl PathFilter {
         builders.insert(name.into(), Arc::new(RegexWispBuilder::new(regex)));
     }
     /// Detect is that path is match.
-    pub fn detect(&self, state: &mut PathState) -> bool {
+    pub fn detect(&self, state: &mut PathState<'_>) -> bool {
         let original_cursor = state.cursor;
         for ps in &self.path_wisps {
             let row = state.cursor.0;
             if ps.detect(state) {
-                if row == state.cursor.0 && row != state.parts.len() {
+                if row == state.cursor.0 && row != state.parts_len() {
                     state.cursor = original_cursor;
                     return false;
                 }
@@ -1304,7 +1304,7 @@ mod tests {
             min_width: 1,
             max_width: None,
         };
-        let mut state = PathState::new("1a2");
+        let mut state = PathState::from_borrowed_path("1a2");
         assert!(wisp.detect(&mut state));
         assert_eq!(state.params.get("id").map(String::as_str), Some("1"));
         assert_eq!(state.pick(), Some("a2"));
@@ -1318,7 +1318,7 @@ mod tests {
             min_width: 1,
             max_width: None,
         };
-        let mut state = PathState::new("\u{00E9}/rest");
+        let mut state = PathState::from_borrowed_path("\u{00E9}/rest");
         assert!(wisp.detect(&mut state));
         assert_eq!(state.params.get("x").map(String::as_str), Some("\u{00E9}"));
         assert_eq!(state.pick(), Some("rest"));
@@ -1337,7 +1337,7 @@ mod tests {
         );
 
         let filter = PathFilter::new("/first{id}world{**rest}");
-        let mut state = PathState::new("first123world.ext");
+        let mut state = PathState::from_borrowed_path("first123world.ext");
         assert!(filter.detect(&mut state));
         // The wild capture must be the tail only, not include the comb prefix.
         assert_eq!(state.params.get("id").map(String::as_str), Some("123"));
@@ -1347,23 +1347,23 @@ mod tests {
     #[test]
     fn test_parse_comb_2() {
         let filter = PathFilter::new("/abc/hello{id}world{**rest}");
-        let mut state = PathState::new("abc/hello123world.ext");
+        let mut state = PathState::from_borrowed_path("abc/hello123world.ext");
         assert!(filter.detect(&mut state));
     }
 
     #[test]
     fn test_parse_comb_3() {
         let filter = PathFilter::new("/{id}/{name}!hello.bu");
-        let mut state = PathState::new("123/gold!hello.bu");
+        let mut state = PathState::from_borrowed_path("123/gold!hello.bu");
         assert!(filter.detect(&mut state));
     }
     #[test]
     fn test_parse_comb_4() {
         let filter = PathFilter::new("/abc/l{**rest}");
-        let mut state = PathState::new("abc/llo1");
+        let mut state = PathState::from_borrowed_path("abc/llo1");
         assert!(filter.detect(&mut state));
 
-        let mut state = PathState::new("abc/hello1");
+        let mut state = PathState::from_borrowed_path("abc/hello1");
         assert!(!filter.detect(&mut state));
     }
     #[test]
@@ -1372,14 +1372,14 @@ mod tests {
         // After the literal `t` is consumed, the remaining `11` matches `\d+`, so
         // this is a match with `rest = "11"` (the wild regex is checked against the
         // tail, not the already-consumed `t` prefix).
-        let mut state = PathState::new("abc/t11");
+        let mut state = PathState::from_borrowed_path("abc/t11");
         assert!(filter.detect(&mut state));
         assert_eq!(state.params.get("rest").map(String::as_str), Some("11"));
 
         // `lo1` / `11a` tails are not all digits, so `\d+` rejects them.
-        let mut state = PathState::new("abc/tlo1");
+        let mut state = PathState::from_borrowed_path("abc/tlo1");
         assert!(!filter.detect(&mut state));
-        let mut state = PathState::new("abc/t11a");
+        let mut state = PathState::from_borrowed_path("abc/t11a");
         assert!(!filter.detect(&mut state));
     }
 
@@ -1417,45 +1417,45 @@ mod tests {
     #[test]
     fn test_detect_consts() {
         let filter = PathFilter::new("/hello/world");
-        let mut state = PathState::new("hello/world");
+        let mut state = PathState::from_borrowed_path("hello/world");
         assert!(filter.detect(&mut state));
     }
     #[test]
     fn test_detect_consts0() {
         let filter = PathFilter::new("/hello/world/");
-        let mut state = PathState::new("hello/world");
+        let mut state = PathState::from_borrowed_path("hello/world");
         assert!(filter.detect(&mut state));
     }
     #[test]
     fn test_detect_consts1() {
         let filter = PathFilter::new("/hello/world");
-        let mut state = PathState::new("hello/world/");
+        let mut state = PathState::from_borrowed_path("hello/world/");
         assert!(filter.detect(&mut state));
     }
     #[test]
     fn test_detect_consts2() {
         let filter = PathFilter::new("/hello/world2");
-        let mut state = PathState::new("hello/world");
+        let mut state = PathState::from_borrowed_path("hello/world");
         assert!(!filter.detect(&mut state));
     }
 
     #[test]
     fn test_detect_const_and_named() {
         let filter = PathFilter::new("/hello/world{id}");
-        let mut state = PathState::new("hello/worldabc");
+        let mut state = PathState::from_borrowed_path("hello/worldabc");
         filter.detect(&mut state);
     }
 
     #[test]
     fn test_detect_many() {
         let filter = PathFilter::new("/users/{id}/emails");
-        let mut state = PathState::new("/users/29/emails");
+        let mut state = PathState::from_borrowed_path("/users/29/emails");
         assert!(filter.detect(&mut state));
     }
     #[test]
     fn test_detect_many_slashes() {
         let filter = PathFilter::new("/users/{id}/emails");
-        let mut state = PathState::new("/users///29//emails");
+        let mut state = PathState::from_borrowed_path("/users///29//emails");
         assert!(filter.detect(&mut state));
     }
     #[test]
@@ -1465,10 +1465,12 @@ mod tests {
             regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
         );
         let filter = PathFilter::new("/users/{id:guid}");
-        let mut state = PathState::new("/users/123e4567-h89b-12d3-a456-9AC7CBDCEE52");
+        let mut state =
+            PathState::from_borrowed_path("/users/123e4567-h89b-12d3-a456-9AC7CBDCEE52");
         assert!(!filter.detect(&mut state));
 
-        let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
+        let mut state =
+            PathState::from_borrowed_path("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
         assert!(filter.detect(&mut state));
         assert_eq!(
             state.matched_parts,
@@ -1478,15 +1480,15 @@ mod tests {
     #[test]
     fn test_detect_wildcard() {
         let filter = PathFilter::new("/users/{id}/{**rest}");
-        let mut state = PathState::new("/users/12/facebook/insights/23");
+        let mut state = PathState::from_borrowed_path("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
         assert_eq!(
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
         );
-        let mut state = PathState::new("/users/12/");
+        let mut state = PathState::from_borrowed_path("/users/12/");
         assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12");
+        let mut state = PathState::from_borrowed_path("/users/12");
         assert!(filter.detect(&mut state));
         assert_eq!(
             state.matched_parts,
@@ -1494,21 +1496,21 @@ mod tests {
         );
 
         let filter = PathFilter::new("/users/{id}/{*+rest}");
-        let mut state = PathState::new("/users/12/facebook/insights/23");
+        let mut state = PathState::from_borrowed_path("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12/");
+        let mut state = PathState::from_borrowed_path("/users/12/");
         assert!(!filter.detect(&mut state));
-        let mut state = PathState::new("/users/12");
+        let mut state = PathState::from_borrowed_path("/users/12");
         assert!(!filter.detect(&mut state));
 
         let filter = PathFilter::new("/users/{id}/{*?rest}");
-        let mut state = PathState::new("/users/12/facebook/insights/23");
+        let mut state = PathState::from_borrowed_path("/users/12/facebook/insights/23");
         assert!(!filter.detect(&mut state));
-        let mut state = PathState::new("/users/12/");
+        let mut state = PathState::from_borrowed_path("/users/12/");
         assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12");
+        let mut state = PathState::from_borrowed_path("/users/12");
         assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12/abc");
+        let mut state = PathState::from_borrowed_path("/users/12/abc");
         assert!(filter.detect(&mut state));
         assert_eq!(
             state.matched_parts,
@@ -1537,7 +1539,7 @@ mod tests {
         let filter = std::panic::catch_unwind(|| PathFilter::new(pattern.as_ref()))
             .expect("PathFilter::new should not panic on malformed patterns");
 
-        let mut state = PathState::new("/users/29/emails");
+        let mut state = PathState::from_borrowed_path("/users/29/emails");
         assert!(!filter.detect(&mut state));
     }
 }
