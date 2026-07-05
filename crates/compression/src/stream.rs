@@ -12,9 +12,8 @@ use tokio::task::{JoinHandle, spawn_blocking};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
 
-// Keep moderately sized buffered chunks on the async task. The previous 1 KiB
-// cutoff made 8 KiB JSON chunks spawn one blocking task each when compression
-// was enabled.
+// Keep 8 KiB JSON chunks and similarly sized buffered chunks on the async task
+// when compression is enabled.
 const MAX_CHUNK_SIZE_ENCODE_IN_PLACE: usize = 16 * 1024;
 
 pub(super) struct EncodeStream<B> {
