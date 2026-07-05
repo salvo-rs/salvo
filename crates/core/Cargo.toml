@@ -147,8 +147,18 @@ zstd = { workspace = true, optional = true, features = ["default"] }
 nix = { workspace = true, optional = true, features = ["fs", "user"] }
 
 [dev-dependencies]
+criterion = { workspace = true }
 fastrand = { workspace = true }
 rustls = { workspace = true, features = ["aws-lc-rs"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "router_detect"
+harness = false
+
+[[bench]]
+name = "service_dispatch"
+harness = false
