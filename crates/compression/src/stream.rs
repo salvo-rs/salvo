@@ -12,7 +12,10 @@ use tokio::task::{JoinHandle, spawn_blocking};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
 
-const MAX_CHUNK_SIZE_ENCODE_IN_PLACE: usize = 1024;
+// Keep moderately sized buffered chunks on the async task. The previous 1 KiB
+// cutoff made 8 KiB JSON chunks spawn one blocking task each when compression
+// was enabled.
+const MAX_CHUNK_SIZE_ENCODE_IN_PLACE: usize = 16 * 1024;
 
 pub(super) struct EncodeStream<B> {
     encoder: Option<Encoder>,
@@ -151,6 +154,11 @@ mod tests {
     use futures_util::stream::StreamExt;
 
     use super::*;
+
+    #[test]
+    fn encode_in_place_threshold_covers_json_chunks() {
+        assert!(MAX_CHUNK_SIZE_ENCODE_IN_PLACE >= 8 * 1024);
+    }
 
     #[tokio::test]
     async fn test_encode_stream_once() {

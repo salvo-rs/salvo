@@ -65,12 +65,10 @@
 //!
 //! Read more: <https://salvo.rs>
 
-use std::collections::VecDeque;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use std::sync::LazyLock;
 
-use bytes::Bytes;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
@@ -482,20 +480,15 @@ impl Handler for Compression {
                 }
             }
             ResBody::Chunks(chunks) => {
-                let len: usize = chunks.iter().map(|c| c.len()).sum();
-                if self.min_length > 0 && len < self.min_length {
-                    res.body(ResBody::Chunks(chunks));
-                    return;
+                if self.min_length > 0 {
+                    let len: usize = chunks.iter().map(|c| c.len()).sum();
+                    if len < self.min_length {
+                        res.body(ResBody::Chunks(chunks));
+                        return;
+                    }
                 }
                 if let Some((algo, level)) = self.negotiate(req, res) {
-                    // These chunks are already fully buffered in memory; flatten them
-                    // before compression so the encoder runs once for the response
-                    // instead of offloading one blocking task per chunk.
-                    res.stream(EncodeStream::new(
-                        algo,
-                        level,
-                        Some(flatten_chunks(chunks, len)),
-                    ));
+                    res.stream(EncodeStream::new(algo, level, chunks));
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
                     res.body(ResBody::Chunks(chunks));
@@ -532,25 +525,8 @@ impl Handler for Compression {
     }
 }
 
-fn flatten_chunks(mut chunks: VecDeque<Bytes>, len: usize) -> Bytes {
-    match chunks.len() {
-        0 => Bytes::new(),
-        1 => chunks.pop_front().expect("chunk count checked"),
-        _ => {
-            let mut body = Vec::with_capacity(len);
-            for chunk in chunks {
-                body.extend_from_slice(&chunk);
-            }
-            Bytes::from(body)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::collections::VecDeque;
-
-    use bytes::Bytes;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -639,19 +615,6 @@ mod tests {
             .send(router)
             .await;
         assert!(res.headers().get(CONTENT_ENCODING).is_some());
-    }
-
-    #[test]
-    fn test_flatten_chunks_preserves_body() {
-        let chunks = VecDeque::from([
-            Bytes::from_static(b"hello "),
-            Bytes::from_static(b"chunked "),
-            Bytes::from_static(b"body"),
-        ]);
-
-        let body = flatten_chunks(chunks, "hello chunked body".len());
-
-        assert_eq!(body, Bytes::from_static(b"hello chunked body"));
     }
 
     #[handler]
