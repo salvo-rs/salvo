@@ -479,7 +479,7 @@ impl Response {
         P: Scribe,
     {
         self.status_code = Some(code);
-        self.render(scribe);
+        scribe.render(self);
     }
 
     /// Sets the status code and renders content into this response.
