@@ -73,12 +73,15 @@ impl TryToTokens for ToParameters {
         ex_generics.params.insert(0, ex_lifetime);
         let ex_impl_generics = ex_generics.split_for_impl().0;
 
+        // Container-level config is spelled `parameters(...)`, but the singular
+        // `parameter(...)` is accepted as an alias so the key matches its
+        // field-level counterpart (see `resolve_field_features`).
         let mut parameters_features = self
             .attrs
             .iter()
             .filter(|attr| attr.path().is_ident("salvo"))
             .filter_map(|attr| {
-                attribute::find_nested_list(attr, "parameters")
+                attribute::find_nested_list_any(attr, &["parameters", "parameter"])
                     .ok()
                     .flatten()
             })
@@ -91,22 +94,6 @@ impl TryToTokens for ToParameters {
             .into_iter()
             .reduce(|acc, item| acc.merge(item));
         let serde_container = serde_util::parse_container(&self.attrs).map_err(Diagnostic::from)?;
-
-        // #[param] is only supported over fields
-        if self.attrs.iter().any(|attr| {
-            attr.path().is_ident("salvo")
-                && attribute::find_nested_list(attr, "parameter")
-                    .ok()
-                    .flatten()
-                    .is_some()
-        }) {
-            return Err(Diagnostic::spanned(
-                ident.span(),
-                DiagLevel::Error,
-                "found `parameter` attribute in unsupported context",
-            )
-            .help("Did you mean `parameters`?"));
-        }
 
         let names = parameters_features.as_mut().and_then(|features| {
             let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
@@ -415,7 +402,10 @@ impl Parameter<'_> {
             .iter()
             .filter_map(|attr| {
                 if attr.path().is_ident("salvo") {
-                    attribute::find_nested_list(attr, "parameter")
+                    // Field-level config is spelled `parameter(...)`; the plural
+                    // `parameters(...)` is accepted as an alias so the key matches
+                    // its container-level counterpart.
+                    attribute::find_nested_list_any(attr, &["parameter", "parameters"])
                         .ok()
                         .flatten()
                         .map(|metas| {
