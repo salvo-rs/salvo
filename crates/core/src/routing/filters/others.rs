@@ -257,8 +257,7 @@ mod tests {
     #[tokio::test]
     async fn fallback_sets_scheme_filter_result_when_scheme_is_absent() {
         let mut req = Request::new();
-        let path = req.uri().path().to_owned();
-        let mut state = PathState::new(&path);
+        let mut state = PathState::new(req.uri().path());
 
         assert!(
             SchemeFilter::new(Scheme::HTTPS)
@@ -271,8 +270,7 @@ mod tests {
     #[tokio::test]
     async fn fallback_sets_host_filter_result_when_host_is_absent() {
         let mut req = Request::new();
-        let path = req.uri().path().to_owned();
-        let mut state = PathState::new(&path);
+        let mut state = PathState::new(req.uri().path());
 
         assert!(
             HostFilter::new("example.com")
@@ -285,8 +283,7 @@ mod tests {
     #[tokio::test]
     async fn fallback_sets_port_filter_result_when_port_is_absent() {
         let mut req = Request::new();
-        let path = req.uri().path().to_owned();
-        let mut state = PathState::new(&path);
+        let mut state = PathState::new(req.uri().path());
 
         assert!(
             PortFilter::new(443)

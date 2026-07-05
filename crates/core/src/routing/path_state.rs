@@ -1,10 +1,11 @@
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
 
 use super::{PathParams, decode_url_path};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum PathPart {
+enum PathPart {
     Raw(Range<usize>),
     Decoded(String),
 }
@@ -24,10 +25,10 @@ impl PathPart {
 }
 
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct PathState {
     path: String,
-    pub(crate) parts: Vec<PathPart>,
+    parts: Vec<PathPart>,
     /// (row, col), row is the index of parts, col is the index of char in the part.
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
@@ -37,6 +38,42 @@ pub struct PathState {
     pub(crate) once_ended: bool, /* Once it has ended, used to determine whether the error code
                                  * returned is 404 or 405. */
 }
+impl Debug for PathState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let parts = self.parts_iter().collect::<Vec<_>>();
+        let mut debug = f.debug_struct("PathState");
+        debug
+            .field("parts", &parts)
+            .field("cursor", &self.cursor)
+            .field("params", &self.params);
+        #[cfg(feature = "matched-path")]
+        debug.field("matched_parts", &self.matched_parts);
+        debug
+            .field("end_slash", &self.end_slash)
+            .field("once_ended", &self.once_ended)
+            .finish()
+    }
+}
+impl PartialEq for PathState {
+    fn eq(&self, other: &Self) -> bool {
+        if !self.parts_iter().eq(other.parts_iter()) {
+            return false;
+        }
+        if self.cursor != other.cursor
+            || self.params != other.params
+            || self.end_slash != other.end_slash
+            || self.once_ended != other.once_ended
+        {
+            return false;
+        }
+        #[cfg(feature = "matched-path")]
+        if self.matched_parts != other.matched_parts {
+            return false;
+        }
+        true
+    }
+}
+impl Eq for PathState {}
 impl PathState {
     /// Creates a new `PathState`.
     #[inline]
@@ -134,9 +171,19 @@ impl PathState {
     }
 
     #[inline]
+    pub(crate) fn parts_len(&self) -> usize {
+        self.parts.len()
+    }
+
+    #[inline]
+    fn parts_iter(&self) -> impl Iterator<Item = &str> + '_ {
+        self.parts.iter().map(|part| part.as_str(&self.path))
+    }
+
+    #[inline]
     #[cfg(test)]
     pub(crate) fn parts(&self) -> impl Iterator<Item = &str> + '_ {
-        self.parts.iter().map(|part| part.as_str(&self.path))
+        self.parts_iter()
     }
 }
 
@@ -208,5 +255,12 @@ mod tests {
 
         state.forward("a/b".len());
         assert_eq!(state.pick(), Some("rest"));
+    }
+
+    #[test]
+    fn equality_uses_decoded_parts_not_internal_storage() {
+        let user = "\u{7528}\u{6237}";
+        assert_eq!(PathState::new(user), PathState::new(&format!("/{user}")));
+        assert_eq!(PathState::new(user), PathState::new("%E7%94%A8%E6%88%B7"));
     }
 }

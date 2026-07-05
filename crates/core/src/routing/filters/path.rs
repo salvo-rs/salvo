@@ -545,7 +545,7 @@ impl PathWisp for NamedWisp {
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.into_owned();
                 state.params.insert_tracked(&self.0, rest);
-                state.cursor.0 = state.parts.len();
+                state.cursor.0 = state.parts_len();
                 #[cfg(feature = "matched-path")]
                 push_named_part(&mut state.matched_parts, &self.0);
                 true
@@ -1133,7 +1133,7 @@ impl PathFilter {
         for ps in &self.path_wisps {
             let row = state.cursor.0;
             if ps.detect(state) {
-                if row == state.cursor.0 && row != state.parts.len() {
+                if row == state.cursor.0 && row != state.parts_len() {
                     state.cursor = original_cursor;
                     return false;
                 }
