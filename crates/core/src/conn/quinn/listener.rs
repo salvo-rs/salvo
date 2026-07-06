@@ -179,11 +179,14 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
             let fuse_config = match &fuse_policy {
-                Some(policy) => match policy.decide(&FuseInfo {
-                    trans_proto: TransProto::Quic,
-                    remote_addr: remote_addr.into(),
-                    local_addr: local_addr.clone(),
-                }) {
+                Some(policy) => match policy
+                    .decide(&FuseInfo {
+                        trans_proto: TransProto::Quic,
+                        remote_addr: remote_addr.into(),
+                        local_addr: local_addr.clone(),
+                    })
+                    .await
+                {
                     FuseAction::Accept(config) => Some(config),
                     FuseAction::Reject => continue,
                 },

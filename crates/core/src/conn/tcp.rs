@@ -230,7 +230,7 @@ impl Acceptor for TcpAcceptor {
                         remote_addr: remote_addr.into(),
                         local_addr: local_addr.clone(),
                     };
-                    match policy.decide(&info) {
+                    match policy.decide(&info).await {
                         FuseAction::Accept(config) => {
                             (Some(config), policy.observe(&info, &conn_ctrl))
                         }

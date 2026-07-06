@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::async_trait;
 use crate::conn::{ConnCtrl, SocketAddr};
 
 /// Transport used by an accepted connection.
@@ -119,9 +120,14 @@ pub trait ConnObserver: Send + Sync + 'static {
 pub type ArcConnObserver = Arc<dyn ConnObserver>;
 
 /// Selects protection settings once per accepted connection.
+///
+/// [`decide`](Self::decide) is `async` so admission can consult external state — a
+/// blocklist, a per-IP counter, a shared rate limiter — before a connection is served. It
+/// runs once, on the accept path, so keep it cheap; heavy work there serializes accepts.
+#[async_trait]
 pub trait FusePolicy: Send + Sync + 'static {
     /// Decides whether and how to protect a connection.
-    fn decide(&self, info: &FuseInfo) -> FuseAction;
+    async fn decide(&self, info: &FuseInfo) -> FuseAction;
 
     /// Creates an optional [`ConnObserver`] for an accepted connection.
     ///
@@ -138,20 +144,53 @@ pub trait FusePolicy: Send + Sync + 'static {
     }
 }
 
+#[async_trait]
 impl FusePolicy for FuseConfig {
-    fn decide(&self, _info: &FuseInfo) -> FuseAction {
+    async fn decide(&self, _info: &FuseInfo) -> FuseAction {
         FuseAction::Accept(*self)
     }
 }
 
+#[async_trait]
 impl<F> FusePolicy for F
 where
     F: Fn(&FuseInfo) -> FuseAction + Send + Sync + 'static,
 {
-    fn decide(&self, info: &FuseInfo) -> FuseAction {
+    async fn decide(&self, info: &FuseInfo) -> FuseAction {
         self(info)
     }
 }
 
 /// Shared connection policy used by listeners.
 pub type ArcFusePolicy = Arc<dyn FusePolicy>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn async_policy_can_await_before_admission() {
+        struct Blocklist;
+        #[async_trait]
+        impl FusePolicy for Blocklist {
+            async fn decide(&self, info: &FuseInfo) -> FuseAction {
+                // Stands in for an async lookup (blocklist store, per-IP counter, ...).
+                tokio::task::yield_now().await;
+                if info.remote_addr.as_ipv4().is_some() {
+                    FuseAction::Reject
+                } else {
+                    FuseAction::Accept(FuseConfig::disabled())
+                }
+            }
+        }
+
+        let policy: ArcFusePolicy = Arc::new(Blocklist);
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 0));
+        let info = FuseInfo {
+            trans_proto: TransProto::Tcp,
+            remote_addr: addr.into(),
+            local_addr: addr.into(),
+        };
+        assert_eq!(policy.decide(&info).await, FuseAction::Reject);
+    }
+}
