@@ -49,6 +49,18 @@ impl<S> HandshakeStream<S> {
         match &mut self.state {
             State::Handshaking(future) => match future.poll_unpin(cx) {
                 Poll::Ready(Ok(stream)) => {
+                    // A handshake that completes after its deadline already elapsed must still
+                    // fail; otherwise the timeout only bites when the timer task happens to be
+                    // polled first, making it a soft limit under scheduler delay.
+                    if let Some(timeout) = &mut self.timeout
+                        && timeout.as_mut().poll(cx).is_ready()
+                    {
+                        self.state = State::Error;
+                        return Poll::Ready(Err(IoError::new(
+                            ErrorKind::TimedOut,
+                            "TLS handshake timeout",
+                        )));
+                    }
                     self.state = State::Ready(stream);
                     self.timeout = None;
                     Poll::Ready(Ok(()))
@@ -174,6 +186,29 @@ mod tests {
         let mut stream = HandshakeStream::new(handshake, Some(config));
 
         let error = stream.read_u8().await.unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn handshake_completing_after_the_deadline_is_rejected() {
+        let config = FuseConfig {
+            tls_handshake_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        };
+        let (server, _client) = tokio::io::duplex(64);
+        // A handshake that is already complete the first time it is polled.
+        let handshake = std::future::ready(Ok::<_, std::io::Error>(server));
+        let mut stream = HandshakeStream::new(handshake, Some(config));
+
+        // Let the handshake deadline lapse before the stream is ever polled.
+        tokio::time::sleep(Duration::from_millis(40)).await;
+
+        // The handshake resolves immediately now, but its deadline already passed, so it must
+        // be rejected rather than accepted.
+        let error = tokio::time::timeout(Duration::from_secs(1), stream.read_u8())
+            .await
+            .expect("handshake read should resolve, not hang")
+            .unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
     }
 }
