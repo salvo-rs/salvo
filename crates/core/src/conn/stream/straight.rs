@@ -19,6 +19,9 @@ pub struct StraightStream<C> {
     idle_timeout: Option<Duration>,
     idle_sleep: Option<Pin<Box<Sleep>>>,
     write_timeout: Option<Duration>,
+    // Allocated lazily on the first stalled write. A connection whose writes never block
+    // (the common case for a responsive client) never pays for this timer. `Sleep` is
+    // `!Unpin`, so it stays boxed to keep `StraightStream` itself `Unpin` as Hyper requires.
     write_sleep: Option<Pin<Box<Sleep>>>,
     write_pending: bool,
     // Shared with handlers: once a handler upgrades the connection to a long-lived
@@ -54,8 +57,7 @@ impl<C> StraightStream<C> {
             idle_timeout,
             idle_sleep: idle_timeout.map(|duration| Box::pin(tokio::time::sleep(duration))),
             write_timeout,
-            write_sleep: write_timeout
-                .map(|_| Box::pin(tokio::time::sleep(Duration::from_secs(86400 * 365)))),
+            write_sleep: None,
             write_pending: false,
             conn_ctrl,
             observer,
@@ -130,10 +132,15 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                 }
                 if !*this.write_pending {
                     *this.write_pending = true;
-                    if let (Some(timeout), Some(sleep)) =
-                        (*this.write_timeout, this.write_sleep.as_mut())
-                    {
-                        sleep.as_mut().reset(Instant::now() + timeout);
+                    if let Some(timeout) = *this.write_timeout {
+                        let deadline = Instant::now() + timeout;
+                        match this.write_sleep.as_mut() {
+                            Some(sleep) => sleep.as_mut().reset(deadline),
+                            None => {
+                                *this.write_sleep =
+                                    Some(Box::pin(tokio::time::sleep_until(deadline)));
+                            }
+                        }
                     }
                 }
                 if let Some(sleep) = this.write_sleep.as_mut()
@@ -189,10 +196,15 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                 }
                 if !*this.write_pending {
                     *this.write_pending = true;
-                    if let (Some(timeout), Some(sleep)) =
-                        (*this.write_timeout, this.write_sleep.as_mut())
-                    {
-                        sleep.as_mut().reset(Instant::now() + timeout);
+                    if let Some(timeout) = *this.write_timeout {
+                        let deadline = Instant::now() + timeout;
+                        match this.write_sleep.as_mut() {
+                            Some(sleep) => sleep.as_mut().reset(deadline),
+                            None => {
+                                *this.write_sleep =
+                                    Some(Box::pin(tokio::time::sleep_until(deadline)));
+                            }
+                        }
                     }
                 }
                 if let Some(sleep) = this.write_sleep.as_mut()
