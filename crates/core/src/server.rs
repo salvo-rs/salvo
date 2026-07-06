@@ -257,11 +257,17 @@ impl<A: Acceptor + Send> Server<A> {
         #![feature = "http1"]
         /// Use this function to set http1 protocol.
         ///
-        /// Note: `header_read_timeout` is governed by the fuse config. When the active
+        /// Note: `header_read_timeout` interacts with the fuse config. When the active
         /// [`FuseConfig::http1_header_timeout`](crate::fuse::FuseConfig::http1_header_timeout)
-        /// is set (the on-by-default config sets it), it overrides any value set here; a
-        /// value set here survives only under [`disable_fuse`](Self::disable_fuse) or a fuse
-        /// config with that timeout left unset.
+        /// is set (the on-by-default config sets it), it overrides any value set here; a value
+        /// set here applies only under [`disable_fuse`](Self::disable_fuse) or a fuse config
+        /// with that timeout left unset.
+        ///
+        /// Even then it only bounds Hyper's own header read, which begins *after* the initial
+        /// HTTP/1-vs-HTTP/2 protocol-detection read. It does **not** bound that detection read,
+        /// so a client that connects and sends nothing is not covered by it. To bound the
+        /// detection read too — the full Slowloris protection — set
+        /// [`FuseConfig::http1_header_timeout`], which is the single surface that governs both.
         pub fn http1_mut(&mut self) -> &mut http1::Builder {
             &mut self.builder.http1
         }

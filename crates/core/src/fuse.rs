@@ -60,11 +60,12 @@ pub struct FuseConfig {
     pub tls_handshake_timeout: Option<Duration>,
     /// Maximum duration for reading an HTTP/1 request head.
     ///
-    /// This is the single source of truth for the HTTP/1 header-read timeout: when set, it
-    /// drives Hyper's `header_read_timeout` and therefore takes precedence over any value
-    /// configured through [`Server::http1_mut`](crate::Server::http1_mut). Leave it `None`
-    /// (or [`disable_fuse`](crate::Server::disable_fuse)) to keep whatever the Hyper builder
-    /// was given instead.
+    /// This is the single source of truth for the HTTP/1 header-read timeout. When set it
+    /// bounds *both* the initial protocol-detection read and Hyper's own header read (sharing
+    /// one deadline across the two), and it takes precedence over any value configured through
+    /// [`Server::http1_mut`](crate::Server::http1_mut). Leave it `None` (or
+    /// [`disable_fuse`](crate::Server::disable_fuse)) to leave the detection read unbounded and
+    /// keep whatever the Hyper builder was given for its own header read.
     pub http1_header_timeout: Option<Duration>,
     /// Maximum time with no successful transport read or write.
     ///
