@@ -99,6 +99,12 @@ impl HttpBuilder {
         // When both HTTP/1 and HTTP/2 are enabled, consume only enough bytes to
         // distinguish the HTTP/2 prior-knowledge preface. `Rewind` preserves
         // those bytes so the selected Hyper connection receives the full input.
+        //
+        // Detection and Hyper's own header-read timeout share one `http1_header_timeout`
+        // budget: track when detection began so the remainder can be handed to Hyper,
+        // rather than letting a client that stalls detection then get a fresh full timeout.
+        #[cfg(all(feature = "http1", feature = "http2"))]
+        let detect_started = tokio::time::Instant::now();
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = {
             // The initial protocol-detection read is bounded by the HTTP/1 header timeout.
@@ -144,6 +150,11 @@ impl HttpBuilder {
                     if let Some(timeout) =
                         fuse_config.and_then(|config| config.http1_header_timeout)
                     {
+                        // When both protocols are enabled, the detection read already spent part
+                        // of this budget; subtract it so the whole header-read window stays a
+                        // single `http1_header_timeout` instead of restarting after detection.
+                        #[cfg(feature = "http2")]
+                        let timeout = timeout.saturating_sub(detect_started.elapsed());
                         http1.header_read_timeout(Some(timeout));
                     }
                     let mut conn = http1
