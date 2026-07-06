@@ -704,6 +704,72 @@ mod tests {
 
     #[cfg(feature = "server-handle")]
     #[tokio::test]
+    async fn graceful_stop_stays_abortable_when_a_handler_aborts() {
+        use std::sync::OnceLock;
+        use std::time::Duration;
+
+        use tokio::io::AsyncWriteExt;
+        use tokio::sync::Notify;
+
+        use crate::conn::Acceptor;
+
+        // Lets the test hold the handler in-flight until the server is mid graceful-drain.
+        static STARTED: OnceLock<Notify> = OnceLock::new();
+        static GO: OnceLock<Notify> = OnceLock::new();
+        fn started() -> &'static Notify {
+            STARTED.get_or_init(Notify::new)
+        }
+        fn go() -> &'static Notify {
+            GO.get_or_init(Notify::new)
+        }
+
+        #[handler]
+        async fn block_then_abort(res: &mut Response, conn: &mut ConnCtrl) {
+            started().notify_one();
+            go().notified().await;
+            conn.abort();
+            res.body("must not be sent");
+        }
+
+        let acceptor = crate::conn::TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let server_task = tokio::spawn(server.try_serve(Router::new().goal(block_then_abort)));
+
+        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+
+        // Keep the request in-flight so graceful shutdown drains an active connection.
+        tokio::time::timeout(Duration::from_secs(1), started().notified())
+            .await
+            .expect("handler should start");
+
+        // Server-wide graceful shutdown; let the serve loop enter the drain path first.
+        handle.stop_graceful(None);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // The handler now aborts and its service future parks forever. The drain path must
+        // still observe the abort and drop the connection, or the server never stops.
+        go().notify_one();
+
+        tokio::time::timeout(Duration::from_secs(5), server_task)
+            .await
+            .expect("graceful stop must finish even when a handler aborts mid-drain")
+            .unwrap()
+            .unwrap();
+        drop(client);
+    }
+
+    #[cfg(feature = "server-handle")]
+    #[tokio::test]
     async fn test_server_handle_stop() {
         use std::time::Duration;
 
