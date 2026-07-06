@@ -37,21 +37,6 @@ use crate::rt::tokio::TokioExecutor;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-/// Fallback timeout for the initial protocol-detection read when no fuse_config is
-/// configured. A connection that opens but never sends bytes would otherwise keep
-/// the detection read pending forever (Slowloris-style connection leak). The value
-/// is intentionally generous — real clients send the request line / HTTP/2 preface
-/// immediately — and only bounds this one initial read, not established connections.
-/// Configure a [`fuse_policy`](crate::Server::fuse_policy) for finer-grained
-/// handshake/idle timeouts.
-///
-/// This relies on the Tokio **time driver**, so the server must run on a runtime
-/// built with timers enabled (`#[tokio::main]` and `Runtime::new()` enable them;
-/// a hand-built runtime needs `enable_time()` / `enable_all()`). That matches the
-/// rest of the server (graceful-shutdown and fuse timeouts already use timers).
-#[cfg(all(feature = "http1", feature = "http2"))]
-const PROTOCOL_DETECT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
-
 #[doc(hidden)]
 pub struct HttpBuilder {
     #[cfg(feature = "http1")]
@@ -116,13 +101,11 @@ impl HttpBuilder {
         // those bytes so the selected Hyper connection receives the full input.
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = {
-            // With no fuse configured at all, still bound the detection read with a generous
-            // fallback so a silent connection can't leak. But a fuse that *explicitly* disables
-            // the header timeout (`None`) is honored, leaving the detection read unbounded.
-            let detect_timeout = match fuse_config {
-                Some(config) => config.http1_header_timeout,
-                None => Some(PROTOCOL_DETECT_READ_TIMEOUT),
-            };
+            // The initial protocol-detection read is bounded by the HTTP/1 header timeout.
+            // A disabled fuse (`disable_fuse()` → no config, or a config with this timeout
+            // set to `None`) is honored and leaves the read unbounded; the on-by-default
+            // config keeps its header timeout, so a silent connection is still bounded.
+            let detect_timeout = fuse_config.and_then(|config| config.http1_header_timeout);
             tokio::select! {
                 result = read_version(socket) => result?,
                 _ = async {
