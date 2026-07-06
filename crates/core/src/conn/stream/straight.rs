@@ -84,6 +84,12 @@ impl<C: AsyncRead> AsyncRead for StraightStream<C> {
                     if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
                     {
+                        // A read that lands after the idle deadline already elapsed must still
+                        // fail, or a peer dribbling one byte just past each deadline would keep
+                        // resetting the timer and evade the idle timeout entirely.
+                        if !this.conn_ctrl.is_relaxed() && sleep.as_mut().poll(cx).is_ready() {
+                            return Poll::Ready(Err(timed_out("connection idle timeout")));
+                        }
                         sleep.as_mut().reset(Instant::now() + timeout);
                     }
                     if let Some(observer) = this.observer.as_ref() {
@@ -244,6 +250,26 @@ mod tests {
         };
         let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new(), None);
 
+        let error = stream.read_u8().await.unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_fires_even_when_late_data_arrives() {
+        let (client, server) = tokio::io::duplex(64);
+        let config = FuseConfig {
+            connection_idle_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        };
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new(), None);
+
+        // Let the idle deadline lapse with no activity, then have the peer send a byte.
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        let mut server = server;
+        server.write_all(b"x").await.unwrap();
+
+        // The connection was idle past its deadline, so the read must fail rather than accept
+        // the late byte and silently reset the timer.
         let error = stream.read_u8().await.unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
     }
