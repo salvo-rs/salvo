@@ -1,14 +1,8 @@
 use std::fmt::{self, Debug, Formatter};
-#[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-use std::future::Future;
-#[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-#[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-use std::task::{Context, Poll};
 
-use futures_util::task::AtomicWaker;
+use tokio::sync::Notify;
 
 const RUNNING: u8 = 0;
 const GRACEFUL_SHUTDOWN: u8 = 1;
@@ -26,7 +20,7 @@ pub struct ConnCtrl {
 
 struct Inner {
     state: AtomicU8,
-    waker: AtomicWaker,
+    notify: Notify,
     relax: AtomicBool,
 }
 
@@ -51,7 +45,7 @@ impl ConnCtrl {
         Self {
             inner: Arc::new(Inner {
                 state: AtomicU8::new(RUNNING),
-                waker: AtomicWaker::new(),
+                notify: Notify::new(),
                 relax: AtomicBool::new(false),
             }),
         }
@@ -73,7 +67,7 @@ impl ConnCtrl {
             )
             .is_ok()
         {
-            self.inner.waker.wake();
+            self.inner.notify.notify_waiters();
         }
     }
 
@@ -87,7 +81,7 @@ impl ConnCtrl {
     /// such as mitigating active attacks, where maintaining the connection poses a security risk.
     pub fn abort(&self) {
         if self.inner.state.swap(ABORT, Ordering::AcqRel) != ABORT {
-            self.inner.waker.wake();
+            self.inner.notify.notify_waiters();
         }
     }
 
@@ -136,18 +130,31 @@ impl ConnCtrl {
     }
 
     #[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-    pub(crate) fn notified(&self) -> Notified<'_> {
-        Notified {
-            ctrl: self,
-            abort_only: false,
-        }
+    pub(crate) async fn notified(&self) -> ConnState {
+        self.wait_for_state(false).await
     }
 
     #[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-    pub(crate) fn aborted(&self) -> Notified<'_> {
-        Notified {
-            ctrl: self,
-            abort_only: true,
+    pub(crate) async fn aborted(&self) -> ConnState {
+        self.wait_for_state(true).await
+    }
+
+    #[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
+    async fn wait_for_state(&self, abort_only: bool) -> ConnState {
+        loop {
+            // Register this waiter before reading the state. This closes the
+            // race where a transition could otherwise occur between the state
+            // check and waiter registration. `Notify` keeps every registered
+            // waiter and `notify_waiters` broadcasts to all of them.
+            let notified = self.inner.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+
+            let state = self.state();
+            if state == ConnState::Abort || (!abort_only && state == ConnState::GracefulShutdown) {
+                return state;
+            }
+            notified.await;
         }
     }
 }
@@ -157,31 +164,6 @@ pub(crate) enum ConnState {
     Running,
     GracefulShutdown,
     Abort,
-}
-
-#[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-pub(crate) struct Notified<'a> {
-    ctrl: &'a ConnCtrl,
-    abort_only: bool,
-}
-
-#[cfg(any(feature = "http1", feature = "http2", feature = "quinn", test))]
-impl Future for Notified<'_> {
-    type Output = ConnState;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let state = self.ctrl.state();
-        if state == ConnState::Abort || (!self.abort_only && state == ConnState::GracefulShutdown) {
-            return Poll::Ready(state);
-        }
-        self.ctrl.inner.waker.register(cx.waker());
-        let state = self.ctrl.state();
-        if state == ConnState::Abort || (!self.abort_only && state == ConnState::GracefulShutdown) {
-            Poll::Ready(state)
-        } else {
-            Poll::Pending
-        }
-    }
 }
 
 #[cfg(test)]
@@ -217,5 +199,29 @@ mod tests {
         );
         ctrl.abort();
         assert_eq!(ctrl.aborted().await, ConnState::Abort);
+    }
+
+    #[tokio::test]
+    async fn abort_wakes_every_waiter() {
+        let ctrl = ConnCtrl::new();
+        let connection_ctrl = ctrl.clone();
+        let connection_waiter = tokio::spawn(async move { connection_ctrl.notified().await });
+        let request_ctrl_a = ctrl.clone();
+        let request_waiter_a = tokio::spawn(async move { request_ctrl_a.aborted().await });
+        let request_ctrl_b = ctrl.clone();
+        let request_waiter_b = tokio::spawn(async move { request_ctrl_b.aborted().await });
+
+        // Give every future a chance to subscribe before broadcasting abort.
+        tokio::task::yield_now().await;
+        ctrl.abort();
+
+        let all_waiters = async {
+            assert_eq!(connection_waiter.await.unwrap(), ConnState::Abort);
+            assert_eq!(request_waiter_a.await.unwrap(), ConnState::Abort);
+            assert_eq!(request_waiter_b.await.unwrap(), ConnState::Abort);
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(1), all_waiters)
+            .await
+            .expect("abort must wake every registered waiter");
     }
 }
