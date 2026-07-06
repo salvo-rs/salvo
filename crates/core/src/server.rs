@@ -256,6 +256,12 @@ impl<A: Acceptor + Send> Server<A> {
     cfg_feature! {
         #![feature = "http1"]
         /// Use this function to set http1 protocol.
+        ///
+        /// Note: `header_read_timeout` is governed by the fuse config. When the active
+        /// [`FuseConfig::http1_header_timeout`](crate::fuse::FuseConfig::http1_header_timeout)
+        /// is set (the on-by-default config sets it), it overrides any value set here; a
+        /// value set here survives only under [`disable_fuse`](Self::disable_fuse) or a fuse
+        /// config with that timeout left unset.
         pub fn http1_mut(&mut self) -> &mut http1::Builder {
             &mut self.builder.http1
         }
