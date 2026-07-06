@@ -144,7 +144,17 @@ impl Builder {
             match accepted {
                 Ok(Some(resolver)) => {
                     let hyper_handler = hyper_handler.clone();
-                    let (request, stream) = match resolver.resolve_request().await {
+                    // Keep the connection abortable while the client sends the request head. A
+                    // stream that stalls before its headers arrive must not block a handler on
+                    // another stream from tearing the QUIC connection down.
+                    let resolved = tokio::select! {
+                        resolved = resolver.resolve_request() => resolved,
+                        _ = conn_ctrl.aborted() => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                    };
+                    let (request, stream) = match resolved {
                         Ok(request) => request,
                         Err(err) => {
                             tracing::error!("error resolving request: {err:?}");
