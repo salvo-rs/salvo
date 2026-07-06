@@ -67,8 +67,17 @@ pub struct FuseConfig {
     /// was given instead.
     pub http1_header_timeout: Option<Duration>,
     /// Maximum time with no successful transport read or write.
+    ///
+    /// Enforced for TCP-based transports (plain TCP, TLS, Unix sockets). It does **not** apply
+    /// to HTTP/3: a QUIC connection multiplexes independent streams and has no single byte
+    /// stream to time, so idleness there is governed by QUIC's own transport-level
+    /// `max_idle_timeout`, configured on the QUIC listener rather than through this field.
     pub connection_idle_timeout: Option<Duration>,
     /// Maximum time a requested transport write may remain pending.
+    ///
+    /// Enforced for TCP-based transports only. It does **not** apply to HTTP/3, where each QUIC
+    /// stream has independent flow control and there is no connection-wide pending write to
+    /// bound.
     pub write_stall_timeout: Option<Duration>,
     /// Maximum gap between request-body frames.
     pub request_body_timeout: Option<Duration>,

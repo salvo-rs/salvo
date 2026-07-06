@@ -192,6 +192,11 @@ impl Acceptor for QuinnAcceptor {
                 },
                 None => None,
             };
+            // Of the fuse timeouts, QUIC enforces the handshake timeout here and the
+            // request-body timeout via the H3 body. The transport idle and write-stall
+            // timeouts are TCP/byte-stream concepts handled by `StraightStream`; QUIC relies on
+            // quinn's own `max_idle_timeout` and per-stream flow control instead (see the
+            // `FuseConfig` field docs).
             let connected = match fuse_config.and_then(|config| config.tls_handshake_timeout) {
                 Some(timeout) => match tokio::time::timeout(timeout, new_conn).await {
                     Ok(result) => result,
