@@ -169,7 +169,10 @@ impl<A: Acceptor + Send> Server<A> {
         }
     }
 
-    /// Sets a per-connection fuse policy.
+    /// Sets a per-connection fuse policy, replacing the default.
+    ///
+    /// By default a server enables [`FuseConfig::default()`], the safe handshake + header
+    /// timeouts. Use this to make admission decisions per connection.
     #[must_use]
     pub fn fuse_policy<F>(mut self, policy: F) -> Self
     where
@@ -179,14 +182,21 @@ impl<A: Acceptor + Send> Server<A> {
         self
     }
 
-    /// Uses the same fuse configuration for every accepted connection.
+    /// Uses the same fuse configuration for every accepted connection, replacing the default.
+    ///
+    /// A server defaults to [`FuseConfig::default()`] (handshake + header timeouts only); pass
+    /// [`FuseConfig::strict()`] for the full set, or a `with_*`-built config to tune it.
     #[must_use]
     pub fn fuse_config(mut self, config: FuseConfig) -> Self {
         self.fuse_policy = Some(Arc::new(config));
         self
     }
 
-    /// Disables connection fuse protection.
+    /// Disables connection fuse protection entirely.
+    ///
+    /// Removes even the default handshake and header timeouts. Prefer leaving the default on,
+    /// or narrowing it with [`fuse_config`](Self::fuse_config), unless the connections are
+    /// already protected elsewhere.
     #[must_use]
     pub fn disable_fuse(mut self) -> Self {
         self.fuse_policy = None;

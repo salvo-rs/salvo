@@ -34,16 +34,22 @@ pub struct FuseInfo {
 
 /// Timeouts applied to an accepted connection.
 ///
-/// Start from [`default`](Self::default) or [`disabled`](Self::disabled) and adjust with the
-/// `with_*` builders:
+/// Three presets mark the useful points on the spectrum, and the `with_*` builders adjust any
+/// field from there:
+///
+/// - [`default`](Self::default) — the **safe defaults** a server applies out of the box: only
+///   the TLS-handshake and HTTP/1 header timeouts, which stop slow-handshake / Slowloris
+///   attacks and never trip on a legitimate client.
+/// - [`strict`](Self::strict) — **every** timeout, adding idle, write-stall and request-body
+///   limits. The strongest protection, but it can close valid long-lived or slow connections.
+/// - [`disabled`](Self::disabled) — no timeouts at all.
 ///
 /// ```
 /// use std::time::Duration;
 /// use salvo_core::fuse::FuseConfig;
 ///
 /// let config = FuseConfig::default()
-///     .with_connection_idle_timeout(Duration::from_secs(60))
-///     .with_request_body_timeout(None);
+///     .with_connection_idle_timeout(Duration::from_secs(60));
 /// ```
 ///
 /// It is `#[non_exhaustive]`, so new timeout knobs can be added without breaking callers.
@@ -63,7 +69,36 @@ pub struct FuseConfig {
 }
 
 impl Default for FuseConfig {
+    /// The safe defaults: the TLS-handshake and HTTP/1 header timeouts only.
+    ///
+    /// These defend against slow-handshake and slow-header (Slowloris) attacks and cannot trip
+    /// on any legitimate client — no real client takes ten seconds to handshake or thirty to
+    /// send its request head. The idle, write-stall and request-body timeouts are left off
+    /// because they *can* close otherwise-valid connections: idle WebSocket / SSE / long-poll
+    /// sessions, or slow-but-progressing uploads and downloads. Turn them on with
+    /// [`strict`](Self::strict) or the `with_*` builders once you know your workload has none
+    /// of those (or rely on the WebSocket support, which relaxes them on upgrade).
     fn default() -> Self {
+        Self {
+            tls_handshake_timeout: Some(Duration::from_secs(10)),
+            http1_header_timeout: Some(Duration::from_secs(30)),
+            connection_idle_timeout: None,
+            write_stall_timeout: None,
+            request_body_timeout: None,
+        }
+    }
+}
+
+impl FuseConfig {
+    /// Enables every fuse timeout, including the ones [`default`](Self::default) leaves off.
+    ///
+    /// On top of the handshake and header timeouts this adds the idle, write-stall and
+    /// request-body limits. It is the strongest protection but can close valid long-lived or
+    /// slow connections, so opt in only when your workload has none — or pair it with handlers
+    /// that call [`ConnCtrl::relax_timeouts`](crate::conn::ConnCtrl::relax_timeouts) on
+    /// upgrade, as the built-in WebSocket support already does.
+    #[must_use]
+    pub const fn strict() -> Self {
         Self {
             tls_handshake_timeout: Some(Duration::from_secs(10)),
             http1_header_timeout: Some(Duration::from_secs(30)),
@@ -72,9 +107,7 @@ impl Default for FuseConfig {
             request_body_timeout: Some(Duration::from_secs(60)),
         }
     }
-}
 
-impl FuseConfig {
     /// Disables every fuse timeout.
     #[must_use]
     pub const fn disabled() -> Self {
@@ -217,6 +250,28 @@ pub type ArcFusePolicy = Arc<dyn FusePolicy>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_enables_only_the_harmless_timeouts() {
+        let config = FuseConfig::default();
+        // Slowloris-family defenses that never trip a legitimate client stay on...
+        assert!(config.tls_handshake_timeout.is_some());
+        assert!(config.http1_header_timeout.is_some());
+        // ...while the timeouts that can close valid long-lived / slow connections stay off.
+        assert!(config.connection_idle_timeout.is_none());
+        assert!(config.write_stall_timeout.is_none());
+        assert!(config.request_body_timeout.is_none());
+    }
+
+    #[test]
+    fn strict_enables_every_timeout() {
+        let config = FuseConfig::strict();
+        assert!(config.tls_handshake_timeout.is_some());
+        assert!(config.http1_header_timeout.is_some());
+        assert!(config.connection_idle_timeout.is_some());
+        assert!(config.write_stall_timeout.is_some());
+        assert!(config.request_body_timeout.is_some());
+    }
 
     #[tokio::test]
     async fn async_policy_can_await_before_admission() {
