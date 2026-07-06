@@ -34,7 +34,7 @@ async fn get_all_users(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -49,8 +49,8 @@ async fn get_all_users(
             id: user.id,
             email: user.username.clone(),
             full_name: user.full_name.clone(),
-            created_at: user.created_at.clone(),
-            updated_at: user.updated_at.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         })
         .collect();
 
@@ -64,7 +64,7 @@ async fn get_all_users(
 )]
 async fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<UserCreate>) {
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     println!("📥 Create new user ...");
@@ -85,7 +85,7 @@ async fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBo
     }
 
     // ✅ Hash the password
-    let hashed = match hash_password(&user_create.password.clone().as_str()) {
+    let hashed = match hash_password(user_create.password.as_str()) {
         Ok(h) => h,
         Err(e) => {
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -137,7 +137,7 @@ pub async fn get_users_information(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let _db = &**connection;
 
     println!("📥 Fetching user information...");
@@ -148,11 +148,11 @@ pub async fn get_users_information(
 
     // ✅ Build response model
     let user_response_model = UserResponseModel {
-        id: current_user.id.clone(),
+        id: current_user.id,
         email: current_user.username.clone(), // or change field if you have separate email
         full_name: current_user.full_name.clone(),
-        created_at: current_user.created_at.clone(),
-        updated_at: current_user.created_at.clone(),
+        created_at: current_user.created_at,
+        updated_at: current_user.created_at,
     };
 
     // ✅ Send JSON response
@@ -177,7 +177,7 @@ async fn update_users(
     let user_uuid = user_id.into_inner();
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -237,7 +237,7 @@ async fn delete_users(
 ) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -284,8 +284,8 @@ async fn delete_users(
                 id: current_user.id,
                 email: current_user.username.clone(),
                 full_name: current_user.full_name.clone(),
-                created_at: current_user.created_at.clone(),
-                updated_at: current_user.updated_at.clone(),
+                created_at: current_user.created_at,
+                updated_at: current_user.updated_at,
             }));
         }
     }
@@ -304,7 +304,7 @@ async fn get_posts_by_users(
 ) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -325,7 +325,7 @@ async fn get_posts_by_users(
     println!("👤 Current user: {:?}", current_user);
 
     let all_posts: Vec<posts::Model> = Posts::find()
-        .filter(PostColumn::UserId.eq(current_user.id.clone()))
+        .filter(PostColumn::UserId.eq(current_user.id))
         .all(db)
         .await
         .expect("Error to loading posts");
@@ -344,7 +344,7 @@ async fn get_access_token(
     user_credentials: JsonBody<UserCredentials>,
     depot: &mut Depot,
 ) {
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
     // ✅ Query user by ID
 
@@ -359,19 +359,16 @@ async fn get_access_token(
         print!("no existing users");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalid username or password"),
+            detail: "🚫 Invalid username or password".to_owned(),
         }));
         return;
     };
 
-    if !verify_password(
-        &user_credentials.password.clone().as_str(),
-        &user.password.clone().as_str(),
-    ) {
+    if !verify_password(user_credentials.password.as_str(), user.password.as_str()) {
         println!("🚫 Bad password");
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("🚫 Invalid username or password"),
+            detail: "🚫 Invalid username or password".to_owned(),
         }));
         return;
     }
@@ -390,7 +387,7 @@ async fn get_access_token(
     res.status_code(StatusCode::OK);
     res.render(Json(TokenResponseModel {
         token_type: String::from("Bearer"),
-        token: String::from(token.unwrap()),
+        token: token.unwrap(),
     }));
 }
 

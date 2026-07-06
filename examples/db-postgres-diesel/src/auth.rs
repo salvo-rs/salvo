@@ -23,7 +23,7 @@ pub fn auth_user(
     println!("🔐 Call Authentication");
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     // ✅ Decode the JWT

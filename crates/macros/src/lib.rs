@@ -84,21 +84,20 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Container attributes:
 ///
-/// - `#[salvo(extract(default_source(from = "query")))]` sets a fallback source
-///   for fields without an explicit source.
+/// - `#[salvo(extract(default_source(from = "query")))]` sets a fallback source for fields without
+///   an explicit source.
 /// - `from` accepts `param`, `query`, `header`, `body`, or `depot`.
 /// - `parse` accepts `smart`, `json`, or `multimap`.
-/// - `#[salvo(extract(rename_all = "camelCase"))]` renames fields with the same
-///   case rules used by serde.
+/// - `#[salvo(extract(rename_all = "camelCase"))]` renames fields with the same case rules used by
+///   serde.
 ///
 /// Field attributes:
 ///
-/// - `#[salvo(extract(source(from = "param")))]` reads a field from a specific
-///   request source.
+/// - `#[salvo(extract(source(from = "param")))]` reads a field from a specific request source.
 /// - `#[salvo(extract(rename = "userId"))]` overrides the request field name.
 /// - `#[salvo(extract(alias = "uid"))]` accepts an alternate field name.
-/// - `#[salvo(extract(flatten))]` flattens another `Extractible` struct into
-///   the same request metadata.
+/// - `#[salvo(extract(flatten))]` flattens another `Extractible` struct into the same request
+///   metadata.
 ///
 /// `#[serde(rename)]`, `#[serde(rename_all)]`, `#[serde(alias)]`, and serde
 /// defaults are honored where they map to Salvo extraction metadata.

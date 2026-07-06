@@ -23,7 +23,7 @@ pub async fn auth_user(
     println!("🔐 Call Authentication");
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
 
     let db = &**connection;
 

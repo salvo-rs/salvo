@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn encode_in_place_threshold_covers_json_chunks() {
-        assert!(MAX_CHUNK_SIZE_ENCODE_IN_PLACE >= 8 * 1024);
+        const _: () = assert!(MAX_CHUNK_SIZE_ENCODE_IN_PLACE >= 8 * 1024);
     }
 
     #[tokio::test]

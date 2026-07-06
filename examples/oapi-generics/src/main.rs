@@ -20,7 +20,8 @@ struct CityDTO {
 
 /// Generic response wrapper with custom name.
 /// When instantiated as `Response<CityDTO>`, it becomes `Response<City>` in the schema.
-/// When instantiated as `Response<String>`, it becomes `Response<String>` (primitive types are shortened).
+/// When instantiated as `Response<String>`, it becomes `Response<String>` (primitive types are
+/// shortened).
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
 #[salvo(schema(name = Response))]
 struct ApiResponse<T: ToSchema + std::fmt::Debug + 'static> {

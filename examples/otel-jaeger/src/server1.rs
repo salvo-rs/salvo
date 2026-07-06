@@ -25,7 +25,7 @@ fn init_tracer_provider() -> SdkTracerProvider {
 
 #[handler]
 async fn index(req: &mut Request, depot: &mut Depot) -> String {
-    let tracer = depot.obtain::<Arc<Tracer>>().unwrap();
+    let tracer = depot.get_typed::<Arc<Tracer>>().unwrap();
     let span = tracer
         .span_builder("request/server2")
         .with_kind(SpanKind::Client)

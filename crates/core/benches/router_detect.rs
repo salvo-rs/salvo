@@ -9,10 +9,9 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use salvo_core::Router;
-use salvo_core::handler;
 use salvo_core::routing::PathState;
 use salvo_core::test::TestClient;
+use salvo_core::{Router, handler};
 
 #[handler]
 async fn goal() -> &'static str {

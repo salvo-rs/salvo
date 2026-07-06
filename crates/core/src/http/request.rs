@@ -112,10 +112,10 @@ impl Handler for SecureMaxSize {
 /// This can be configured using:
 ///
 /// - [`set_global_secure_max_size()`] - Set the process-wide fallback limit.
-/// - [`SecureMaxSize`] middleware - Set per-route limits without changing the
-///   fallback for unrelated routes.
-/// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request
-///   limits inside middleware or handlers.
+/// - [`SecureMaxSize`] middleware - Set per-route limits without changing the fallback for
+///   unrelated routes.
+/// - [`set_secure_max_size()`](Request::set_secure_max_size) - Set per-request limits inside
+///   middleware or handlers.
 ///
 /// **Note**: Size limits apply to request body reads and form parsing, including
 /// multipart file uploads. Increase the limit if you need to accept large uploads.

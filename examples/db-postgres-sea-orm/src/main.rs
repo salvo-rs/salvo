@@ -26,7 +26,7 @@ pub mod utils;
 )]
 pub async fn hello(name: QueryParam<String, false>, res: &mut Response, depot: &mut Depot) {
     println!("{:?}", name);
-    let _pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let _pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     // let mut _conn = pool.get().expect("Failed to get DB connection");
     res.status_code(StatusCode::OK);
     res.render(format!("Hello, {}!", name.clone().unwrap()))

@@ -1380,7 +1380,10 @@ mod tests {
             );
         }
         // field plural alias honored: `raw` was renamed to `renamed`.
-        assert!(names.contains(&"renamed"), "field rename alias not applied: {names:?}");
+        assert!(
+            names.contains(&"renamed"),
+            "field rename alias not applied: {names:?}"
+        );
         assert!(!names.contains(&"raw"));
     }
 
