@@ -116,17 +116,23 @@ impl HttpBuilder {
         // those bytes so the selected Hyper connection receives the full input.
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = {
-            let timeout = fuse_config
-                .and_then(|config| config.http1_header_timeout)
-                .unwrap_or(PROTOCOL_DETECT_READ_TIMEOUT);
+            // With no fuse configured at all, still bound the detection read with a generous
+            // fallback so a silent connection can't leak. But a fuse that *explicitly* disables
+            // the header timeout (`None`) is honored, leaving the detection read unbounded.
+            let detect_timeout = match fuse_config {
+                Some(config) => config.http1_header_timeout,
+                None => Some(PROTOCOL_DETECT_READ_TIMEOUT),
+            };
             tokio::select! {
-                result = tokio::time::timeout(timeout, read_version(socket)) => {
-                    if let Ok(result) = result {
-                        result?
-                    } else {
-                        tracing::info!("closing connection: protocol-detection read timed out");
-                        return Ok(());
+                result = read_version(socket) => result?,
+                _ = async {
+                    match detect_timeout {
+                        Some(timeout) => tokio::time::sleep(timeout).await,
+                        None => pending::<()>().await,
                     }
+                } => {
+                    tracing::info!("closing connection: protocol-detection read timed out");
+                    return Ok(());
                 }
                 state = conn_ctrl.notified() => {
                     tracing::info!(?state, "closing connection during protocol detection");
