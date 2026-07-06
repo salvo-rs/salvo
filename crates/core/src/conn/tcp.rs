@@ -154,6 +154,10 @@ where
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,
+    // A raw socket accepted but not yet admitted. Holding it here (rather than on the
+    // `accept` future's stack) keeps it alive if that future is dropped during async
+    // admission — e.g. when a `JoinedListener`'s `select!` picks the other listener.
+    pending: Option<(TcpStream, SocketAddr)>,
 }
 
 impl TcpAcceptor {
@@ -201,7 +205,11 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
             http_scheme: Scheme::HTTP,
         }];
 
-        Ok(Self { inner, holdings })
+        Ok(Self {
+            inner,
+            holdings,
+            pending: None,
+        })
     }
 }
 
@@ -220,7 +228,13 @@ impl Acceptor for TcpAcceptor {
         fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         loop {
-            let (conn, remote_addr) = self.inner.accept().await?;
+            // Accept a raw socket, or resume one that a cancelled call left behind. It is
+            // parked in `self.pending` across the async admission below so a dropped future
+            // does not close an already-accepted client.
+            if self.pending.is_none() {
+                self.pending = Some(self.inner.accept().await?);
+            }
+            let remote_addr = self.pending.as_ref().expect("pending set above").1;
             let local_addr = self.holdings[0].local_addr.clone();
             let conn_ctrl = ConnCtrl::new();
             let (fuse_config, observer) = match &fuse_policy {
@@ -234,11 +248,15 @@ impl Acceptor for TcpAcceptor {
                         FuseAction::Accept(config) => {
                             (Some(config), policy.observe(&info, &conn_ctrl))
                         }
-                        FuseAction::Reject => continue,
+                        FuseAction::Reject => {
+                            self.pending = None;
+                            continue;
+                        }
                     }
                 }
                 None => (None, None),
             };
+            let (conn, remote_addr) = self.pending.take().expect("pending set above");
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
                 stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
@@ -460,5 +478,55 @@ mod tests {
 
         let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
         assert_eq!(stream.read_i32().await.unwrap(), 150);
+    }
+
+    #[tokio::test]
+    async fn accept_is_cancellation_safe_during_async_admission() {
+        use std::time::Duration;
+
+        use crate::async_trait;
+        use crate::fuse::{FuseConfig, FusePolicy};
+
+        // An admission policy that blocks, widening the window in which `accept` can be
+        // cancelled while it already owns an accepted socket (as a `JoinedListener`'s
+        // `select!` does when the other listener wins the race).
+        struct SlowPolicy;
+        #[async_trait]
+        impl FusePolicy for SlowPolicy {
+            async fn decide(&self, _info: &FuseInfo) -> FuseAction {
+                std::future::pending::<()>().await;
+                FuseAction::Accept(FuseConfig::disabled())
+            }
+        }
+
+        let mut acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let client = TcpStream::connect(addr).await.unwrap();
+
+        // First accept parks on the slow admission after accepting the socket, then is
+        // cancelled — mimicking the losing branch of a joined listener.
+        let policy: ArcFusePolicy = Arc::new(SlowPolicy);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), acceptor.accept(Some(policy)))
+                .await
+                .is_err(),
+            "the slow admission must not resolve within the window"
+        );
+
+        // The cancelled accept must not have dropped the socket: a second accept returns it
+        // without any new client connecting.
+        let accepted = tokio::time::timeout(Duration::from_millis(500), acceptor.accept(None))
+            .await
+            .expect("the socket accepted by the cancelled call must still be available")
+            .unwrap();
+        assert_eq!(
+            accepted.remote_addr.clone().into_std().unwrap(),
+            client.local_addr().unwrap(),
+            "the resumed connection must be the same client"
+        );
     }
 }

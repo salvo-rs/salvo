@@ -131,7 +131,11 @@ where
             http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
         }];
-        Ok(UnixAcceptor { inner, holdings })
+        Ok(UnixAcceptor {
+            inner,
+            holdings,
+            pending: None,
+        })
     }
 }
 
@@ -140,6 +144,10 @@ where
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
+    // A raw socket accepted but not yet admitted; parked here so a dropped `accept` future
+    // (e.g. a `JoinedListener`'s `select!` picking the other listener) does not close an
+    // already-accepted client.
+    pending: Option<(UnixStream, Arc<tokio::net::unix::SocketAddr>)>,
 }
 
 impl UnixAcceptor {
@@ -165,8 +173,14 @@ impl Acceptor for UnixAcceptor {
         fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<TcpCoupler<Self::Stream>, Self::Stream>> {
         loop {
-            let (conn, remote_addr) = self.inner.accept().await?;
-            let remote_addr = Arc::new(remote_addr);
+            // Accept a raw socket, or resume one that a cancelled call left behind. It is
+            // parked in `self.pending` across the async admission below so a dropped future
+            // does not close an already-accepted client.
+            if self.pending.is_none() {
+                let (conn, remote_addr) = self.inner.accept().await?;
+                self.pending = Some((conn, Arc::new(remote_addr)));
+            }
+            let remote_addr = self.pending.as_ref().expect("pending set above").1.clone();
             let local_addr = self.holdings[0].local_addr.clone();
             let conn_ctrl = ConnCtrl::new();
             let (fuse_config, observer) = match &fuse_policy {
@@ -180,11 +194,15 @@ impl Acceptor for UnixAcceptor {
                         FuseAction::Accept(config) => {
                             (Some(config), policy.observe(&info, &conn_ctrl))
                         }
-                        FuseAction::Reject => continue,
+                        FuseAction::Reject => {
+                            self.pending = None;
+                            continue;
+                        }
                     }
                 }
                 None => (None, None),
             };
+            let (conn, remote_addr) = self.pending.take().expect("pending set above");
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
                 stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
