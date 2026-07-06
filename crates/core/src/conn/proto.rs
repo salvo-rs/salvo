@@ -176,7 +176,16 @@ impl HttpBuilder {
                         } => {
                             tracing::info!("gracefully shutting down HTTP/1 connection");
                             Pin::new(&mut conn).graceful_shutdown();
-                            let _ = conn.await;
+                            tokio::select! {
+                                result = &mut conn => {
+                                    if let Err(error) = result {
+                                        tracing::debug!(?error, "HTTP/1 connection ended during server graceful shutdown");
+                                    }
+                                }
+                                _ = conn_ctrl.aborted() => {
+                                    tracing::info!("handler aborted HTTP/1 connection during server graceful shutdown");
+                                }
+                            }
                         }
                         // `ConnCtrl` is shared with handlers. Abort drops the
                         // Hyper connection immediately; graceful shutdown first
@@ -227,7 +236,16 @@ impl HttpBuilder {
                         } => {
                             tracing::info!("gracefully shutting down HTTP/2 connection");
                             Pin::new(&mut conn).graceful_shutdown();
-                            let _ = conn.await;
+                            tokio::select! {
+                                result = &mut conn => {
+                                    if let Err(error) = result {
+                                        tracing::debug!(?error, "HTTP/2 connection ended during server graceful shutdown");
+                                    }
+                                }
+                                _ = conn_ctrl.aborted() => {
+                                    tracing::info!("handler aborted HTTP/2 connection during server graceful shutdown");
+                                }
+                            }
                         }
                         state = conn_ctrl.notified() => {
                             if state == ConnState::GracefulShutdown {
