@@ -302,4 +302,43 @@ mod tests {
         assert_eq!(counter.write.load(Ordering::Relaxed), 5);
         assert_eq!(counter.read.load(Ordering::Relaxed), 2);
     }
+
+    #[tokio::test]
+    async fn observer_can_terminate_the_connection() {
+        use std::sync::Arc;
+
+        use crate::fuse::ConnObserver;
+
+        // An observer that aborts the connection once too many bytes have been read —
+        // the detect-then-terminate loop the fixed timeouts cannot express.
+        struct Guard {
+            ctrl: ConnCtrl,
+            limit: usize,
+        }
+        impl ConnObserver for Guard {
+            fn on_read(&self, bytes: usize) {
+                if bytes >= self.limit {
+                    self.ctrl.abort();
+                }
+            }
+        }
+
+        let conn_ctrl = ConnCtrl::new();
+        let observer = Arc::new(Guard {
+            ctrl: conn_ctrl.clone(),
+            limit: 4,
+        });
+        let (client, server) = tokio::io::duplex(64);
+        let mut stream = StraightStream::new(client, None, conn_ctrl.clone(), Some(observer));
+
+        let mut server = server;
+        server.write_all(b"flood").await.unwrap();
+        let mut buf = [0u8; 5];
+        stream.read_exact(&mut buf).await.unwrap();
+
+        assert!(
+            conn_ctrl.is_aborted(),
+            "observer should have aborted the connection"
+        );
+    }
 }

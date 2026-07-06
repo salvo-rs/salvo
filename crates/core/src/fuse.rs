@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::conn::SocketAddr;
+use crate::conn::{ConnCtrl, SocketAddr};
 
 /// Transport used by an accepted connection.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,6 +91,11 @@ pub enum FuseAction {
 /// metrics, or an external security system — the kind of per-event logic the timeout knobs
 /// cannot express.
 ///
+/// An observer can also *act*, not just watch. [`FusePolicy::observe`] hands it the
+/// connection's [`ConnCtrl`], so a slow-read or abuse detector can call
+/// [`ConnCtrl::abort`] or [`ConnCtrl::graceful_shutdown`] once its own logic fires — the
+/// detect-then-terminate loop the fixed timeouts cannot express on their own.
+///
 /// Attaching an observer is opt-in. When a policy returns no observer (the default), the
 /// transport hot path allocates nothing and dispatches nothing.
 ///
@@ -123,8 +128,12 @@ pub trait FusePolicy: Send + Sync + 'static {
     /// Returns `None` by default, which keeps the transport hot path free of any observer
     /// dispatch. Override it to attach custom per-connection monitoring; it is called once,
     /// right after [`decide`](Self::decide) admits the connection.
-    fn observe(&self, info: &FuseInfo) -> Option<ArcConnObserver> {
-        let _ = info;
+    ///
+    /// `ctrl` is the accepted connection's control. Clone it into the returned observer to let
+    /// that observer terminate the connection ([`ConnCtrl::abort`] /
+    /// [`ConnCtrl::graceful_shutdown`]) when its own detection logic decides to.
+    fn observe(&self, info: &FuseInfo, ctrl: &ConnCtrl) -> Option<ArcConnObserver> {
+        let _ = (info, ctrl);
         None
     }
 }
