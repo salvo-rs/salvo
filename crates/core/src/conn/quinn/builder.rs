@@ -115,10 +115,18 @@ impl Builder {
                             return Ok(());
                         }
                         ConnState::GracefulShutdown => {
-                            conn.shutdown(0)
-                                .await
-                                .map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
-                            shutting_down = true;
+                            // Stay abortable while the GOAWAY is sent: a handler may escalate
+                            // graceful shutdown to an abort, which must still close promptly.
+                            tokio::select! {
+                                result = conn.shutdown(0) => {
+                                    result.map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                                    shutting_down = true;
+                                }
+                                _ = conn_ctrl.aborted() => {
+                                    raw_conn.close(0u32.into(), b"aborted by handler");
+                                    return Ok(());
+                                }
+                            }
                         }
                         ConnState::Running => {}
                     }
@@ -131,10 +139,18 @@ impl Builder {
                         pending::<()>().await;
                     }
                 }, if !shutting_down => {
-                    conn.shutdown(0)
-                        .await
-                        .map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
-                    shutting_down = true;
+                    // As in the handler-initiated branch, a handler abort during the GOAWAY
+                    // must still tear the connection down immediately.
+                    tokio::select! {
+                        result = conn.shutdown(0) => {
+                            result.map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                            shutting_down = true;
+                        }
+                        _ = conn_ctrl.aborted() => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                    }
                     None
                 }
             };
