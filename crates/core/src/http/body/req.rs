@@ -54,6 +54,15 @@ impl BodyTimeout {
                 }
             }
             ready => {
+                // A frame that arrives after the deadline already elapsed must still time out,
+                // or a client dribbling each chunk just past the deadline evades the limit.
+                if self.armed && self.sleep.as_mut().poll(cx).is_ready() {
+                    self.armed = false;
+                    return Poll::Ready(Some(Err(IoError::new(
+                        ErrorKind::TimedOut,
+                        "request body timeout",
+                    ))));
+                }
                 self.armed = false;
                 ready
             }
@@ -437,5 +446,33 @@ mod tests {
         let frame = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await;
         let error = frame.expect("body must yield a frame").unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn request_body_timeout_rejects_a_late_frame() {
+        use std::future::poll_fn;
+        use std::time::Duration;
+
+        let mut timeout = BodyTimeout::new(Duration::from_millis(10));
+
+        // Arm the timer as a pending frame poll would, then let the deadline lapse.
+        poll_fn(|cx| {
+            let _ = timeout.apply(Poll::Pending, cx);
+            Poll::Ready(())
+        })
+        .await;
+        tokio::time::sleep(Duration::from_millis(40)).await;
+
+        // A frame that only arrives now — past the deadline — must be converted to a timeout,
+        // not accepted as if the gap had been within bounds.
+        let out = poll_fn(|cx| {
+            let frame = Frame::data(Bytes::from_static(b"x"));
+            Poll::Ready(timeout.apply(Poll::Ready(Some(Ok(frame))), cx))
+        })
+        .await;
+        match out {
+            Poll::Ready(Some(Err(error))) => assert_eq!(error.kind(), ErrorKind::TimedOut),
+            _ => panic!("a late body frame must time out"),
+        }
     }
 }
