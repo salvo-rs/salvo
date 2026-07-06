@@ -33,7 +33,22 @@ pub struct FuseInfo {
 }
 
 /// Timeouts applied to an accepted connection.
+///
+/// Start from [`default`](Self::default) or [`disabled`](Self::disabled) and adjust with the
+/// `with_*` builders:
+///
+/// ```
+/// use std::time::Duration;
+/// use salvo_core::fuse::FuseConfig;
+///
+/// let config = FuseConfig::default()
+///     .with_connection_idle_timeout(Duration::from_secs(60))
+///     .with_request_body_timeout(None);
+/// ```
+///
+/// It is `#[non_exhaustive]`, so new timeout knobs can be added without breaking callers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct FuseConfig {
     /// Maximum duration of a TLS handshake.
     pub tls_handshake_timeout: Option<Duration>,
@@ -70,6 +85,41 @@ impl FuseConfig {
             write_stall_timeout: None,
             request_body_timeout: None,
         }
+    }
+
+    /// Sets the maximum duration of a TLS handshake.
+    #[must_use]
+    pub fn with_tls_handshake_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.tls_handshake_timeout = timeout.into();
+        self
+    }
+
+    /// Sets the maximum duration for reading an HTTP/1 request head.
+    #[must_use]
+    pub fn with_http1_header_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.http1_header_timeout = timeout.into();
+        self
+    }
+
+    /// Sets the maximum time with no successful transport read or write.
+    #[must_use]
+    pub fn with_connection_idle_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.connection_idle_timeout = timeout.into();
+        self
+    }
+
+    /// Sets the maximum time a requested transport write may remain pending.
+    #[must_use]
+    pub fn with_write_stall_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.write_stall_timeout = timeout.into();
+        self
+    }
+
+    /// Sets the maximum gap between request-body frames.
+    #[must_use]
+    pub fn with_request_body_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.request_body_timeout = timeout.into();
+        self
     }
 }
 

@@ -76,8 +76,15 @@ impl HttpBuilder {
     #[must_use]
     pub fn new() -> Self {
         Self {
+            // The timer is connection-independent, so set it once here rather than on
+            // every accepted connection. Only the per-connection header-read timeout,
+            // which varies with the fuse config, is applied later.
             #[cfg(feature = "http1")]
-            http1: http1::Builder::new(),
+            http1: {
+                let mut builder = http1::Builder::new();
+                builder.timer(crate::rt::tokio::TokioTimer::new());
+                builder
+            },
             #[cfg(feature = "http2")]
             http2: http2::Builder::new(crate::rt::tokio::TokioExecutor::new()),
             #[cfg(feature = "quinn")]
@@ -141,7 +148,6 @@ impl HttpBuilder {
                 #[cfg(feature = "http1")]
                 {
                     let mut http1 = self.http1.clone();
-                    http1.timer(crate::rt::tokio::TokioTimer::new());
                     http1.header_read_timeout(
                         fuse_config.and_then(|config| config.http1_header_timeout),
                     );

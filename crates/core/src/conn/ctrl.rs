@@ -116,13 +116,15 @@ impl ConnCtrl {
     /// This does not affect [`graceful_shutdown`](Self::graceful_shutdown) or
     /// [`abort`](Self::abort); an aborted connection is still torn down.
     pub fn relax_timeouts(&self) {
-        self.inner.relax.store(true, Ordering::Release);
+        // A standalone flag with no other memory to order against; relaxed is enough,
+        // and it is read on the transport poll path where we avoid needless fences.
+        self.inner.relax.store(true, Ordering::Relaxed);
     }
 
     /// Returns `true` once [`relax_timeouts`](Self::relax_timeouts) has been called.
     #[must_use]
     pub fn is_relaxed(&self) -> bool {
-        self.inner.relax.load(Ordering::Acquire)
+        self.inner.relax.load(Ordering::Relaxed)
     }
 
     pub(crate) fn state(&self) -> ConnState {
