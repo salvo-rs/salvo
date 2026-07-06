@@ -423,10 +423,10 @@ impl Router {
     /// Each method helper (`get`, `post`, ...) pushes a filtered **child** router;
     /// it does not set the goal of `self`. Two consequences worth knowing:
     ///
-    /// - `Router::with_path("x").get(a).post(b)` builds one path router with two
-    ///   method children — the usual pattern.
-    /// - `.get(a).get(b)` registers two **sibling** GET routes rather than
-    ///   replacing `a`; the first match wins, so `b` is unreachable.
+    /// - `Router::with_path("x").get(a).post(b)` builds one path router with two method children —
+    ///   the usual pattern.
+    /// - `.get(a).get(b)` registers two **sibling** GET routes rather than replacing `a`; the first
+    ///   match wins, so `b` is unreachable.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
@@ -638,7 +638,7 @@ mod tests {
             .get(fake_handler)
             .push(Router::with_path("{id}/profile").get(fake_handler));
         let mut req = TestClient::get("http://local.host/users").build();
-        let mut path_state = PathState::new(req.uri().path());
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
         assert!(path_state.params.is_empty());

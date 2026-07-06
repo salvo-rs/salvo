@@ -22,7 +22,7 @@ use crate::schema::*;
 fn get_all_posts(res: &mut Response, authentication: HeaderParam<String, true>, depot: &mut Depot) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -52,7 +52,7 @@ fn create_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -98,7 +98,7 @@ fn update_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -170,7 +170,7 @@ fn delete_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -225,7 +225,7 @@ fn get_posts_information(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();

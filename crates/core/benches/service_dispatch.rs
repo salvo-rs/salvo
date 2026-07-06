@@ -49,12 +49,14 @@ fn hoop_chain(c: &mut Criterion) {
 }
 
 fn dynamic_path(c: &mut Criterion) {
-    let service = Service::new(Router::new().push(
-        Router::with_path("users").push(
-            Router::with_path("{id}")
-                .push(Router::with_path("articles").push(Router::with_path("{aid}").get(hello))),
-        ),
-    ));
+    let service =
+        Service::new(Router::new().push(
+            Router::with_path("users").push(
+                Router::with_path("{id}").push(
+                    Router::with_path("articles").push(Router::with_path("{aid}").get(hello)),
+                ),
+            ),
+        ));
     bench_dispatch(
         c,
         "dispatch/dynamic_path",

@@ -28,7 +28,7 @@ async fn get_all_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -59,7 +59,7 @@ async fn create_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -73,7 +73,7 @@ async fn create_posts(
         id: Set(Uuid::new_v4()),
         content: Set(post_create.content.clone()),
         title: Set(post_create.title.clone()),
-        user_id: Set(current_user.id.clone()),
+        user_id: Set(current_user.id),
         created_at: Set(now),
         updated_at: Set(now),
     };
@@ -109,7 +109,7 @@ async fn update_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
 
@@ -118,7 +118,7 @@ async fn update_posts(
     let post_uuid = post_id.into_inner();
 
     let existing_post: Option<posts::Model> = Posts::find()
-        .filter(PostColumn::Id.eq(post_uuid.clone()))
+        .filter(PostColumn::Id.eq(post_uuid))
         .one(db)
         .await
         .expect("❌ Failed to query post");
@@ -137,7 +137,7 @@ async fn update_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -154,11 +154,11 @@ async fn update_posts(
     if post.is_err() {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("❌ Failed to update post"),
+            detail: "❌ Failed to update post".to_owned(),
         }));
     } else {
         let existing_post: Option<posts::Model> = Posts::find()
-            .filter(PostColumn::Id.eq(post_uuid.clone()))
+            .filter(PostColumn::Id.eq(post_uuid))
             .one(db)
             .await
             .expect("❌ Failed to query post");
@@ -183,7 +183,7 @@ async fn delete_posts(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -193,7 +193,7 @@ async fn delete_posts(
     let post_uuid = post_id.into_inner();
 
     let existing_post: Option<posts::Model> = Posts::find()
-        .filter(PostColumn::Id.eq(post_uuid.clone()))
+        .filter(PostColumn::Id.eq(post_uuid))
         .one(db)
         .await
         .expect("❌ Failed to query post");
@@ -211,7 +211,7 @@ async fn delete_posts(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -220,7 +220,7 @@ async fn delete_posts(
 
     if post_delete.is_err() {
         res.status_code(StatusCode::BAD_REQUEST);
-        res.render(format!("Error during the delete post"));
+        res.render("Error during the delete post".to_owned());
     } else {
         let post_result = post_delete.unwrap();
         println!(
@@ -247,7 +247,7 @@ async fn get_posts_information(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let connection = depot.obtain::<Arc<DbPool>>().unwrap();
+    let connection = depot.get_typed::<Arc<DbPool>>().unwrap();
     let db = &**connection;
 
     let current_user: &users::Model = depot.get::<users::Model>("user").unwrap();
@@ -273,7 +273,7 @@ async fn get_posts_information(
     if post.user_id != current_user.id {
         res.status_code(StatusCode::BAD_REQUEST);
         res.render(Json(ErrorResponseModel {
-            detail: format!("You can delete the post that you don't create"),
+            detail: "You can delete the post that you don't create".to_owned(),
         }));
         return;
     }
@@ -282,7 +282,7 @@ async fn get_posts_information(
 }
 
 pub fn get_posts_router() -> Router {
-    let posts_router = Router::with_path("/posts")
+    Router::with_path("/posts")
         .hoop(auth_user)
         .get(get_all_posts)
         .post(create_posts)
@@ -291,6 +291,5 @@ pub fn get_posts_router() -> Router {
                 .get(get_posts_information)
                 .put(update_posts)
                 .delete(delete_posts),
-        );
-    posts_router
+        )
 }

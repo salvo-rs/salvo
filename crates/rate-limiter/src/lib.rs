@@ -18,12 +18,12 @@
 //!
 //! ## Issuers
 //! - [`RemoteIpIssuer`]: Identifies clients by their direct connection IP
-//! - [`TrustedProxyIssuer`]: Honours `X-Forwarded-For` / `X-Real-IP` only when the request
-//!   actually arrived from a configured proxy IP. **This is the safe choice for deployments
-//!   behind a reverse proxy.**
+//! - [`TrustedProxyIssuer`]: Honours `X-Forwarded-For` / `X-Real-IP` only when the request actually
+//!   arrived from a configured proxy IP. **This is the safe choice for deployments behind a reverse
+//!   proxy.**
 //! - `ForwardedHeaderIssuer` (deprecated): Unconditionally trusts the forwarded headers, so a
-//!   client that reaches the application directly can spoof its IP and bypass rate limiting —
-//!   use [`TrustedProxyIssuer`] instead.
+//!   client that reaches the application directly can spoof its IP and bypass rate limiting — use
+//!   [`TrustedProxyIssuer`] instead.
 //!
 //! ## Guards (Algorithms)
 //! - `FixedGuard`: Fixed window algorithm (requires `fixed-guard` feature)

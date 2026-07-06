@@ -9,8 +9,7 @@ pub async fn establish_connection_pool() -> DatabaseConnection {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db: DatabaseConnection = Database::connect(database_url).await.unwrap();
-    return db;
+    Database::connect(database_url).await.unwrap()
 }
 
 pub async fn check(db: DatabaseConnection) {

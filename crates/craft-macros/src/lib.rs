@@ -17,8 +17,8 @@ use syn::{Item, parse_macro_input};
 /// Apply `#[craft]` to an `impl` block, then mark individual methods with:
 ///
 /// - `#[craft(handler)]` for a regular Salvo handler.
-/// - `#[craft(endpoint(...))]` for a Salvo OpenAPI endpoint handler. The
-///   arguments are forwarded to `salvo_oapi::endpoint`.
+/// - `#[craft(endpoint(...))]` for a Salvo OpenAPI endpoint handler. The arguments are forwarded to
+///   `salvo_oapi::endpoint`.
 ///
 /// Each marked method is rewritten into a handler factory with the same method
 /// name. Calling that method returns a handler value suitable for
@@ -27,8 +27,8 @@ use syn::{Item, parse_macro_input};
 ///
 /// Supported receivers:
 ///
-/// - `&self`: clones the containing value into the generated handler, so the
-///   type must implement `Clone`.
+/// - `&self`: clones the containing value into the generated handler, so the type must implement
+///   `Clone`.
 /// - `self: Arc<Self>`: reuses the existing `Arc`.
 /// - no receiver: generates a static handler constructor.
 ///

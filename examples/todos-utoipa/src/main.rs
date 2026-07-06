@@ -89,7 +89,7 @@ pub async fn openapi_json(res: &mut Response) {
 
 #[handler]
 pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let config = depot.obtain::<Arc<Config>>().unwrap();
+    let config = depot.get_typed::<Arc<Config>>().unwrap();
     let path = req.uri().path();
     let tail = path.strip_prefix("/swagger-ui/").unwrap();
 

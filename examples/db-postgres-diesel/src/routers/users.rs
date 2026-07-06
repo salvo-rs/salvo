@@ -26,7 +26,7 @@ fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, 
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -58,7 +58,7 @@ fn get_all_users(res: &mut Response, authentication: HeaderParam<String, true>, 
 )]
 fn create_users(res: &mut Response, depot: &mut Depot, user_create: JsonBody<UserCreate>) {
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("❌ Failed to get DB connection");
 
     println!("📥 Create new user ...");
@@ -129,7 +129,7 @@ pub async fn get_users_information(
     println!("🪪 Authentication header: {}", authentication.as_str());
 
     // ✅ Get DB connection
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut _conn = pool.get().expect("❌ Failed to get DB connection");
 
     println!("📥 Fetching user information...");
@@ -168,7 +168,7 @@ fn update_users(
 
     let user_uuid = user_id.into_inner();
 
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -235,7 +235,7 @@ fn delete_users(
 ) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -294,7 +294,7 @@ fn get_posts_by_users(
 ) {
     println!("🪪 Authentication header: {}", authentication.as_str());
 
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
     let current_user = depot.get::<User>("user").unwrap();
@@ -333,7 +333,7 @@ fn get_access_token(
     user_credentials: JsonBody<UserCredentials>,
     depot: &mut Depot,
 ) {
-    let pool = depot.obtain::<Arc<DbPool>>().unwrap();
+    let pool = depot.get_typed::<Arc<DbPool>>().unwrap();
     let mut conn = pool.get().expect("Failed to get DB connection");
 
     // ✅ Query user by ID

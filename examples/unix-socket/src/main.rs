@@ -11,5 +11,7 @@ async fn main() {
 #[cfg(not(all(feature = "unix", unix)))]
 #[tokio::main]
 async fn main() {
-    println!("This example requires the 'unix' feature and must be run on a Unix system (Linux, macOS, BSD)");
+    println!(
+        "This example requires the 'unix' feature and must be run on a Unix system (Linux, macOS, BSD)"
+    );
 }
