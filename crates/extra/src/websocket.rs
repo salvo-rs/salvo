@@ -455,14 +455,15 @@ impl WebSocketUpgrade {
             }
         }
 
-        // The connection is now a long-lived WebSocket tunnel: quiet stretches are
-        // expected, so relax the transport idle/write-stall fuse timers that would
-        // otherwise close it. No-op when the server runs without fuse protection.
-        if let Some(conn_ctrl) = req.extensions().get::<ConnCtrl>() {
-            conn_ctrl.relax_timeouts();
-        }
-
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
+            // Now that the upgrade is certain, relax the transport idle/write-stall fuse
+            // timers for the long-lived WebSocket tunnel, where quiet stretches are expected.
+            // Doing this only after `OnUpgrade` is taken prevents a handshake that passes the
+            // header checks but never upgrades from permanently disarming protection on the
+            // shared keep-alive connection. No-op when the server runs without fuse protection.
+            if let Some(conn_ctrl) = req.extensions().get::<ConnCtrl>() {
+                conn_ctrl.relax_timeouts();
+            }
             let config = self.config;
             tokio::spawn(async move {
                 let socket = on_upgrade
