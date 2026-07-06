@@ -122,6 +122,11 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                     if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
                     {
+                        // As on the read path, a write that completes after the idle deadline
+                        // already elapsed must still fail rather than revive an idle connection.
+                        if !this.conn_ctrl.is_relaxed() && sleep.as_mut().poll(cx).is_ready() {
+                            return Poll::Ready(Err(timed_out("connection idle timeout")));
+                        }
                         sleep.as_mut().reset(Instant::now() + timeout);
                     }
                     if let Some(observer) = this.observer.as_ref() {
@@ -186,6 +191,11 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
                     if let (Some(timeout), Some(sleep)) =
                         (*this.idle_timeout, this.idle_sleep.as_mut())
                     {
+                        // As on the read path, a write that completes after the idle deadline
+                        // already elapsed must still fail rather than revive an idle connection.
+                        if !this.conn_ctrl.is_relaxed() && sleep.as_mut().poll(cx).is_ready() {
+                            return Poll::Ready(Err(timed_out("connection idle timeout")));
+                        }
                         sleep.as_mut().reset(Instant::now() + timeout);
                     }
                     if let Some(observer) = this.observer.as_ref() {
@@ -271,6 +281,23 @@ mod tests {
         // The connection was idle past its deadline, so the read must fail rather than accept
         // the late byte and silently reset the timer.
         let error = stream.read_u8().await.unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_fires_even_when_a_late_write_completes() {
+        let (client, _server) = tokio::io::duplex(64);
+        let config = FuseConfig {
+            connection_idle_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        };
+        let mut stream = StraightStream::new(client, Some(config), ConnCtrl::new(), None);
+
+        // Let the idle deadline lapse, then perform an otherwise-successful write.
+        tokio::time::sleep(Duration::from_millis(40)).await;
+
+        // A write must not revive a connection that was already idle past its deadline.
+        let error = stream.write_all(b"x").await.unwrap_err();
         assert_eq!(error.kind(), ErrorKind::TimedOut);
     }
 
