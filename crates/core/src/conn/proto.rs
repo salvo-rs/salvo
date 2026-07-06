@@ -137,9 +137,15 @@ impl HttpBuilder {
                 #[cfg(feature = "http1")]
                 {
                     let mut http1 = self.http1.clone();
-                    http1.header_read_timeout(
-                        fuse_config.and_then(|config| config.http1_header_timeout),
-                    );
+                    // Only override Hyper's header-read timeout when the fuse actually asks for
+                    // one. A disabled fuse (or a config with this timeout unset) leaves whatever
+                    // the caller configured via `HttpBuilder` / `http1_mut()` intact instead of
+                    // silently clearing it.
+                    if let Some(timeout) =
+                        fuse_config.and_then(|config| config.http1_header_timeout)
+                    {
+                        http1.header_read_timeout(Some(timeout));
+                    }
                     let mut conn = http1
                         .serve_connection(TokioIo::new(socket), service)
                         .with_upgrades();
