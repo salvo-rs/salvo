@@ -44,8 +44,11 @@ mod tests {
     use std::path::Path;
 
     use salvo_core::http::HeaderValue;
-    use salvo_core::http::header::{CONTENT_ENCODING, VARY};
+    use salvo_core::http::header::{
+        ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, VARY,
+    };
     use salvo_core::prelude::*;
+    use salvo_core::routing::{Filter, filters};
     use salvo_core::test::{ResponseExt, TestClient};
 
     use crate::*;
@@ -187,11 +190,13 @@ mod tests {
     async fn test_serve_static_file() {
         let router = Router::new()
             .push(
-                Router::with_path("test1.txt").get(
-                    StaticFile::new("test/static/test1.txt")
-                        .chunk_size(1024)
-                        .preload_threshold(0),
-                ),
+                Router::with_path("test1.txt")
+                    .filter(filters::get().or(filters::head()))
+                    .goal(
+                        StaticFile::new("test/static/test1.txt")
+                            .chunk_size(1024)
+                            .preload_threshold(0),
+                    ),
             )
             .push(
                 Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")),
@@ -204,10 +209,59 @@ mod tests {
         assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
+        let response = TestClient::head("http://127.0.0.1:5801/test1.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.headers().get(CONTENT_LENGTH).unwrap(), "5");
+        assert_eq!(response.headers().get(ACCEPT_RANGES).unwrap(), "bytes");
+        assert!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("text/plain")
+        );
+
         let response = TestClient::get("http://127.0.0.1:5801/notexist.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_serve_static_dir_head_matches_get_headers_without_body() {
+        let router = Router::with_path("{*path}")
+            .filter(filters::get().or(filters::head()))
+            .goal(StaticDir::new(vec!["test/static"]));
+        let service = Service::new(router);
+
+        let get_response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+            .send(&service)
+            .await;
+        let mut response = TestClient::head("http://127.0.0.1:5801/test1.txt")
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("text/plain")
+        );
+        assert_eq!(
+            response.headers().get(CONTENT_LENGTH),
+            get_response.headers().get(CONTENT_LENGTH)
+        );
+        assert_eq!(response.headers().get(CONTENT_LENGTH).unwrap(), "5");
+        assert_eq!(response.headers().get(ACCEPT_RANGES).unwrap(), "bytes");
+        assert_eq!(response.take_string().await.unwrap(), "");
     }
 
     #[tokio::test]

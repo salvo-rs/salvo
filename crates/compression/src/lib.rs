@@ -72,9 +72,9 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue, VARY,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
 };
-use salvo_core::http::{self, Mime, StatusCode, mime};
+use salvo_core::http::{self, Mime, StatusCode, append_vary_header, mime};
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 mod encoder;
@@ -520,13 +520,13 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
-        res.headers_mut()
-            .append(VARY, HeaderValue::from_static("accept-encoding"));
+        append_vary_header(res.headers_mut(), "accept-encoding");
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::header::VARY;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -758,6 +758,36 @@ mod tests {
             .await;
         let count = res.headers().get_all(CONTENT_ENCODING).iter().count();
         assert_eq!(count, 1, "must have exactly one Content-Encoding header");
+    }
+
+    #[tokio::test]
+    async fn test_vary_accept_encoding_is_not_duplicated() {
+        #[handler]
+        async fn hello_with_vary(res: &mut Response) {
+            res.headers_mut()
+                .insert(VARY, HeaderValue::from_static("Accept-Encoding"));
+            res.render(Text::Plain("hello"));
+        }
+
+        let comp_handler = Compression::new().min_length(1);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_with_vary));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
+        let vary_accept_encoding_count = res
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .filter(|value| value.trim().eq_ignore_ascii_case("accept-encoding"))
+            .count();
+        assert_eq!(vary_accept_encoding_count, 1);
     }
 
     #[tokio::test]

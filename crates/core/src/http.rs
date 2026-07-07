@@ -78,6 +78,25 @@ pub use mime::Mime;
 pub use response::Response;
 
 #[doc(hidden)]
+pub fn append_vary_header(headers: &mut HeaderMap, vary_by: &'static str) {
+    if headers.contains_key(header::VARY) {
+        let already_varies = headers
+            .get_all(header::VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|value| {
+                let value = value.trim();
+                value == "*" || value.eq_ignore_ascii_case(vary_by)
+            });
+        if already_varies {
+            return;
+        }
+    }
+    headers.append(header::VARY, HeaderValue::from_static(vary_by));
+}
+
+#[doc(hidden)]
 #[must_use]
 pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
     let mut vec = header
