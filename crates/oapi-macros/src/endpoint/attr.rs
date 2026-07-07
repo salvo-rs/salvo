@@ -94,9 +94,7 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(tags in input);
                     let parsed: Punctuated<Expr, Token![,]> =
                         Punctuated::<Expr, Token![,]>::parse_terminated(&tags)?;
-                    attr.tags
-                        .get_or_insert_with(Vec::new)
-                        .extend(parsed);
+                    attr.tags.get_or_insert_with(Vec::new).extend(parsed);
                 }
                 "tag" => {
                     let tag;
