@@ -221,8 +221,17 @@ impl Catcher {
     }
 
     /// Catch error and send error page.
-    pub async fn catch(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&self.goal]).cloned().collect());
+    pub async fn catch(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        conn: crate::ConnCtrl,
+    ) {
+        let mut ctrl = FlowCtrl::with_conn(
+            self.hoops.iter().chain([&self.goal]).cloned().collect(),
+            conn,
+        );
         ctrl.call_next(req, depot, res).await;
     }
 }

@@ -8,5 +8,5 @@ pub use hyper::rt::*;
 
 /// Tokio runtime
 pub mod tokio {
-    pub use hyper_util::rt::{TokioExecutor, TokioIo};
+    pub use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 }

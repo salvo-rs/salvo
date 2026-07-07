@@ -3,21 +3,21 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
 
 use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
 use salvo_http3::quinn::Endpoint;
+use salvo_http3::quinn::quinn::Incoming;
 use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
+use crate::Error;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
-use crate::Error;
 
 /// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
@@ -70,10 +70,9 @@ where
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
 
         let mut config_stream = config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("quinn: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("quinn: config stream ended before yielding an initial tls config")
+        })?;
         let initial = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
@@ -126,6 +125,10 @@ pub struct QuinnAcceptor {
     holdings: Vec<Holding>,
     endpoint: Endpoint,
     cancel_reload: CancellationToken,
+    // An accepted QUIC incoming that has passed `endpoint.accept()` but not yet admission.
+    // Parking it here keeps it alive if the `accept` future is dropped during async admission
+    // (e.g. a `JoinedListener`'s `select!` picking the other listener).
+    pending: Option<Incoming>,
 }
 
 impl Debug for QuinnAcceptor {
@@ -152,6 +155,7 @@ impl QuinnAcceptor {
             holdings: vec![holding],
             endpoint,
             cancel_reload,
+            pending: None,
         }
     }
 }
@@ -172,32 +176,70 @@ impl Acceptor for QuinnAcceptor {
 
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        if let Some(new_conn) = self.endpoint.accept().await {
+        loop {
+            // Resume an incoming a cancelled call parked, or accept a new one.
+            let new_conn = match self.pending.take() {
+                Some(incoming) => incoming,
+                None => match self.endpoint.accept().await {
+                    Some(incoming) => incoming,
+                    None => return Err(IoError::other("quinn accept error")),
+                },
+            };
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
-            return match new_conn.await {
-                Ok(conn) => {
-                    let fusewire = fuse_factory.map(|f| {
-                        f.create(FuseInfo {
-                            trans_proto: TransProto::Tcp,
-                            remote_addr: remote_addr.into(),
-                            local_addr: local_addr.clone(),
-                        })
-                    });
-                    Ok(Accepted {
-                        coupler: QuinnCoupler,
-                        stream: QuinnConnection::new(conn, fusewire.clone()),
-                        fusewire,
-                        local_addr: self.holdings[0].local_addr.clone(),
+            // Park the incoming across the async admission below so a dropped `accept` future
+            // (e.g. a `JoinedListener` picking the other listener) leaves it for the next call.
+            self.pending = Some(new_conn);
+            let fuse_config = match &fuse_policy {
+                Some(policy) => match policy
+                    .decide(&FuseInfo {
+                        trans_proto: TransProto::Quic,
                         remote_addr: remote_addr.into(),
-                        http_scheme: self.holdings[0].http_scheme.clone(),
+                        local_addr: local_addr.clone(),
                     })
-                }
+                    .await
+                {
+                    FuseAction::Accept(config) => Some(config),
+                    FuseAction::Reject => {
+                        self.pending = None;
+                        continue;
+                    }
+                },
+                None => None,
+            };
+            // Admission passed: take the incoming back to complete the handshake below.
+            //
+            // NOTE: the handshake await that follows is not itself cancellation-safe — if this
+            // future is dropped mid-handshake the connection is lost. Parking a mid-flight
+            // handshake future is materially more involved; only the admission phase is parked
+            // here, which closes the gap the async `FusePolicy` introduced.
+            let new_conn = self.pending.take().expect("incoming parked above");
+            // Of the fuse timeouts, QUIC enforces the handshake timeout here and the
+            // request-body timeout via the H3 body. The transport idle and write-stall
+            // timeouts are TCP/byte-stream concepts handled by `StraightStream`; QUIC relies on
+            // quinn's own `max_idle_timeout` and per-stream flow control instead (see the
+            // `FuseConfig` field docs).
+            let connected = match fuse_config.and_then(|config| config.tls_handshake_timeout) {
+                Some(timeout) => match tokio::time::timeout(timeout, new_conn).await {
+                    Ok(result) => result,
+                    Err(_) => continue,
+                },
+                None => new_conn.await,
+            };
+            return match connected {
+                Ok(conn) => Ok(Accepted {
+                    coupler: QuinnCoupler,
+                    stream: QuinnConnection::new(conn),
+                    fuse_config,
+                    conn_ctrl: crate::conn::ConnCtrl::new(),
+                    local_addr: self.holdings[0].local_addr.clone(),
+                    remote_addr: remote_addr.into(),
+                    http_scheme: self.holdings[0].http_scheme.clone(),
+                }),
                 Err(e) => Err(IoError::other(e.to_string())),
-            }
+            };
         }
-        Err(IoError::other("quinn accept error"))
     }
 }

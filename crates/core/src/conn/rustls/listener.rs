@@ -7,16 +7,15 @@ use std::sync::Arc;
 use arc_swap::ArcSwapOption;
 use futures_util::stream::{BoxStream, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_util::sync::CancellationToken;
 use tokio_rustls::server::TlsStream;
-
-use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
-use crate::fuse::ArcFuseFactory;
-use crate::http::uri::Scheme;
-use crate::Error;
+use tokio_util::sync::CancellationToken;
 
 use super::ServerConfig;
+use crate::Error;
+use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, Holding, IntoConfigStream, Listener};
+use crate::fuse::ArcFusePolicy;
+use crate::http::uri::Scheme;
 
 /// A wrapper of `Listener` with rustls.
 pub struct RustlsListener<S, C, T, E> {
@@ -62,10 +61,9 @@ where
 
     async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let mut config_stream = self.config_stream.into_stream().boxed();
-        let initial = config_stream
-            .next()
-            .await
-            .ok_or_else(|| Error::other("rustls: config stream ended before yielding an initial tls config"))?;
+        let initial = config_stream.next().await.ok_or_else(|| {
+            Error::other("rustls: config stream ended before yielding an initial tls config")
+        })?;
         let initial: ServerConfig = initial
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
@@ -202,27 +200,28 @@ where
 
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let Accepted {
             coupler: _,
             stream,
-            fusewire,
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             ..
-        } = self.inner.accept(fuse_factory).await?;
+        } = self.inner.accept(fuse_policy).await?;
         let Some(tls_acceptor) = self.current_acceptor.load_full() else {
             return Err(IoError::other("rustls: no active tls config"));
         };
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(tls_acceptor.accept(stream), fusewire.clone()),
-            fusewire,
+            stream: HandshakeStream::new(tls_acceptor.accept(stream), fuse_config),
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,
         })
     }
 }
-

@@ -8,6 +8,7 @@ pub(crate) enum InputType<'a> {
     Depot(&'a PatType),
     Response(&'a PatType),
     FlowCtrl(&'a PatType),
+    ConnCtrl(&'a PatType),
     Unknown,
     Receiver(&'a Receiver),
     NoReference(&'a PatType),
@@ -51,6 +52,8 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType<'_> {
                     InputType::Depot(p)
                 } else if ident == "FlowCtrl" {
                     InputType::FlowCtrl(p)
+                } else if ident == "ConnCtrl" {
+                    InputType::ConnCtrl(p)
                 } else {
                     InputType::Unknown
                 }

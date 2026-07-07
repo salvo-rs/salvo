@@ -59,12 +59,14 @@ use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
-use crate::fuse::{ArcFuseFactory, ArcFusewire};
+use crate::fuse::{ArcFusePolicy, FuseConfig};
 use crate::http::Version;
 use crate::service::HyperHandler;
 
 mod proto;
 pub use proto::HttpBuilder;
+mod ctrl;
+pub use ctrl::ConnCtrl;
 mod stream;
 pub use stream::*;
 
@@ -171,7 +173,7 @@ pub trait IntoConfigStream<C> {
 /// - The raw connection stream for reading/writing data
 /// - Local and remote socket addresses for logging and access control
 /// - HTTP scheme (http/https) for proper URL construction
-/// - Optional fusewire for connection lifecycle management
+/// - Optional fuse_config for connection lifecycle management
 pub struct Accepted<C, S>
 where
     C: Coupler<Stream = S>,
@@ -185,11 +187,16 @@ where
     ///
     /// This is the raw stream that will be used for reading requests and writing responses.
     pub stream: S,
-    /// Optional fusewire for connection protection and monitoring.
+    /// Optional fuse_config for connection protection and monitoring.
     ///
     /// When set, this allows the connection to be monitored for slow HTTP attacks
     /// and other malicious behavior patterns.
-    pub fusewire: Option<ArcFusewire>,
+    pub fuse_config: Option<FuseConfig>,
+    /// Lifecycle control for this connection.
+    ///
+    /// Created when the connection is accepted and shared with its stream, protocol driver,
+    /// and handlers so any of them can abort, gracefully shut down, or relax the fuse timers.
+    pub conn_ctrl: ConnCtrl,
     /// The local address this connection was accepted on.
     ///
     /// Useful for multi-homed servers or logging purposes.
@@ -236,7 +243,8 @@ where
         let Self {
             coupler,
             stream,
-            fusewire,
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme,
@@ -244,7 +252,8 @@ where
         Accepted {
             coupler: coupler_fn(coupler),
             stream: stream_fn(stream),
-            fusewire,
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme,
@@ -300,7 +309,7 @@ pub trait Acceptor: Send {
     ///
     /// # Parameters
     ///
-    /// - `fuse_factory`: Optional factory for creating fusewires to protect against slow HTTP
+    /// - `fuse_policy`: Optional factory for creating fuse_configs to protect against slow HTTP
     ///   attacks and other malicious patterns
     ///
     /// # Errors
@@ -308,7 +317,7 @@ pub trait Acceptor: Send {
     /// Returns an I/O error if the connection cannot be accepted.
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> impl Future<Output = IoResult<Accepted<Self::Coupler, Self::Stream>>> + Send;
 }
 

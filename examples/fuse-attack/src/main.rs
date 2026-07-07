@@ -19,7 +19,9 @@ async fn main() {
         .push(Router::with_path("你好").get(hello_zh));
     println!("{router:?}");
     Server::new(acceptor)
-        .fuse_factory(salvo::fuse::flex::FlexFactory::new())
+        // This demo exercises the idle / write-stall / body timeouts, so opt into the full
+        // set. `Server::new` already enables the safe handshake + header timeouts by default.
+        .fuse_config(salvo::fuse::FuseConfig::strict())
         .serve(router)
         .await;
 }

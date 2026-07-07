@@ -10,13 +10,12 @@ use http::uri::Scheme;
 use nix::unistd::{Gid, Uid, chown};
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
+use super::{Accepted, Acceptor, Listener};
 use crate::Error;
 use crate::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
-use crate::conn::{Holding, StraightStream};
-use crate::fuse::{ArcFuseFactory, FuseInfo, TransProto};
+use crate::conn::{ConnCtrl, Holding, StraightStream};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
-
-use super::{Accepted, Acceptor, Listener};
 
 /// `UnixListener` is used to create a Unix socket connection listener.
 #[cfg(unix)]
@@ -54,7 +53,7 @@ impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[cfg(feature = "socket2")]
     #[inline]
-    pub fn new(path: T) -> Self{
+    pub fn new(path: T) -> Self {
         Self {
             path,
             permissions: None,
@@ -132,7 +131,11 @@ where
             http_versions: vec![Version::HTTP_11, Version::HTTP_2],
             http_scheme: Scheme::HTTP,
         }];
-        Ok(UnixAcceptor { inner, holdings })
+        Ok(UnixAcceptor {
+            inner,
+            holdings,
+            pending: None,
+        })
     }
 }
 
@@ -141,6 +144,10 @@ where
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
+    // A raw socket accepted but not yet admitted; parked here so a dropped `accept` future
+    // (e.g. a `JoinedListener`'s `select!` picking the other listener) does not close an
+    // already-accepted client.
+    pending: Option<(UnixStream, Arc<tokio::net::unix::SocketAddr>)>,
 }
 
 impl UnixAcceptor {
@@ -163,27 +170,49 @@ impl Acceptor for UnixAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<TcpCoupler<Self::Stream>, Self::Stream>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| {
-            let remote_addr = Arc::new(remote_addr);
+        loop {
+            // Accept a raw socket, or resume one that a cancelled call left behind. It is
+            // parked in `self.pending` across the async admission below so a dropped future
+            // does not close an already-accepted client.
+            if self.pending.is_none() {
+                let (conn, remote_addr) = self.inner.accept().await?;
+                self.pending = Some((conn, Arc::new(remote_addr)));
+            }
+            let remote_addr = self.pending.as_ref().expect("pending set above").1.clone();
             let local_addr = self.holdings[0].local_addr.clone();
-            let fusewire = fuse_factory.map(|f| {
-                f.create(FuseInfo {
-                    trans_proto: TransProto::Tcp,
-                    remote_addr: remote_addr.clone().into(),
-                    local_addr: local_addr.clone(),
-                })
-            });
-            Accepted {
+            let conn_ctrl = ConnCtrl::new();
+            let (fuse_config, observer) = match &fuse_policy {
+                Some(policy) => {
+                    let info = FuseInfo {
+                        trans_proto: TransProto::Tcp,
+                        remote_addr: remote_addr.clone().into(),
+                        local_addr: local_addr.clone(),
+                    };
+                    match policy.decide(&info).await {
+                        FuseAction::Accept(config) => {
+                            (Some(config), policy.observe(&info, &conn_ctrl))
+                        }
+                        FuseAction::Reject => {
+                            self.pending = None;
+                            continue;
+                        }
+                    }
+                }
+                None => (None, None),
+            };
+            let (conn, remote_addr) = self.pending.take().expect("pending set above");
+            return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fusewire.clone()),
-                fusewire,
+                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
+                fuse_config,
+                conn_ctrl,
                 local_addr: self.holdings[0].local_addr.clone(),
                 remote_addr: remote_addr.into(),
                 http_scheme: Scheme::HTTP,
-            }
-        })
+            });
+        }
     }
 }
 

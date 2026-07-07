@@ -1,10 +1,10 @@
 //! HTTP/3 support.
 use std::fmt::{self, Debug, Formatter};
+use std::future::pending;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 use futures_util::Stream;
@@ -13,7 +13,7 @@ use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio_util::sync::CancellationToken;
 
-use crate::fuse::ArcFusewire;
+use crate::conn::ctrl::ConnState;
 use crate::http::Method;
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::proto::WebTransportSession;
@@ -90,7 +90,7 @@ impl Builder {
         hyper_handler: crate::service::HyperHandler,
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
-        let fusewire = hyper_handler.fusewire.clone();
+        let conn_ctrl = hyper_handler.conn_ctrl.clone();
         let raw_conn = conn.quinn().clone();
         let mut conn = self
             .inner
@@ -98,11 +98,79 @@ impl Builder {
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
+        let mut shutting_down = false;
         loop {
-            match conn.accept().await {
+            let accepted = tokio::select! {
+                accepted = conn.accept() => Some(accepted),
+                state = async {
+                    if shutting_down {
+                        conn_ctrl.aborted().await
+                    } else {
+                        conn_ctrl.notified().await
+                    }
+                } => {
+                    match state {
+                        ConnState::Abort => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                        ConnState::GracefulShutdown => {
+                            // Stay abortable while the GOAWAY is sent: a handler may escalate
+                            // graceful shutdown to an abort, which must still close promptly.
+                            tokio::select! {
+                                result = conn.shutdown(0) => {
+                                    result.map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                                    shutting_down = true;
+                                }
+                                _ = conn_ctrl.aborted() => {
+                                    raw_conn.close(0u32.into(), b"aborted by handler");
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        ConnState::Running => {}
+                    }
+                    None
+                }
+                _ = async {
+                    if let Some(token) = &graceful_stop_token {
+                        token.cancelled().await;
+                    } else {
+                        pending::<()>().await;
+                    }
+                }, if !shutting_down => {
+                    // As in the handler-initiated branch, a handler abort during the GOAWAY
+                    // must still tear the connection down immediately.
+                    tokio::select! {
+                        result = conn.shutdown(0) => {
+                            result.map_err(|e| IoError::other(format!("failed to shutdown HTTP/3 connection: {e}")))?;
+                            shutting_down = true;
+                        }
+                        _ = conn_ctrl.aborted() => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                    }
+                    None
+                }
+            };
+            let Some(accepted) = accepted else {
+                continue;
+            };
+            match accepted {
                 Ok(Some(resolver)) => {
                     let hyper_handler = hyper_handler.clone();
-                    let (request, stream) = match resolver.resolve_request().await {
+                    // Keep the connection abortable while the client sends the request head. A
+                    // stream that stalls before its headers arrive must not block a handler on
+                    // another stream from tearing the QUIC connection down.
+                    let resolved = tokio::select! {
+                        resolved = resolver.resolve_request() => resolved,
+                        _ = conn_ctrl.aborted() => {
+                            raw_conn.close(0u32.into(), b"aborted by handler");
+                            return Ok(());
+                        }
+                    };
+                    let (request, stream) = match resolved {
                         Ok(request) => request,
                         Err(err) => {
                             tracing::error!("error resolving request: {err:?}");
@@ -115,30 +183,38 @@ impl Builder {
                             if request.extensions().get::<Protocol>()
                                 == Some(&Protocol::WEB_TRANSPORT) =>
                         {
-                            if let Some(c) = process_web_transport(
-                                conn,
-                                request,
-                                stream,
-                                hyper_handler,
-                                fusewire.clone(),
-                                raw_conn.clone(),
-                            )
-                            .await?
-                            {
+                            let processed = tokio::select! {
+                                processed = process_web_transport(
+                                    conn,
+                                    request,
+                                    stream,
+                                    hyper_handler,
+                                    raw_conn.clone(),
+                                ) => processed?,
+                                _ = conn_ctrl.aborted() => {
+                                    raw_conn.close(0u32.into(), b"aborted by handler");
+                                    return Ok(());
+                                }
+                            };
+                            if let Some(c) = processed {
                                 conn = c;
                             } else {
                                 return Ok(());
                             }
                         }
                         _ => {
-                            let fusewire = fusewire.clone();
+                            let request_conn_ctrl = hyper_handler.conn_ctrl.clone();
                             tokio::spawn(async move {
-                                match process_request(request, stream, hyper_handler, fusewire)
-                                    .await
-                                {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        tracing::error!(error = ?e, "process request failed")
+                                tokio::select! {
+                                    result = process_request(request, stream, hyper_handler) => {
+                                        if let Err(error) = result {
+                                            tracing::error!(?error, "process request failed");
+                                        }
+                                    }
+                                    _ = request_conn_ctrl.aborted() => {
+                                        // The connection loop closes QUIC. Ending
+                                        // this detached task avoids retaining the
+                                        // deliberately pending service future.
                                     }
                                 }
                             });
@@ -155,11 +231,6 @@ impl Builder {
                     break;
                 }
             }
-            if let Some(graceful_stop_token) = &graceful_stop_token
-                && graceful_stop_token.is_cancelled()
-            {
-                break;
-            }
         }
         Ok(())
     }
@@ -170,7 +241,6 @@ async fn process_web_transport(
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::quinn::BidiStream<Bytes>, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fusewire: Option<ArcFusewire>,
     raw_conn: crate::proto::quinn::Connection,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
@@ -272,7 +342,6 @@ async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
     hyper_handler: crate::service::HyperHandler,
-    _fusewire: Option<ArcFusewire>,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,

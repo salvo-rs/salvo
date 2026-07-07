@@ -11,7 +11,7 @@ use certon::storage::Storage;
 use certon::{AcmeIssuer, FileStorage, OcspConfig, OnDemandConfig, ZeroSslIssuer};
 use salvo_core::conn::tcp::{DynTcpAcceptor, TcpCoupler, ToDynTcpAcceptor};
 use salvo_core::conn::{Accepted, Acceptor, HandshakeStream, Holding, Listener};
-use salvo_core::fuse::ArcFuseFactory;
+use salvo_core::fuse::ArcFusePolicy;
 use salvo_core::http::Version;
 use salvo_core::http::uri::Scheme;
 use salvo_core::{Result as CoreResult, Router, cfg_feature};
@@ -547,20 +547,22 @@ where
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         let Accepted {
             coupler: _,
             stream,
-            fusewire,
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             ..
-        } = self.inner.accept(fuse_factory).await?;
+        } = self.inner.accept(fuse_policy).await?;
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fusewire.clone()),
-            fusewire,
+            stream: HandshakeStream::new(self.tls_acceptor.accept(stream), fuse_config),
+            fuse_config,
+            conn_ctrl,
             local_addr,
             remote_addr,
             http_scheme: Scheme::HTTPS,

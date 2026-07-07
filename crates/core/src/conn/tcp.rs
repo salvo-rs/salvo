@@ -19,8 +19,8 @@ use crate::conn::native_tls::NativeTlsListener;
 use crate::conn::openssl::OpensslListener;
 #[cfg(feature = "rustls")]
 use crate::conn::rustls::RustlsListener;
-use crate::conn::{Holding, HttpBuilder, StraightStream};
-use crate::fuse::{ArcFuseFactory, FuseEvent, FuseInfo, TransProto};
+use crate::conn::{ConnCtrl, Holding, HttpBuilder, StraightStream};
+use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
@@ -154,6 +154,10 @@ where
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,
+    // A raw socket accepted but not yet admitted. Holding it here (rather than on the
+    // `accept` future's stack) keeps it alive if that future is dropped during async
+    // admission — e.g. when a `JoinedListener`'s `select!` picks the other listener.
+    pending: Option<(TcpStream, SocketAddr)>,
 }
 
 impl TcpAcceptor {
@@ -201,7 +205,11 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
             http_scheme: Scheme::HTTP,
         }];
 
-        Ok(Self { inner, holdings })
+        Ok(Self {
+            inner,
+            holdings,
+            pending: None,
+        })
     }
 }
 
@@ -217,26 +225,48 @@ impl Acceptor for TcpAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        self.inner.accept().await.map(move |(conn, remote_addr)| {
+        loop {
+            // Accept a raw socket, or resume one that a cancelled call left behind. It is
+            // parked in `self.pending` across the async admission below so a dropped future
+            // does not close an already-accepted client.
+            if self.pending.is_none() {
+                self.pending = Some(self.inner.accept().await?);
+            }
+            let remote_addr = self.pending.as_ref().expect("pending set above").1;
             let local_addr = self.holdings[0].local_addr.clone();
-            let fusewire = fuse_factory.map(|f| {
-                f.create(FuseInfo {
-                    trans_proto: TransProto::Tcp,
-                    remote_addr: remote_addr.into(),
-                    local_addr: local_addr.clone(),
-                })
-            });
-            Accepted {
+            let conn_ctrl = ConnCtrl::new();
+            let (fuse_config, observer) = match &fuse_policy {
+                Some(policy) => {
+                    let info = FuseInfo {
+                        trans_proto: TransProto::Tcp,
+                        remote_addr: remote_addr.into(),
+                        local_addr: local_addr.clone(),
+                    };
+                    match policy.decide(&info).await {
+                        FuseAction::Accept(config) => {
+                            (Some(config), policy.observe(&info, &conn_ctrl))
+                        }
+                        FuseAction::Reject => {
+                            self.pending = None;
+                            continue;
+                        }
+                    }
+                }
+                None => (None, None),
+            };
+            let (conn, remote_addr) = self.pending.take().expect("pending set above");
+            return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fusewire.clone()),
-                fusewire,
+                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
+                fuse_config,
+                conn_ctrl,
                 remote_addr: remote_addr.into(),
                 local_addr,
                 http_scheme: Scheme::HTTP,
-            }
-        })
+            });
+        }
     }
 }
 
@@ -281,13 +311,11 @@ where
         builder: Arc<HttpBuilder>,
         graceful_stop_token: Option<CancellationToken>,
     ) -> BoxFuture<'static, IoResult<()>> {
-        let fusewire = handler.fusewire.clone();
-        if let Some(fusewire) = &fusewire {
-            fusewire.event(FuseEvent::Alive);
-        }
+        let fuse_config = handler.fuse_config;
+        let conn_ctrl = handler.conn_ctrl.clone();
         async move {
             builder
-                .serve_connection(stream, handler, fusewire, graceful_stop_token)
+                .serve_connection(stream, handler, fuse_config, conn_ctrl, graceful_stop_token)
                 .await
                 .map_err(IoError::other)
         }
@@ -311,7 +339,7 @@ pub trait DynTcpAcceptor: Send {
     /// Accept a new connection.
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>>;
 }
 impl Acceptor for dyn DynTcpAcceptor {
@@ -326,9 +354,9 @@ impl Acceptor for dyn DynTcpAcceptor {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        DynTcpAcceptor::accept(self, fuse_factory).await
+        DynTcpAcceptor::accept(self, fuse_policy).await
     }
 }
 
@@ -347,10 +375,10 @@ where
     #[inline]
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
         async move {
-            let accepted = self.0.accept(fuse_factory).await?;
+            let accepted = self.0.accept(fuse_policy).await?;
             Ok(accepted.map_into(|_| TcpCoupler::new(), DynStream::new))
         }
         .boxed()
@@ -390,13 +418,13 @@ impl DynTcpAcceptor for DynTcpAcceptors {
     #[inline]
     fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> BoxFuture<'_, IoResult<Accepted<TcpCoupler<DynStream>, DynStream>>> {
         async move {
             let mut set = Vec::new();
             for inner in &mut self.inners {
-                let fuse_factory = fuse_factory.clone();
-                set.push(async move { inner.accept(fuse_factory).await }.boxed());
+                let fuse_policy = fuse_policy.clone();
+                set.push(async move { inner.accept(fuse_policy).await }.boxed());
             }
             futures_util::future::select_all(set).await.0
         }
@@ -415,9 +443,9 @@ impl Acceptor for DynTcpAcceptors {
     #[inline]
     async fn accept(
         &mut self,
-        fuse_factory: Option<ArcFuseFactory>,
+        fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
-        DynTcpAcceptor::accept(self, fuse_factory).await
+        DynTcpAcceptor::accept(self, fuse_policy).await
     }
 }
 impl Debug for DynTcpAcceptors {
@@ -450,5 +478,55 @@ mod tests {
 
         let Accepted { mut stream, .. } = acceptor.accept(None).await.unwrap();
         assert_eq!(stream.read_i32().await.unwrap(), 150);
+    }
+
+    #[tokio::test]
+    async fn accept_is_cancellation_safe_during_async_admission() {
+        use std::time::Duration;
+
+        use crate::async_trait;
+        use crate::fuse::{FuseConfig, FusePolicy};
+
+        // An admission policy that blocks, widening the window in which `accept` can be
+        // cancelled while it already owns an accepted socket (as a `JoinedListener`'s
+        // `select!` does when the other listener wins the race).
+        struct SlowPolicy;
+        #[async_trait]
+        impl FusePolicy for SlowPolicy {
+            async fn decide(&self, _info: &FuseInfo) -> FuseAction {
+                std::future::pending::<()>().await;
+                FuseAction::Accept(FuseConfig::disabled())
+            }
+        }
+
+        let mut acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let client = TcpStream::connect(addr).await.unwrap();
+
+        // First accept parks on the slow admission after accepting the socket, then is
+        // cancelled — mimicking the losing branch of a joined listener.
+        let policy: ArcFusePolicy = Arc::new(SlowPolicy);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), acceptor.accept(Some(policy)))
+                .await
+                .is_err(),
+            "the slow admission must not resolve within the window"
+        );
+
+        // The cancelled accept must not have dropped the socket: a second accept returns it
+        // without any new client connecting.
+        let accepted = tokio::time::timeout(Duration::from_millis(500), acceptor.accept(None))
+            .await
+            .expect("the socket accepted by the cancelled call must still be available")
+            .unwrap();
+        assert_eq!(
+            accepted.remote_addr.clone().into_std().unwrap(),
+            client.local_addr().unwrap(),
+            "the resumed connection must be the same client"
+        );
     }
 }

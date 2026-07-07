@@ -5,10 +5,10 @@
 //! ```no_run
 //! use std::fs::create_dir_all;
 //! use std::path::Path;
-//! 
+//!
 //! use salvo_core::prelude::*;
 //! use salvo_extra::size_limiter::max_size;
-//! 
+//!
 //! #[handler]
 //! async fn index(res: &mut Response) {
 //!     res.render(Text::Html(INDEX_HTML));
@@ -30,7 +30,7 @@
 //!         res.render(Text::Plain("file not found in request"));
 //!     }
 //! }
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() {
 //!     create_dir_all("temp").unwrap();
@@ -43,11 +43,11 @@
 //!                 .post(upload),
 //!         )
 //!         .push(Router::with_path("unlimit").post(upload));
-//! 
+//!
 //!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
 //!     Server::new(acceptor).serve(router).await;
 //! }
-//! 
+//!
 //! static INDEX_HTML: &str = r#"<!DOCTYPE html>
 //! <html>
 //!     <head>
@@ -69,16 +69,21 @@
 //! </html>
 //! "#;
 //! ```
-use salvo_core::http::StatusError;
-use salvo_core::http::{Body, Request, Response};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::http::{Body, Request, Response, StatusError};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// MaxSize limit for request size.
 #[derive(Debug)]
 pub struct MaxSize(pub u64);
 #[async_trait]
 impl Handler for MaxSize {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         if let Some(upper) = req.body().size_hint().upper()
             && upper > self.0
         {
@@ -111,8 +116,8 @@ mod tests {
     use std::task::{Context, Poll};
 
     use salvo_core::BoxedError;
-    use salvo_core::http::body::{Frame, ReqBody, SizeHint};
     use salvo_core::http::ParseError;
+    use salvo_core::http::body::{Frame, ReqBody, SizeHint};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -195,7 +200,7 @@ mod tests {
         let service = Service::new(router);
         let body = ReqBody::Boxed {
             inner: Box::pin(UnknownSizeBody::new(b"too large")),
-            fusewire: None,
+            fuse_config: None,
         };
 
         let res = TestClient::post("http://127.0.0.1:5801/upload")

@@ -1,5 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -8,7 +8,67 @@ use futures_util::stream::Stream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use crate::BoxedError;
-use crate::fuse::{ArcFusewire, FuseEvent};
+use crate::fuse::FuseConfig;
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct BodyTimeout {
+    duration: std::time::Duration,
+    sleep: Pin<Box<tokio::time::Sleep>>,
+    armed: bool,
+}
+
+impl BodyTimeout {
+    fn new(duration: std::time::Duration) -> Self {
+        Self {
+            duration,
+            sleep: Box::pin(tokio::time::sleep(std::time::Duration::from_secs(
+                86400 * 365,
+            ))),
+            armed: false,
+        }
+    }
+
+    fn apply(&mut self, poll: PollFrame, cx: &mut Context<'_>) -> PollFrame {
+        match poll {
+            Poll::Pending => {
+                if !self.armed {
+                    self.armed = true;
+                    self.sleep
+                        .as_mut()
+                        .reset(tokio::time::Instant::now() + self.duration);
+                }
+                if self.sleep.as_mut().poll(cx).is_ready() {
+                    // Fail only this request body. On HTTP/2 and HTTP/3 the error ends the
+                    // offending stream (RST_STREAM) while sibling streams multiplexed over
+                    // the same connection keep running; on HTTP/1 the connection carries a
+                    // single request, so it is torn down as before. Deliberately does not
+                    // abort the whole transport connection, which would take down unrelated
+                    // in-flight streams.
+                    Poll::Ready(Some(Err(IoError::new(
+                        ErrorKind::TimedOut,
+                        "request body timeout",
+                    ))))
+                } else {
+                    Poll::Pending
+                }
+            }
+            ready => {
+                // A frame that arrives after the deadline already elapsed must still time out,
+                // or a client dribbling each chunk just past the deadline evades the limit.
+                if self.armed && self.sleep.as_mut().poll(cx).is_ready() {
+                    self.armed = false;
+                    return Poll::Ready(Some(Err(IoError::new(
+                        ErrorKind::TimedOut,
+                        "request body timeout",
+                    ))));
+                }
+                self.armed = false;
+                ready
+            }
+        }
+    }
+}
 
 pub(crate) type BoxedBody =
     Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
@@ -27,24 +87,26 @@ pub enum ReqBody {
     Hyper {
         /// Inner body.
         inner: Incoming,
-        /// Fusewire.
-        fusewire: Option<ArcFusewire>,
+        /// Request-body timeout state.
+        fuse_config: Option<BodyTimeout>,
     },
     /// Boxed body.
     Boxed {
         /// Inner body.
         inner: BoxedBody,
-        /// Fusewire.
-        fusewire: Option<ArcFusewire>,
+        /// Request-body timeout state.
+        fuse_config: Option<BodyTimeout>,
     },
 }
 impl ReqBody {
     #[doc(hidden)]
-    pub fn set_fusewire(&mut self, value: Option<ArcFusewire>) {
+    pub fn set_fuse_config(&mut self, value: Option<FuseConfig>) {
         match self {
             Self::None | Self::Once(_) => {}
-            Self::Hyper { fusewire, .. } | Self::Boxed { fusewire, .. } => {
-                *fusewire = value;
+            Self::Hyper { fuse_config, .. } | Self::Boxed { fuse_config, .. } => {
+                *fuse_config = value
+                    .and_then(|config| config.request_body_timeout)
+                    .map(BodyTimeout::new);
             }
         }
     }
@@ -83,22 +145,14 @@ impl Body for ReqBody {
 
     fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> PollFrame {
         #[inline]
-        fn through_fusewire(poll: PollFrame, fusewire: Option<&ArcFusewire>) -> PollFrame {
-            match poll {
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Ready(Some(Ok(data))) => {
-                    if let Some(fusewire) = fusewire {
-                        fusewire.event(FuseEvent::GainFrame);
-                    }
-                    Poll::Ready(Some(Ok(data)))
-                }
-                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
-                Poll::Pending => {
-                    if let Some(fusewire) = fusewire {
-                        fusewire.event(FuseEvent::WaitFrame);
-                    }
-                    Poll::Pending
-                }
+        fn through_fuse_config(
+            poll: PollFrame,
+            fuse_config: Option<&mut BodyTimeout>,
+            cx: &mut Context<'_>,
+        ) -> PollFrame {
+            match fuse_config {
+                Some(timeout) => timeout.apply(poll, cx),
+                None => poll,
             }
         }
         match &mut *self {
@@ -111,13 +165,13 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            Self::Hyper { inner, fusewire } => {
+            Self::Hyper { inner, fuse_config } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire.as_ref())
+                through_fuse_config(poll, fuse_config.as_mut(), cx)
             }
-            Self::Boxed { inner, fusewire } => {
+            Self::Boxed { inner, fuse_config } => {
                 let poll = Pin::new(inner).poll_frame(cx).map_err(IoError::other);
-                through_fusewire(poll, fusewire.as_ref())
+                through_fuse_config(poll, fuse_config.as_mut(), cx)
             }
         }
     }
@@ -162,7 +216,7 @@ impl From<Incoming> for ReqBody {
     fn from(inner: Incoming) -> Self {
         Self::Hyper {
             inner,
-            fusewire: None,
+            fuse_config: None,
         }
     }
 }
@@ -311,7 +365,7 @@ cfg_feature! {
             fn from(value: H3ReqBody<S, B>) -> Self {
                 Self::Boxed {
                     inner: Box::pin(value),
-                    fusewire: None,
+                    fuse_config: None,
                 }
             }
         }
@@ -359,5 +413,66 @@ mod tests {
         assert!(b.is_end_stream());
         let b = ReqBody::Once(Bytes::new());
         assert!(b.is_end_stream());
+    }
+
+    #[tokio::test]
+    async fn request_body_timeout_fails_only_the_body() {
+        use std::future::poll_fn;
+        use std::time::Duration;
+
+        struct PendingBody;
+        impl Body for PendingBody {
+            type Data = Bytes;
+            type Error = BoxedError;
+            fn poll_frame(
+                self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+            ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+                Poll::Pending
+            }
+        }
+
+        let mut body = ReqBody::Boxed {
+            inner: Box::pin(PendingBody),
+            fuse_config: None,
+        };
+        body.set_fuse_config(Some(FuseConfig {
+            request_body_timeout: Some(Duration::from_millis(10)),
+            ..FuseConfig::disabled()
+        }));
+
+        // The stalled body must surface a `TimedOut` error to its reader. That error
+        // ends only this request stream; no connection-wide abort is involved.
+        let frame = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await;
+        let error = frame.expect("body must yield a frame").unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    async fn request_body_timeout_rejects_a_late_frame() {
+        use std::future::poll_fn;
+        use std::time::Duration;
+
+        let mut timeout = BodyTimeout::new(Duration::from_millis(10));
+
+        // Arm the timer as a pending frame poll would, then let the deadline lapse.
+        poll_fn(|cx| {
+            let _ = timeout.apply(Poll::Pending, cx);
+            Poll::Ready(())
+        })
+        .await;
+        tokio::time::sleep(Duration::from_millis(40)).await;
+
+        // A frame that only arrives now — past the deadline — must be converted to a timeout,
+        // not accepted as if the gap had been within bounds.
+        let out = poll_fn(|cx| {
+            let frame = Frame::data(Bytes::from_static(b"x"));
+            Poll::Ready(timeout.apply(Poll::Ready(Some(Ok(frame))), cx))
+        })
+        .await;
+        match out {
+            Poll::Ready(Some(Err(error))) => assert_eq!(error.kind(), ErrorKind::TimedOut),
+            _ => panic!("a late body frame must time out"),
+        }
     }
 }
