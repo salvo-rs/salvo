@@ -9,6 +9,7 @@ use std::vec;
 use futures_util::stream::{BoxStream, StreamExt};
 use http::uri::Scheme;
 use salvo_http3::quinn::Endpoint;
+use salvo_http3::quinn::quinn::Incoming;
 use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
@@ -124,6 +125,10 @@ pub struct QuinnAcceptor {
     holdings: Vec<Holding>,
     endpoint: Endpoint,
     cancel_reload: CancellationToken,
+    // An accepted QUIC incoming that has passed `endpoint.accept()` but not yet admission.
+    // Parking it here keeps it alive if the `accept` future is dropped during async admission
+    // (e.g. a `JoinedListener`'s `select!` picking the other listener).
+    pending: Option<Incoming>,
 }
 
 impl Debug for QuinnAcceptor {
@@ -150,6 +155,7 @@ impl QuinnAcceptor {
             holdings: vec![holding],
             endpoint,
             cancel_reload,
+            pending: None,
         }
     }
 }
@@ -173,11 +179,19 @@ impl Acceptor for QuinnAcceptor {
         fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         loop {
-            let Some(new_conn) = self.endpoint.accept().await else {
-                return Err(IoError::other("quinn accept error"));
+            // Resume an incoming a cancelled call parked, or accept a new one.
+            let new_conn = match self.pending.take() {
+                Some(incoming) => incoming,
+                None => match self.endpoint.accept().await {
+                    Some(incoming) => incoming,
+                    None => return Err(IoError::other("quinn accept error")),
+                },
             };
             let remote_addr = new_conn.remote_address();
             let local_addr = self.holdings[0].local_addr.clone();
+            // Park the incoming across the async admission below so a dropped `accept` future
+            // (e.g. a `JoinedListener` picking the other listener) leaves it for the next call.
+            self.pending = Some(new_conn);
             let fuse_config = match &fuse_policy {
                 Some(policy) => match policy
                     .decide(&FuseInfo {
@@ -188,10 +202,20 @@ impl Acceptor for QuinnAcceptor {
                     .await
                 {
                     FuseAction::Accept(config) => Some(config),
-                    FuseAction::Reject => continue,
+                    FuseAction::Reject => {
+                        self.pending = None;
+                        continue;
+                    }
                 },
                 None => None,
             };
+            // Admission passed: take the incoming back to complete the handshake below.
+            //
+            // NOTE: the handshake await that follows is not itself cancellation-safe — if this
+            // future is dropped mid-handshake the connection is lost. Parking a mid-flight
+            // handshake future is materially more involved; only the admission phase is parked
+            // here, which closes the gap the async `FusePolicy` introduced.
+            let new_conn = self.pending.take().expect("incoming parked above");
             // Of the fuse timeouts, QUIC enforces the handshake timeout here and the
             // request-body timeout via the H3 body. The transport idle and write-stall
             // timeouts are TCP/byte-stream concepts handled by `StraightStream`; QUIC relies on
