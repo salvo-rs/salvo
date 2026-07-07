@@ -37,19 +37,19 @@ pub struct FuseInfo {
 /// Three presets mark the useful points on the spectrum, and the `with_*` builders adjust any
 /// field from there:
 ///
-/// - [`default`](Self::default) — the **safe defaults** a server applies out of the box: only
-///   the TLS-handshake and HTTP/1 header timeouts, which stop slow-handshake / Slowloris
-///   attacks and never trip on a legitimate client.
+/// - [`default`](Self::default) — the **safe defaults** a server applies out of the box: only the
+///   TLS-handshake and HTTP/1 header timeouts, which stop slow-handshake / Slowloris attacks and
+///   never trip on a legitimate client.
 /// - [`strict`](Self::strict) — **every** timeout, adding idle, write-stall and request-body
 ///   limits. The strongest protection, but it can close valid long-lived or slow connections.
 /// - [`disabled`](Self::disabled) — no timeouts at all.
 ///
 /// ```
 /// use std::time::Duration;
+///
 /// use salvo_core::fuse::FuseConfig;
 ///
-/// let config = FuseConfig::default()
-///     .with_connection_idle_timeout(Duration::from_secs(60));
+/// let config = FuseConfig::default().with_connection_idle_timeout(Duration::from_secs(60));
 /// ```
 ///
 /// It is `#[non_exhaustive]`, so new timeout knobs can be added without breaking callers.
