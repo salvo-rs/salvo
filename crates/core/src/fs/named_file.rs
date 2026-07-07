@@ -649,7 +649,19 @@ impl NamedFile {
         }
     }
     /// Consume self and send content to [`Response`].
-    pub async fn send(mut self, req_headers: &HeaderMap, res: &mut Response) {
+    pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
+        self.send_inner(req_headers, res, true).await;
+    }
+
+    /// Consume self and send only the headers to [`Response`].
+    ///
+    /// This follows the same conditional and range handling as [`Self::send`], but does not attach
+    /// a response body.
+    pub async fn send_head(self, req_headers: &HeaderMap, res: &mut Response) {
+        self.send_inner(req_headers, res, false).await;
+    }
+
+    async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, send_body: bool) {
         let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
@@ -779,8 +791,12 @@ impl NamedFile {
             }
             res.headers_mut().typed_insert(ContentLength(total_size));
 
+            if !send_body {
+                return;
+            }
+
             // Fast path: slice from preread bytes if available
-            if let Some(preread) = self.preread {
+            if let Some(preread) = self.preread.take() {
                 let end = cmp::min(offset.saturating_add(total_size) as usize, preread.len());
                 let start = cmp::min(offset as usize, end);
                 res.replace_body(ResBody::Once(preread.slice(start..end)));
@@ -799,8 +815,12 @@ impl NamedFile {
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(length));
 
+            if !send_body {
+                return;
+            }
+
             // Fast path: send preread bytes directly — zero spawn_blocking calls
-            if let Some(preread) = self.preread {
+            if let Some(preread) = self.preread.take() {
                 res.replace_body(ResBody::Once(preread));
             } else {
                 let reader = ChunkedFile {
@@ -1012,6 +1032,38 @@ mod tests {
             Some("utf-8")
         );
         assert!(named.preread.is_none());
+    }
+
+    #[tokio::test]
+    async fn send_head_sets_headers_without_body() {
+        use crate::http::header::{ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE};
+        use crate::http::{HeaderMap, Response};
+
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let path = temp_dir.path().join("hello.txt");
+        std::fs::write(&path, b"hello").expect("write file");
+
+        let named = NamedFile::builder(&path)
+            .content_type(mime::TEXT_PLAIN)
+            .preload_threshold(0)
+            .build()
+            .await
+            .expect("build named file");
+        let mut res = Response::new();
+        named.send_head(&HeaderMap::new(), &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert_eq!(res.headers().get(CONTENT_LENGTH).unwrap(), "5");
+        assert_eq!(res.headers().get(ACCEPT_RANGES).unwrap(), "bytes");
+        assert!(
+            res.headers()
+                .get(CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("text/plain")
+        );
+        assert!(res.body.is_none());
     }
 
     #[tokio::test]
