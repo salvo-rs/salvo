@@ -220,6 +220,26 @@ impl StatusError {
         /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
         network_authentication_required,    StatusCode::NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required", "the client needs to authenticate to gain network access."
     }
+
+    /// Deprecated alias for [`Self::request_header_fields_too_large`].
+    #[must_use]
+    #[deprecated(
+        since = "0.94.0",
+        note = "use `StatusError::request_header_fields_too_large` instead"
+    )]
+    pub fn request_header_fields_toolarge() -> StatusError {
+        Self::request_header_fields_too_large()
+    }
+
+    /// Deprecated alias for [`Self::unavailable_for_legal_reasons`].
+    #[must_use]
+    #[deprecated(
+        since = "0.94.0",
+        note = "use `StatusError::unavailable_for_legal_reasons` instead"
+    )]
+    pub fn unavailable_for_legalreasons() -> StatusError {
+        Self::unavailable_for_legal_reasons()
+    }
 }
 
 impl StdError for StatusError {
@@ -342,5 +362,18 @@ mod tests {
         assert_eq!(source.to_string(), "disk offline");
 
         assert!(StatusError::internal_server_error().source().is_none());
+    }
+
+    #[allow(deprecated)]
+    #[test]
+    fn legacy_status_error_aliases_match_new_names() {
+        assert_eq!(
+            StatusError::request_header_fields_toolarge().code,
+            StatusError::request_header_fields_too_large().code
+        );
+        assert_eq!(
+            StatusError::unavailable_for_legalreasons().code,
+            StatusError::unavailable_for_legal_reasons().code
+        );
     }
 }
