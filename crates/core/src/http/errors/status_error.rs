@@ -227,7 +227,7 @@ impl StatusError {
         since = "0.94.0",
         note = "use `StatusError::request_header_fields_too_large` instead"
     )]
-    pub fn request_header_fields_toolarge() -> StatusError {
+    pub fn request_header_fields_toolarge() -> Self {
         Self::request_header_fields_too_large()
     }
 
@@ -237,7 +237,7 @@ impl StatusError {
         since = "0.94.0",
         note = "use `StatusError::unavailable_for_legal_reasons` instead"
     )]
-    pub fn unavailable_for_legalreasons() -> StatusError {
+    pub fn unavailable_for_legalreasons() -> Self {
         Self::unavailable_for_legal_reasons()
     }
 }
