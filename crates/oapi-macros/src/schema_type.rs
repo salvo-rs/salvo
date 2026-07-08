@@ -201,6 +201,10 @@ fn is_primitive(name: &str) -> bool {
             | "f64"
             | "Ipv4Addr"
             | "Ipv6Addr"
+            | "OsStr"
+            | "OsString"
+            | "Path"
+            | "PathBuf"
     )
 }
 
@@ -233,7 +237,7 @@ impl TryToTokens for SchemaType<'_> {
         }
 
         match name {
-            "String" | "str" | "char" => {
+            "String" | "str" | "char" | "OsStr" | "OsString" | "Path" | "PathBuf" => {
                 schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             "bool" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Boolean, self.nullable),
@@ -961,7 +965,8 @@ mod tests {
     fn test_schema_type_is_primitive() {
         let primitives = [
             "String", "str", "char", "bool", "usize", "u8", "u16", "u32", "u64", "u128", "isize",
-            "i8", "i16", "i32", "i64", "i128", "f32", "f64", "Ipv4Addr", "Ipv6Addr",
+            "i8", "i16", "i32", "i64", "i128", "f32", "f64", "Ipv4Addr", "Ipv6Addr", "OsStr",
+            "OsString", "Path", "PathBuf",
         ];
         for ty in primitives {
             let path = make_path(ty);
@@ -1111,6 +1116,10 @@ mod tests {
         assert!(is_primitive("i32"));
         assert!(is_primitive("bool"));
         assert!(is_primitive("Ipv4Addr"));
+        assert!(is_primitive("OsStr"));
+        assert!(is_primitive("OsString"));
+        assert!(is_primitive("Path"));
+        assert!(is_primitive("PathBuf"));
         assert!(!is_primitive("CustomType"));
     }
 
