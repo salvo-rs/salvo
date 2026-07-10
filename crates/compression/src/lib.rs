@@ -74,7 +74,7 @@ use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
     ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
 };
-use salvo_core::http::{self, Mime, StatusCode, append_vary_header, mime};
+use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 mod encoder;
@@ -464,7 +464,28 @@ impl Handler for Compression {
 
         match res.take_body() {
             ResBody::None => {
-                return;
+                // A HEAD-aware handler can intentionally omit the body before this middleware
+                // runs. Preserve the representation headers that the equivalent GET response
+                // would receive when its uncompressed length is known.
+                if req.method() != Method::HEAD {
+                    return;
+                }
+                let Some(length) = res
+                    .headers()
+                    .get(CONTENT_LENGTH)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<usize>().ok())
+                else {
+                    return;
+                };
+                if self.min_length > 0 && length < self.min_length {
+                    return;
+                }
+                if let Some((algo, _level)) = self.negotiate(req, res) {
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
+                } else {
+                    return;
+                }
             }
             ResBody::Once(bytes) => {
                 if self.min_length > 0 && bytes.len() < self.min_length {
@@ -788,6 +809,40 @@ mod tests {
             .filter(|value| value.trim().eq_ignore_ascii_case("accept-encoding"))
             .count();
         assert_eq!(vary_accept_encoding_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_head_preserves_get_compression_headers_without_body() {
+        #[handler]
+        async fn hello_head(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+        }
+
+        let comp_handler = Compression::new().min_length(1);
+        let router = Router::with_hoop(comp_handler)
+            .push(Router::with_path("hello").get(hello).head(hello_head));
+        let service = Service::new(router);
+
+        let get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&service)
+            .await;
+        let mut head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&service)
+            .await;
+
+        assert_eq!(
+            head.headers().get(CONTENT_ENCODING),
+            get.headers().get(CONTENT_ENCODING)
+        );
+        assert_eq!(head.headers().get(VARY), get.headers().get(VARY));
+        assert!(head.headers().get(CONTENT_LENGTH).is_none());
+        assert_eq!(head.take_string().await.unwrap(), "");
     }
 
     #[tokio::test]

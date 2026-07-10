@@ -70,7 +70,11 @@ impl Handler for StaticFile {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        match self.0.clone().build().await {
+        let mut builder = self.0.clone();
+        if req.method() == Method::HEAD {
+            builder = builder.preload_threshold(0);
+        }
+        match builder.build().await {
             Ok(file) if req.method() == Method::HEAD => file.send_head(req.headers(), res).await,
             Ok(file) => file.send(req.headers(), res).await,
             Err(_) => {
