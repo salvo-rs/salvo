@@ -74,6 +74,7 @@ use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
     ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
 };
+use salvo_core::http::headers::{ContentLength, HeaderMapExt};
 use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
@@ -470,15 +471,7 @@ impl Handler for Compression {
                 if req.method() != Method::HEAD {
                     return;
                 }
-                let Some(length) = res
-                    .headers()
-                    .get(CONTENT_LENGTH)
-                    .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<usize>().ok())
-                else {
-                    return;
-                };
-                if self.min_length > 0 && length < self.min_length {
+                if res.headers().typed_get::<ContentLength>().is_none() {
                     return;
                 }
                 if let Some((algo, _level)) = self.negotiate(req, res) {
@@ -812,7 +805,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_head_preserves_get_compression_headers_without_body() {
+    async fn test_head_preserves_streamed_get_compression_headers_below_min_length() {
+        #[handler]
+        async fn hello_stream(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+            res.stream(futures_util::stream::once(async {
+                Ok::<_, std::io::Error>("hello")
+            }));
+        }
+
         #[handler]
         async fn hello_head(res: &mut Response) {
             res.status_code(StatusCode::OK);
@@ -822,9 +827,12 @@ mod tests {
                 .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
         }
 
-        let comp_handler = Compression::new().min_length(1);
-        let router = Router::with_hoop(comp_handler)
-            .push(Router::with_path("hello").get(hello).head(hello_head));
+        let comp_handler = Compression::new().min_length(10);
+        let router = Router::with_hoop(comp_handler).push(
+            Router::with_path("hello")
+                .get(hello_stream)
+                .head(hello_head),
+        );
         let service = Service::new(router);
 
         let get = TestClient::get("http://127.0.0.1:5801/hello")
@@ -836,6 +844,7 @@ mod tests {
             .send(&service)
             .await;
 
+        assert_eq!(get.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
         assert_eq!(
             head.headers().get(CONTENT_ENCODING),
             get.headers().get(CONTENT_ENCODING)
