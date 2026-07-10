@@ -324,6 +324,15 @@ impl_to_schema!(&str);
 impl_to_schema!(std::net::Ipv4Addr);
 impl_to_schema!(std::net::Ipv6Addr);
 
+impl_to_schema_primitive!(
+    std::ffi::OsStr,
+    std::ffi::OsString,
+    std::path::Path,
+    std::path::PathBuf
+);
+impl_to_schema!(&std::ffi::OsStr);
+impl_to_schema!(&std::path::Path);
+
 impl ToSchema for std::net::IpAddr {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         crate::RefOr::Type(Schema::OneOf(
@@ -1264,6 +1273,36 @@ mod tests {
             (
                 "char",
                 char::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "OsStr",
+                std::ffi::OsStr::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "&OsStr",
+                <&std::ffi::OsStr>::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "OsString",
+                std::ffi::OsString::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "Path",
+                std::path::Path::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "&Path",
+                <&std::path::Path>::to_schema(&mut components),
+                json!({"type": "string"}),
+            ),
+            (
+                "PathBuf",
+                std::path::PathBuf::to_schema(&mut components),
                 json!({"type": "string"}),
             ),
             (

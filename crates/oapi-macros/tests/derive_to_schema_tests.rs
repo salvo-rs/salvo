@@ -6,6 +6,118 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 #[test]
+fn test_std_string_types_do_not_shadow_custom_types() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct OsStr {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct OsString {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct Path {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct PathBuf {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct CustomTypes {
+        os_str: OsStr,
+        os_string: OsString,
+        path: Path,
+        path_buf: PathBuf,
+    }
+
+    let mut components = salvo::oapi::Components::new();
+    CustomTypes::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let custom_types = schemas
+        .values()
+        .find(|schema| schema.pointer("/properties/os_str").is_some())
+        .unwrap();
+
+    for property in ["os_str", "os_string", "path", "path_buf"] {
+        assert!(
+            custom_types["properties"][property].get("$ref").is_some(),
+            "custom {property} type should remain a component reference: {custom_types}"
+        );
+    }
+}
+
+#[test]
+fn test_std_string_types_in_derived_schema() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct StdTypes {
+        #[salvo(schema(max_length = 255))]
+        os_str: &'static std::ffi::OsStr,
+        #[salvo(schema(max_length = 255))]
+        os_string: std::ffi::OsString,
+        #[salvo(schema(max_length = 255))]
+        path: &'static std::path::Path,
+        #[salvo(schema(max_length = 255))]
+        path_buf: std::path::PathBuf,
+    }
+
+    let mut components = salvo::oapi::Components::new();
+    StdTypes::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let std_types = schemas
+        .values()
+        .find(|schema| schema.pointer("/properties/os_str").is_some())
+        .unwrap();
+
+    for property in ["os_str", "os_string", "path", "path_buf"] {
+        assert_json_eq!(
+            std_types["properties"][property],
+            json!({"type": "string", "maxLength": 255})
+        );
+    }
+}
+
+#[test]
+fn test_std_string_newtypes_support_string_validators() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    #[salvo(schema(max_length = 255))]
+    struct ValidatedOsString(std::ffi::OsString);
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    #[salvo(schema(max_length = 255))]
+    struct ValidatedPathBuf(std::path::PathBuf);
+
+    let mut components = salvo::oapi::Components::new();
+    ValidatedOsString::to_schema(&mut components);
+    ValidatedPathBuf::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let validated_schemas = schemas
+        .values()
+        .filter(|schema| schema.get("maxLength").is_some())
+        .collect::<Vec<_>>();
+
+    assert_eq!(validated_schemas.len(), 2);
+    for schema in validated_schemas {
+        assert_json_eq!(schema, json!({"type": "string", "maxLength": 255}));
+    }
+}
+
+#[test]
 fn test_derive_to_schema_generics() {
     #[derive(Serialize, Deserialize, ToSchema, Debug)]
     #[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
