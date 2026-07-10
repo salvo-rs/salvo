@@ -331,8 +331,8 @@ impl Compression {
     /// Sets minimum compression size, if body is less than this value, no compression.
     /// Default is 1kb.
     ///
-    /// Only effective for bodies with a known length (`Once`/`Chunks`); streaming
-    /// bodies (`Hyper`/`Stream`) are always compressed regardless of this value.
+    /// Streaming bodies with an explicit `Content-Length` also respect this threshold. Streaming
+    /// bodies with an unknown length are always compressed.
     #[inline]
     #[must_use]
     pub fn min_length(mut self, size: usize) -> Self {
@@ -353,6 +353,19 @@ impl Compression {
     pub fn content_types(mut self, content_types: &[Mime]) -> Self {
         self.content_types = content_types.to_vec();
         self
+    }
+
+    fn content_length_is_below_minimum(&self, res: &Response) -> bool {
+        if self.min_length == 0 {
+            return false;
+        }
+        let Some(ContentLength(length)) = res.headers().typed_get::<ContentLength>() else {
+            return false;
+        };
+        match u64::try_from(self.min_length) {
+            Ok(min_length) => length < min_length,
+            Err(_) => true,
+        }
     }
 
     fn negotiate(
@@ -474,6 +487,9 @@ impl Handler for Compression {
                 if res.headers().typed_get::<ContentLength>().is_none() {
                     return;
                 }
+                if self.content_length_is_below_minimum(res) {
+                    return;
+                }
                 if let Some((algo, _level)) = self.negotiate(req, res) {
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
                 } else {
@@ -510,6 +526,10 @@ impl Handler for Compression {
                 }
             }
             ResBody::Hyper(body) => {
+                if self.content_length_is_below_minimum(res) {
+                    res.body(ResBody::Hyper(body));
+                    return;
+                }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
@@ -520,6 +540,10 @@ impl Handler for Compression {
             }
             ResBody::Stream(body) => {
                 let body = body.into_inner();
+                if self.content_length_is_below_minimum(res) {
+                    res.body(ResBody::stream(body));
+                    return;
+                }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
@@ -805,7 +829,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_head_preserves_streamed_get_compression_headers_below_min_length() {
+    async fn test_head_matches_streamed_get_compression_threshold() {
         #[handler]
         async fn hello_stream(res: &mut Response) {
             res.status_code(StatusCode::OK);
@@ -827,12 +851,79 @@ mod tests {
                 .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
         }
 
-        let comp_handler = Compression::new().min_length(10);
-        let router = Router::with_hoop(comp_handler).push(
+        let compressed_router = Router::with_hoop(Compression::new().min_length(1)).push(
             Router::with_path("hello")
                 .get(hello_stream)
                 .head(hello_head),
         );
+        let compressed_service = Service::new(compressed_router);
+
+        let compressed_get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&compressed_service)
+            .await;
+        let mut compressed_head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&compressed_service)
+            .await;
+
+        assert_eq!(
+            compressed_get.headers().get(CONTENT_ENCODING).unwrap(),
+            "gzip"
+        );
+        assert_eq!(
+            compressed_head.headers().get(CONTENT_ENCODING),
+            compressed_get.headers().get(CONTENT_ENCODING)
+        );
+        assert_eq!(
+            compressed_head.headers().get(VARY),
+            compressed_get.headers().get(VARY)
+        );
+        assert!(compressed_head.headers().get(CONTENT_LENGTH).is_none());
+        assert_eq!(compressed_head.take_string().await.unwrap(), "");
+
+        let uncompressed_router = Router::with_hoop(Compression::new().min_length(10)).push(
+            Router::with_path("hello")
+                .get(hello_stream)
+                .head(hello_head),
+        );
+        let uncompressed_service = Service::new(uncompressed_router);
+
+        let uncompressed_get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&uncompressed_service)
+            .await;
+        let mut uncompressed_head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&uncompressed_service)
+            .await;
+
+        assert!(uncompressed_get.headers().get(CONTENT_ENCODING).is_none());
+        assert!(uncompressed_head.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(
+            uncompressed_head.headers().get(VARY),
+            uncompressed_get.headers().get(VARY)
+        );
+        assert_eq!(
+            uncompressed_head.headers().get(CONTENT_LENGTH),
+            uncompressed_get.headers().get(CONTENT_LENGTH)
+        );
+        assert_eq!(uncompressed_head.take_string().await.unwrap(), "");
+    }
+
+    #[tokio::test]
+    async fn test_head_matches_buffered_get_below_min_length() {
+        #[handler]
+        async fn hello_head(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+        }
+
+        let router = Router::with_hoop(Compression::new().min_length(10))
+            .push(Router::with_path("hello").get(hello).head(hello_head));
         let service = Service::new(router);
 
         let get = TestClient::get("http://127.0.0.1:5801/hello")
@@ -844,13 +935,10 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(get.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
-        assert_eq!(
-            head.headers().get(CONTENT_ENCODING),
-            get.headers().get(CONTENT_ENCODING)
-        );
+        assert!(get.headers().get(CONTENT_ENCODING).is_none());
+        assert!(head.headers().get(CONTENT_ENCODING).is_none());
         assert_eq!(head.headers().get(VARY), get.headers().get(VARY));
-        assert!(head.headers().get(CONTENT_LENGTH).is_none());
+        assert_eq!(head.headers().get(CONTENT_LENGTH).unwrap(), "5");
         assert_eq!(head.take_string().await.unwrap(), "");
     }
 
