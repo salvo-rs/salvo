@@ -10,9 +10,9 @@ use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
 use salvo_core::handler::Handler;
-use salvo_core::http::header::{ACCEPT_ENCODING, VARY};
+use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{
-    self, HeaderMap, HeaderValue, Request, Response, StatusCode, StatusError, mime,
+    self, HeaderValue, Method, Request, Response, StatusCode, StatusError, append_vary_header, mime,
 };
 use salvo_core::routing::{
     decode_url_path, encode_url_path, normalize_url_path, redirect_to_dir_url,
@@ -73,21 +73,6 @@ impl From<CompressionAlgo> for HeaderValue {
             CompressionAlgo::Gzip => Self::from_static("gzip"),
             CompressionAlgo::Zstd => Self::from_static("zstd"),
         }
-    }
-}
-
-fn append_vary_accept_encoding(headers: &mut HeaderMap) {
-    let already_varies = headers
-        .get_all(VARY)
-        .iter()
-        .filter_map(|value| value.to_str().ok())
-        .flat_map(|value| value.split(','))
-        .any(|value| {
-            let value = value.trim();
-            value == "*" || value.eq_ignore_ascii_case("accept-encoding")
-        });
-    if !already_varies {
-        headers.append(VARY, HeaderValue::from_static("Accept-Encoding"));
     }
 }
 
@@ -158,6 +143,32 @@ where
 ///             .defaults("index.html")
 ///             .auto_list(true),
 ///     ),
+/// );
+/// ```
+///
+/// `HEAD` requests are supported when the route is configured to match them. This lets clients
+/// and caches check file metadata such as `Content-Length`, `ETag`, and `Last-Modified` without
+/// downloading the response body.
+///
+/// **Security note**: a `HEAD` request still follows the same file lookup and metadata path as
+/// `GET`. A client can send a very small request that makes the server touch the filesystem.
+/// Enable `HEAD` at your own risk.
+///
+/// You can match both methods with a composed method filter:
+///
+/// ```
+/// use salvo_core::prelude::*;
+/// use salvo_core::routing::{Filter, filters};
+/// use salvo_serve_static::StaticDir;
+///
+/// let router = Router::new().push(
+///     Router::with_path("static/{**}")
+///         .filter(filters::get().or(filters::head()))
+///         .goal(
+///             StaticDir::new(["assets", "static"])
+///                 .defaults("index.html")
+///                 .auto_list(true),
+///         ),
 /// );
 /// ```
 #[non_exhaustive]
@@ -594,6 +605,9 @@ impl Handler for StaticDir {
                 if let Some(threshold) = self.preload_threshold {
                     builder = builder.preload_threshold(threshold);
                 }
+                if req.method() == Method::HEAD {
+                    builder = builder.preload_threshold(0);
+                }
                 if let Some(content_type) = content_type {
                     builder = builder.content_type(content_type);
                 }
@@ -601,9 +615,13 @@ impl Handler for StaticDir {
             };
             if let Ok(named_file) = builder.build().await {
                 let headers = req.headers();
-                named_file.send(headers, res).await;
+                if req.method() == Method::HEAD {
+                    named_file.send_head(headers, res).await;
+                } else {
+                    named_file.send(headers, res).await;
+                }
                 if varies_on_accept_encoding {
-                    append_vary_accept_encoding(res.headers_mut());
+                    append_vary_header(res.headers_mut(), "accept-encoding");
                 }
             } else {
                 res.render(StatusError::internal_server_error().brief("read file failed"));

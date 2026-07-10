@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
-use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::{Depot, FlowCtrl, Handler, Writer, async_trait};
+use salvo_core::http::{Method, Request, Response, StatusError};
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// `StaticFile` is a handler that serves a single static file.
 ///
@@ -66,12 +66,17 @@ impl Handler for StaticFile {
     async fn handle(
         &self,
         req: &mut Request,
-        depot: &mut Depot,
+        _depot: &mut Depot,
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        match self.0.clone().build().await {
-            Ok(file) => file.write(req, depot, res).await,
+        let mut builder = self.0.clone();
+        if req.method() == Method::HEAD {
+            builder = builder.preload_threshold(0);
+        }
+        match builder.build().await {
+            Ok(file) if req.method() == Method::HEAD => file.send_head(req.headers(), res).await,
+            Ok(file) => file.send(req.headers(), res).await,
             Err(_) => {
                 res.render(StatusError::not_found());
             }

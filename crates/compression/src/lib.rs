@@ -72,9 +72,10 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue, VARY,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
 };
-use salvo_core::http::{self, Mime, StatusCode, mime};
+use salvo_core::http::headers::{ContentLength, HeaderMapExt};
+use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
 
 mod encoder;
@@ -330,8 +331,8 @@ impl Compression {
     /// Sets minimum compression size, if body is less than this value, no compression.
     /// Default is 1kb.
     ///
-    /// Only effective for bodies with a known length (`Once`/`Chunks`); streaming
-    /// bodies (`Hyper`/`Stream`) are always compressed regardless of this value.
+    /// Streaming bodies with an explicit `Content-Length` also respect this threshold. Streaming
+    /// bodies with an unknown length are always compressed.
     #[inline]
     #[must_use]
     pub fn min_length(mut self, size: usize) -> Self {
@@ -352,6 +353,19 @@ impl Compression {
     pub fn content_types(mut self, content_types: &[Mime]) -> Self {
         self.content_types = content_types.to_vec();
         self
+    }
+
+    fn content_length_is_below_minimum(&self, res: &Response) -> bool {
+        if self.min_length == 0 {
+            return false;
+        }
+        let Some(ContentLength(length)) = res.headers().typed_get::<ContentLength>() else {
+            return false;
+        };
+        match u64::try_from(self.min_length) {
+            Ok(min_length) => length < min_length,
+            Err(_) => true,
+        }
     }
 
     fn negotiate(
@@ -464,7 +478,23 @@ impl Handler for Compression {
 
         match res.take_body() {
             ResBody::None => {
-                return;
+                // A HEAD-aware handler can intentionally omit the body before this middleware
+                // runs. Preserve the representation headers that the equivalent GET response
+                // would receive when its uncompressed length is known.
+                if req.method() != Method::HEAD {
+                    return;
+                }
+                if res.headers().typed_get::<ContentLength>().is_none() {
+                    return;
+                }
+                if self.content_length_is_below_minimum(res) {
+                    return;
+                }
+                if let Some((algo, _level)) = self.negotiate(req, res) {
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
+                } else {
+                    return;
+                }
             }
             ResBody::Once(bytes) => {
                 if self.min_length > 0 && bytes.len() < self.min_length {
@@ -496,6 +526,10 @@ impl Handler for Compression {
                 }
             }
             ResBody::Hyper(body) => {
+                if self.content_length_is_below_minimum(res) {
+                    res.body(ResBody::Hyper(body));
+                    return;
+                }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
@@ -506,6 +540,10 @@ impl Handler for Compression {
             }
             ResBody::Stream(body) => {
                 let body = body.into_inner();
+                if self.content_length_is_below_minimum(res) {
+                    res.body(ResBody::stream(body));
+                    return;
+                }
                 if let Some((algo, level)) = self.negotiate(req, res) {
                     res.stream(EncodeStream::new(algo, level, body));
                     res.headers_mut().insert(CONTENT_ENCODING, algo.into());
@@ -520,13 +558,13 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
-        res.headers_mut()
-            .append(VARY, HeaderValue::from_static("accept-encoding"));
+        append_vary_header(res.headers_mut(), "accept-encoding");
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::header::VARY;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -758,6 +796,150 @@ mod tests {
             .await;
         let count = res.headers().get_all(CONTENT_ENCODING).iter().count();
         assert_eq!(count, 1, "must have exactly one Content-Encoding header");
+    }
+
+    #[tokio::test]
+    async fn test_vary_accept_encoding_is_not_duplicated() {
+        #[handler]
+        async fn hello_with_vary(res: &mut Response) {
+            res.headers_mut()
+                .insert(VARY, HeaderValue::from_static("Accept-Encoding"));
+            res.render(Text::Plain("hello"));
+        }
+
+        let comp_handler = Compression::new().min_length(1);
+        let router =
+            Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello_with_vary));
+
+        let res = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(router)
+            .await;
+
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
+        let vary_accept_encoding_count = res
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .filter(|value| value.trim().eq_ignore_ascii_case("accept-encoding"))
+            .count();
+        assert_eq!(vary_accept_encoding_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_head_matches_streamed_get_compression_threshold() {
+        #[handler]
+        async fn hello_stream(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+            res.stream(futures_util::stream::once(async {
+                Ok::<_, std::io::Error>("hello")
+            }));
+        }
+
+        #[handler]
+        async fn hello_head(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+        }
+
+        let compressed_router = Router::with_hoop(Compression::new().min_length(1)).push(
+            Router::with_path("hello")
+                .get(hello_stream)
+                .head(hello_head),
+        );
+        let compressed_service = Service::new(compressed_router);
+
+        let compressed_get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&compressed_service)
+            .await;
+        let mut compressed_head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&compressed_service)
+            .await;
+
+        assert_eq!(
+            compressed_get.headers().get(CONTENT_ENCODING).unwrap(),
+            "gzip"
+        );
+        assert_eq!(
+            compressed_head.headers().get(CONTENT_ENCODING),
+            compressed_get.headers().get(CONTENT_ENCODING)
+        );
+        assert_eq!(
+            compressed_head.headers().get(VARY),
+            compressed_get.headers().get(VARY)
+        );
+        assert!(compressed_head.headers().get(CONTENT_LENGTH).is_none());
+        assert_eq!(compressed_head.take_string().await.unwrap(), "");
+
+        let uncompressed_router = Router::with_hoop(Compression::new().min_length(10)).push(
+            Router::with_path("hello")
+                .get(hello_stream)
+                .head(hello_head),
+        );
+        let uncompressed_service = Service::new(uncompressed_router);
+
+        let uncompressed_get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&uncompressed_service)
+            .await;
+        let mut uncompressed_head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&uncompressed_service)
+            .await;
+
+        assert!(uncompressed_get.headers().get(CONTENT_ENCODING).is_none());
+        assert!(uncompressed_head.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(
+            uncompressed_head.headers().get(VARY),
+            uncompressed_get.headers().get(VARY)
+        );
+        assert_eq!(
+            uncompressed_head.headers().get(CONTENT_LENGTH),
+            uncompressed_get.headers().get(CONTENT_LENGTH)
+        );
+        assert_eq!(uncompressed_head.take_string().await.unwrap(), "");
+    }
+
+    #[tokio::test]
+    async fn test_head_matches_buffered_get_below_min_length() {
+        #[handler]
+        async fn hello_head(res: &mut Response) {
+            res.status_code(StatusCode::OK);
+            res.headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+            res.headers_mut()
+                .insert(CONTENT_LENGTH, HeaderValue::from_static("5"));
+        }
+
+        let router = Router::with_hoop(Compression::new().min_length(10))
+            .push(Router::with_path("hello").get(hello).head(hello_head));
+        let service = Service::new(router);
+
+        let get = TestClient::get("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&service)
+            .await;
+        let mut head = TestClient::head("http://127.0.0.1:5801/hello")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(&service)
+            .await;
+
+        assert!(get.headers().get(CONTENT_ENCODING).is_none());
+        assert!(head.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(head.headers().get(VARY), get.headers().get(VARY));
+        assert_eq!(head.headers().get(CONTENT_LENGTH).unwrap(), "5");
+        assert_eq!(head.take_string().await.unwrap(), "");
     }
 
     #[tokio::test]
