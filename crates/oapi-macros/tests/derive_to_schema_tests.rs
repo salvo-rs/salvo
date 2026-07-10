@@ -62,9 +62,13 @@ fn test_std_string_types_in_derived_schema() {
     #[allow(dead_code)]
     #[derive(ToSchema)]
     struct StdTypes {
+        #[salvo(schema(max_length = 255))]
         os_str: &'static std::ffi::OsStr,
+        #[salvo(schema(max_length = 255))]
         os_string: std::ffi::OsString,
+        #[salvo(schema(max_length = 255))]
         path: &'static std::path::Path,
+        #[salvo(schema(max_length = 255))]
         path_buf: std::path::PathBuf,
     }
 
@@ -78,7 +82,38 @@ fn test_std_string_types_in_derived_schema() {
         .unwrap();
 
     for property in ["os_str", "os_string", "path", "path_buf"] {
-        assert_json_eq!(std_types["properties"][property], json!({"type": "string"}));
+        assert_json_eq!(
+            std_types["properties"][property],
+            json!({"type": "string", "maxLength": 255})
+        );
+    }
+}
+
+#[test]
+fn test_std_string_newtypes_support_string_validators() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    #[salvo(schema(max_length = 255))]
+    struct ValidatedOsString(std::ffi::OsString);
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    #[salvo(schema(max_length = 255))]
+    struct ValidatedPathBuf(std::path::PathBuf);
+
+    let mut components = salvo::oapi::Components::new();
+    ValidatedOsString::to_schema(&mut components);
+    ValidatedPathBuf::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let validated_schemas = schemas
+        .values()
+        .filter(|schema| schema.get("maxLength").is_some())
+        .collect::<Vec<_>>();
+
+    assert_eq!(validated_schemas.len(), 2);
+    for schema in validated_schemas {
+        assert_json_eq!(schema, json!({"type": "string", "maxLength": 255}));
     }
 }
 

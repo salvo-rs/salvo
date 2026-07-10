@@ -169,7 +169,7 @@ impl SchemaType<'_> {
     }
 
     pub(crate) fn is_string(&self) -> bool {
-        matches!(&*self.last_segment_to_string(), "str" | "String")
+        matches!(&*self.last_segment_to_string(), "str" | "String") || is_std_string_type(self.path)
     }
 
     pub(crate) fn is_byte(&self) -> bool {
@@ -918,7 +918,14 @@ mod tests {
 
     #[test]
     fn test_schema_type_is_string() {
-        for ty in ["str", "String"] {
+        for ty in [
+            "str",
+            "String",
+            "std::ffi::OsStr",
+            "std::ffi::OsString",
+            "std::path::Path",
+            "std::path::PathBuf",
+        ] {
             let path = make_path(ty);
             let schema_type = SchemaType {
                 path: &path,
@@ -930,7 +937,16 @@ mod tests {
 
     #[test]
     fn test_schema_type_is_string_false() {
-        for ty in ["i32", "bool", "Vec"] {
+        for ty in [
+            "i32",
+            "bool",
+            "Vec",
+            "OsStr",
+            "OsString",
+            "Path",
+            "PathBuf",
+            "custom::Path",
+        ] {
             let path = make_path(ty);
             let schema_type = SchemaType {
                 path: &path,
