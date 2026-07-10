@@ -81,7 +81,7 @@ impl SchemaType<'_> {
             feature = "compact_str"
         )))]
         {
-            is_primitive(name)
+            is_primitive(name) || is_std_string_type(path)
         }
 
         #[cfg(any(
@@ -95,7 +95,7 @@ impl SchemaType<'_> {
             feature = "compact_str"
         ))]
         {
-            let mut primitive = is_primitive(name);
+            let mut primitive = is_primitive(name) || is_std_string_type(path);
 
             #[cfg(feature = "chrono")]
             if !primitive {
@@ -201,11 +201,25 @@ fn is_primitive(name: &str) -> bool {
             | "f64"
             | "Ipv4Addr"
             | "Ipv6Addr"
-            | "OsStr"
-            | "OsString"
-            | "Path"
-            | "PathBuf"
     )
+}
+
+#[inline]
+fn is_std_string_type(path: &Path) -> bool {
+    // Match the full path so user-defined types with these common names remain object schemas.
+    let mut segments = path.segments.iter();
+    let (Some(root), Some(module), Some(name), None) = (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+    ) else {
+        return false;
+    };
+
+    root.ident == "std"
+        && ((module.ident == "ffi" && (name.ident == "OsStr" || name.ident == "OsString"))
+            || (module.ident == "path" && (name.ident == "Path" || name.ident == "PathBuf")))
 }
 
 impl TryToTokens for SchemaType<'_> {
@@ -236,8 +250,13 @@ impl TryToTokens for SchemaType<'_> {
             }
         }
 
+        if is_std_string_type(self.path) {
+            schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable);
+            return Ok(());
+        }
+
         match name {
-            "String" | "str" | "char" | "OsStr" | "OsString" | "Path" | "PathBuf" => {
+            "String" | "str" | "char" => {
                 schema_type_tokens(tokens, &oapi, SchemaTypeInner::String, self.nullable)
             }
             "bool" => schema_type_tokens(tokens, &oapi, SchemaTypeInner::Boolean, self.nullable),
@@ -964,9 +983,30 @@ mod tests {
     #[test]
     fn test_schema_type_is_primitive() {
         let primitives = [
-            "String", "str", "char", "bool", "usize", "u8", "u16", "u32", "u64", "u128", "isize",
-            "i8", "i16", "i32", "i64", "i128", "f32", "f64", "Ipv4Addr", "Ipv6Addr", "OsStr",
-            "OsString", "Path", "PathBuf",
+            "String",
+            "str",
+            "char",
+            "bool",
+            "usize",
+            "u8",
+            "u16",
+            "u32",
+            "u64",
+            "u128",
+            "isize",
+            "i8",
+            "i16",
+            "i32",
+            "i64",
+            "i128",
+            "f32",
+            "f64",
+            "Ipv4Addr",
+            "Ipv6Addr",
+            "std::ffi::OsStr",
+            "std::ffi::OsString",
+            "std::path::Path",
+            "std::path::PathBuf",
         ];
         for ty in primitives {
             let path = make_path(ty);
@@ -1116,11 +1156,34 @@ mod tests {
         assert!(is_primitive("i32"));
         assert!(is_primitive("bool"));
         assert!(is_primitive("Ipv4Addr"));
-        assert!(is_primitive("OsStr"));
-        assert!(is_primitive("OsString"));
-        assert!(is_primitive("Path"));
-        assert!(is_primitive("PathBuf"));
+        assert!(!is_primitive("OsStr"));
+        assert!(!is_primitive("OsString"));
+        assert!(!is_primitive("Path"));
+        assert!(!is_primitive("PathBuf"));
         assert!(!is_primitive("CustomType"));
+    }
+
+    #[test]
+    fn test_is_std_string_type() {
+        for ty in [
+            "std::ffi::OsStr",
+            "std::ffi::OsString",
+            "std::path::Path",
+            "std::path::PathBuf",
+            "::std::path::PathBuf",
+        ] {
+            assert!(
+                is_std_string_type(&make_path(ty)),
+                "Expected {ty} to be a standard string type"
+            );
+        }
+
+        for ty in ["OsStr", "OsString", "Path", "PathBuf", "custom::Path"] {
+            assert!(
+                !is_std_string_type(&make_path(ty)),
+                "Expected {ty} to remain a custom type"
+            );
+        }
     }
 
     // ==================== is_known_format helper Tests ====================

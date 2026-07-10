@@ -6,6 +6,83 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 #[test]
+fn test_std_string_types_do_not_shadow_custom_types() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct OsStr {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct OsString {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct Path {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct PathBuf {
+        value: String,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct CustomTypes {
+        os_str: OsStr,
+        os_string: OsString,
+        path: Path,
+        path_buf: PathBuf,
+    }
+
+    let mut components = salvo::oapi::Components::new();
+    CustomTypes::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let custom_types = schemas
+        .values()
+        .find(|schema| schema.pointer("/properties/os_str").is_some())
+        .unwrap();
+
+    for property in ["os_str", "os_string", "path", "path_buf"] {
+        assert!(
+            custom_types["properties"][property].get("$ref").is_some(),
+            "custom {property} type should remain a component reference: {custom_types}"
+        );
+    }
+}
+
+#[test]
+fn test_std_string_types_in_derived_schema() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    struct StdTypes {
+        os_str: &'static std::ffi::OsStr,
+        os_string: std::ffi::OsString,
+        path: &'static std::path::Path,
+        path_buf: std::path::PathBuf,
+    }
+
+    let mut components = salvo::oapi::Components::new();
+    StdTypes::to_schema(&mut components);
+    let components = serde_json::to_value(components).unwrap();
+    let schemas = components["schemas"].as_object().unwrap();
+    let std_types = schemas
+        .values()
+        .find(|schema| schema.pointer("/properties/os_str").is_some())
+        .unwrap();
+
+    for property in ["os_str", "os_string", "path", "path_buf"] {
+        assert_json_eq!(std_types["properties"][property], json!({"type": "string"}));
+    }
+}
+
+#[test]
 fn test_derive_to_schema_generics() {
     #[derive(Serialize, Deserialize, ToSchema, Debug)]
     #[salvo(schema(aliases(MyI32 = MyObject<i32>, MyStr = MyObject<String>)))]
