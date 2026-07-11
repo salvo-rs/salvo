@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["aws-lc-rs"]
-full = ["oidc"]
+full = ["oidc", "aws-lc-rs"]
 oidc = [
     "dep:bytes",
     "hyper-rustls",
