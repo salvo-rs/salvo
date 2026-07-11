@@ -19,22 +19,21 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
-full = ["oidc", "ring"]
+default = ["aws-lc-rs"]
+full = ["oidc"]
 oidc = [
     "dep:bytes",
     "hyper-rustls",
     "dep:hyper-util",
     "dep:http-body-util",
-    "ring",
 ]
-# aws-lc-rs = ["hyper-rustls?/aws-lc-rs"]
-ring = ["hyper-rustls?/ring"]
+aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "jsonwebtoken/aws_lc_rs"]
+ring = ["hyper-rustls?/ring", "jsonwebtoken/rust_crypto"]
 
 [dependencies]
 base64 = { workspace = true }
 bytes = { workspace = true, optional = true }
-jsonwebtoken = { workspace = true, features = ["aws_lc_rs"] }
+jsonwebtoken = { workspace = true }
 http-body-util = { workspace = true, optional = true }
 hyper-rustls = { workspace = true, optional = true, features = [
     "native-tokio",
@@ -59,8 +58,9 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow.workspace = true
-salvo = { path = "../salvo", features = [
+salvo = { path = "../salvo", default-features = false, features = [
     "http1",
+    "server",
     "test",
     "jwt-auth",
     "anyhow",

@@ -473,17 +473,24 @@ mod tests {
         exp: i64,
     }
 
+    fn encode_test_token<T: Serialize>(claims: &T, key: &EncodingKey) -> String {
+        #[cfg(feature = "aws-lc-rs")]
+        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
+            &jsonwebtoken::crypto::aws_lc::DEFAULT_PROVIDER,
+        );
+        #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
+            &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
+        );
+        jsonwebtoken::encode(&jsonwebtoken::Header::default(), claims, key).unwrap()
+    }
+
     fn create_test_token(secret: &[u8], exp_days: i64) -> String {
         let claim = JwtClaims {
             user: "test_user".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(exp_days)).unix_timestamp(),
         };
-        jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(secret),
-        )
-        .unwrap()
+        encode_test_token(&claim, &EncodingKey::from_secret(secret))
     }
 
     // ==================== ConstDecoder Tests ====================
@@ -807,12 +814,7 @@ mod tests {
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
 
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(b"ABCDEF"),
-        )
-        .unwrap();
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEF"));
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
@@ -832,12 +834,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("hello"));
 
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(b"ABCDEFG"),
-        )
-        .unwrap();
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEFG"));
         let content = access(&service, &token).await;
         assert!(content.contains("Forbidden"));
     }
@@ -937,12 +934,7 @@ mod tests {
             user: "admin".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(b"SECRET"),
-        )
-        .unwrap();
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
 
         let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Authorization", format!("Bearer {token}"), true)
@@ -975,12 +967,7 @@ mod tests {
             user: "proxy_user".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(b"SECRET"),
-        )
-        .unwrap();
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
 
         let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Proxy-Authorization", format!("Bearer {token}"), true)
@@ -1057,12 +1044,7 @@ mod tests {
             user: "test".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claim,
-            &EncodingKey::from_secret(b"SECRET"),
-        )
-        .unwrap();
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
 
         // GET should not find token because the method is not allowed.
         let content = TestClient::get("http://127.0.0.1:5801/hello")
