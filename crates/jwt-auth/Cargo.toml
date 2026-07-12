@@ -62,7 +62,7 @@ salvo = { path = "../salvo", default-features = false, features = [
     "http1",
     "server",
     "test",
-    "jwt-auth",
+    "_jwt-auth",
     "anyhow",
 ] }
 time.workspace = true

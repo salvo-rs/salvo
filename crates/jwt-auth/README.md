@@ -59,21 +59,21 @@ salvo = { version = "*", features = ["jwt-auth"] }
 
 Salvo uses `aws-lc-rs` as its default cryptography provider. To use the
 RustCrypto provider for JWTs instead, disable Salvo's default features and
-select the existing `ring` provider feature together with the features your
-application needs:
+select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
+rustls integration:
 
 ```toml
 salvo = { version = "*", default-features = false, features = [
     "server",
     "http1",
     "ring",
-    "jwt-auth",
+    "jwt-auth-ring",
 ] }
 ```
 
-Do not enable both `aws-lc-rs` and `ring` in the same application. Cargo
-features are additive, and `jsonwebtoken` requires exactly one cryptography
-provider.
+Do not enable both `jwt-auth` and `jwt-auth-ring` in the same application.
+Cargo features are additive, and `jsonwebtoken` requires exactly one
+cryptography provider.
 
 ## Quick Start
 

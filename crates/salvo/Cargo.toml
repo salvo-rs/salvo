@@ -104,7 +104,9 @@ affix-state = ["salvo_extra/affix-state"]
 basic-auth = ["salvo_extra/basic-auth"]
 craft = ["dep:salvo-craft"]
 force-https = ["salvo_extra/force-https"]
-jwt-auth = ["dep:salvo-jwt-auth"]
+_jwt-auth = ["dep:salvo-jwt-auth"]
+jwt-auth = ["_jwt-auth", "salvo-jwt-auth/aws-lc-rs"]
+jwt-auth-ring = ["_jwt-auth", "salvo-jwt-auth/ring"]
 catch-panic = ["salvo_extra/catch-panic"]
 compression = ["dep:salvo-compression"]
 logging = ["salvo_extra/logging"]
@@ -129,10 +131,9 @@ otel = ["dep:salvo-otel"]
 oapi = ["dep:salvo-oapi"]
 aws-lc-rs = [
     "salvo_core/aws-lc-rs",
-    "salvo-jwt-auth?/aws-lc-rs",
     "salvo-proxy?/aws-lc-rs",
 ]
-ring = ["salvo_core/ring", "salvo-jwt-auth?/ring", "salvo-proxy?/ring"]
+ring = ["salvo_core/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path"]
 tls12 = ["salvo_core/tls12"]
 tus = ["dep:salvo-tus"]
