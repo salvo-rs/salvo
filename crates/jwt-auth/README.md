@@ -71,9 +71,10 @@ salvo = { version = "*", default-features = false, features = [
 ] }
 ```
 
-Do not enable both `jwt-auth` and `jwt-auth-ring` in the same application.
-Cargo features are additive, and `jsonwebtoken` requires exactly one
-cryptography provider.
+Do not enable both `jwt-auth` and `jwt-auth-ring` unless required by an
+`--all-features` build. Cargo features are additive; when both providers are
+enabled, `salvo-jwt-auth` selects AWS-LC unless the application has already
+installed a process-wide `jsonwebtoken` provider explicitly.
 
 ## Quick Start
 

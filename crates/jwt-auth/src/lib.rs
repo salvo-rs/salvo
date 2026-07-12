@@ -142,15 +142,33 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
-pub use jsonwebtoken::{
-    Algorithm, DecodingKey, TokenData, Validation, decode, errors::Error as JwtError,
-};
+pub use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, errors::Error as JwtError};
 #[cfg(feature = "oidc")]
 use salvo_core::http::StatusCode;
 use salvo_core::http::{Method, Request, Response, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
+
+fn install_default_crypto_provider() {
+    #[cfg(feature = "aws-lc-rs")]
+    let _ = jsonwebtoken::crypto::aws_lc::DEFAULT_PROVIDER.install_default();
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    let _ = jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER.install_default();
+}
+
+/// Decodes a JWT using the configured cryptography provider.
+///
+/// When both provider features are enabled, AWS-LC is selected unless the
+/// application has already installed a process-wide provider explicitly.
+pub fn decode<T: DeserializeOwned>(
+    token: &str,
+    key: &DecodingKey,
+    validation: &Validation,
+) -> Result<TokenData<T>, JwtError> {
+    install_default_crypto_provider();
+    jsonwebtoken::decode(token, key, validation)
+}
 
 mod finder;
 pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFinder};
@@ -377,6 +395,7 @@ where
     #[inline]
     #[must_use]
     pub fn new(decoder: D) -> Self {
+        install_default_crypto_provider();
         Self {
             force_passed: false,
             decoder,
@@ -479,14 +498,7 @@ mod tests {
     }
 
     fn encode_test_token<T: Serialize>(claims: &T, key: &EncodingKey) -> String {
-        #[cfg(feature = "aws-lc-rs")]
-        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
-            &jsonwebtoken::crypto::aws_lc::DEFAULT_PROVIDER,
-        );
-        #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
-            &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
-        );
+        install_default_crypto_provider();
         jsonwebtoken::encode(&jsonwebtoken::Header::default(), claims, key).unwrap()
     }
 

@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 use jsonwebtoken::errors::Error as JwtError;
-use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
+use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::Depot;
 use serde::Deserialize;
 
@@ -74,6 +74,7 @@ impl ConstDecoder {
     /// Creates a new decoder with the given decoding key and custom validation parameters.
     #[must_use]
     pub fn with_validation(decoding_key: DecodingKey, validation: Validation) -> Self {
+        crate::install_default_crypto_provider();
         Self {
             decoding_key,
             validation,
@@ -181,7 +182,7 @@ impl JwtAuthDecoder for ConstDecoder {
     where
         C: for<'de> Deserialize<'de> + Clone,
     {
-        decode::<C>(token, &self.decoding_key, &self.validation)
+        crate::decode::<C>(token, &self.decoding_key, &self.validation)
     }
 }
 

@@ -128,6 +128,7 @@ where
     /// Create a new `DecoderBuilder`.
     #[must_use]
     pub fn new(issuer: T) -> Self {
+        crate::install_default_crypto_provider();
         Self {
             issuer,
             http_client: None,
@@ -467,7 +468,7 @@ impl DecodingInfo {
     where
         T: for<'de> serde::de::Deserialize<'de> + Clone,
     {
-        match jsonwebtoken::decode::<T>(token, &self.key, &self.validation) {
+        match crate::decode::<T>(token, &self.key, &self.validation) {
             Ok(data) => Ok(data),
             Err(e) => {
                 tracing::error!(error = ?e, "error decoding jwt token");
