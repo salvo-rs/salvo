@@ -143,7 +143,7 @@ salvo_core = { workspace = true }
 salvo_extra = { workspace = true, features = ["full"], optional = true }
 salvo-acme = { workspace = true, features = ["full"], optional = true }
 salvo-compression = { workspace = true, features = ["full"], optional = true }
-salvo-jwt-auth = { workspace = true, features = ["oidc"], optional = true }
+salvo-jwt-auth = { workspace = true, default-features = false, features = ["oidc"], optional = true }
 salvo-cache = { workspace = true, features = ["full"], optional = true }
 salvo-cors = { workspace = true, optional = true }
 salvo-csrf = { workspace = true, features = ["full"], optional = true }

@@ -12,11 +12,13 @@ fn preserves_an_explicitly_installed_provider() {
 
     static CUSTOM_PROVIDER_USED: AtomicBool = AtomicBool::new(false);
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn signer_factory(_: &Algorithm, _: &EncodingKey) -> Result<Box<dyn JwtSigner>> {
         CUSTOM_PROVIDER_USED.store(true, Ordering::SeqCst);
         Err(ErrorKind::InvalidAlgorithm.into())
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn verifier_factory(_: &Algorithm, _: &DecodingKey) -> Result<Box<dyn JwtVerifier>> {
         Err(ErrorKind::InvalidAlgorithm.into())
     }
@@ -42,6 +44,7 @@ fn preserves_an_explicitly_installed_provider() {
     assert!(CUSTOM_PROVIDER_USED.load(Ordering::SeqCst));
 }
 
+#[cfg(all(feature = "aws-lc-rs", feature = "ring"))]
 #[derive(serde::Serialize)]
 struct Claims {
     sub: &'static str,
