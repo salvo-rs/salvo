@@ -133,6 +133,11 @@
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+compile_error!(
+    "salvo-jwt-auth requires a crypto provider; enable either the `aws-lc-rs` (default) or `ring` feature"
+);
+
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
