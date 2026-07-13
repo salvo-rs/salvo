@@ -16,8 +16,10 @@
 //!
 //! Enable exactly one provider feature in normal builds: `aws-lc-rs` (the
 //! default) or `ring` for RustCrypto. If dependency feature unification enables
-//! both providers, call [`install_crypto_provider`] before any direct
-//! `jsonwebtoken` encode or decode operation.
+//! both providers, call [`install_crypto_provider`] at the start of `main`,
+//! before any JWT operation. This includes validation performed internally by
+//! [`JwtAuth`], [`ConstDecoder`], or `OidcDecoder`, as well
+//! as direct `jsonwebtoken` encode or decode calls.
 //!
 //! # Security Considerations
 //!
@@ -42,7 +44,7 @@
 //! ```no_run
 //! use jsonwebtoken::{self, EncodingKey};
 //! use salvo::http::{Method, StatusError};
-//! use salvo::jwt_auth::{ConstDecoder, HeaderFinder};
+//! use salvo::jwt_auth::{ConstDecoder, HeaderFinder, install_crypto_provider};
 //! use salvo::prelude::*;
 //! use serde::{Deserialize, Serialize};
 //! use time::{Duration, OffsetDateTime};
@@ -57,6 +59,9 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
+//!     install_crypto_provider()
+//!         .expect("install the JWT crypto provider before first use");
+//!
 //!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
 //!         .finders(vec![Box::new(HeaderFinder::new())])
 //!         .force_passed(true);
@@ -161,9 +166,11 @@ use thiserror::Error;
 
 /// Installs the crypto provider selected by this crate for the current process.
 ///
-/// Call this at the start of `main`, before any `jsonwebtoken` operation, when
-/// dependency feature unification enables both JWT provider backends. AWS-LC
-/// takes precedence when both this crate's provider features are enabled.
+/// Call this at the start of `main`, before any JWT operation, when dependency
+/// feature unification enables both JWT provider backends. This includes token
+/// validation performed internally by [`JwtAuth`], [`ConstDecoder`], or
+/// `OidcDecoder`, not only direct `jsonwebtoken` calls.
+/// AWS-LC takes precedence when both this crate's provider features are enabled.
 ///
 /// Applications that install a custom [`jsonwebtoken::crypto::CryptoProvider`]
 /// should do that instead and must not call this function afterwards.
