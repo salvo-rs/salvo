@@ -65,10 +65,7 @@ impl ConstDecoder {
     /// Creates a new decoder with the given decoding key and default validation.
     #[must_use]
     pub fn new(decoding_key: DecodingKey) -> Self {
-        Self {
-            decoding_key,
-            validation: Validation::default(),
-        }
+        Self::with_validation(decoding_key, Validation::default())
     }
 
     /// Creates a new decoder with the given decoding key and custom validation parameters.

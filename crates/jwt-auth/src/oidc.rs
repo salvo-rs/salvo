@@ -35,7 +35,7 @@ const OIDC_JWKS_MAX_BYTES: usize = 1024 * 1024;
 
 fn default_http_client() -> Result<HyperClient, JwtAuthError> {
     let https = HttpsConnectorBuilder::new()
-        .with_native_roots()
+        .with_provider_and_native_roots(default_rustls_crypto_provider())
         .map_err(|error| JwtAuthError::NativeRootCerts(error.to_string()))?
         .https_only()
         .enable_http1()
@@ -44,6 +44,23 @@ fn default_http_client() -> Result<HyperClient, JwtAuthError> {
         .enable_http2()
         .build();
     Ok(Client::builder(TokioExecutor::new()).build(https))
+}
+
+fn default_rustls_crypto_provider() -> Arc<rustls::crypto::CryptoProvider> {
+    if let Some(provider) = rustls::crypto::CryptoProvider::get_default() {
+        return Arc::clone(provider);
+    }
+
+    #[cfg(feature = "aws-lc-rs")]
+    {
+        Arc::new(rustls::crypto::aws_lc_rs::default_provider())
+    }
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    {
+        Arc::new(rustls::crypto::ring::default_provider())
+    }
+    #[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+    unreachable!("a crypto provider feature is required")
 }
 
 fn resolve_or_else<T, E>(

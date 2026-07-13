@@ -163,7 +163,7 @@ cfg_feature! {
     pub use salvo_flash as flash;
 }
 cfg_feature! {
-    #![feature = "jwt-auth"]
+    #![feature = "_jwt-auth"]
     #[doc(no_inline)]
     pub use salvo_jwt_auth as jwt_auth;
 }
@@ -247,7 +247,7 @@ pub mod prelude {
         pub use salvo_extra::force_https::ForceHttps;
     }
     cfg_feature! {
-        #![feature = "jwt-auth"]
+        #![feature = "_jwt-auth"]
         pub use salvo_jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState};
     }
     cfg_feature! {

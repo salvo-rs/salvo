@@ -57,6 +57,41 @@ This is an official crate, so you can enable it in `Cargo.toml`:
 salvo = { version = "*", features = ["jwt-auth"] }
 ```
 
+Salvo uses `aws-lc-rs` as its default cryptography provider. To use the
+RustCrypto provider for JWTs instead, disable Salvo's default features and
+select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
+rustls integration:
+
+```toml
+salvo = { version = "*", default-features = false, features = [
+    "server",
+    "http1",
+    "ring",
+    "jwt-auth-ring",
+] }
+```
+
+Enable only one of `jwt-auth` and `jwt-auth-ring` in normal builds. Cargo
+features are additive, so an `--all-features` build or another dependency can
+still enable both `jsonwebtoken` providers. In that case, install Salvo's
+selected provider at the very start of the process, before any JWT operation.
+This includes validation performed internally by `JwtAuth`, `ConstDecoder`, or
+`OidcDecoder`, as well as direct `jsonwebtoken::encode` or
+`jsonwebtoken::decode` calls:
+
+```rust
+fn main() {
+    salvo::jwt_auth::install_crypto_provider()
+        .expect("install the JWT crypto provider before first use");
+
+    // Initialize the rest of the application here.
+}
+```
+
+AWS-LC takes precedence when both Salvo JWT provider features are enabled. If
+the application uses a custom process-wide `jsonwebtoken` provider, install
+that provider itself instead of calling `install_crypto_provider`.
+
 ## Quick Start
 
 Use `HeaderFinder` for the standard `Authorization: Bearer <token>` header.
@@ -64,7 +99,7 @@ Use `HeaderFinder` for the standard `Authorization: Bearer <token>` header.
 decide how to respond to authorized, unauthorized, and forbidden states.
 
 ```rust
-use salvo::jwt_auth::{ConstDecoder, HeaderFinder, JwtAuthState};
+use salvo::jwt_auth::{ConstDecoder, HeaderFinder, JwtAuthState, install_crypto_provider};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -90,6 +125,9 @@ async fn me(depot: &mut Depot, res: &mut Response) {
 
 #[tokio::main]
 async fn main() {
+    install_crypto_provider()
+        .expect("install the JWT crypto provider before first use");
+
     let auth = JwtAuth::<Claims, _>::new(ConstDecoder::from_secret(SECRET))
         .finders(vec![Box::new(HeaderFinder::new())])
         .force_passed(true);
