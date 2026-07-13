@@ -12,6 +12,13 @@
 //! - OpenID Connect support (behind the `oidc` feature flag)
 //! - Seamless integration with Salvo's middleware system
 //!
+//! # Crypto Providers
+//!
+//! Enable exactly one provider feature in normal builds: `aws-lc-rs` (the
+//! default) or `ring` for RustCrypto. If dependency feature unification enables
+//! both providers, call [`install_crypto_provider`] before any direct
+//! `jsonwebtoken` encode or decode operation.
+//!
 //! # Security Considerations
 //!
 //! **Warning: avoid passing JWT tokens in URL query parameters in production.**
@@ -142,7 +149,9 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 #[doc(no_inline)]
-pub use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, errors::Error as JwtError};
+pub use jsonwebtoken::{
+    Algorithm, DecodingKey, TokenData, Validation, decode, errors::Error as JwtError,
+};
 #[cfg(feature = "oidc")]
 use salvo_core::http::StatusCode;
 use salvo_core::http::{Method, Request, Response, StatusError};
@@ -150,32 +159,32 @@ use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
-fn install_default_crypto_provider() {
-    #[cfg(feature = "aws-lc-rs")]
-    let _ = jsonwebtoken::crypto::aws_lc::DEFAULT_PROVIDER.install_default();
-    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-    let _ = jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER.install_default();
-}
-
-#[cfg(feature = "oidc")]
-fn install_default_rustls_crypto_provider() {
-    #[cfg(feature = "aws-lc-rs")]
-    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
-    let _ = rustls::crypto::ring::default_provider().install_default();
-}
-
-/// Decodes a JWT using the configured cryptography provider.
+/// Installs the crypto provider selected by this crate for the current process.
 ///
-/// When both provider features are enabled, AWS-LC is selected unless the
-/// application has already installed a process-wide provider explicitly.
-pub fn decode<T: DeserializeOwned>(
-    token: &str,
-    key: &DecodingKey,
-    validation: &Validation,
-) -> Result<TokenData<T>, JwtError> {
-    install_default_crypto_provider();
-    jsonwebtoken::decode(token, key, validation)
+/// Call this at the start of `main`, before any `jsonwebtoken` operation, when
+/// dependency feature unification enables both JWT provider backends. AWS-LC
+/// takes precedence when both this crate's provider features are enabled.
+///
+/// Applications that install a custom [`jsonwebtoken::crypto::CryptoProvider`]
+/// should do that instead and must not call this function afterwards.
+///
+/// # Errors
+///
+/// Returns the provider this function attempted to install if a process-wide
+/// provider was already installed or initialized. Since `jsonwebtoken` only
+/// permits one installation, an error means this function was not called early
+/// enough or another provider was intentionally installed first.
+pub fn install_crypto_provider() -> Result<(), &'static jsonwebtoken::crypto::CryptoProvider> {
+    #[cfg(feature = "aws-lc-rs")]
+    {
+        jsonwebtoken::crypto::aws_lc::DEFAULT_PROVIDER.install_default()
+    }
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    {
+        jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER.install_default()
+    }
+    #[cfg(not(any(feature = "aws-lc-rs", feature = "ring")))]
+    unreachable!("a crypto provider feature is required")
 }
 
 mod finder;
@@ -403,7 +412,6 @@ where
     #[inline]
     #[must_use]
     pub fn new(decoder: D) -> Self {
-        install_default_crypto_provider();
         Self {
             force_passed: false,
             decoder,
@@ -506,7 +514,7 @@ mod tests {
     }
 
     fn encode_test_token<T: Serialize>(claims: &T, key: &EncodingKey) -> String {
-        install_default_crypto_provider();
+        let _ = install_crypto_provider();
         jsonwebtoken::encode(&jsonwebtoken::Header::default(), claims, key).unwrap()
     }
 

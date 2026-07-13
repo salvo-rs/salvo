@@ -71,10 +71,24 @@ salvo = { version = "*", default-features = false, features = [
 ] }
 ```
 
-Do not enable both `jwt-auth` and `jwt-auth-ring` unless required by an
-`--all-features` build. Cargo features are additive; when both providers are
-enabled, `salvo-jwt-auth` selects AWS-LC unless the application has already
-installed a process-wide `jsonwebtoken` provider explicitly.
+Enable only one of `jwt-auth` and `jwt-auth-ring` in normal builds. Cargo
+features are additive, so an `--all-features` build or another dependency can
+still enable both `jsonwebtoken` providers. In that case, install Salvo's
+selected provider at the very start of the process, before any direct
+`jsonwebtoken::encode` or `jsonwebtoken::decode` call:
+
+```rust
+fn main() {
+    salvo::jwt_auth::install_crypto_provider()
+        .expect("install the JWT crypto provider before first use");
+
+    // Initialize the rest of the application here.
+}
+```
+
+AWS-LC takes precedence when both Salvo JWT provider features are enabled. If
+the application uses a custom process-wide `jsonwebtoken` provider, install
+that provider itself instead of calling `install_crypto_provider`.
 
 ## Quick Start
 

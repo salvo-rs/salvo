@@ -2,9 +2,9 @@
 
 #[cfg(all(feature = "aws-lc-rs", feature = "ring"))]
 #[test]
-fn both_provider_features_select_aws_lc() {
+fn explicit_initialization_precedes_direct_jsonwebtoken_use() {
     use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
-    use salvo_jwt_auth::{ConstDecoder, decode};
+    use salvo_jwt_auth::{ConstDecoder, decode, install_crypto_provider};
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -13,9 +13,10 @@ fn both_provider_features_select_aws_lc() {
         exp: u64,
     }
 
-    // Constructing a Salvo decoder selects a deterministic process-wide
-    // provider before applications use jsonwebtoken to issue tokens.
-    let _decoder = ConstDecoder::new(DecodingKey::from_secret(b"secret"));
+    install_crypto_provider()
+        .expect("the provider must be installed before direct jsonwebtoken use");
+
+    // Applications commonly issue a token before constructing the decoder.
     let token = jsonwebtoken::encode(
         &Header::default(),
         &Claims {
@@ -26,6 +27,7 @@ fn both_provider_features_select_aws_lc() {
     )
     .expect("AWS-LC should be selected when both provider features are enabled");
 
+    let _decoder = ConstDecoder::new(DecodingKey::from_secret(b"secret"));
     let decoded = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(b"secret"),
