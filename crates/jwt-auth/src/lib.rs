@@ -157,6 +157,14 @@ fn install_default_crypto_provider() {
     let _ = jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER.install_default();
 }
 
+#[cfg(feature = "oidc")]
+fn install_default_rustls_crypto_provider() {
+    #[cfg(feature = "aws-lc-rs")]
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 /// Decodes a JWT using the configured cryptography provider.
 ///
 /// When both provider features are enabled, AWS-LC is selected unless the

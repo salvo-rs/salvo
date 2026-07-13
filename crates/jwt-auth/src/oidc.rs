@@ -34,6 +34,7 @@ const OIDC_CONFIG_MAX_BYTES: usize = 64 * 1024;
 const OIDC_JWKS_MAX_BYTES: usize = 1024 * 1024;
 
 fn default_http_client() -> Result<HyperClient, JwtAuthError> {
+    crate::install_default_rustls_crypto_provider();
     let https = HttpsConnectorBuilder::new()
         .with_native_roots()
         .map_err(|error| JwtAuthError::NativeRootCerts(error.to_string()))?

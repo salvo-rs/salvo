@@ -26,9 +26,18 @@ oidc = [
     "hyper-rustls",
     "dep:hyper-util",
     "dep:http-body-util",
+    "dep:rustls",
 ]
-aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "jsonwebtoken/aws_lc_rs"]
-ring = ["hyper-rustls?/ring", "jsonwebtoken/rust_crypto"]
+aws-lc-rs = [
+    "hyper-rustls?/aws-lc-rs",
+    "rustls?/aws-lc-rs",
+    "jsonwebtoken/aws_lc_rs",
+]
+ring = [
+    "hyper-rustls?/ring",
+    "rustls?/ring",
+    "jsonwebtoken/rust_crypto",
+]
 
 [dependencies]
 base64 = { workspace = true }
@@ -49,6 +58,7 @@ hyper-util = { workspace = true, optional = true, features = [
     "http2",
     "tokio",
 ] }
+rustls = { workspace = true, optional = true }
 salvo_core = { workspace = true, features = ["cookie"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
