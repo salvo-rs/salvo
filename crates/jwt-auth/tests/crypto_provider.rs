@@ -15,7 +15,7 @@ fn both_provider_features_select_aws_lc() {
 
     // Constructing a Salvo decoder selects a deterministic process-wide
     // provider before applications use jsonwebtoken to issue tokens.
-    let _decoder = ConstDecoder::from_secret(b"secret");
+    let _decoder = ConstDecoder::new(DecodingKey::from_secret(b"secret"));
     let token = jsonwebtoken::encode(
         &Header::default(),
         &Claims {
