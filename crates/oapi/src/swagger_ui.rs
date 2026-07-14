@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::html::{description_meta, escape_html, keywords_meta, script_safe_json};
 
 #[derive(RustEmbed)]
-#[folder = "src/swagger_ui/v5.32.4"]
+#[folder = "src/swagger_ui/v5.32.8"]
 struct SwaggerUiDist;
 
 const INDEX_TMPL: &str = r#"
