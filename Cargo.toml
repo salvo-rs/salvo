@@ -117,7 +117,7 @@ ring = "0.17"
 rust_decimal = "1"
 rustls = { version = "0.23", default-features = false }
 rust-embed = { version = ">= 6, <= 9" }
-saysion = "0.1"
+saysion = "0.2"
 serde = "1"
 serde_json = "1"
 serde-xml-rs = "0.8"
