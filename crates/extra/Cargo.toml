@@ -48,7 +48,9 @@ tls-detect = [
     "dep:http",
     "dep:tokio-rustls",
     "dep:tracing",
+    "salvo_core/aws-lc-rs",
     "salvo_core/rustls",
+    "tokio",
 ]
 sse = [
     "dep:futures-util",
