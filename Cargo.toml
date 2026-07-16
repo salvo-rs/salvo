@@ -144,7 +144,7 @@ tower = { version = "0.5", default-features = false }
 tracing-subscriber = { version = "0.3" }
 tracing = "0.1"
 tracing-test = "0.2.1"
-ulid = { version = "2", default-features = false }
+ulid = { version = "3", default-features = false }
 url = "2"
 uuid = "1"
 x509-parser = "0.18"
