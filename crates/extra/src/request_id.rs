@@ -114,7 +114,7 @@ impl RequestId {
                     generated_id = %id,
                     "request id generator returned an invalid header value; falling back to ULID"
                 );
-                HeaderValue::from_str(&Ulid::r#gen().to_string())
+                HeaderValue::from_str(&Ulid::generate().to_string())
                     .expect("ULID should always be a valid header value")
             }
         }
@@ -154,7 +154,7 @@ impl UlidGenerator {
 }
 impl IdGenerator for UlidGenerator {
     fn generate(&self, _req: &mut Request, _depot: &mut Depot) -> String {
-        Ulid::r#gen().to_string()
+        Ulid::generate().to_string()
     }
 }
 

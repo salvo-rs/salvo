@@ -7,6 +7,8 @@ edition = "2024"
 migration = { path = "migration" }
 anyhow.workspace = true
 sea-orm = { version = "=2.0.0-rc.42", features = ["with-chrono", "sqlx-postgres", "macros", "with-uuid", "with-time", "runtime-tokio", "runtime-tokio-native-tls", "runtime-tokio-rustls", "schema-sync", "entity-registry"] }
+# Keep the pre-release macros aligned with the runtime; rc.43 is not compatible with rc.42.
+sea-orm-macros = "=2.0.0-rc.42"
 dotenvy.workspace = true
 salvo = { workspace = true, features = ["oapi", "affix-state", "anyhow", "jwt-auth", "test", "cors"] }
 salvo-oapi = { workspace = true, features = ["swagger-ui"] }
@@ -27,4 +29,3 @@ chrono = { workspace = true, features = ["serde"] }
 [[bin]]
 name = "salvo_postgres_seaorm"
 path = "src/main.rs"
-
