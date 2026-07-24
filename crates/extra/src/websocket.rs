@@ -871,7 +871,7 @@ mod tests {
             .add_header(ORIGIN, "https://evil.example", true)
             .send(router)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::FORBIDDEN));
+        assert_eq!(response.status(), Some(StatusCode::FORBIDDEN));
         assert!(
             response
                 .take_string()
@@ -929,7 +929,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_eq!(response.status(), Some(StatusCode::BAD_REQUEST));
         assert!(
             response
                 .take_string()
@@ -950,7 +950,7 @@ mod tests {
             .send(router)
             .await;
 
-        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_eq!(response.status(), Some(StatusCode::BAD_REQUEST));
         assert!(
             response
                 .take_string()

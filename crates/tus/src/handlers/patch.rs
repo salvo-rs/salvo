@@ -18,12 +18,12 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
-    apply_common_headers(req, opts, &mut res.headers);
+    apply_common_headers(req, opts, res.headers_mut());
 
     let id = match opts.extract_file_id_from_request(req) {
         Ok(id) => id,
         Err(e) => {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
     };
@@ -35,10 +35,10 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .and_then(|v| v.to_str().ok()),
     ) {
         if matches!(e, ProtocolError::UnsupportedTusVersion(_)) {
-            res.headers
+            res.headers_mut()
                 .insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
         }
-        res.status_code = Some(TusError::Protocol(e).status());
+        res.status_code(TusError::Protocol(e).status());
         return;
     }
 
@@ -48,7 +48,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         .get(H_CONTENT_TYPE)
         .and_then(|v| v.to_str().ok());
     if content_type != Some(CT_OFFSET_OCTET_STREAM) {
-        res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
+        res.status_code(TusError::Protocol(ProtocolError::InvalidContentType).status());
         return;
     }
 
@@ -61,7 +61,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     ) {
         Ok(offset) => offset,
         Err(e) => {
-            res.status_code = Some(TusError::Protocol(e).status());
+            res.status_code(TusError::Protocol(e).status());
             return;
         }
     };
@@ -77,7 +77,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     {
         Ok(lock) => lock,
         Err(e) => {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
     };
@@ -85,7 +85,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let mut already_uploaded_info = match store.get_upload_file_info(&id).await {
         Ok(info) => info,
         Err(e) => {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
     };
@@ -101,7 +101,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     {
         let expires = created_at.with_timezone(&chrono::Utc) + delta;
         if chrono::Utc::now() > expires {
-            res.status_code = Some(TusError::FileNoLongerExists.status());
+            res.status_code(TusError::FileNoLongerExists.status());
             return;
         }
         expires_at = Some(expires);
@@ -118,7 +118,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // TODO: Time handle
 
     let Some(uploaded_info_offset) = already_uploaded_info.offset else {
-        res.status_code = Some(TusError::InvalidOffset.status());
+        res.status_code(TusError::InvalidOffset.status());
         return;
     };
 
@@ -128,7 +128,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             offset,
             uploaded_info_offset
         );
-        res.status_code = Some(TusError::InvalidOffset.status());
+        res.status_code(TusError::InvalidOffset.status());
         return;
     }
 
@@ -137,40 +137,41 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             match parse_u64(Some(value), H_UPLOAD_LENGTH) {
                 Ok(size) => size,
                 Err(e) => {
-                    res.status_code = Some(TusError::Protocol(e).status());
+                    res.status_code(TusError::Protocol(e).status());
                     return;
                 }
             }
         } else {
-            res.status_code =
-                Some(TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status());
+            res.status_code(
+                TusError::Protocol(ProtocolError::InvalidInt(H_UPLOAD_LENGTH)).status(),
+            );
             return;
         };
 
         if !store.has_extension(Extension::CreationDeferLength) {
-            res.status_code = Some(
+            res.status_code(
                 TusError::Protocol(ProtocolError::UnsupportedCreationDeferLengthExtension).status(),
             );
             return;
         }
         // Return if upload-length is already set.
         if already_uploaded_info.size.is_some() {
-            res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+            res.status_code(TusError::Protocol(ProtocolError::InvalidLength).status());
             return;
         }
 
         if size < uploaded_info_offset {
-            res.status_code = Some(TusError::Protocol(ProtocolError::InvalidLength).status());
+            res.status_code(TusError::Protocol(ProtocolError::InvalidLength).status());
             return;
         }
 
         if max_file_size > 0 && size > max_file_size {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         }
 
         if let Err(e) = store.declare_upload_length(&id, size).await {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
         already_uploaded_info.size = Some(size);
@@ -182,13 +183,14 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 match parse_u64(Some(v), H_CONTENT_LENGTH) {
                     Ok(size) => Some(size),
                     Err(e) => {
-                        res.status_code = Some(TusError::Protocol(e).status());
+                        res.status_code(TusError::Protocol(e).status());
                         return;
                     }
                 }
             } else {
-                res.status_code =
-                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                res.status_code(
+                    TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status(),
+                );
                 return;
             }
         }
@@ -205,7 +207,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let remaining_u64_capacity = u64::MAX - offset;
     let max_write_size = match max_allowed {
         Some(max_allowed) if offset > max_allowed => {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         }
         Some(max_allowed) => Some((max_allowed - offset).min(remaining_u64_capacity)),
@@ -214,11 +216,11 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     if let Some(incoming) = content_length {
         let Some(end) = offset.checked_add(incoming) else {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         };
         if max_allowed.is_some_and(|max_allowed| end > max_allowed) {
-            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
             return;
         }
     }
@@ -235,13 +237,13 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     {
         Ok(written) => written,
         Err(e) => {
-            res.status_code = Some(e.status());
+            res.status_code(e.status());
             return;
         }
     };
 
     let Some(new_offset) = offset.checked_add(written) else {
-        res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+        res.status_code(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
         return;
     };
 
@@ -254,7 +256,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         if !is_finished {
             let expires_value = expires_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
             if let Ok(v) = HeaderValue::from_str(&expires_value) {
-                res.headers.insert(H_UPLOAD_EXPIRES, v);
+                res.headers_mut().insert(H_UPLOAD_EXPIRES, v);
             }
         }
     }
@@ -263,8 +265,8 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // It MUST include the Upload-Offset header containing the new offset.
     // The new offset MUST be the sum of the offset before the PATCH request and the number of bytes
     // received and processed or stored during the current PATCH request.
-    res.status_code = Some(StatusCode::NO_CONTENT);
-    res.headers
+    res.status_code(StatusCode::NO_CONTENT);
+    res.headers_mut()
         .insert(H_UPLOAD_OFFSET, HeaderValue::from(new_offset));
 }
 
@@ -398,7 +400,7 @@ mod tests {
             .await;
 
         assert_eq!(
-            response.status_code.unwrap(),
+            response.status().unwrap(),
             StatusCode::INTERNAL_SERVER_ERROR
         );
         assert!(declare_called.load(Ordering::SeqCst));
@@ -433,7 +435,7 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(response.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(response.status().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
         assert!(!write_called.load(Ordering::SeqCst));
     }
 
@@ -465,7 +467,7 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(response.status_code.unwrap(), StatusCode::NO_CONTENT);
+        assert_eq!(response.status().unwrap(), StatusCode::NO_CONTENT);
         assert!(write_called.load(Ordering::SeqCst));
         assert_eq!(
             *write_limit.lock().expect("write limit lock"),

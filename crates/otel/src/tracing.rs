@@ -101,7 +101,7 @@ where
             let cx = Context::current();
             let span = cx.span();
 
-            let status = res.status_code.unwrap_or_else(|| {
+            let status = res.status().unwrap_or_else(|| {
                 tracing::info!("[otel::Tracing] Treat status_code=none as 200(OK)");
                 StatusCode::OK
             });

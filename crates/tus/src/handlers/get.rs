@@ -14,7 +14,7 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let state = depot.get_typed::<Arc<Tus>>().expect("missing tus state");
     let opts = &state.options;
     let store = &state.store;
-    let headers = apply_common_headers(req, opts, &mut res.headers);
+    let headers = apply_common_headers(req, opts, res.headers_mut());
 
     if let Err(e) = check_tus_version(
         req.headers()
@@ -47,7 +47,7 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         {
             Ok(lock) => lock,
             Err(e) => {
-                res.status_code = Some(e.status());
+                res.status_code(e.status());
                 return;
             }
         };
@@ -71,19 +71,18 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         {
             let expires = created_at.with_timezone(&chrono::Utc) + delta;
             if chrono::Utc::now() > expires {
-                res.status_code = Some(TusError::FileNoLongerExists.status());
+                res.status_code(TusError::FileNoLongerExists.status());
                 return;
             }
         }
 
         let Some(storage) = info.storage else {
-            res.status_code =
-                Some(TusError::Internal("upload storage info missing".into()).status());
+            res.status_code(TusError::Internal("upload storage info missing".into()).status());
             return;
         };
 
         if storage.type_name != "file" {
-            res.status_code = Some(
+            res.status_code(
                 TusError::Internal(format!("unsupported storage type: {}", storage.type_name))
                     .status(),
             );

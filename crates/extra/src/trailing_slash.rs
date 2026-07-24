@@ -226,17 +226,17 @@ mod tests {
         let res = TestClient::get("http://127.0.0.1:8698/hello")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(res.status().unwrap(), StatusCode::MOVED_PERMANENTLY);
 
         let res = TestClient::get("http://127.0.0.1:8698/hello/")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:8698/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
     }
     #[tokio::test]
     async fn test_remove_slash() {
@@ -248,16 +248,16 @@ mod tests {
         let res = TestClient::get("http://127.0.0.1:8698/hello/")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:8698/hello.world/")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.status().unwrap(), StatusCode::TEMPORARY_REDIRECT);
 
         let res = TestClient::get("http://127.0.0.1:8698/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status().unwrap(), StatusCode::OK);
     }
 }

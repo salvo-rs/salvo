@@ -451,7 +451,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/set")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(response.status(), Some(StatusCode::SEE_OTHER));
 
         let cookie = response.headers().get(SET_COOKIE).unwrap();
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
@@ -493,7 +493,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:8698/set")
             .send(&service)
             .await;
-        assert_eq!(response.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(response.status(), Some(StatusCode::SEE_OTHER));
 
         let cookie = response.headers().get(SET_COOKIE).unwrap();
 

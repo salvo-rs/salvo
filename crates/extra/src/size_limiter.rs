@@ -188,7 +188,7 @@ mod tests {
             .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
             .send(&service)
             .await;
-        assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(res.status().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     #[tokio::test]
@@ -208,7 +208,7 @@ mod tests {
             .send(&service)
             .await;
 
-        assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(res.status().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     #[test]

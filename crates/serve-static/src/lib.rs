@@ -178,12 +178,12 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:5801/link/secret.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_FOUND);
 
         let response = TestClient::get("http://127.0.0.1:5801/missing")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
@@ -206,7 +206,7 @@ mod tests {
         let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let response = TestClient::head("http://127.0.0.1:5801/test1.txt")
@@ -228,7 +228,7 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:5801/notexist.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
@@ -273,7 +273,7 @@ mod tests {
             .add_header("accept-encoding", "br;q=0.1, gzip;q=1", true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(
             response.headers().get(CONTENT_ENCODING),
             Some(&HeaderValue::from_static("gzip"))
@@ -291,7 +291,7 @@ mod tests {
             .add_header("accept-encoding", "br;q=1, gzip;q=0.1", true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(
             response.headers().get(CONTENT_ENCODING),
             Some(&HeaderValue::from_static("br"))
@@ -301,7 +301,7 @@ mod tests {
             .add_header("accept-encoding", "identity;q=1, gzip;q=0.5", true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(response.headers().get(CONTENT_ENCODING), None);
         let varies_on_accept_encoding = response
             .headers()
@@ -352,19 +352,19 @@ mod tests {
         let mut response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1111.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert!(
             response
                 .take_string()
@@ -376,31 +376,31 @@ mod tests {
         let response = TestClient::get("http://127.0.0.1:5801/dir")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Index page"));
 
         let response = TestClient::get("http://127.0.0.1:5801/dir2/")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_FOUND);
 
         let response = TestClient::get("http://127.0.0.1:5801/dir3/abc.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_FOUND);
 
         // A 200 response carries a quoted RFC 7232 ETag...
         let response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(response.status().unwrap(), StatusCode::OK);
         let etag = response
-            .headers
+            .headers()
             .get("etag")
             .expect("200 response should carry an ETag")
             .to_str()
@@ -414,9 +414,9 @@ mod tests {
             .add_header("if-none-match", &etag, true)
             .send(&service)
             .await;
-        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_MODIFIED);
+        assert_eq!(response.status().unwrap(), StatusCode::NOT_MODIFIED);
         assert_eq!(
-            response.headers.get("etag").and_then(|v| v.to_str().ok()),
+            response.headers().get("etag").and_then(|v| v.to_str().ok()),
             Some(etag.as_str())
         );
     }
