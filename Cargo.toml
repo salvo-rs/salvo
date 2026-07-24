@@ -86,7 +86,7 @@ hyper-rustls = { version = "0.27", default-features = false }
 hyper-util = { version = "0.1", default-features = true }
 indexmap = "2"
 inventory = "0.3"
-jsonwebtoken = "10"
+jsonwebtoken = "11"
 local-ip-address = "0.6"
 mime = "0.3"
 mime-infer = "4"
