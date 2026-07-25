@@ -5,7 +5,7 @@
 fn preserves_an_explicitly_installed_provider() {
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    use jsonwebtoken::crypto::{CryptoProvider, JwkUtils, JwtSigner, JwtVerifier};
+    use jsonwebtoken::crypto::{CryptoProvider, JwtSigner, JwtVerifier, KeyUtils};
     use jsonwebtoken::errors::{ErrorKind, Result};
     use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header};
     use salvo_jwt_auth::ConstDecoder;
@@ -26,7 +26,7 @@ fn preserves_an_explicitly_installed_provider() {
     static CUSTOM_PROVIDER: CryptoProvider = CryptoProvider {
         signer_factory,
         verifier_factory,
-        jwk_utils: JwkUtils::new_unimplemented(),
+        key_utils: KeyUtils::new_unimplemented(),
     };
 
     CUSTOM_PROVIDER
