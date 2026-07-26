@@ -563,6 +563,7 @@ pub(crate) fn decode_jwk(
 
             Some(DecodingKey::from_ed_der(&der))
         }
+        _ => None,
     };
     match (kid, alg, dec_key) {
         (Some(kid), Some(alg), Some(dec_key)) => {
@@ -645,6 +646,19 @@ mod tests {
         let validation = Validation::new(Algorithm::HS256);
         let result = decode_jwk(&jwk, &validation, true);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_decode_jwk_rejects_unknown_key_type() {
+        let jwk_json = json!({
+            "kty": "unknown",
+            "kid": "test-unknown",
+            "alg": "RS256"
+        });
+        let jwk: Jwk = serde_json::from_value(jwk_json).unwrap();
+        let validation = Validation::new(Algorithm::RS256);
+        let result = decode_jwk(&jwk, &validation, false);
+        assert!(matches!(result, Err(JwtAuthError::InvalidJwk)));
     }
 
     #[test]
