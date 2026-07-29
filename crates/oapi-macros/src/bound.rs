@@ -13,7 +13,6 @@ pub(crate) fn without_defaults(generics: &syn::Generics) -> syn::Generics {
             .iter()
             .map(|param| match param {
                 syn::GenericParam::Type(param) => syn::GenericParam::Type(syn::TypeParam {
-                    eq_token: None,
                     default: None,
                     ..param.clone()
                 }),
@@ -109,7 +108,7 @@ pub(crate) fn with_bound(
         fn visit_type(&mut self, ty: &'ast syn::Type) {
             match ty {
                 syn::Type::Array(ty) => self.visit_type(&ty.elem),
-                syn::Type::BareFn(ty) => {
+                syn::Type::FnPtr(ty) => {
                     for arg in &ty.inputs {
                         self.visit_type(&arg.ty);
                     }
@@ -169,7 +168,7 @@ pub(crate) fn with_bound(
                 }
                 syn::PathArguments::Parenthesized(arguments) => {
                     for argument in &arguments.inputs {
-                        self.visit_type(argument);
+                        self.visit_type(&argument.ty);
                     }
                     self.visit_return_type(&arguments.output);
                 }
@@ -233,12 +232,14 @@ pub(crate) fn with_bound(
         .map(|param| param.ident.clone())
         .filter(|id| relevant_type_params.contains(id))
         .map(|id| syn::TypePath {
+            attrs: Vec::new(),
             qself: None,
             path: id.into(),
         })
         .chain(associated_type_usage.into_iter().cloned())
         .map(|bounded_ty| {
             syn::WherePredicate::Type(syn::PredicateType {
+                attrs: Vec::new(),
                 lifetimes: None,
                 bounded_ty: syn::Type::Path(bounded_ty),
                 colon_token: <Token![:]>::default(),

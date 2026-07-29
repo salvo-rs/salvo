@@ -3,7 +3,6 @@ use std::ops::Deref;
 
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Delimiter, Group, Punct, Span, TokenStream};
-use proc_macro2_diagnostics::Diagnostic;
 use quote::{ToTokens, TokenStreamExt, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -13,7 +12,7 @@ use syn::{
 };
 
 use crate::feature::attributes;
-use crate::{RenameRule, SerdeContainer, SerdeValue, parse_utils};
+use crate::{Diagnostic, RenameRule, SerdeContainer, SerdeValue, parse_utils};
 
 #[allow(dead_code)]
 pub(crate) enum InputType<'a> {

@@ -68,7 +68,7 @@ impl TryToTokens for ToParameters {
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let ex_life = &Lifetime::new("'__macro_gen_ex", Span::call_site());
-        let ex_lifetime: GenericParam = LifetimeParam::new(ex_life.clone()).into();
+        let ex_lifetime = GenericParam::Lifetime(LifetimeParam::new(ex_life.clone()));
         let mut ex_generics = self.generics.clone();
         ex_generics.params.insert(0, ex_lifetime);
         let ex_impl_generics = ex_generics.split_for_impl().0;

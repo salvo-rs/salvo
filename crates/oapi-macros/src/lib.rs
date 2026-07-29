@@ -21,6 +21,7 @@ use syn::{Ident, Item, Token, bracketed, parse_macro_input};
 mod attribute;
 pub(crate) mod bound;
 mod component;
+mod diagnostic;
 mod doc_comment;
 mod endpoint;
 pub(crate) mod feature;
@@ -35,10 +36,10 @@ mod server;
 mod shared;
 mod type_tree;
 
-pub(crate) use proc_macro2_diagnostics::{Diagnostic, Level as DiagLevel};
 pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
 pub(crate) use self::component::{ComponentSchema, ComponentSchemaProps};
+pub(crate) use self::diagnostic::{Diagnostic, Level as DiagLevel};
 pub(crate) use self::endpoint::EndpointAttr;
 pub(crate) use self::feature::Feature;
 pub(crate) use self::operation::Operation;

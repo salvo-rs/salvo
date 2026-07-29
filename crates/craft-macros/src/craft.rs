@@ -98,12 +98,13 @@ impl FnReceiver {
         let Some(recv) = method.sig.receiver() else {
             return Ok(Self::None);
         };
-        let ty = recv.ty.to_token_stream().to_string().replace(" ", "");
-        match ty.as_str() {
-            "&Self" => Ok(Self::Ref),
-            "Arc<Self>" | "&Arc<Self>" => Ok(Self::Arc),
-            _ => {
-                if ty.ends_with("::Arc<Self>") {
+        match &recv.kind {
+            syn::ReceiverKind::Reference(_, _, None) if recv.mutability.is_none() => Ok(Self::Ref),
+            syn::ReceiverKind::Typed(_, ty) => {
+                let ty = ty.to_token_stream().to_string().replace(' ', "");
+                if ty == "&Self" {
+                    Ok(Self::Ref)
+                } else if ty == "Arc<Self>" || ty == "&Arc<Self>" || ty.ends_with("::Arc<Self>") {
                     Ok(Self::Arc)
                 } else {
                     Err(syn::Error::new_spanned(
@@ -112,6 +113,10 @@ impl FnReceiver {
                     ))
                 }
             }
+            _ => Err(syn::Error::new_spanned(
+                method,
+                "#[craft] method receiver must be '&self', 'Arc<Self>' or '&Arc<Self>'",
+            )),
         }
     }
 }
