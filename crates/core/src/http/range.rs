@@ -1,22 +1,46 @@
 use crate::http::ParseError;
 
-/// HTTP Range header representation.
+/// A normalized, satisfiable byte range from an HTTP `Range` header.
+///
+/// The range covers `start..start + length`: `start` is zero-based and
+/// `length` is the number of bytes in the range. Open-ended and suffix ranges
+/// are resolved against the representation size by [`HttpRange::parse`].
 #[derive(Clone, Debug, Copy)]
 #[non_exhaustive]
 pub struct HttpRange {
-    /// Start position.
+    /// Zero-based offset of the first byte in the range.
     pub start: u64,
-    /// Total length.
+    /// Number of bytes in the range.
     pub length: u64,
 }
 
 static PREFIX: &str = "bytes=";
 
 impl HttpRange {
-    /// Parses Range HTTP header string as per RFC 2616.
+    /// Parses and normalizes the value of an HTTP byte `Range` header.
     ///
-    /// `header` is HTTP Range header (e.g. `bytes=0-9`).
-    /// `size` is full size of response (file).
+    /// `header` must use the `bytes` range unit, for example `bytes=0-9`.
+    /// `size` is the complete representation length. Explicit end positions
+    /// beyond `size` are clamped, and suffix ranges are converted to absolute
+    /// offsets.
+    ///
+    /// An empty header produces an empty vector. Malformed ranges, and a header
+    /// with no range that overlaps the representation, return
+    /// [`ParseError::InvalidRange`]. If at least one range is satisfiable,
+    /// other non-overlapping ranges are ignored.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::HttpRange;
+    ///
+    /// let ranges = HttpRange::parse("bytes=2-5,-2", 10)?;
+    /// assert_eq!(ranges[0].start, 2);
+    /// assert_eq!(ranges[0].length, 4);
+    /// assert_eq!(ranges[1].start, 8);
+    /// assert_eq!(ranges[1].length, 2);
+    /// # Ok::<(), salvo_core::http::ParseError>(())
+    /// ```
     pub fn parse(header: &str, size: u64) -> Result<Vec<Self>, ParseError> {
         if header.is_empty() {
             return Ok(Vec::new());

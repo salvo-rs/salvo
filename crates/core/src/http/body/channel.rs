@@ -7,19 +7,19 @@ use bytes::Bytes;
 use futures_channel::{mpsc, oneshot};
 use hyper::HeaderMap;
 
-/// A sender half created through [`ResBody::Channel`](super::ResBody::Channel).
+/// The producer half of a channel-backed response body.
 ///
-/// Useful when wanting to stream chunks from another thread.
+/// Create a sender and its corresponding [`ResBody`](super::ResBody) with
+/// [`ResBody::channel`](super::ResBody::channel). Sending data waits for the
+/// receiver to become ready, providing backpressure to the producing task.
 ///
-/// ## Body Closing
+/// # Closing the body
 ///
-/// **Note**: The request body will always be closed normally when the sender is dropped (meaning
-/// that the empty terminating chunk will be sent to the remote). If you desire to close the
-/// connection with an incomplete response (e.g. in the case of an error during asynchronous
-/// processing), call the [`Sender::abort()`] method to abort the body in an abnormal fashion.
-///
-/// [`Body::channel()`]: struct.Body.html#method.channel
-/// [`Sender::abort()`]: struct.Sender.html#method.abort
+/// Dropping the sender ends the response body normally once queued data has
+/// been consumed. [`BodySender::close`] and [`BodySender::disconnect`] close
+/// only the data channel; after calling either one, send trailers or drop the
+/// sender so the trailer channel is resolved as well. Call
+/// [`BodySender::send_error`] to report a stream error.
 #[must_use = "Sender does nothing unless sent on"]
 pub struct BodySender {
     pub(crate) data_tx: mpsc::Sender<Result<Bytes, IoError>>,
@@ -33,16 +33,22 @@ impl BodySender {
             .map_err(|e| IoError::other(format!("failed to poll ready: {e}")))
     }
 
-    /// Returns whether this channel is closed without needing a context.
+    /// Returns whether the receiving half has been closed.
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.data_tx.is_closed()
     }
-    /// Closes this channel from the sender side, preventing any new messages.
+    /// Closes the data channel, preventing any new data from being sent.
+    ///
+    /// This does not close the separate trailer channel. Send trailers or drop
+    /// the sender afterward to let the response body finish.
     pub fn close(&mut self) {
         self.data_tx.close_channel();
     }
-    /// Disconnects this sender from the channel, closing it if there are no more senders left.
+    /// Disconnects this sender from the data channel.
+    ///
+    /// The data channel closes when no other senders remain. This does not
+    /// resolve the separate trailer channel.
     pub fn disconnect(&mut self) {
         self.data_tx.disconnect();
     }
@@ -51,7 +57,7 @@ impl BodySender {
         futures_util::future::poll_fn(|cx| self.poll_ready(cx)).await
     }
 
-    /// Send data on data channel when it is ready.
+    /// Sends a data chunk once the receiver is ready.
     pub async fn send_data(&mut self, chunk: impl Into<Bytes> + Send) -> IoResult<()> {
         self.ready().await?;
         self.data_tx
@@ -59,7 +65,11 @@ impl BodySender {
             .map_err(|e| IoError::other(format!("failed to send data: {e}")))
     }
 
-    /// Send trailers on trailers channel.
+    /// Sends the response trailer headers.
+    ///
+    /// Trailers can be sent only once. A second call, or a call after the
+    /// receiver has been dropped, returns an error. Sending trailers does not
+    /// close the data channel.
     pub async fn send_trailers(&mut self, trailers: HeaderMap) -> IoResult<()> {
         let Some(tx) = self.trailers_tx.take() else {
             return Err(IoError::other("failed to send trailers"));
@@ -68,7 +78,7 @@ impl BodySender {
             .map_err(|_| IoError::other("failed to send trailers"))
     }
 
-    /// Send error on data channel.
+    /// Ends the data stream with an I/O error.
     pub fn send_error(&mut self, err: IoError) {
         let _ = self
             .data_tx
@@ -160,7 +170,11 @@ impl Debug for BodySender {
     }
 }
 
-/// A receiver for [`ResBody`](super::ResBody).
+/// The consumer half of a channel-backed response body.
+///
+/// This type is normally wrapped in [`ResBody::Channel`](super::ResBody::Channel)
+/// by [`ResBody::channel`](super::ResBody::channel), rather than constructed or
+/// consumed directly.
 pub struct BodyReceiver {
     pub(crate) data_rx: mpsc::Receiver<Result<Bytes, IoError>>,
     pub(crate) trailers_rx: oneshot::Receiver<HeaderMap>,
