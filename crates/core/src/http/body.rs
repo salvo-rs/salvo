@@ -59,27 +59,37 @@ pub use channel::{BodyReceiver, BodySender};
 
 use crate::http::HeaderMap;
 
-/// Frame with its DATA type as [`Bytes`].
+/// An HTTP body frame whose data payload type is [`Bytes`].
+///
+/// A frame contains either body data or trailer headers. Use [`BytesFrame::data`]
+/// to create a data frame, and [`BytesFrame::into_data`] or
+/// [`BytesFrame::into_trailers`] to distinguish the two frame kinds without
+/// losing the original frame on a mismatch. Converting a `BytesFrame` directly
+/// into [`Bytes`] returns an empty buffer for a trailers frame, so use
+/// [`BytesFrame::into_data`] when that distinction matters.
 #[derive(Debug)]
-pub struct BytesFrame(pub Frame<Bytes>);
+pub struct BytesFrame(
+    /// The wrapped HTTP body frame.
+    pub Frame<Bytes>,
+);
 impl BytesFrame {
-    /// Create a DATA frame with the provided [`Bytes`].
+    /// Creates a data frame from a value convertible into [`Bytes`].
     pub fn data(buf: impl Into<Bytes>) -> Self {
         Self(Frame::data(buf.into()))
     }
 
-    /// Consumes self into the buf of the DATA frame.
+    /// Returns the payload of a data frame.
     ///
-    /// Returns an [`Err`] containing the original [`Frame`] when frame is not a DATA frame.
-    /// `Frame::is_data` can also be used to determine if the frame is a DATA frame.
+    /// Returns `Err` containing the original frame when this is a trailers
+    /// frame. [`Frame::is_data`] can be used to inspect it without consuming it.
     pub fn into_data(self) -> Result<Bytes, Self> {
         self.0.into_data().map_err(Self)
     }
 
-    /// Consumes self into the buf of the trailers frame.
+    /// Returns the headers of a trailers frame.
     ///
-    /// Returns an [`Err`] containing the original [`Frame`] when frame is not a trailers frame.
-    /// `Frame::is_trailers` can also be used to determine if the frame is a trailers frame.
+    /// Returns `Err` containing the original frame when this is a data frame.
+    /// [`Frame::is_trailers`] can be used to inspect it without consuming it.
     pub fn into_trailers(self) -> Result<HeaderMap, Self> {
         self.0.into_trailers().map_err(Self)
     }

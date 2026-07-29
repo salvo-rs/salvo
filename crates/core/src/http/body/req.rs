@@ -74,27 +74,32 @@ pub(crate) type BoxedBody =
     Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>;
 pub(crate) type PollFrame = Poll<Option<Result<Frame<Bytes>, IoError>>>;
 
-/// Body for HTTP request.
+/// The body of an incoming HTTP request.
+///
+/// `ReqBody` implements [`Body`] and can represent an empty body, already
+/// buffered bytes, Hyper's network body, or another boxed body implementation.
+/// Applications normally access it through [`Request`](crate::http::Request)
+/// instead of constructing variants directly.
 #[non_exhaustive]
 #[derive(Default)]
 pub enum ReqBody {
-    /// None body.
+    /// An empty or already-consumed body.
     #[default]
     None,
-    /// Once bytes body.
+    /// A body held in one in-memory byte buffer.
     Once(Bytes),
-    /// Hyper default body.
+    /// A streaming body received by Hyper.
     Hyper {
-        /// Inner body.
+        /// The underlying Hyper body.
         inner: Incoming,
-        /// Request-body timeout state.
+        /// Internal request-body timeout state derived from the connection fuse.
         fuse_config: Option<BodyTimeout>,
     },
-    /// Boxed body.
+    /// A type-erased custom streaming body.
     Boxed {
-        /// Inner body.
+        /// The underlying boxed body.
         inner: BoxedBody,
-        /// Request-body timeout state.
+        /// Internal request-body timeout state derived from the connection fuse.
         fuse_config: Option<BodyTimeout>,
     },
 }

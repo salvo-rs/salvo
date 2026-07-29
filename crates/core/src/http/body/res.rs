@@ -14,26 +14,31 @@ use crate::error::BoxedError;
 use crate::http::body::{BodyReceiver, BodySender, BytesFrame};
 use crate::prelude::StatusError;
 
-/// Body for HTTP response.
+/// The body of an outgoing HTTP response.
+///
+/// Small, known bodies can be stored as one buffer or a queue of buffers.
+/// Bodies whose size is not known up front can be backed by Hyper, a boxed
+/// [`Body`], a [`Stream`], or the sender/receiver pair created by
+/// [`ResBody::channel`].
 #[non_exhaustive]
 #[derive(Default)]
 pub enum ResBody {
-    /// None body.
+    /// No response body.
     #[default]
     None,
-    /// Once bytes body.
+    /// A response body held in one byte buffer.
     Once(Bytes),
-    /// Chunks body.
+    /// An ordered queue of byte buffers.
     Chunks(VecDeque<Bytes>),
-    /// Hyper default body.
+    /// Hyper's incoming streaming body, typically used when proxying a response.
     Hyper(Incoming),
-    /// Boxed body.
+    /// A type-erased custom body implementation.
     Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
-    /// Stream body.
+    /// A stream of data or trailer frames.
     Stream(SyncWrapper<BoxStream<'static, Result<BytesFrame, BoxedError>>>),
-    /// Channel body.
+    /// The receiver half of a body channel created by [`ResBody::channel`].
     Channel(BodyReceiver),
-    /// Error body will be process in catcher.
+    /// An error deferred to the service's catcher instead of sent as body data.
     Error(StatusError),
 }
 impl ResBody {
@@ -77,7 +82,11 @@ impl ResBody {
         matches!(*self, Self::Error(_))
     }
 
-    /// Wrap a futures `Stream` in a box inside `Body`.
+    /// Creates a response body from a stream of frames.
+    ///
+    /// Stream items may be data values convertible into [`BytesFrame`] or
+    /// explicit trailer frames. Stream errors are converted into
+    /// [`BoxedError`].
     pub fn stream<S, O, E>(stream: S) -> Self
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
@@ -88,9 +97,10 @@ impl ResBody {
         Self::Stream(SyncWrapper::new(Box::pin(mapped)))
     }
 
-    /// Create a `Body` stream with an associated sender half.
+    /// Creates a channel-backed body and its sender half.
     ///
-    /// Useful when wanting to stream chunks from another thread.
+    /// The returned [`BodySender`] applies backpressure while another task
+    /// produces chunks or trailers.
     pub fn channel() -> (BodySender, Self) {
         let (data_tx, data_rx) = mpsc::channel(0);
         let (trailers_tx, trailers_rx) = oneshot::channel();
@@ -107,7 +117,10 @@ impl ResBody {
         (tx, rx)
     }
 
-    /// Get body's size.
+    /// Returns the exact body size when it is known without consuming the body.
+    ///
+    /// Streaming, channel, boxed, Hyper, and deferred-error bodies return
+    /// `None`.
     #[inline]
     pub fn size(&self) -> Option<u64> {
         match self {
@@ -122,7 +135,7 @@ impl ResBody {
         }
     }
 
-    /// Set body to none and returns current body.
+    /// Replaces this body with [`ResBody::None`] and returns the previous body.
     #[inline]
     #[must_use]
     pub fn take(&mut self) -> Self {
