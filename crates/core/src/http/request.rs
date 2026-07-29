@@ -84,8 +84,7 @@ pub fn set_global_secure_max_size(size: usize) {
 /// use salvo_core::http::request::SecureMaxSize;
 ///
 /// // Body-reading helpers in this subtree may accept up to 10 MiB.
-/// let uploads = Router::with_path("uploads")
-///     .hoop(SecureMaxSize::new(10 * 1024 * 1024));
+/// let uploads = Router::with_path("uploads").hoop(SecureMaxSize::new(10 * 1024 * 1024));
 /// # let _ = uploads;
 /// ```
 #[derive(Debug, Clone, Copy)]
