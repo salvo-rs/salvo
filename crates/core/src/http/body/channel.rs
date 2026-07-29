@@ -20,7 +20,7 @@ use hyper::HeaderMap;
 /// only the data channel; after calling either one, send trailers or drop the
 /// sender so the trailer channel is resolved as well. Call
 /// [`BodySender::send_error`] to report a stream error.
-#[must_use = "Sender does nothing unless sent on"]
+#[must_use = "a BodySender does nothing unless it is used"]
 pub struct BodySender {
     pub(crate) data_tx: mpsc::Sender<Result<Bytes, IoError>>,
     pub(crate) trailers_tx: Option<oneshot::Sender<HeaderMap>>,
@@ -78,7 +78,7 @@ impl BodySender {
             .map_err(|_| IoError::other("failed to send trailers"))
     }
 
-    /// Ends the data stream with an I/O error.
+    /// Sends an I/O error on the data channel.
     pub fn send_error(&mut self, err: IoError) {
         let _ = self
             .data_tx

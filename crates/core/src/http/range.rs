@@ -20,14 +20,16 @@ impl HttpRange {
     /// Parses and normalizes the value of an HTTP byte `Range` header.
     ///
     /// `header` must use the `bytes` range unit, for example `bytes=0-9`.
-    /// `size` is the complete representation length. Explicit end positions
-    /// beyond `size` are clamped, and suffix ranges are converted to absolute
-    /// offsets.
+    /// `size` is the complete representation length. Values above
+    /// [`i64::MAX`] are treated as `i64::MAX`. Explicit end positions beyond
+    /// the effective size are clamped, and suffix ranges are converted to
+    /// absolute offsets.
     ///
-    /// An empty header produces an empty vector. Malformed ranges, and a header
-    /// with no range that overlaps the representation, return
-    /// [`ParseError::InvalidRange`]. If at least one range is satisfiable,
-    /// other non-overlapping ranges are ignored.
+    /// An empty header, or one containing only empty comma-separated members,
+    /// produces an empty vector. A malformed non-empty range, or a header whose
+    /// non-empty ranges do not overlap the representation, returns
+    /// [`ParseError::InvalidRange`]. If at least one range is satisfiable, other
+    /// non-overlapping ranges are ignored.
     ///
     /// # Example
     ///
@@ -65,6 +67,9 @@ impl HttpRange {
 
                 let start_str = start_end_iter.next().ok_or(())?.trim();
                 let end_str = start_end_iter.next().ok_or(())?.trim();
+                if start_end_iter.next().is_some() {
+                    return Err(());
+                }
 
                 if start_str.is_empty() {
                     // If no start is specified, end specifies the
@@ -75,6 +80,11 @@ impl HttpRange {
                     // and is unsatisfiable per RFC 7233; treat it like a range
                     // that does not overlap the representation.
                     if length <= 0 {
+                        no_overlap = true;
+                        return Ok(None);
+                    }
+
+                    if size_sig == 0 {
                         no_overlap = true;
                         return Ok(None);
                     }
@@ -404,5 +414,23 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn parse_rejects_ranges_with_extra_hyphens() {
+        for header in ["bytes=0-1-2", "bytes=0--1", "bytes=--1"] {
+            assert!(
+                matches!(HttpRange::parse(header, 10), Err(ParseError::InvalidRange)),
+                "{header} should be rejected as malformed"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_rejects_suffix_range_for_empty_representation() {
+        assert!(matches!(
+            HttpRange::parse("bytes=-1", 0),
+            Err(ParseError::InvalidRange)
+        ));
     }
 }

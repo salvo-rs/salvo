@@ -64,7 +64,9 @@ use crate::http::HeaderMap;
 /// A frame contains either body data or trailer headers. Use [`BytesFrame::data`]
 /// to create a data frame, and [`BytesFrame::into_data`] or
 /// [`BytesFrame::into_trailers`] to distinguish the two frame kinds without
-/// losing the original frame on a mismatch.
+/// losing the original frame on a mismatch. Converting a `BytesFrame` directly
+/// into [`Bytes`] returns an empty buffer for a trailers frame, so use
+/// [`BytesFrame::into_data`] when that distinction matters.
 #[derive(Debug)]
 pub struct BytesFrame(
     /// The wrapped HTTP body frame.
