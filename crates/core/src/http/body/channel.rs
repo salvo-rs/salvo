@@ -33,7 +33,11 @@ impl BodySender {
             .map_err(|e| IoError::other(format!("failed to poll ready: {e}")))
     }
 
-    /// Returns whether the receiving half has been closed.
+    /// Returns whether this sender's data channel is closed.
+    ///
+    /// This becomes `true` when the receiver is dropped, after
+    /// [`BodySender::close`] closes the channel locally, or after this sender
+    /// calls [`BodySender::disconnect`].
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.data_tx.is_closed()
