@@ -1,0 +1,72 @@
+
+###添加用户信息 addUser
+POST {{host}}/api/user/addUser
+Content-Type: application/json
+
+{
+  "mobile": "18613030111",
+  "userName": "koobe-test1",
+  "nickName": "koobe-test1",
+  "userType": "00",
+  "avatar": "https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png",
+  "email": "xx@qq.com-test12",
+  "password": "123456",
+  "status": 1,
+  "deptId": 1,
+  "remark": "koobe test"
+}
+
+###删除用户信息 deleteUser
+POST {{host}}/api/user/deleteUser
+Content-Type: application/json
+
+{
+  "ids": [1]
+}
+
+###更新用户信息 updateUser
+POST {{host}}/api/user/updateUser
+Content-Type: application/json
+
+{
+  "id": 1,
+  "mobile": "18613030111",
+  "userName": "koobe-test1",
+  "nickName": "koobe-test1",
+  "userType": "00",
+  "avatar": "https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png",
+  "email": "xx@qq.com-test12",
+  "password": "123456",
+  "status": 1,
+  "deptId": 1,
+  "remark": "koobe test"
+}
+
+###更新用户信息 updateUserStatus状态
+POST {{host}}/api/user/updateUserStatus
+Content-Type: application/json
+
+{
+  "ids": [1],
+  "status": 0
+}
+###查询用户信息详情 queryUserDetail
+POST {{host}}/api/user/queryUserDetail
+Content-Type: application/json
+
+{
+  "id": 1
+}
+
+
+###查询用户信息列表 queryUserList
+POST {{host}}/api/user/queryUserList
+Content-Type: application/json
+
+{
+  "pageNo": 1,
+  "pageSize": 10,
+  "mobile": "",
+  "userName": "",
+  "status": 1
+}
