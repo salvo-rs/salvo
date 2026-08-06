@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Changelog established for upcoming releases.
+- Initial opt-in OpenAPI 3.2 document support in `salvo-oapi`, including the `$self` field.
 
 ### Changed
 

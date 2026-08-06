@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3.1.
+//! Rust implementation of OpenAPI Specifications 3.1 and 3.2.
 
 use salvo_core::cfg_feature;
 
@@ -87,6 +87,15 @@ pub type PropMap<K, V> = indexmap::IndexMap<K, V>;
 pub struct OpenApi {
     /// OpenAPI document version.
     pub openapi: OpenApiVersion,
+
+    /// URI that identifies this OpenAPI document.
+    ///
+    /// This field establishes the base URI for relative references when the document is not
+    /// retrievable at a stable URL. Added in OpenAPI 3.2.
+    ///
+    /// See more details at <https://spec.openapis.org/oas/v3.2.0.html#openapi-object>.
+    #[serde(rename = "$self", default, skip_serializing_if = "String::is_empty")]
+    pub self_uri: String,
 
     /// Provides metadata about the API.
     ///
@@ -191,6 +200,43 @@ impl OpenApi {
         }
     }
 
+    /// Set the OpenAPI Specification version used by this document.
+    ///
+    /// New documents default to OpenAPI 3.1. Use this method to opt in to OpenAPI 3.2.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use salvo_oapi::{OpenApi, OpenApiVersion};
+    /// let openapi = OpenApi::new("pet api", "0.1.0").openapi_version(OpenApiVersion::Version3_2);
+    /// assert_eq!(openapi.openapi, OpenApiVersion::Version3_2);
+    /// ```
+    #[must_use]
+    pub fn openapi_version(mut self, version: OpenApiVersion) -> Self {
+        self.openapi = version;
+        self
+    }
+
+    /// Set the URI that identifies this OpenAPI document.
+    ///
+    /// This serializes as the OpenAPI 3.2 `$self` field. Set the document version to
+    /// [`OpenApiVersion::Version3_2`] when using it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use salvo_oapi::{OpenApi, OpenApiVersion};
+    /// let openapi = OpenApi::new("pet api", "0.1.0")
+    ///     .openapi_version(OpenApiVersion::Version3_2)
+    ///     .self_uri("https://example.com/openapi.json");
+    /// assert_eq!(openapi.self_uri, "https://example.com/openapi.json");
+    /// ```
+    #[must_use]
+    pub fn self_uri(mut self, self_uri: impl Into<String>) -> Self {
+        self.self_uri = self_uri.into();
+        self
+    }
+
     /// Converts this [`OpenApi`] to JSON String. This method essentially calls
     /// [`serde_json::to_string`] method.
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
@@ -224,7 +270,8 @@ impl OpenApi {
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
     /// comparison.
     ///
-    /// **Note!** `info`, `openapi`, `external_docs` and `json_schema_dialect` will not be merged.
+    /// **Note!** `info`, `openapi`, `self_uri`, `external_docs` and `json_schema_dialect` will not
+    /// be merged.
     #[must_use]
     pub fn merge(mut self, mut other: Self) -> Self {
         self.servers.append(&mut other.servers);
@@ -684,10 +731,13 @@ impl Handler for OpenApi {
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
 #[derive(Serialize, Clone, PartialEq, Eq, Default, Debug)]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.1.0` the latest released OpenAPI version.
+    /// Serializes to `3.1.0` and remains the default for backward compatibility.
     #[serde(rename = "3.1.0")]
     #[default]
     Version3_1,
+    /// Serializes to `3.2.0`.
+    #[serde(rename = "3.2.0")]
+    Version3_2,
 }
 
 impl<'de> Deserialize<'de> for OpenApiVersion {
@@ -701,7 +751,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-                formatter.write_str("a version string in 3.1.x format")
+                formatter.write_str("a version string in 3.1.x or 3.2.x format")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -715,19 +765,28 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             where
                 E: Error,
             {
-                let version = v
-                    .split('.')
-                    .flat_map(|digit| digit.parse::<i8>())
-                    .collect::<Vec<_>>();
+                let mut digits = v.split('.').map(|digit| digit.parse::<u32>());
+                let version = match (digits.next(), digits.next(), digits.next(), digits.next()) {
+                    (Some(Ok(3)), Some(Ok(minor)), Some(Ok(_)), None) => minor,
+                    _ => {
+                        let expected: &dyn Expected = &"3.1.x or 3.2.x";
+                        return Err(Error::invalid_value(
+                            serde::de::Unexpected::Str(&v),
+                            expected,
+                        ));
+                    }
+                };
 
-                if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
-                    Ok(OpenApiVersion::Version3_1)
-                } else {
-                    let expected: &dyn Expected = &"3.1.0";
-                    Err(Error::invalid_value(
-                        serde::de::Unexpected::Str(&v),
-                        expected,
-                    ))
+                match version {
+                    1 => Ok(OpenApiVersion::Version3_1),
+                    2 => Ok(OpenApiVersion::Version3_2),
+                    _ => {
+                        let expected: &dyn Expected = &"3.1.x or 3.2.x";
+                        Err(Error::invalid_value(
+                            serde::de::Unexpected::Str(&v),
+                            expected,
+                        ))
+                    }
                 }
             }
         }
@@ -877,6 +936,62 @@ mod tests {
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
         assert_eq!(serde_json::to_value(&OpenApiVersion::Version3_1)?, "3.1.0");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3_2)?, "3.2.0");
+        assert_eq!(
+            serde_json::from_str::<OpenApiVersion>(r#""3.1.9""#)?,
+            OpenApiVersion::Version3_1
+        );
+        assert_eq!(
+            serde_json::from_str::<OpenApiVersion>(r#""3.2.7""#)?,
+            OpenApiVersion::Version3_2
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_openapi_version_rejects_unsupported_or_malformed_versions() {
+        for version in ["3.0.4", "3.3.0", "3.2", "3.2.x", "4.0.0"] {
+            assert!(
+                serde_json::from_value::<OpenApiVersion>(version.into()).is_err(),
+                "expected {version} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn openapi_3_2_baseline_fields_serialize_and_deserialize() -> Result<(), serde_json::Error> {
+        let doc = OpenApi::new("pet api", "0.1.0")
+            .openapi_version(OpenApiVersion::Version3_2)
+            .self_uri("https://example.com/openapi.json");
+
+        let value = serde_json::to_value(&doc)?;
+        assert_eq!(value["openapi"], "3.2.0");
+        assert_eq!(value["$self"], "https://example.com/openapi.json");
+
+        let deserialized: OpenApi = serde_json::from_value(json!({
+            "openapi": "3.2.4",
+            "$self": "https://example.com/openapi.json",
+            "info": {
+                "title": "pet api",
+                "version": "0.1.0"
+            },
+            "servers": [],
+            "paths": {},
+            "components": {},
+            "security": [],
+            "tags": []
+        }))?;
+        assert_eq!(deserialized.openapi, OpenApiVersion::Version3_2);
+        assert_eq!(deserialized.self_uri, "https://example.com/openapi.json");
+        Ok(())
+    }
+
+    #[test]
+    fn openapi_defaults_to_3_1_and_omits_empty_self_uri() -> Result<(), serde_json::Error> {
+        let value = serde_json::to_value(OpenApi::new("pet api", "0.1.0"))?;
+
+        assert_eq!(value["openapi"], "3.1.0");
+        assert!(value.get("$self").is_none());
         Ok(())
     }
 
