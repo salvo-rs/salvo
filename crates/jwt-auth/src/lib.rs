@@ -216,7 +216,7 @@ pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::jwt_auth::auth_token";
 /// key used to insert auth error to depot.
 pub const JWT_AUTH_ERROR_KEY: &str = "::salvo::jwt_auth::auth_error";
 
-const ALL_METHODS: [Method; 9] = [
+const ALL_METHODS: [Method; 10] = [
     Method::GET,
     Method::POST,
     Method::PUT,
@@ -226,6 +226,7 @@ const ALL_METHODS: [Method; 9] = [
     Method::CONNECT,
     Method::PATCH,
     Method::TRACE,
+    Method::QUERY,
 ];
 
 /// JwtAuthError
@@ -608,8 +609,19 @@ mod tests {
     #[test]
     fn test_header_finder_new() {
         let finder = HeaderFinder::new();
-        assert_eq!(finder.allowed_methods.len(), 9); // All methods
+        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
+        assert!(finder.allowed_methods.contains(&Method::QUERY));
         assert_eq!(finder.header_names.len(), 1); // Authorization
+    }
+
+    #[tokio::test]
+    async fn test_header_finder_allows_query_by_default() {
+        let finder = HeaderFinder::new();
+        let mut req = TestClient::query("http://local.host/search")
+            .add_header("Authorization", "Bearer token", true)
+            .build();
+
+        assert_eq!(finder.find_token(&mut req).await.as_deref(), Some("token"));
     }
 
     #[test]
@@ -643,7 +655,7 @@ mod tests {
     fn test_query_finder_new() {
         let finder = QueryFinder::new("token");
         assert_eq!(finder.query_name, "token");
-        assert_eq!(finder.allowed_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
     }
 
     #[test]
@@ -671,7 +683,7 @@ mod tests {
     fn test_cookie_finder_new() {
         let finder = CookieFinder::new("session");
         assert_eq!(finder.cookie_name, "session");
-        assert_eq!(finder.allowed_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
     }
 
     #[test]
@@ -693,7 +705,7 @@ mod tests {
     fn test_form_finder_new() {
         let finder = FormFinder::new("token");
         assert_eq!(finder.field_name, "token");
-        assert_eq!(finder.allowed_methods.len(), 9);
+        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
     }
 
     #[test]
