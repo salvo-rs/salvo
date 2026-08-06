@@ -47,6 +47,10 @@
 //! Router::with_path("writers/{id}/articles").get(list_writer_articles);
 //! ```
 //!
+//! Salvo also supports the QUERY method for safe, idempotent requests whose query description is
+//! carried in the request content. For example, a complex search endpoint can be registered with
+//! `Router::with_path("search").query(search)`.
+//!
 //! # Write in tree way
 //!
 //! We can write router like a tree, this is also the recommended way:

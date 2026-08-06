@@ -457,6 +457,19 @@ impl Router {
         self.push(Self::with_filter(filters::put()).goal(goal))
     }
 
+    /// Create a new child router with [`MethodFilter`] to filter QUERY method and set this child
+    /// router's handler.
+    ///
+    /// QUERY is a safe, idempotent method that can carry request content, making it suitable for
+    /// complex queries that do not fit well in a URI query string.
+    ///
+    /// [`MethodFilter`]: super::filters::MethodFilter
+    #[inline]
+    #[must_use]
+    pub fn query<H: Handler>(self, goal: H) -> Self {
+        self.push(Self::with_filter(filters::query()).goal(goal))
+    }
+
     /// Create a new child router with [`MethodFilter`] to filter delete method and set this child
     /// router's handler.
     ///
@@ -556,6 +569,7 @@ impl Debug for Router {
 #[cfg(test)]
 mod tests {
     use super::{PathState, Router};
+    use crate::http::Method;
     use crate::test::TestClient;
     use crate::{Response, handler};
 
@@ -619,6 +633,20 @@ mod tests {
         let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
         assert!(matched.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_router_detect_query_method() {
+        let router = Router::with_path("search").query(fake_handler);
+
+        let mut req = TestClient::query("http://local.host/search").build();
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
+        assert!(router.detect(&mut req, &mut path_state).await.is_some());
+        assert_eq!(req.method(), &Method::QUERY);
+
+        let mut req = TestClient::get("http://local.host/search").build();
+        let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
+        assert!(router.detect(&mut req, &mut path_state).await.is_none());
     }
     #[tokio::test]
     async fn test_router_detect2() {

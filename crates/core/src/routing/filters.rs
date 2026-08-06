@@ -222,6 +222,16 @@ pub fn put() -> MethodFilter {
     MethodFilter(Method::PUT)
 }
 
+/// Filter requests, only allowing the QUERY method.
+///
+/// QUERY is a safe, idempotent method that can carry request content. It is useful when the
+/// description of a query is too large or complex to encode in the request URI.
+#[inline]
+#[must_use]
+pub fn query() -> MethodFilter {
+    MethodFilter(Method::QUERY)
+}
+
 /// Filter request, only allow delete method.
 #[inline]
 #[must_use]
@@ -241,6 +251,7 @@ mod tests {
         assert_eq!(post(), MethodFilter(Method::POST));
         assert_eq!(patch(), MethodFilter(Method::PATCH));
         assert_eq!(put(), MethodFilter(Method::PUT));
+        assert_eq!(query(), MethodFilter(Method::QUERY));
         assert_eq!(delete(), MethodFilter(Method::DELETE));
     }
 
