@@ -177,19 +177,19 @@ _**Example request body definitions.**_
 
 * `operation_ref = ...` Define a relative or absolute URI reference to an OAS operation. This field is
   mutually exclusive of the _`operation_id`_ field, and **must** point to an [Operation Object][operation].
-  Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+  Value can be [`str`] or an expression such as [`include_str!`][include_str] or static
   [`const`][const] reference.
 
 * `operation_id = ...` Define the name of an existing, resolvable OAS operation, as defined with a unique
   _`operation_id`_. This field is mutually exclusive of the _`operation_ref`_ field.
-  Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+  Value can be [`str`] or an expression such as [`include_str!`][include_str] or static
   [`const`][const] reference.
 
 * `parameters(...)` A map representing parameters to pass to an operation as specified with _`operation_id`_
   or identified by _`operation_ref`_. The key is parameter name to be used and value can
   be any value supported by JSON or an [expression][expression] e.g. `$path.id`
     * `name = ...` Define name for the parameter.
-      Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+      Value can be [`str`] or an expression such as [`include_str!`][include_str] or static
       [`const`][const] reference.
     * `value` = Any value that can be supported by JSON or an [expression][expression].
 
@@ -204,7 +204,7 @@ _**Example request body definitions.**_
 * `request_body = ...` Define a literal value or an [expression][expression] to be used as request body when
   operation is called
 
-* `description = ...` Define description of the link. Value supports Markdown syntax.Value can be be [`str`] or
+* `description = ...` Define description of the link. Value supports Markdown syntax.Value can be [`str`] or
   an expression such as [`include_str!`][include_str] or static [`const`][const] reference.
 
 * `server(...)` Define [Server][server] object to be used by the target operation.
