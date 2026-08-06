@@ -34,6 +34,11 @@ impl MethodSkipper {
     pub fn skip_put(self, value: bool) -> Self {
         self.skip_method(Method::PUT, value)
     }
+    /// Add the [`Method::QUERY`] method to skipped methods.
+    #[must_use]
+    pub fn skip_query(self, value: bool) -> Self {
+        self.skip_method(Method::QUERY, value)
+    }
     /// Add the [`Method::DELETE`] method to skipped methods.
     #[must_use]
     pub fn skip_delete(self, value: bool) -> Self {
@@ -87,6 +92,7 @@ impl MethodSkipper {
             Method::OPTIONS,
             Method::CONNECT,
             Method::TRACE,
+            Method::QUERY,
         ]
         .into_iter()
         .collect();
@@ -142,6 +148,15 @@ mod tests {
 
         let skipper = skipper.skip_put(false);
         assert!(!skipper.skipped_methods.contains(&Method::PUT));
+    }
+
+    #[test]
+    fn test_skip_query() {
+        let skipper = MethodSkipper::new().skip_query(true);
+        assert!(skipper.skipped_methods.contains(&Method::QUERY));
+
+        let skipper = skipper.skip_query(false);
+        assert!(!skipper.skipped_methods.contains(&Method::QUERY));
     }
 
     #[test]
@@ -210,7 +225,8 @@ mod tests {
         assert!(skipper.skipped_methods.contains(&Method::OPTIONS));
         assert!(skipper.skipped_methods.contains(&Method::CONNECT));
         assert!(skipper.skipped_methods.contains(&Method::TRACE));
-        assert_eq!(skipper.skipped_methods.len(), 9);
+        assert!(skipper.skipped_methods.contains(&Method::QUERY));
+        assert_eq!(skipper.skipped_methods.len(), 10);
     }
 
     #[test]
@@ -230,7 +246,8 @@ mod tests {
         let skipper = MethodSkipper::new().skip_all().skip_get(false);
         assert!(!skipper.skipped_methods.contains(&Method::GET));
         assert!(skipper.skipped_methods.contains(&Method::POST));
-        assert_eq!(skipper.skipped_methods.len(), 8);
+        assert!(skipper.skipped_methods.contains(&Method::QUERY));
+        assert_eq!(skipper.skipped_methods.len(), 9);
     }
 
     #[test]

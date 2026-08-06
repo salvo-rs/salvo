@@ -23,6 +23,11 @@ impl TestClient {
         RequestBuilder::new(url, Method::PUT)
     }
 
+    /// Create a new `RequestBuilder` with the QUERY method and this TestClient's settings applied on it.
+    pub fn query(url: impl AsRef<str>) -> RequestBuilder {
+        RequestBuilder::new(url, Method::QUERY)
+    }
+
     /// Create a new `RequestBuilder` with the DELETE method and this TestClient's settings applied on it.
     pub fn delete(url: impl AsRef<str>) -> RequestBuilder {
         RequestBuilder::new(url, Method::DELETE)

@@ -76,7 +76,7 @@ futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
 h3-datagram = "0.0.2"
 headers = "0.4"
-http = "1"
+http = "1.5"
 http-body-util = "0.1"
 hmac = "0.13"
 hex = "0.4"
