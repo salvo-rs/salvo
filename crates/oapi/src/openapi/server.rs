@@ -96,6 +96,7 @@ impl Servers {
         if let Some(mut exist_server) = exist_server {
             let Server {
                 description,
+                name,
                 mut variables,
                 extensions,
                 ..
@@ -103,6 +104,9 @@ impl Servers {
             exist_server.variables.append(&mut variables);
             if description.is_some() {
                 exist_server.description = description;
+            }
+            if name.is_some() {
+                exist_server.name = name;
             }
             exist_server.extensions.extend(extensions);
             self.0.remove(&exist_server);
@@ -155,8 +159,15 @@ pub struct Server {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Optional unique name used to refer to the host designated by [`Server::url`]. Added in
+    /// OpenAPI 3.2.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#server-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
     /// Optional map of variable name and its substitution value used in [`Server::url`].
-    #[serde(skip_serializing_if = "ServerVariables::is_empty")]
+    #[serde(default, skip_serializing_if = "ServerVariables::is_empty")]
     pub variables: ServerVariables,
 
     /// Optional extensions "x-something"
@@ -217,6 +228,13 @@ impl Server {
     #[must_use]
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    /// Add or change the unique name used to refer to this [`Server`]. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn name<S: Into<String>>(mut self, name: S) -> Self {
+        self.name = Some(name.into());
         self
     }
 
@@ -335,7 +353,7 @@ pub struct ServerVariable {
 
     /// Enum values can be used to limit possible options for substitution. If enum values is used
     /// the [`ServerVariable::default_value`] must contain one of the enum values.
-    #[serde(rename = "enum", skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, rename = "enum", skip_serializing_if = "BTreeSet::is_empty")]
     enum_values: BTreeSet<String>,
 
     /// Optional extensions "x-something"

@@ -22,7 +22,7 @@ pub struct Encoding {
     /// A map allowing additional information to be provided as headers, for example
     /// Content-Disposition. Content-Type is described separately and SHALL be ignored in this
     /// section. This property SHALL be ignored if the request body media type is not a multipart.
-    #[serde(skip_serializing_if = "PropMap::is_empty")]
+    #[serde(default, skip_serializing_if = "PropMap::is_empty")]
     pub headers: PropMap<String, Header>,
 
     /// Describes how a specific property value will be serialized depending on its type. See
@@ -40,12 +40,38 @@ pub struct Encoding {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explode: Option<bool>,
 
-    /// Determines whether the parameter value SHOULD allow reserved characters, as defined by
-    /// RFC3986 `:/?#[]@!$&'()*+,;=` to be included without percent-encoding. The default value is
-    /// false. This property SHALL be ignored if the request body media type is not
-    /// `application/x-www-form-urlencoded`.
+    /// When this is true, values are serialized using reserved expansion, letting RFC3986's
+    /// reserved character set `:/?#[]@!$&'()*+,;=` pass through unchanged. The default value is
+    /// false.
+    ///
+    /// In OpenAPI 3.1 this only applied to `application/x-www-form-urlencoded` request bodies;
+    /// OpenAPI 3.2 generalizes it to RFC6570-style serialization, and it has no effect for
+    /// `multipart/form-data`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_reserved: Option<bool>,
+
+    /// Nested encoding applied by property name, mirroring the [`Content::encoding`] field of the
+    /// enclosing media type. Added in OpenAPI 3.2.
+    ///
+    /// Must not be combined with [`Encoding::prefix_encoding`] or [`Encoding::item_encoding`].
+    ///
+    /// [`Content::encoding`]: crate::openapi::Content::encoding
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub encoding: PropMap<String, Encoding>,
+
+    /// Nested positional encoding, mirroring the [`Content::prefix_encoding`] field of the
+    /// enclosing media type. Added in OpenAPI 3.2.
+    ///
+    /// [`Content::prefix_encoding`]: crate::openapi::Content::prefix_encoding
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub prefix_encoding: Vec<Encoding>,
+
+    /// Nested encoding applied to every remaining array item, mirroring the
+    /// [`Content::item_encoding`] field of the enclosing media type. Added in OpenAPI 3.2.
+    ///
+    /// [`Content::item_encoding`]: crate::openapi::Content::item_encoding
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub item_encoding: Option<Box<Encoding>>,
 
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
@@ -86,6 +112,34 @@ impl Encoding {
     #[must_use]
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
         self.allow_reserved = Some(allow_reserved);
+        self
+    }
+
+    /// Add a nested [`Encoding`] by property name. See [`Encoding::encoding`].
+    /// Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn encoding<S: Into<String>, E: Into<Self>>(
+        mut self,
+        property_name: S,
+        encoding: E,
+    ) -> Self {
+        self.encoding.insert(property_name.into(), encoding.into());
+        self
+    }
+
+    /// Set the nested positional encodings. See [`Encoding::prefix_encoding`].
+    /// Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn prefix_encoding<I: IntoIterator<Item = Self>>(mut self, prefix_encoding: I) -> Self {
+        self.prefix_encoding = prefix_encoding.into_iter().collect();
+        self
+    }
+
+    /// Set the nested encoding applied to remaining array items. See [`Encoding::item_encoding`].
+    /// Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn item_encoding<E: Into<Self>>(mut self, item_encoding: E) -> Self {
+        self.item_encoding = Some(Box::new(item_encoding.into()));
         self
     }
 
@@ -135,5 +189,28 @@ mod tests {
               "allowReserved": false
             })
         );
+    }
+
+    #[test]
+    fn test_nested_encoding_openapi_3_2() {
+        let encoding = Encoding::default()
+            .content_type("multipart/mixed")
+            .prefix_encoding([Encoding::default().content_type("text/html")])
+            .item_encoding(Encoding::default().content_type("image/*"))
+            .encoding("thumbnail", Encoding::default().content_type("image/png"));
+
+        let value = serde_json::to_value(&encoding).expect("serialize");
+        assert_json_eq!(
+            &value,
+            json!({
+              "contentType": "multipart/mixed",
+              "encoding": { "thumbnail": { "contentType": "image/png" } },
+              "prefixEncoding": [ { "contentType": "text/html" } ],
+              "itemEncoding": { "contentType": "image/*" }
+            })
+        );
+
+        let parsed: Encoding = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, encoding);
     }
 }

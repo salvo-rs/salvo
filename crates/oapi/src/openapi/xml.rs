@@ -15,7 +15,17 @@ use serde::{Deserialize, Serialize};
 /// [schema]: ../schema/index.html
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct Xml {
+    /// The kind of XML node the schema corresponds to. Added in OpenAPI 3.2.
+    ///
+    /// When set, [`Xml::attribute`] and [`Xml::wrapped`] must not be used — `nodeType` is the
+    /// replacement for both.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#xml-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_type: Option<XmlNodeType>,
+
     /// Used to replace the name of attribute or type used in schema property.
     /// When used with [`Xml::wrapped`] attribute the name will be used as a wrapper name
     /// for wrapped array instead of the item or type name.
@@ -31,13 +41,38 @@ pub struct Xml {
     pub prefix: Option<Cow<'static, str>>,
 
     /// Flag deciding will this attribute translate to element attribute instead of xml element.
+    ///
+    /// Deprecated in OpenAPI 3.2 in favour of [`XmlNodeType::Attribute`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribute: Option<bool>,
 
     /// Flag only usable with array definition. If set to true the output xml will wrap the array
     /// of items `<pets><pet></pet></pets>` instead of unwrapped `<pet></pet>`.
+    ///
+    /// Deprecated in OpenAPI 3.2 in favour of [`XmlNodeType::Element`] on the array schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrapped: Option<bool>,
+}
+
+/// The kind of XML [DOM node](https://dom.spec.whatwg.org/#interface-node) a schema describes.
+///
+/// Used by the OpenAPI 3.2 [`Xml::node_type`] field.
+///
+/// See <https://spec.openapis.org/oas/v3.2.0.html#xml-node-types>.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum XmlNodeType {
+    /// The schema represents an element and describes its contents.
+    Element,
+    /// The schema represents an attribute and describes its value.
+    Attribute,
+    /// The schema represents a text node (parsed character data).
+    Text,
+    /// The schema represents a CDATA section.
+    Cdata,
+    /// The schema does not correspond to any node; nodes for its subschemas are placed
+    /// directly under the parent schema's node.
+    None,
 }
 
 impl Xml {
@@ -51,6 +86,15 @@ impl Xml {
 }
 
 impl Xml {
+    /// Set [`Xml::node_type`]. Requires OpenAPI 3.2.
+    ///
+    /// Builder style chainable consuming add node type method.
+    #[must_use]
+    pub fn node_type(mut self, node_type: XmlNodeType) -> Self {
+        self.node_type = Some(node_type);
+        self
+    }
+
     /// Add [`Xml::name`] to xml object.
     ///
     /// Builder style chainable consuming add name method.
@@ -99,7 +143,7 @@ impl Xml {
 
 #[cfg(test)]
 mod tests {
-    use super::Xml;
+    use super::{Xml, XmlNodeType};
 
     #[test]
     fn xml_new() {
@@ -125,5 +169,31 @@ mod tests {
 
         xml = xml.wrapped(true);
         assert!(xml.wrapped.is_some());
+    }
+
+    #[test]
+    fn xml_node_type_round_trips() {
+        for (node_type, rendered) in [
+            (XmlNodeType::Element, "element"),
+            (XmlNodeType::Attribute, "attribute"),
+            (XmlNodeType::Text, "text"),
+            (XmlNodeType::Cdata, "cdata"),
+            (XmlNodeType::None, "none"),
+        ] {
+            let xml = Xml::new().node_type(node_type);
+            let value = serde_json::to_value(&xml).expect("serialize");
+            assert_eq!(value, serde_json::json!({ "nodeType": rendered }));
+            let parsed: Xml = serde_json::from_value(value).expect("deserialize");
+            assert_eq!(parsed.node_type, Some(node_type));
+        }
+    }
+
+    #[test]
+    fn xml_without_node_type_is_unchanged() {
+        let xml = Xml::new().name("pet").wrapped(true);
+        assert_eq!(
+            serde_json::to_value(&xml).expect("serialize"),
+            serde_json::json!({ "name": "pet", "wrapped": true })
+        );
     }
 }

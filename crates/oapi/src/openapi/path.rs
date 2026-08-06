@@ -56,6 +56,8 @@ impl Paths {
                 item.servers.append(&mut value.servers);
                 item.parameters.append(&mut value.parameters);
                 item.operations.append(&mut value.operations);
+                item.additional_operations
+                    .append(&mut value.additional_operations);
             })
             .or_insert(value);
     }
@@ -89,7 +91,7 @@ impl Paths {
 ///
 /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
+#[derive(Serialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PathItem {
     /// External reference to a Path Item Object defined elsewhere.
@@ -127,9 +129,71 @@ pub struct PathItem {
     #[serde(flatten, default)]
     pub operations: Operations,
 
+    /// Operations on this path that use an HTTP method with no dedicated field, e.g. a custom
+    /// or registered extension method. Added in OpenAPI 3.2.
+    ///
+    /// The key is the HTTP method with the exact capitalization sent in the request (e.g.
+    /// `PURGE`). Methods that already have a dedicated field must not appear here — use
+    /// [`PathItem::operations`] for those.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#path-item-object>.
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub additional_operations: PropMap<String, Operation>,
+
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
+}
+
+/// Deserializing a [`PathItem`] cannot be derived: the operation map and the extension map are
+/// both `flatten`ed, so serde would hand every unmatched key to *both* of them and an operation
+/// such as `get` would end up duplicated in `extensions`, making the value re-serialize with
+/// repeated keys. Partition the keys explicitly instead.
+impl<'de> Deserialize<'de> for PathItem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        fn field<T, E>(name: &str, value: serde_json::Value) -> Result<T, E>
+        where
+            T: serde::de::DeserializeOwned,
+            E: serde::de::Error,
+        {
+            serde_json::from_value(value)
+                .map_err(|e| E::custom(format!("invalid `{name}` in path item: {e}")))
+        }
+
+        let raw = PropMap::<String, serde_json::Value>::deserialize(deserializer)?;
+        let mut item = Self::default();
+        for (key, value) in raw {
+            match &*key {
+                "$ref" => item.ref_location = Some(field("$ref", value)?),
+                "summary" => item.summary = Some(field("summary", value)?),
+                "description" => item.description = Some(field("description", value)?),
+                "servers" => item.servers = field("servers", value)?,
+                "parameters" => item.parameters = field("parameters", value)?,
+                "additionalOperations" => {
+                    item.additional_operations = field("additionalOperations", value)?;
+                }
+                _ => {
+                    // A key naming an operation with a dedicated field goes to `operations`;
+                    // everything else (`x-*` and unknown keys) is kept as an extension.
+                    match serde_json::from_value::<PathItemType>(serde_json::Value::String(
+                        key.clone(),
+                    )) {
+                        Ok(item_type) => {
+                            item.operations
+                                .insert(item_type, field::<Operation, _>(&key, value)?);
+                        }
+                        Err(_) => {
+                            item.extensions.insert(key, value);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(item)
+    }
 }
 
 impl PathItem {
@@ -170,6 +234,8 @@ impl PathItem {
     /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Self) {
         self.operations.append(&mut other.operations);
+        self.additional_operations
+            .append(&mut other.additional_operations);
         self.servers.append(&mut other.servers);
         self.parameters.append(&mut other.parameters);
         if other.description.is_some() {
@@ -196,6 +262,27 @@ impl PathItem {
         operation: O,
     ) -> Self {
         self.operations.insert(path_item_type, operation.into());
+        self
+    }
+
+    /// Append an [`Operation`] for an HTTP method that has no dedicated Path Item field, e.g.
+    /// a custom method. Requires OpenAPI 3.2.
+    ///
+    /// `method` must be the HTTP method with the exact capitalization sent in the request, and
+    /// must not be one of the methods covered by [`PathItemType`].
+    ///
+    /// ```
+    /// # use salvo_oapi::{Operation, PathItem};
+    /// let item = PathItem::default().add_additional_operation("PURGE", Operation::new());
+    /// ```
+    #[must_use]
+    pub fn add_additional_operation<M: Into<String>, O: Into<Operation>>(
+        mut self,
+        method: M,
+        operation: O,
+    ) -> Self {
+        self.additional_operations
+            .insert(method.into(), operation.into());
         self
     }
 
@@ -239,9 +326,10 @@ impl PathItem {
 
 /// Path item operation type.
 ///
-/// Mirrors the HTTP methods supported by the OpenAPI 3.1 [Path Item Object][path_item];
+/// Mirrors the HTTP methods that have a dedicated field in the [Path Item Object][path_item];
 /// note that the spec deliberately does not list `CONNECT`, so it is intentionally absent
-/// here as well.
+/// here as well. Methods without a dedicated field go in
+/// [`PathItem::additional_operations`] instead.
 ///
 /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy, Debug)]
@@ -263,6 +351,11 @@ pub enum PathItemType {
     Patch,
     /// Type mapping for HTTP _TRACE_ request.
     Trace,
+    /// Type mapping for HTTP _QUERY_ request, as defined by
+    /// [draft-ietf-httpbis-safe-method-w-body](https://www.ietf.org/archive/id/draft-ietf-httpbis-safe-method-w-body-11.html).
+    ///
+    /// Added in OpenAPI 3.2; emitting it in a 3.1 document produces an invalid document.
+    Query,
 }
 
 #[cfg(test)]
@@ -471,6 +564,65 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn path_item_query_operation_serializes_under_query_key() {
+        let path_item = PathItem::new(PathItemType::Query, Operation::new());
+        assert_json_eq!(path_item, json!({ "query": { "responses": {} } }));
+
+        let parsed: PathItem =
+            serde_json::from_value(json!({ "query": { "responses": {} } })).expect("deserialize");
+        assert!(parsed.operations.contains_key(&PathItemType::Query));
+    }
+
+    #[test]
+    fn path_item_additional_operations_round_trip() {
+        let path_item = PathItem::new(PathItemType::Get, Operation::new())
+            .add_additional_operation("PURGE", Operation::new());
+
+        let value = serde_json::to_value(&path_item).expect("serialize");
+        assert_json_eq!(
+            &value,
+            json!({
+                "get": { "responses": {} },
+                "additionalOperations": { "PURGE": { "responses": {} } }
+            })
+        );
+
+        let parsed: PathItem = serde_json::from_value(value).expect("deserialize");
+        assert!(parsed.operations.contains_key(&PathItemType::Get));
+        assert!(parsed.additional_operations.contains_key("PURGE"));
+        assert_eq!(parsed, path_item);
+    }
+
+    #[test]
+    fn path_item_deserialize_keeps_operations_out_of_extensions() {
+        let raw = json!({
+            "summary": "summary",
+            "get": { "responses": {} },
+            "additionalOperations": { "PURGE": { "responses": {} } },
+            "x-internal": true
+        });
+
+        let item: PathItem = serde_json::from_value(raw.clone()).expect("deserialize");
+        assert!(item.operations.contains_key(&PathItemType::Get));
+        assert!(item.additional_operations.contains_key("PURGE"));
+        assert_eq!(item.extensions.len(), 1);
+        assert_eq!(item.extensions.get("x-internal"), Some(&json!(true)));
+
+        // Re-serializing must not emit `get` twice.
+        assert_json_eq!(serde_json::to_value(&item).expect("serialize"), raw);
+    }
+
+    #[test]
+    fn path_item_append_merges_additional_operations() {
+        let mut path_item = PathItem::default().add_additional_operation("PURGE", Operation::new());
+        let mut other = PathItem::default().add_additional_operation("LINK", Operation::new());
+        path_item.append(&mut other);
+
+        assert!(path_item.additional_operations.contains_key("PURGE"));
+        assert!(path_item.additional_operations.contains_key("LINK"));
     }
 
     #[test]

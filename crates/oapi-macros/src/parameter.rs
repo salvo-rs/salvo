@@ -318,20 +318,28 @@ pub(crate) struct StructParameter {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub(crate) enum ParameterIn {
     Query,
+    /// OpenAPI 3.2 `in: querystring`.
+    QueryString,
     Path,
     Header,
     Cookie,
 }
 
 impl ParameterIn {
-    pub(crate) const VARIANTS: &'static [Self] =
-        &[Self::Query, Self::Path, Self::Header, Self::Cookie];
+    pub(crate) const VARIANTS: &'static [Self] = &[
+        Self::Query,
+        Self::QueryString,
+        Self::Path,
+        Self::Header,
+        Self::Cookie,
+    ];
 }
 
 impl Display for ParameterIn {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Query => write!(f, "Query"),
+            Self::QueryString => write!(f, "QueryString"),
             Self::Path => write!(f, "Path"),
             Self::Header => write!(f, "Header"),
             Self::Cookie => write!(f, "Cookie"),
@@ -353,6 +361,7 @@ impl Parse for ParameterIn {
         match &*style {
             "path" => Ok(Self::Path),
             "query" => Ok(Self::Query),
+            "querystring" => Ok(Self::QueryString),
             "header" => Ok(Self::Header),
             "cookie" => Ok(Self::Cookie),
             _ => Err(Error::new(input.span(), expected_style())),
@@ -366,6 +375,7 @@ impl ToTokens for ParameterIn {
         tokens.extend(match self {
             Self::Path => quote! { #oapi::oapi::parameter::ParameterIn::Path },
             Self::Query => quote! { #oapi::oapi::parameter::ParameterIn::Query },
+            Self::QueryString => quote! { #oapi::oapi::parameter::ParameterIn::QueryString },
             Self::Header => quote! { #oapi::oapi::parameter::ParameterIn::Header },
             Self::Cookie => quote! { #oapi::oapi::parameter::ParameterIn::Cookie },
         })
@@ -382,11 +392,13 @@ pub(crate) enum ParameterStyle {
     SpaceDelimited,
     PipeDelimited,
     DeepObject,
+    /// OpenAPI 3.2 `style: cookie`.
+    Cookie,
 }
 
 impl Parse for ParameterStyle {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_STYLE: &str = "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject";
+        const EXPECTED_STYLE: &str = "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject, Cookie";
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {
@@ -397,6 +409,7 @@ impl Parse for ParameterStyle {
             "SpaceDelimited" => Ok(Self::SpaceDelimited),
             "PipeDelimited" => Ok(Self::PipeDelimited),
             "DeepObject" => Ok(Self::DeepObject),
+            "Cookie" => Ok(Self::Cookie),
             _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
         }
     }
@@ -422,6 +435,9 @@ impl ToTokens for ParameterStyle {
             }
             Self::DeepObject => {
                 tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject })
+            }
+            Self::Cookie => {
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Cookie })
             }
         }
     }

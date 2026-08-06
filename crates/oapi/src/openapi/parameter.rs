@@ -155,9 +155,14 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explode: Option<bool>,
 
-    /// Defines whether parameter should allow reserved characters defined by
-    /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2) _`:/?#[]@!$&'()*+,;=`_.
-    /// This is only applicable with [`ParameterIn::Query`]. Default value is _`false`_.
+    /// When _`true`_, values are serialized using reserved expansion, letting the reserved
+    /// characters defined by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2)
+    /// _`:/?#[]@!$&'()*+,;=`_ and percent-encoded triples pass through unchanged.
+    /// Default value is _`false`_.
+    ///
+    /// OpenAPI 3.1 restricted this to [`ParameterIn::Query`]; OpenAPI 3.2 defines it in terms of
+    /// RFC6570 reserved expansion, so it also applies to [`ParameterIn::Path`] parameters using
+    /// an RFC6570-based style.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_reserved: Option<bool>,
 
@@ -401,7 +406,19 @@ impl Parameter {
 #[serde(rename_all = "lowercase")]
 pub enum ParameterIn {
     /// Declares that parameter is used as query parameter.
+    ///
+    /// Must not appear in the same operation as a [`ParameterIn::QueryString`] parameter.
     Query,
+    /// Declares that the parameter is the entire URL query string, treated as a single value.
+    /// Added in OpenAPI 3.2.
+    ///
+    /// Such a parameter must describe its value with [`Parameter::content`] rather than
+    /// [`Parameter::schema`], must not appear more than once, and must not be combined with any
+    /// [`ParameterIn::Query`] parameter in the same operation.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#parameter-locations>.
+    #[serde(rename = "querystring")]
+    QueryString,
     /// Declares that parameter is used as path parameter.
     #[default]
     Path,
@@ -439,6 +456,12 @@ pub enum ParameterStyle {
     /// Simple way of rendering nested objects using form parameters .e.g. _`color[B]=150`_.
     /// Allowed with [`ParameterIn::Query`].
     DeepObject,
+    /// Cookie style parameters as defined by [RFC6265](https://www.rfc-editor.org/rfc/rfc6265),
+    /// e.g. _`name=value; other=thing`_. Added in OpenAPI 3.2 and allowed only with
+    /// [`ParameterIn::Cookie`].
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#style-values>.
+    Cookie,
 }
 
 #[cfg(test)]
@@ -573,6 +596,46 @@ mod tests {
     fn test_build_parameters() {
         let parameters = Parameters::new();
         assert!(parameters.is_empty());
+    }
+
+    #[test]
+    fn parameter_in_querystring_round_trips() {
+        let parameter = Parameter::new("query")
+            .location(ParameterIn::QueryString)
+            .content(
+                "application/x-www-form-urlencoded",
+                crate::Content::new(Schema::object(Object::new())),
+            );
+
+        let value = serde_json::to_value(&parameter).expect("serialize");
+        assert_eq!(value["in"], json!("querystring"));
+
+        let parsed: Parameter = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed.parameter_in, ParameterIn::QueryString);
+    }
+
+    #[test]
+    fn parameter_style_cookie_round_trips() {
+        let parameter = Parameter::new("session")
+            .location(ParameterIn::Cookie)
+            .style(ParameterStyle::Cookie);
+
+        let value = serde_json::to_value(&parameter).expect("serialize");
+        assert_eq!(value["style"], json!("cookie"));
+
+        let parsed: Parameter = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed.style, Some(ParameterStyle::Cookie));
+    }
+
+    #[test]
+    fn querystring_and_query_parameters_are_distinct_entries() {
+        let mut parameters = Parameters::new();
+        parameters.insert(Parameter::new("q").location(ParameterIn::Query));
+        parameters.insert(Parameter::new("q").location(ParameterIn::QueryString));
+
+        assert!(parameters.contains("q", ParameterIn::Query));
+        assert!(parameters.contains("q", ParameterIn::QueryString));
+        assert_eq!(parameters.0.len(), 2);
     }
 
     #[test]

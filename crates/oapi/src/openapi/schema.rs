@@ -194,6 +194,16 @@ pub struct Discriminator {
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub mapping: PropMap<String, String>,
 
+    /// The schema name or URI reference to the schema that validates the payload when the
+    /// discriminating property is absent, or holds a value with no explicit or implicit
+    /// mapping. Added in OpenAPI 3.2.
+    ///
+    /// Required by the spec when the discriminating property is optional.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#discriminator-object>.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub default_mapping: Option<String>,
+
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
@@ -213,8 +223,24 @@ impl Discriminator {
         Self {
             property_name: property_name.into(),
             mapping: PropMap::new(),
+            default_mapping: None,
             extensions: PropMap::new(),
         }
+    }
+
+    /// Add a mapping between a payload value and a schema name or URI reference.
+    #[must_use]
+    pub fn add_mapping<K: Into<String>, V: Into<String>>(mut self, value: K, schema: V) -> Self {
+        self.mapping.insert(value.into(), schema.into());
+        self
+    }
+
+    /// Set the fallback schema used when the discriminating property is missing or unmapped.
+    /// Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn default_mapping<I: Into<String>>(mut self, default_mapping: I) -> Self {
+        self.default_mapping = Some(default_mapping.into());
+        self
     }
 
     /// Add openapi extensions (`x-something`) for [`Discriminator`].
@@ -887,7 +913,13 @@ mod tests {
             )])
             .response("204", Response::new("No Content"))
             .extend_responses(vec![("200", Response::new("Okay"))])
-            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .add_security_scheme(
+                "TLS",
+                SecurityScheme::MutualTls {
+                    description: None,
+                    deprecated: None,
+                },
+            )
             .extend_security_schemes(vec![(
                 "APIKey",
                 SecurityScheme::Http(security::Http::default()),

@@ -145,7 +145,18 @@ where
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
+    /// Short summary of the meaning of the response. Added in OpenAPI 3.2.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#response-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+
     /// Description of the response. Response support markdown syntax.
+    ///
+    /// Required in OpenAPI 3.1 and optional as of OpenAPI 3.2, so documents that omit it
+    /// deserialize into an empty `String`. It is always serialized — an empty description is
+    /// valid under both versions, whereas omitting it would be invalid 3.1.
+    #[serde(default)]
     pub description: String,
 
     /// Map of headers identified by their name. `Content-Type` header will be ignored.
@@ -187,6 +198,13 @@ impl Response {
     #[must_use]
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
         self.description = description.into();
+        self
+    }
+
+    /// Add a short summary of the meaning of the response. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn summary<I: Into<String>>(mut self, summary: I) -> Self {
+        self.summary = Some(summary.into());
         self
     }
 
@@ -274,6 +292,21 @@ mod tests {
             })
         );
         Ok(())
+    }
+
+    #[test]
+    fn response_summary_serializes_and_description_is_optional_on_input() {
+        let response = Response::new("A sample response").summary("Sample");
+        assert_json_eq!(
+            response,
+            json!({ "summary": "Sample", "description": "A sample response" })
+        );
+
+        // OpenAPI 3.2 makes `description` optional; such a document must still parse.
+        let parsed: Response =
+            serde_json::from_value(json!({ "summary": "Sample" })).expect("deserialize");
+        assert_eq!(parsed.summary.as_deref(), Some("Sample"));
+        assert_eq!(parsed.description, "");
     }
 
     #[test]

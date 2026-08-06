@@ -76,12 +76,22 @@ fn normalize_oapi_path(path: &str) -> String {
     normalized
 }
 
+/// Where an operation discovered on a route belongs inside a Path Item Object.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OperationSlot {
+    /// A method with a dedicated Path Item field.
+    Standard(PathItemType),
+    /// A method with no dedicated field, emitted under `additionalOperations`. The value is
+    /// the method name with the capitalization sent in the request. Requires OpenAPI 3.2.
+    Additional(String),
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
     // pub(crate) router_id: usize,
     pub(crate) handler_type_id: Option<TypeId>,
     pub(crate) handler_type_name: Option<&'static str>,
-    pub(crate) method: Option<PathItemType>,
+    pub(crate) method: Option<OperationSlot>,
     pub(crate) path: Option<String>,
     pub(crate) children: Vec<Self>,
     pub(crate) metadata: Metadata,
@@ -110,34 +120,31 @@ impl NormNode {
                     node.path = Some(normalize_oapi_path(&path));
                 }
                 FilterInfo::Method(method) => {
-                    // Only overwrite when the method maps to a known
-                    // `PathItemType`; unknown/extension methods leave any
-                    // previously recognized value in place so combining a
-                    // standard method filter with a custom one does not erase
-                    // the standard mapping (the previous string-parsing path
-                    // had the same behavior via its `_ => {}` arm).
-                    //
-                    // CONNECT is intentionally not mapped: OpenAPI 3.1 does
-                    // not define a `connect` operation under Path Item, so
-                    // emitting one would produce an invalid document.
+                    // Methods with a dedicated Path Item field map to `PathItemType`;
+                    // everything else (CONNECT and custom/extension methods) goes to
+                    // `additionalOperations`, which requires OpenAPI 3.2. Whether such a
+                    // slot is actually emitted is decided later, when the document version
+                    // is known.
                     let item = match method {
-                        Method::GET => Some(PathItemType::Get),
-                        Method::POST => Some(PathItemType::Post),
-                        Method::PUT => Some(PathItemType::Put),
-                        Method::DELETE => Some(PathItemType::Delete),
-                        Method::HEAD => Some(PathItemType::Head),
-                        Method::OPTIONS => Some(PathItemType::Options),
-                        Method::TRACE => Some(PathItemType::Trace),
-                        Method::PATCH => Some(PathItemType::Patch),
-                        _ => None,
+                        Method::GET => OperationSlot::Standard(PathItemType::Get),
+                        Method::POST => OperationSlot::Standard(PathItemType::Post),
+                        Method::PUT => OperationSlot::Standard(PathItemType::Put),
+                        Method::DELETE => OperationSlot::Standard(PathItemType::Delete),
+                        Method::HEAD => OperationSlot::Standard(PathItemType::Head),
+                        Method::OPTIONS => OperationSlot::Standard(PathItemType::Options),
+                        Method::TRACE => OperationSlot::Standard(PathItemType::Trace),
+                        Method::PATCH => OperationSlot::Standard(PathItemType::Patch),
+                        Method::QUERY => OperationSlot::Standard(PathItemType::Query),
+                        other => OperationSlot::Additional(other.as_str().to_owned()),
                     };
-                    if item.is_some() {
-                        node.method = item;
-                    } else if method == Method::CONNECT {
-                        tracing::warn!(
-                            "HTTP CONNECT has no OpenAPI 3.1 mapping; the route will be \
-                             omitted from the generated document"
-                        );
+                    // A standard method never loses to a custom one, so combining a
+                    // standard method filter with a custom one does not erase the standard
+                    // mapping (the previous string-parsing path had the same behavior via
+                    // its `_ => {}` arm).
+                    if matches!(item, OperationSlot::Standard(_))
+                        || !matches!(node.method, Some(OperationSlot::Standard(_)))
+                    {
+                        node.method = Some(item);
                     }
                 }
                 // Other filter kinds (Scheme/Host/Port/Other) do not carry
