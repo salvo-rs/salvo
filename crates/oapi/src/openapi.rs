@@ -52,9 +52,9 @@ pub use self::schema::{
 pub use self::security::{SecurityRequirement, SecurityScheme};
 pub use self::server::{Server, ServerVariable, ServerVariables, Servers};
 pub use self::tag::Tag;
-pub use self::xml::Xml;
+pub use self::xml::{Xml, XmlNodeType};
 use crate::Endpoint;
-use crate::routing::NormNode;
+use crate::routing::{NormNode, OperationSlot};
 
 static PATH_PARAMETER_NAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{([^}:]+)").expect("invalid regex"));
@@ -107,7 +107,7 @@ pub struct OpenApi {
     /// This is implicitly one server with `url` set to `/`.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#server-object>.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub servers: BTreeSet<Server>,
 
     /// Available paths and operations for the API.
@@ -129,7 +129,7 @@ pub struct OpenApi {
     /// Few of these elements are security schemas and object schemas.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#components-object>.
-    #[serde(skip_serializing_if = "Components::is_empty")]
+    #[serde(default, skip_serializing_if = "Components::is_empty")]
     pub components: Components,
 
     /// Declaration of global security mechanisms that can be used across the API. The individual
@@ -137,13 +137,13 @@ pub struct OpenApi {
     /// if you wish to make security optional by adding it to the list of securities.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#security-requirement-object>.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub security: BTreeSet<SecurityRequirement>,
 
     /// List of tags can be used to add additional documentation to matching tags of operations.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#tag-object>.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub tags: BTreeSet<Tag>,
 
     /// Global additional documentation reference.
@@ -203,6 +203,24 @@ impl OpenApi {
     /// Set the OpenAPI Specification version used by this document.
     ///
     /// New documents default to OpenAPI 3.1. Use this method to opt in to OpenAPI 3.2.
+    ///
+    /// # Version-aware generation
+    ///
+    /// [`OpenApi::merge_router`] only emits constructs the declared version supports: `QUERY`
+    /// routes and custom HTTP methods (which need the 3.2 `query` field and
+    /// `additionalOperations` respectively) are skipped with a warning while the document
+    /// declares 3.1.
+    ///
+    /// Fields you set by hand are *not* validated against the declared version — building a
+    /// [`Tag`] with `kind` and leaving the document at 3.1 produces a 3.1 document carrying a
+    /// 3.2 field. Set the version first.
+    ///
+    /// # Documentation UI support
+    ///
+    /// All four bundled UIs load a 3.2 document, but their support for the new `query`
+    /// operation differs. As of Swagger UI v5.32.11 (vendored in this crate) `query` operations
+    /// render correctly; Scalar, RapiDoc and ReDoc — which load from a CDN at runtime — display
+    /// the rest of the document but omit `query` operations.
     ///
     /// # Examples
     ///
@@ -634,7 +652,32 @@ impl OpenApi {
         if let Some(handler_type_id) = &node.handler_type_id
             && let Some(creator) = crate::EndpointRegistry::find(handler_type_id)
         {
-            if let Some(method) = node.method {
+            // `query` operations and `additionalOperations` were both added in OpenAPI 3.2.
+            // Emitting either into a document that still declares 3.1 would make it invalid,
+            // so drop the slot and tell the user how to opt in.
+            let slot = node.method.clone().filter(|slot| {
+                let requires_3_2 = match slot {
+                    OperationSlot::Standard(PathItemType::Query) => Some("QUERY"),
+                    OperationSlot::Additional(method) => Some(&**method),
+                    OperationSlot::Standard(_) => None,
+                };
+                match requires_3_2 {
+                    Some(method) if self.openapi == OpenApiVersion::Version3_1 => {
+                        tracing::warn!(
+                            path,
+                            method,
+                            handler_name = node.handler_type_name,
+                            "HTTP method has no OpenAPI 3.1 representation; skipping in the \
+                             generated document. Call `OpenApi::openapi_version` with \
+                             `OpenApiVersion::Version3_2` to emit it"
+                        );
+                        false
+                    }
+                    _ => true,
+                }
+            });
+
+            if let Some(slot) = slot {
                 let Endpoint {
                     mut operation,
                     mut components,
@@ -674,18 +717,31 @@ impl OpenApi {
                     }
                 }
                 let path_item = self.paths.entry(path.clone()).or_default();
-                if path_item.operations.contains_key(&method) {
+                let occupied = match &slot {
+                    OperationSlot::Standard(method) => path_item.operations.contains_key(method),
+                    OperationSlot::Additional(method) => {
+                        path_item.additional_operations.contains_key(method)
+                    }
+                };
+                if occupied {
                     tracing::warn!(
                         "path `{}` already contains operation for method `{:?}`",
                         path,
-                        method
+                        slot
                     );
                 } else {
-                    path_item.operations.insert(method, operation);
+                    match slot {
+                        OperationSlot::Standard(method) => {
+                            path_item.operations.insert(method, operation);
+                        }
+                        OperationSlot::Additional(method) => {
+                            path_item.additional_operations.insert(method, operation);
+                        }
+                    }
                 }
                 self.components.append(&mut components);
-            } else {
-                // No method filter on this route: OpenAPI 3.1 has no "any-method"
+            } else if node.method.is_none() {
+                // No method filter on this route: OpenAPI has no "any-method"
                 // operation slot, so attaching the same handler to GET/POST/PUT/PATCH
                 // would lie about the API. Skip and warn so the user can attach a
                 // method filter (`.get(handler)`, `.post(handler)`, ...) explicitly.
@@ -1524,6 +1580,64 @@ mod tests {
     }
 
     #[test]
+    fn merge_router_emits_query_operation_only_for_3_2() {
+        #[salvo_oapi::endpoint]
+        async fn search() -> &'static str {
+            "ok"
+        }
+
+        let router = Router::with_path("/search").query(search);
+
+        // `query` is an OpenAPI 3.2 Path Item field, so a 3.1 document must not carry it.
+        let doc_3_1 = OpenApi::new("test api", "0.0.1").merge_router(&router);
+        assert!(
+            !doc_3_1.paths.contains_key("/search"),
+            "QUERY must not be emitted into a 3.1 document"
+        );
+
+        let doc_3_2 = OpenApi::new("test api", "0.0.1")
+            .openapi_version(OpenApiVersion::Version3_2)
+            .merge_router(&router);
+        let path_item = doc_3_2
+            .paths
+            .get("/search")
+            .expect("/search entry should exist");
+        assert!(path_item.operations.contains_key(&PathItemType::Query));
+    }
+
+    #[test]
+    fn merge_router_emits_custom_method_as_additional_operation() {
+        use salvo_core::http::Method;
+
+        #[salvo_oapi::endpoint]
+        async fn purge() -> &'static str {
+            "ok"
+        }
+
+        let router = Router::with_path("/cache")
+            .filter(salvo_core::routing::filters::MethodFilter(
+                Method::from_bytes(b"PURGE").expect("valid method"),
+            ))
+            .goal(purge);
+
+        let doc_3_1 = OpenApi::new("test api", "0.0.1").merge_router(&router);
+        assert!(
+            !doc_3_1.paths.contains_key("/cache"),
+            "custom methods must not be emitted into a 3.1 document"
+        );
+
+        let doc_3_2 = OpenApi::new("test api", "0.0.1")
+            .openapi_version(OpenApiVersion::Version3_2)
+            .merge_router(&router);
+        let path_item = doc_3_2
+            .paths
+            .get("/cache")
+            .expect("/cache entry should exist");
+        assert!(path_item.operations.is_empty());
+        assert!(path_item.additional_operations.contains_key("PURGE"));
+    }
+
+    #[test]
     fn merge_router_attaches_only_to_explicit_method() {
         #[salvo_oapi::endpoint]
         async fn delete_thing() -> &'static str {
@@ -1557,7 +1671,13 @@ mod tests {
                 "api_key",
                 SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
             )
-            .extend_security_schemes([("TLS", SecurityScheme::MutualTls { description: None })])
+            .extend_security_schemes([(
+                "TLS",
+                SecurityScheme::MutualTls {
+                    description: None,
+                    deprecated: None,
+                },
+            )])
             .add_schema("example", Schema::object(Object::new()))
             .extend_schemas([("", Schema::from(Object::new()))])
             .response("200", Response::new("OK"))

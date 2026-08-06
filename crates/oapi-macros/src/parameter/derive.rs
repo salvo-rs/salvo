@@ -110,7 +110,11 @@ impl TryToTokens for ToParameters {
                 default_parameter_in
             {
                 match default_parameter_in {
-                    ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
+                    // `querystring` describes the whole query string as one value; salvo
+                    // extracts from the same place, so it shares `SourceFrom::Query`.
+                    ParameterIn::Query | ParameterIn::QueryString => {
+                        quote! { #salvo::extract::metadata::SourceFrom::Query }
+                    }
                     ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
                     ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
                     ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
@@ -478,7 +482,12 @@ impl Parameter<'_> {
         });
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
-                attributes::ParameterIn(crate::parameter::ParameterIn::Query) => {
+                // `querystring` describes the whole query string as one value; salvo extracts
+                // from the same place, so it shares `SourceFrom::Query`.
+                attributes::ParameterIn(
+                    crate::parameter::ParameterIn::Query
+                    | crate::parameter::ParameterIn::QueryString,
+                ) => {
                     quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Query, #salvo::extract::metadata::SourceParser::Smart) }
                 }
                 attributes::ParameterIn(crate::parameter::ParameterIn::Header) => {

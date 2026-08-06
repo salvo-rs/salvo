@@ -5,8 +5,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Callback, Example, Header, Link, Parameter, PathItem, PropMap, RefOr, RequestBody, Response,
-    Responses, Schema, Schemas, SecurityScheme,
+    Callback, Content, Example, Header, Link, Parameter, PathItem, PropMap, RefOr, RequestBody,
+    Response, Responses, Schema, Schemas, SecurityScheme,
 };
 
 /// Implements [OpenAPI Components Object][components] which holds supported
@@ -82,6 +82,15 @@ pub struct Components {
     /// [path_item]: https://spec.openapis.org/oas/v3.1.0#path-item-object
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub path_items: PropMap<String, RefOr<PathItem>>,
+
+    /// Map of reusable [OpenAPI Media Type Object][media_type]s, indexed by name. Added in
+    /// OpenAPI 3.2; entries here can be referenced from any `content` map via [`RefOr::Ref`].
+    ///
+    /// Note that the key is a component name (matching `^[a-zA-Z0-9\.\-_]+$`), not a media type.
+    ///
+    /// [media_type]: https://spec.openapis.org/oas/v3.2.0.html#media-type-object
+    #[serde(skip_serializing_if = "PropMap::is_empty", default)]
+    pub media_types: PropMap<String, RefOr<Content>>,
 
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
@@ -284,6 +293,21 @@ impl Components {
         self
     }
 
+    /// Insert a reusable media type (or a [`Ref`](crate::Ref) to one) and return `self`.
+    ///
+    /// Reusable Media Type Objects were introduced in OpenAPI 3.2. `name` is a component name,
+    /// not a media type; entries are referenced as
+    /// `#/components/mediaTypes/{name}` from a `content` map.
+    #[must_use]
+    pub fn add_media_type<N: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        name: N,
+        media_type: C,
+    ) -> Self {
+        self.media_types.insert(name.into(), media_type.into());
+        self
+    }
+
     /// Moves all elements from `other` into `self`, leaving `other` empty.
     ///
     /// If a key from `other` is already present in `self`, the existing value is kept and
@@ -338,6 +362,11 @@ impl Components {
         self.path_items.append(&mut other.path_items);
 
         other
+            .media_types
+            .retain(|name, _| !self.media_types.contains_key(name));
+        self.media_types.append(&mut other.media_types);
+
+        other
             .extensions
             .retain(|name, _| !self.extensions.contains_key(name));
         self.extensions.append(&mut other.extensions);
@@ -363,6 +392,7 @@ impl Components {
             && self.links.is_empty()
             && self.callbacks.is_empty()
             && self.path_items.is_empty()
+            && self.media_types.is_empty()
             && self.extensions.is_empty()
     }
 }

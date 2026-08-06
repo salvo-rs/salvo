@@ -31,6 +31,12 @@ pub struct Info {
     /// Title of the API.
     pub title: String,
 
+    /// Optional short summary of the API. Added in OpenAPI 3.1.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#info-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+
     /// Optional description of the API.
     ///
     /// Value supports markdown syntax.
@@ -92,6 +98,13 @@ impl Info {
     #[must_use]
     pub fn version<I: Into<String>>(mut self, version: I) -> Self {
         self.version = version.into();
+        self
+    }
+
+    /// Set the short summary of the API.
+    #[must_use]
+    pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
+        self.summary = Some(summary.into());
         self
     }
 

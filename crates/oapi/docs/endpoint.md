@@ -328,7 +328,8 @@ tuples separated by commas:
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
   This must be one of the variants of [`parameter::ParameterIn`][in_enum].
-  E.g. _`Path, Query, Header, Cookie`_
+  E.g. _`Path, Query, QueryString, Header, Cookie`_. _`QueryString`_ requires an
+  OpenAPI 3.2 document.
 
 * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
   with explicit `bool` value as _`deprecated = bool`_.

@@ -43,7 +43,7 @@ pub struct Link {
     /// be any value supported by JSON or an [expression][expression] e.g. `$path.id`
     ///
     /// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
-    #[serde(skip_serializing_if = "PropMap::is_empty")]
+    #[serde(default, skip_serializing_if = "PropMap::is_empty")]
     pub parameters: PropMap<String, serde_json::Value>,
 
     /// A literal value or an [expression][expression] to be used as request body when operation is

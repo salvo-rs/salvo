@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::iter;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::PropMap;
 
@@ -38,12 +38,24 @@ impl SecurityRequirement {
     /// needed by the [`SecurityRequirement`]. Scopes must match to the ones defined in
     /// [`SecurityScheme`].
     ///
+    /// As of OpenAPI 3.2 the name may instead be the URI of a Security Scheme Object. A name
+    /// identical to a component name is always resolved as a component name, so to reference a
+    /// scheme by a single-segment relative URI that collides with a component name, prefix it
+    /// with `./` (e.g. `./foo`). No such resolution is performed here — the name is stored
+    /// verbatim.
+    ///
     /// # Examples
     ///
     /// Creates a new security requirement with scopes.
     /// ```
     /// # use salvo_oapi::security::SecurityRequirement;
     /// SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+    /// ```
+    ///
+    /// Reference a security scheme by URI (OpenAPI 3.2).
+    /// ```
+    /// # use salvo_oapi::security::SecurityRequirement;
+    /// SecurityRequirement::new("https://example.com/schemes.json#/oauth", ["read:items"]);
     /// ```
     ///
     /// You can also create an empty security requirement with `Default::default()`.
@@ -142,6 +154,9 @@ pub enum SecurityScheme {
         /// Description information.
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
+        /// Declares this security scheme deprecated. Added in OpenAPI 3.2.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        deprecated: Option<bool>,
     },
 }
 impl From<OAuth2> for SecurityScheme {
@@ -183,6 +198,10 @@ pub struct ApiKeyValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Declares this security scheme deprecated. Added in OpenAPI 3.2; defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<bool>,
+
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
@@ -202,6 +221,7 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -219,8 +239,16 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: Some(description.into()),
+            deprecated: None,
             extensions: Default::default(),
         }
+    }
+
+    /// Mark this [`ApiKeyValue`] deprecated. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
+        self.deprecated = Some(deprecated);
+        self
     }
 
     /// Add openapi extensions (`x-something`) for [`ApiKeyValue`].
@@ -250,6 +278,10 @@ pub struct Http {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Declares this security scheme deprecated. Added in OpenAPI 3.2; defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<bool>,
+
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
@@ -273,6 +305,7 @@ impl Http {
             scheme,
             bearer_format: None,
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -308,6 +341,13 @@ impl Http {
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
 
+        self
+    }
+
+    /// Mark this [`Http`] security scheme deprecated. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
+        self.deprecated = Some(deprecated);
         self
     }
 
@@ -362,6 +402,10 @@ pub struct OpenIdConnect {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Declares this security scheme deprecated. Added in OpenAPI 3.2; defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<bool>,
+
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
@@ -380,6 +424,7 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -397,8 +442,16 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: Some(description.into()),
+            deprecated: None,
             extensions: Default::default(),
         }
+    }
+
+    /// Mark this [`OpenIdConnect`] security scheme deprecated. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
+        self.deprecated = Some(deprecated);
+        self
     }
 
     /// Add openapi extensions (`x-something`) for [`OpenIdConnect`].
@@ -412,13 +465,28 @@ impl OpenIdConnect {
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct OAuth2 {
-    /// Map of supported OAuth2 flows.
+    /// Map of supported OAuth2 flows, keyed by the flow name defined by the
+    /// [OAuth Flows Object][flows].
+    ///
+    /// [flows]: https://spec.openapis.org/oas/v3.2.0.html#oauth-flows-object
+    #[serde(deserialize_with = "deserialize_flows")]
     pub flows: PropMap<String, Flow>,
 
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// URL to the OAuth2 authorization server metadata
+    /// ([RFC8414](https://datatracker.ietf.org/doc/html/rfc8414)). TLS is required.
+    /// Added in OpenAPI 3.2.
+    #[serde(rename = "oauth2MetadataUrl", skip_serializing_if = "Option::is_none")]
+    pub oauth2_metadata_url: Option<String>,
+
+    /// Declares this security scheme deprecated. Added in OpenAPI 3.2; defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<bool>,
 
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
@@ -463,6 +531,8 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: None,
+            oauth2_metadata_url: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -507,9 +577,62 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: Some(description.into()),
+            oauth2_metadata_url: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
+
+    /// Set the OAuth2 authorization server metadata URL. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn oauth2_metadata_url<S: Into<String>>(mut self, oauth2_metadata_url: S) -> Self {
+        self.oauth2_metadata_url = Some(oauth2_metadata_url.into());
+        self
+    }
+
+    /// Mark this [`OAuth2`] security scheme deprecated. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
+        self.deprecated = Some(deprecated);
+        self
+    }
+}
+
+/// Deserialize the [`OAuth2::flows`] map by dispatching on the flow name rather than relying on
+/// [`Flow`]'s untagged representation.
+///
+/// Several flows are structurally indistinguishable — `password` and `clientCredentials` have
+/// identical fields, and `deviceAuthorization` is a superset of both — so an untagged match would
+/// resolve them by declaration order and pick the wrong variant. The map key names the flow, so
+/// use it.
+fn deserialize_flows<'de, D>(deserializer: D) -> Result<PropMap<String, Flow>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    fn flow<T, E>(name: &str, value: serde_json::Value) -> Result<T, E>
+    where
+        T: serde::de::DeserializeOwned,
+        E: serde::de::Error,
+    {
+        serde_json::from_value(value)
+            .map_err(|e| E::custom(format!("invalid `{name}` oauth2 flow: {e}")))
+    }
+
+    let raw = PropMap::<String, serde_json::Value>::deserialize(deserializer)?;
+    let mut flows = PropMap::new();
+    for (key, value) in raw {
+        let parsed = match &*key {
+            "implicit" => Flow::Implicit(flow(&key, value)?),
+            "password" => Flow::Password(flow(&key, value)?),
+            "clientCredentials" => Flow::ClientCredentials(flow(&key, value)?),
+            "authorizationCode" => Flow::AuthorizationCode(flow(&key, value)?),
+            "deviceAuthorization" => Flow::DeviceAuthorization(flow(&key, value)?),
+            // Unknown flow name: fall back to matching on shape.
+            _ => flow(&key, value)?,
+        };
+        flows.insert(key, parsed);
+    }
+    Ok(flows)
 }
 
 /// [`OAuth2`] flow configuration object.
@@ -519,6 +642,14 @@ impl OAuth2 {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(untagged)]
 pub enum Flow {
+    /// Define device authorization [`Flow`] type. See [`DeviceAuthorization::new`] for usage
+    /// details. Added in OpenAPI 3.2.
+    ///
+    /// Declared first because this enum is untagged: the other variants ignore the unknown
+    /// `deviceAuthorizationUrl` key, so a device flow reached through a bare `Flow`
+    /// deserialization would otherwise be misparsed as [`Flow::Password`]. Inside an
+    /// [`OAuth2`] document the flow name decides the variant — see [`deserialize_flows`].
+    DeviceAuthorization(DeviceAuthorization),
     /// Define implicit [`Flow`] type. See [`Implicit::new`] for usage details.
     ///
     /// Soon to be deprecated by <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics>.
@@ -534,6 +665,7 @@ pub enum Flow {
 impl Flow {
     fn get_type_as_str(&self) -> &str {
         match self {
+            Self::DeviceAuthorization(_) => "deviceAuthorization",
             Self::Implicit(_) => "implicit",
             Self::Password(_) => "password",
             Self::ClientCredentials(_) => "clientCredentials",
@@ -916,6 +1048,90 @@ impl ClientCredentials {
     }
 
     /// Add openapi extensions (`x-something`) for [`ClientCredentials`].
+    #[must_use]
+    pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
+        self.extensions = extensions;
+        self
+    }
+}
+
+/// Device authorization [`Flow`] configuration for [`OAuth2`], as defined by
+/// [RFC8628](https://tools.ietf.org/html/rfc8628). Added in OpenAPI 3.2.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceAuthorization {
+    /// Device authorization url for this flow. OAuth2 standard requires TLS.
+    pub device_authorization_url: String,
+
+    /// Token url for this flow. OAuth2 standard requires TLS.
+    pub token_url: String,
+
+    /// Optional refresh token url.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
+}
+
+impl DeviceAuthorization {
+    /// Construct a new device authorization OAuth flow.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_oapi::security::{DeviceAuthorization, Scopes};
+    /// DeviceAuthorization::new(
+    ///     "https://localhost/device_authorization",
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([("edit:items", "edit my items")]),
+    /// );
+    /// ```
+    pub fn new<S: Into<String>>(device_authorization_url: S, token_url: S, scopes: Scopes) -> Self {
+        Self {
+            device_authorization_url: device_authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: None,
+            scopes,
+            extensions: Default::default(),
+        }
+    }
+
+    /// Construct a new device authorization OAuth flow with an additional refresh URL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_oapi::security::{DeviceAuthorization, Scopes};
+    /// DeviceAuthorization::with_refresh_url(
+    ///     "https://localhost/device_authorization",
+    ///     "https://localhost/token",
+    ///     Scopes::new(),
+    ///     "https://localhost/refresh-token",
+    /// );
+    /// ```
+    pub fn with_refresh_url<S: Into<String>>(
+        device_authorization_url: S,
+        token_url: S,
+        scopes: Scopes,
+        refresh_url: S,
+    ) -> Self {
+        Self {
+            device_authorization_url: device_authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+            extensions: Default::default(),
+        }
+    }
+
+    /// Add openapi extensions (`x-something`) for [`DeviceAuthorization`].
     #[must_use]
     pub fn extensions(mut self, extensions: PropMap<String, serde_json::Value>) -> Self {
         self.extensions = extensions;
@@ -1449,11 +1665,113 @@ mod tests {
     test_fn! {
         security_scheme_correct_mutual_tls:
         SecurityScheme::MutualTls {
-            description: Some(String::from("authorization is performed with client side certificate"))
+            description: Some(String::from("authorization is performed with client side certificate")),
+            deprecated: None
         };
         r###"{
   "type": "mutualTLS",
   "description": "authorization is performed with client side certificate"
 }"###
+    }
+
+    #[test]
+    fn security_requirement_accepts_uri_references() {
+        // OpenAPI 3.2 allows a requirement name to be a URI, a `./`-prefixed relative
+        // reference disambiguating a component-name collision, or a plain component name.
+        let requirement = SecurityRequirement::new("api_key", Vec::<String>::new())
+            .add("./foo", ["read:items"])
+            .add("https://example.com/schemes.json#/oauth", ["write:items"]);
+
+        let value = serde_json::to_value(&requirement).expect("serialize");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "api_key": [],
+                "./foo": ["read:items"],
+                "https://example.com/schemes.json#/oauth": ["write:items"]
+            })
+        );
+
+        let parsed: SecurityRequirement = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, requirement);
+    }
+
+    #[test]
+    fn device_authorization_flow_round_trips_under_its_own_key() {
+        let scheme = SecurityScheme::OAuth2(OAuth2::new([Flow::DeviceAuthorization(
+            DeviceAuthorization::with_refresh_url(
+                "https://localhost/device_authorization",
+                "https://localhost/token",
+                Scopes::one("edit:items", "edit my items"),
+                "https://localhost/refresh",
+            ),
+        )]));
+
+        let value = serde_json::to_value(&scheme).expect("serialize");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "type": "oauth2",
+                "flows": {
+                    "deviceAuthorization": {
+                        "deviceAuthorizationUrl": "https://localhost/device_authorization",
+                        "tokenUrl": "https://localhost/token",
+                        "refreshUrl": "https://localhost/refresh",
+                        "scopes": { "edit:items": "edit my items" }
+                    }
+                }
+            })
+        );
+
+        // `Flow` is untagged, so the device flow must not be swallowed by `Password`, whose
+        // fields are a subset of it.
+        let parsed: SecurityScheme = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, scheme);
+    }
+
+    #[test]
+    fn oauth2_metadata_url_and_deprecated_serialize() {
+        let scheme = SecurityScheme::OAuth2(
+            OAuth2::new([Flow::ClientCredentials(ClientCredentials::new(
+                "https://localhost/token",
+                Scopes::new(),
+            ))])
+            .oauth2_metadata_url("https://localhost/.well-known/oauth-authorization-server")
+            .deprecated(true),
+        );
+
+        let value = serde_json::to_value(&scheme).expect("serialize");
+        assert_eq!(
+            value["oauth2MetadataUrl"],
+            serde_json::json!("https://localhost/.well-known/oauth-authorization-server")
+        );
+        assert_eq!(value["deprecated"], serde_json::json!(true));
+
+        let parsed: SecurityScheme = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, scheme);
+    }
+
+    #[test]
+    fn deprecated_is_available_on_every_scheme_kind() {
+        for scheme in [
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Basic).deprecated(true)),
+            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("api_key").deprecated(true))),
+            SecurityScheme::OpenIdConnect(
+                OpenIdConnect::new("https://localhost/openid").deprecated(true),
+            ),
+            SecurityScheme::MutualTls {
+                description: None,
+                deprecated: Some(true),
+            },
+        ] {
+            let value = serde_json::to_value(&scheme).expect("serialize");
+            assert_eq!(
+                value["deprecated"],
+                serde_json::json!(true),
+                "deprecated missing from {value}"
+            );
+            let parsed: SecurityScheme = serde_json::from_value(value).expect("deserialize");
+            assert_eq!(parsed, scheme);
+        }
     }
 }

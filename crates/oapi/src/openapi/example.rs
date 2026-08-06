@@ -16,23 +16,40 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Example {
     /// Short description for the [`Example`].
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub summary: String,
 
     /// Long description for the [`Example`]. Value supports markdown syntax for rich text
     /// representation.
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
 
     /// Embedded literal example value. [`Example::value`] and [`Example::external_value`] are
     /// mutually exclusive.
+    ///
+    /// Deprecated for non-JSON serialization targets in OpenAPI 3.2; prefer
+    /// [`Example::data_value`] and/or [`Example::serialized_value`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<serde_json::Value>,
+
+    /// An example of the data structure, which must be valid against the relevant schema. Added
+    /// in OpenAPI 3.2. When present, [`Example::value`] must be absent.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#example-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_value: Option<serde_json::Value>,
+
+    /// An example of the serialized form of the value, including encoding and escaping. Added
+    /// in OpenAPI 3.2.
+    ///
+    /// When [`Example::data_value`] is present this should be the serialization of that data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serialized_value: Option<String>,
 
     /// An URI that points to a literal example value. [`Example::external_value`] provides the
     /// capability to references an example that cannot be easily included in JSON or YAML.
     /// [`Example::value`] and [`Example::external_value`] are mutually exclusive.
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub external_value: String,
 }
 
@@ -66,6 +83,22 @@ impl Example {
     #[must_use]
     pub fn value(mut self, value: serde_json::Value) -> Self {
         self.value = Some(value);
+        self
+    }
+
+    /// Add or change the structured example data. Requires OpenAPI 3.2.
+    ///
+    /// [`Example::data_value`] and [`Example::value`] are mutually exclusive.
+    #[must_use]
+    pub fn data_value(mut self, data_value: serde_json::Value) -> Self {
+        self.data_value = Some(data_value);
+        self
+    }
+
+    /// Add or change the serialized form of the example. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn serialized_value<S: Into<String>>(mut self, serialized_value: S) -> Self {
+        self.serialized_value = Some(serialized_value.into());
         self
     }
 
@@ -109,5 +142,24 @@ mod tests {
             example.value.unwrap(),
             serde_json::Value::String("value".to_owned())
         );
+    }
+
+    #[test]
+    fn example_openapi_3_2_fields_round_trip() {
+        let example = Example::new()
+            .data_value(serde_json::json!({ "lat": 10, "long": 60 }))
+            .serialized_value(r#"{"lat":10,"long":60}"#);
+
+        let value = serde_json::to_value(&example).expect("serialize");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "dataValue": { "lat": 10, "long": 60 },
+                "serializedValue": r#"{"lat":10,"long":60}"#
+            })
+        );
+
+        let parsed: Example = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, example);
     }
 }

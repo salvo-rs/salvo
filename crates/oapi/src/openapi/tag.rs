@@ -20,6 +20,13 @@ pub struct Tag {
     /// Name of the tag. Should match to tag of **operation**.
     pub name: String,
 
+    /// Short summary of the tag, used for display purposes. Added in OpenAPI 3.2 as the
+    /// standardized replacement for the `x-displayName` extension.
+    ///
+    /// See <https://spec.openapis.org/oas/v3.2.0.html#tag-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+
     /// Additional description for the tag shown in the document.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -27,6 +34,20 @@ pub struct Tag {
     /// Additional external documentation for the tag.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
+
+    /// [`Tag::name`] of the tag this tag is nested under. Added in OpenAPI 3.2.
+    ///
+    /// The named tag must exist in the document and circular parent/child references are not
+    /// allowed; neither condition is validated here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+
+    /// Machine-readable string categorizing what sort of tag this is. Added in OpenAPI 3.2.
+    ///
+    /// Any string is allowed; commonly used values are `nav`, `badge` and `audience`. See the
+    /// [registry](https://spec.openapis.org/registry/tag-kind/) for the well-known values.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
@@ -74,10 +95,31 @@ impl Tag {
         self
     }
 
+    /// Add a short summary used for display purposes. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = Some(summary.into());
+        self
+    }
+
     /// Add additional description for the tag.
     #[must_use]
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    /// Nest this tag under the tag with the given name. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn parent(mut self, parent: impl Into<String>) -> Self {
+        self.parent = Some(parent.into());
+        self
+    }
+
+    /// Categorize the tag, e.g. `nav`, `badge` or `audience`. Requires OpenAPI 3.2.
+    #[must_use]
+    pub fn kind(mut self, kind: impl Into<String>) -> Self {
+        self.kind = Some(kind.into());
         self
     }
 
@@ -116,6 +158,39 @@ mod tests {
 
         let tag = tag.external_docs(ExternalDocs::new(""));
         assert!(tag.external_docs.is_some());
+    }
+
+    #[test]
+    fn tag_openapi_3_2_fields_round_trip() {
+        let tag = Tag::new("partner")
+            .summary("Partner")
+            .description("Operations available to the partners network")
+            .parent("external")
+            .kind("audience");
+
+        let value = serde_json::to_value(&tag).expect("serialize");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "name": "partner",
+                "summary": "Partner",
+                "description": "Operations available to the partners network",
+                "parent": "external",
+                "kind": "audience"
+            })
+        );
+
+        let parsed: Tag = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed, tag);
+    }
+
+    #[test]
+    fn tag_3_1_output_is_unchanged() {
+        let tag = Tag::new("pets").description("pet operations");
+        assert_eq!(
+            serde_json::to_value(&tag).expect("serialize"),
+            serde_json::json!({ "name": "pets", "description": "pet operations" })
+        );
     }
 
     #[test]
