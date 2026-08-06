@@ -219,13 +219,16 @@ impl OpenApi {
 
     /// Set the URI that identifies this OpenAPI document.
     ///
-    /// This serializes as the OpenAPI 3.2 `$self` field.
+    /// This serializes as the OpenAPI 3.2 `$self` field. Set the document version to
+    /// [`OpenApiVersion::Version3_2`] when using it.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::OpenApi;
-    /// let openapi = OpenApi::new("pet api", "0.1.0").self_uri("https://example.com/openapi.json");
+    /// # use salvo_oapi::{OpenApi, OpenApiVersion};
+    /// let openapi = OpenApi::new("pet api", "0.1.0")
+    ///     .openapi_version(OpenApiVersion::Version3_2)
+    ///     .self_uri("https://example.com/openapi.json");
     /// assert_eq!(openapi.self_uri, "https://example.com/openapi.json");
     /// ```
     #[must_use]
