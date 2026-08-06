@@ -159,7 +159,7 @@ pub struct Operation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
 
-    /// Declaration which security mechanisms can be used for for the operation. Only one
+    /// Declaration which security mechanisms can be used for the operation. Only one
     /// [`SecurityRequirement`] must be met.
     ///
     /// Security for the [`Operation`] can be set to optional by adding empty security with
