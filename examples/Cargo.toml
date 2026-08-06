@@ -78,3 +78,6 @@ salvo_core = { path = "../crates/core" }
 salvo-oapi = { path = "../crates/oapi" }
 
 rand_core = "0.9.3"
+
+toasty = { version = "0.8.0", default-features = false }
+jiff = "0.2.23"

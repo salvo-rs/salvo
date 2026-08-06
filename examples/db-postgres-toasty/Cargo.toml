@@ -1,0 +1,18 @@
+[package]
+name = "example-db-postgres-toasty"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+salvo = { workspace = true, features = ["affix-state", "oapi"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+toasty = { workspace = true, default-features = false, features = ["postgresql", "jiff", "serde"] }
+jiff.workspace = true
+thiserror.workspace = true
+chrono = { workspace = true, features = ["clock", "std", "serde"] }
+serde = { workspace = true, features = ["derive"] }
