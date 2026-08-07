@@ -46,6 +46,7 @@ full = [
     "aws-lc-rs",
     "matched-path",
     "socket2",
+    "rfc9457",
 ]
 cookie = ["dep:cookie"]
 fix-http1-request-uri = ["http1"]
@@ -72,6 +73,7 @@ test = [
 ]
 socket2 = ["dep:socket2"]
 matched-path = []
+rfc9457 = []
 tls12 = ["tokio-rustls?/tls12"]
 
 [dependencies]

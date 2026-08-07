@@ -46,6 +46,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::marker::PhantomData;
 
 use salvo_core::extract::Extractible;
+#[cfg(feature = "rfc9457")]
+use salvo_core::http::Problem;
 use salvo_core::http::StatusError;
 use salvo_core::writing;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
@@ -773,6 +775,51 @@ impl ComposeSchema for StatusError {
     }
 }
 
+#[cfg(feature = "rfc9457")]
+impl ToSchema for Problem {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        let name = crate::naming::assign_name::<Self>(Default::default());
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
+        if !components.schemas.contains_key(&name) {
+            components.schemas.insert(name.clone(), ref_or.clone());
+            let uri_reference = || {
+                Object::new()
+                    .schema_type(schema::BasicType::String)
+                    .format(SchemaFormat::Custom("uri-reference".into()))
+            };
+            let status = Object::new()
+                .schema_type(schema::BasicType::Integer)
+                .format(SchemaFormat::KnownFormat(schema::KnownFormat::Int32))
+                .minimum(100)
+                .maximum(599);
+            let schema = Schema::from(
+                Object::new()
+                    .property("type", uri_reference())
+                    .required("type")
+                    .property("title", String::to_schema(components))
+                    .required("title")
+                    .property("status", status)
+                    .required("status")
+                    .property("detail", String::to_schema(components))
+                    .property("instance", uri_reference())
+                    .additional_properties(schema::AdditionalProperties::FreeForm(true)),
+            );
+            components.schemas.insert(name, schema);
+        }
+        ref_or
+    }
+}
+
+#[cfg(feature = "rfc9457")]
+impl ComposeSchema for Problem {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Self::to_schema(components)
+    }
+}
+
 impl ToSchema for salvo_core::Error {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         StatusError::to_schema(components)
@@ -1112,6 +1159,19 @@ impl ToResponses for StatusError {
         responses
     }
 }
+
+#[cfg(feature = "rfc9457")]
+impl ToResponses for Problem {
+    fn to_responses(components: &mut Components) -> Responses {
+        Responses::new().response(
+            "default",
+            Response::new("RFC 9457 problem details response").add_content(
+                salvo_core::http::PROBLEM_JSON,
+                Content::new(Self::to_schema(components)),
+            ),
+        )
+    }
+}
 impl ToResponses for salvo_core::Error {
     fn to_responses(components: &mut Components) -> Responses {
         StatusError::to_responses(components)
@@ -1160,6 +1220,45 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[cfg(feature = "rfc9457")]
+    #[test]
+    fn test_problem_schema_and_response_media_type() {
+        let mut components = Components::new();
+        let schema_ref = Problem::to_schema(&mut components);
+        let RefOr::Ref(schema_ref) = schema_ref else {
+            panic!("problem schema should use a component reference");
+        };
+        let name = schema_ref
+            .ref_location
+            .rsplit('/')
+            .next()
+            .expect("component reference should have a name");
+        let schema = components
+            .schemas
+            .get(name)
+            .expect("problem component should exist");
+        let schema = serde_json::to_value(schema).expect("schema should serialize");
+
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["properties"]["type"]["format"], "uri-reference");
+        assert_eq!(schema["properties"]["instance"]["format"], "uri-reference");
+        assert_eq!(schema["properties"]["status"]["minimum"], 100);
+        assert_eq!(schema["properties"]["status"]["maximum"], 599);
+        assert_eq!(schema["additionalProperties"], true);
+        assert_eq!(schema["required"], json!(["type", "title", "status"]));
+
+        let responses = Problem::to_responses(&mut components);
+        let response = responses
+            .get("default")
+            .expect("problem should register a default response");
+        let response = serde_json::to_value(response).expect("response should serialize");
+        assert!(
+            response["content"]
+                .get("application/problem+json")
+                .is_some()
+        );
+    }
 
     #[test]
     fn test_primitive_schema() {
