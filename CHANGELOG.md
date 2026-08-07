@@ -9,8 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Changelog established for upcoming releases.
-- Opt-in RFC 9457 Problem Details responses and OpenAPI integration via the `rfc9457`
-  feature.
+- Opt-in RFC 9457 Problem Details responses with typed extension members and OpenAPI integration
+  via the `rfc9457` feature.
 - Initial opt-in OpenAPI 3.2 document support in `salvo-oapi`, including the `$self` field.
 - OpenAPI 3.2 object model in `salvo-oapi`:
   - Tag Object `summary`, `parent` and `kind`.

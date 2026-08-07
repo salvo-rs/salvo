@@ -87,7 +87,10 @@ impl EndpointOutRegister for StatusError {
 }
 
 #[cfg(feature = "rfc9457")]
-impl EndpointOutRegister for Problem {
+impl<Extensions> EndpointOutRegister for Problem<Extensions>
+where
+    Extensions: ToSchema + 'static,
+{
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         operation

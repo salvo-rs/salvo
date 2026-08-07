@@ -67,7 +67,7 @@ cfg_feature! {
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
 cfg_feature! {
     #![feature = "rfc9457"]
-    pub use errors::{PROBLEM_JSON, Problem};
+    pub use errors::{NoExtensions, PROBLEM_JSON, PlainProblem, Problem};
 }
 pub use headers;
 pub use http::method::Method;

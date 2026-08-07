@@ -92,7 +92,7 @@ pub mod prelude {
     pub use crate::http::{Request, Response, StatusCode, StatusError};
     cfg_feature! {
         #![feature = "rfc9457"]
-        pub use crate::http::Problem;
+        pub use crate::http::{NoExtensions, PlainProblem, Problem};
     }
     cfg_feature! {
         #![feature ="rustls"]

@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use serde::ser::{Serialize, SerializeMap, Serializer};
+use serde::ser::{Error as _, Serialize, SerializeMap, Serializer};
 use serde_json::{Map, Value};
 
 use crate::http::header::{CONTENT_TYPE, HeaderValue};
@@ -14,26 +14,42 @@ pub const PROBLEM_JSON: &str = "application/problem+json";
 const ABOUT_BLANK: &str = "about:blank";
 const STANDARD_MEMBERS: [&str; 5] = ["type", "title", "status", "detail", "instance"];
 
+/// An empty object used when a [`Problem`] has no extension members.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+pub struct NoExtensions {}
+
+/// A problem details response without extension members.
+pub type PlainProblem = Problem<NoExtensions>;
+
 /// An [RFC 9457] problem details response.
 ///
 /// The Rust field and builder for the RFC's `type` member are named [`kind`](Self::kind) because
 /// `type` is a Rust keyword. It is still serialized as `type` on the wire.
 ///
-/// `Problem::new` creates an `about:blank` problem. Use [`Problem::kind`] to identify a more
-/// specific problem type and [`Problem::extension`] for problem-specific extension members.
+/// `Problem::new` creates an `about:blank` problem without extension members. Use
+/// [`Problem::kind`] to identify a more specific problem type and [`Problem::with_extensions`] for
+/// typed, problem-specific extension members. Extensions must serialize as a JSON object and must
+/// not use a standard problem member name.
 ///
 /// # Example
 ///
 /// ```
 /// use salvo_core::http::{Problem, StatusCode};
-/// use serde_json::json;
+/// use serde::Serialize;
+///
+/// #[derive(Serialize)]
+/// struct ValidationExtensions {
+///     errors: Vec<&'static str>,
+/// }
 ///
 /// let problem = Problem::new(StatusCode::UNPROCESSABLE_ENTITY)
 ///     .kind("https://example.com/problems/validation-error")
 ///     .title("The request is not valid")
 ///     .detail("The age field must be a positive integer")
 ///     .instance("/problems/123")
-///     .extension("errors", json!([{"pointer": "#/age"}]));
+///     .with_extensions(ValidationExtensions {
+///         errors: vec!["#/age"],
+///     });
 ///
 /// assert_eq!(problem.status, StatusCode::UNPROCESSABLE_ENTITY);
 /// assert_eq!(problem.kind, "https://example.com/problems/validation-error");
@@ -42,7 +58,7 @@ const STANDARD_MEMBERS: [&str; 5] = ["type", "title", "status", "detail", "insta
 /// [RFC 9457]: https://www.rfc-editor.org/rfc/rfc9457.html
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct Problem {
+pub struct Problem<Extensions = NoExtensions> {
     /// A URI reference that identifies the problem type.
     ///
     /// This is serialized as the RFC 9457 `type` member.
@@ -57,10 +73,11 @@ pub struct Problem {
     pub detail: Option<String>,
     /// A URI reference that identifies this specific occurrence of the problem.
     pub instance: Option<String>,
-    extensions: Map<String, Value>,
+    /// Problem-specific members serialized at the top level of the problem object.
+    pub extensions: Extensions,
 }
 
-impl Problem {
+impl Problem<NoExtensions> {
     /// Creates an `about:blank` problem for `status`.
     ///
     /// Its title is initialized from the status code's canonical reason phrase.
@@ -72,10 +89,35 @@ impl Problem {
             status,
             detail: None,
             instance: None,
-            extensions: Map::new(),
+            extensions: NoExtensions {},
         }
     }
 
+    /// Adds a dynamically named problem-specific extension member.
+    ///
+    /// Use [`Problem::with_extensions`] when the extension members have a known shape.
+    #[must_use]
+    pub fn extension(self, name: impl Into<String>, value: Value) -> Problem<Map<String, Value>> {
+        self.with_extensions(Map::new()).extension(name, value)
+    }
+}
+
+impl Problem<Map<String, Value>> {
+    /// Adds a dynamically named problem-specific extension member.
+    ///
+    /// Standard problem member names are reserved and are ignored here so an extension cannot
+    /// replace their values.
+    #[must_use]
+    pub fn extension(mut self, name: impl Into<String>, value: Value) -> Self {
+        let name = name.into();
+        if !STANDARD_MEMBERS.contains(&name.as_str()) {
+            self.extensions.insert(name, value);
+        }
+        self
+    }
+}
+
+impl<Extensions> Problem<Extensions> {
     /// Sets the URI reference that identifies the problem type.
     #[must_use]
     pub fn kind(mut self, kind: impl Into<String>) -> Self {
@@ -104,32 +146,53 @@ impl Problem {
         self
     }
 
-    /// Adds a problem-specific extension member.
-    ///
-    /// RFC 9457 extension members are serialized at the top level. Standard member names are
-    /// reserved and are ignored here so an extension cannot replace their values.
+    /// Replaces the extension object, changing its type.
     #[must_use]
-    pub fn extension(mut self, name: impl Into<String>, value: Value) -> Self {
-        let name = name.into();
-        if !STANDARD_MEMBERS.contains(&name.as_str()) {
-            self.extensions.insert(name, value);
+    pub fn with_extensions<NewExtensions>(
+        self,
+        extensions: NewExtensions,
+    ) -> Problem<NewExtensions> {
+        Problem {
+            kind: self.kind,
+            title: self.title,
+            status: self.status,
+            detail: self.detail,
+            instance: self.instance,
+            extensions,
         }
-        self
     }
 
     /// Returns the problem-specific extension members.
     #[must_use]
-    pub fn extensions(&self) -> &Map<String, Value> {
+    pub fn extensions(&self) -> &Extensions {
         &self.extensions
     }
 }
 
-impl Serialize for Problem {
+impl<Extensions> Serialize for Problem<Extensions>
+where
+    Extensions: Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut length = 3 + self.extensions.len();
+        let extensions = serde_json::to_value(&self.extensions).map_err(S::Error::custom)?;
+        let Value::Object(extensions) = extensions else {
+            return Err(S::Error::custom(
+                "problem extensions must serialize as a JSON object",
+            ));
+        };
+        if let Some(name) = STANDARD_MEMBERS
+            .iter()
+            .find(|name| extensions.contains_key(**name))
+        {
+            return Err(S::Error::custom(format_args!(
+                "problem extension member `{name}` is reserved"
+            )));
+        }
+
+        let mut length = 3 + extensions.len();
         length += usize::from(self.detail.is_some()) + usize::from(self.instance.is_some());
         let mut map = serializer.serialize_map(Some(length))?;
         map.serialize_entry("type", &self.kind)?;
@@ -141,14 +204,17 @@ impl Serialize for Problem {
         if let Some(instance) = &self.instance {
             map.serialize_entry("instance", instance)?;
         }
-        for (name, value) in &self.extensions {
-            map.serialize_entry(name, value)?;
+        for (name, value) in extensions {
+            map.serialize_entry(&name, &value)?;
         }
         map.end()
     }
 }
 
-impl Scribe for Problem {
+impl<Extensions> Scribe for Problem<Extensions>
+where
+    Extensions: Serialize,
+{
     fn render(self, res: &mut Response) {
         let status = self.status;
         match serde_json::to_vec(&self) {
@@ -168,13 +234,13 @@ impl Scribe for Problem {
     }
 }
 
-impl From<StatusCode> for Problem {
+impl From<StatusCode> for PlainProblem {
     fn from(status: StatusCode) -> Self {
         Self::new(status)
     }
 }
 
-impl From<&StatusError> for Problem {
+impl From<&StatusError> for PlainProblem {
     fn from(error: &StatusError) -> Self {
         Self::new(error.code)
             .title(error.name.clone())
@@ -182,13 +248,13 @@ impl From<&StatusError> for Problem {
     }
 }
 
-impl From<StatusError> for Problem {
+impl From<StatusError> for PlainProblem {
     fn from(error: StatusError) -> Self {
         Self::from(&error)
     }
 }
 
-impl Display for Problem {
+impl<Extensions> Display for Problem<Extensions> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {}: {}", self.status.as_u16(), self.title, self.kind)?;
         if let Some(detail) = &self.detail {
@@ -198,10 +264,11 @@ impl Display for Problem {
     }
 }
 
-impl StdError for Problem {}
+impl<Extensions> StdError for Problem<Extensions> where Extensions: fmt::Debug {}
 
 #[cfg(test)]
 mod tests {
+    use serde::Serialize;
     use serde_json::json;
 
     use super::*;
@@ -230,10 +297,63 @@ mod tests {
     }
 
     #[test]
-    fn defaults_to_about_blank() {
+    fn serializes_typed_extension_members_at_the_top_level() {
+        #[derive(Serialize)]
+        struct OutOfCreditExtensions {
+            balance: u64,
+            accounts: Vec<&'static str>,
+        }
+
+        let problem = Problem::new(StatusCode::FORBIDDEN).with_extensions(
+            OutOfCreditExtensions {
+                balance: 30,
+                accounts: vec!["/account/12345", "/account/67890"],
+            },
+        );
+
         assert_eq!(
-            serde_json::to_value(Problem::new(StatusCode::NOT_FOUND))
-                .expect("problem should serialize"),
+            serde_json::to_value(problem).expect("problem should serialize"),
+            json!({
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+                "balance": 30,
+                "accounts": ["/account/12345", "/account/67890"]
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_typed_extensions() {
+        let scalar = Problem::new(StatusCode::BAD_REQUEST).with_extensions("not an object");
+        assert!(
+            serde_json::to_value(scalar)
+                .expect_err("scalar extensions should fail")
+                .to_string()
+                .contains("must serialize as a JSON object")
+        );
+
+        #[derive(Serialize)]
+        struct ReservedExtension {
+            #[serde(rename = "type")]
+            kind: &'static str,
+        }
+        let reserved = Problem::new(StatusCode::BAD_REQUEST).with_extensions(ReservedExtension {
+            kind: "https://example.com/problems/replaced",
+        });
+        assert!(
+            serde_json::to_value(reserved)
+                .expect_err("reserved extension names should fail")
+                .to_string()
+                .contains("is reserved")
+        );
+    }
+
+    #[test]
+    fn defaults_to_about_blank() {
+        let problem: PlainProblem = Problem::new(StatusCode::NOT_FOUND);
+        assert_eq!(
+            serde_json::to_value(problem).expect("problem should serialize"),
             json!({
                 "type": "about:blank",
                 "title": "Not Found",
