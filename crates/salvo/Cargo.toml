@@ -82,6 +82,7 @@ full = [
     "aws-lc-rs",
     "matched-path",
     "tus",
+    "tls-detect",
 ]
 cookie = ["salvo_core/cookie"]
 fix-http1-request-uri = ["salvo_core/fix-http1-request-uri"]
@@ -113,6 +114,7 @@ logging = ["salvo_extra/logging"]
 proxy = ["salvo-proxy"]
 concurrency-limiter = ["salvo_extra/concurrency-limiter"]
 size-limiter = ["salvo_extra/size-limiter"]
+tls-detect = ["salvo_extra/tls-detect"]
 sse = ["salvo_extra/sse"]
 trailing-slash = ["salvo_extra/trailing-slash"]
 timeout = ["salvo_extra/timeout"]

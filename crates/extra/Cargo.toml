@@ -28,6 +28,7 @@ full = [
     "sse",
     "concurrency-limiter",
     "size-limiter",
+    "tls-detect",
     "trailing-slash",
     "timeout",
     "websocket",
@@ -42,6 +43,15 @@ force-https = ["dep:tracing"]
 logging = ["dep:tracing"]
 concurrency-limiter = ["dep:tracing", "tokio"]
 size-limiter = []
+tls-detect = [
+    "dep:futures-util",
+    "dep:http",
+    "dep:tokio-rustls",
+    "dep:tracing",
+    "salvo_core/aws-lc-rs",
+    "salvo_core/rustls",
+    "tokio",
+]
 sse = [
     "dep:futures-util",
     "dep:pin-project",
@@ -68,9 +78,11 @@ tower-compat = [
 ]
 
 [dependencies]
+arc-swap = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 futures-util = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, features = [
     "server",
@@ -83,6 +95,7 @@ salvo_core = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true, features = ["logging"] }
 tokio-tungstenite = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io"], optional = true }
 tower = { workspace = true, optional = true, default-features = false, features = [
