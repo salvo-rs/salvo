@@ -35,6 +35,7 @@ full = [
     "yaml",
     "non-strict-integers",
     "compact_str",
+    "rfc9457",
 ]
 swagger-ui = ["dep:rust-embed"]
 scalar = []
@@ -57,6 +58,7 @@ preserve-order = ["preserve-path-order", "preserve-prop-order"]
 preserve-path-order = []
 preserve-prop-order = []
 compact_str = ["salvo-oapi-macros/compact_str", "dep:compact_str"]
+rfc9457 = ["salvo_core/rfc9457"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false, features = [

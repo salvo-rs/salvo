@@ -42,11 +42,15 @@ cfg_feature! {
     pub mod redoc;
 }
 
+#[cfg(feature = "rfc9457")]
+use std::any::TypeId;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::marker::PhantomData;
 
 use salvo_core::extract::Extractible;
 use salvo_core::http::StatusError;
+#[cfg(feature = "rfc9457")]
+use salvo_core::http::{NoExtensions, Problem};
 use salvo_core::writing;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
 pub use salvo_oapi_macros::ToParameters;
@@ -773,6 +777,98 @@ impl ComposeSchema for StatusError {
     }
 }
 
+#[cfg(feature = "rfc9457")]
+fn problem_base_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    let uri_reference = || {
+        Object::new()
+            .schema_type(schema::BasicType::String)
+            .format(SchemaFormat::Custom("uri-reference".into()))
+    };
+    let status = Object::new()
+        .schema_type(schema::BasicType::Integer)
+        .format(SchemaFormat::KnownFormat(schema::KnownFormat::Int32))
+        .minimum(100)
+        .maximum(599);
+    Object::new()
+        .property("type", uri_reference())
+        .required("type")
+        .property("title", String::to_schema(components))
+        .required("title")
+        .property("status", status)
+        .required("status")
+        .property("detail", String::to_schema(components))
+        .property("instance", uri_reference())
+        .into()
+}
+
+#[cfg(feature = "rfc9457")]
+impl ToSchema for NoExtensions {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Object::new().schema_type(schema::BasicType::Object).into()
+    }
+}
+
+#[cfg(feature = "rfc9457")]
+impl ComposeSchema for NoExtensions {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        Self::to_schema(components)
+    }
+}
+
+#[cfg(feature = "rfc9457")]
+impl<Extensions> ToSchema for Problem<Extensions>
+where
+    Extensions: ToSchema + 'static,
+{
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        let name_rule = if TypeId::of::<Extensions>() == TypeId::of::<NoExtensions>() {
+            crate::naming::NameRule::Force("Problem")
+        } else {
+            Default::default()
+        };
+        let name = crate::naming::assign_name::<Self>(name_rule);
+        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
+        if !components.schemas.contains_key(&name) {
+            components.schemas.insert(name.clone(), ref_or.clone());
+            let schema = if TypeId::of::<Extensions>() == TypeId::of::<NoExtensions>() {
+                problem_base_schema(components)
+            } else {
+                schema::AllOf::new()
+                    .item(problem_base_schema(components))
+                    .item(Extensions::to_schema(components))
+                    .into()
+            };
+            components.schemas.insert(name, schema);
+        }
+        ref_or
+    }
+}
+
+#[cfg(feature = "rfc9457")]
+impl<Extensions> ComposeSchema for Problem<Extensions>
+where
+    Extensions: ComposeSchema + 'static,
+{
+    fn compose(
+        components: &mut Components,
+        generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        let base = problem_base_schema(components);
+        if TypeId::of::<Extensions>() == TypeId::of::<NoExtensions>() {
+            base
+        } else {
+            let extensions = generics
+                .first()
+                .cloned()
+                .unwrap_or_else(|| Extensions::compose(components, vec![]));
+            schema::AllOf::new().item(base).item(extensions).into()
+        }
+    }
+}
+
 impl ToSchema for salvo_core::Error {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         StatusError::to_schema(components)
@@ -1112,6 +1208,22 @@ impl ToResponses for StatusError {
         responses
     }
 }
+
+#[cfg(feature = "rfc9457")]
+impl<Extensions> ToResponses for Problem<Extensions>
+where
+    Extensions: ToSchema + 'static,
+{
+    fn to_responses(components: &mut Components) -> Responses {
+        Responses::new().response(
+            "default",
+            Response::new("RFC 9457 problem details response").add_content(
+                salvo_core::http::PROBLEM_JSON,
+                Content::new(Self::to_schema(components)),
+            ),
+        )
+    }
+}
 impl ToResponses for salvo_core::Error {
     fn to_responses(components: &mut Components) -> Responses {
         StatusError::to_responses(components)
@@ -1160,6 +1272,86 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[cfg(feature = "rfc9457")]
+    #[test]
+    fn test_problem_schema_and_response_media_type() {
+        let mut components = Components::new();
+        let schema_ref = salvo_core::http::PlainProblem::to_schema(&mut components);
+        let RefOr::Ref(schema_ref) = schema_ref else {
+            panic!("problem schema should use a component reference");
+        };
+        let name = schema_ref
+            .ref_location
+            .rsplit('/')
+            .next()
+            .expect("component reference should have a name");
+        let schema = components
+            .schemas
+            .get(name)
+            .expect("problem component should exist");
+        let schema = serde_json::to_value(schema).expect("schema should serialize");
+
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["properties"]["type"]["format"], "uri-reference");
+        assert_eq!(schema["properties"]["instance"]["format"], "uri-reference");
+        assert_eq!(schema["properties"]["status"]["minimum"], 100);
+        assert_eq!(schema["properties"]["status"]["maximum"], 599);
+        assert_eq!(schema["required"], json!(["type", "title", "status"]));
+
+        let responses = salvo_core::http::PlainProblem::to_responses(&mut components);
+        let response = responses
+            .get("default")
+            .expect("problem should register a default response");
+        let response = serde_json::to_value(response).expect("response should serialize");
+        assert!(
+            response["content"]
+                .get("application/problem+json")
+                .is_some()
+        );
+    }
+
+    #[cfg(feature = "rfc9457")]
+    #[test]
+    fn test_problem_schema_composes_typed_extensions() {
+        #[derive(ToSchema)]
+        #[allow(dead_code)]
+        struct ValidationExtensions {
+            errors: Vec<String>,
+        }
+
+        let mut components = Components::new();
+        let schema_ref = Problem::<ValidationExtensions>::to_schema(&mut components);
+        let RefOr::Ref(schema_ref) = schema_ref else {
+            panic!("problem schema should use a component reference");
+        };
+        let name = schema_ref
+            .ref_location
+            .rsplit('/')
+            .next()
+            .expect("component reference should have a name");
+        let schema = components
+            .schemas
+            .get(name)
+            .expect("typed problem component should exist");
+        let schema = serde_json::to_value(schema).expect("schema should serialize");
+
+        assert_eq!(schema["allOf"].as_array().map(Vec::len), Some(2));
+        let extension_ref = schema["allOf"][1]["$ref"]
+            .as_str()
+            .expect("extension schema should use a component reference");
+        let extension_name = extension_ref
+            .rsplit('/')
+            .next()
+            .expect("extension reference should have a name");
+        let extension_schema = components
+            .schemas
+            .get(extension_name)
+            .expect("extension component should exist");
+        let extension_schema =
+            serde_json::to_value(extension_schema).expect("extension schema should serialize");
+        assert_eq!(extension_schema["properties"]["errors"]["type"], "array");
+    }
 
     #[test]
     fn test_primitive_schema() {
