@@ -54,6 +54,7 @@
 //! | `otel` | OpenTelemetry integration | ❌ |
 //! | `proxy` | Reverse-proxy middleware | ❌ |
 //! | `rate-limiter` | Rate-limiting middleware | ❌ |
+//! | `rfc9457` | RFC 9457 Problem Details responses | ❌ |
 //! | `serve-static` | Static file / directory serving | ❌ |
 //! | `session` | Cookie-based session middleware | ❌ |
 //! | `tus` | [tus.io](https://tus.io) resumable upload protocol | ❌ |

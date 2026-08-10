@@ -1,6 +1,8 @@
 use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 
+#[cfg(feature = "rfc9457")]
+use salvo_core::http::Problem;
 use salvo_core::http::StatusCode;
 use salvo_core::prelude::StatusError;
 use salvo_core::writing;
@@ -76,6 +78,19 @@ where
 }
 
 impl EndpointOutRegister for StatusError {
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation
+            .responses
+            .append(&mut Self::to_responses(components));
+    }
+}
+
+#[cfg(feature = "rfc9457")]
+impl<Extensions> EndpointOutRegister for Problem<Extensions>
+where
+    Extensions: ToSchema + 'static,
+{
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         operation

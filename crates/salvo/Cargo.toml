@@ -79,6 +79,7 @@ full = [
     "serve-static",
     "otel",
     "oapi",
+    "rfc9457",
     "aws-lc-rs",
     "matched-path",
     "tus",
@@ -129,6 +130,7 @@ session = ["dep:salvo-session"]
 serve-static = ["dep:salvo-serve-static"]
 otel = ["dep:salvo-otel"]
 oapi = ["dep:salvo-oapi"]
+rfc9457 = ["salvo_core/rfc9457", "salvo-oapi?/rfc9457"]
 aws-lc-rs = [
     "salvo_core/aws-lc-rs",
     "salvo-proxy?/aws-lc-rs",

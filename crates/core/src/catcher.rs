@@ -287,6 +287,57 @@ impl Handler for DefaultGoal {
     }
 }
 
+cfg_feature! {
+    #![feature = "rfc9457"]
+    /// A [`Catcher`] goal that renders errors as RFC 9457 [`Problem`](crate::http::Problem)
+    /// details.
+    ///
+    /// Unlike [`DefaultGoal`], this goal always produces an
+    /// `application/problem+json` response and does not perform content negotiation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::catcher::{Catcher, ProblemGoal};
+    ///
+    /// let catcher = Catcher::new(ProblemGoal::new());
+    /// # let _ = catcher;
+    /// ```
+    #[derive(Default, Debug)]
+    pub struct ProblemGoal;
+
+    impl ProblemGoal {
+        /// Creates a new RFC 9457 problem details catcher goal.
+        #[must_use]
+        pub fn new() -> Self {
+            Self
+        }
+    }
+
+    #[async_trait]
+    impl Handler for ProblemGoal {
+        async fn handle(
+            &self,
+            _req: &mut Request,
+            _depot: &mut Depot,
+            res: &mut Response,
+            _ctrl: &mut FlowCtrl,
+        ) {
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+            if (status.is_server_error() || status.is_client_error())
+                && (res.body.is_none() || res.body.is_error())
+            {
+                let problem = if let ResBody::Error(error) = &res.body {
+                    crate::http::Problem::from(error)
+                } else {
+                    crate::http::Problem::new(status)
+                };
+                res.render(problem);
+            }
+        }
+    }
+}
+
 /// Escapes text interpolated into the HTML error page so that request-derived
 /// content (e.g. via `StatusError::brief`/`detail`/`cause`) cannot inject markup
 /// (reflected XSS).
@@ -624,5 +675,37 @@ mod tests {
         }
 
         assert_eq!(access(&service, "notfound").await, "Custom 404 Error Page");
+    }
+
+    #[cfg(feature = "rfc9457")]
+    #[tokio::test]
+    async fn test_problem_goal() {
+        #[handler]
+        async fn fail() -> StatusError {
+            StatusError::bad_request().brief("invalid request")
+        }
+
+        let service =
+            Service::new(Router::new().get(fail)).catcher(Catcher::new(ProblemGoal::new()));
+        let mut response = TestClient::get("http://127.0.0.1:8698/")
+            .send(&service)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE),
+            Some(&header::HeaderValue::from_static(
+                "application/problem+json"
+            ))
+        );
+        assert_eq!(
+            response.take_json::<serde_json::Value>().await.unwrap(),
+            serde_json::json!({
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "invalid request"
+            })
+        );
     }
 }
