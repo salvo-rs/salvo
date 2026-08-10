@@ -802,6 +802,37 @@ fn problem_base_schema(components: &mut Components) -> RefOr<schema::Schema> {
 }
 
 #[cfg(feature = "rfc9457")]
+fn problem_schema_with_extensions(
+    components: &Components,
+    base: RefOr<schema::Schema>,
+    extensions: RefOr<schema::Schema>,
+) -> RefOr<schema::Schema> {
+    let extension_schema = match &extensions {
+        RefOr::Type(schema) => Some(schema),
+        RefOr::Ref(reference) => reference
+            .ref_location
+            .strip_prefix("#/components/schemas/")
+            .and_then(|name| components.schemas.get(name))
+            .and_then(|schema| match schema {
+                RefOr::Type(schema) => Some(schema),
+                RefOr::Ref(_) => None,
+            }),
+    };
+
+    if let Some(schema::Schema::Object(extension)) = extension_schema {
+        let RefOr::Type(schema::Schema::Object(base)) = base else {
+            unreachable!("problem base schema must be an object")
+        };
+        let mut extension = extension.clone();
+        extension.properties.extend(base.properties);
+        extension.required.extend(base.required);
+        return RefOr::Type(schema::Schema::Object(extension));
+    }
+
+    schema::AllOf::new().item(base).item(extensions).into()
+}
+
+#[cfg(feature = "rfc9457")]
 impl ToSchema for NoExtensions {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         Object::new().schema_type(schema::BasicType::Object).into()
@@ -836,10 +867,9 @@ where
             let schema = if TypeId::of::<Extensions>() == TypeId::of::<NoExtensions>() {
                 problem_base_schema(components)
             } else {
-                schema::AllOf::new()
-                    .item(problem_base_schema(components))
-                    .item(Extensions::to_schema(components))
-                    .into()
+                let extensions = Extensions::to_schema(components);
+                let base = problem_base_schema(components);
+                problem_schema_with_extensions(components, base, extensions)
             };
             components.schemas.insert(name, schema);
         }
@@ -864,7 +894,7 @@ where
                 .first()
                 .cloned()
                 .unwrap_or_else(|| Extensions::compose(components, vec![]));
-            schema::AllOf::new().item(base).item(extensions).into()
+            problem_schema_with_extensions(components, base, extensions)
         }
     }
 }
@@ -1314,7 +1344,8 @@ mod tests {
     #[cfg(feature = "rfc9457")]
     #[test]
     fn test_problem_schema_composes_typed_extensions() {
-        #[derive(ToSchema)]
+        #[derive(serde::Serialize, ToSchema)]
+        #[serde(deny_unknown_fields)]
         #[allow(dead_code)]
         struct ValidationExtensions {
             errors: Vec<String>,
@@ -1336,21 +1367,15 @@ mod tests {
             .expect("typed problem component should exist");
         let schema = serde_json::to_value(schema).expect("schema should serialize");
 
-        assert_eq!(schema["allOf"].as_array().map(Vec::len), Some(2));
-        let extension_ref = schema["allOf"][1]["$ref"]
-            .as_str()
-            .expect("extension schema should use a component reference");
-        let extension_name = extension_ref
-            .rsplit('/')
-            .next()
-            .expect("extension reference should have a name");
-        let extension_schema = components
-            .schemas
-            .get(extension_name)
-            .expect("extension component should exist");
-        let extension_schema =
-            serde_json::to_value(extension_schema).expect("extension schema should serialize");
-        assert_eq!(extension_schema["properties"]["errors"]["type"], "array");
+        assert!(schema.get("allOf").is_none());
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["properties"]["errors"]["type"], "array");
+        assert_eq!(schema["properties"]["status"]["type"], "integer");
+        assert_eq!(
+            schema["required"],
+            json!(["errors", "type", "title", "status"])
+        );
     }
 
     #[test]
