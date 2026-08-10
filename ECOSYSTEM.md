@@ -12,6 +12,9 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [salvo-casbin](https://github.com/casbin-rs/salvo-casbin): Casbin access control hoop for salvo framework.
 
 ## Project showcase
+
+- [Seelen UI](https://github.com/eythaann/Seelen-UI): A fully customizable desktop environment for Windows 10/11, powered in part by Salvo.
+- [Terraphim AI](https://github.com/terraphim/terraphim-ai): A privacy-first, deterministic AI assistant with a Salvo-based GitHub Actions runner server.
 - [Savhub](https://github.com/savhub-ai/savhub): Easily manage your AI skills.
 - [palpo](https://github.com/palpo-matrix-server/palpo): A Rust Matrix Server Implementation.
 - [AI00 RWKV Server](https://github.com/Ai00-X/ai00_server): AI00 RWKV Server is an inference API server based on the RWKV model.
@@ -41,6 +44,7 @@ If your project isn't listed here and you would like it to be, please feel free 
 - [chia gaming](https://github.com/Chia-Network/chia-gaming) - chia-gaming Traits and Structs.
 
 ## Tutorials
+
 - [Rust Salvo零基础教程](https://www.bilibili.com/video/BV1FS421N71D/): Rust Salvo零基础入门教程.
 - [使用Tera和Salvo构建单词本](https://www.bilibili.com/video/BV1Kg411b75s): 使用Tera和Salvo构建一个简单的单词本Web应用.
 - [is salvo really the simplest rust web framework?](https://www.youtube.com/watch?v=tf9x97eTcpk)
