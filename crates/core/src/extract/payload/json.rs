@@ -1,14 +1,12 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::{Depot, Request, Writer};
 use serde::{Deserialize, Deserializer};
 
-use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Content, Operation, RequestBody, ToRequestBody, ToSchema};
+use crate::extract::{Extractible, Metadata};
+use crate::{Depot, Request, Writer};
 
-/// Represents the parameters passed by the URI path.
+/// Extracts a JSON body from the request.
 pub struct JsonBody<T>(pub T);
 impl<T> JsonBody<T> {
     /// Consumes self and returns the value of the parameter.
@@ -28,17 +26,6 @@ impl<T> Deref for JsonBody<T> {
 impl<T> DerefMut for JsonBody<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-impl<'de, T> ToRequestBody for JsonBody<T>
-where
-    T: Deserialize<'de> + ToSchema,
-{
-    fn to_request_body(components: &mut Components) -> RequestBody {
-        RequestBody::new()
-            .description("Extract json format data from request.")
-            .add_content("application/json", Content::new(T::to_schema(components)))
     }
 }
 
@@ -92,24 +79,11 @@ where
     }
 }
 
-impl<'de, T> EndpointArgRegister for JsonBody<T>
-where
-    T: Deserialize<'de> + ToSchema,
-{
-    fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
-        let request_body = Self::to_request_body(components);
-        let _ = <T as ToSchema>::to_schema(components);
-        operation.request_body = Some(request_body);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
-    use assert_json_diff::assert_json_eq;
-    use salvo_core::test::TestClient;
-    use serde_json::json;
+    use crate::test::TestClient;
 
     use super::*;
 
@@ -129,25 +103,6 @@ mod tests {
     fn test_json_body_deref_mut() {
         let mut form = JsonBody::<String>("json_body".to_owned());
         assert_eq!(form.deref_mut(), &mut "json_body".to_owned());
-    }
-
-    #[test]
-    fn test_json_body_to_request_body() {
-        let mut components = Components::default();
-        let request_body = JsonBody::<String>::to_request_body(&mut components);
-        assert_json_eq!(
-            request_body,
-            json!({
-                "description": "Extract json format data from request.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            })
-        );
     }
 
     #[test]
@@ -178,29 +133,5 @@ mod tests {
         let result =
             JsonBody::<BTreeMap<&str, &str>>::extract_with_arg(&mut req, &mut depot, "key").await;
         assert_eq!("value", result.unwrap().0["key"]);
-    }
-
-    #[test]
-    fn test_json_body_register() {
-        let mut components = Components::new();
-        let mut operation = Operation::new();
-        JsonBody::<String>::register(&mut components, &mut operation, "arg");
-
-        assert_json_eq!(
-            operation,
-            json!({
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "description": "Extract json format data from request."
-                },
-                "responses": {}
-            })
-        );
     }
 }

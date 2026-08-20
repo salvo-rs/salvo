@@ -1,15 +1,13 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
-use salvo_core::{Depot, Request};
 use serde::{Deserialize, Deserializer};
 
-use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
+use crate::extract::{Extractible, Metadata};
+use crate::http::ParseError;
+use crate::{Depot, Request};
 
-/// Represents the parameters passed by the URI path.
+/// Extracts a parameter from the request URI query.
 pub struct QueryParam<T, const REQUIRED: bool = true>(Option<T>);
 impl<T> QueryParam<T, true> {
     /// Consumes self and returns the value of the parameter.
@@ -129,25 +127,9 @@ where
     }
 }
 
-impl<T, const R: bool> EndpointArgRegister for QueryParam<T, R>
-where
-    T: ToSchema,
-{
-    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg)
-            .location(ParameterIn::Query)
-            .description(format!("Get parameter `{arg}` from request url query."))
-            .schema(T::to_schema(components))
-            .required(R);
-        operation.parameters.insert(parameter);
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use salvo_core::test::TestClient;
-    use serde_json::json;
+    use crate::test::TestClient;
 
     use super::*;
 
@@ -281,30 +263,5 @@ mod tests {
         let result =
             QueryParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
-    }
-
-    #[test]
-    fn test_query_param_register() {
-        let mut components = Components::new();
-        let mut operation = Operation::new();
-        QueryParam::<String, false>::register(&mut components, &mut operation, "arg");
-
-        assert_json_eq!(
-            operation,
-            json!({
-                "parameters": [
-                    {
-                        "name": "arg",
-                        "in": "query",
-                        "description": "Get parameter `arg` from request url query.",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {}
-            })
-        )
     }
 }

@@ -1,15 +1,13 @@
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use salvo_core::Depot;
-use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::{ParseError, Request};
 use serde::{Deserialize, Deserializer};
 
-use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
+use crate::Depot;
+use crate::extract::{Extractible, Metadata};
+use crate::http::{ParseError, Request};
 
-/// Represents the parameters passed by the URI path.
+/// Extracts a parameter from the request URI path.
 pub struct PathParam<T>(pub T);
 impl<T> PathParam<T> {
     /// Consumes self and returns the value of the parameter.
@@ -89,25 +87,9 @@ where
     }
 }
 
-impl<T> EndpointArgRegister for PathParam<T>
-where
-    T: ToSchema,
-{
-    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg)
-            .location(ParameterIn::Path)
-            .description(format!("Get parameter `{arg}` from request url path."))
-            .schema(T::to_schema(components))
-            .required(true);
-        operation.parameters.insert(parameter);
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use salvo_core::test::TestClient;
-    use serde_json::json;
+    use crate::test::TestClient;
 
     use super::*;
 
@@ -181,30 +163,5 @@ mod tests {
         let mut depot = Depot::new();
         let result = PathParam::<String>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0, "param");
-    }
-
-    #[test]
-    fn test_path_param_register() {
-        let mut components = Components::new();
-        let mut operation = Operation::new();
-        PathParam::<String>::register(&mut components, &mut operation, "arg");
-
-        assert_json_eq!(
-            operation,
-            json!({
-                "parameters": [
-                    {
-                        "name": "arg",
-                        "in": "path",
-                        "description": "Get parameter `arg` from request url path.",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {}
-            })
-        )
     }
 }
