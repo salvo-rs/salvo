@@ -8,7 +8,7 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use salvo_core::fs::NamedFile;
+use salvo_core::fs::{NamedFile, extension_content_encoding};
 use salvo_core::handler::Handler;
 use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{
@@ -540,11 +540,19 @@ impl Handler for StaticDir {
                 .as_deref()
                 .map(|ext| self.is_compressed_ext(ext))
                 .unwrap_or(false);
+            // A `.svgz` already is a gzip stream. Serving a precompressed variant of
+            // one would stack a second coding on top, and only the outer coding can
+            // be reported, so the client would strip that and be left holding gzip
+            // bytes labelled `image/svg+xml`. Serve the file itself instead.
+            let is_self_coded_ext = ext
+                .as_deref()
+                .map(|ext| extension_content_encoding(ext).is_some())
+                .unwrap_or(false);
             let mut content_encoding = None;
             let mut varies_on_accept_encoding = false;
             let content_type = mime_infer::from_path(&abs_path).first();
 
-            let named_path = if !is_compressed_ext {
+            let named_path = if !is_compressed_ext && !is_self_coded_ext {
                 if !self.compressed_variations.is_empty() {
                     let mut new_abs_path = None;
                     let header = req

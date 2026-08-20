@@ -224,6 +224,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_serve_static_dir_ignores_sidecar_for_self_coded_file() {
+        // `logo.svgz` is already a gzip stream, so a `logo.svgz.br` sidecar stacks
+        // a second coding on it. Only one coding could be reported, leaving the
+        // client to strip brotli and hold gzip bytes labelled `image/svg+xml`.
+        // The sidecar must be ignored and the file served as the gzip it is.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(root.path().join("logo.svgz"), SVGZ).unwrap();
+        fs::write(root.path().join("logo.svgz.br"), b"brotli-of-gzip").unwrap();
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
+        let service = Service::new(router);
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/logo.svgz")
+            .add_header("accept-encoding", "br, gzip", true)
+            .send(&service)
+            .await;
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE).unwrap(),
+            "image/svg+xml"
+        );
+        assert_eq!(response.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
+        assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), SVGZ);
+    }
+
+    #[tokio::test]
     async fn test_serve_static_file() {
         let router = Router::new()
             .push(

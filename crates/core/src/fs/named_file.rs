@@ -500,7 +500,14 @@ const CONTENT_CODED_EXTS: &[(&str, &str)] = &[
 /// `image/svg+xml` — the type of the document *inside* the gzip stream. Serving
 /// that without also advertising the coding hands the client compressed bytes
 /// labelled as an SVG document, which it cannot render.
-fn extension_content_encoding(ext: &str) -> Option<&'static str> {
+///
+/// [`NamedFile`] applies this itself. It is public so a handler that picks a file
+/// to serve can tell that the file already carries a coding — a precompressed
+/// variant of a `.svgz` would stack a second coding on top of the gzip.
+///
+/// The extension is matched case-insensitively, as `mime_infer` matches it.
+#[must_use]
+pub fn extension_content_encoding(ext: &str) -> Option<&'static str> {
     CONTENT_CODED_EXTS
         .iter()
         .find(|(candidate, _)| ext.eq_ignore_ascii_case(candidate))
