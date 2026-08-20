@@ -579,6 +579,12 @@ impl Handler for StaticDir {
             let mut content_encoding = None;
             let mut varies_on_accept_encoding = false;
             let content_type = mime_infer::from_path(&abs_path).first();
+            // Captured before the compressed-variant lookup may replace the path:
+            // a download must be named after the resource that was requested, not
+            // after the sidecar the bytes happen to be read from.
+            let requested_name = abs_path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned());
 
             let named_path = if !is_compressed_ext {
                 if !self.compressed_variations.is_empty() {
@@ -646,6 +652,9 @@ impl Handler for StaticDir {
                 }
                 if let Some(content_type) = content_type {
                     builder = builder.content_type(content_type);
+                }
+                if let Some(requested_name) = requested_name {
+                    builder = builder.disposition_name(requested_name);
                 }
                 if let Some(disposition_type) = &self.disposition_type {
                     builder = builder.disposition_type(disposition_type.clone());

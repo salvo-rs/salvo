@@ -12,9 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when an application served attacker-supplied uploads. `image/svg+xml` and `text/xml` were
   classified as `inline` by their top-level `image`/`text` type, so an uploaded SVG carrying
   `<script>` — or an XML document naming an XSLT stylesheet through `<?xml-stylesheet ?>` —
-  executed script in the serving origin when opened. Any content type with an `xml` subtype or
-  an `+xml` suffix now defaults to `attachment`, matching how `application/xml` and
-  `application/xhtml+xml` already behaved. Reported by sl91994.
+  executed script in the serving origin when opened. XML-based content types now default to
+  `attachment`, matching how `application/xml` and `application/xhtml+xml` already behaved.
+  That covers the `+xml` suffix, an `xml` subtype, RFC 7303's `xml-dtd` and
+  `xml-external-parsed-entity`, and the legacy `text/xsl` that `<?xml-stylesheet ?>` itself
+  names. `text/html` still defaults to `inline`. Reported by sl91994.
 - `NamedFile` and `StaticEmbed` responses now carry `X-Content-Type-Options: nosniff`.
 
 ### Added
@@ -25,7 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `StaticFile::disposition_type`, `StaticFile::attached_name` and
   `StaticFile::use_content_type_options`, so applications serving trusted assets can opt back
   into inline rendering, which previously had no public API on either handler.
-
+- `NamedFileBuilder::disposition_name`, which sets the name `Content-Disposition` reports
+  without forcing the disposition to `attachment` the way `attached_name` does.
 - Changelog established for upcoming releases.
 - Opt-in RFC 9457 Problem Details responses with typed extension members and OpenAPI integration
   via the `rfc9457` feature.
@@ -88,6 +91,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `StaticDir` names a download after the file that was requested rather than the precompressed
+  sidecar it was served from, so a request for `logo.svg` answered out of `logo.svg.br` no
+  longer offers `Content-Disposition: attachment; filename="logo.svg.br"`.
 - `PathItem` no longer duplicates operations into `extensions` when deserialized, which
   previously made a parsed path item re-serialize with repeated keys.
 - OAuth2 flows are now resolved by their flow name instead of by shape, so a

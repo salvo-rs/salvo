@@ -111,8 +111,8 @@ pub(crate) enum Flag {
 /// `Content-Disposition: inline`, while other files use `attachment`.
 /// Use [`NamedFileBuilder::attached_name`] to force a download with a specific filename.
 ///
-/// XML-based documents — `image/svg+xml`, `text/xml`, and anything else with an
-/// `xml` subtype or `+xml` suffix — are the exception: they default to
+/// XML-based documents are the exception: `image/svg+xml`, `text/xml`, `text/xsl`
+/// and anything else carrying an `xml` subtype or a `+xml` suffix default to
 /// `attachment` even though their top-level type is `image` or `text`, because a
 /// browser rendering one as a document will run any script it contains in the
 /// serving origin. Pass [`NamedFileBuilder::disposition_type`] to override this
@@ -133,6 +133,9 @@ pub(crate) enum Flag {
 #[derive(Debug)]
 pub struct NamedFile {
     path: PathBuf,
+    /// Overrides the name `Content-Disposition` reports, when the bytes come from
+    /// a different path than the requested resource.
+    disposition_name: Option<String>,
     file: File,
     modified: Option<SystemTime>,
     buffer_size: u64,
@@ -174,6 +177,7 @@ pub struct NamedFile {
 pub struct NamedFileBuilder {
     path: PathBuf,
     attached_name: Option<String>,
+    disposition_name: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
@@ -188,6 +192,20 @@ impl NamedFileBuilder {
     pub fn attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
         self.attached_name = Some(attached_name.into());
         self.flags.insert(Flag::ContentDisposition);
+        self
+    }
+
+    /// Sets the file name used in `Content-Disposition` without forcing the
+    /// disposition to `attachment`, and returns `Self`.
+    ///
+    /// Use this when the bytes are read from a different path than the resource
+    /// the client asked for, so a download is saved under the requested name
+    /// rather than the name of the file on disk. [`Self::attached_name`] sets the
+    /// same name but also forces `attachment`.
+    #[inline]
+    #[must_use]
+    pub fn disposition_name<T: Into<String>>(mut self, disposition_name: T) -> Self {
+        self.disposition_name = Some(disposition_name.into());
         self
     }
 
@@ -312,6 +330,7 @@ impl NamedFileBuilder {
             preload_threshold,
             disposition_type,
             attached_name,
+            disposition_name,
             flags,
         } = self;
 
@@ -416,7 +435,7 @@ impl NamedFileBuilder {
         let mut content_disposition = None;
         if attached_name.is_some() || disposition_type.is_some() {
             content_disposition = Some(build_content_disposition(
-                &path,
+                disposition_name_source(disposition_name.as_deref(), &path),
                 &content_type,
                 disposition_type.as_deref(),
                 attached_name.as_deref(),
@@ -424,6 +443,7 @@ impl NamedFileBuilder {
         }
         Ok(NamedFile {
             path,
+            disposition_name,
             file,
             content_type,
             content_disposition,
@@ -444,11 +464,34 @@ impl NamedFileBuilder {
 /// scripted HTML from it. Both execute against the origin that served the file, so
 /// serving one inline turns an uploaded "image" into stored XSS.
 ///
-/// `application/xml` and `application/xhtml+xml` already fell on the `attachment`
-/// side because their top-level type is not in the inline list; this covers the
-/// `image/svg+xml` and `text/xml` spellings that slipped past it.
+/// `application/*` XML types already fell on the `attachment` side because their
+/// top-level type is not in the inline list. What slipped past were the `image`
+/// and `text` spellings, which is every case below.
 fn is_scriptable_xml(content_type: &Mime) -> bool {
-    content_type.subtype() == mime::XML || content_type.suffix() == Some(mime::XML)
+    let subtype = content_type.subtype().as_str();
+    // The `+xml` structured syntax suffix: `image/svg+xml`, `application/xslt+xml`.
+    content_type.suffix() == Some(mime::XML)
+        // `text/xml`, plus RFC 7303's `xml-dtd` and `xml-external-parsed-entity`,
+        // which are XML but carry no suffix. Compare only the segment before the
+        // first hyphen, so a subtype merely starting with those letters — say
+        // `xmlish` — is not swept along.
+        || subtype
+            .split_once('-')
+            .map_or(subtype, |(head, _)| head)
+            .eq_ignore_ascii_case("xml")
+        // `text/xsl` is the legacy type that `<?xml-stylesheet ?>` itself names,
+        // and browsers parse it as XML.
+        || subtype.eq_ignore_ascii_case("xsl")
+}
+
+/// The path whose file name names the file in `Content-Disposition`.
+///
+/// Normally that is the path on disk, but the two diverge when the bytes come
+/// from somewhere other than the resource that was requested: `StaticDir` serving
+/// the precompressed sidecar `logo.svg.br` for a request for `logo.svg` must
+/// still offer the download as `logo.svg`.
+fn disposition_name_source<'a>(disposition_name: Option<&'a str>, path: &'a Path) -> &'a Path {
+    disposition_name.map_or(path, Path::new)
 }
 
 fn build_content_disposition(
@@ -520,6 +563,7 @@ impl NamedFile {
         NamedFileBuilder {
             path: path.into(),
             attached_name: None,
+            disposition_name: None,
             disposition_type: None,
             content_type: None,
             content_encoding: None,
@@ -763,7 +807,12 @@ impl NamedFile {
                     .insert(CONTENT_DISPOSITION, content_disposition);
             } else if !res.headers().contains_key(CONTENT_DISPOSITION) {
                 // skip to set CONTENT_DISPOSITION header if it is already set.
-                match build_content_disposition(&self.path, &self.content_type, None, None) {
+                match build_content_disposition(
+                    disposition_name_source(self.disposition_name.as_deref(), &self.path),
+                    &self.content_type,
+                    None,
+                    None,
+                ) {
                     Ok(content_disposition) => {
                         res.headers_mut()
                             .insert(CONTENT_DISPOSITION, content_disposition);
@@ -1031,6 +1080,87 @@ mod tests {
                 "{content_type} must stay inline"
             );
         }
+    }
+
+    #[test]
+    fn xml_types_without_the_suffix_default_to_attachment() {
+        // These name XML without carrying an `xml` subtype or a `+xml` suffix, so
+        // the structural checks alone would let them through on `text`.
+        for content_type in [
+            // The type `<?xml-stylesheet type="text/xsl" ?>` itself names.
+            "text/xsl",
+            "text/xml-external-parsed-entity",
+            "text/xml-dtd",
+            // Matching is case-insensitive, as MIME comparisons are.
+            "TEXT/XSL",
+            "Text/XML",
+        ] {
+            let content_type = content_type.parse().expect("parse mime");
+            assert!(
+                default_disposition_for(&content_type).starts_with("attachment"),
+                "{content_type} must not default to inline"
+            );
+        }
+    }
+
+    #[test]
+    fn xml_lookalike_subtypes_stay_inline() {
+        // The XML carve-out keys on the type actually being XML; a subtype that
+        // merely starts with the same letters must not be dragged along.
+        for content_type in ["text/xmlish", "image/xslfoo", "text/xsl-but-not"] {
+            let content_type = content_type.parse().expect("parse mime");
+            assert_eq!(
+                default_disposition_for(&content_type),
+                "inline",
+                "{content_type} must stay inline"
+            );
+        }
+    }
+
+    #[test]
+    fn disposition_name_replaces_the_on_disk_file_name() {
+        // `StaticDir` reads `logo.svg.br` but the client asked for `logo.svg`.
+        let value = build_content_disposition(
+            disposition_name_source(Some("logo.svg"), Path::new("/srv/assets/logo.svg.br")),
+            &mime::IMAGE_SVG,
+            None,
+            None,
+        )
+        .expect("build content disposition");
+        assert_eq!(
+            value.to_str().expect("header is ascii"),
+            r#"attachment; filename="logo.svg""#
+        );
+    }
+
+    #[test]
+    fn attached_name_outranks_disposition_name() {
+        let value = build_content_disposition(
+            disposition_name_source(Some("logo.svg"), Path::new("logo.svg.br")),
+            &mime::IMAGE_SVG,
+            None,
+            Some("chosen.svg"),
+        )
+        .expect("build content disposition");
+        assert_eq!(
+            value.to_str().expect("header is ascii"),
+            r#"attachment; filename="chosen.svg""#
+        );
+    }
+
+    #[test]
+    fn disposition_name_falls_back_to_the_path() {
+        let value = build_content_disposition(
+            disposition_name_source(None, Path::new("/srv/assets/logo.svg")),
+            &mime::IMAGE_SVG,
+            None,
+            None,
+        )
+        .expect("build content disposition");
+        assert_eq!(
+            value.to_str().expect("header is ascii"),
+            r#"attachment; filename="logo.svg""#
+        );
     }
 
     #[test]

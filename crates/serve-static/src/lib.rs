@@ -258,6 +258,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_static_dir_names_download_after_the_requested_file() {
+        // Build tools routinely emit `logo.svg.br` next to `logo.svg`. When that
+        // sidecar is negotiated the bytes come from it, but the client asked for
+        // `logo.svg` and must be offered that name, not the sidecar's.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(root.path().join("logo.svg"), "<svg/>").unwrap();
+        fs::write(root.path().join("logo.svg.br"), "brotli-bytes").unwrap();
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/logo.svg")
+            .add_header("accept-encoding", "br", true)
+            .send(&service)
+            .await;
+        // The sidecar really was selected...
+        assert_eq!(
+            response
+                .headers
+                .get(CONTENT_ENCODING)
+                .and_then(|v| v.to_str().ok()),
+            Some("br")
+        );
+        // ...yet the download is named after the request.
+        assert_eq!(
+            response
+                .headers
+                .get(CONTENT_DISPOSITION)
+                .and_then(|v| v.to_str().ok()),
+            Some(r#"attachment; filename="logo.svg""#)
+        );
+    }
+
+    #[tokio::test]
     async fn test_static_dir_disposition_type_can_restore_inline() {
         // Directories holding only trusted assets can opt back into inline SVG.
         let root = tempfile::TempDir::new().unwrap();
