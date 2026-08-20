@@ -1,17 +1,11 @@
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 
-use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::form::FilePart;
-use salvo_core::http::header::CONTENT_TYPE;
-use salvo_core::http::{HeaderMap, Mime, ParseError};
-use salvo_core::{Depot, Request, async_trait};
-
-use crate::endpoint::EndpointArgRegister;
-use crate::{
-    Array, BasicType, Components, Content, KnownFormat, Object, Operation, RequestBody, Schema,
-    SchemaFormat,
-};
+use crate::extract::{Extractible, Metadata};
+use crate::http::form::FilePart;
+use crate::http::header::CONTENT_TYPE;
+use crate::http::{HeaderMap, Mime, ParseError};
+use crate::{Depot, Request};
 
 /// Represents the upload file.
 #[derive(Clone, Debug)]
@@ -102,30 +96,6 @@ impl<'ex> Extractible<'ex> for FormFile {
     }
 }
 
-#[async_trait]
-impl EndpointArgRegister for FormFile {
-    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        let schema = Schema::from(
-            Object::new().property(
-                arg,
-                Object::with_type(BasicType::String)
-                    .format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
-            ),
-        );
-
-        if let Some(request_body) = &mut operation.request_body {
-            request_body
-                .contents
-                .insert("multipart/form-data".into(), Content::new(schema));
-        } else {
-            let request_body = RequestBody::new()
-                .description("Upload a file.")
-                .add_content("multipart/form-data", Content::new(schema));
-            operation.request_body = Some(request_body);
-        }
-    }
-}
-
 /// Represents the upload files.
 #[derive(Clone, Debug)]
 pub struct FormFiles(pub Vec<FormFile>);
@@ -179,30 +149,5 @@ impl<'ex> Extractible<'ex> for FormFiles {
                 .map(FormFile::new)
                 .collect(),
         ))
-    }
-}
-
-#[async_trait]
-impl EndpointArgRegister for FormFiles {
-    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        let schema = Schema::from(
-            Object::new().property(
-                arg,
-                Array::new().items(Schema::from(
-                    Object::with_type(BasicType::String)
-                        .format(SchemaFormat::KnownFormat(KnownFormat::Binary)),
-                )),
-            ),
-        );
-        if let Some(request_body) = &mut operation.request_body {
-            request_body
-                .contents
-                .insert("multipart/form-data".into(), Content::new(schema));
-        } else {
-            let request_body = RequestBody::new()
-                .description("Upload files.")
-                .add_content("multipart/form-data", Content::new(schema));
-            operation.request_body = Some(request_body);
-        }
     }
 }

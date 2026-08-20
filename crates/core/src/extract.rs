@@ -72,6 +72,12 @@
 /// Metadata types.
 pub mod metadata;
 pub use metadata::Metadata;
+mod parameter;
+#[cfg(feature = "cookie")]
+pub use parameter::CookieParam;
+pub use parameter::{HeaderParam, PathParam, QueryParam};
+mod payload;
+pub use payload::{FormBody, FormFile, FormFiles, JsonBody};
 mod case;
 use std::fmt::Debug;
 
