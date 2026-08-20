@@ -45,8 +45,8 @@ mod tests {
 
     use salvo_core::http::HeaderValue;
     use salvo_core::http::header::{
-        ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, VARY,
-        X_CONTENT_TYPE_OPTIONS,
+        ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
+        HeaderName, VARY, X_CONTENT_TYPE_OPTIONS,
     };
     use salvo_core::prelude::*;
     use salvo_core::routing::{Filter, filters};
@@ -209,30 +209,40 @@ mod tests {
             .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
         let service = Service::new(router);
 
-        async fn disposition(service: &Service, url: &str) -> String {
-            TestClient::get(url)
-                .send(service)
-                .await
-                .headers
-                .get(CONTENT_DISPOSITION)
-                .expect("content-disposition is set")
-                .to_str()
-                .expect("header is ascii")
-                .to_owned()
+        async fn headers_of(service: &Service, url: &str) -> (String, String) {
+            let response = TestClient::get(url).send(service).await;
+            let header = |name: HeaderName| {
+                response
+                    .headers
+                    .get(name)
+                    .expect("header is set")
+                    .to_str()
+                    .expect("header is ascii")
+                    .to_owned()
+            };
+            (header(CONTENT_DISPOSITION), header(CONTENT_TYPE))
         }
 
-        for name in ["poc.svg", "poc.xml"] {
-            let value = disposition(&service, &format!("http://127.0.0.1:5801/{name}")).await;
+        // The content type is asserted alongside the disposition: without it this
+        // test would also pass on a file that failed to be recognised at all and
+        // fell back to `application/octet-stream`.
+        for (name, expected_type) in [
+            ("poc.svg", "image/svg+xml"),
+            ("poc.xml", "text/xml; charset=utf-8"),
+        ] {
+            let (disposition, content_type) =
+                headers_of(&service, &format!("http://127.0.0.1:5801/{name}")).await;
+            assert_eq!(content_type, expected_type, "{name} content type");
             assert!(
-                value.starts_with("attachment"),
-                "{name} served with `{value}`"
+                disposition.starts_with("attachment"),
+                "{name} served with `{disposition}`"
             );
         }
         // Ordinary images keep rendering inline.
-        assert_eq!(
-            disposition(&service, "http://127.0.0.1:5801/logo.png").await,
-            "inline"
-        );
+        let (disposition, content_type) =
+            headers_of(&service, "http://127.0.0.1:5801/logo.png").await;
+        assert_eq!(content_type, "image/png");
+        assert_eq!(disposition, "inline");
 
         // Responses are also marked non-sniffable.
         let response = TestClient::get("http://127.0.0.1:5801/logo.png")

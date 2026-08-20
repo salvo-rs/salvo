@@ -1059,6 +1059,10 @@ mod tests {
             .build()
             .await
             .expect("build named file");
+        // The file must be recognised *as* an SVG, otherwise this test would also
+        // pass on an unidentified file falling back to `application/octet-stream`.
+        assert_eq!(named.content_type(), &mime::IMAGE_SVG);
+
         let mut res = Response::new();
         named.send(&HeaderMap::new(), &mut res).await;
 
