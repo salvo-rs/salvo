@@ -190,6 +190,10 @@ pub struct StaticDir {
     pub defaults: Vec<String>,
     /// Fallback file to serve when requested file isn't found
     pub fallback: Option<String>,
+    /// Overrides the `Content-Disposition` type for every served file
+    pub disposition_type: Option<String>,
+    /// Whether to send `X-Content-Type-Options: nosniff`
+    pub use_content_type_options: bool,
 }
 impl Debug for StaticDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -202,6 +206,8 @@ impl Debug for StaticDir {
             .field("compressed_variations", &self.compressed_variations)
             .field("defaults", &self.defaults)
             .field("fallback", &self.fallback)
+            .field("disposition_type", &self.disposition_type)
+            .field("use_content_type_options", &self.use_content_type_options)
             .finish()
     }
 }
@@ -225,7 +231,37 @@ impl StaticDir {
             compressed_variations,
             defaults: vec![],
             fallback: None,
+            disposition_type: None,
+            use_content_type_options: true,
         }
+    }
+
+    /// Sets the `Content-Disposition` type used for every served file, e.g.
+    /// `inline` or `attachment`.
+    ///
+    /// By default the type is derived per file from its content type: `inline`
+    /// for text, image, video and audio, `attachment` for everything else
+    /// including XML-based documents such as `image/svg+xml` and `text/xml`.
+    ///
+    /// Forcing `inline` makes every file in the directory render in the browser,
+    /// so only do it for directories whose contents you control. An SVG served
+    /// inline runs its own `<script>` in the serving origin, which is stored XSS
+    /// when the directory holds user uploads.
+    #[inline]
+    #[must_use]
+    pub fn disposition_type(mut self, disposition_type: impl Into<String>) -> Self {
+        self.disposition_type = Some(disposition_type.into());
+        self
+    }
+
+    /// Specifies whether to send `X-Content-Type-Options: nosniff`.
+    ///
+    /// Default is true.
+    #[inline]
+    #[must_use]
+    pub fn use_content_type_options(mut self, value: bool) -> Self {
+        self.use_content_type_options = value;
+        self
     }
 
     /// Sets include_dot_files.
@@ -611,6 +647,10 @@ impl Handler for StaticDir {
                 if let Some(content_type) = content_type {
                     builder = builder.content_type(content_type);
                 }
+                if let Some(disposition_type) = &self.disposition_type {
+                    builder = builder.disposition_type(disposition_type.clone());
+                }
+                builder = builder.use_content_type_options(self.use_content_type_options);
                 (builder, varies_on_accept_encoding)
             };
             if let Ok(named_file) = builder.build().await {

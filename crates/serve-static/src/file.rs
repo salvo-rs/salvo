@@ -58,6 +58,35 @@ impl StaticFile {
     pub fn preload_threshold(self, threshold: u64) -> Self {
         Self(self.0.preload_threshold(threshold))
     }
+
+    /// Set the `Content-Disposition` type, e.g. `inline` or `attachment`.
+    ///
+    /// By default the type is derived from the file's content type: `inline` for
+    /// text, image, video and audio, `attachment` for everything else including
+    /// XML-based documents such as `image/svg+xml`. Set this to `inline` only for
+    /// files you trust — an SVG rendered inline runs its own script in the
+    /// serving origin.
+    #[inline]
+    #[must_use]
+    pub fn disposition_type(self, disposition_type: impl Into<String>) -> Self {
+        Self(self.0.disposition_type(disposition_type))
+    }
+
+    /// Serve the file as a download under `name`, regardless of its content type.
+    #[inline]
+    #[must_use]
+    pub fn attached_name(self, name: impl Into<String>) -> Self {
+        Self(self.0.attached_name(name))
+    }
+
+    /// Specifies whether to send `X-Content-Type-Options: nosniff` or not.
+    ///
+    /// Default is true.
+    #[inline]
+    #[must_use]
+    pub fn use_content_type_options(self, value: bool) -> Self {
+        Self(self.0.use_content_type_options(value))
+    }
 }
 
 #[async_trait]

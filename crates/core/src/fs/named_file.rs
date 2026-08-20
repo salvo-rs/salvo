@@ -21,6 +21,7 @@ use super::{ChunkedFile, ChunkedState};
 use crate::http::body::ResBody;
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, RANGE,
+    X_CONTENT_TYPE_OPTIONS,
 };
 use crate::http::mime::{detect_text_mime, fill_mime_charset_if_need, is_charset_required_mime};
 use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
@@ -51,13 +52,14 @@ const RFC5987_ATTR_CHAR_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b'{')
     .add(b'}');
 
-#[bitflags(default = Etag | LastModified | ContentDisposition)]
+#[bitflags(default = Etag | LastModified | ContentDisposition | ContentTypeOptions)]
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum Flag {
     Etag = 0b0001,
     LastModified = 0b0010,
     ContentDisposition = 0b0100,
+    ContentTypeOptions = 0b1000,
 }
 
 /// A file with an associated name and metadata for HTTP serving.
@@ -108,6 +110,19 @@ pub(crate) enum Flag {
 /// By default, text, images, video, and audio files are served with
 /// `Content-Disposition: inline`, while other files use `attachment`.
 /// Use [`NamedFileBuilder::attached_name`] to force a download with a specific filename.
+///
+/// XML-based documents — `image/svg+xml`, `text/xml`, and anything else with an
+/// `xml` subtype or `+xml` suffix — are the exception: they default to
+/// `attachment` even though their top-level type is `image` or `text`, because a
+/// browser rendering one as a document will run any script it contains in the
+/// serving origin. Pass [`NamedFileBuilder::disposition_type`] to override this
+/// for content you trust.
+///
+/// # Security Headers
+///
+/// Responses carry `X-Content-Type-Options: nosniff` by default so a browser
+/// cannot reinterpret a file as a more dangerous type than its `Content-Type`
+/// claims. See [`NamedFileBuilder::use_content_type_options`].
 ///
 /// # Caching Headers
 ///
@@ -260,6 +275,21 @@ impl NamedFileBuilder {
         self
     }
 
+    /// Specifies whether to send `X-Content-Type-Options: nosniff` or not.
+    ///
+    /// Default is true. Turn this off only when a client depends on MIME
+    /// sniffing to interpret a file whose extension does not describe it.
+    #[inline]
+    #[must_use]
+    pub fn use_content_type_options(mut self, value: bool) -> Self {
+        if value {
+            self.flags.insert(Flag::ContentTypeOptions);
+        } else {
+            self.flags.remove(Flag::ContentTypeOptions);
+        }
+        self
+    }
+
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
         if !self.path.exists() {
@@ -406,6 +436,21 @@ impl NamedFileBuilder {
         })
     }
 }
+/// Whether a browser rendering `content_type` as a document could run script in
+/// the serving origin.
+///
+/// An SVG carries `<script>` elements and event handler attributes, and any XML
+/// document can name an XSLT stylesheet through `<?xml-stylesheet ?>` and render
+/// scripted HTML from it. Both execute against the origin that served the file, so
+/// serving one inline turns an uploaded "image" into stored XSS.
+///
+/// `application/xml` and `application/xhtml+xml` already fell on the `attachment`
+/// side because their top-level type is not in the inline list; this covers the
+/// `image/svg+xml` and `text/xml` spellings that slipped past it.
+fn is_scriptable_xml(content_type: &Mime) -> bool {
+    content_type.subtype() == mime::XML || content_type.suffix() == Some(mime::XML)
+}
+
 fn build_content_disposition(
     file_path: impl AsRef<Path>,
     content_type: &Mime,
@@ -413,7 +458,7 @@ fn build_content_disposition(
     attached_name: Option<&str>,
 ) -> Result<HeaderValue> {
     let disposition_type = disposition_type.unwrap_or_else(|| {
-        if attached_name.is_some() {
+        if attached_name.is_some() || is_scriptable_xml(content_type) {
             "attachment"
         } else {
             match (content_type.type_(), content_type.subtype()) {
@@ -535,9 +580,9 @@ impl NamedFile {
     /// changing the inline/attachment disposition as well as the filename
     /// sent to the peer.
     ///
-    /// By default the disposition is `inline` for text,
-    /// image, and video content types, and `attachment` otherwise, and
-    /// the filename is taken from the path provided in the `open` method
+    /// By default the disposition is `inline` for text, image, video and audio
+    /// content types other than XML-based ones, and `attachment` for everything
+    /// else. The filename is taken from the path provided in the `open` method
     /// after converting it to UTF-8 using
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
@@ -552,6 +597,19 @@ impl NamedFile {
     #[inline]
     pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flag::ContentDisposition);
+    }
+
+    /// Specifies whether to send `X-Content-Type-Options: nosniff` or not.
+    ///
+    /// Default is true. Turn this off only when a client depends on MIME
+    /// sniffing to interpret a file whose extension does not describe it.
+    #[inline]
+    pub fn use_content_type_options(&mut self, value: bool) {
+        if value {
+            self.flags.insert(Flag::ContentTypeOptions);
+        } else {
+            self.flags.remove(Flag::ContentTypeOptions);
+        }
     }
 
     /// Get content encoding value reference.
@@ -719,6 +777,12 @@ impl NamedFile {
         if !res.headers().contains_key(CONTENT_TYPE) {
             res.headers_mut()
                 .typed_insert(ContentType::from(self.content_type.clone()));
+        }
+        if self.flags.contains(Flag::ContentTypeOptions)
+            && !res.headers().contains_key(X_CONTENT_TYPE_OPTIONS)
+        {
+            res.headers_mut()
+                .insert(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
         }
         if let Some(lm) = last_modified.and_then(|lm| self.encodable_last_modified(lm)) {
             res.headers_mut().typed_insert(LastModified::from(lm));
@@ -919,6 +983,100 @@ mod tests {
         assert_eq!(
             value.to_str().unwrap(),
             r#"attachment; filename="report\"\\__.txt"; filename*=UTF-8''report%22%5C%0D%0A.txt"#
+        );
+    }
+
+    fn default_disposition_for(content_type: &Mime) -> String {
+        build_content_disposition("upload.bin", content_type, None, None)
+            .expect("build content disposition")
+            .to_str()
+            .expect("header is ascii")
+            .to_owned()
+    }
+
+    #[test]
+    fn scriptable_xml_defaults_to_attachment() {
+        // An SVG can carry <script>/onload, and any XML document can pull in an
+        // XSLT stylesheet that renders scripted HTML. Serving either inline from
+        // the app's own origin turns an uploaded "image" into stored XSS.
+        for content_type in [
+            mime::IMAGE_SVG,
+            mime::TEXT_XML,
+            "application/xml".parse().expect("parse mime"),
+            "application/xhtml+xml".parse().expect("parse mime"),
+            "application/rss+xml".parse().expect("parse mime"),
+        ] {
+            assert!(
+                default_disposition_for(&content_type).starts_with("attachment"),
+                "{content_type} must not default to inline"
+            );
+        }
+    }
+
+    #[test]
+    fn non_xml_media_still_defaults_to_inline() {
+        // The XML carve-out must not pull ordinary media off the inline path.
+        for content_type in [
+            mime::IMAGE_PNG,
+            mime::TEXT_PLAIN,
+            // A static file server exists to serve HTML documents inline.
+            mime::TEXT_HTML,
+            "video/mp4".parse().expect("parse mime"),
+            "audio/mpeg".parse().expect("parse mime"),
+            "text/javascript".parse().expect("parse mime"),
+        ] {
+            assert_eq!(
+                default_disposition_for(&content_type),
+                "inline",
+                "{content_type} must stay inline"
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_disposition_type_overrides_xml_default() {
+        // Serving trusted SVG assets inline stays possible.
+        let value = build_content_disposition("logo.svg", &mime::IMAGE_SVG, Some("inline"), None)
+            .expect("build content disposition");
+        assert_eq!(value.to_str().expect("header is ascii"), "inline");
+    }
+
+    #[tokio::test]
+    async fn svg_is_served_as_attachment_with_nosniff() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::Builder::new()
+            .suffix(".svg")
+            .tempfile()
+            .expect("create temp file");
+        file.write_all(
+            br#"<svg xmlns="http://www.w3.org/2000/svg" onload="alert(document.domain)"/>"#,
+        )
+        .expect("write svg");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        let mut res = Response::new();
+        named.send(&HeaderMap::new(), &mut res).await;
+
+        let disposition = res
+            .headers()
+            .get(CONTENT_DISPOSITION)
+            .expect("content-disposition is set")
+            .to_str()
+            .expect("header is ascii");
+        assert!(
+            disposition.starts_with("attachment"),
+            "svg served with `{disposition}`"
+        );
+        assert_eq!(
+            res.headers()
+                .get(X_CONTENT_TYPE_OPTIONS)
+                .map(|v| v.to_str().expect("header is ascii")),
+            Some("nosniff")
         );
     }
 

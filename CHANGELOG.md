@@ -6,7 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- Static file responses no longer serve XML-based documents inline, which allowed stored XSS
+  when an application served attacker-supplied uploads. `image/svg+xml` and `text/xml` were
+  classified as `inline` by their top-level `image`/`text` type, so an uploaded SVG carrying
+  `<script>` — or an XML document naming an XSLT stylesheet through `<?xml-stylesheet ?>` —
+  executed script in the serving origin when opened. Any content type with an `xml` subtype or
+  an `+xml` suffix now defaults to `attachment`, matching how `application/xml` and
+  `application/xhtml+xml` already behaved. Reported by sl91994.
+- `NamedFile` and `StaticEmbed` responses now carry `X-Content-Type-Options: nosniff`.
+
 ### Added
+
+- `NamedFileBuilder::use_content_type_options` and `NamedFile::use_content_type_options` to
+  control the `X-Content-Type-Options` header.
+- `StaticDir::disposition_type`, `StaticDir::use_content_type_options`,
+  `StaticFile::disposition_type`, `StaticFile::attached_name` and
+  `StaticFile::use_content_type_options`, so applications serving trusted assets can opt back
+  into inline rendering, which previously had no public API on either handler.
 
 - Changelog established for upcoming releases.
 - Opt-in RFC 9457 Problem Details responses with typed extension members and OpenAPI integration
@@ -51,6 +69,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     is unchanged.
 - `OpenApi` still defaults to emitting OpenAPI 3.1; 3.2 remains opt-in via
   `OpenApi::openapi_version`.
+- **Behavior change.** Serving an SVG or XML file through `StaticDir`, `StaticFile` or
+  `NamedFile` now sends `Content-Disposition: attachment` by default, so following a link to
+  one downloads it instead of rendering it, and `<object>`/`<embed>`/`<iframe>` no longer
+  display it. Referencing the same file from `<img>`, CSS `url()` or `<use>` is unaffected,
+  because browsers ignore `Content-Disposition` on subresource loads. Directories holding only
+  trusted assets can restore the old behavior with
+  `StaticDir::new(..).disposition_type("inline")`. `text/html` still defaults to `inline`,
+  since serving HTML documents is the point of a static file server.
 
 ### Notes
 
