@@ -37,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Content::from_ref` / `Content::ref_location`, so a `content` map entry can reference a
   reusable Media Type Object without changing those maps to `RefOr<Content>`.
 - `examples/oapi-3-2` demonstrates emitting a 3.2 document with a `QUERY` route.
+- `salvo_core::fs::extension_content_encoding`, which reports the content coding a file
+  extension implies, so a handler choosing a file to serve can tell that it already carries one.
 
 ### Changed
 
@@ -68,6 +70,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `clientCredentials` flow no longer deserializes as `Flow::Password`.
 - Objects whose optional fields are skipped during serialization can now be deserialized
   again; previously round-tripping a generated document failed with `missing field` errors.
+- `.svgz` files are now served with `Content-Encoding: gzip`. Their extension names both a
+  media type and the coding applied to it, but an extension resolves to a single media type,
+  so the response described the gzip stream as `image/svg+xml` and no client could render it.
+  The gzipped X3D forms `.x3dz`, `.x3dvz` and `.x3dbz` are handled the same way. `.gz` and
+  `.tgz` are unaffected, since there the gzip stream is the representation being served.
+  `StaticDir` also stops serving a precompressed sidecar for such a file — a `logo.svgz.br`
+  stacks a second coding on the gzip, and only the outer one can be reported.
 
 ## Historical Releases
 
