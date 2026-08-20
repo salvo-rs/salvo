@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cmp;
+use std::ffi::OsStr;
 use std::fs::Metadata;
 use std::io::{Read as StdRead, Seek as StdSeek, SeekFrom};
 use std::ops::{Deref, DerefMut};
@@ -288,6 +289,17 @@ impl NamedFileBuilder {
         let buf_size = buffer_size.unwrap_or(CHUNK_SIZE).max(1);
         let preload_threshold = preload_threshold.unwrap_or(PRELOAD_THRESHOLD);
 
+        // An extension such as `.svgz` names a media type *and* the coding applied
+        // to it. Recover the coding here, because the type alone describes the
+        // decoded document and would leave the response claiming a gzip stream is
+        // an SVG. An explicitly configured encoding always wins.
+        let content_encoding = content_encoding.or_else(|| {
+            path.extension()
+                .and_then(OsStr::to_str)
+                .and_then(extension_content_encoding)
+                .map(ToOwned::to_owned)
+        });
+
         // Determine what charset detection is needed before the blocking call.
         let inferred_mime = content_type
             .clone()
@@ -468,6 +480,33 @@ fn escape_quoted_filename(filename: &str) -> String {
     }
     escaped
 }
+
+/// Extensions that name a content-coded form of another media type, paired with
+/// the coding they imply.
+///
+/// `.gz` and `.tgz` are deliberately absent: there the gzip stream is the
+/// representation being served, not a coding applied to something else.
+const CONTENT_CODED_EXTS: &[(&str, &str)] = &[
+    ("svgz", "gzip"),
+    // X3D's compressed interchange forms, gzip per ISO/IEC 19776.
+    ("x3dz", "gzip"),
+    ("x3dvz", "gzip"),
+    ("x3dbz", "gzip"),
+];
+
+/// The content coding implied by a file extension.
+///
+/// An extension maps to a single media type, so `mime_infer` reports `.svgz` as
+/// `image/svg+xml` — the type of the document *inside* the gzip stream. Serving
+/// that without also advertising the coding hands the client compressed bytes
+/// labelled as an SVG document, which it cannot render.
+fn extension_content_encoding(ext: &str) -> Option<&'static str> {
+    CONTENT_CODED_EXTS
+        .iter()
+        .find(|(candidate, _)| ext.eq_ignore_ascii_case(candidate))
+        .map(|(_, encoding)| *encoding)
+}
+
 impl NamedFile {
     /// Creates a new [`NamedFileBuilder`].
     #[inline]
@@ -1209,6 +1248,69 @@ mod tests {
         assert_eq!(
             value.to_str().unwrap(),
             "attachment; filename=\"__.csv\"; filename*=UTF-8''%E6%8A%A5%E5%91%8A.csv"
+        );
+    }
+
+    #[test]
+    fn only_self_coded_extensions_imply_an_encoding() {
+        assert_eq!(extension_content_encoding("svgz"), Some("gzip"));
+        // Matching follows `mime_infer`, which is case-insensitive.
+        assert_eq!(extension_content_encoding("SVGZ"), Some("gzip"));
+        assert_eq!(extension_content_encoding("x3dz"), Some("gzip"));
+        // A `.gz` or `.tgz` *is* the representation being served, not a coding
+        // applied to some other type, so it must keep its own content type and
+        // arrive undecoded.
+        assert_eq!(extension_content_encoding("gz"), None);
+        assert_eq!(extension_content_encoding("tgz"), None);
+        assert_eq!(extension_content_encoding("svg"), None);
+    }
+
+    #[tokio::test]
+    async fn svgz_is_typed_as_svg_and_encoded_as_gzip() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::Builder::new()
+            .suffix(".svgz")
+            .tempfile()
+            .expect("create temp file");
+        file.write_all(&[0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03])
+            .expect("write gzip header");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(named.content_type(), &mime::IMAGE_SVG);
+        assert_eq!(
+            named.content_encoding().map(|v| v.to_str().unwrap()),
+            Some("gzip")
+        );
+    }
+
+    #[tokio::test]
+    async fn explicit_content_encoding_wins_over_the_extension() {
+        use std::io::Write as _;
+
+        // A `.svgz` recompressed as a brotli sidecar must report what the caller
+        // configured, not the coding its extension would otherwise imply.
+        let mut file = tempfile::Builder::new()
+            .suffix(".svgz")
+            .tempfile()
+            .expect("create temp file");
+        file.write_all(b"not really brotli").expect("write");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .content_encoding("br")
+            .build()
+            .await
+            .expect("build named file");
+
+        assert_eq!(
+            named.content_encoding().map(|v| v.to_str().unwrap()),
+            Some("br")
         );
     }
 }

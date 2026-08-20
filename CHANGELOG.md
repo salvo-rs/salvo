@@ -62,6 +62,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `.svgz` files are now served with `Content-Encoding: gzip`. Their extension names both a
+  media type and the coding applied to it, but an extension resolves to a single media type,
+  so the response described the gzip stream as `image/svg+xml` and no client could render it.
+  The gzipped X3D forms `.x3dz`, `.x3dvz` and `.x3dbz` are handled the same way. `.gz` and
+  `.tgz` are unaffected, since there the gzip stream is the representation being served.
 - `PathItem` no longer duplicates operations into `extensions` when deserialized, which
   previously made a parsed path item re-serialize with repeated keys.
 - OAuth2 flows are now resolved by their flow name instead of by shape, so a

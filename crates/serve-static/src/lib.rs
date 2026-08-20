@@ -186,6 +186,43 @@ mod tests {
         assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 
+    /// `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>`, gzipped.
+    const SVGZ: &[u8] = &[
+        0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb3, 0x29, 0x2e, 0x4b, 0x57,
+        0xa8, 0xc8, 0xcd, 0xc9, 0x2b, 0xb6, 0x55, 0xca, 0x28, 0x29, 0x29, 0xb0, 0xd2, 0xd7, 0x2f,
+        0x2f, 0x2f, 0xd7, 0x2b, 0x37, 0xd6, 0xcb, 0x2f, 0x4a, 0xd7, 0x37, 0x32, 0x30, 0x30, 0xd0,
+        0x07, 0xaa, 0x50, 0x52, 0x28, 0xcf, 0x4c, 0x29, 0xc9, 0xb0, 0x55, 0x32, 0x34, 0x50, 0x52,
+        0xc8, 0x48, 0xcd, 0x4c, 0xcf, 0x28, 0x01, 0xb3, 0xf5, 0xed, 0x00, 0xb8, 0xf1, 0x6a, 0x2e,
+        0x40, 0x00, 0x00, 0x00,
+    ];
+
+    #[tokio::test]
+    async fn test_serve_static_dir_marks_svgz_as_gzip_encoded() {
+        // A `.svgz` is a gzipped SVG. `mime_infer` reports its *type* as
+        // `image/svg+xml`, which is correct, but the bytes on disk are gzip. Without
+        // `Content-Encoding: gzip` the client is told a gzip stream is an SVG
+        // document and cannot render it.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(root.path().join("logo.svgz"), SVGZ).unwrap();
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
+        let service = Service::new(router);
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/logo.svgz")
+            .add_header("accept-encoding", "gzip", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE).unwrap(),
+            "image/svg+xml"
+        );
+        assert_eq!(response.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
+        // The payload is passed through untouched; the client inflates it.
+        assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), SVGZ);
+    }
+
     #[tokio::test]
     async fn test_serve_static_file() {
         let router = Router::new()
