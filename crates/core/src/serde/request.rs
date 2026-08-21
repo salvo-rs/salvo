@@ -242,10 +242,13 @@ impl<'de> RequestDeserializer<'de> {
                     return Err(ValError::custom("JSON source value must be borrowed"));
                 };
                 let mut de = serde_json::Deserializer::new(serde_json::de::StrRead::new(s));
-                seed.deserialize(&mut de)
+                let value = seed
+                    .deserialize(&mut de)
                     // Preserve the underlying serde_json error (line/column and the
                     // expected/actual type) instead of a generic message.
-                    .map_err(ValError::custom)
+                    .map_err(ValError::custom)?;
+                de.end().map_err(ValError::custom)?;
+                Ok(value)
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
@@ -887,6 +890,32 @@ mod tests {
 
         let data: RequestData<'_> = req.extract(&mut depot).await.unwrap();
         assert_eq!(data.tok, expected);
+    }
+
+    #[cfg(feature = "cookie")]
+    #[tokio::test]
+    async fn test_de_request_rejects_trailing_data_in_json_cookie() {
+        #[derive(Deserialize, Extractible, Debug)]
+        struct RequestData {
+            #[salvo(extract(source(from = "cookie", parse = "json")))]
+            tok: serde_json::Value,
+        }
+
+        let cookie = cookie::Cookie::new("tok", r#"{"valid":true}junk"#);
+        let mut req = TestClient::get("http://127.0.0.1:8698/callback")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let result: Result<RequestData, _> = req.extract(&mut depot).await;
+        let error = match result {
+            Ok(data) => panic!("accepted JSON cookie with trailing data: {:?}", data.tok),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("trailing characters"),
+            "unexpected extraction error: {error}"
+        );
     }
 
     #[tokio::test]
