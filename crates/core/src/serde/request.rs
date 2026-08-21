@@ -223,23 +223,32 @@ impl<'de> RequestDeserializer<'de> {
                 .expect("`MapAccess::next_value` called before next_key");
 
             let parser = self.real_parser(source);
-            if source.from == SourceFrom::Body && parser == SourceParser::Json {
-                // For JSON body parsing, value is always borrowed from the request payload.
-                // panic because this indicates a bug in the program rather than an expected
-                // failure.
+            let parse_json = parser == SourceParser::Json
+                && match source.from {
+                    SourceFrom::Body => true,
+                    #[cfg(feature = "cookie")]
+                    SourceFrom::Cookie => true,
+                    _ => false,
+                };
+            if parse_json {
+                // JSON body and cookie values are borrowed from the request. A missing value
+                // indicates a bug in the deserializer rather than an expected parse failure.
                 let value = self
                     .field_str_value
                     .take()
                     .expect("MapAccess::next_value called before next_key");
-                // Body JSON values are always borrowed from the request payload
+                // JSON values from these sources are always borrowed from the request.
                 let Cow::Borrowed(s) = value else {
-                    return Err(ValError::custom("JSON body value must be borrowed"));
+                    return Err(ValError::custom("JSON source value must be borrowed"));
                 };
                 let mut de = serde_json::Deserializer::new(serde_json::de::StrRead::new(s));
-                seed.deserialize(&mut de)
+                let value = seed
+                    .deserialize(&mut de)
                     // Preserve the underlying serde_json error (line/column and the
                     // expected/actual type) instead of a generic message.
-                    .map_err(ValError::custom)
+                    .map_err(ValError::custom)?;
+                de.end().map_err(ValError::custom)?;
+                Ok(value)
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
@@ -843,6 +852,69 @@ mod tests {
                 p2: "921",
                 s: "abcd-good"
             }
+        );
+    }
+
+    #[cfg(feature = "cookie")]
+    #[tokio::test]
+    async fn test_de_request_with_json_cookie() {
+        #[derive(Deserialize, Serialize, Eq, PartialEq, Debug)]
+        struct AuthToken<'a> {
+            pkce_verifier: &'a str,
+            csrf_token: &'a str,
+            nonce: &'a str,
+            from_url: Option<&'a str>,
+        }
+
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        struct RequestData<'a> {
+            #[serde(borrow)]
+            #[salvo(extract(source(from = "cookie", parse = "json")))]
+            tok: AuthToken<'a>,
+        }
+
+        let expected = AuthToken {
+            pkce_verifier: "verifier",
+            csrf_token: "csrf",
+            nonce: "nonce",
+            from_url: Some("/dashboard"),
+        };
+        let cookie = cookie::Cookie::new(
+            "tok",
+            serde_json::to_string(&expected).expect("serialize cookie value"),
+        );
+        let mut req = TestClient::get("http://127.0.0.1:8698/callback")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let data: RequestData<'_> = req.extract(&mut depot).await.unwrap();
+        assert_eq!(data.tok, expected);
+    }
+
+    #[cfg(feature = "cookie")]
+    #[tokio::test]
+    async fn test_de_request_rejects_trailing_data_in_json_cookie() {
+        #[derive(Deserialize, Extractible, Debug)]
+        struct RequestData {
+            #[salvo(extract(source(from = "cookie", parse = "json")))]
+            tok: serde_json::Value,
+        }
+
+        let cookie = cookie::Cookie::new("tok", r#"{"valid":true}junk"#);
+        let mut req = TestClient::get("http://127.0.0.1:8698/callback")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let result: Result<RequestData, _> = req.extract(&mut depot).await;
+        let error = match result {
+            Ok(data) => panic!("accepted JSON cookie with trailing data: {:?}", data.tok),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("trailing characters"),
+            "unexpected extraction error: {error}"
         );
     }
 

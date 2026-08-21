@@ -86,7 +86,7 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// - `#[salvo(extract(default_source(from = "query")))]` sets a fallback source for fields without
 ///   an explicit source.
-/// - `from` accepts `param`, `query`, `header`, `body`, or `depot`.
+/// - `from` accepts `param`, `query`, `header`, `cookie`, `body`, or `depot`.
 /// - `parse` accepts `smart`, `json`, or `multimap`.
 /// - `#[salvo(extract(rename_all = "camelCase"))]` renames fields with the same case rules used by
 ///   serde.
@@ -115,7 +115,14 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
 /// struct Search<'a> {
 ///     #[salvo(extract(source(from = "param")))]
 ///     id: i64,
+///     #[salvo(extract(source(from = "cookie", parse = "json")))]
+///     preferences: Preferences,
 ///     term: &'a str,
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct Preferences {
+///     compact: bool,
 /// }
 ///
 /// #[handler]
