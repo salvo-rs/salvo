@@ -26,9 +26,10 @@ where
     let looks_like_json = trimmed.starts_with('{')
         || trimmed.starts_with('[')
         || trimmed.starts_with('"')
-        || trimmed.chars().next().is_some_and(|c| {
-            c.is_ascii_digit() || matches!(c, '-' | 't' | 'f' | 'n')
-        });
+        || trimmed
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_digit() || matches!(c, '-' | 't' | 'f' | 'n'));
 
     if looks_like_json {
         if let Ok(v) = serde_json::from_str::<T>(value) {
@@ -170,11 +171,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestClient;
     use http::header::HeaderValue;
     use serde::Serialize;
 
     use super::*;
+    use crate::test::TestClient;
 
     #[test]
     fn test_required_cookie_param_into_inner() {
@@ -293,11 +294,10 @@ mod tests {
             .build();
         let mut depot = Depot::new();
 
-        let result = CookieParam::<serde_json::Value, true>::extract_with_arg(
-            &mut req, &mut depot, "data",
-        )
-        .await
-        .unwrap();
+        let result =
+            CookieParam::<serde_json::Value, true>::extract_with_arg(&mut req, &mut depot, "data")
+                .await
+                .unwrap();
         assert_eq!(result.into_inner(), serde_json::json!({"x": 1}));
     }
 
@@ -316,11 +316,10 @@ mod tests {
             .build();
         let mut depot = Depot::new();
 
-        let result = CookieParam::<StringOrStruct, true>::extract_with_arg(
-            &mut req, &mut depot, "data",
-        )
-        .await
-        .unwrap();
+        let result =
+            CookieParam::<StringOrStruct, true>::extract_with_arg(&mut req, &mut depot, "data")
+                .await
+                .unwrap();
         // Should be parsed as the struct variant, not the string variant.
         assert_eq!(result.into_inner(), StringOrStruct::Struct { x: 1 });
     }

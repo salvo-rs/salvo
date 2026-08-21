@@ -89,9 +89,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestClient;
-
     use super::*;
+    use crate::test::TestClient;
 
     #[test]
     fn test_path_param_into_inner() {

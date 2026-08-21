@@ -83,9 +83,8 @@ where
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::test::TestClient;
-
     use super::*;
+    use crate::test::TestClient;
 
     #[test]
     fn test_form_body_into_inner() {

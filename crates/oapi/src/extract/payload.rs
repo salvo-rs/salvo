@@ -1,7 +1,6 @@
 //! Request body extractors for the API operation.
 
 pub use salvo_core::extract::{FormBody, FormFile, FormFiles, JsonBody};
-
 use serde::Deserialize;
 
 use crate::endpoint::EndpointArgRegister;

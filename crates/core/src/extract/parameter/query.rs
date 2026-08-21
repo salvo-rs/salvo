@@ -129,9 +129,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestClient;
-
     use super::*;
+    use crate::test::TestClient;
 
     #[test]
     fn test_required_query_param_into_inner() {

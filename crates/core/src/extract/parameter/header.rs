@@ -144,10 +144,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestClient;
     use http::header::HeaderValue;
 
     use super::*;
+    use crate::test::TestClient;
 
     #[test]
     fn test_required_header_param_into_inner() {
