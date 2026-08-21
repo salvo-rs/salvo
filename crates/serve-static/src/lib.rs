@@ -45,7 +45,8 @@ mod tests {
 
     use salvo_core::http::HeaderValue;
     use salvo_core::http::header::{
-        ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, VARY,
+        ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
+        HeaderName, VARY, X_CONTENT_TYPE_OPTIONS,
     };
     use salvo_core::prelude::*;
     use salvo_core::routing::{Filter, filters};
@@ -247,6 +248,141 @@ mod tests {
         );
         assert_eq!(response.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
         assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), SVGZ);
+    }
+
+    #[tokio::test]
+    async fn test_static_dir_does_not_serve_uploaded_svg_inline() {
+        // A directory of user uploads is the common deployment. An SVG or XML
+        // document rendered inline runs its own script in the serving origin, so
+        // neither may come back with `Content-Disposition: inline`.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(
+            root.path().join("poc.svg"),
+            r#"<svg xmlns="http://www.w3.org/2000/svg" onload="alert(document.domain)"/>"#,
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("poc.xml"),
+            r#"<?xml-stylesheet type="text/xsl" href="poc.xsl"?><root/>"#,
+        )
+        .unwrap();
+        fs::write(root.path().join("logo.png"), b"\x89PNG\r\n\x1a\n").unwrap();
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
+        let service = Service::new(router);
+
+        async fn headers_of(service: &Service, url: &str) -> (String, String) {
+            let response = TestClient::get(url).send(service).await;
+            let header = |name: HeaderName| {
+                response
+                    .headers
+                    .get(name)
+                    .expect("header is set")
+                    .to_str()
+                    .expect("header is ascii")
+                    .to_owned()
+            };
+            (header(CONTENT_DISPOSITION), header(CONTENT_TYPE))
+        }
+
+        // The content type is asserted alongside the disposition: without it this
+        // test would also pass on a file that failed to be recognised at all and
+        // fell back to `application/octet-stream`.
+        for (name, expected_type) in [
+            ("poc.svg", "image/svg+xml"),
+            ("poc.xml", "text/xml; charset=utf-8"),
+        ] {
+            let (disposition, content_type) =
+                headers_of(&service, &format!("http://127.0.0.1:5801/{name}")).await;
+            assert_eq!(content_type, expected_type, "{name} content type");
+            assert!(
+                disposition.starts_with("attachment"),
+                "{name} served with `{disposition}`"
+            );
+        }
+        // Ordinary images keep rendering inline.
+        let (disposition, content_type) =
+            headers_of(&service, "http://127.0.0.1:5801/logo.png").await;
+        assert_eq!(content_type, "image/png");
+        assert_eq!(disposition, "inline");
+
+        // Responses are also marked non-sniffable.
+        let response = TestClient::get("http://127.0.0.1:5801/logo.png")
+            .send(&service)
+            .await;
+        assert_eq!(
+            response
+                .headers
+                .get(X_CONTENT_TYPE_OPTIONS)
+                .and_then(|v| v.to_str().ok()),
+            Some("nosniff")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_static_dir_names_download_after_the_requested_file() {
+        // Build tools routinely emit `logo.svg.br` next to `logo.svg`. When that
+        // sidecar is negotiated the bytes come from it, but the client asked for
+        // `logo.svg` and must be offered that name, not the sidecar's.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(root.path().join("logo.svg"), "<svg/>").unwrap();
+        fs::write(root.path().join("logo.svg.br"), "brotli-bytes").unwrap();
+
+        let router = Router::with_path("{*path}")
+            .get(StaticDir::new(root.path().to_path_buf()).auto_list(false));
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/logo.svg")
+            .add_header("accept-encoding", "br", true)
+            .send(&service)
+            .await;
+        // The sidecar really was selected...
+        assert_eq!(
+            response
+                .headers
+                .get(CONTENT_ENCODING)
+                .and_then(|v| v.to_str().ok()),
+            Some("br")
+        );
+        // ...yet the download is named after the request.
+        assert_eq!(
+            response
+                .headers
+                .get(CONTENT_DISPOSITION)
+                .and_then(|v| v.to_str().ok()),
+            Some(r#"attachment; filename="logo.svg""#)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_static_dir_disposition_type_can_restore_inline() {
+        // Directories holding only trusted assets can opt back into inline SVG.
+        let root = tempfile::TempDir::new().unwrap();
+        fs::write(
+            root.path().join("logo.svg"),
+            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
+        )
+        .unwrap();
+
+        let router = Router::with_path("{*path}").get(
+            StaticDir::new(root.path().to_path_buf())
+                .disposition_type("inline")
+                .use_content_type_options(false),
+        );
+        let service = Service::new(router);
+
+        let response = TestClient::get("http://127.0.0.1:5801/logo.svg")
+            .send(&service)
+            .await;
+        assert_eq!(
+            response
+                .headers
+                .get(CONTENT_DISPOSITION)
+                .and_then(|v| v.to_str().ok()),
+            Some("inline")
+        );
+        assert_eq!(response.headers.get(X_CONTENT_TYPE_OPTIONS), None);
     }
 
     #[tokio::test]
