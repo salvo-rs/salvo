@@ -801,6 +801,16 @@ impl NamedFile {
             false
         };
 
+        // A caller may have already chosen the response's Content-Type. Default
+        // the disposition from the type the client will actually receive, not
+        // necessarily the type detected for the file on disk. Treat an invalid
+        // pre-existing value conservatively as opaque binary data.
+        let effective_content_type = if res.headers().contains_key(CONTENT_TYPE) {
+            res.content_type().unwrap_or(mime::APPLICATION_OCTET_STREAM)
+        } else {
+            self.content_type.clone()
+        };
+
         if self.flags.contains(Flag::ContentDisposition) {
             if let Some(content_disposition) = self.content_disposition.take() {
                 res.headers_mut()
@@ -809,7 +819,7 @@ impl NamedFile {
                 // skip to set CONTENT_DISPOSITION header if it is already set.
                 match build_content_disposition(
                     disposition_name_source(self.disposition_name.as_deref(), &self.path),
-                    &self.content_type,
+                    &effective_content_type,
                     None,
                     None,
                 ) {
@@ -1211,6 +1221,74 @@ mod tests {
                 .get(X_CONTENT_TYPE_OPTIONS)
                 .map(|v| v.to_str().expect("header is ascii")),
             Some("nosniff")
+        );
+    }
+
+    #[tokio::test]
+    async fn response_content_type_controls_default_disposition() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::Builder::new()
+            .suffix(".txt")
+            .tempfile()
+            .expect("create temp file");
+        file.write_all(b"plain text").expect("write text");
+        file.flush().expect("flush");
+
+        for content_type in ["image/svg+xml", "invalid"] {
+            let named = NamedFile::builder(file.path())
+                .build()
+                .await
+                .expect("build named file");
+            assert_eq!(named.content_type().type_(), mime::TEXT);
+            assert_eq!(named.content_type().subtype(), mime::PLAIN);
+
+            let mut res = Response::new();
+            res.headers_mut()
+                .insert(CONTENT_TYPE, content_type.parse().expect("header value"));
+            named.send(&HeaderMap::new(), &mut res).await;
+
+            let disposition = res
+                .headers()
+                .get(CONTENT_DISPOSITION)
+                .expect("content-disposition is set")
+                .to_str()
+                .expect("header is ascii");
+            assert!(
+                disposition.starts_with("attachment"),
+                "response type `{content_type}` produced `{disposition}`"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn safe_response_content_type_can_keep_default_disposition_inline() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::Builder::new()
+            .suffix(".svg")
+            .tempfile()
+            .expect("create temp file");
+        file.write_all(br#"<svg xmlns="http://www.w3.org/2000/svg"/>"#)
+            .expect("write svg");
+        file.flush().expect("flush");
+
+        let named = NamedFile::builder(file.path())
+            .build()
+            .await
+            .expect("build named file");
+        assert_eq!(named.content_type(), &mime::IMAGE_SVG);
+
+        let mut res = Response::new();
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("image/png"));
+        named.send(&HeaderMap::new(), &mut res).await;
+
+        assert_eq!(
+            res.headers()
+                .get(CONTENT_DISPOSITION)
+                .expect("content-disposition is set"),
+            "inline"
         );
     }
 
