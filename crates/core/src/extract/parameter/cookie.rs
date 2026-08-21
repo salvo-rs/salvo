@@ -18,9 +18,26 @@ fn parse_cookie_value<'de, T>(value: &'de str) -> Option<T>
 where
     T: Deserialize<'de>,
 {
-    from_str_val(value)
-        .ok()
-        .or_else(|| serde_json::from_str(value).ok())
+    // If the value looks like JSON, try JSON deserialization first so that
+    // structured types (e.g. serde_json::Value, untagged enums with a String
+    // variant) get the correct structured representation rather than being
+    // swallowed by the scalar string deserializer.
+    let trimmed = value.trim_start();
+    let looks_like_json = trimmed.starts_with('{')
+        || trimmed.starts_with('[')
+        || trimmed.starts_with('"')
+        || trimmed.chars().next().is_some_and(|c| {
+            c.is_ascii_digit() || matches!(c, '-' | 't' | 'f' | 'n')
+        });
+
+    if looks_like_json {
+        if let Ok(v) = serde_json::from_str::<T>(value) {
+            return Some(v);
+        }
+    }
+
+    // Fall back to scalar string deserialization.
+    from_str_val(value).ok()
 }
 
 impl<T> CookieParam<T, true> {
@@ -266,6 +283,46 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(result.into_inner(), expected);
+    }
+
+    #[tokio::test]
+    async fn test_required_cookie_param_extract_json_value_as_value() {
+        let cookie = cookie::Cookie::new("data", r#"{"x":1}"#);
+        let mut req = TestClient::get("http://127.0.0.1:5801")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let result = CookieParam::<serde_json::Value, true>::extract_with_arg(
+            &mut req, &mut depot, "data",
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.into_inner(), serde_json::json!({"x": 1}));
+    }
+
+    #[tokio::test]
+    async fn test_required_cookie_param_extract_untagged_enum_string_not_matched_by_json() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        #[serde(untagged)]
+        enum StringOrStruct {
+            String(String),
+            Struct { x: i32 },
+        }
+
+        let cookie = cookie::Cookie::new("data", r#"{"x":1}"#);
+        let mut req = TestClient::get("http://127.0.0.1:5801")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let result = CookieParam::<StringOrStruct, true>::extract_with_arg(
+            &mut req, &mut depot, "data",
+        )
+        .await
+        .unwrap();
+        // Should be parsed as the struct variant, not the string variant.
+        assert_eq!(result.into_inner(), StringOrStruct::Struct { x: 1 });
     }
 
     #[tokio::test]
