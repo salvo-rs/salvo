@@ -29,6 +29,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   into inline rendering, which previously had no public API on either handler.
 - `NamedFileBuilder::disposition_name`, which sets the name `Content-Disposition` reports
   without forcing the disposition to `attachment` the way `attached_name` does.
+- Cookie extractors now support structured JSON values. `CookieParam<T>` falls back to JSON when
+  scalar conversion fails, while `#[derive(Extractible)]` accepts explicit cookie field sources
+  such as `#[salvo(extract(source(from = "cookie", parse = "json")))]`.
 - Changelog established for upcoming releases.
 - Opt-in RFC 9457 Problem Details responses with typed extension members and OpenAPI integration
   via the `rfc9457` feature.

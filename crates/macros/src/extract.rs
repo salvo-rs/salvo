@@ -171,7 +171,8 @@ impl Parse for SourceInfo {
         if source.parser.is_empty() {
             source.parser = "smart".to_owned();
         }
-        if !["param", "query", "header", "body", "depot"].contains(&source.from.as_str()) {
+        if !["param", "query", "header", "cookie", "body", "depot"].contains(&source.from.as_str())
+        {
             return Err(Error::new(
                 input.span(),
                 format!("source from is invalid: {}", source.from),

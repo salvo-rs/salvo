@@ -9,7 +9,20 @@ use crate::http::{ParseError, Request};
 use crate::serde::from_str_val;
 
 /// Extracts a parameter from a request cookie.
+///
+/// Scalar values use Salvo's string deserializer. If that fails, the cookie
+/// value is parsed as JSON so structured values can be extracted directly.
 pub struct CookieParam<T, const REQUIRED: bool = true>(Option<T>);
+
+fn parse_cookie_value<'de, T>(value: &'de str) -> Option<T>
+where
+    T: Deserialize<'de>,
+{
+    from_str_val(value)
+        .ok()
+        .or_else(|| serde_json::from_str(value).ok())
+}
+
 impl<T> CookieParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
@@ -102,7 +115,7 @@ where
         let value = req
             .cookies()
             .get(arg)
-            .and_then(|v| from_str_val(v.value()).ok())
+            .and_then(|v| parse_cookie_value(v.value()))
             .ok_or_else(|| {
                 ParseError::other(format!(
                     "cookie parameter {arg} not found or convert to type failed"
@@ -133,7 +146,7 @@ where
         let value = req
             .cookies()
             .get(arg)
-            .and_then(|v| from_str_val(v.value()).ok());
+            .and_then(|v| parse_cookie_value(v.value()));
         Ok(Self(value))
     }
 }
@@ -142,6 +155,7 @@ where
 mod tests {
     use crate::test::TestClient;
     use http::header::HeaderValue;
+    use serde::Serialize;
 
     use super::*;
 
@@ -224,6 +238,34 @@ mod tests {
         let result =
             CookieParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
         assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    async fn test_required_cookie_param_extract_with_json_value() {
+        #[derive(Debug, Deserialize, Serialize, PartialEq)]
+        struct AuthToken {
+            pkce_verifier: String,
+            csrf_token: String,
+        }
+
+        let expected = AuthToken {
+            pkce_verifier: "verifier".into(),
+            csrf_token: "csrf".into(),
+        };
+        let cookie = cookie::Cookie::new(
+            "token",
+            serde_json::to_string(&expected).expect("serialize cookie value"),
+        );
+        let mut req = TestClient::get("http://127.0.0.1:5801")
+            .add_header("cookie", cookie.encoded().to_string(), true)
+            .build();
+        let mut depot = Depot::new();
+
+        let result =
+            CookieParam::<AuthToken, true>::extract_with_arg(&mut req, &mut depot, "token")
+                .await
+                .unwrap();
+        assert_eq!(result.into_inner(), expected);
     }
 
     #[tokio::test]
