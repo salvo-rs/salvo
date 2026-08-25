@@ -21,15 +21,16 @@ async function getCertificateHash() {
 async function connect() {
   const url = document.getElementById('url').value;
   try {
+    const targetUrl = new URL(url, window.location.href);
     const options = {};
-    if (new URL(url).origin === window.location.origin) {
+    if (targetUrl.origin === window.location.origin) {
       const certificateHash = await getCertificateHash();
       options.serverCertificateHashes = [{
         algorithm: 'sha-256',
         value: certificateHash,
       }];
     }
-    var transport = new WebTransport(url, options);
+    var transport = new WebTransport(targetUrl.href, options);
     addToEventLog('Initiating connection...');
   } catch (e) {
     addToEventLog('Failed to create connection object. ' + e, 'error');
