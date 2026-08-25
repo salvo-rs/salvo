@@ -4,11 +4,32 @@
 
 let currentTransport, streamNumber, currentTransportDatagramWriter;
 
+async function getCertificateHash() {
+  const response = await fetch('/certificate-hash', {cache: 'no-store'});
+  if (!response.ok) {
+    throw new Error(`failed to load certificate hash: HTTP ${response.status}`);
+  }
+
+  const bytes = await response.json();
+  if (!Array.isArray(bytes) || bytes.length !== 32) {
+    throw new Error('server returned an invalid SHA-256 certificate hash');
+  }
+  return new Uint8Array(bytes);
+}
+
 // "Connect" button handler.
 async function connect() {
   const url = document.getElementById('url').value;
   try {
-    var transport = new WebTransport(url);
+    const options = {};
+    if (new URL(url).origin === window.location.origin) {
+      const certificateHash = await getCertificateHash();
+      options.serverCertificateHashes = [{
+        algorithm: 'sha-256',
+        value: certificateHash,
+      }];
+    }
+    var transport = new WebTransport(url, options);
     addToEventLog('Initiating connection...');
   } catch (e) {
     addToEventLog('Failed to create connection object. ' + e, 'error');
