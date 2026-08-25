@@ -2,8 +2,6 @@
 <html lang="en">
   <title>WebTransport over HTTP/3 client</title>
   <meta charset="utf-8">
-  <!-- WebTransport origin trial token. See https://developer.chrome.com/origintrials/#/view_trial/793759434324049921 -->
-  <meta http-equiv="origin-trial" content="AkSQvBVsfMTgBtlakApX94hWGyBPQJXerRc2Aq8g/sKTMF+yG62+bFUB2yIxaK1furrNH3KNNeJV00UZSZHicw4AAABceyJvcmlnaW4iOiJodHRwczovL2dvb2dsZWNocm9tZS5naXRodWIuaW86NDQzIiwiZmVhdHVyZSI6IldlYlRyYW5zcG9ydCIsImV4cGlyeSI6MTY0Mzc1OTk5OX0=">
   <script src="client.js"></script>
   <link rel="stylesheet" href="client.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +9,9 @@
   <div id="top">
     <div id="explanation">
       This tool can be used to connect to an arbitrary WebTransport server.
+      The example generates a short-lived development certificate at startup and
+      automatically supplies its hash to the browser. You may need to accept the
+      HTTPS warning for this page before connecting.
       It has several limitations:
       <ul>
         <li>It can only send an entirety of a stream at once.  Once the stream
