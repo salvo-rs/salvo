@@ -254,6 +254,20 @@ impl RustlsConfig {
 
     /// ServerConfig
     pub(crate) fn build_server_config(mut self) -> IoResult<ServerConfig> {
+        // Ensure a CryptoProvider is installed before rustls tries to build a ServerConfig.
+        // rustls 0.23+ requires an explicit provider. If the user has already installed one
+        // (e.g. a custom FIPS provider), respect it; otherwise install the default.
+        if tokio_rustls::rustls::crypto::CryptoProvider::get_default().is_none() {
+            #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+            tokio_rustls::rustls::crypto::aws_lc_rs::default_provider()
+                .install_default()
+                .expect("CryptoProvider::get_default() was None, install should succeed");
+            #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+            tokio_rustls::rustls::crypto::ring::default_provider()
+                .install_default()
+                .expect("CryptoProvider::get_default() was None, install should succeed");
+        }
+
         let fallback = self
             .fallback
             .as_mut()
