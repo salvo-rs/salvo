@@ -888,7 +888,6 @@ mod tests {
 
     #[test]
     fn test_host_header_handling() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         let uri = Uri::from_str("http://host.tld/test").unwrap();
         let mut req = Request::new();
         let depot = Depot::new();
@@ -937,7 +936,6 @@ mod tests {
 
     #[test]
     fn test_proxy_default_host_header_getter_includes_port() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         // `Proxy::new` now defaults to the standards-compliant getter, which keeps
         // a non-default upstream port in the forwarded `Host`.
         let proxy = Proxy::new(vec!["http://host.tld:8080"], HyperClient::default());
@@ -1107,8 +1105,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy_websocket_connection_with_split_connection_headers() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-
         let upstream_router = Router::with_path("ws").goal(websocket_echo);
         let (upstream_addr, upstream_server) = spawn_server(upstream_router).await;
 

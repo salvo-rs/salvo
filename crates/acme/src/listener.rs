@@ -17,6 +17,7 @@ use salvo_core::http::uri::Scheme;
 use salvo_core::{Result as CoreResult, Router, cfg_feature};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsAcceptor;
+use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::server::TlsStream;
 
@@ -32,6 +33,27 @@ cfg_feature! {
 
 /// ACME TLS-ALPN-01 protocol name.
 const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
+
+/// Returns the [`CryptoProvider`] used to build the ACME `ServerConfig`.
+///
+/// Reuses the process level provider when the application installed one, otherwise builds one
+/// from this crate's `aws-lc-rs` / `ring` features without installing it globally. Passing the
+/// provider explicitly keeps rustls from panicking when feature unification makes both backends
+/// available at once.
+fn default_crypto_provider() -> Arc<CryptoProvider> {
+    if let Some(provider) = CryptoProvider::get_default() {
+        return Arc::clone(provider);
+    }
+
+    #[cfg(any(feature = "ring", not(feature = "aws-lc-rs")))]
+    {
+        Arc::new(tokio_rustls::rustls::crypto::ring::default_provider())
+    }
+    #[cfg(all(not(feature = "ring"), feature = "aws-lc-rs"))]
+    {
+        Arc::new(tokio_rustls::rustls::crypto::aws_lc_rs::default_provider())
+    }
+}
 
 /// A wrapper around an underlying listener which implements ACME.
 pub struct AcmeListenerBuilder<T> {
@@ -367,7 +389,9 @@ impl<T> AcmeListenerBuilder<T> {
         };
         let cert_resolver = Arc::new(cert_resolver);
 
-        let mut server_config = ServerConfig::builder()
+        let mut server_config = ServerConfig::builder_with_provider(default_crypto_provider())
+            .with_safe_default_protocol_versions()
+            .map_err(salvo_core::Error::other)?
             .with_no_client_auth()
             .with_cert_resolver(cert_resolver.clone());
 

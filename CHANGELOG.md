@@ -63,6 +63,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `examples/oapi-3-2` demonstrates emitting a 3.2 document with a `QUERY` route.
 - `salvo_core::fs::extension_content_encoding`, which reports the content coding a file
   extension implies, so a handler choosing a file to serve can tell that it already carries one.
+- `salvo_core::conn::rustls::default_crypto_provider`, which reports the rustls `CryptoProvider`
+  Salvo builds its TLS configurations with. Pass it to other rustls based libraries so the whole
+  application agrees on one backend.
 
 ### Changed
 
@@ -96,6 +99,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- TLS setup no longer panics with *"Could not automatically determine the process-level
+  `CryptoProvider` from Rustls crate features"*. rustls can only pick a backend by itself when
+  exactly one of its `aws-lc-rs` and `ring` features is enabled across the whole dependency
+  graph, so pulling in any crate that enables the other one made `RustlsListener`,
+  `QuinnListener`, `AcmeListener` and the proxy's default `HyperClient` panic. Salvo now selects
+  the provider from its own features and passes it to rustls explicitly. An application that
+  installed a process level provider through `CryptoProvider::install_default` still has that
+  one used; Salvo itself never installs one, so applications keep full control over the
+  process level default.
 - `StaticDir` names a download after the file that was requested rather than the precompressed
   sidecar it was served from, so a request for `logo.svg` answered out of `logo.svg.br` no
   longer offers `Content-Disposition: attachment; filename="logo.svg.br"`.

@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["aws-lc-rs", "hyper-client", "unix-sock-client"]
 full = ["aws-lc-rs", "hyper-client", "reqwest-client", "unix-sock-client"]
-aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "reqwest?/rustls"]
+aws-lc-rs = ["hyper-rustls?/aws-lc-rs", "reqwest?/rustls", "rustls", "rustls/aws-lc-rs"]
 ring = ["hyper-rustls?/ring", "reqwest?/rustls-no-provider", "rustls", "rustls/ring"]
 hyper-client = ["dep:hyper-util", "dep:hyper-rustls"]
 reqwest-client = ["dep:reqwest"]
@@ -58,7 +58,9 @@ tracing = { workspace = true }
 [dev-dependencies]
 futures-util = { workspace = true, features = ["sink"] }
 salvo_core = { workspace = true, features = ["http1", "server", "test"] }
-rustls ={ workspace = true, features = ["aws-lc-rs"]}
+# Both backends on purpose: this makes rustls unable to pick a provider from crate features,
+# which is exactly the situation that used to panic when building the default HTTPS connector.
+rustls = { workspace = true, features = ["aws-lc-rs", "ring"] }
 salvo_extra = { workspace = true, features = ["websocket"] }
 tokio-tungstenite = { workspace = true }
 

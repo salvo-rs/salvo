@@ -1,7 +1,9 @@
 //! `RustlsListener` and utils.
 use std::io::{Error as IoError, Result as IoResult};
+use std::sync::Arc;
 
 use tokio_rustls::rustls::RootCertStore;
+use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, pem::PemObject};
 
 pub(crate) mod config;
@@ -9,6 +11,41 @@ pub use config::{Keycert, RustlsConfig, ServerConfig};
 
 mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
+
+/// Returns the [`CryptoProvider`] used to build rustls configurations.
+///
+/// rustls needs to know which cryptographic backend to use. It can pick one on its own only
+/// when exactly one of its `aws-lc-rs` and `ring` features is enabled in the whole dependency
+/// graph. As soon as another crate pulls in the other backend, cargo feature unification makes
+/// the choice ambiguous and rustls panics with *"Could not automatically determine the
+/// process-level `CryptoProvider` from Rustls crate features"*.
+///
+/// To stay panic free, Salvo never relies on that automatic selection:
+///
+/// - If the application already installed a process level provider through
+///   [`CryptoProvider::install_default`] (a FIPS or HSM backed one, for instance), it is reused
+///   as is.
+/// - Otherwise a provider is built from Salvo's own `aws-lc-rs` / `ring` features and passed
+///   explicitly to rustls. It is **not** installed as the process default, so the application
+///   remains free to install whichever provider it wants, whenever it wants.
+///
+/// This is also the provider to pass to other rustls based libraries used alongside Salvo, so
+/// that the whole application agrees on a single backend.
+#[must_use]
+pub fn default_crypto_provider() -> Arc<CryptoProvider> {
+    if let Some(provider) = CryptoProvider::get_default() {
+        return Arc::clone(provider);
+    }
+
+    #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
+    {
+        Arc::new(tokio_rustls::rustls::crypto::aws_lc_rs::default_provider())
+    }
+    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    {
+        Arc::new(tokio_rustls::rustls::crypto::ring::default_provider())
+    }
+}
 
 pub(crate) fn read_trust_anchor(trust_anchor: &[u8]) -> IoResult<RootCertStore> {
     let certs = CertificateDer::pem_slice_iter(trust_anchor)
@@ -37,7 +74,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+        // No `CryptoProvider::install_default()` call here on purpose: both the listener and the
+        // client below must work without a process level provider being installed.
         let mut acceptor = TcpListener::new("127.0.0.1:0")
             .rustls(RustlsConfig::new(
                 Keycert::new()
@@ -57,7 +95,9 @@ mod tests {
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
             let trust_anchor = include_bytes!("../../certs/chain.pem");
-            let client_config = ClientConfig::builder()
+            let client_config = ClientConfig::builder_with_provider(default_crypto_provider())
+                .with_safe_default_protocol_versions()
+                .unwrap()
                 .with_root_certificates(read_trust_anchor(trust_anchor.as_slice()).unwrap())
                 .with_no_client_auth();
             let connector = TlsConnector::from(Arc::new(client_config));
