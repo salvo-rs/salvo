@@ -29,6 +29,9 @@ pub use listener::{RustlsAcceptor, RustlsListener};
 ///   explicitly to rustls. It is **not** installed as the process default, so the application
 ///   remains free to install whichever provider it wants, whenever it wants.
 ///
+/// `aws-lc-rs` wins when both features are on, matching Salvo's own default and the backend the
+/// certified keys are already signed with in [`RustlsConfig`].
+///
 /// This is also the provider to pass to other rustls based libraries used alongside Salvo, so
 /// that the whole application agrees on a single backend.
 #[must_use]

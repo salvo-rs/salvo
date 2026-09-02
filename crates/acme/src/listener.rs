@@ -39,7 +39,7 @@ const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
 /// Reuses the process level provider when the application installed one, otherwise builds one
 /// from this crate's `aws-lc-rs` / `ring` features without installing it globally. Passing the
 /// provider explicitly keeps rustls from panicking when feature unification makes both backends
-/// available at once.
+/// available at once. `ring` wins when both are on, matching this crate's default.
 fn default_crypto_provider() -> Arc<CryptoProvider> {
     if let Some(provider) = CryptoProvider::get_default() {
         return Arc::clone(provider);

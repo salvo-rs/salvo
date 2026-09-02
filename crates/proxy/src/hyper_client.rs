@@ -29,18 +29,25 @@ pub struct HyperClient<C> {
 /// from this crate's `aws-lc-rs` / `ring` features without installing it globally. Passing the
 /// provider explicitly keeps rustls from panicking when feature unification makes both backends
 /// available at once.
+///
+/// `ring` wins when both features are on. `aws-lc-rs` is what `default` and `full` select, and
+/// the `salvo` crate always pulls this one in through `salvo-proxy/full`, so `ring` can only be
+/// there because it was asked for. It also keeps this in step with `ReqwestClient::default`,
+/// which still has to install ring as the process default for `reqwest`'s sake: were the two to
+/// disagree, which provider this function returns would depend on whether a `ReqwestClient` had
+/// been built first.
 fn default_crypto_provider() -> Arc<CryptoProvider> {
     if let Some(provider) = CryptoProvider::get_default() {
         return Arc::clone(provider);
     }
 
-    #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
-    {
-        Arc::new(rustls::crypto::aws_lc_rs::default_provider())
-    }
-    #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
+    #[cfg(feature = "ring")]
     {
         Arc::new(rustls::crypto::ring::default_provider())
+    }
+    #[cfg(not(feature = "ring"))]
+    {
+        Arc::new(rustls::crypto::aws_lc_rs::default_provider())
     }
 }
 
