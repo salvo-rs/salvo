@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `xml-external-parsed-entity`, and the legacy `text/xsl` that `<?xml-stylesheet ?>` itself
   names. `text/html` still defaults to `inline`. Reported by sl91994.
 - `NamedFile` and `StaticEmbed` responses now carry `X-Content-Type-Options: nosniff`.
+- `salvo-otel` no longer records the full request URI. `Metrics` dropped `url.full` entirely,
+  so query strings no longer become metric dimensions. `Tracing` replaced it with `url.path`
+  plus a `url.query` whose `sig`, `Signature`, `AWSAccessKeyId` and `X-Goog-Signature` values
+  are redacted, as the semantic conventions require.
 
 ### Added
 
@@ -63,6 +67,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `examples/oapi-3-2` demonstrates emitting a 3.2 document with a `QUERY` route.
 - `salvo_core::fs::extension_content_encoding`, which reports the content coding a file
   extension implies, so a handler choosing a file to serve can tell that it already carries one.
+- `salvo-otel` records `http.server.active_requests`, `http.server.request.body.size` and
+  `http.server.response.body.size`, which its documentation already described. The in-flight
+  gauge is decremented from a drop guard, so a cancelled request — a client disconnect or a
+  timeout — does not leave it drifting upwards.
+- `Metrics::with_known_methods` and `Tracing::with_known_methods` widen the set of request
+  methods reported verbatim in `http.request.method`, for applications serving methods beyond
+  RFC 9110 and RFC 5789 (WebDAV's `PROPFIND`, say).
+- `salvo-otel` gained a `matched-path` feature, on by default, which supplies `http.route`.
+  Through the `salvo` crate it follows that crate's own `matched-path` feature.
 
 ### Changed
 
@@ -77,6 +90,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     is unchanged.
 - `OpenApi` still defaults to emitting OpenAPI 3.1; 3.2 remains opt-in via
   `OpenApi::openapi_version`.
+- **Breaking.** `salvo-otel`'s `Metrics` middleware now emits the instruments the
+  OpenTelemetry HTTP semantic conventions define, replacing names it had invented. Dashboards
+  and alerts built on the old names have to be repointed:
+  - `salvo_request_duration_ms` became `http.server.request.duration`, and it measures
+    **seconds** rather than milliseconds, with the bucket boundaries the conventions
+    recommend. A Prometheus exporter renders it as `http_server_request_duration_seconds`.
+  - `salvo_request_count` and `salvo_error_count` are gone. The conventions define no such
+    instruments: the duration histogram already carries the request count
+    (`http_server_request_duration_seconds_count`), and failures are selected by filtering on
+    `error.type` or `http.response.status_code`.
+  - The instruments are registered under the `salvo-otel` instrumentation scope, versioned
+    and carrying the semantic conventions' schema URL, instead of a bare `salvo` meter.
+- **Breaking.** `salvo-otel`'s metric dimensions changed to the ones the conventions list, so
+  the number of time series is now proportional to the number of routes instead of growing
+  with traffic:
+  - `url.full` — one series per distinct URI, query string included — was replaced by
+    `http.route`, the matched route template (`/users/{id}`). Requests that matched no route
+    carry no `http.route` at all rather than a fallback, except a request for `/`, which is
+    reported as the root route because salvo reports a root-mounted goal and a request that
+    matched nothing with the same empty matched path.
+  - `exception.message` was replaced by `error.type`, which carries the status code of a
+    server error. The old attribute was unbounded, and it was appended to the labels of
+    `salvo_request_count` and `salvo_request_duration_ms` but not of `salvo_error_count`, so
+    a failed request produced a different label set than a successful one on the same metric.
+  - A request method outside RFC 9110 and RFC 5789 is now reported as `_OTHER`, so a client
+    cannot open a time series per made-up method name. See `Metrics::with_known_methods`.
+  - `url.scheme` and `network.protocol.version` were added. A request target given in absolute
+    form lets the client choose the scheme, so a scheme other than `http` or `https` is
+    reported as `_OTHER` for the same reason an unknown method is; spans still record it.
+- **Breaking.** `salvo-otel`'s `Tracing` middleware follows the same conventions:
+  - Spans are named `{method} {route}` — `GET /users/{id}` — instead of `{method} {uri}`,
+    which made every distinct URI its own span name.
+  - `url.full` gave way to `url.path`, a redacted `url.query` and `url.scheme`, and
+    `http.route` was added.
+  - `network.protocol.version` reports `1.1` and `2` rather than the `HTTP/1.1` form
+    `Version`'s `Debug` output produces.
+  - An unknown request method is reported as `_OTHER`, with the value the client sent kept in
+    `http.request.method_original`.
+  - A `5xx` response now sets `error.type` and an error span status. A `4xx` does not: it is a
+    valid outcome for a server span.
+  - `http.response.header.content-length`, which was not an attribute the conventions define,
+    became `http.response.body.size`, and it is left out for a response whose body the
+    catcher fills in after middleware returns rather than reported as zero.
+  - `client.address` reports the peer's IP (`198.51.100.4`) with the port split out into
+    `client.port`, instead of salvo's `socket://198.51.100.4:54321` display form.
+  - The `telemetry.sdk.name`, `telemetry.sdk.version` and `telemetry.sdk.language` attributes
+    were removed from every span. They describe the resource, and the SDK already reports them
+    there.
 - **Behavior change.** Serving an SVG or XML file through `StaticDir`, `StaticFile` or
   `NamedFile` now sends `Content-Disposition: attachment` by default, so following a link to
   one downloads it instead of rendering it, and `<object>`/`<embed>`/`<iframe>` no longer
