@@ -19,16 +19,20 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
+default = ["matched-path"]
+matched-path = ["salvo_core/matched-path"]
 
 [dependencies]
 opentelemetry-http = { workspace = true }
-opentelemetry-semantic-conventions = { workspace = true }
+opentelemetry-semantic-conventions = { workspace = true, features = [
+    "semconv_experimental",
+] }
 opentelemetry = { workspace = true, features = ["metrics"] }
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
 
 [dev-dependencies]
+opentelemetry_sdk = { workspace = true, features = ["metrics", "testing"] }
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true }
 
