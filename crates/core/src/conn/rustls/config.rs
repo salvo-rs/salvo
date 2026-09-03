@@ -21,7 +21,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 
 use crate::{IntoVecString, conn::IntoConfigStream};
 
-use super::read_trust_anchor;
+use super::{default_crypto_provider, read_trust_anchor};
 
 /// Private key and certificate
 #[derive(Clone, Debug)]
@@ -291,7 +291,9 @@ impl RustlsConfig {
             }
         };
 
-        let mut config = ServerConfig::builder_with_protocol_versions(self.tls_versions)
+        let mut config = ServerConfig::builder_with_provider(default_crypto_provider())
+            .with_protocol_versions(self.tls_versions)
+            .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
                 literal_certified_keys,

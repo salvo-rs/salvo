@@ -152,7 +152,9 @@ nix = { workspace = true, optional = true, features = ["fs", "user"] }
 [dev-dependencies]
 criterion = { workspace = true }
 fastrand = { workspace = true }
-rustls = { workspace = true, features = ["aws-lc-rs"] }
+# Both backends on purpose: this makes rustls unable to pick a provider from crate features,
+# which is exactly the situation that used to panic. See `conn::rustls::default_crypto_provider`.
+rustls = { workspace = true, features = ["aws-lc-rs", "ring"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

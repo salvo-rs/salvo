@@ -1,10 +1,12 @@
 use std::io;
+use std::sync::Arc;
 
 use hyper::upgrade::OnUpgrade;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::Client as HyperUtilClient;
 use hyper_util::client::legacy::connect::{Connect, HttpConnector};
 use hyper_util::rt::TokioExecutor;
+use rustls::crypto::CryptoProvider;
 use salvo_core::Error;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
@@ -21,12 +23,40 @@ pub struct HyperClient<C> {
     inner: HyperUtilClient<C, ReqBody>,
 }
 
+/// Returns the [`CryptoProvider`] used to build the default HTTPS connector.
+///
+/// Reuses the process level provider when the application installed one, otherwise builds one
+/// from this crate's `aws-lc-rs` / `ring` features without installing it globally. Passing the
+/// provider explicitly keeps rustls from panicking when feature unification makes both backends
+/// available at once.
+///
+/// `ring` wins when both features are on. `aws-lc-rs` is what `default` and `full` select, and
+/// the `salvo` crate always pulls this one in through `salvo-proxy/full`, so `ring` can only be
+/// there because it was asked for. It also keeps this in step with `ReqwestClient::default`,
+/// which still has to install ring as the process default for `reqwest`'s sake: were the two to
+/// disagree, which provider this function returns would depend on whether a `ReqwestClient` had
+/// been built first.
+fn default_crypto_provider() -> Arc<CryptoProvider> {
+    if let Some(provider) = CryptoProvider::get_default() {
+        return Arc::clone(provider);
+    }
+
+    #[cfg(feature = "ring")]
+    {
+        Arc::new(rustls::crypto::ring::default_provider())
+    }
+    #[cfg(not(feature = "ring"))]
+    {
+        Arc::new(rustls::crypto::aws_lc_rs::default_provider())
+    }
+}
+
 fn build_default_https_connector_with(
     native_roots: impl FnOnce() -> io::Result<HttpsConnector<HttpConnector>>,
-    webpki_roots: impl FnOnce() -> HttpsConnector<HttpConnector>,
-) -> HttpsConnector<HttpConnector> {
+    webpki_roots: impl FnOnce() -> io::Result<HttpsConnector<HttpConnector>>,
+) -> io::Result<HttpsConnector<HttpConnector>> {
     match native_roots() {
-        Ok(connector) => connector,
+        Ok(connector) => Ok(connector),
         Err(error) => {
             tracing::warn!(
                 error = ?error,
@@ -39,24 +69,24 @@ fn build_default_https_connector_with(
 
 impl Default for HyperClient<HttpsConnector<HttpConnector>> {
     fn default() -> Self {
-        #[cfg(feature = "ring")]
-        let _ = rustls::crypto::ring::default_provider().install_default();
         let https = build_default_https_connector_with(
             || {
                 Ok(HttpsConnectorBuilder::new()
-                    .with_native_roots()?
+                    .with_provider_and_native_roots(default_crypto_provider())?
                     .https_or_http()
                     .enable_all_versions()
                     .build())
             },
             || {
-                HttpsConnectorBuilder::new()
-                    .with_webpki_roots()
+                Ok(HttpsConnectorBuilder::new()
+                    .with_provider_and_webpki_roots(default_crypto_provider())
+                    .map_err(io::Error::other)?
                     .https_or_http()
                     .enable_all_versions()
-                    .build()
+                    .build())
             },
-        );
+        )
+        .expect("failed to build the default https connector for proxy hyper client");
         Self {
             inner: HyperUtilClient::builder(TokioExecutor::new()).build(https),
         }
@@ -154,27 +184,24 @@ mod tests {
 
     #[test]
     fn test_default_connector_falls_back_to_webpki_roots() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider()
-            .install_default();
-
         let connector = build_default_https_connector_with(
             || Err(io::Error::other("missing native roots")),
             || {
-                HttpsConnectorBuilder::new()
-                    .with_webpki_roots()
+                Ok(HttpsConnectorBuilder::new()
+                    .with_provider_and_webpki_roots(default_crypto_provider())
+                    .map_err(io::Error::other)?
                     .https_or_http()
                     .enable_all_versions()
-                    .build()
+                    .build())
             },
-        );
+        )
+        .expect("webpki roots fallback should succeed");
 
         let _client = HyperClient::new(HyperUtilClient::builder(TokioExecutor::new()).build(connector));
     }
 
     #[tokio::test]
     async fn test_upstreams_elect() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider()
-            .install_default();
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
         let proxy = Proxy::new(upstreams.clone(), HyperClient::default());
         let request = Request::new();
@@ -185,8 +212,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_hyper_client() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider()
-            .install_default();
         let router = Router::new().push(
             Router::with_path("rust/{**rest}")
                 .goal(Proxy::new(vec!["https://salvo.rs"], HyperClient::default())),
@@ -203,8 +228,6 @@ mod tests {
 
     #[test]
     fn test_others() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider()
-            .install_default();
         let mut handler = Proxy::new(["https://www.bing.com"], HyperClient::default());
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
