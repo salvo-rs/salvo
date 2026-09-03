@@ -184,10 +184,15 @@ async fn test_metrics_follow_semantic_conventions() {
         .points
         .iter()
         .find(|point| {
-            point.attr("http.route") == Some("/users/{id}")
+            point.attr("http.route")
+                == if cfg!(feature = "matched-path") {
+                    Some("/users/{id}")
+                } else {
+                    None
+                }
                 && point.attr("url.scheme") == Some("http")
         })
-        .expect("the matched route template is reported, not the requested path");
+        .expect("the successful HTTP request is reported with the configured route behavior");
     assert_eq!(ok.attr("http.response.status_code"), Some("200"));
     assert_eq!(
         ok.attr("error.type"),
@@ -198,8 +203,16 @@ async fn test_metrics_follow_semantic_conventions() {
     let failed = duration
         .points
         .iter()
-        .find(|point| point.attr("http.route") == Some("/boom"))
-        .expect("the failing route is reported");
+        .find(|point| {
+            point.attr("http.response.status_code") == Some("500")
+                && point.attr("http.route")
+                    == if cfg!(feature = "matched-path") {
+                        Some("/boom")
+                    } else {
+                        None
+                    }
+        })
+        .expect("the failed request is reported with the configured route behavior");
     assert_eq!(failed.attr("http.response.status_code"), Some("500"));
     assert_eq!(
         failed.attr("error.type"),
@@ -230,9 +243,14 @@ async fn test_metrics_follow_semantic_conventions() {
     let body = &collected["http.server.response.body.size"];
     assert_eq!(body.unit, "By");
     assert!(
-        body.points
-            .iter()
-            .all(|point| point.attr("http.route") == Some("/users/{id}")),
+        body.points.iter().all(|point| {
+            point.attr("http.route")
+                == if cfg!(feature = "matched-path") {
+                    Some("/users/{id}")
+                } else {
+                    None
+                }
+        }),
         "the error response body is written after middleware returns, so it is not measured"
     );
     assert_eq!(

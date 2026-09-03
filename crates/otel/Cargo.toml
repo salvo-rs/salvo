@@ -28,6 +28,7 @@ opentelemetry-semantic-conventions = { workspace = true, features = [
     "semconv_experimental",
 ] }
 opentelemetry = { workspace = true, features = ["metrics"] }
+percent-encoding = { workspace = true }
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
 
