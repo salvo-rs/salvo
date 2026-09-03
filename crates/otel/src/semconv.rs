@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use opentelemetry::Value;
+use percent_encoding::percent_decode_str;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode, Version};
 use salvo_core::{Request, Response};
@@ -177,7 +178,7 @@ pub(crate) fn redact_query(query: &str) -> Cow<'_, str> {
             redacted.push('&');
         }
         match pair.split_once('=') {
-            Some((key, _)) if REDACTED_QUERY_KEYS.contains(&key) => {
+            Some((key, _)) if is_redacted_query_key(key) => {
                 redacted.push_str(key);
                 redacted.push('=');
                 redacted.push_str(REDACTED_VALUE);
@@ -193,8 +194,20 @@ pub(crate) fn redact_query(query: &str) -> Cow<'_, str> {
 fn needs_redaction(query: &str) -> bool {
     query.split('&').any(|pair| {
         pair.split_once('=')
-            .is_some_and(|(key, _)| REDACTED_QUERY_KEYS.contains(&key))
+            .is_some_and(|(key, _)| is_redacted_query_key(key))
     })
+}
+
+/// Returns whether a query key identifies a value that must be redacted.
+///
+/// Query parsers percent-decode names before exposing them to applications, so
+/// the comparison must do the same. The original spelling is still emitted by
+/// [`redact_query`], preventing an encoded name from changing unexpectedly.
+fn is_redacted_query_key(key: &str) -> bool {
+    REDACTED_QUERY_KEYS.contains(&key)
+        || percent_decode_str(key)
+            .decode_utf8()
+            .is_ok_and(|decoded| REDACTED_QUERY_KEYS.contains(&decoded.as_ref()))
 }
 
 #[cfg(test)]
@@ -345,6 +358,14 @@ mod tests {
         assert_eq!(
             redact_query("AWSAccessKeyId=AKIA&Signature=xyz&X-Goog-Signature=zzz"),
             "AWSAccessKeyId=REDACTED&Signature=REDACTED&X-Goog-Signature=REDACTED"
+        );
+    }
+
+    #[test]
+    fn test_redact_query_redacts_percent_encoded_keys() {
+        assert_eq!(
+            redact_query("s%69g=secret&%53ignature=xyz&X-Goog-%53ignature=zzz"),
+            "s%69g=REDACTED&%53ignature=REDACTED&X-Goog-%53ignature=REDACTED"
         );
     }
 

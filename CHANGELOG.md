@@ -18,11 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `xml-external-parsed-entity`, and the legacy `text/xsl` that `<?xml-stylesheet ?>` itself
   names. `text/html` still defaults to `inline`. Reported by sl91994.
 - `NamedFile` and `StaticEmbed` responses now carry `X-Content-Type-Options: nosniff`.
-- `salvo-otel` no longer records the request URI, so query strings holding access tokens,
-  signed-URL signatures or session identifiers stop being copied into metric dimensions and
-  span attributes. `Metrics` dropped `url.full` entirely, and `Tracing` replaced it with
-  `url.path` plus a `url.query` whose `sig`, `Signature`, `AWSAccessKeyId` and
-  `X-Goog-Signature` values are redacted, as the semantic conventions require.
+- `salvo-otel` no longer records the full request URI. `Metrics` dropped `url.full` entirely,
+  so query strings no longer become metric dimensions. `Tracing` replaced it with `url.path`
+  plus a `url.query` whose `sig`, `Signature`, `AWSAccessKeyId` and `X-Goog-Signature` values
+  are redacted, as the semantic conventions require.
 
 ### Added
 

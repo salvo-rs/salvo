@@ -75,21 +75,33 @@ fn routed(provider: &SdkTracerProvider) -> Service {
 #[tokio::test]
 async fn test_span_reports_route_and_split_url() {
     let span = trace_request(
-        TestClient::get("http://127.0.0.1:8698/users/42?sig=secret&token=abc"),
+        TestClient::get("http://127.0.0.1:8698/users/42?s%69g=secret&token=abc"),
         routed,
     )
     .await;
 
     assert_eq!(
-        span.name, "GET /users/{id}",
-        "the span is named after the route template, not the requested path"
+        span.name,
+        if cfg!(feature = "matched-path") {
+            "GET /users/{id}"
+        } else {
+            "GET"
+        },
+        "the span name follows the configured route behavior"
     );
     assert_eq!(span.attr("http.request.method"), Some("GET"));
-    assert_eq!(span.attr("http.route"), Some("/users/{id}"));
+    assert_eq!(
+        span.attr("http.route"),
+        if cfg!(feature = "matched-path") {
+            Some("/users/{id}")
+        } else {
+            None
+        }
+    );
     assert_eq!(span.attr("url.path"), Some("/users/42"));
     assert_eq!(
         span.attr("url.query"),
-        Some("sig=REDACTED&token=abc"),
+        Some("s%69g=REDACTED&token=abc"),
         "credential-bearing query values are redacted, other keys are kept"
     );
     assert_eq!(span.attr("url.scheme"), Some("http"));
@@ -132,7 +144,14 @@ async fn test_span_normalizes_unknown_method() {
         Some("PROPFIND"),
         "the value the client sent is kept alongside the normalized one"
     );
-    assert_eq!(span.name, "HTTP /users/{id}");
+    assert_eq!(
+        span.name,
+        if cfg!(feature = "matched-path") {
+            "HTTP /users/{id}"
+        } else {
+            "HTTP"
+        }
+    );
 }
 
 #[tokio::test]
@@ -202,7 +221,21 @@ async fn test_span_names_root_route() {
     })
     .await;
 
-    assert_eq!(span.attr("http.route"), Some("/"));
-    assert_eq!(span.name, "GET /");
+    assert_eq!(
+        span.attr("http.route"),
+        if cfg!(feature = "matched-path") {
+            Some("/")
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        span.name,
+        if cfg!(feature = "matched-path") {
+            "GET /"
+        } else {
+            "GET"
+        }
+    );
     assert_eq!(span.attr("http.response.status_code"), Some("200"));
 }
