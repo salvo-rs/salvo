@@ -239,3 +239,26 @@ async fn test_span_names_root_route() {
     );
     assert_eq!(span.attr("http.response.status_code"), Some("200"));
 }
+
+#[tokio::test]
+async fn test_span_without_root_route() {
+    let span = trace_request(TestClient::get("http://127.0.0.1:8698/"), |provider| {
+        // No root goal, so `/` matches nothing — and salvo reports that with the
+        // same empty matched path a root goal would have produced.
+        Service::new(Router::new().push(Router::with_path("users/{id}").goal(hello)))
+            .hoop(Tracing::new(provider.tracer("test")))
+    })
+    .await;
+
+    assert_eq!(
+        span.attr("http.route"),
+        None,
+        "an unmatched request for `/` is not the root route"
+    );
+    assert_eq!(span.name, "GET");
+    assert_eq!(
+        span.attr("http.response.status_code"),
+        Some("405"),
+        "the root router consumed the path but had no goal for it"
+    );
+}

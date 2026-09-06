@@ -127,20 +127,25 @@ pub(crate) fn protocol_version(version: Version) -> Option<&'static str> {
 /// Returns the `http.route` value for `req`, or `None` when no route matched
 /// and the conventions ask for the attribute to be left out.
 ///
+/// Must be called before the middleware hands the request on, because it reads
+/// `res` to tell whether the request was routed at all.
+///
 /// Salvo reports a matched route without the leading separator the conventions
 /// expect (`users/{id}`), and reports a goal mounted at the router root as an
 /// empty string — the same value a request that matched nothing carries. The
-/// requested path tells the two apart: `/` reached the root route, and any
-/// other path with nothing matched reached no route at all.
+/// service settles which one it is before middleware runs: it answers a request
+/// that matched no route by pre-setting `404`/`405`, and leaves the status unset
+/// when it did find one. So an untouched status means the request reached a
+/// route, and `/` with nothing matched is the root route rather than a miss.
 ///
-/// The two cases overlap only for a request to `/` that matched nothing, which
-/// happens when the application has no root route — and then there is no root
-/// traffic for it to be confused with.
+/// A hoop placed behind one that already set a status loses that signal and
+/// reports no route for `/`, leaving the attribute out rather than filling it
+/// with a route the request may not have taken.
 #[cfg(feature = "matched-path")]
-pub(crate) fn route_value(req: &Request) -> Option<String> {
+pub(crate) fn route_value(req: &Request, res: &Response) -> Option<String> {
     let matched_path = req.matched_path();
     if matched_path.is_empty() {
-        return (req.uri().path() == "/").then(|| "/".to_owned());
+        return (res.status_code.is_none() && req.uri().path() == "/").then(|| "/".to_owned());
     }
     let mut route = String::with_capacity(matched_path.len() + 1);
     route.push('/');
@@ -283,7 +288,10 @@ mod tests {
         let mut req = Request::new();
         *req.uri_mut() = "/users/42".parse().expect("valid uri");
         *req.matched_path_mut() = "users/{id}".to_owned();
-        assert_eq!(route_value(&req).as_deref(), Some("/users/{id}"));
+        assert_eq!(
+            route_value(&req, &Response::new()).as_deref(),
+            Some("/users/{id}")
+        );
     }
 
     #[cfg(feature = "matched-path")]
@@ -291,8 +299,25 @@ mod tests {
     fn test_route_value_root_goal() {
         let mut req = Request::new();
         *req.uri_mut() = "/".parse().expect("valid uri");
-        // Salvo reports a goal mounted at the router root with no matched parts.
-        assert_eq!(route_value(&req).as_deref(), Some("/"));
+        // Salvo reports a goal mounted at the router root with no matched parts,
+        // and leaves the status unset for a request it did route.
+        assert_eq!(route_value(&req, &Response::new()).as_deref(), Some("/"));
+    }
+
+    #[cfg(feature = "matched-path")]
+    #[test]
+    fn test_route_value_unmatched_root() {
+        let mut req = Request::new();
+        *req.uri_mut() = "/".parse().expect("valid uri");
+        // The service answers a request that matched nothing by pre-setting the
+        // status before middleware runs.
+        let mut res = Response::new();
+        res.status_code = Some(StatusCode::NOT_FOUND);
+        assert_eq!(
+            route_value(&req, &res),
+            None,
+            "an unmatched request for `/` is not the root route"
+        );
     }
 
     #[cfg(feature = "matched-path")]
@@ -301,7 +326,7 @@ mod tests {
         let mut req = Request::new();
         *req.uri_mut() = "/nowhere".parse().expect("valid uri");
         assert_eq!(
-            route_value(&req),
+            route_value(&req, &Response::new()),
             None,
             "an unmatched request carries no route rather than its raw path"
         );

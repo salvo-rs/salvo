@@ -153,7 +153,7 @@ where
         // The service resolves the route before running middleware, so the span
         // can be named after it.
         #[cfg(feature = "matched-path")]
-        let route = semconv::route_value(req);
+        let route = semconv::route_value(req, res);
         #[cfg(not(feature = "matched-path"))]
         let route: Option<String> = None;
         let span_name = match &route {

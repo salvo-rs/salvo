@@ -55,11 +55,11 @@ const DURATION_BOUNDARIES: &[f64] = &[
 /// (also on by default) to turn this one on.
 ///
 /// A request that matched no route carries no `http.route`, as the conventions
-/// ask, rather than one built from the path it asked for. The exception is a
-/// request for `/`, which is reported as the root route: salvo reports a goal
-/// mounted at the router root and a request that matched nothing with the same
-/// empty matched path, and an application that has no root route has no root
-/// traffic for its `/` misses to be confused with.
+/// ask, rather than one built from the path it asked for. A goal mounted at the
+/// router root is reported as `/`, which salvo itself does not distinguish from
+/// an unmatched request — both leave the matched path empty — so the two are
+/// told apart by whether the service had already answered the request when the
+/// middleware was entered.
 ///
 /// # Body sizes
 ///
@@ -221,14 +221,17 @@ impl Handler for Metrics {
             .typed_get::<headers::ContentLength>()
             .map(|length| length.0);
 
+        // The service resolves the route, and settles whether there was one at
+        // all, before middleware runs — so this has to be read before handing
+        // the request on.
+        #[cfg(feature = "matched-path")]
+        if let Some(route) = semconv::route_value(req, res) {
+            labels.push(KeyValue::new(attribute::HTTP_ROUTE, route));
+        }
+
         let started = Instant::now();
         ctrl.call_next(req, depot, res).await;
         let elapsed = started.elapsed();
-
-        #[cfg(feature = "matched-path")]
-        if let Some(route) = semconv::route_value(req) {
-            labels.push(KeyValue::new(attribute::HTTP_ROUTE, route));
-        }
 
         let status = res.status_code.unwrap_or_else(|| {
             tracing::info!("[otel::Metrics] Treat status_code=none as 200(OK)");

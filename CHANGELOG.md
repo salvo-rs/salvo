@@ -109,10 +109,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the number of time series is now proportional to the number of routes instead of growing
   with traffic:
   - `url.full` — one series per distinct URI, query string included — was replaced by
-    `http.route`, the matched route template (`/users/{id}`). Requests that matched no route
-    carry no `http.route` at all rather than a fallback, except a request for `/`, which is
-    reported as the root route because salvo reports a root-mounted goal and a request that
-    matched nothing with the same empty matched path.
+    `http.route`, the matched route template (`/users/{id}`). A request that matched no route
+    carries no `http.route` at all rather than a fallback, and a goal mounted at the router
+    root is reported as `/`.
   - `exception.message` was replaced by `error.type`, which carries the status code of a
     server error. The old attribute was unbounded, and it was appended to the labels of
     `salvo_request_count` and `salvo_request_duration_ms` but not of `salvo_error_count`, so
