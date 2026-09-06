@@ -133,6 +133,11 @@ async fn test_metrics_follow_semantic_conventions() {
     provider.force_flush().expect("flush");
     let collected = collect(&exporter);
 
+    // `http.route` needs the `matched-path` feature, so the routes the
+    // assertions expect depend on how the crate was built.
+    let users_route = cfg!(feature = "matched-path").then_some("/users/{id}");
+    let boom_route = cfg!(feature = "matched-path").then_some("/boom");
+
     assert_eq!(
         collected.keys().map(String::as_str).collect::<Vec<_>>(),
         vec![
@@ -180,20 +185,22 @@ async fn test_metrics_follow_semantic_conventions() {
         "the invented scheme was collapsed, not dropped"
     );
 
+    // Each point is looked up by something that identifies it on its own in
+    // either feature configuration, so that what is under test — the route — is
+    // asserted rather than assumed.
     let ok = duration
         .points
         .iter()
         .find(|point| {
-            point.attr("http.route")
-                == if cfg!(feature = "matched-path") {
-                    Some("/users/{id}")
-                } else {
-                    None
-                }
+            point.attr("http.response.status_code") == Some("200")
                 && point.attr("url.scheme") == Some("http")
         })
-        .expect("the successful HTTP request is reported with the configured route behavior");
-    assert_eq!(ok.attr("http.response.status_code"), Some("200"));
+        .expect("the successful HTTP request is reported");
+    assert_eq!(
+        ok.attr("http.route"),
+        users_route,
+        "the matched route template is reported, not the requested path"
+    );
     assert_eq!(
         ok.attr("error.type"),
         None,
@@ -203,17 +210,9 @@ async fn test_metrics_follow_semantic_conventions() {
     let failed = duration
         .points
         .iter()
-        .find(|point| {
-            point.attr("http.response.status_code") == Some("500")
-                && point.attr("http.route")
-                    == if cfg!(feature = "matched-path") {
-                        Some("/boom")
-                    } else {
-                        None
-                    }
-        })
-        .expect("the failed request is reported with the configured route behavior");
-    assert_eq!(failed.attr("http.response.status_code"), Some("500"));
+        .find(|point| point.attr("http.response.status_code") == Some("500"))
+        .expect("the failed request is reported");
+    assert_eq!(failed.attr("http.route"), boom_route);
     assert_eq!(
         failed.attr("error.type"),
         Some("500"),
@@ -242,16 +241,16 @@ async fn test_metrics_follow_semantic_conventions() {
 
     let body = &collected["http.server.response.body.size"];
     assert_eq!(body.unit, "By");
+    assert_eq!(
+        body.points.len(),
+        2,
+        "only the two successful responses are measured: the error body is written          after middleware returns"
+    );
     assert!(
-        body.points.iter().all(|point| {
-            point.attr("http.route")
-                == if cfg!(feature = "matched-path") {
-                    Some("/users/{id}")
-                } else {
-                    None
-                }
-        }),
-        "the error response body is written after middleware returns, so it is not measured"
+        body.points
+            .iter()
+            .all(|point| point.attr("http.route") == users_route),
+        "both measured responses came from the same route"
     );
     assert_eq!(
         body.points
