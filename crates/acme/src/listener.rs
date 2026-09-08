@@ -284,8 +284,8 @@ impl<T> AcmeListenerBuilder<T> {
         }
     }
 
-    /// Build a certon Config from our AcmeConfig.
-    async fn build_certon_config(config: &AcmeConfig) -> CoreResult<certon::Config> {
+    /// Build a certon CertManager from our AcmeConfig.
+    async fn build_certon_manager(config: &AcmeConfig) -> CoreResult<certon::CertManager> {
         // Determine storage backend.
         let storage: Arc<dyn Storage> = if let Some(ref s) = config.storage {
             s.clone()
@@ -357,7 +357,7 @@ impl<T> AcmeListenerBuilder<T> {
         // Add the default ACME issuer.
         issuers.push(Arc::new(acme_issuer));
 
-        let mut certon_builder = certon::Config::builder()
+        let mut certon_builder = certon::CertManager::builder()
             .storage(storage)
             .issuers(issuers)
             .key_type(config.key_type)
@@ -373,19 +373,19 @@ impl<T> AcmeListenerBuilder<T> {
     /// Build the rustls ServerConfig backed by certon's CertResolver.
     async fn build_server_config(
         config: &AcmeConfig,
-    ) -> CoreResult<(ServerConfig, Arc<CertResolver>, certon::Config)> {
-        let certon_config: certon::Config = Self::build_certon_config(config).await?;
+    ) -> CoreResult<(ServerConfig, Arc<CertResolver>, certon::CertManager)> {
+        let certon_manager: certon::CertManager = Self::build_certon_manager(config).await?;
 
         // Attempt to load/obtain certificates for configured domains.
-        if let Err(e) = certon_config.manage_sync(&config.domains).await {
+        if let Err(e) = certon_manager.manage(&config.domains).await {
             tracing::warn!(error = ?e, "initial certificate management failed; will retry in background");
         }
 
         // Build the cert resolver backed by certon's cache.
         let cert_resolver = if let Some(ref on_demand) = config.on_demand {
-            CertResolver::with_on_demand(certon_config.cache.clone(), on_demand.clone())
+            CertResolver::with_on_demand(certon_manager.cache.clone(), on_demand.clone())
         } else {
-            CertResolver::new(certon_config.cache.clone())
+            CertResolver::new(certon_manager.cache.clone())
         };
         let cert_resolver = Arc::new(cert_resolver);
 
@@ -403,7 +403,7 @@ impl<T> AcmeListenerBuilder<T> {
                 .push(ACME_TLS_ALPN_NAME.to_vec());
         }
 
-        Ok((server_config, cert_resolver, certon_config))
+        Ok((server_config, cert_resolver, certon_manager))
     }
 }
 
@@ -423,7 +423,7 @@ where
         } = self;
 
         let acme_config = config_builder.build()?;
-        let (server_config, _cert_resolver, certon_config) =
+        let (server_config, _cert_resolver, certon_manager) =
             Self::build_server_config(&acme_config).await?;
         let server_config = Arc::new(server_config);
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
@@ -433,7 +433,7 @@ where
         // returned `JoinHandle` *detaches* the spawned task rather than cancelling
         // it (per certon's docs), so the renewal/OCSP loop keeps running for the
         // lifetime of the process even though we don't hold the handle.
-        let _maintenance_handle = certon::start_maintenance(&certon_config);
+        let _maintenance_handle = certon::start_maintenance(&certon_manager);
 
         let acceptor = AcmeAcceptor::new(acme_config, server_config, inner, tls_acceptor);
         Ok(acceptor)

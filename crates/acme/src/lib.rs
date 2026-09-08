@@ -97,9 +97,9 @@ cfg_feature! {
 /// Re-export the entire `certon` crate for advanced configuration.
 pub use certon;
 pub use certon::{
-    AcmeIssuer, AcmeIssuerBuilder, CertCache, CertIssuer, CertResolver, Certificate,
-    Config as CertonConfig, ConfigBuilder as CertonConfigBuilder, DistributedSolver, Dns01Solver,
-    DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
+    AcmeIssuer, AcmeIssuerBuilder, CertCache, CertIssuer, CertManager as CertonConfig,
+    CertManagerBuilder as CertonConfigBuilder, CertResolver, Certificate, DistributedSolver,
+    Dns01Solver, DnsProvider, FileStorage, Http01Solver, IssuedCertificate, IssuerPolicy, KeyType,
     LETS_ENCRYPT_PRODUCTION, LETS_ENCRYPT_STAGING, MaintenanceConfig, Manager, OcspConfig,
     OnDemandConfig, PreChecker, Revoker, Solver, Storage, TlsAlpn01Solver, ZEROSSL_PRODUCTION,
     ZeroSslIssuer,
