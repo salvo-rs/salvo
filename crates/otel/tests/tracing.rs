@@ -165,10 +165,10 @@ async fn test_span_marks_server_error() {
         None,
         "the error body is written after middleware returns, so its size is unknown here"
     );
-    assert!(
-        matches!(span.status, Status::Error { .. }),
-        "a server error fails the span, got {:?}",
-        span.status
+    assert_eq!(
+        span.status,
+        Status::error(""),
+        "an HTTP server error fails the span without a redundant status description"
     );
 }
 

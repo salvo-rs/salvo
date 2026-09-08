@@ -14,6 +14,20 @@ const DURATION_BOUNDARIES: &[f64] = &[
     0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0,
 ];
 
+/// Byte-oriented defaults from 1 KiB to 64 MiB. The HTTP conventions do not
+/// prescribe body-size boundaries; SDK views can override these defaults.
+const BODY_SIZE_BOUNDARIES: &[f64] = &[
+    1_024.0,
+    4_096.0,
+    16_384.0,
+    65_536.0,
+    262_144.0,
+    1_048_576.0,
+    4_194_304.0,
+    16_777_216.0,
+    67_108_864.0,
+];
+
 /// Middleware recording the HTTP server metrics defined by the OpenTelemetry
 /// [HTTP semantic conventions].
 ///
@@ -124,11 +138,13 @@ impl Metrics {
                 .u64_histogram(metric::HTTP_SERVER_REQUEST_BODY_SIZE)
                 .with_unit("By")
                 .with_description("Size of HTTP server request bodies.")
+                .with_boundaries(BODY_SIZE_BOUNDARIES.to_vec())
                 .build(),
             response_body_size: meter
                 .u64_histogram(metric::HTTP_SERVER_RESPONSE_BODY_SIZE)
                 .with_unit("By")
                 .with_description("Size of HTTP server response bodies.")
+                .with_boundaries(BODY_SIZE_BOUNDARIES.to_vec())
                 .build(),
             known_methods: None,
         }

@@ -26,6 +26,7 @@ struct Point {
     attrs: BTreeMap<String, String>,
     /// `None` for a histogram, whose value is not asserted on.
     value: Option<i64>,
+    bucket_counts: Vec<u64>,
 }
 
 impl Point {
@@ -67,14 +68,17 @@ fn collect(exporter: &InMemoryMetricExporter) -> BTreeMap<String, Instrument> {
                             entry.points.push(Point {
                                 attrs: attrs(point.attributes()),
                                 value: None,
+                                bucket_counts: Vec::new(),
                             });
                         }
                     }
                     AggregatedMetrics::U64(MetricData::Histogram(histogram)) => {
                         for point in histogram.data_points() {
+                            entry.bounds = point.bounds().collect();
                             entry.points.push(Point {
                                 attrs: attrs(point.attributes()),
                                 value: Some(point.sum() as i64),
+                                bucket_counts: point.bucket_counts().collect(),
                             });
                         }
                     }
@@ -83,6 +87,7 @@ fn collect(exporter: &InMemoryMetricExporter) -> BTreeMap<String, Instrument> {
                             entry.points.push(Point {
                                 attrs: attrs(point.attributes()),
                                 value: Some(point.value()),
+                                bucket_counts: Vec::new(),
                             });
                         }
                     }
@@ -260,4 +265,57 @@ async fn test_metrics_follow_semantic_conventions() {
         Some(10),
         "two responses of \"Hello\", five bytes each"
     );
+
+    #[handler]
+    async fn echo(req: &mut Request, res: &mut Response) {
+        let body = req
+            .payload_with_max_size(1_048_576)
+            .await
+            .expect("request body")
+            .clone();
+        res.write_body(body).expect("response body");
+    }
+
+    let service = Service::new(Router::new().hoop(Metrics::new()).goal(echo));
+    for size in [16_384, 65_536, 1_048_576] {
+        TestClient::put("http://127.0.0.1:8698/")
+            .add_header("content-length", size.to_string(), true)
+            .body(vec![b'x'; size])
+            .send(&service)
+            .await;
+    }
+    provider.force_flush().expect("flush body sizes");
+    let collected = collect(&exporter);
+    for name in [
+        "http.server.request.body.size",
+        "http.server.response.body.size",
+    ] {
+        let instrument = &collected[name];
+        assert_eq!(instrument.unit, "By");
+        assert_eq!(
+            instrument.bounds,
+            vec![
+                1_024.0,
+                4_096.0,
+                16_384.0,
+                65_536.0,
+                262_144.0,
+                1_048_576.0,
+                4_194_304.0,
+                16_777_216.0,
+                67_108_864.0,
+            ]
+        );
+        let point = instrument
+            .points
+            .iter()
+            .find(|point| point.attr("http.request.method") == Some("PUT"))
+            .expect("body sizes for the PUT requests");
+        assert_eq!(point.value, Some(16_384 + 65_536 + 1_048_576));
+        assert_eq!(
+            point.bucket_counts,
+            vec![0, 0, 1, 1, 0, 1, 0, 0, 0, 0],
+            "large bodies occupy distinct finite buckets for {name}"
+        );
+    }
 }

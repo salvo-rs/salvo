@@ -216,9 +216,8 @@ where
                     attribute::ERROR_TYPE,
                     status.as_str().to_owned(),
                 ));
-                span.set_status(Status::error(
-                    status.canonical_reason().unwrap_or_default().to_owned(),
-                ));
+                // The HTTP status code already describes the failure.
+                span.set_status(Status::error(""));
             }
         }
         .with_context(Context::current_with_span(span))
