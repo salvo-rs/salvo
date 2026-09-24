@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A QUIC connection was dropped when a joined listener, such as the TCP side of a combined
+  HTTP/1.1, HTTP/2 and HTTP/3 server, accepted a connection during its handshake. A client that
+  never finished its handshake also stalled all new QUIC connections for up to
+  `tls_handshake_timeout`.
+
 ## [1.0.0] - 2026-09-24
 
 ### Security

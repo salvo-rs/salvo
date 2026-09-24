@@ -4,6 +4,7 @@ use std::future::{Ready, ready};
 use std::io::Result as IoResult;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::future::{BoxFuture, FutureExt};
 use futures_util::stream::{Once, once};
@@ -20,16 +21,28 @@ mod listener;
 pub use listener::{QuinnAcceptor, QuinnListener};
 
 /// HTTP/3 connection.
+///
+/// Its QUIC handshake may still be in progress; [`Builder::serve_connection`] waits for it.
 #[allow(dead_code)]
 pub struct QuinnConnection {
     inner: http3_quinn::Connection,
     raw: quinn::Connection,
+    /// Resolves once the QUIC handshake has completed (`true`) or timed out (`false`).
+    handshake: BoxFuture<'static, bool>,
 }
 impl QuinnConnection {
-    pub(crate) fn new(raw: quinn::Connection) -> Self {
+    /// `handshake_done` also resolves if the connection closes before the handshake completes.
+    pub(crate) fn new(
+        raw: quinn::Connection,
+        handshake_done: quinn::ZeroRttAccepted,
+        handshake_timeout: Option<Duration>,
+    ) -> Self {
+        let timeout = handshake_timeout.unwrap_or(Duration::MAX);
+        let handshake = tokio::time::timeout(timeout, handshake_done).map(|done| done.is_ok());
         Self {
             inner: http3_quinn::Connection::new(raw.clone()),
             raw,
+            handshake: handshake.boxed(),
         }
     }
     /// Get inner quinn connection.
