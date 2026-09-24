@@ -24,6 +24,7 @@ use crate::proto::quinn::{
 use crate::{Router, Server};
 
 const ONE_WAY: Duration = Duration::from_millis(100);
+const HOLD: Duration = Duration::from_millis(30);
 const SHORT: Duration = Duration::from_millis(10);
 
 /// Decides when the `n`th datagram a socket sends arrives, counting from 0; `None` drops it.
@@ -161,6 +162,19 @@ async fn connect(endpoint: &Endpoint, server_port: u16) -> quinn::Connection {
 async fn h3_stream(conn: &quinn::Connection, limit: Duration) {
     let stream = timeout(limit, conn.accept_uni()).await;
     stream.expect("HTTP/3 should start in time").unwrap();
+}
+
+#[tokio::test(start_paused = true)]
+async fn settings_ride_the_first_flight_when_client_hello_is_split() {
+    let network = Network::default();
+    tokio::spawn(Server::new(acceptor(&network, 443, |_| Some(ONE_WAY))).serve(Router::new()));
+    // Hold back the second half of the ClientHello, so HTTP/3 opens its streams before the
+    // client's transport parameters arrive.
+    let hold_second = |n| Some(if n == 1 { ONE_WAY + HOLD } else { ONE_WAY });
+    let conn = connect(&client(&network, 1, hold_second), 443).await;
+    // SETTINGS are sent as 0.5-RTT data, so they arrive with the server's handshake flight
+    // rather than a round trip after the client's Finished.
+    h3_stream(&conn, ONE_WAY).await;
 }
 
 #[tokio::test(start_paused = true)]

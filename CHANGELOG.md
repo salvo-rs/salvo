@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   HTTP/1.1, HTTP/2 and HTTP/3 server, accepted a connection during its handshake. A client that
   never finished its handshake also stalled all new QUIC connections for up to
   `tls_handshake_timeout`.
+- HTTP/3 now starts as soon as a QUIC connection is accepted, so the server's SETTINGS travel with
+  its first handshake flight (0.5-RTT data) instead of a round trip after the client's Finished.
+  Browsers wait for those SETTINGS before sending a WebTransport or extended CONNECT request, so a
+  WebTransport session now opens in two round trips instead of three.
 
 ## [1.0.0] - 2026-09-24
 
