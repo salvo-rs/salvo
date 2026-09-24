@@ -11,9 +11,7 @@ salvo = { workspace = true, features = ["logging"] }
 tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-opentelemetry = { workspace = true }
 opentelemetry-appender-tracing = { workspace = true }
-opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "logs"] }
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
-opentelemetry-semantic-conventions = { workspace = true }
 tracing-appender = { workspace = true }

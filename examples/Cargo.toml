@@ -42,9 +42,8 @@ futures = "0.3.31"
 opentelemetry = "0.33"
 opentelemetry-appender-tracing = "0.33"
 opentelemetry-http = "0.33"
-opentelemetry-otlp = "0.33"
+opentelemetry-otlp = { version = "0.33", default-features = false }
 opentelemetry_sdk = "0.33"
-opentelemetry-semantic-conventions = "0.33"
 
 argon2 = "0.5.3"
 dotenvy = "0.15.6"
