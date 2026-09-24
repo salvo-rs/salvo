@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-24
+
 ### Security
 
 - Static file responses no longer serve XML-based documents inline, which allowed stored XSS
