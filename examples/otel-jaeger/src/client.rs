@@ -13,7 +13,7 @@ fn init_tracer_provider() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:14268/api/traces")
+        .with_endpoint("http://localhost:4317")
         .build()
         .expect("failed to create exporter");
     SdkTracerProvider::builder()
