@@ -27,7 +27,7 @@ opentelemetry-http = { workspace = true }
 opentelemetry-semantic-conventions = { workspace = true, features = [
     "semconv_experimental",
 ] }
-opentelemetry = { workspace = true, features = ["metrics"] }
+opentelemetry = { workspace = true, features = ["metrics", "trace"] }
 percent-encoding = { workspace = true }
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
