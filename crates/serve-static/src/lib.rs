@@ -161,6 +161,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_static_dir_rejects_dot_directory_ancestors() {
+        let root = tempfile::TempDir::new().unwrap();
+        fs::create_dir_all(root.path().join(".git/objects")).unwrap();
+        fs::write(root.path().join(".git/config"), "token = secret").unwrap();
+        fs::write(root.path().join(".git/objects/data"), "object data").unwrap();
+        fs::write(root.path().join(".env"), "top-level secret").unwrap();
+        fs::write(root.path().join("public.txt"), "public data").unwrap();
+
+        let service = Service::new(
+            Router::with_path("{*path}")
+                .get(StaticDir::new(root.path().to_path_buf()).auto_list(true)),
+        );
+
+        for path in [
+            "/.env",
+            "/.git/config",
+            "/.git/objects/data",
+            "/.git/objects/",
+        ] {
+            let response = TestClient::get(format!("http://127.0.0.1:5801{path}"))
+                .send(&service)
+                .await;
+            assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND), "{path}");
+        }
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/public.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "public data");
+
+        let mut response = TestClient::get("http://127.0.0.1:5801/")
+            .add_header("accept", "application/json", true)
+            .send(&service)
+            .await;
+        let listing = response.take_string().await.unwrap();
+        assert!(listing.contains("public.txt"));
+        assert!(!listing.contains(".git"));
+        assert!(!listing.contains(".env"));
+
+        let included_service = Service::new(
+            Router::with_path("{*path}").get(
+                StaticDir::new(root.path().to_path_buf())
+                    .auto_list(true)
+                    .include_dot_files(true),
+            ),
+        );
+        let mut response = TestClient::get("http://127.0.0.1:5801/.git/config")
+            .send(&included_service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "token = secret");
+    }
+
+    #[tokio::test]
     async fn test_static_dir_rejects_symlinked_directory_escape() {
         let public = tempfile::TempDir::new().unwrap();
         let private = tempfile::TempDir::new().unwrap();

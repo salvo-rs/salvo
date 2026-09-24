@@ -501,14 +501,10 @@ impl Handler for StaticDir {
         let rel_path = normalize_url_path(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
-        let is_dot_file = Path::new(&rel_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.starts_with('.'))
-            .unwrap_or(false);
+        let has_dot_segment = rel_path.split('/').any(|part| part.starts_with('.'));
         let mut abs_path = None;
         let roots = self.canonical_roots().await;
-        if self.include_dot_files || !is_dot_file {
+        if self.include_dot_files || !has_dot_segment {
             for root in &roots {
                 // Use a single async symlink_metadata call for file type checks, then verify
                 // the canonical target stays under the canonical root before serving it.
