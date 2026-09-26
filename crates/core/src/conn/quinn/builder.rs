@@ -106,12 +106,24 @@ impl Builder {
         graceful_stop_token: Option<CancellationToken>,
     ) -> IoResult<()> {
         let conn_ctrl = hyper_handler.conn_ctrl.clone();
-        let raw_conn = conn.quinn().clone();
+        let crate::conn::quinn::QuinnConnection {
+            inner,
+            raw: raw_conn,
+            handshake,
+        } = conn;
+        // Building the connection sends the server's SETTINGS. They can go out as 0.5-RTT data, so
+        // clients such as Chrome can send a WebTransport CONNECT a round trip sooner. Requests are
+        // served only once the handshake completes: until then the client is unconfirmed, and
+        // 0-RTT requests (if the TLS config enables early data) could be replays.
         let mut conn = self
             .inner
-            .build::<salvo_http3::quinn::Connection, bytes::Bytes>(conn.into_inner())
+            .build::<salvo_http3::quinn::Connection, bytes::Bytes>(inner)
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
+        if !handshake.await {
+            raw_conn.close(0u32.into(), b"handshake timed out");
+            return Ok(());
+        }
 
         let mut shutting_down = false;
         loop {
