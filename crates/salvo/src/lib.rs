@@ -63,6 +63,17 @@
 //! cryptography providers. Enable only one in normal builds. If Cargo feature
 //! unification enables both, call `jwt_auth::install_crypto_provider()` before
 //! any JWT operation.
+//!
+//! To build an HTTP/1-only server without compiling the `h2` dependency:
+//!
+//! ```toml
+//! [dependencies]
+//! salvo = { version = "1", default-features = false, features = ["server", "http1"] }
+//! ```
+//!
+//! Add other features as needed. Cargo features are additive: `full`, `http2`,
+//! `http2-cleartext`, or dependencies that enable Hyper's HTTP/2 support (such as
+//! `proxy`, `acme`, and the OIDC client in `jwt-auth`) will compile `h2` again.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

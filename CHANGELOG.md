@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Honor the `http1` and `http2` feature flags when enabling Hyper protocols. HTTP/1-only
+  builds, including WebSocket support, no longer compile `h2` unless another dependency
+  enables HTTP/2. Default protocol support is unchanged.
+
 ## [1.0.0] - 2026-09-24
 
 ### Security

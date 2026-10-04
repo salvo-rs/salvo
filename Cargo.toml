@@ -81,7 +81,7 @@ http-body-util = "0.1"
 hmac = "0.13"
 hex = "0.4"
 hostname-validator = "1"
-hyper = { version = "1", features = ["full"] }
+hyper = { version = "1", default-features = false }
 hyper-rustls = { version = "0.27", default-features = false }
 hyper-util = { version = "0.1", default-features = true }
 indexmap = "2"

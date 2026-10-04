@@ -120,3 +120,30 @@ jobs:
 
       - name: check --feature-powerset
         run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps --exclude-features server --at-least-one-of aws-lc-rs,ring --exclude-no-default-features
+
+  protocols:
+    name: Protocol features (${{ matrix.features }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ''
+          - 'server,http1'
+          - 'server,http2'
+          - 'server,http1,http2'
+          - 'server,http1,websocket'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check selected protocols
+        run: cargo check -p salvo --no-default-features --features '${{ matrix.features }}'
+      - name: Verify HTTP/2 is excluded when disabled
+        if: ${{ !contains(matrix.features, 'http2') }}
+        shell: bash
+        run: |
+          tree=$(cargo tree -p salvo --no-default-features --features '${{ matrix.features }}' --edges normal,build --prefix none)
+          if grep -q '^h2 v' <<< "$tree"; then
+            echo 'HTTP/2 was enabled unexpectedly'
+            exit 1
+          fi
