@@ -111,7 +111,22 @@ impl Builder {
             raw: raw_conn,
             handshake,
         } = conn;
-        if !handshake.await {
+        // A connection without a completed handshake has no requests to drain. Close it
+        // promptly on graceful stop instead of keeping the server alive until it times out.
+        let handshake_completed = tokio::select! {
+            completed = handshake => completed,
+            _ = async {
+                if let Some(token) = &graceful_stop_token {
+                    token.cancelled().await;
+                } else {
+                    pending::<()>().await;
+                }
+            } => {
+                raw_conn.close(0u32.into(), b"server shutting down");
+                return Ok(());
+            }
+        };
+        if !handshake_completed {
             raw_conn.close(0u32.into(), b"handshake timed out");
             return Ok(());
         }

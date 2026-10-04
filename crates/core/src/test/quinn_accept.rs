@@ -191,3 +191,45 @@ async fn stalled_handshake_does_not_block_other_connections() {
     let conn = connect(&client(&network, 2, |_| Some(ONE_WAY)), 443).await;
     h3_stream(&conn, ONE_WAY * 3).await;
 }
+
+#[cfg(feature = "server-handle")]
+#[tokio::test(start_paused = true)]
+async fn graceful_stop_does_not_wait_for_stalled_handshake() {
+    let network = Network::default();
+    let server = Server::new(acceptor(&network, 443, |_| Some(ONE_WAY)));
+    let handle = server.handle();
+    let mut task = tokio::spawn(server.try_serve(Router::new()));
+    let stalled = client(&network, 1, |n| (n < 2).then_some(ONE_WAY));
+    let _stalled = stalled.connect(([127, 0, 0, 1], 443).into(), "localhost");
+    sleep(ONE_WAY * 3).await;
+    handle.stop_graceful(None);
+    let result = timeout(Duration::from_secs(1), &mut task).await;
+    if result.is_err() {
+        handle.stop_forceful();
+        task.await.unwrap().unwrap();
+    }
+    result
+        .expect("graceful stop should not wait for a connection without a completed handshake")
+        .unwrap()
+        .unwrap();
+}
+
+#[cfg(feature = "server-handle")]
+#[tokio::test(start_paused = true)]
+async fn stalled_handshake_timeout_is_enforced() {
+    let network = Network::default();
+    let server = Server::new(acceptor(&network, 443, |_| Some(ONE_WAY))).fuse_config(
+        crate::fuse::FuseConfig::default().with_tls_handshake_timeout(Duration::from_secs(1)),
+    );
+    let handle = server.handle();
+    let task = tokio::spawn(server.try_serve(Router::new()));
+    let stalled = client(&network, 1, |n| (n < 2).then_some(ONE_WAY));
+    let _stalled = stalled.connect(([127, 0, 0, 1], 443).into(), "localhost");
+    sleep(Duration::from_secs(2)).await;
+    handle.stop_graceful(None);
+    timeout(SHORT, task)
+        .await
+        .expect("handshake timeout should release the connection task")
+        .unwrap()
+        .unwrap();
+}
