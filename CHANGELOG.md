@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-05
+
 ### Fixed
 
 - A QUIC connection was dropped when a joined listener, such as the TCP side of a combined
@@ -15,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Honor the `http1` and `http2` feature flags when enabling Hyper protocols. HTTP/1-only
   builds, including WebSocket support, no longer compile `h2` unless another dependency
   enables HTTP/2. Default protocol support is unchanged.
+- Align the OpenTelemetry examples with the 0.33 dependencies used by `salvo-otel`.
 
 ## [1.0.0] - 2026-09-24
 
