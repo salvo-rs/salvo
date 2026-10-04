@@ -43,6 +43,8 @@
 mod client;
 mod request;
 mod response;
+#[cfg(all(test, feature = "server", feature = "quinn"))]
+mod quinn_accept;
 pub use client::TestClient;
 pub use request::{RequestBuilder, SendTarget};
 pub use response::ResponseExt;

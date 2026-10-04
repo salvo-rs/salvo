@@ -209,37 +209,32 @@ impl Acceptor for QuinnAcceptor {
                 },
                 None => None,
             };
-            // Admission passed: take the incoming back to complete the handshake below.
-            //
-            // NOTE: the handshake await that follows is not itself cancellation-safe — if this
-            // future is dropped mid-handshake the connection is lost. Parking a mid-flight
-            // handshake future is materially more involved; only the admission phase is parked
-            // here, which closes the gap the async `FusePolicy` introduced.
+            // Admission passed. Hand the connection over without awaiting its handshake, which
+            // `serve_connection` awaits on the connection's own task. Awaiting it here would stall
+            // every other accept, TCP included via `JoinedListener`, and would lose the
+            // connection whenever this future is dropped mid-handshake.
             let new_conn = self.pending.take().expect("incoming parked above");
-            // Of the fuse timeouts, QUIC enforces the handshake timeout here and the
-            // request-body timeout via the H3 body. The transport idle and write-stall
+            // Of the fuse timeouts, QUIC enforces the handshake timeout in `serve_connection` and
+            // the request-body timeout via the H3 body. The transport idle and write-stall
             // timeouts are TCP/byte-stream concepts handled by `StraightStream`; QUIC relies on
             // quinn's own `max_idle_timeout` and per-stream flow control instead (see the
             // `FuseConfig` field docs).
-            let connected = match fuse_config.and_then(|config| config.tls_handshake_timeout) {
-                Some(timeout) => match tokio::time::timeout(timeout, new_conn).await {
-                    Ok(result) => result,
-                    Err(_) => continue,
-                },
-                None => new_conn.await,
-            };
-            return match connected {
-                Ok(conn) => Ok(Accepted {
-                    coupler: QuinnCoupler,
-                    stream: QuinnConnection::new(conn),
-                    fuse_config,
-                    conn_ctrl: crate::conn::ConnCtrl::new(),
-                    local_addr: self.holdings[0].local_addr.clone(),
-                    remote_addr: remote_addr.into(),
-                    http_scheme: self.holdings[0].http_scheme.clone(),
-                }),
-                Err(e) => Err(IoError::other(e.to_string())),
-            };
+            let handshake_timeout = fuse_config.and_then(|config| config.tls_handshake_timeout);
+            let connecting = new_conn
+                .accept()
+                .map_err(|e| IoError::other(e.to_string()))?;
+            let (conn, handshake_done) = connecting
+                .into_0rtt()
+                .map_err(|_| IoError::other("quinn refused 0.5-RTT on a server connection"))?;
+            return Ok(Accepted {
+                coupler: QuinnCoupler,
+                stream: QuinnConnection::new(conn, handshake_done, handshake_timeout),
+                fuse_config,
+                conn_ctrl: crate::conn::ConnCtrl::new(),
+                local_addr: self.holdings[0].local_addr.clone(),
+                remote_addr: remote_addr.into(),
+                http_scheme: self.holdings[0].http_scheme.clone(),
+            });
         }
     }
 }
