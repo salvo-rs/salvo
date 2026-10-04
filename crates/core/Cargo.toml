@@ -54,7 +54,7 @@ aws-lc-rs = ["tokio-rustls?/aws-lc-rs", "quinn?/rustls-aws-lc-rs"]
 ring = ["tokio-rustls?/ring", "quinn?/rustls-ring"]
 server = []
 server-handle = []
-http1 = []
+http1 = ["hyper/http1"]
 http2 = ["hyper/http2"]
 http2-cleartext = ["http2"]
 quinn = ["dep:salvo-http3", "dep:quinn", "dep:h3-datagram", "rustls"]
@@ -99,7 +99,7 @@ h3-datagram = { workspace = true, optional = true }
 headers = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
-hyper = { workspace = true, features = ["http1", "client", "server"] }
+hyper = { workspace = true, features = ["client", "server"] }
 indexmap = { workspace = true }
 mime = { workspace = true }
 mime-infer = { workspace = true }
