@@ -23,6 +23,10 @@
 //! | `anyhow` | Integrate with the [`anyhow`](https://crates.io/crates/anyhow) crate | ❌ |
 //! | `eyre` | Integrate with the [`eyre`](https://crates.io/crates/eyre) crate | ❌ |
 //! | `rfc9457` | RFC 9457 Problem Details responses | ❌ |
+//!
+//! To build an HTTP/1-only server, disable default features and enable `server`
+//! and `http1`. Other dependencies can still enable Hyper's HTTP/2 support through
+//! Cargo feature unification.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

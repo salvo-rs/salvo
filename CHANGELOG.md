@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   HTTP/1.1, HTTP/2 and HTTP/3 server, accepted a connection during its handshake. A client that
   never finished its handshake also stalled all new QUIC connections for up to
   `tls_handshake_timeout`.
+- Honor the `http1` and `http2` feature flags when enabling Hyper protocols. HTTP/1-only
+  builds, including WebSocket support, no longer compile `h2` unless another dependency
+  enables HTTP/2. Default protocol support is unchanged.
 
 ## [1.0.0] - 2026-09-24
 

@@ -75,7 +75,6 @@ http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, features = [
     "server",
     "http1",
-    "http2",
     "client",
 ], optional = true }
 pin-project = { workspace = true, optional = true }
