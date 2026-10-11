@@ -104,14 +104,16 @@ impl NormNode {
             metadata: inherited_metadata,
             ..Self::default()
         };
-        let registry = METADATA_REGISTRY
+        // Clone out and release the guard before recursing into the children:
+        // re-acquiring a read lock while a writer is queued deadlocks.
+        let metadata = METADATA_REGISTRY
             .read()
-            .expect("failed to lock METADATA_REGISTRY for read");
-        if let Some(metadata) = registry.get(&router.id) {
-            node.metadata.tags.extend(metadata.tags.iter().cloned());
-            node.metadata
-                .securities
-                .extend(metadata.securities.iter().cloned());
+            .expect("failed to lock METADATA_REGISTRY for read")
+            .get(&router.id)
+            .cloned();
+        if let Some(metadata) = metadata {
+            node.metadata.tags.extend(metadata.tags);
+            node.metadata.securities.extend(metadata.securities);
         }
 
         for filter in router.filters() {
@@ -267,5 +269,45 @@ mod tests {
             normalize_oapi_path("/posts/article_{id:num}"),
             "/posts/article_{id}"
         );
+    }
+
+    /// Building a document while another thread adds router metadata must not
+    /// deadlock: `NormNode::new` must not hold a registry read guard while it
+    /// recurses, or a queued writer blocks the nested read.
+    #[test]
+    fn merge_router_does_not_deadlock_against_concurrent_oapi_security() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{Arc, mpsc};
+        use std::time::Duration;
+
+        use salvo_core::Router;
+
+        use crate::{OpenApi, RouterExt, SecurityRequirement};
+
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let done = Arc::new(AtomicBool::new(false));
+            let writer = {
+                let done = Arc::clone(&done);
+                std::thread::spawn(move || {
+                    while !done.load(Ordering::Relaxed) {
+                        let _ =
+                            Router::new().oapi_security(SecurityRequirement::new("key", ["scope"]));
+                    }
+                })
+            };
+            for _ in 0..2_000 {
+                let tree = Router::with_path("a").push(
+                    Router::with_path("b")
+                        .push(Router::with_path("c").push(Router::with_path("d"))),
+                );
+                let _ = OpenApi::new("test", "0.0.1").merge_router(&tree);
+            }
+            done.store(true, Ordering::Relaxed);
+            writer.join().expect("writer thread panicked");
+            tx.send(()).expect("receiver is alive");
+        });
+        rx.recv_timeout(Duration::from_secs(30))
+            .expect("merge_router deadlocked against a concurrent oapi_security");
     }
 }
