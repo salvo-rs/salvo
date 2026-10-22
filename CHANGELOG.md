@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep graceful server shutdown responsive to force-stop commands and release active
+  connection accounting when a connection task panics or is cancelled.
+- Complete the Tokio and futures `AsyncWrite` shutdown operations on channel-backed
+  response bodies without requiring the sender to be dropped.
+- Retain in-memory rate-limit guards until their reset time when idle expiration
+  would otherwise discard an active quota. Capacity eviction and restarts remain
+  best-effort limits of the in-memory store.
+- Honor `Logger::log_status_error(false)` when recording response error details,
+  and align `Logger::default()` with `Logger::new()`.
+
 ## [1.0.1] - 2026-10-05
 
 ### Fixed
