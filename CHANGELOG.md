@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Honor `If-Range` validators in file responses, returning the full representation
+  when a resumable download refers to a different version.
 - Restore path cursors, captured parameters and matched path templates after failed
   composite filters, so alternative routes start from the original matching state.
   Routing tests also compile when `matched-path` is disabled.
