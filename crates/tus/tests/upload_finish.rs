@@ -150,3 +150,100 @@ async fn creation_and_deferred_length_uploads_notify_completion() {
         assert_eq!(uploads[0].offset, uploads[0].size);
     }
 }
+
+#[tokio::test]
+async fn completion_body_without_status_uses_ok() {
+    let directory = tempfile::tempdir().unwrap();
+    let service = Service::new(
+        Tus::new()
+            .path("/uploads")
+            .storage_root(directory.path())
+            .on_upload_finish(|_req, _upload| async {
+                Ok(UploadFinishPatch {
+                    body: Some(b"finished".to_vec()),
+                    ..UploadFinishPatch::default()
+                })
+            })
+            .into_router(),
+    );
+    let created = TestClient::post("http://localhost/uploads")
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("upload-length", "1", true)
+        .send(&service)
+        .await;
+    let location = created.headers()["location"].to_str().unwrap();
+    let mut response = TestClient::patch(format!("http://localhost{location}"))
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "0", true)
+        .body("x")
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::OK));
+    assert_eq!(response.take_string().await.unwrap(), "finished");
+}
+
+#[tokio::test]
+async fn rejected_deferred_length_does_not_complete_the_stored_upload() {
+    let directory = tempfile::tempdir().unwrap();
+    let completed = Arc::new(Mutex::new(Vec::new()));
+    let observed = completed.clone();
+    let service = Service::new(
+        Tus::new()
+            .path("/uploads")
+            .storage_root(directory.path())
+            .on_upload_finish(move |_req, upload| {
+                observed.lock().unwrap().push(upload);
+                async { Ok(UploadFinishPatch::default()) }
+            })
+            .into_router(),
+    );
+    let created = TestClient::post("http://localhost/uploads")
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("upload-defer-length", "1", true)
+        .send(&service)
+        .await;
+    let location = created.headers()["location"].to_str().unwrap();
+    let url = format!("http://localhost{location}");
+    let response = TestClient::patch(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "0", true)
+        .body("abc")
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::NO_CONTENT));
+
+    let response = TestClient::patch(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "3", true)
+        .add_header("upload-length", "3", true)
+        .add_header("content-length", "1", true)
+        .body("x")
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::PAYLOAD_TOO_LARGE));
+    assert!(completed.lock().unwrap().is_empty());
+    let response = TestClient::head(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .send(&service)
+        .await;
+    assert_eq!(response.headers()["upload-offset"], "3");
+    assert!(!response.headers().contains_key("upload-length"));
+    assert_eq!(response.headers()["upload-defer-length"], "1");
+
+    let response = TestClient::patch(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "3", true)
+        .add_header("upload-length", "3", true)
+        .body("")
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::NO_CONTENT));
+    let uploads = completed.lock().unwrap();
+    assert_eq!(uploads.len(), 1);
+    assert_eq!(uploads[0].offset, Some(3));
+    assert_eq!(uploads[0].size, Some(3));
+}

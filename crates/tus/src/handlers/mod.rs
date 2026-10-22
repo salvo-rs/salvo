@@ -39,6 +39,10 @@ pub(crate) async fn finish_upload(
     let patch = hook(req, upload).await?;
     if let Some(status) = patch.status_code {
         res.status_code = Some(status);
+    } else if patch.body.is_some()
+        && res.status_code == Some(salvo_core::http::StatusCode::NO_CONTENT)
+    {
+        res.status_code = Some(salvo_core::http::StatusCode::OK);
     }
     if let Some(body) = patch.body {
         res.write_body(body)

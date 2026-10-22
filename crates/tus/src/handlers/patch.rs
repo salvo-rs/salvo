@@ -134,6 +134,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     let was_finished = already_uploaded_info.size == Some(uploaded_info_offset);
 
+    let mut declared_length = None;
     if let Some(raw_length) = req.headers().get(H_UPLOAD_LENGTH) {
         let size = if let Ok(value) = raw_length.to_str() {
             match parse_u64(Some(value), H_UPLOAD_LENGTH) {
@@ -171,10 +172,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             return;
         }
 
-        if let Err(e) = store.declare_upload_length(&id, size).await {
-            res.status_code = Some(e.status());
-            return;
-        }
+        declared_length = Some(size);
         already_uploaded_info.size = Some(size);
     }
 
@@ -228,6 +226,16 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info,
     // max_file_size).await; let new_offset = store.write(req.body, already_uploaded_info,
     // max_body_size, context);
+
+    // Do not persist a deferred length until all headers and size bounds have
+    // been validated. An invalid request must not complete the stored upload
+    // without reaching the completion hook.
+    if let Some(size) = declared_length
+        && let Err(error) = store.declare_upload_length(&id, size).await
+    {
+        res.status_code = Some(error.status());
+        return;
+    }
 
     let body = req.take_body();
     let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
