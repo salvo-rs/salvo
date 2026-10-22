@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
+  verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
+- Honor explicit OIDC JWT algorithm allowlists and share a one-second JWKS refresh cooldown
+  across decoder clones, including failed refreshes and unknown key identifiers.
+
 ## [1.0.1] - 2026-10-05
 
 ### Fixed

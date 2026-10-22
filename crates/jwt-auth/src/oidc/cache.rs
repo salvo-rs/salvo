@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
@@ -114,6 +114,7 @@ pub struct CacheState {
     last_update: AtomicU64,
     is_revalidating: AtomicBool,
     is_error: AtomicBool,
+    last_revalidation: Mutex<Option<Instant>>,
 }
 
 impl CacheState {
@@ -124,6 +125,7 @@ impl CacheState {
             last_update: AtomicU64::new(current_time()),
             is_revalidating: AtomicBool::new(false),
             is_error: AtomicBool::new(false),
+            last_revalidation: Mutex::new(None),
         }
     }
     /// Check is the cache is error
@@ -154,8 +156,30 @@ impl CacheState {
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_ok()
     }
+
+    pub(super) fn begin_revalidation_after(&self, interval: Duration) -> bool {
+        let mut last = self
+            .last_revalidation
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if last.is_some_and(|last| last.elapsed() < interval) || !self.begin_revalidation() {
+            return false;
+        }
+        *last = Some(Instant::now());
+        true
+    }
+
     /// Mark the cache as no longer revalidating.
     pub fn finish_revalidation(&self) {
+        let mut last = self
+            .last_revalidation
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if last.is_some() {
+            // Start the cooldown after the attempt, including failed attempts,
+            // so a slow or failing provider cannot be polled without a break.
+            *last = Some(Instant::now());
+        }
         self.is_revalidating.store(false, Ordering::Release);
     }
 }
@@ -337,5 +361,19 @@ mod tests {
         state.finish_revalidation();
         assert!(!state.is_revalidating());
         assert!(state.begin_revalidation());
+    }
+
+    #[test]
+    fn revalidation_cooldown_is_shared_and_expires() {
+        let state = Arc::new(CacheState::new());
+        let clone = Arc::clone(&state);
+        let interval = Duration::from_secs(1);
+        assert!(state.begin_revalidation_after(interval));
+        assert!(!clone.begin_revalidation_after(interval));
+        state.finish_revalidation();
+        assert!(!clone.begin_revalidation_after(interval));
+
+        *state.last_revalidation.lock().unwrap() = Some(Instant::now() - interval);
+        assert!(clone.begin_revalidation_after(interval));
     }
 }
