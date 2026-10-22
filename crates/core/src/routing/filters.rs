@@ -69,6 +69,9 @@ pub trait Filter: Debug + Send + Sync + 'static {
         FilterInfo::Other(self.type_name())
     }
     /// Create a new filter use `And` filter.
+    ///
+    /// Restores path matching state if either filter fails. Mutations to the
+    /// request itself are not rolled back.
     #[inline]
     fn and<F>(self, other: F) -> And<Self, F>
     where
@@ -82,6 +85,9 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use `Or` filter.
+    ///
+    /// Restores path matching state before trying the second alternative and
+    /// when neither alternative matches. Request mutations are not rolled back.
     #[inline]
     fn or<F>(self, other: F) -> Or<Self, F>
     where
@@ -95,6 +101,8 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use `AndThen` filter.
+    ///
+    /// Restores path matching state if the filter or callback fails.
     #[inline]
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
@@ -108,6 +116,9 @@ pub trait Filter: Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use `OrElse` filter.
+    ///
+    /// The callback starts with the original path matching state after a failed
+    /// filter. A failed callback also restores that state.
     #[inline]
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where

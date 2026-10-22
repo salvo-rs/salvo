@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore path cursors, captured parameters and matched path templates after failed
+  composite filters, so alternative routes start from the original matching state.
+  Routing tests also compile when `matched-path` is disabled.
+
 ## [1.0.1] - 2026-10-05
 
 ### Fixed

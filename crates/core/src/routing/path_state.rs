@@ -38,6 +38,16 @@ pub struct PathState<'a> {
     pub(crate) once_ended: bool, /* Once it has ended, used to determine whether the error code
                                  * returned is 404 or 405. */
 }
+
+/// A lightweight transaction boundary for path matching.
+#[derive(Clone, Copy)]
+pub(crate) struct PathCheckpoint {
+    cursor: (usize, usize),
+    params: (usize, bool, usize),
+    end_slash: bool,
+    #[cfg(feature = "matched-path")]
+    matched_parts_len: usize,
+}
 impl<'a> Debug for PathState<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let parts = self.parts_iter().collect::<Vec<_>>();
@@ -75,6 +85,26 @@ impl<'a, 'b> PartialEq<PathState<'b>> for PathState<'a> {
 }
 impl<'a> Eq for PathState<'a> {}
 impl<'a> PathState<'a> {
+    pub(crate) fn checkpoint(&self) -> PathCheckpoint {
+        PathCheckpoint {
+            cursor: self.cursor,
+            params: self.params.snapshot(),
+            end_slash: self.end_slash,
+            #[cfg(feature = "matched-path")]
+            matched_parts_len: self.matched_parts.len(),
+        }
+    }
+
+    pub(crate) fn rollback(&mut self, checkpoint: PathCheckpoint) {
+        self.cursor = checkpoint.cursor;
+        self.params.rollback(checkpoint.params);
+        self.end_slash = checkpoint.end_slash;
+        #[cfg(feature = "matched-path")]
+        self.matched_parts.truncate(checkpoint.matched_parts_len);
+        // `once_ended` accumulates path matches across failed router branches
+        // to distinguish 405 from 404, so it is intentionally not rolled back.
+    }
+
     /// Creates a new owned `PathState` from a borrowed path.
     #[inline]
     #[must_use]
