@@ -5,7 +5,7 @@ use salvo_core::http::{HeaderValue, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::apply_common_headers;
+use crate::handlers::{apply_common_headers, finish_upload};
 use crate::stores::Extension;
 use crate::utils::{check_tus_version, parse_u64};
 use crate::{
@@ -131,6 +131,8 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         res.status_code = Some(TusError::InvalidOffset.status());
         return;
     }
+
+    let was_finished = already_uploaded_info.size == Some(uploaded_info_offset);
 
     if let Some(raw_length) = req.headers().get(H_UPLOAD_LENGTH) {
         let size = if let Ok(value) = raw_length.to_str() {
@@ -266,6 +268,22 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.status_code = Some(StatusCode::NO_CONTENT);
     res.headers
         .insert(H_UPLOAD_OFFSET, HeaderValue::from(new_offset));
+
+    if !was_finished
+        && already_uploaded_info.size == Some(new_offset)
+        && opts.on_upload_finish.is_some()
+    {
+        let upload = match store.get_upload_file_info(&id).await {
+            Ok(upload) => upload,
+            Err(error) => {
+                res.status_code = Some(error.status());
+                return;
+            }
+        };
+        if let Err(error) = finish_upload(req, res, opts, upload).await {
+            res.status_code = Some(error.status());
+        }
+    }
 }
 
 pub(crate) fn patch_handler() -> Router {

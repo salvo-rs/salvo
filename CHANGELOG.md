@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Invoke tus upload completion hooks when PATCH finishes an upload, sharing
+  response customization and error handling with creation-time completion.
+- Preserve existing tus metadata if replacing its temporary file fails on Windows.
+
 ## [1.0.1] - 2026-10-05
 
 ### Fixed

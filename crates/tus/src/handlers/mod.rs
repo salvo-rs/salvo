@@ -16,15 +16,45 @@ pub(crate) use head::head_handler;
 pub(crate) use options::options_handler;
 pub(crate) use patch::patch_handler;
 pub(crate) use post::post_handler;
-use salvo_core::Request;
 use salvo_core::http::{HeaderMap, HeaderValue};
+use salvo_core::{Request, Response};
 
-use crate::error::ProtocolError;
+use crate::error::{ProtocolError, TusError};
 use crate::options::TusOptions;
+use crate::stores::UploadInfo;
 use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
 pub(crate) const DEFAULT_ALLOW_HEADERS: &str = "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length";
+
+pub(crate) async fn finish_upload(
+    req: &Request,
+    res: &mut Response,
+    opts: &TusOptions,
+    upload: UploadInfo,
+) -> Result<(), TusError> {
+    let Some(hook) = &opts.on_upload_finish else {
+        return Ok(());
+    };
+    let patch = hook(req, upload).await?;
+    if let Some(status) = patch.status_code {
+        res.status_code = Some(status);
+    }
+    if let Some(body) = patch.body {
+        res.write_body(body)
+            .map_err(|_| TusError::Internal("failed to write response body".into()))?;
+    }
+    if let Some(headers) = patch.headers {
+        for (key, value) in headers {
+            if let Some(key) = key
+                && !res.headers.contains_key(&key)
+            {
+                res.headers.insert(key, value);
+            }
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn apply_common_headers<'a>(
     req: &Request,
