@@ -1449,6 +1449,25 @@ mod tests {
         assert!(!doc.paths.contains_key("/posts/{id:num}"));
     }
 
+    #[tokio::test]
+    async fn repeated_path_filters_match_the_documented_path() {
+        use salvo_core::test::TestClient;
+
+        #[salvo_oapi::endpoint]
+        async fn get_version() -> &'static str {
+            "ok"
+        }
+
+        let router = Router::new().path("api").path("v1").get(get_version);
+        let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
+        let response = TestClient::get("http://localhost/api/v1")
+            .send(router)
+            .await;
+        assert_eq!(response.status_code, Some(salvo_core::http::StatusCode::OK));
+        assert!(doc.paths.contains_key("/api/v1"));
+        assert!(!doc.paths.contains_key("/v1"));
+    }
+
     #[test]
     fn to_parameters_struct_defaults_to_query_with_required() {
         // Regression test for https://github.com/salvo-rs/salvo/issues/1609

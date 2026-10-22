@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve consecutive path filters on the same router when generating OpenAPI paths.
 - Honor `If-Range` validators in file responses, returning the full representation
   when a resumable download refers to a different version.
 - Restore path cursors, captured parameters and matched path templates after failed

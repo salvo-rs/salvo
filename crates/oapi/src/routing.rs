@@ -119,7 +119,20 @@ impl NormNode {
         for filter in router.filters() {
             match filter.info() {
                 FilterInfo::Path(path) => {
-                    node.path = Some(normalize_oapi_path(&path));
+                    let path = normalize_oapi_path(&path);
+                    if let Some(current) = &mut node.path {
+                        if !path.trim_matches('/').is_empty() {
+                            if current.trim_matches('/').is_empty() {
+                                *current = path;
+                            } else {
+                                current.truncate(current.trim_end_matches('/').len());
+                                current.push('/');
+                                current.push_str(path.trim_start_matches('/'));
+                            }
+                        }
+                    } else {
+                        node.path = Some(path);
+                    }
                 }
                 FilterInfo::Method(method) => {
                     // Methods with a dedicated Path Item field map to `PathItemType`;
@@ -254,6 +267,16 @@ pub(crate) struct Metadata {
 #[cfg(test)]
 mod tests {
     use super::normalize_oapi_path;
+
+    #[test]
+    fn repeated_path_filters_keep_constraints_and_slash_boundaries() {
+        let router = salvo_core::Router::new()
+            .path("/api/")
+            .path("/{version:num}/")
+            .path("/");
+        let node = super::NormNode::new(&router, Default::default());
+        assert_eq!(node.path.as_deref(), Some("/api/{version}/"));
+    }
 
     #[test]
     fn normalize_braced_path_constraints() {
