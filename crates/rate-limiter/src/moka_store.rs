@@ -145,6 +145,7 @@ where
         let allowed = Arc::new(AtomicBool::new(false));
         let allowed_in_compute = Arc::clone(&allowed);
         let refer = refer.clone();
+        let expires = self.time_to_idle.is_some();
 
         let result = self
             .inner
@@ -152,16 +153,22 @@ where
             .and_compute_with(|entry| async move {
                 let mut guard = entry.map_or(refer, |entry| entry.into_value().guard);
                 let verified = guard.verify(quota).await;
-                // reset() is expressed in whole Unix seconds. Retain through
-                // that whole second so rounding cannot expire a live window.
-                let now = time::OffsetDateTime::now_utc().unix_timestamp();
-                let seconds = guard
-                    .reset(quota)
-                    .await
-                    .saturating_sub(now)
-                    .saturating_add(1)
-                    .max(0);
-                let retain_for = Duration::from_secs(seconds as u64);
+                let retain_for = if expires {
+                    // reset() is expressed in whole Unix seconds. Retain through
+                    // that whole second so rounding cannot expire a live window.
+                    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+                    let seconds = guard
+                        .reset(quota)
+                        .await
+                        .saturating_sub(now)
+                        .saturating_add(1)
+                        .max(0);
+                    Duration::from_secs(seconds as u64)
+                } else {
+                    // Unbounded stores do not expire entries. Custom guards may
+                    // perform expensive work in reset(), so do not call it here.
+                    Duration::ZERO
+                };
                 allowed_in_compute.store(verified, Ordering::Relaxed);
                 compute::Op::Put(StoredGuard { guard, retain_for })
             })
@@ -212,6 +219,59 @@ mod tests {
 
     use super::*;
     use crate::{BasicQuota, FixedGuard};
+
+    #[tokio::test]
+    async fn unbounded_store_enforces_quota_without_querying_reset() {
+        #[derive(Clone)]
+        struct CountingGuard {
+            inner: FixedGuard,
+            reset_calls: Arc<AtomicUsize>,
+        }
+
+        impl RateGuard for CountingGuard {
+            type Quota = BasicQuota;
+
+            async fn verify(&mut self, quota: &BasicQuota) -> bool {
+                self.inner.verify(quota).await
+            }
+
+            async fn remaining(&self, quota: &BasicQuota) -> usize {
+                self.inner.remaining(quota).await
+            }
+
+            async fn reset(&self, quota: &BasicQuota) -> i64 {
+                self.reset_calls.fetch_add(1, Ordering::Relaxed);
+                self.inner.reset(quota).await
+            }
+
+            async fn limit(&self, quota: &BasicQuota) -> usize {
+                self.inner.limit(quota).await
+            }
+        }
+
+        let reset_calls = Arc::new(AtomicUsize::new(0));
+        let refer = CountingGuard {
+            inner: FixedGuard::new(),
+            reset_calls: Arc::clone(&reset_calls),
+        };
+        let quota = BasicQuota::set_hours(1, 24);
+        let store = MokaStore::<String, CountingGuard>::unbounded();
+        assert!(
+            store
+                .verify_guard("client".into(), &refer, &quota)
+                .await
+                .unwrap()
+                .allowed
+        );
+        assert!(
+            !store
+                .verify_guard("client".into(), &refer, &quota)
+                .await
+                .unwrap()
+                .allowed
+        );
+        assert_eq!(reset_calls.load(Ordering::Relaxed), 0);
+    }
 
     #[tokio::test]
     async fn idle_eviction_keeps_an_unexpired_quota() {
