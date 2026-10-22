@@ -138,6 +138,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Check selected protocols
         run: cargo check -p salvo --no-default-features --features '${{ matrix.features }}'
+      - name: Test core without matched-path
+        if: ${{ matrix.features == 'server,http1' }}
+        run: cargo test -p salvo_core --lib --no-default-features --features server,http1,test,cookie
+      - name: Test core with matched-path
+        if: ${{ matrix.features == 'server,http1' }}
+        run: cargo test -p salvo_core --lib --no-default-features --features server,http1,test,cookie,matched-path
       - name: Verify HTTP/2 is excluded when disabled
         if: ${{ !contains(matrix.features, 'http2') }}
         shell: bash
