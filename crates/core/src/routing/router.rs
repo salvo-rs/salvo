@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::filters::{self, FnFilter, PathFilter};
 use super::{DetectMatched, Filter, FilterInfo, PathState};
 use crate::handler::{Handler, WhenHoop};
+use crate::http::Method;
 use crate::http::uri::Scheme;
 use crate::{Depot, Request};
 
@@ -119,7 +120,45 @@ impl Router {
         req: &mut Request,
         path_state: &mut PathState<'_>,
     ) -> Option<DetectMatched> {
-        if !self.filters_match(req, path_state).await {
+        self.detect_with_method(req, path_state, None).await
+    }
+
+    /// Discover only methods whose complete route can be checked without
+    /// executing application-defined filters or changing the request method.
+    pub(crate) async fn allowed_methods(&self, req: &mut Request) -> Vec<Method> {
+        let mut methods = Vec::new();
+        let mut routers = vec![self];
+        while let Some(router) = routers.pop() {
+            for filter in &router.filters {
+                filter.collect_methods(&mut methods);
+            }
+            routers.extend(&router.routers);
+        }
+        methods.sort_unstable_by(|a, b| a.as_str().cmp(b.as_str()));
+        methods.dedup();
+
+        let path = req.uri().path().to_owned();
+        let mut allowed = Vec::new();
+        for method in methods {
+            let mut state = PathState::from_borrowed_path(&path);
+            if self
+                .detect_with_method(req, &mut state, Some(&method))
+                .await
+                .is_some()
+            {
+                allowed.push(method);
+            }
+        }
+        allowed
+    }
+
+    async fn detect_with_method(
+        &self,
+        req: &mut Request,
+        path_state: &mut PathState<'_>,
+        method: Option<&Method>,
+    ) -> Option<DetectMatched> {
+        if !self.filters_match(req, path_state, method).await {
             return None;
         }
 
@@ -139,7 +178,7 @@ impl Router {
             };
 
             if let Some(child) = child {
-                if child.filters_match(req, path_state).await {
+                if child.filters_match(req, path_state, method).await {
                     stack.push(DetectFrame::new(child, path_state));
                 } else {
                     stack
@@ -169,9 +208,19 @@ impl Router {
         }
     }
 
-    async fn filters_match(&self, req: &mut Request, path_state: &mut PathState<'_>) -> bool {
+    async fn filters_match(
+        &self,
+        req: &mut Request,
+        path_state: &mut PathState<'_>,
+        method: Option<&Method>,
+    ) -> bool {
         for filter in &self.filters {
-            if !filter.filter(req, path_state).await {
+            let matched = if let Some(method) = method {
+                filter.filter_for_method(req, path_state, method).await == Some(true)
+            } else {
+                filter.filter(req, path_state).await
+            };
+            if !matched {
                 return false;
             }
         }

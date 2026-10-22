@@ -3,7 +3,7 @@ use std::future::pending;
 use std::pin::Pin;
 use std::sync::{Arc, LazyLock};
 
-use headers::HeaderValue;
+use headers::{Allow, HeaderMapExt, HeaderValue};
 use http::header::{ALT_SVC, CONTENT_TYPE};
 use http::uri::Scheme;
 use hyper::service::Service as HyperService;
@@ -19,6 +19,13 @@ use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{ConnCtrl, Depot, async_trait};
 
 /// Service http request.
+///
+/// Automatic 405 responses include methods discoverable through built-in
+/// filters and their `and`/`or` combinations. Function filters, callback
+/// combinators and custom character checkers are opaque and are not replayed
+/// to discover methods. When no method can be inferred, failed routing returns
+/// 404. Applications using opaque filters can set their own 405 status and
+/// `Allow` header through service middleware.
 #[non_exhaustive]
 pub struct Service {
     /// The router of this service.
@@ -278,7 +285,14 @@ impl HyperHandler {
         async move {
             let path = req.uri().path().to_owned();
             let mut path_state = PathState::from_owned_path(path);
-            if let Some(dm) = state.router.detect(&mut req, &mut path_state).await {
+            let matched = state.router.detect(&mut req, &mut path_state).await;
+            let allowed = if matched.is_none() {
+                state.router.allowed_methods(&mut req).await
+            } else {
+                Vec::new()
+            };
+            let method_not_allowed = !allowed.is_empty();
+            if let Some(dm) = matched {
                 path_state.params.seal();
                 req.params = path_state.params;
                 #[cfg(feature = "matched-path")]
@@ -303,7 +317,7 @@ impl HyperHandler {
                 req.params = path_state.params;
                 // Set default status code before service hoops executed.
                 // We hope all hoops in service can get the correct status code.
-                if path_state.once_ended {
+                if method_not_allowed {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 } else {
                     res.status_code = Some(StatusCode::NOT_FOUND);
@@ -311,10 +325,10 @@ impl HyperHandler {
                 let mut ctrl = FlowCtrl::with_conn(state.hoops.clone(), conn_ctrl.clone());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 // Set it to default status code again if any hoop set status code to None.
-                if res.status_code.is_none() && path_state.once_ended {
+                if res.status_code.is_none() && method_not_allowed {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
-            } else if path_state.once_ended {
+            } else if method_not_allowed {
                 res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
@@ -403,6 +417,16 @@ impl HyperHandler {
                     res.extensions.insert(stream);
                 }
             }
+            // Middleware and catchers can hide a resource or provide their own
+            // method policy. Do not retain inferred methods after a status
+            // change, and never overwrite an application-provided Allow.
+            if res.status_code == Some(StatusCode::METHOD_NOT_ALLOWED)
+                && method_not_allowed
+                && !res.headers().contains_key(http::header::ALLOW)
+            {
+                res.headers_mut()
+                    .typed_insert(allowed.into_iter().collect::<Allow>());
+            }
             res
         }
     }
@@ -464,6 +488,213 @@ where
 mod tests {
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+
+    #[handler]
+    async fn method_probe_goal() -> &'static str {
+        "ok"
+    }
+
+    #[tokio::test]
+    async fn automatic_405_lists_methods_for_the_matched_resource() {
+        use crate::routing::filters::MethodFilter;
+
+        let router = Router::new()
+            .push(
+                Router::with_path("items")
+                    .get(method_probe_goal)
+                    .post(method_probe_goal)
+                    .get(method_probe_goal)
+                    .push(
+                        Router::with_filter(MethodFilter::new("PROPFIND".parse().unwrap()))
+                            .goal(method_probe_goal),
+                    ),
+            )
+            .push(Router::with_path("other").put(method_probe_goal));
+        let service = Service::new(router);
+        let response = TestClient::delete("http://localhost/items")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(
+            response.headers().get("allow").unwrap(),
+            "GET, POST, PROPFIND"
+        );
+        let response = TestClient::get("http://localhost/items")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert!(response.headers().get("allow").is_none());
+    }
+
+    #[tokio::test]
+    async fn automatic_405_checks_filters_after_methods_and_requires_a_goal() {
+        use crate::http::uri::Scheme;
+        use crate::routing::filters;
+
+        let router = Router::new()
+            .push(
+                Router::with_filter(filters::get())
+                    .path("files/{id:num}")
+                    .host("example.com")
+                    .port(8080)
+                    .scheme(Scheme::HTTPS)
+                    .goal(method_probe_goal),
+            )
+            .push(
+                Router::with_filter(filters::post())
+                    .path("files/missing")
+                    .goal(method_probe_goal),
+            )
+            .push(Router::with_filter(filters::delete()).path("files/{id:num}"));
+        let service = Service::new(router);
+        let response = TestClient::put("https://example.com:8080/files/12")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "GET");
+        let response = TestClient::put("https://other.example:8080/files/12")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
+        assert!(response.headers().get("allow").is_none());
+
+        let response = TestClient::put("http://localhost/a")
+            .send(Router::with_path("a"))
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
+        assert!(response.headers().get("allow").is_none());
+    }
+
+    #[tokio::test]
+    async fn automatic_405_understands_composite_method_filters() {
+        use crate::routing::{Filter, filters};
+
+        let filter = filters::get()
+            .and(filters::path("a"))
+            .or(filters::post().and(filters::path("a")));
+        let response = TestClient::delete("http://localhost/a")
+            .send(Router::with_filter(filter).goal(method_probe_goal))
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "GET, POST");
+    }
+
+    #[tokio::test]
+    async fn automatic_405_does_not_replay_opaque_callbacks() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        use crate::http::Method;
+        use crate::routing::filters::{self, CharsWispBuilder, PathFilter};
+
+        let called = Arc::new(AtomicUsize::new(0));
+        let callback_called = called.clone();
+        let chars_called = called.clone();
+        PathFilter::register_wisp_builder(
+            "allow_probe_counter",
+            CharsWispBuilder::new(move |_| {
+                chars_called.fetch_add(1, Ordering::Relaxed);
+                true
+            }),
+        );
+        let router = Router::new()
+            .push(
+                Router::with_filter(filters::get())
+                    .path("a")
+                    .filter_fn(move |req, _| {
+                        assert_eq!(req.method(), Method::DELETE);
+                        callback_called.fetch_add(1, Ordering::Relaxed);
+                        true
+                    })
+                    .goal(method_probe_goal),
+            )
+            .push(
+                Router::with_filter(filters::put())
+                    .path("{id:allow_probe_counter}")
+                    .goal(method_probe_goal),
+            )
+            .push(Router::with_path("a").post(method_probe_goal));
+        let response = TestClient::delete("http://localhost/a").send(router).await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "POST");
+        assert_eq!(called.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn automatic_405_does_not_treat_unknown_as_a_failed_or_branch() {
+        use crate::routing::{Filter, filters};
+
+        let shadowed = filters::FnFilter(
+            |_: &mut Request, state: &mut crate::routing::PathState<'_>| {
+                state.forward(2);
+                true
+            },
+        )
+        .or(filters::path("a"))
+        .and(filters::path("b"));
+        let router = Router::new()
+            .push(
+                Router::with_filter(filters::get())
+                    .filter(shadowed)
+                    .goal(method_probe_goal),
+            )
+            .push(Router::with_path("a/b").post(method_probe_goal));
+        let response = TestClient::delete("http://localhost/a/b")
+            .send(router)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "POST");
+    }
+
+    #[tokio::test]
+    async fn automatic_405_preserves_nested_method_constraints() {
+        use crate::routing::filters;
+
+        let router = Router::new()
+            .push(
+                Router::with_filter(filters::get())
+                    .push(Router::with_path("a").get(method_probe_goal)),
+            )
+            .push(
+                Router::with_filter(filters::patch())
+                    .push(Router::with_path("a").post(method_probe_goal)),
+            );
+        let response = TestClient::delete("http://localhost/a").send(router).await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "GET");
+    }
+
+    #[tokio::test]
+    async fn automatic_405_defers_to_service_middleware() {
+        use crate::http::Method;
+
+        #[handler]
+        async fn hide(req: &mut Request, res: &mut Response) {
+            assert_eq!(req.method(), Method::DELETE);
+            res.status_code(StatusCode::NOT_FOUND);
+        }
+        #[handler]
+        async fn explicit(req: &mut Request, res: &mut Response) {
+            assert_eq!(req.method(), Method::DELETE);
+            res.status_code(StatusCode::METHOD_NOT_ALLOWED);
+            res.headers_mut()
+                .insert("allow", "OPTIONS".parse().unwrap());
+        }
+
+        let service = Service::new(Router::with_path("a").get(method_probe_goal)).hoop(hide);
+        let response = TestClient::delete("http://localhost/a")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
+        assert!(response.headers().get("allow").is_none());
+
+        let service = Service::new(Router::with_path("a").get(method_probe_goal)).hoop(explicit);
+        let response = TestClient::delete("http://localhost/a")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(response.headers().get("allow").unwrap(), "OPTIONS");
+    }
 
     #[tokio::test]
     async fn test_service() {

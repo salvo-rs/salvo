@@ -68,6 +68,23 @@ pub trait Filter: Debug + Send + Sync + 'static {
     fn info(&self) -> FilterInfo {
         FilterInfo::Other(self.type_name())
     }
+
+    #[doc(hidden)]
+    fn collect_methods(&self, _methods: &mut Vec<Method>) {}
+
+    /// Probe a built-in filter with a hypothetical method without changing the
+    /// request. `None` means opaque, not a failed match: an `or` must not fall
+    /// through an unknown first branch. Probing must never replay arbitrary
+    /// callbacks or authorization checks.
+    #[doc(hidden)]
+    async fn filter_for_method(
+        &self,
+        _req: &mut Request,
+        _state: &mut PathState<'_>,
+        _method: &Method,
+    ) -> Option<bool> {
+        None
+    }
     /// Create a new filter use `And` filter.
     ///
     /// Restores path matching state if either filter fails. Mutations to the
