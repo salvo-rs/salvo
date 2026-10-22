@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Enable only the requested `salvo_extra` middleware features through `salvo`,
+  avoiding unrelated WebSocket, Tower and request-ID dependencies for logging-only builds.
+- Declare the Hyper dependency directly for standalone `tower-compat` builds.
+
 ## [1.0.1] - 2026-10-05
 
 ### Fixed
