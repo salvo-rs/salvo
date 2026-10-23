@@ -53,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Enable only the requested `salvo_extra` middleware features through `salvo`,
   avoiding unrelated WebSocket, Tower and request-ID dependencies for logging-only builds.
 - Declare the Hyper dependency directly for standalone `tower-compat` builds.
+- Recover request, depot and flow state when Tower layers short-circuit, fail or
+  cancel their inner future, preserving HEAD handling and prepared response policy headers.
 - Invoke tus upload completion hooks when PATCH finishes an upload, sharing
   response customization and error handling with creation-time completion.
 - Preserve existing tus metadata if replacing its temporary file fails on Windows.

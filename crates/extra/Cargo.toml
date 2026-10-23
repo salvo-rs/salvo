@@ -66,6 +66,8 @@ tower-compat = [
     "dep:http-body-util",
     "dep:tower",
     "dep:tracing",
+    "tokio/macros",
+    "tokio/sync",
 ]
 
 [dependencies]
