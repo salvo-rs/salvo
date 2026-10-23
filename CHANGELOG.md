@@ -8,8 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Omit query strings from core warnings about empty successful responses.
-
 - Clean up interrupted multipart uploads and keep temporary files alive until
   the last `FilePart` clone is released.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
@@ -42,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Restore path cursors, captured parameters and matched path templates after failed
   composite filters, so alternative routes start from the original matching state.
   Routing tests also compile when `matched-path` is disabled.
+- Omit query strings from core warnings about empty successful responses.
 - Enable only the requested `salvo_extra` middleware features through `salvo`,
   avoiding unrelated WebSocket, Tower and request-ID dependencies for logging-only builds.
 - Declare the Hyper dependency directly for standalone `tower-compat` builds.
