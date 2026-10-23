@@ -5,7 +5,7 @@ use salvo_core::http::{HeaderValue, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::{Metadata, apply_common_headers};
+use crate::handlers::{Metadata, apply_common_headers, finish_upload};
 use crate::stores::{Extension, UploadInfo};
 use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64};
 use crate::{
@@ -281,34 +281,9 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    if is_final && let Some(on_upload_finish) = &opts.on_upload_finish {
-        match on_upload_finish(req, upload.clone()).await {
-            Ok(patch) => {
-                if let Some(status) = patch.status_code {
-                    res.status_code = Some(status);
-                }
-                if let Some(body) = patch.body
-                    && res.write_body(body).is_err()
-                {
-                    res.status_code =
-                        Some(TusError::Internal("failed to write response body".into()).status());
-                    return;
-                }
-                if let Some(headers) = patch.headers {
-                    for (key, value) in headers {
-                        if let Some(key) = key
-                            && !res.headers.contains_key(&key)
-                        {
-                            res.headers.insert(key, value);
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                res.status_code = Some(e.status());
-                return;
-            }
-        }
+    if is_final && let Err(error) = finish_upload(req, res, opts, upload.clone()).await {
+        res.status_code = Some(error.status());
+        return;
     }
 
     // The Upload-Expires response header indicates the time after which the unfinished upload
