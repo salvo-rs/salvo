@@ -477,6 +477,12 @@ impl Tus {
     }
 
     /// Sets the hook invoked when an upload completes.
+    ///
+    /// The hook runs for creation requests that complete an upload and for a
+    /// PATCH that transitions an unfinished upload to completion. An empty
+    /// PATCH on an already completed upload does not repeat the hook. A hook
+    /// error does not undo stored bytes; applications needing durable delivery
+    /// should make their completion processing recoverable and idempotent.
     #[must_use]
     pub fn on_upload_finish<F, Fut>(mut self, f: F) -> Self
     where

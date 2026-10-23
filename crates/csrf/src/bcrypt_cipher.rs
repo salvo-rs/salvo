@@ -36,6 +36,9 @@ impl BcryptCipher {
     }
 
     /// Sets the cost for bcrypt.
+    ///
+    /// Proofs are accepted only at this cost. Changing it invalidates existing
+    /// tokens, which must be generated again with the new setting.
     #[inline]
     #[must_use]
     pub fn cost(mut self, cost: u32) -> Self {
@@ -47,17 +50,33 @@ impl BcryptCipher {
 
 impl CsrfCipher for BcryptCipher {
     fn verify(&self, token: &str, proof: &str) -> bool {
-        // Decode the token, using a dummy value if decoding fails to prevent timing attacks.
-        // This ensures bcrypt::verify is always called with consistent timing.
-        let token_bytes = URL_SAFE_NO_PAD
-            .decode(token.as_bytes())
-            .unwrap_or_else(|_| vec![0u8; self.token_size]);
+        // Reject malformed input before allocating or entering bcrypt. The token and
+        // hash format are public; only the hash comparison needs constant-time handling.
+        if token.len() != (self.token_size * 4).div_ceil(3)
+            || proof.len() != 60
+            || !proof.is_ascii()
+        {
+            return false;
+        }
+        let Ok(token_bytes) = URL_SAFE_NO_PAD.decode(token.as_bytes()) else {
+            return false;
+        };
+        if token_bytes.len() != self.token_size {
+            return false;
+        }
 
         // bcrypt hashes only use the `./0-9A-Za-z$` alphabet; `generate` rewrites
         // `/` to `_` for URL safety, so the inverse here is just `_` -> `/`.
         let proof = proof.replace('_', "/");
+        let Ok(parts) = proof.parse::<bcrypt::HashParts>() else {
+            return false;
+        };
+        // Verification uses the hash's embedded cost, not `self.cost`. Never let
+        // an untrusted cookie choose more work than the configured generation cost.
+        if parts.get_cost() != self.cost {
+            return false;
+        }
 
-        // Always perform bcrypt verification to maintain constant time
         bcrypt::verify(&token_bytes, &proof).unwrap_or(false)
     }
     fn generate(&self) -> (String, String) {
@@ -134,5 +153,27 @@ mod tests {
         let (token, proof) = cipher.generate();
         let invalid_token = URL_SAFE_NO_PAD.encode(vec![0; token.len()]);
         assert!(!cipher.verify(&invalid_token, &proof));
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_rejects_a_different_cost() {
+        // Keep both test costs small: rejection is tested with a real hash, not
+        // by ever evaluating an expensive attacker-selected cost.
+        let cipher = BcryptCipher::new().cost(4);
+        let (token, proof) = BcryptCipher::new().cost(5).generate();
+        assert!(!cipher.verify(&token, &proof));
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_rejects_malformed_input() {
+        let cipher = BcryptCipher::new().cost(4);
+        let (token, proof) = cipher.generate();
+        assert!(!cipher.verify(&format!("{token}A"), &proof));
+        assert!(!cipher.verify(&token, &format!("{proof}A")));
+        assert!(!cipher.verify(&"!".repeat(token.len()), &proof));
+        // A non-ASCII string with the expected byte length must not reach the
+        // dependency's ASCII hash parser.
+        let non_ascii = format!("{}é", &proof[..58]);
+        assert!(!cipher.verify(&token, &non_ascii));
     }
 }

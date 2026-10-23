@@ -412,11 +412,8 @@ impl DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        #[cfg(windows)]
-        {
-            let _ = fs::remove_file(&final_path).await;
-        }
-
+        // Rename replaces an existing file on Windows as well as Unix. Keep
+        // the destination intact if replacing the temporary file fails.
         fs::rename(&tmp, &final_path)
             .await
             .map_err(|e| TusError::Internal(format!("rename meta tmp: {e}")))?;
@@ -1204,6 +1201,32 @@ mod tests {
             b"outside"
         );
         assert!(!store.data_path(id).exists());
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn metadata_replace_failure_preserves_existing_upload() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let (store, _directory) = create_test_store();
+        let id = "preserve-metadata";
+        store.create(create_test_upload_info(id)).await.unwrap();
+        let mut metadata = store.read_meta(id).await.unwrap();
+        let original = fs::read(store.meta_path(id)).await.unwrap();
+        let temporary = store.meta_tmp_path(id);
+        fs::write(&temporary, b"").await.unwrap();
+        // Permit writing the temporary file, but prevent renaming it while
+        // this handle is open. The destination must survive a failed replace.
+        let handle = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(0x1 | 0x2)
+            .open(&temporary)
+            .unwrap();
+        metadata.offset = 1;
+        assert!(store.write_meta_atomic(&metadata).await.is_err());
+        drop(handle);
+        assert_eq!(fs::read(store.meta_path(id)).await.unwrap(), original);
     }
 
     #[tokio::test]

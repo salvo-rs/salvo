@@ -12,12 +12,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   without replaying custom callbacks or overriding middleware response policies.
   When opaque filters prevent safely inferring any supported method, routing defaults
   to 404; service middleware can provide its own 405 status and `Allow` header.
+- Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
+  verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
+- Honor explicit OIDC JWT algorithm allowlists and share a one-second JWKS refresh cooldown
+  across decoder clones, including failed refreshes and unknown key identifiers.
 - Preserve consecutive path filters on the same router when generating OpenAPI paths.
 - Honor `If-Range` validators in file responses, returning the full representation
   when a resumable download refers to a different version.
 - Restore path cursors, captured parameters and matched path templates after failed
   composite filters, so alternative routes start from the original matching state.
   Routing tests also compile when `matched-path` is disabled.
+- Enable only the requested `salvo_extra` middleware features through `salvo`,
+  avoiding unrelated WebSocket, Tower and request-ID dependencies for logging-only builds.
+- Declare the Hyper dependency directly for standalone `tower-compat` builds.
+- Invoke tus upload completion hooks when PATCH finishes an upload, sharing
+  response customization and error handling with creation-time completion.
+- Preserve existing tus metadata if replacing its temporary file fails on Windows.
+- Keep graceful server shutdown responsive to force-stop commands and release active
+  connection accounting when a connection task panics or is cancelled.
+- Complete the Tokio and futures `AsyncWrite` shutdown operations on channel-backed
+  response bodies without requiring the sender to be dropped.
+- Retain in-memory rate-limit guards until their reset time when idle expiration
+  would otherwise discard an active quota. Capacity eviction and restarts remain
+  best-effort limits of the in-memory store.
+- Honor `Logger::log_status_error(false)` when recording response error details,
+  and align `Logger::default()` with `Logger::new()`.
 
 ## [1.0.1] - 2026-10-05
 

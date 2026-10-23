@@ -32,6 +32,9 @@ pub(super) type HyperClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>
 const OIDC_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 const OIDC_CONFIG_MAX_BYTES: usize = 64 * 1024;
 const OIDC_JWKS_MAX_BYTES: usize = 1024 * 1024;
+// Match the minimum cache lifetime. A cache miss may trigger an early refresh,
+// but sequential unknown kids must not bypass the provider's cache policy.
+const OIDC_REVALIDATION_INTERVAL: Duration = Duration::from_secs(1);
 
 fn default_http_client() -> Result<HyperClient, JwtAuthError> {
     let https = HttpsConnectorBuilder::new()
@@ -160,6 +163,10 @@ where
         self
     }
     /// Set the validation options for the decoder.
+    ///
+    /// The algorithm allowlist is honored as well. Without explicit validation
+    /// options, the algorithm is selected from each trusted JWK; symmetric keys
+    /// still require [`Self::allow_symmetric_jwks`].
     #[must_use]
     pub fn validation(mut self, validation: Validation) -> Self {
         self.validation = Some(validation);
@@ -213,8 +220,11 @@ where
         //Create an empty JWKS to initialize our Cache
         let jwks = JwkSet { keys: Vec::new() };
 
-        let validation =
-            configure_oidc_validation(validation.unwrap_or_default(), raw_issuer, audiences)?;
+        let validation = configure_oidc_validation(
+            validation.unwrap_or_else(default_oidc_validation),
+            raw_issuer,
+            audiences,
+        )?;
         let issuer = raw_issuer.trim_end_matches('/').to_owned();
         let cache = Arc::new(RwLock::new(
             JwkSetStore::new(jwks, CachePolicy::default(), validation)
@@ -331,7 +341,10 @@ impl OidcDecoder {
     /// Will only ever spawn one task at a single time.
     /// If called while an update task is currently running, will do nothing.
     fn revalidate_cache(&self) {
-        if self.cache_state.begin_revalidation() {
+        if self
+            .cache_state
+            .begin_revalidation_after(OIDC_REVALIDATION_INTERVAL)
+        {
             tracing::info!("Spawning Task to re-validate JWKS");
             let decoder = self.clone();
             tokio::task::spawn(async move {
@@ -412,6 +425,29 @@ impl OidcDecoder {
     }
 }
 
+fn default_oidc_validation() -> Validation {
+    // Preserve JWK-selected algorithms for the default OIDC builder instead of
+    // jsonwebtoken's HS256-only default. An explicitly supplied Validation keeps
+    // its own (possibly empty) allowlist.
+    Validation {
+        algorithms: vec![
+            Algorithm::HS256,
+            Algorithm::HS384,
+            Algorithm::HS512,
+            Algorithm::ES256,
+            Algorithm::ES384,
+            Algorithm::RS256,
+            Algorithm::RS384,
+            Algorithm::RS512,
+            Algorithm::PS256,
+            Algorithm::PS384,
+            Algorithm::PS512,
+            Algorithm::EdDSA,
+        ],
+        ..Validation::default()
+    }
+}
+
 fn configure_oidc_validation(
     mut validation: Validation,
     issuer: &str,
@@ -456,21 +492,10 @@ impl Debug for DecodingInfo {
 }
 impl DecodingInfo {
     fn new(key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {
-        let mut validation = Validation::new(alg);
-
-        validation.aud.clone_from(&validation_settings.aud);
-        validation.iss.clone_from(&validation_settings.iss);
-        validation.leeway = validation_settings.leeway;
-        validation.reject_tokens_expiring_in_less_than =
-            validation_settings.reject_tokens_expiring_in_less_than;
-        validation
-            .required_spec_claims
-            .clone_from(&validation_settings.required_spec_claims);
-
-        validation.sub.clone_from(&validation_settings.sub);
-        validation.validate_aud = validation_settings.validate_aud;
-        validation.validate_exp = validation_settings.validate_exp;
-        validation.validate_nbf = validation_settings.validate_nbf;
+        let mut validation = validation_settings.clone();
+        // A key can only validate its declared algorithm, and only when that
+        // algorithm is permitted by the caller's validation policy.
+        validation.algorithms.retain(|allowed| *allowed == alg);
 
         Self {
             // jwk,
@@ -590,9 +615,153 @@ pub(crate) fn current_time() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use hyper_util::rt::TokioIo;
+    use salvo_core::hyper::{Response, server::conn::http1, service::service_fn};
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn explicit_algorithm_policy_rejects_an_otherwise_valid_signature() {
+        let _ = crate::install_crypto_provider();
+        let secret = b"test-only-secret";
+        let claims = json!({"exp": current_time() + 3600});
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(Algorithm::HS512),
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(secret),
+        )
+        .unwrap();
+
+        let denied = DecodingInfo::new(
+            DecodingKey::from_secret(secret),
+            Algorithm::HS512,
+            &Validation::new(Algorithm::HS256),
+        );
+        assert!(denied.decode::<serde_json::Value>(&token).is_err());
+
+        let allowed = DecodingInfo::new(
+            DecodingKey::from_secret(secret),
+            Algorithm::HS512,
+            &Validation::new(Algorithm::HS512),
+        );
+        assert!(allowed.decode::<serde_json::Value>(&token).is_ok());
+
+        let default = DecodingInfo::new(
+            DecodingKey::from_secret(secret),
+            Algorithm::HS512,
+            &default_oidc_validation(),
+        );
+        assert!(default.decode::<serde_json::Value>(&token).is_ok());
+
+        let mut validation = Validation::new(Algorithm::HS512);
+        validation.algorithms.clear();
+        let info = DecodingInfo::new(
+            DecodingKey::from_secret(secret),
+            Algorithm::HS512,
+            &validation,
+        );
+        assert!(info.decode::<serde_json::Value>(&token).is_err());
+    }
+
+    #[tokio::test]
+    async fn unknown_kids_share_a_cooldown_and_rotation_remains_possible() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let issuer = format!("http://{}", listener.local_addr().unwrap());
+        let discovery = format!(r#"{{"jwks_uri":"{issuer}/jwks"}}"#);
+        let keys = Arc::new(std::sync::RwLock::new(
+            json!({"keys": [{
+                "kty": "oct", "kid": "initial", "alg": "HS256", "k": "c2VjcmV0"
+            }]})
+            .to_string(),
+        ));
+        let requests = Arc::new(AtomicUsize::new(0));
+        let server_keys = Arc::clone(&keys);
+        let server_requests = Arc::clone(&requests);
+        let server = tokio::spawn(async move {
+            loop {
+                let (stream, _) = listener.accept().await.unwrap();
+                let keys = Arc::clone(&server_keys);
+                let requests = Arc::clone(&server_requests);
+                let discovery = discovery.clone();
+                tokio::spawn(async move {
+                    let service = service_fn(move |req: salvo_core::hyper::Request<_>| {
+                        let body = if req.uri().path() == "/jwks" {
+                            requests.fetch_add(1, Ordering::Relaxed);
+                            keys.read().unwrap().clone()
+                        } else {
+                            discovery.clone()
+                        };
+                        async move {
+                            Ok::<_, Infallible>(
+                                Response::builder()
+                                    .status(if body.is_empty() {
+                                        salvo_core::http::StatusCode::SERVICE_UNAVAILABLE
+                                    } else {
+                                        salvo_core::http::StatusCode::OK
+                                    })
+                                    .header(CACHE_CONTROL, "max-age=3600")
+                                    .body(Full::new(Bytes::from(body)))
+                                    .unwrap(),
+                            )
+                        }
+                    });
+                    let _ = http1::Builder::new()
+                        .serve_connection(TokioIo::new(stream), service)
+                        .await;
+                });
+            }
+        });
+
+        let tls = rustls::ClientConfig::builder_with_provider(default_rustls_crypto_provider())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(rustls::RootCertStore::empty())
+            .with_no_client_auth();
+        let connector = HttpsConnectorBuilder::new()
+            .with_tls_config(tls)
+            .https_or_http()
+            .enable_http1()
+            .build();
+        let client = Client::builder(TokioExecutor::new()).build(connector);
+        let decoder = OidcDecoder::builder(issuer)
+            .audience("test-client")
+            .allow_symmetric_jwks(true)
+            .http_client(client)
+            .build()
+            .await
+            .unwrap();
+        assert!(decoder.get_kid_retry("initial").await.is_ok());
+        for kid in ["missing-a", "missing-b", "missing-c"] {
+            assert!(decoder.get_kid_retry(kid).await.is_err());
+        }
+        // One initial fetch and one early refresh, regardless of the number of
+        // distinct misses or clones of the decoder.
+        assert!(decoder.clone().get_kid_retry("missing-d").await.is_err());
+        assert_eq!(requests.load(Ordering::Relaxed), 2);
+
+        *keys.write().unwrap() = json!({"keys": [{
+            "kty": "oct", "kid": "rotated", "alg": "HS256", "k": "c2VjcmV0"
+        }]})
+        .to_string();
+        tokio::time::sleep(OIDC_REVALIDATION_INTERVAL + Duration::from_millis(20)).await;
+        assert!(decoder.get_kid_retry("rotated").await.is_ok());
+        assert_eq!(requests.load(Ordering::Relaxed), 3);
+
+        // Failed refreshes are rate-limited too, while already cached keys keep
+        // working throughout their advertised freshness lifetime.
+        keys.write().unwrap().clear();
+        tokio::time::sleep(OIDC_REVALIDATION_INTERVAL + Duration::from_millis(20)).await;
+        for kid in ["missing-e", "missing-f", "missing-g"] {
+            assert!(decoder.get_kid_retry(kid).await.is_err());
+        }
+        assert_eq!(requests.load(Ordering::Relaxed), 4);
+        assert!(decoder.get_kid_retry("rotated").await.is_ok());
+        server.abort();
+    }
 
     #[test]
     fn test_uses_provided_http_client_without_building_default_client() {
