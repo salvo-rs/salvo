@@ -1728,8 +1728,8 @@ mod tests {
             store.write_meta_atomic(&meta).await.unwrap();
             let destination = directory.path().join("data/completed.txt");
             match phase {
-                0 => {}                                             /* Progress committed, no
-                                                                      * destination yet. */
+                // Progress committed, no destination yet.
+                0 => {}
                 1 => fs::write(&destination, b"he").await.unwrap(), // Copy cancelled.
                 2 | 3 => {
                     assert!(
