@@ -415,11 +415,23 @@ async fn rejected_creation_does_not_leave_upload_files() {
         };
         assert_eq!(response.status_code, Some(expected), "{mode}");
         assert!(!response.headers().contains_key("location"), "{mode}");
-        assert_eq!(
-            std::fs::read_dir(directory.path()).unwrap().count(),
-            0,
-            "{mode}"
-        );
+        // Shared storage directories may remain after rollback. Removing them
+        // would race with other uploads; payloads and metadata must be absent.
+        for entry in std::fs::read_dir(directory.path()).unwrap() {
+            let entry = entry.unwrap();
+            assert!(entry.file_type().unwrap().is_dir(), "{mode}: {entry:?}");
+            assert!(
+                ["data", "metadata", "metadata-tmp"]
+                    .iter()
+                    .any(|name| entry.file_name() == *name),
+                "{mode}: unexpected directory {entry:?}"
+            );
+            assert_eq!(
+                std::fs::read_dir(entry.path()).unwrap().count(),
+                0,
+                "{mode}: {entry:?}"
+            );
+        }
     }
 }
 
@@ -574,4 +586,43 @@ async fn rejected_deferred_length_does_not_complete_the_stored_upload() {
     assert_eq!(uploads.len(), 1);
     assert_eq!(uploads[0].offset, Some(3));
     assert_eq!(uploads[0].size, Some(3));
+}
+
+#[tokio::test]
+async fn completed_json_payload_cannot_create_a_phantom_upload() {
+    let directory = tempfile::tempdir().unwrap();
+    let service = Service::new(
+        Tus::new()
+            .path("/uploads")
+            .storage_root(directory.path())
+            .into_router(),
+    );
+    let payload = r#"{"id":"phantom","size":0,"offset":0,"metadata":null,"storage":null,"creation_date":"2026-10-23"}"#;
+    let response = TestClient::post("http://localhost/uploads")
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("upload-length", payload.len().to_string(), true)
+        .add_header("content-length", payload.len().to_string(), true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-metadata", "filename cGhhbnRvbS5qc29u", true)
+        .body(payload)
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::CREATED));
+    let location = response.headers()["location"].to_str().unwrap();
+    let phantom = TestClient::head("http://localhost/uploads/phantom")
+        .add_header("tus-resumable", "1.0.0", true)
+        .send(&service)
+        .await;
+    assert_eq!(phantom.status_code, Some(StatusCode::NOT_FOUND));
+    let mut downloaded = TestClient::get(format!("http://localhost{location}"))
+        .add_header("tus-resumable", "1.0.0", true)
+        .send(&service)
+        .await;
+    assert_eq!(downloaded.status_code, Some(StatusCode::OK));
+    assert_eq!(downloaded.take_bytes(None).await.unwrap(), payload);
+    assert_eq!(
+        std::fs::read(directory.path().join("data/phantom.json")).unwrap(),
+        payload.as_bytes()
+    );
+    assert!(!directory.path().join("metadata/phantom.json").exists());
 }
