@@ -78,6 +78,12 @@ impl From<MetaUpload> for UploadInfo {
 }
 
 /// Disk-backed storage for tus uploads.
+///
+/// Payloads, metadata and temporary metadata live in separate `data`, `metadata`
+/// and `metadata-tmp` directories below the configured root. Legacy flat layouts
+/// are deliberately not auto-discovered: user-uploaded JSON cannot be trusted as
+/// metadata. Stop uploads and explicitly migrate trusted records and their storage
+/// paths before reusing a legacy directory.
 #[derive(Debug, Clone)]
 pub struct DiskStore {
     root: PathBuf,
@@ -108,21 +114,26 @@ impl DiskStore {
     }
 
     async fn ensure_root(&self) -> TusResult<()> {
-        fs::create_dir_all(&self.root)
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))
+        for directory in ["data", "metadata", "metadata-tmp"] {
+            fs::create_dir_all(self.root.join(directory))
+                .await
+                .map_err(|e| TusError::Internal(e.to_string()))?;
+        }
+        Ok(())
     }
 
     fn data_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.bin"))
+        self.root.join("data").join(format!("{id}.bin"))
     }
 
     fn meta_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.json"))
+        self.root.join("metadata").join(format!("{id}.json"))
     }
 
     fn meta_tmp_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.json.tmp"))
+        self.root
+            .join("metadata-tmp")
+            .join(format!("{id}.json.tmp"))
     }
 
     fn ensure_safe_upload_id(id: &str) -> TusResult<()> {
@@ -158,7 +169,7 @@ impl DiskStore {
     }
 
     fn path_is_within_root(&self, path: &Path) -> bool {
-        let Some(root) = Self::absolute_normalized_path(&self.root) else {
+        let Some(root) = Self::absolute_normalized_path(&self.root.join("data")) else {
             return false;
         };
         let Some(path) = Self::absolute_normalized_path(path) else {
@@ -195,7 +206,7 @@ impl DiskStore {
             return false;
         }
 
-        let Ok(root) = fs::canonicalize(&self.root).await else {
+        let Ok(root) = fs::canonicalize(self.root.join("data")).await else {
             return false;
         };
         let Ok(path) = fs::canonicalize(path).await else {
@@ -391,17 +402,24 @@ impl DiskStore {
     }
 
     async fn read_meta(&self, id: &str) -> TusResult<MetaUpload> {
+        Self::ensure_safe_upload_id(id)?;
         let path = self.meta_path(id);
         let bytes = fs::read(path).await.map_err(|e| match e.kind() {
             io::ErrorKind::NotFound => TusError::NotFound,
             _ => TusError::Internal(e.to_string()),
         })?;
-        serde_json::from_slice::<MetaUpload>(&bytes)
-            .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))
+        let meta = serde_json::from_slice::<MetaUpload>(&bytes)
+            .map_err(|e| TusError::Internal(format!("invalid meta json: {e}")))?;
+        Self::ensure_safe_upload_id(&meta.id)?;
+        if meta.id != id {
+            return Err(TusError::Internal("metadata upload ID mismatch".into()));
+        }
+        Ok(meta)
     }
 
     async fn write_meta_atomic(&self, meta: &MetaUpload) -> TusResult<()> {
         let id = &meta.id;
+        Self::ensure_safe_upload_id(id)?;
         let tmp = self.meta_tmp_path(id);
         let final_path = self.meta_path(id);
 
@@ -646,21 +664,21 @@ mod tests {
     fn test_disk_store_data_path() {
         let store = DiskStore::new().disk_root("/uploads");
         let path = store.data_path("test-id");
-        assert_eq!(path, PathBuf::from("/uploads/test-id.bin"));
+        assert_eq!(path, PathBuf::from("/uploads/data/test-id.bin"));
     }
 
     #[test]
     fn test_disk_store_meta_path() {
         let store = DiskStore::new().disk_root("/uploads");
         let path = store.meta_path("test-id");
-        assert_eq!(path, PathBuf::from("/uploads/test-id.json"));
+        assert_eq!(path, PathBuf::from("/uploads/metadata/test-id.json"));
     }
 
     #[test]
     fn test_disk_store_meta_tmp_path() {
         let store = DiskStore::new().disk_root("/uploads");
         let path = store.meta_tmp_path("test-id");
-        assert_eq!(path, PathBuf::from("/uploads/test-id.json.tmp"));
+        assert_eq!(path, PathBuf::from("/uploads/metadata-tmp/test-id.json.tmp"));
     }
 
     #[test]
@@ -939,7 +957,7 @@ mod tests {
     #[test]
     fn test_resolve_data_path_with_storage() {
         let (store, temp_dir) = create_test_store();
-        let stored_path = temp_dir.path().join("file.bin");
+        let stored_path = temp_dir.path().join("data/file.bin");
         let storage = Some(MetaStoreInfo {
             type_name: "file".to_owned(),
             path: stored_path.to_string_lossy().into_owned(),
@@ -967,7 +985,7 @@ mod tests {
     fn test_resolve_data_path_without_storage() {
         let store = DiskStore::new().disk_root("/uploads");
         let path = store.resolve_data_path("test-id", None);
-        assert_eq!(path, PathBuf::from("/uploads/test-id.bin"));
+        assert_eq!(path, PathBuf::from("/uploads/data/test-id.bin"));
     }
 
     #[test]
@@ -1040,6 +1058,75 @@ mod tests {
         assert_eq!(upload_info.id, "test-id");
         assert_eq!(upload_info.size, Some(2048));
         assert_eq!(upload_info.offset, Some(1024));
+    }
+
+    #[tokio::test]
+    async fn payload_json_cannot_impersonate_metadata() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        for filename in ["phantom.json", "phantom.json.tmp", "phantom.bin"] {
+            let (store, _directory) = create_test_store();
+            let forged =
+                serde_json::to_vec(&MetaUpload::from(create_test_upload_info("different")))
+                    .unwrap();
+            let mut upload = create_test_upload_info("real");
+            upload.size = Some(forged.len() as u64);
+            upload.metadata = Some(Metadata(HashMap::from([(
+                "filename".into(),
+                Some(filename.into()),
+            )])));
+            store.create(upload).await.unwrap();
+            store
+                .write("real", 0, Box::pin(stream::iter([Ok(Bytes::from(forged))])))
+                .await
+                .unwrap();
+            assert!(matches!(
+                store.get_upload_file_info("phantom").await,
+                Err(TusError::NotFound)
+            ));
+            assert_eq!(store.get_upload_file_info("real").await.unwrap().id, "real");
+        }
+    }
+
+    #[tokio::test]
+    async fn metadata_rejects_mismatched_and_unsafe_ids() {
+        let (store, directory) = create_test_store();
+        store.ensure_root().await.unwrap();
+        let mut meta = MetaUpload::from(create_test_upload_info("different"));
+        fs::write(
+            store.meta_path("requested"),
+            serde_json::to_vec(&meta).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(store.read_meta("requested").await.is_err());
+        meta.id = "../escape".into();
+        assert!(matches!(
+            store.write_meta_atomic(&meta).await,
+            Err(TusError::FileIdError)
+        ));
+        fs::write(
+            store.meta_path("requested"),
+            serde_json::to_vec(&meta).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            store.read_meta("requested").await,
+            Err(TusError::FileIdError)
+        ));
+        // Do not auto-import flat files, even if they look exactly like metadata.
+        fs::write(
+            directory.path().join("legacy.json"),
+            serde_json::to_vec(&meta).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            store.read_meta("legacy").await,
+            Err(TusError::NotFound)
+        ));
     }
 
     #[tokio::test]
@@ -1579,7 +1666,7 @@ mod tests {
         assert!(storage.path.contains("myfile.txt"));
 
         // Verify file exists at final path
-        assert!(temp_dir.path().join("myfile.txt").exists());
+        assert!(temp_dir.path().join("data/myfile.txt").exists());
     }
 
     #[tokio::test]
@@ -1588,7 +1675,8 @@ mod tests {
         use futures_util::stream;
 
         let (store, temp_dir) = create_test_store();
-        fs::write(temp_dir.path().join("myfile.txt"), b"existing")
+        store.ensure_root().await.unwrap();
+        fs::write(temp_dir.path().join("data/myfile.txt"), b"existing")
             .await
             .unwrap();
 
@@ -1611,17 +1699,21 @@ mod tests {
         store.write(id, 0, stream).await.unwrap();
 
         assert_eq!(
-            fs::read(temp_dir.path().join("myfile.txt"))
+            fs::read(temp_dir.path().join("data/myfile.txt"))
                 .await
                 .unwrap()
                 .as_slice(),
             b"existing"
         );
         assert_eq!(
-            fs::read(temp_dir.path().join("myfile-test-finalize-fallback.txt"))
-                .await
-                .unwrap()
-                .as_slice(),
+            fs::read(
+                temp_dir
+                    .path()
+                    .join("data/myfile-test-finalize-fallback.txt")
+            )
+            .await
+            .unwrap()
+            .as_slice(),
             b"hello"
         );
 
@@ -1640,11 +1732,14 @@ mod tests {
         use futures_util::stream;
 
         let (store, temp_dir) = create_test_store();
-        fs::write(temp_dir.path().join("myfile.txt"), b"existing-primary")
+        store.ensure_root().await.unwrap();
+        fs::write(temp_dir.path().join("data/myfile.txt"), b"existing-primary")
             .await
             .unwrap();
         fs::write(
-            temp_dir.path().join("myfile-test-finalize-collision.txt"),
+            temp_dir
+                .path()
+                .join("data/myfile-test-finalize-collision.txt"),
             b"existing-fallback",
         )
         .await
@@ -1669,17 +1764,21 @@ mod tests {
         store.write(id, 0, stream).await.unwrap();
 
         assert_eq!(
-            fs::read(temp_dir.path().join("myfile.txt"))
+            fs::read(temp_dir.path().join("data/myfile.txt"))
                 .await
                 .unwrap()
                 .as_slice(),
             b"existing-primary"
         );
         assert_eq!(
-            fs::read(temp_dir.path().join("myfile-test-finalize-collision.txt"))
-                .await
-                .unwrap()
-                .as_slice(),
+            fs::read(
+                temp_dir
+                    .path()
+                    .join("data/myfile-test-finalize-collision.txt")
+            )
+            .await
+            .unwrap()
+            .as_slice(),
             b"existing-fallback"
         );
         assert_eq!(
