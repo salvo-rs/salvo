@@ -130,14 +130,91 @@ where
     async fn extract(req: &'ex mut Request, depot: &'ex mut Depot) -> Result<Self, ParseError> {
         Ok(T::extract(req, depot).await.ok())
     }
+    #[allow(refining_impl_trait)]
+    fn extract_with_arg(
+        req: &'ex mut Request,
+        depot: &'ex mut Depot,
+        arg: &str,
+    ) -> impl Future<Output = Result<Self, ParseError>> + Send {
+        futures_util::FutureExt::map(T::extract_with_arg(req, depot, arg), |result| {
+            Ok(result.ok())
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use serde::Deserialize;
 
+    use crate::extract::{HeaderParam, PathParam, QueryParam};
     use crate::prelude::*;
-    use crate::test::TestClient;
+    use crate::test::{ResponseExt, TestClient};
+
+    #[handler]
+    async fn optional_parameters(
+        id: Option<PathParam<u32>>,
+        page: Option<QueryParam<u32>>,
+        limit: Option<HeaderParam<u32>>,
+    ) -> String {
+        format!(
+            "{:?}/{:?}/{:?}",
+            id.map(PathParam::into_inner),
+            page.map(QueryParam::<u32>::into_inner),
+            limit.map(HeaderParam::<u32>::into_inner),
+        )
+    }
+
+    #[tokio::test]
+    async fn optional_named_parameters_preserve_argument_names() {
+        let service = Service::new(Router::with_path("{id}").get(optional_parameters));
+        let mut response = TestClient::get("http://localhost/7?page=2")
+            .add_header("limit", "5", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(
+            response.take_string().await.unwrap(),
+            "Some(7)/Some(2)/Some(5)"
+        );
+
+        let mut response = TestClient::get("http://localhost/7").send(&service).await;
+        assert_eq!(response.take_string().await.unwrap(), "Some(7)/None/None");
+
+        let mut response = TestClient::get("http://localhost/invalid?page=invalid")
+            .add_header("limit", "invalid", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.take_string().await.unwrap(), "None/None/None");
+
+        let mut response = TestClient::get("http://localhost/")
+            .send(Router::new().get(optional_parameters))
+            .await;
+        assert_eq!(response.take_string().await.unwrap(), "None/None/None");
+    }
+
+    #[cfg(feature = "cookie")]
+    #[tokio::test]
+    async fn optional_cookie_parameter_preserves_argument_name() {
+        use crate::extract::CookieParam;
+
+        #[handler]
+        async fn optional_cookie(count: Option<CookieParam<u32>>) -> String {
+            format!("{:?}", count.map(CookieParam::<u32>::into_inner))
+        }
+
+        let service = Service::new(Router::new().get(optional_cookie));
+        for (cookie, expected) in [
+            ("count=3", "Some(3)"),
+            ("count=invalid", "None"),
+            ("other=3", "None"),
+        ] {
+            let mut response = TestClient::get("http://localhost/")
+                .add_header("cookie", cookie, true)
+                .send(&service)
+                .await;
+            assert_eq!(response.take_string().await.unwrap(), expected);
+        }
+    }
 
     #[tokio::test]
     async fn test_generic_struct() {

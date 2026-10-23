@@ -111,12 +111,12 @@ where
         _depot: &'ex mut Depot,
         arg: &str,
     ) -> Result<Self, ParseError> {
-        let value = req.header(arg).ok_or_else(|| {
+        let value = req.header::<T>(arg).ok_or_else(|| {
             ParseError::other(format!(
                 "header parameter {arg} not found or convert to type failed"
             ))
         })?;
-        Ok(Self(value))
+        Ok(Self(Some(value)))
     }
 }
 
@@ -231,15 +231,14 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic]
-    async fn test_required_header_param_extract_with_value_panic() {
+    async fn test_required_header_param_extract_missing_value_returns_error() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         let mut depot = Depot::new();
         let result =
             HeaderParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
-        assert_eq!(result.unwrap().0.unwrap(), "param");
+        assert!(result.is_err());
     }
 
     #[test]
