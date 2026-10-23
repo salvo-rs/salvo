@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Clean up interrupted multipart uploads and keep temporary files alive until
+  the last `FilePart` clone is released.
+- Roll back failed tus writes and discard uncommitted file tails before retrying.
+- Preserve byte ranges by skipping dynamic compression for partial responses.
+- Inherit ancestor HTTP method constraints when generating OpenAPI operations,
+  excluding routes whose method constraints conflict.
 - Exclude pending cookie jar changes and partial responses from response caching,
   and bypass cached representations for range requests.
 - Forward parameter names through optional extractors and reject missing required

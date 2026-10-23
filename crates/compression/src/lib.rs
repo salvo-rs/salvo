@@ -5,6 +5,8 @@
 //!
 //! This middleware automatically compresses HTTP responses using various algorithms,
 //! reducing bandwidth usage and improving load times for clients.
+//! Responses with status `206 Partial Content` or a `Content-Range` header are
+//! preserved because their byte offsets refer to the original representation.
 //!
 //! # Supported Algorithms
 //!
@@ -72,7 +74,7 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, HeaderValue,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, HeaderValue,
 };
 use salvo_core::http::headers::{ContentLength, HeaderMapExt};
 use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
@@ -468,7 +470,14 @@ impl Handler for Compression {
         ctrl: &mut FlowCtrl,
     ) {
         ctrl.call_next(req, depot, res).await;
-        if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
+        // A range describes bytes of the selected representation. Re-encoding its
+        // body would invalidate those offsets, including representation headers
+        // synthesized for HEAD. Leave the body and headers together untouched.
+        if ctrl.is_ceased()
+            || res.headers().contains_key(CONTENT_ENCODING)
+            || res.headers().contains_key(CONTENT_RANGE)
+            || res.status_code == Some(StatusCode::PARTIAL_CONTENT)
+        {
             return;
         }
 
@@ -569,6 +578,155 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn named_file_ranges_preserve_representation_bytes() {
+        use salvo_core::fs::NamedFile;
+
+        #[handler]
+        async fn serve_file(req: &mut Request, res: &mut Response) {
+            let file = NamedFile::builder(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))
+                .content_type(mime::TEXT_PLAIN)
+                .preload_threshold(req.query::<u64>("preload").unwrap())
+                .build()
+                .await
+                .unwrap();
+            if req.method() == Method::HEAD {
+                file.send_head(req.headers(), res).await;
+            } else {
+                file.send(req.headers(), res).await;
+            }
+        }
+
+        let service =
+            Service::new(Router::with_hoop(Compression::new().min_length(1)).goal(serve_file));
+        let original = include_bytes!("../Cargo.toml");
+        // Cover the preloaded and streaming NamedFile paths.
+        for preload in [0, u64::MAX] {
+            let url = format!("http://localhost/?preload={preload}");
+            for head in [false, true] {
+                let request = if head {
+                    TestClient::head(&url)
+                } else {
+                    TestClient::get(&url)
+                };
+                let mut response = request
+                    .add_header(ACCEPT_ENCODING, "gzip", true)
+                    .add_header("range", "bytes=16-79", true)
+                    .send(&service)
+                    .await;
+                assert_eq!(response.status_code, Some(StatusCode::PARTIAL_CONTENT));
+                assert_eq!(
+                    response.headers()[CONTENT_RANGE],
+                    format!("bytes 16-79/{}", original.len())
+                );
+                assert_eq!(response.headers()[CONTENT_LENGTH], "64");
+                assert!(!response.headers().contains_key(CONTENT_ENCODING));
+                let bytes = response.take_bytes(None).await.unwrap();
+                assert_eq!(&bytes[..], if head { &[][..] } else { &original[16..80] });
+            }
+
+            let mut full = TestClient::get(&url)
+                .add_header(ACCEPT_ENCODING, "gzip", true)
+                .send(&service)
+                .await;
+            assert_eq!(full.status_code, Some(StatusCode::OK));
+            assert_eq!(full.headers()[CONTENT_ENCODING], "gzip");
+            assert_eq!(full.take_string().await.unwrap().as_bytes(), original);
+        }
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn partial_status_or_content_range_prevents_compression() {
+        #[handler]
+        async fn partial_response(req: &mut Request, res: &mut Response) {
+            res.status_code(if req.query::<bool>("partial").unwrap() {
+                StatusCode::PARTIAL_CONTENT
+            } else {
+                StatusCode::OK
+            });
+            if req.query::<bool>("range").unwrap() {
+                res.add_header("content-range", "bytes 0-4/10", true)
+                    .unwrap();
+            }
+            res.add_header(CONTENT_TYPE, "text/plain", true).unwrap();
+            res.add_header(CONTENT_LENGTH, "5", true).unwrap();
+            res.add_header(VARY, "origin", true).unwrap();
+            if req.method() != Method::HEAD {
+                res.render("hello");
+            }
+        }
+
+        let service = Service::new(
+            Router::with_hoop(Compression::new().min_length(1)).goal(partial_response),
+        );
+        for (partial, range) in [(true, false), (false, true)] {
+            let url = format!("http://localhost/?partial={partial}&range={range}");
+            for head in [false, true] {
+                let request = if head {
+                    TestClient::head(&url)
+                } else {
+                    TestClient::get(&url)
+                };
+                let mut response = request
+                    .add_header(ACCEPT_ENCODING, "gzip", true)
+                    .send(&service)
+                    .await;
+                assert!(!response.headers().contains_key(CONTENT_ENCODING));
+                assert_eq!(response.headers()[CONTENT_LENGTH], "5");
+                assert_eq!(response.headers()[VARY], "origin");
+                assert_eq!(
+                    response.take_bytes(None).await.unwrap().as_ref(),
+                    if head { &b""[..] } else { &b"hello"[..] }
+                );
+            }
+        }
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn existing_content_encoding_is_preserved() {
+        #[handler]
+        async fn encoded(req: &mut Request, res: &mut Response) {
+            use std::io::Write;
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(b"hello").unwrap();
+            let bytes = encoder.finish().unwrap();
+            res.status_code(StatusCode::OK);
+            res.add_header(CONTENT_TYPE, "text/plain", true).unwrap();
+            res.add_header(CONTENT_ENCODING, "gzip", true).unwrap();
+            res.add_header(CONTENT_LENGTH, bytes.len().to_string(), true)
+                .unwrap();
+            if req.method() != Method::HEAD {
+                res.write_body(bytes).unwrap();
+            }
+        }
+
+        let service =
+            Service::new(Router::with_hoop(Compression::new().min_length(1)).goal(encoded));
+        for head in [false, true] {
+            let request = if head {
+                TestClient::head("http://localhost/")
+            } else {
+                TestClient::get("http://localhost/")
+            };
+            let mut response = request
+                .add_header(ACCEPT_ENCODING, "gzip", true)
+                .send(&service)
+                .await;
+            assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+            assert!(response.headers().contains_key(CONTENT_LENGTH));
+            assert!(!response.headers().contains_key(VARY));
+            if head {
+                assert!(response.take_bytes(None).await.unwrap().is_empty());
+            } else {
+                assert_eq!(response.take_string().await.unwrap(), "hello");
+            }
+        }
+    }
 
     #[cfg(feature = "gzip")]
     #[tokio::test]

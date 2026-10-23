@@ -39,6 +39,72 @@ fn streamed_body(
 }
 
 #[tokio::test]
+async fn interrupted_patch_can_complete_with_a_shorter_retry() {
+    use bytes::Bytes;
+    use salvo_core::hyper::body::Frame;
+
+    let directory = tempfile::tempdir().unwrap();
+    let completed = Arc::new(Mutex::new(Vec::new()));
+    let observed = completed.clone();
+    let service = Service::new(
+        Tus::new()
+            .path("/uploads")
+            .storage_root(directory.path())
+            .on_upload_finish(move |_req, upload| {
+                observed.lock().unwrap().push(upload);
+                async { Ok(UploadFinishPatch::default()) }
+            })
+            .into_router(),
+    );
+    let created = TestClient::post("http://localhost/uploads")
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("upload-defer-length", "1", true)
+        .send(&service)
+        .await;
+    assert_eq!(created.status_code, Some(StatusCode::CREATED));
+    let url = format!(
+        "http://localhost{}",
+        created.headers()["location"].to_str().unwrap()
+    );
+    let failed = TestClient::patch(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "0", true)
+        .body(streamed_body(vec![
+            Ok(Frame::data(Bytes::from_static(b"old-data"))),
+            Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "interrupted").into()),
+        ]))
+        .send(&service)
+        .await;
+    assert_eq!(failed.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+    assert!(completed.lock().unwrap().is_empty());
+    let head = TestClient::head(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .send(&service)
+        .await;
+    assert_eq!(head.headers()["upload-offset"], "0");
+    let retry = TestClient::patch(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("content-type", "application/offset+octet-stream", true)
+        .add_header("upload-offset", "0", true)
+        .add_header("upload-length", "3", true)
+        .body("abc")
+        .send(&service)
+        .await;
+    assert_eq!(retry.status_code, Some(StatusCode::NO_CONTENT));
+    assert_eq!(retry.headers()["upload-offset"], "3");
+    let mut downloaded = TestClient::get(&url)
+        .add_header("tus-resumable", "1.0.0", true)
+        .send(&service)
+        .await;
+    assert_eq!(downloaded.take_bytes(None).await.unwrap(), "abc");
+    let uploads = completed.lock().unwrap();
+    assert_eq!(uploads.len(), 1);
+    assert_eq!(uploads[0].size, Some(3));
+    assert_eq!(uploads[0].offset, Some(3));
+}
+
+#[tokio::test]
 async fn deferred_completion_waits_for_a_valid_request_stream() {
     use bytes::Bytes;
     use salvo_core::hyper::body::Frame;

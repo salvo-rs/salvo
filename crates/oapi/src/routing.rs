@@ -99,6 +99,14 @@ pub(crate) struct NormNode {
 
 impl NormNode {
     pub(crate) fn new(router: &Router, inherited_metadata: Metadata) -> Self {
+        Self::with_method(router, inherited_metadata, None)
+    }
+
+    fn with_method(
+        router: &Router,
+        inherited_metadata: Metadata,
+        mut method: Option<Method>,
+    ) -> Self {
         let mut node = Self {
             // router_id: router.id,
             metadata: inherited_metadata,
@@ -134,45 +142,44 @@ impl NormNode {
                         node.path = Some(path);
                     }
                 }
-                FilterInfo::Method(method) => {
-                    // Methods with a dedicated Path Item field map to `PathItemType`;
-                    // everything else (CONNECT and custom/extension methods) goes to
-                    // `additionalOperations`, which requires OpenAPI 3.2. Whether such a
-                    // slot is actually emitted is decided later, when the document version
-                    // is known.
-                    let item = match method {
-                        Method::GET => OperationSlot::Standard(PathItemType::Get),
-                        Method::POST => OperationSlot::Standard(PathItemType::Post),
-                        Method::PUT => OperationSlot::Standard(PathItemType::Put),
-                        Method::DELETE => OperationSlot::Standard(PathItemType::Delete),
-                        Method::HEAD => OperationSlot::Standard(PathItemType::Head),
-                        Method::OPTIONS => OperationSlot::Standard(PathItemType::Options),
-                        Method::TRACE => OperationSlot::Standard(PathItemType::Trace),
-                        Method::PATCH => OperationSlot::Standard(PathItemType::Patch),
-                        Method::QUERY => OperationSlot::Standard(PathItemType::Query),
-                        other => OperationSlot::Additional(other.as_str().to_owned()),
-                    };
-                    // A standard method never loses to a custom one, so combining a
-                    // standard method filter with a custom one does not erase the standard
-                    // mapping (the previous string-parsing path had the same behavior via
-                    // its `_ => {}` arm).
-                    if matches!(item, OperationSlot::Standard(_))
-                        || !matches!(node.method, Some(OperationSlot::Standard(_)))
-                    {
-                        node.method = Some(item);
+                FilterInfo::Method(current) => {
+                    // Router filters and all ancestor filters are conjunctive. A
+                    // different method cannot override an earlier constraint: no
+                    // request can reach this node or any of its descendants.
+                    if method.as_ref().is_some_and(|method| method != &current) {
+                        return node;
                     }
+                    method = Some(current);
                 }
                 // Other filter kinds (Scheme/Host/Port/Other) do not carry
                 // information that maps to OpenAPI path items.
                 _ => {}
             }
         }
+        // Preserve extension method spelling; version compatibility is checked
+        // when the operation is inserted into the OpenAPI document.
+        node.method = method.as_ref().map(|method| match *method {
+            Method::GET => OperationSlot::Standard(PathItemType::Get),
+            Method::POST => OperationSlot::Standard(PathItemType::Post),
+            Method::PUT => OperationSlot::Standard(PathItemType::Put),
+            Method::DELETE => OperationSlot::Standard(PathItemType::Delete),
+            Method::HEAD => OperationSlot::Standard(PathItemType::Head),
+            Method::OPTIONS => OperationSlot::Standard(PathItemType::Options),
+            Method::TRACE => OperationSlot::Standard(PathItemType::Trace),
+            Method::PATCH => OperationSlot::Standard(PathItemType::Patch),
+            Method::QUERY => OperationSlot::Standard(PathItemType::Query),
+            _ => OperationSlot::Additional(method.as_str().to_owned()),
+        });
         node.handler_type_id = router.goal.as_ref().map(|h| h.type_id());
         node.handler_type_name = router.goal.as_ref().map(|h| h.type_name());
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {
-                node.children.push(Self::new(router, node.metadata.clone()));
+                node.children.push(Self::with_method(
+                    router,
+                    node.metadata.clone(),
+                    method.clone(),
+                ));
             }
         }
         node
