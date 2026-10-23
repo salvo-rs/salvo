@@ -5,7 +5,7 @@ use salvo_core::http::{HeaderValue, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::apply_common_headers;
+use crate::handlers::{apply_common_headers, finish_upload};
 use crate::stores::Extension;
 use crate::utils::{check_tus_version, parse_u64};
 use crate::{
@@ -132,6 +132,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
+    let was_finished = already_uploaded_info.size == Some(uploaded_info_offset);
+
+    let mut declared_length = None;
     if let Some(raw_length) = req.headers().get(H_UPLOAD_LENGTH) {
         let size = if let Ok(value) = raw_length.to_str() {
             match parse_u64(Some(value), H_UPLOAD_LENGTH) {
@@ -169,10 +172,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             return;
         }
 
-        if let Err(e) = store.declare_upload_length(&id, size).await {
-            res.status_code = Some(e.status());
-            return;
-        }
+        declared_length = Some(size);
         already_uploaded_info.size = Some(size);
     }
 
@@ -223,14 +223,44 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info,
-    // max_file_size).await; let new_offset = store.write(req.body, already_uploaded_info,
-    // max_body_size, context);
-
     let body = req.take_body();
-    let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
+    let mut stream = Box::pin(
+        body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()))
+            .fuse(),
+    );
+
+    // Declaring the current offset as the final length would complete the
+    // upload before write_limited can reject extra bytes or a broken stream.
+    // Validate EOF first so a rejected request leaves the length deferred and
+    // a retry can still reach the completion hook. No body buffering is needed.
+    if declared_length == Some(offset) {
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(chunk) if chunk.is_empty() => {}
+                Ok(_) => {
+                    res.status_code = Some(TusError::PayloadTooLarge.status());
+                    return;
+                }
+                Err(error) => {
+                    res.status_code = Some(TusError::Internal(error.to_string()).status());
+                    return;
+                }
+            }
+        }
+    }
+
+    // Do not persist a deferred length until all headers and size bounds have
+    // been validated. An invalid request must not complete the stored upload
+    // without reaching the completion hook.
+    if let Some(size) = declared_length
+        && let Err(error) = store.declare_upload_length(&id, size).await
+    {
+        res.status_code = Some(error.status());
+        return;
+    }
+
     let written = match store
-        .write_limited(&id, offset, Box::pin(stream), max_write_size)
+        .write_limited(&id, offset, stream, max_write_size)
         .await
     {
         Ok(written) => written,
@@ -266,6 +296,22 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     res.status_code = Some(StatusCode::NO_CONTENT);
     res.headers
         .insert(H_UPLOAD_OFFSET, HeaderValue::from(new_offset));
+
+    if !was_finished
+        && already_uploaded_info.size == Some(new_offset)
+        && opts.on_upload_finish.is_some()
+    {
+        let upload = match store.get_upload_file_info(&id).await {
+            Ok(upload) => upload,
+            Err(error) => {
+                res.status_code = Some(error.status());
+                return;
+            }
+        };
+        if let Err(error) = finish_upload(req, res, opts, upload).await {
+            res.status_code = Some(error.status());
+        }
+    }
 }
 
 pub(crate) fn patch_handler() -> Router {

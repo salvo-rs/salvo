@@ -32,6 +32,35 @@ use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
 use crate::fuse::{ArcFusePolicy, FuseConfig, FusePolicy};
 
+#[cfg(feature = "server-handle")]
+#[derive(Debug)]
+struct ConnectionGuard {
+    alive: Arc<AtomicUsize>,
+    notify: Arc<Notify>,
+    graceful_stop: CancellationToken,
+}
+
+#[cfg(feature = "server-handle")]
+impl ConnectionGuard {
+    fn new(alive: Arc<AtomicUsize>, notify: Arc<Notify>, graceful_stop: CancellationToken) -> Self {
+        alive.fetch_add(1, Ordering::Release);
+        Self {
+            alive,
+            notify,
+            graceful_stop,
+        }
+    }
+}
+
+#[cfg(feature = "server-handle")]
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        if self.alive.fetch_sub(1, Ordering::AcqRel) == 1 && self.graceful_stop.is_cancelled() {
+            self.notify.notify_one();
+        }
+    }
+}
+
 cfg_feature! {
     #![feature ="server-handle"]
     /// Server handle is used to stop server.
@@ -418,11 +447,14 @@ impl<A: Acceptor + Send> Server<A> {
                     accepted = acceptor.accept(fuse_policy.clone()) => {
                         match accepted {
                             Ok(Accepted { coupler, stream, fuse_config, conn_ctrl, local_addr, remote_addr, http_scheme}) => {
-                                alive_connections.fetch_add(1, Ordering::Release);
-
+                                // Account for every exit path, including task cancellation
+                                // and panics while constructing or driving the connection.
+                                let connection_guard = ConnectionGuard::new(
+                                    alive_connections.clone(),
+                                    notify.clone(),
+                                    graceful_stop_token.clone(),
+                                );
                                 let service = service.clone();
-                                let alive_connections = alive_connections.clone();
-                                let notify = notify.clone();
                                 let handler = service.hyper_handler(
                                     local_addr,
                                     remote_addr,
@@ -440,19 +472,12 @@ impl<A: Acceptor + Send> Server<A> {
                                     // Hold the permit for the connection's lifetime; it is
                                     // released back to the semaphore when this task ends.
                                     let _permit = permit;
+                                    let _connection_guard = connection_guard;
                                     let conn = coupler.couple(stream, handler, builder, Some(graceful_stop_token.clone()));
                                     tokio::select! {
                                         _ = conn => {
                                         },
                                         _ = force_stop_token.cancelled() => {
-                                        }
-                                    }
-
-                                    if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
-                                        // notify only if shutdown is initiated, to prevent notification when server is active.
-                                        // It's a valid state to have 0 alive connections when server is not shutting down.
-                                        if graceful_stop_token.is_cancelled() {
-                                            notify.notify_one();
                                         }
                                     }
                                 });
@@ -485,6 +510,7 @@ impl<A: Acceptor + Send> Server<A> {
                     && alive_connections.load(Ordering::Acquire) > 0
                 {
                     tokio::select! {
+                        Some(cmd) = rx_cmd.recv() => handle_stop_command!(cmd),
                         _ = notify.notified() => {}
                         _ = force_stop_token.cancelled() => break,
                     }
@@ -597,6 +623,99 @@ mod tests {
 
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+
+    #[cfg(all(feature = "server-handle", feature = "http1"))]
+    #[tokio::test]
+    async fn graceful_stop_finishes_after_connection_panic() {
+        use std::time::Duration;
+
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        use crate::conn::Acceptor;
+
+        #[handler]
+        async fn panicking() {
+            panic!("intentional connection panic");
+        }
+
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let mut task = tokio::spawn(server.try_serve(Router::new().goal(panicking)));
+        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut received = Vec::new();
+        let _closed =
+            tokio::time::timeout(Duration::from_secs(2), client.read_to_end(&mut received))
+                .await
+                .expect("panicked connection should close");
+        drop(client);
+        handle.stop_graceful(None);
+        let result = tokio::time::timeout(Duration::from_secs(2), &mut task).await;
+        task.abort();
+        result
+            .expect("panicked connections must not stall graceful stop")
+            .unwrap()
+            .unwrap();
+    }
+
+    #[cfg(all(feature = "server-handle", feature = "http1"))]
+    #[tokio::test]
+    async fn forceful_stop_interrupts_graceful_drain() {
+        use std::sync::OnceLock;
+        use std::time::Duration;
+
+        use tokio::io::AsyncWriteExt;
+        use tokio::sync::Notify;
+
+        use crate::conn::Acceptor;
+
+        static STARTED: OnceLock<Notify> = OnceLock::new();
+        #[handler]
+        async fn parked() {
+            STARTED.get_or_init(Notify::new).notify_one();
+            std::future::pending::<()>().await;
+        }
+
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let handle = server.handle();
+        let mut task = tokio::spawn(server.try_serve(Router::new().goal(parked)));
+        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            STARTED.get_or_init(Notify::new).notified(),
+        )
+        .await
+        .expect("handler should start");
+        // Both commands are queued before yielding on this current-thread runtime.
+        handle.stop_graceful(None);
+        handle.stop_forceful();
+        let result = tokio::time::timeout(Duration::from_secs(2), &mut task).await;
+        task.abort();
+        result
+            .expect("forceful stop must interrupt graceful drain")
+            .unwrap()
+            .unwrap();
+        drop(client);
+    }
 
     #[tokio::test]
     async fn test_server() {
