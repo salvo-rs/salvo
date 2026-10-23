@@ -339,6 +339,31 @@ mod tests {
 
     use super::*;
 
+    #[tokio::test]
+    async fn test_sse_data() {
+        let event_stream = tokio_stream::iter(vec![
+            Ok::<_, Infallible>(SseEvent::default().text("1")),
+            Ok::<_, Infallible>(SseEvent::default().text("2")),
+        ]);
+        let mut res = Response::new();
+        super::stream(&mut res, event_stream);
+        let text = res.take_string().await.unwrap();
+        assert!(text.contains("data:1") && text.contains("data:2"));
+    }
+
+    #[tokio::test]
+    async fn test_sse_keep_alive() {
+        let event_stream =
+            tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().text("1"))]);
+        let mut res = Response::new();
+        SseKeepAlive::new(event_stream)
+            .comment("love you")
+            .max_interval(Duration::from_secs(1))
+            .stream(&mut res);
+        let text = res.take_string().await.unwrap();
+        assert!(text.contains("data:1"));
+    }
+
     #[tokio::test(start_paused = true)]
     async fn keep_alive_uses_configured_interval_from_first_heartbeat() {
         let mut cx = Context::from_waker(std::task::Waker::noop());
@@ -365,31 +390,6 @@ mod tests {
                 Poll::Ready(Some(Ok(_)))
             ));
         }
-    }
-
-    #[tokio::test]
-    async fn test_sse_data() {
-        let event_stream = tokio_stream::iter(vec![
-            Ok::<_, Infallible>(SseEvent::default().text("1")),
-            Ok::<_, Infallible>(SseEvent::default().text("2")),
-        ]);
-        let mut res = Response::new();
-        super::stream(&mut res, event_stream);
-        let text = res.take_string().await.unwrap();
-        assert!(text.contains("data:1") && text.contains("data:2"));
-    }
-
-    #[tokio::test]
-    async fn test_sse_keep_alive() {
-        let event_stream =
-            tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().text("1"))]);
-        let mut res = Response::new();
-        SseKeepAlive::new(event_stream)
-            .comment("love you")
-            .max_interval(Duration::from_secs(1))
-            .stream(&mut res);
-        let text = res.take_string().await.unwrap();
-        assert!(text.contains("data:1"));
     }
 
     #[tokio::test]
