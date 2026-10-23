@@ -14,7 +14,7 @@ use crate::conn::SocketAddr;
 use crate::fuse::FuseConfig;
 use crate::handler::{Handler, WhenHoop};
 use crate::http::body::{ReqBody, ResBody};
-use crate::http::{Mime, Request, Response, StatusCode};
+use crate::http::{Mime, Request, Response, StatusCode, StatusError};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{ConnCtrl, Depot, async_trait};
 
@@ -131,6 +131,9 @@ impl Service {
     }
 
     /// Sets allowed media types list and returns `Self` for write code chained.
+    ///
+    /// A response with a disallowed Content-Type is replaced with a 415 error
+    /// and processed by the configured catcher. HEAD responses remain bodyless.
     ///
     /// # Example
     ///
@@ -332,13 +335,6 @@ impl HyperHandler {
                 res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
-            let status_code = if let Some(status_code) = res.status_code {
-                status_code
-            } else {
-                res.status_code = Some(StatusCode::NOT_FOUND);
-                StatusCode::NOT_FOUND
-            };
-
             if !state.allowed_media_types.is_empty()
                 && let Some(ctype) = res
                     .headers()
@@ -354,10 +350,13 @@ impl HyperHandler {
                     }
                 }
                 if !is_allowed {
-                    res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    // Discard the rejected representation and let the catcher
+                    // produce the error response, even when the old body was nonempty.
+                    res.render(StatusError::unsupported_media_type());
                 }
             }
 
+            let status_code = *res.status_code.get_or_insert(StatusCode::NOT_FOUND);
             let has_error = status_code.is_client_error() || status_code.is_server_error();
             if res.body.is_none()
                 && !has_error
@@ -486,12 +485,108 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::catcher::Catcher;
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
     #[handler]
     async fn method_probe_goal() -> &'static str {
         "ok"
+    }
+
+    #[tokio::test]
+    async fn rejected_media_type_uses_default_catcher_and_discards_body() {
+        #[handler]
+        async fn disallowed(req: &mut Request, res: &mut Response) {
+            if req.uri().path() == "/error" {
+                res.status_code(StatusCode::BAD_REQUEST);
+            }
+            if req.uri().path() != "/empty" {
+                res.render("discarded original representation");
+            }
+            res.add_header("content-type", "application/json", true)
+                .unwrap();
+            // Metadata prepared by a compressor or proxy must not describe
+            // the replacement error representation.
+            res.add_header("content-encoding", "gzip", true).unwrap();
+            res.add_header("content-length", "1", true).unwrap();
+        }
+        let service = Service::new(Router::with_path("{**path}").goal(disallowed))
+            .allowed_media_types(vec![mime::TEXT_PLAIN]);
+        for path in ["empty", "body", "error"] {
+            let mut response = TestClient::get(format!("http://localhost/{path}"))
+                .send(&service)
+                .await;
+            assert_eq!(
+                response.status_code,
+                Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+            );
+            assert!(!response.headers().contains_key("content-encoding"));
+            assert!(!response.headers().contains_key("content-length"));
+            // ResponseExt decodes according to Content-Encoding, so this also
+            // verifies that clients can read the replacement representation.
+            let body = response.take_string().await.unwrap();
+            assert!(body.contains("Unsupported Media Type"));
+            assert!(!body.contains("discarded original representation"));
+        }
+        let response = TestClient::head("http://localhost/body")
+            .send(&service)
+            .await;
+        assert_eq!(
+            response.status_code,
+            Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+        );
+        assert!(response.body.is_none());
+        assert!(!response.headers().contains_key("content-encoding"));
+        assert!(!response.headers().contains_key("content-length"));
+    }
+
+    #[tokio::test]
+    async fn rejected_media_type_runs_custom_catcher() {
+        #[handler]
+        async fn disallowed(req: &mut Request, res: &mut Response) {
+            res.add_header("content-type", "application/json", true)
+                .unwrap();
+            res.render("discarded original representation");
+            if req.uri().path() == "/encoded" {
+                res.add_header("content-encoding", "gzip", true).unwrap();
+                res.add_header("content-length", "1", true).unwrap();
+            }
+        }
+        #[handler]
+        async fn catch(res: &mut Response, ctrl: &mut FlowCtrl) {
+            assert_eq!(res.status_code, Some(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+            assert!(!res.headers().contains_key("content-encoding"));
+            assert!(!res.headers().contains_key("content-length"));
+            res.render("custom media type error");
+            ctrl.skip_rest();
+        }
+        let service = Service::new(Router::with_path("encoded").get(disallowed))
+            .allowed_media_types(vec![mime::TEXT_PLAIN])
+            .catcher(Catcher::default().hoop(catch));
+        let mut response = TestClient::get("http://localhost/encoded")
+            .send(&service)
+            .await;
+        assert_eq!(
+            response.status_code,
+            Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+        );
+        assert_eq!(
+            response.take_string().await.unwrap(),
+            "custom media type error"
+        );
+
+        let mut allowed = TestClient::get("http://localhost/")
+            .send(
+                &Service::new(Router::new().get(disallowed))
+                    .allowed_media_types(vec![mime::APPLICATION_JSON]),
+            )
+            .await;
+        assert_eq!(allowed.status_code, Some(StatusCode::OK));
+        assert_eq!(
+            allowed.take_string().await.unwrap(),
+            "discarded original representation"
+        );
     }
 
     #[tokio::test]
