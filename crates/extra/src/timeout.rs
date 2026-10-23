@@ -114,6 +114,29 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn replacement_error_discards_previous_encoding_and_length() {
+        #[handler]
+        async fn slow(res: &mut Response) {
+            res.add_header("content-encoding", "gzip", true).unwrap();
+            res.add_header("content-length", "1", true).unwrap();
+            res.add_header("etag", "old", true).unwrap();
+            res.render("x");
+            std::future::pending::<()>().await;
+        }
+        let service = Service::new(
+            Router::new()
+                .hoop(Timeout::new(Duration::from_millis(10)))
+                .get(slow),
+        );
+        let mut response = TestClient::get("http://localhost/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::SERVICE_UNAVAILABLE));
+        assert!(response.headers().get("content-encoding").is_none());
+        assert!(response.headers().get("content-length").is_none());
+        assert!(response.headers().get("etag").is_none());
+        assert!(response.take_string().await.unwrap().contains("timed out"));
+    }
+
+    #[tokio::test]
     async fn test_timeout_handler() {
         #[handler]
         async fn fast() -> &'static str {
@@ -148,4 +171,3 @@ mod tests {
         assert!(content.contains("hello"));
     }
 }
-

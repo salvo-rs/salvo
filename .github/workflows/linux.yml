@@ -143,6 +143,8 @@ jobs:
             echo 'logging unexpectedly enabled unrelated middleware dependencies'
             exit 1
           fi
+      - name: Test extra middleware without workspace feature unification
+        run: cargo test -p salvo_extra --lib --no-default-features --features timeout,catch-panic,size-limiter
 
   protocols:
     name: Protocol features (${{ matrix.features }})
