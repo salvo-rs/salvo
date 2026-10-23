@@ -101,6 +101,9 @@ pub struct UploadFinishPatch {
     /// Additional response headers to return.
     pub headers: Option<HeaderMap>,
     /// Response body bytes to return.
+    ///
+    /// A completing PATCH defaults to `200 OK` when a body is supplied without
+    /// an explicit status, so the body is not suppressed by `204 No Content`.
     pub body: Option<Vec<u8>>,
 }
 

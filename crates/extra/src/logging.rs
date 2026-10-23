@@ -6,7 +6,6 @@
 //! use salvo_core::prelude::*;
 //! use salvo_extra::logging::Logger;
 //!
-//!
 //! #[handler]
 //! async fn hello() -> &'static str {
 //!     "Hello World"
@@ -23,21 +22,26 @@
 //! ```
 use std::time::Instant;
 
-use tracing::{Instrument, Level};
-
 use salvo_core::http::{Request, ResBody, Response, StatusCode};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
+use tracing::{Instrument, Level};
 
 /// A simple logger middleware.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Logger {
     /// Whether to log status error.
     ///
-    /// If true, the logger will try log [`StatusError`][salvo_core::http::StatusError] information if response body is [`ResBody::Error`].
+    /// If true, the logger will try log [`StatusError`][salvo_core::http::StatusError] information
+    /// if response body is [`ResBody::Error`].
     ///
-    /// **Note**: If you have handled the error before logging and the body is not [`ResBody::Error`],
-    /// the error information cannot be recorded.
+    /// **Note**: If you have handled the error before logging and the body is not
+    /// [`ResBody::Error`], the error information cannot be recorded.
     pub log_status_error: bool,
+}
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl Logger {
     /// Creates a new `Logger` middleware.
@@ -49,11 +53,12 @@ impl Logger {
         }
     }
 
-    /// Set whether to log [`StatusError`][salvo_core::http::StatusError] information if response body is [`ResBody::Error`].
+    /// Set whether to log [`StatusError`][salvo_core::http::StatusError] information if response
+    /// body is [`ResBody::Error`].
     ///
-    /// **Note**: If you have handled the error before logging and the body is not [`ResBody::Error`],
-    /// the error information cannot be recorded.
-     #[must_use]
+    /// **Note**: If you have handled the error before logging and the body is not
+    /// [`ResBody::Error`], the error information cannot be recorded.
+    #[must_use]
     pub fn log_status_error(mut self, log_status_error: bool) -> Self {
         self.log_status_error = log_status_error;
         self
@@ -91,7 +96,9 @@ impl Handler for Logger {
                 ResBody::Error(e) => e.code,
                 _ => StatusCode::OK,
             });
-            if let ResBody::Error(error) = &res.body {
+            if self.log_status_error
+                && let ResBody::Error(error) = &res.body
+            {
                 tracing::info!(
                     %status,
                     ?duration,
@@ -118,6 +125,43 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::*;
+
+    #[tokio::test]
+    #[traced_test]
+    async fn disabled_status_error_omits_error_details() {
+        #[handler]
+        async fn failed() -> StatusError {
+            StatusError::internal_server_error().brief("private-disabled-error-marker")
+        }
+        let router = Router::with_path("failure")
+            .hoop(Logger::new().log_status_error(false))
+            .goal(failed);
+        let response = TestClient::get("http://localhost/failure")
+            .send(router)
+            .await;
+        assert_eq!(
+            response.status_code,
+            Some(StatusCode::INTERNAL_SERVER_ERROR)
+        );
+        assert!(logs_contain("duration"));
+        assert!(!logs_contain("private-disabled-error-marker"));
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn enabled_status_error_includes_error_details() {
+        #[handler]
+        async fn failed() -> StatusError {
+            StatusError::internal_server_error().brief("private-enabled-error-marker")
+        }
+        let router = Router::with_path("failure")
+            .hoop(Logger::new().log_status_error(true))
+            .goal(failed);
+        TestClient::get("http://localhost/failure")
+            .send(router)
+            .await;
+        assert!(logs_contain("private-enabled-error-marker"));
+    }
 
     #[tokio::test]
     #[traced_test]
