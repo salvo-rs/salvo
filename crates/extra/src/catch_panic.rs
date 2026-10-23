@@ -27,36 +27,43 @@ use std::panic::AssertUnwindSafe;
 use futures_util::FutureExt;
 
 use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-
+use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Middleware that catches panics in handlers and converts them to HTTP 500 responses.
-/// 
+///
 /// This middleware should be registered as the first middleware in your router chain
 /// to ensure it catches panics from all subsequent handlers and middlewares.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 #[derive(Default, Debug)]
 pub struct CatchPanic {}
 impl CatchPanic {
     /// Creates a new `CatchPanic` middleware.
     #[inline]
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {}
     }
 }
 
 #[async_trait]
 impl Handler for CatchPanic {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Err(e) = AssertUnwindSafe(ctrl.call_next(req, depot, res)).catch_unwind().await {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        if let Err(e) = AssertUnwindSafe(ctrl.call_next(req, depot, res))
+            .catch_unwind()
+            .await
+        {
             // Log the panic payload, but do not attach it to the response cause:
             // if the app renders `StatusError::cause`, that would leak internal
             // details (and possibly request data) to clients.
             tracing::error!(error = ?e, "panic occurred");
-            res.render(
-                StatusError::internal_server_error().brief("panic occurred on server"),
-            );
+            res.render(StatusError::internal_server_error().brief("panic occurred on server"));
         }
     }
 }
@@ -68,6 +75,34 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::*;
+
+    #[tokio::test]
+    async fn replacement_error_discards_previous_encoding_and_length() {
+        #[handler]
+        async fn panicking(res: &mut Response) {
+            res.add_header("content-encoding", "gzip", true).unwrap();
+            res.add_header("content-length", "1", true).unwrap();
+            res.add_header("etag", "old", true).unwrap();
+            res.render("x");
+            panic!("test panic after preparing response");
+        }
+        let service = Service::new(Router::new().hoop(CatchPanic::new()).get(panicking));
+        let mut response = TestClient::get("http://localhost/").send(&service).await;
+        assert_eq!(
+            response.status_code,
+            Some(StatusCode::INTERNAL_SERVER_ERROR)
+        );
+        assert!(response.headers().get("content-encoding").is_none());
+        assert!(response.headers().get("content-length").is_none());
+        assert!(response.headers().get("etag").is_none());
+        assert!(
+            response
+                .take_string()
+                .await
+                .unwrap()
+                .contains("panic occurred")
+        );
+    }
 
     #[tokio::test]
     #[traced_test]
