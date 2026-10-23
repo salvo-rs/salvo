@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Generate `Allow` for automatic 405 responses from complete built-in route matches,
+  without replaying custom callbacks or overriding middleware response policies.
+  When opaque filters prevent safely inferring any supported method, routing defaults
+  to 404; service middleware can provide its own 405 status and `Allow` header.
 - Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
   verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
 - Honor explicit OIDC JWT algorithm allowlists and share a one-second JWKS refresh cooldown

@@ -1,7 +1,7 @@
 use std::fmt::{self, Formatter};
 
 use crate::async_trait;
-use crate::http::Request;
+use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
 #[derive(Clone, Copy, Debug)]
@@ -16,6 +16,31 @@ where
     T: Filter + Send,
     U: Filter + Send,
 {
+    fn collect_methods(&self, methods: &mut Vec<Method>) {
+        self.first.collect_methods(methods);
+        self.second.collect_methods(methods);
+    }
+
+    async fn filter_for_method(
+        &self,
+        req: &mut Request,
+        state: &mut PathState<'_>,
+        method: &Method,
+    ) -> Option<bool> {
+        let checkpoint = state.checkpoint();
+        let first = self.first.filter_for_method(req, state, method).await;
+        if first == Some(true) {
+            return first;
+        }
+        state.rollback(checkpoint);
+        first?;
+        let second = self.second.filter_for_method(req, state, method).await;
+        if second != Some(true) {
+            state.rollback(checkpoint);
+        }
+        second
+    }
+
     #[inline]
     async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         let checkpoint = state.checkpoint();
@@ -79,6 +104,28 @@ where
     T: Filter,
     U: Filter,
 {
+    fn collect_methods(&self, methods: &mut Vec<Method>) {
+        self.first.collect_methods(methods);
+        self.second.collect_methods(methods);
+    }
+
+    async fn filter_for_method(
+        &self,
+        req: &mut Request,
+        state: &mut PathState<'_>,
+        method: &Method,
+    ) -> Option<bool> {
+        let checkpoint = state.checkpoint();
+        let matched = match self.first.filter_for_method(req, state, method).await {
+            Some(true) => self.second.filter_for_method(req, state, method).await,
+            other => other,
+        };
+        if matched != Some(true) {
+            state.rollback(checkpoint);
+        }
+        matched
+    }
+
     #[inline]
     async fn filter(&self, req: &mut Request, state: &mut PathState<'_>) -> bool {
         let checkpoint = state.checkpoint();

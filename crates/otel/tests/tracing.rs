@@ -258,7 +258,7 @@ async fn test_span_without_root_route() {
     assert_eq!(span.name, "GET");
     assert_eq!(
         span.attr("http.response.status_code"),
-        Some("405"),
-        "the root router consumed the path but had no goal for it"
+        Some("404"),
+        "a root path without a reachable goal is not found"
     );
 }
