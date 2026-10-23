@@ -20,6 +20,8 @@ use hyper::HeaderMap;
 /// only the data channel; after calling either one, send trailers or drop the
 /// sender so the trailer channel is resolved as well. Call
 /// [`BodySender::send_error`] to report a stream error.
+/// The `AsyncWrite` close and shutdown operations close both channels, allowing
+/// the body to finish while the sender remains alive. Send any trailers first.
 #[must_use = "a BodySender does nothing unless it is used"]
 pub struct BodySender {
     pub(crate) data_tx: mpsc::Sender<Result<Bytes, IoError>>,
@@ -120,12 +122,10 @@ impl futures_util::AsyncWrite for BodySender {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        if self.data_tx.is_closed() {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+    fn poll_close(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        self.data_tx.close_channel();
+        self.trailers_tx.take();
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -157,12 +157,10 @@ impl tokio::io::AsyncWrite for BodySender {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        if self.data_tx.is_closed() {
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+    fn poll_shutdown(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        self.data_tx.close_channel();
+        self.trailers_tx.take();
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -196,9 +194,78 @@ mod tests {
     use bytes::Bytes;
     use futures_channel::{mpsc, oneshot};
     use futures_util::StreamExt;
+    use http_body_util::BodyExt;
     use hyper::HeaderMap;
 
     use super::*;
+
+    #[tokio::test]
+    async fn tokio_shutdown_finishes_body_without_dropping_sender() {
+        let (mut sender, mut body) = crate::http::ResBody::channel();
+        sender.send_data("queued").await.unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            tokio::io::AsyncWriteExt::shutdown(&mut sender),
+        )
+        .await
+        .expect("shutdown should close the body")
+        .unwrap();
+        assert!(sender.is_closed());
+        assert_eq!(
+            body.frame().await.unwrap().unwrap().into_data().unwrap(),
+            "queued"
+        );
+        assert!(body.frame().await.is_none());
+        tokio::io::AsyncWriteExt::shutdown(&mut sender)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn futures_close_finishes_body_without_dropping_sender() {
+        let (mut sender, mut body) = crate::http::ResBody::channel();
+        sender.send_data("queued").await.unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            futures_util::io::AsyncWriteExt::close(&mut sender),
+        )
+        .await
+        .expect("close should close the body")
+        .unwrap();
+        assert!(sender.is_closed());
+        assert_eq!(
+            body.frame().await.unwrap().unwrap().into_data().unwrap(),
+            "queued"
+        );
+        assert!(body.frame().await.is_none());
+        futures_util::io::AsyncWriteExt::close(&mut sender)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn shutdown_preserves_sent_trailers() {
+        let (mut sender, mut body) = crate::http::ResBody::channel();
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-end", "complete".parse().unwrap());
+        sender.send_trailers(trailers.clone()).await.unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            tokio::io::AsyncWriteExt::shutdown(&mut sender),
+        )
+        .await
+        .expect("shutdown should close the data channel")
+        .unwrap();
+        assert_eq!(
+            body.frame()
+                .await
+                .unwrap()
+                .unwrap()
+                .into_trailers()
+                .unwrap(),
+            trailers
+        );
+    }
 
     #[tokio::test]
     async fn test_send_data_and_is_closed() {
