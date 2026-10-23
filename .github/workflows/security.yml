@@ -1,0 +1,69 @@
+name: Dependency security
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.cargo/audit.toml'
+      - '.github/DEPENDENCY_SECURITY.md'
+      - '.github/workflows/security.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.cargo/audit.toml'
+      - '.github/DEPENDENCY_SECURITY.md'
+      - '.github/workflows/security.yml'
+
+jobs:
+  downstream-tls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify the rustls minimum without workspace dev dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture=$(mktemp -d)
+          mkdir "$fixture/src"
+          printf 'fn main() {}\n' > "$fixture/src/main.rs"
+          printf '[package]\nname = "downstream-tls"\nversion = "0.0.0"\nedition = "2024"\n[workspace]\n[dependencies]\nsalvo_core = { path = "%s/crates/core", default-features = false, features = ["rustls", "ring"] }\n' "$GITHUB_WORKSPACE" > "$fixture/Cargo.toml"
+          cargo generate-lockfile --manifest-path "$fixture/Cargo.toml"
+          if cargo update --manifest-path "$fixture/Cargo.toml" -p rustls --precise 0.23.40 > "$fixture/downgrade.log" 2>&1; then
+            echo 'A downstream TLS application unexpectedly accepted vulnerable rustls'
+            exit 1
+          fi
+          cat "$fixture/downgrade.log"
+          grep -F 'rustls = "^0.23.46"' "$fixture/downgrade.log"
+          cargo check --manifest-path "$fixture/Cargo.toml" --locked
+
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: ['.', 'examples', 'fuzz']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - name: Require review of the rsa advisory exception
+        run: |
+          python3 - <<'PY'
+          import datetime
+          if datetime.datetime.now(datetime.timezone.utc).date() > datetime.date(2027, 1, 23):
+              raise SystemExit('Review the rsa advisory exception in .cargo/audit.toml')
+          PY
+      - name: Resolve dependencies and audit
+        run: |
+          cargo generate-lockfile --manifest-path '${{ matrix.workspace }}/Cargo.toml'
+          cargo audit --file '${{ matrix.workspace }}/Cargo.lock'

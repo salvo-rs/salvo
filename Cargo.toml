@@ -106,7 +106,7 @@ percent-encoding = "2"
 pin-project = "1"
 proc-macro-crate = { version = ">= 2, <= 4" }
 proc-macro2 = "1"
-quinn = { version = "0.11", default-features = false }
+quinn = { version = "0.11.12", default-features = false }
 quote = "1"
 rand = "0.10"
 rcgen = "0.14"
@@ -115,7 +115,7 @@ reqwest = { version = "0.13", default-features = false }
 aws-lc-rs = { version = "1", default-features = true }
 ring = "0.17"
 rust_decimal = "1"
-rustls = { version = "0.23", default-features = false }
+rustls = { version = "0.23.46", default-features = false }
 rust-embed = { version = ">= 6, <= 9" }
 saysion = "0.2"
 serde = "1"
