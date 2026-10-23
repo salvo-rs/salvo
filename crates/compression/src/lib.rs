@@ -375,8 +375,11 @@ impl Compression {
     fn negotiate(
         &self,
         req: &Request,
-        res: &Response,
+        res: &mut Response,
     ) -> Option<(CompressionAlgo, CompressionLevel)> {
+        if self.algos.is_empty() {
+            return None;
+        }
         if !self.content_types.is_empty() {
             let content_type = res
                 .headers()
@@ -397,6 +400,9 @@ impl Compression {
                 return None;
             }
         }
+        // Identity is also a negotiated representation. Mark it before looking
+        // at the request's preferences so caches do not reuse it across encodings.
+        append_vary_header(res.headers_mut(), "accept-encoding");
         self.negotiate_encoding(req)
     }
 
@@ -590,7 +596,6 @@ impl Handler for Compression {
         }
         res.headers_mut().remove(CONTENT_LENGTH);
         weaken_etag(res);
-        append_vary_header(res.headers_mut(), "accept-encoding");
     }
 }
 

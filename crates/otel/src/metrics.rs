@@ -80,9 +80,10 @@ const BODY_SIZE_BOUNDARIES: &[f64] = &[
 /// The body size histograms only record a measurement when the size is known
 /// before the response is written: `http.server.request.body.size` comes from
 /// the request's `Content-Length`, and `http.server.response.body.size` from a
-/// buffered response body. Streamed bodies, `HEAD` responses and error
-/// responses whose body the catcher fills in after middleware returns are
-/// skipped rather than recorded as zero.
+/// buffered response body, including bodies produced by catchers. Streamed
+/// bodies and `HEAD` responses are skipped rather than recorded as zero.
+/// Measurements finish after Service finalizes the response, before network
+/// transmission; they do not measure streaming or transport completion.
 ///
 /// # Example
 ///
@@ -184,19 +185,19 @@ impl Metrics {
 /// cancelled — a client disconnect or a timeout drops the future mid-await, and
 /// decrementing only after `call_next` returned would leak the increment and
 /// leave the gauge drifting upwards for the life of the process.
-struct ActiveRequestGuard<'a> {
-    counter: &'a UpDownCounter<i64>,
+struct ActiveRequestGuard {
+    counter: UpDownCounter<i64>,
     attrs: Vec<KeyValue>,
 }
 
-impl<'a> ActiveRequestGuard<'a> {
-    fn new(counter: &'a UpDownCounter<i64>, attrs: Vec<KeyValue>) -> Self {
+impl ActiveRequestGuard {
+    fn new(counter: UpDownCounter<i64>, attrs: Vec<KeyValue>) -> Self {
         counter.add(1, &attrs);
         Self { counter, attrs }
     }
 }
 
-impl Drop for ActiveRequestGuard<'_> {
+impl Drop for ActiveRequestGuard {
     fn drop(&mut self) {
         self.counter.add(-1, &self.attrs);
     }
@@ -221,9 +222,10 @@ impl Handler for Metrics {
             semconv::bounded_scheme_value(req.scheme()),
         );
 
-        // Held for the whole request, including the `call_next` await below.
-        let _active =
-            ActiveRequestGuard::new(&self.active_requests, vec![method.clone(), scheme.clone()]);
+        let active = ActiveRequestGuard::new(
+            self.active_requests.clone(),
+            vec![method.clone(), scheme.clone()],
+        );
 
         let mut labels = Vec::with_capacity(6);
         labels.push(method);
@@ -246,32 +248,38 @@ impl Handler for Metrics {
         }
 
         let started = Instant::now();
-        ctrl.call_next(req, depot, res).await;
-        let elapsed = started.elapsed();
-
-        let status = res.status_code.unwrap_or_else(|| {
-            tracing::info!("[otel::Metrics] Treat status_code=none as 200(OK)");
-            StatusCode::OK
-        });
-        labels.push(KeyValue::new(
-            attribute::HTTP_RESPONSE_STATUS_CODE,
-            i64::from(status.as_u16()),
-        ));
-        // Only a server error counts as a failed request, and the conventions
-        // use the status code as the low-cardinality class of that error.
-        if status.is_server_error() {
+        let duration = self.duration.clone();
+        let request_sizes = self.request_body_size.clone();
+        let response_sizes = self.response_body_size.clone();
+        let request_method = req.method().clone();
+        let observe = move |res: &Response| {
+            // Own the guard until finalization, or until the Service is dropped.
+            let _active = active;
+            let status = res.status_code.unwrap_or(StatusCode::OK);
             labels.push(KeyValue::new(
-                attribute::ERROR_TYPE,
-                status.as_str().to_owned(),
+                attribute::HTTP_RESPONSE_STATUS_CODE,
+                i64::from(status.as_u16()),
             ));
-        }
-
-        self.duration.record(elapsed.as_secs_f64(), &labels);
-        if let Some(size) = request_body_size {
-            self.request_body_size.record(size, &labels);
-        }
-        if let Some(size) = semconv::final_body_size(req, res, status) {
-            self.response_body_size.record(size, &labels);
+            if status.is_server_error() {
+                labels.push(KeyValue::new(
+                    attribute::ERROR_TYPE,
+                    status.as_str().to_owned(),
+                ));
+            }
+            duration.record(started.elapsed().as_secs_f64(), &labels);
+            if let Some(size) = request_body_size {
+                request_sizes.record(size, &labels);
+            }
+            if let Some(size) = semconv::final_body_size(&request_method, res, status) {
+                response_sizes.record(size, &labels);
+            }
+        };
+        // Register before entering downstream code: an outer timeout or panic
+        // catcher may drop this middleware's future and still return a response.
+        let fallback = req.try_on_response(observe).err();
+        ctrl.call_next(req, depot, res).await;
+        if let Some(observe) = fallback {
+            observe(res);
         }
     }
 }

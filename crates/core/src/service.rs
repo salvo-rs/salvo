@@ -274,6 +274,12 @@ impl HyperHandler {
         // (e.g. WebSocket) can relax the transport fuse timers for the long-lived
         // connection they are about to take over.
         req.extensions_mut().insert(conn_ctrl.clone());
+        #[cfg(feature = "response-observers")]
+        let response_observers = Arc::new(crate::http::request::ResponseObservers::default());
+        #[cfg(feature = "response-observers")]
+        {
+            req.response_observers = Arc::downgrade(&response_observers);
+        }
         #[cfg(not(feature = "cookie"))]
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
@@ -426,6 +432,8 @@ impl HyperHandler {
                 res.headers_mut()
                     .typed_insert(allowed.into_iter().collect::<Allow>());
             }
+            #[cfg(feature = "response-observers")]
+            response_observers.observe(&res);
             res
         }
     }

@@ -8,9 +8,11 @@ use std::sync::Arc;
 
 use opentelemetry::Value;
 use percent_encoding::percent_decode_str;
+#[cfg(any(feature = "matched-path", test))]
+use salvo_core::Request;
+use salvo_core::Response;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode, Version};
-use salvo_core::{Request, Response};
 
 /// Sentinel the conventions define for an `http.request.method` outside the
 /// known set. This crate also uses it for a `url.scheme` outside its own known
@@ -153,15 +155,11 @@ pub(crate) fn route_value(req: &Request, res: &Response) -> Option<String> {
     Some(route)
 }
 
-/// Returns the `http.response.body.size` value when middleware can already tell
-/// what will be sent.
-///
-/// The service finishes a response after middleware returns: a `4xx`/`5xx` with
-/// no body yet is handed to the catcher, and a `HEAD` response has its body
-/// stripped. In both cases the body observable here is not the one that goes on
-/// the wire, so nothing is reported rather than a wrong size.
-pub(crate) fn final_body_size(req: &Request, res: &Response, status: StatusCode) -> Option<u64> {
-    if *req.method() == Method::HEAD {
+/// Returns the buffered representation size, excluding HEAD and streams.
+/// Service observers see the finalized body. Direct Handler calls can still
+/// leave an empty error for a later catcher, so keep that fallback unmeasured.
+pub(crate) fn final_body_size(method: &Method, res: &Response, status: StatusCode) -> Option<u64> {
+    if *method == Method::HEAD {
         return None;
     }
     if (status.is_client_error() || status.is_server_error()) && res.body.is_none() {
@@ -338,7 +336,7 @@ mod tests {
         *req.method_mut() = Method::HEAD;
         let mut res = Response::new();
         res.body = ResBody::Once("Hello".into());
-        assert_eq!(final_body_size(&req, &res, StatusCode::OK), None);
+        assert_eq!(final_body_size(req.method(), &res, StatusCode::OK), None);
     }
 
     #[test]
@@ -346,7 +344,7 @@ mod tests {
         let req = Request::new();
         let res = Response::new();
         assert_eq!(
-            final_body_size(&req, &res, StatusCode::NOT_FOUND),
+            final_body_size(req.method(), &res, StatusCode::NOT_FOUND),
             None,
             "an empty error response is filled in after middleware returns"
         );
@@ -357,14 +355,17 @@ mod tests {
         let req = Request::new();
         let mut res = Response::new();
         res.body = ResBody::Once("Hello".into());
-        assert_eq!(final_body_size(&req, &res, StatusCode::OK), Some(5));
+        assert_eq!(final_body_size(req.method(), &res, StatusCode::OK), Some(5));
     }
 
     #[test]
     fn test_final_body_size_reports_empty_success() {
         let req = Request::new();
         let res = Response::new();
-        assert_eq!(final_body_size(&req, &res, StatusCode::NO_CONTENT), Some(0));
+        assert_eq!(
+            final_body_size(req.method(), &res, StatusCode::NO_CONTENT),
+            Some(0)
+        );
     }
 
     #[test]

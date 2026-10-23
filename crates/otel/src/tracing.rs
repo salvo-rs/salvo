@@ -31,6 +31,10 @@ const OTHER_METHOD_SPAN_NAME: &str = "HTTP";
 /// (also on by default) to turn this one on. A request that matched no route
 /// carries no `http.route` and is named for its method alone.
 ///
+/// Response attributes and the span end are recorded after Service finishes
+/// middleware and catchers, before network transmission. Streaming and transport
+/// completion are not included. Direct Handler calls finish after `call_next`.
+///
 /// [HTTP semantic conventions]: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
 pub struct Tracing<T> {
     tracer: T,
@@ -184,10 +188,11 @@ where
 
         span.add_event("request.started".to_owned(), vec![]);
 
-        async move {
-            ctrl.call_next(req, depot, res).await;
-            let cx = Context::current();
-            let span = cx.span();
+        let cx = Context::current_with_span(span);
+        let final_cx = cx.clone();
+        let request_method = req.method().clone();
+        let observe = move |res: &Response| {
+            let span = final_cx.span();
 
             let status = res.status_code.unwrap_or_else(|| {
                 tracing::info!("[otel::Tracing] Treat status_code=none as 200(OK)");
@@ -203,7 +208,7 @@ where
                 attribute::HTTP_RESPONSE_STATUS_CODE,
                 i64::from(status.as_u16()),
             ));
-            if let Some(size) = semconv::final_body_size(req, res, status) {
+            if let Some(size) = semconv::final_body_size(&request_method, res, status) {
                 span.set_attribute(KeyValue::new(
                     attribute::HTTP_RESPONSE_BODY_SIZE,
                     size as i64,
@@ -219,8 +224,16 @@ where
                 // The HTTP status code already describes the failure.
                 span.set_status(Status::error(""));
             }
+            span.end();
+        };
+        let fallback = req.try_on_response(observe).err();
+        async move {
+            ctrl.call_next(req, depot, res).await;
+            if let Some(observe) = fallback {
+                observe(res);
+            }
         }
-        .with_context(Context::current_with_span(span))
+        .with_context(cx)
         .await
     }
 }
