@@ -406,7 +406,7 @@ impl Request {
     /// Merge data from [`hyper::Request`].
     ///
     /// Refreshes cached queries when the query changes, parsed forms when
-    /// Content-Type changes, and cookies when Cookie changes. Any body other
+    /// Content-Type parsing semantics change, and cookies when Cookie changes. Any body other
     /// than [`ReqBody::None`] replaces the body caches. An unchanged, already-consumed
     /// [`ReqBody::None`] preserves them across a Tower pass-through; adapters
     /// deliberately replacing a consumed body with an empty one should use
@@ -430,7 +430,10 @@ impl Request {
         }
         if !body.is_none() {
             self.clear_body_cache();
-        } else if self.headers.get_all(CONTENT_TYPE) != headers.get_all(CONTENT_TYPE) {
+        } else if self.form_data.get().is_some()
+            && self.headers.get_all(CONTENT_TYPE) != headers.get_all(CONTENT_TYPE)
+            && !same_form_content_type(&self.headers, &headers)
+        {
             self.form_data = tokio::sync::OnceCell::new();
         }
         #[cfg(feature = "cookie")]
@@ -1647,6 +1650,36 @@ impl Request {
 /// accepted instead of diverging on exotic `multipart/*` subtypes.
 fn is_form_content_type(ctype: &Mime) -> bool {
     ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART
+}
+
+// Match the dispatch and boundary parsing in FormData::read. URL-encoded
+// parsing ignores all Content-Type parameters, including charset. Multipart
+// parsing uses the decoded, case-sensitive boundary; MIME spelling, quoting
+// and unrelated parameters do not affect the already-parsed fields/files.
+fn same_form_content_type(left: &HeaderMap, right: &HeaderMap) -> bool {
+    fn parse(headers: &HeaderMap) -> Option<(&str, Mime)> {
+        let value = headers.get(CONTENT_TYPE)?.to_str().ok()?;
+        let mime = value.parse::<Mime>().ok()?;
+        Some((value, mime))
+    }
+    let (Some((left_value, left_mime)), Some((right_value, right_mime))) =
+        (parse(left), parse(right))
+    else {
+        return false;
+    };
+    if left_mime.subtype() == mime::WWW_FORM_URLENCODED {
+        return right_mime.subtype() == mime::WWW_FORM_URLENCODED;
+    }
+    if right_mime.subtype() == mime::WWW_FORM_URLENCODED {
+        return false;
+    }
+    if left_mime.type_() == mime::MULTIPART && right_mime.type_() == mime::MULTIPART {
+        return multra::parse_boundary(left_value)
+            .ok()
+            .zip(multra::parse_boundary(right_value).ok())
+            .is_some_and(|(left, right)| left == right);
+    }
+    false
 }
 
 fn is_length_limit_error(error: &(dyn StdError + 'static)) -> bool {

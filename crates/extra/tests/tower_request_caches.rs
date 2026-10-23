@@ -121,3 +121,128 @@ async fn merge_hyper_explicit_empty_body_clears_consumed_payload() {
     req.merge_hyper(hyper);
     assert!(req.payload().await.unwrap().is_empty());
 }
+
+async fn form_only_through_header_rewrite(initial: &str, rewritten: &str, body: &str) -> String {
+    #[handler]
+    async fn cache_form(req: &mut Request) {
+        assert_eq!(req.form::<String>("name").await.as_deref(), Some("old"));
+        assert!(
+            req.body().is_none(),
+            "form parsing must consume the uncached body"
+        );
+    }
+    #[handler]
+    async fn show_form(req: &mut Request) -> String {
+        req.form::<String>("name").await.unwrap_or_default()
+    }
+    let rewritten = header::HeaderValue::from_str(rewritten).unwrap();
+    let layer = tower::layer::layer_fn(
+        move |mut inner: salvo_extra::tower_compat::FlowCtrlService| {
+            let rewritten = rewritten.clone();
+            tower::service_fn(move |mut request: hyper::Request<ReqBody>| {
+                request
+                    .headers_mut()
+                    .insert(header::CONTENT_TYPE, rewritten.clone());
+                inner.call(request)
+            })
+        },
+    );
+    let router = Router::new()
+        .hoop(cache_form)
+        .hoop(layer.compat())
+        .post(show_form);
+    TestClient::post("http://localhost/")
+        .body(body.to_owned())
+        .add_header(header::CONTENT_TYPE, initial, true)
+        .send(router)
+        .await
+        .take_string()
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn tower_equivalent_form_content_types_preserve_consumed_form_cache() {
+    let multipart = "--FormBoundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\nold\r\n--FormBoundary--\r\n";
+    for (initial, rewritten, body) in [
+        (
+            "application/x-www-form-urlencoded",
+            "application/x-www-form-urlencoded; charset=utf-8",
+            "name=old",
+        ),
+        (
+            "application/x-www-form-urlencoded; charset=utf-8",
+            "APPLICATION/X-WWW-FORM-URLENCODED; CHARSET=\"UTF-8\"",
+            "name=old",
+        ),
+        (
+            "application/x-www-form-urlencoded; charset=iso-8859-1",
+            "application/x-www-form-urlencoded; charset=utf-8",
+            "name=old",
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "MULTIPART/FORM-DATA; boundary=\"FormBoundary\"; charset=utf-8",
+            multipart,
+        ),
+        (
+            "multipart/form-data; charset=utf-8; boundary=FormBoundary",
+            "multipart/form-data; boundary=FormBoundary",
+            multipart,
+        ),
+    ] {
+        assert_eq!(
+            form_only_through_header_rewrite(initial, rewritten, body).await,
+            "old",
+            "equivalent Content-Type rewrite: {initial} -> {rewritten}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn tower_different_form_content_types_discard_consumed_form_cache() {
+    let multipart = "--FormBoundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\nold\r\n--FormBoundary--\r\n";
+    for (initial, rewritten, body) in [
+        (
+            "application/x-www-form-urlencoded",
+            "application/json",
+            "name=old",
+        ),
+        (
+            "application/x-www-form-urlencoded",
+            "multipart/form-data; boundary=FormBoundary",
+            "name=old",
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "multipart/form-data; boundary=formboundary",
+            multipart,
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "multipart/form-data",
+            multipart,
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "multipart/mixed; boundary=FormBoundary",
+            multipart,
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "application/x-www-form-urlencoded",
+            multipart,
+        ),
+        (
+            "multipart/form-data; boundary=FormBoundary",
+            "invalid-content-type",
+            multipart,
+        ),
+    ] {
+        assert_eq!(
+            form_only_through_header_rewrite(initial, rewritten, body).await,
+            "",
+            "different Content-Type rewrite: {initial} -> {rewritten}"
+        );
+    }
+}
