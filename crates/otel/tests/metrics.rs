@@ -248,18 +248,20 @@ async fn test_metrics_follow_semantic_conventions() {
     assert_eq!(body.unit, "By");
     assert_eq!(
         body.points.len(),
-        2,
-        "only the two successful responses are measured: the error body is written          after middleware returns"
+        3,
+        "successful responses and the finalized catcher body are measured"
     );
     assert!(
         body.points
             .iter()
+            .filter(|point| point.attr("http.response.status_code") == Some("200"))
             .all(|point| point.attr("http.route") == users_route),
         "both measured responses came from the same route"
     );
     assert_eq!(
         body.points
             .iter()
+            .filter(|point| point.attr("http.response.status_code") == Some("200"))
             .map(|point| point.value)
             .sum::<Option<i64>>(),
         Some(10),

@@ -124,6 +124,21 @@ async fn main() {
 
 ## Documentation & Resources
 
+Metrics and tracing observe the response after Service runs all middleware,
+media-type validation and catchers. This includes errors produced by an outer
+timeout or panic catcher after the instrumentation starts. Buffered catcher
+bodies are included in response-size measurements; HEAD and streamed bodies
+remain unmeasured. Durations and spans end before network transmission, so they
+do not describe stream completion or actual bytes delivered to the client.
+Tower layers that short-circuit, return an error or replace the request still
+produce final observations; request attributes are captured before dispatch.
+
+Cancelling the entire request releases the active-request count and span without
+inventing a response status or duration measurement. Middleware invoked directly
+without a Service keeps its existing behavior of observing after `call_next`.
+`salvo-otel` enables core's optional `response-observers` feature automatically;
+core builds without that feature do not allocate an observer queue per request.
+
 - [API Documentation](https://docs.rs/salvo-otel)
 - [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 
