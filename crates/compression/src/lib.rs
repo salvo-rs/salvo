@@ -7,6 +7,7 @@
 //! reducing bandwidth usage and improving load times for clients.
 //! Responses with status `206 Partial Content` or a `Content-Range` header are
 //! preserved because their byte offsets refer to the original representation.
+//! Strong ETags are weakened when compression changes the representation bytes.
 //!
 //! # Supported Algorithms
 //!
@@ -74,7 +75,8 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, HeaderValue,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG,
+    HeaderValue,
 };
 use salvo_core::http::headers::{ContentLength, HeaderMapExt};
 use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
@@ -485,6 +487,15 @@ impl Handler for Compression {
             return;
         }
 
+        if res.status_code == Some(StatusCode::NOT_MODIFIED) {
+            // A 304 can update a previously compressed cache entry even though
+            // it has no body or content type to negotiate here. Do not upgrade
+            // that entry's weak validator back to the original strong one.
+            weaken_etag(res);
+            append_vary_header(res.headers_mut(), "accept-encoding");
+            return;
+        }
+
         match res.take_body() {
             ResBody::None => {
                 // A HEAD-aware handler can intentionally omit the body before this middleware
@@ -567,7 +578,25 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
+        weaken_etag(res);
         append_vary_header(res.headers_mut(), "accept-encoding");
+    }
+}
+
+fn weaken_etag(res: &mut Response) {
+    // Compression preserves semantic equivalence, but not byte equality.
+    // An encoded response must not authorize If-Range against the original
+    // representation's strong validator.
+    if let Some(etag) = res.headers_mut().get_mut(ETAG)
+        && !etag.as_bytes().starts_with(b"W/")
+    {
+        let mut weak = Vec::with_capacity(etag.as_bytes().len() + 2);
+        weak.extend_from_slice(b"W/");
+        weak.extend_from_slice(etag.as_bytes());
+        let sensitive = etag.is_sensitive();
+        *etag = HeaderValue::from_bytes(&weak)
+            .expect("prefixing a valid header value with W/ remains valid");
+        etag.set_sensitive(sensitive);
     }
 }
 
@@ -578,6 +607,93 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn encoded_file_validators_cannot_resume_identity_bytes() {
+        use salvo_core::fs::NamedFile;
+
+        #[handler]
+        async fn serve(req: &mut Request, res: &mut Response) {
+            let file = NamedFile::builder(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))
+                .content_type(mime::TEXT_PLAIN)
+                .preload_threshold(req.query::<u64>("preload").unwrap())
+                .build()
+                .await
+                .unwrap();
+            if req.method() == Method::HEAD {
+                file.send_head(req.headers(), res).await;
+            } else {
+                file.send(req.headers(), res).await;
+            }
+        }
+        let service = Service::new(Router::with_hoop(Compression::new().min_length(1)).goal(serve));
+        for preload in [0, u64::MAX] {
+            let url = format!("http://localhost/?preload={preload}");
+            let identity = TestClient::get(&url).send(&service).await;
+            let strong = identity.headers()[ETAG].to_str().unwrap();
+            assert!(!strong.starts_with("W/"));
+            let weak = format!("W/{strong}");
+            for head in [false, true] {
+                let request = if head {
+                    TestClient::head(&url)
+                } else {
+                    TestClient::get(&url)
+                };
+                let response = request
+                    .add_header(ACCEPT_ENCODING, "gzip", true)
+                    .send(&service)
+                    .await;
+                assert_eq!(response.headers()[ETAG], weak);
+                assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+            }
+            let mut resumed = TestClient::get(&url)
+                .add_header(ACCEPT_ENCODING, "gzip", true)
+                .add_header("range", "bytes=20-", true)
+                .add_header("if-range", &weak, true)
+                .send(&service)
+                .await;
+            assert_eq!(resumed.status_code, Some(StatusCode::OK));
+            assert!(!resumed.headers().contains_key(CONTENT_RANGE));
+            assert_eq!(resumed.headers()[CONTENT_ENCODING], "gzip");
+            assert_eq!(
+                resumed.take_string().await.unwrap(),
+                include_str!("../Cargo.toml")
+            );
+
+            let cached = TestClient::get(&url)
+                .add_header(ACCEPT_ENCODING, "gzip", true)
+                .add_header("if-none-match", &weak, true)
+                .send(&service)
+                .await;
+            assert_eq!(cached.status_code, Some(StatusCode::NOT_MODIFIED));
+            assert_eq!(cached.headers()[ETAG], weak);
+
+            let partial = TestClient::get(&url)
+                .add_header("range", "bytes=0-19", true)
+                .add_header("if-range", strong, true)
+                .send(&service)
+                .await;
+            assert_eq!(partial.status_code, Some(StatusCode::PARTIAL_CONTENT));
+            assert_eq!(partial.headers()[ETAG], strong);
+        }
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn existing_weak_etag_is_not_weakened_twice() {
+        #[handler]
+        async fn weak(res: &mut Response) {
+            res.add_header(ETAG, "W/\"version\"", true).unwrap();
+            res.render("hello");
+        }
+        let response = TestClient::get("http://localhost/")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .send(Router::with_hoop(Compression::new().min_length(1)).get(weak))
+            .await;
+        assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+        assert_eq!(response.headers()[ETAG], "W/\"version\"");
+    }
 
     #[cfg(feature = "gzip")]
     #[tokio::test]
