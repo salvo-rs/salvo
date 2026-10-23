@@ -34,6 +34,21 @@ use crate::{Depot, Error, FlowCtrl, Handler, async_trait};
 
 static GLOBAL_SECURE_MAX_SIZE: AtomicUsize = AtomicUsize::new(64 * 1024);
 
+#[cfg(feature = "cookie")]
+fn cookies_from_headers(headers: &HeaderMap) -> CookieJar {
+    let mut cookies = CookieJar::new();
+    for header in headers.get_all(http::header::COOKIE) {
+        if let Ok(header) = header.to_str() {
+            for cookie in header.split(';').map(str::trim) {
+                if let Ok(cookie) = Cookie::parse_encoded(cookie).map(Cookie::into_owned) {
+                    cookies.add_original(cookie);
+                }
+            }
+        }
+    }
+    cookies
+}
+
 #[cfg(feature = "response-observers")]
 type ResponseObserver = Box<dyn FnOnce(&Response) + Send>;
 
@@ -301,21 +316,7 @@ impl Request {
 
         // Set the request cookies, if they exist.
         #[cfg(feature = "cookie")]
-        let cookies = {
-            let mut cookie_jar = CookieJar::new();
-            for header in headers.get_all(http::header::COOKIE) {
-                if let Ok(header) = header.to_str() {
-                    for cookie_str in header.split(';').map(|s| s.trim()) {
-                        if let Ok(cookie) =
-                            Cookie::parse_encoded(cookie_str).map(|c| c.into_owned())
-                        {
-                            cookie_jar.add_original(cookie);
-                        }
-                    }
-                }
-            }
-            cookie_jar
-        };
+        let cookies = cookies_from_headers(&headers);
 
         Self {
             queries: OnceLock::new(),
@@ -387,7 +388,10 @@ impl Request {
             .uri(self.uri.clone())
             .version(self.version);
         if let Some(headers) = builder.headers_mut() {
-            *headers = std::mem::take(&mut self.headers);
+            // Keep the original headers so merge_hyper can identify changes to
+            // the inputs of parsed form and cookie caches. HeaderValue clones
+            // share their underlying storage.
+            *headers = self.headers.clone();
         }
         if let Some(extensions) = builder.extensions_mut() {
             *extensions = std::mem::take(&mut self.extensions);
@@ -400,6 +404,13 @@ impl Request {
     }
 
     /// Merge data from [`hyper::Request`].
+    ///
+    /// Refreshes cached queries when the query changes, parsed forms when
+    /// Content-Type parsing semantics change, and cookies when Cookie changes. Any body other
+    /// than [`ReqBody::None`] replaces the body caches. An unchanged, already-consumed
+    /// [`ReqBody::None`] preserves them across a Tower pass-through; adapters
+    /// deliberately replacing a consumed body with an empty one should use
+    /// `ReqBody::from("")` to distinguish it from that pass-through.
     #[doc(hidden)]
     pub fn merge_hyper(&mut self, hyper_req: hyper::Request<ReqBody>) {
         let (
@@ -414,6 +425,21 @@ impl Request {
             body,
         ) = hyper_req.into_parts();
 
+        if self.uri.query() != uri.query() {
+            self.queries = OnceLock::new();
+        }
+        if !body.is_none() {
+            self.clear_body_cache();
+        } else if self.form_data.get().is_some()
+            && self.headers.get_all(CONTENT_TYPE) != headers.get_all(CONTENT_TYPE)
+            && !same_form_content_type(&self.headers, &headers)
+        {
+            self.form_data = tokio::sync::OnceCell::new();
+        }
+        #[cfg(feature = "cookie")]
+        if self.headers.get_all(http::header::COOKIE) != headers.get_all(http::header::COOKIE) {
+            self.cookies = cookies_from_headers(&headers);
+        }
         self.method = method;
         self.uri = uri;
         self.version = version;
@@ -1626,6 +1652,36 @@ fn is_form_content_type(ctype: &Mime) -> bool {
     ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART
 }
 
+// Match the dispatch and boundary parsing in FormData::read. URL-encoded
+// parsing ignores all Content-Type parameters, including charset. Multipart
+// parsing uses the decoded, case-sensitive boundary; MIME spelling, quoting
+// and unrelated parameters do not affect the already-parsed fields/files.
+fn same_form_content_type(left: &HeaderMap, right: &HeaderMap) -> bool {
+    fn parse(headers: &HeaderMap) -> Option<(&str, Mime)> {
+        let value = headers.get(CONTENT_TYPE)?.to_str().ok()?;
+        let mime = value.parse::<Mime>().ok()?;
+        Some((value, mime))
+    }
+    let (Some((left_value, left_mime)), Some((right_value, right_mime))) =
+        (parse(left), parse(right))
+    else {
+        return false;
+    };
+    if left_mime.subtype() == mime::WWW_FORM_URLENCODED {
+        return right_mime.subtype() == mime::WWW_FORM_URLENCODED;
+    }
+    if right_mime.subtype() == mime::WWW_FORM_URLENCODED {
+        return false;
+    }
+    if left_mime.type_() == mime::MULTIPART && right_mime.type_() == mime::MULTIPART {
+        return multra::parse_boundary(left_value)
+            .ok()
+            .zip(multra::parse_boundary(right_value).ok())
+            .is_some_and(|(left, right)| left == right);
+    }
+    false
+}
+
 fn is_length_limit_error(error: &(dyn StdError + 'static)) -> bool {
     if error.is::<http_body_util::LengthLimitError>() {
         return true;
@@ -1652,6 +1708,44 @@ mod tests {
 
     use super::*;
     use crate::test::TestClient;
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn merge_hyper_refreshes_changed_cookie_headers() {
+        let mut req = TestClient::get("http://localhost/")
+            .add_header("cookie", "original=old; removed=old", true)
+            .build();
+        assert_eq!(req.cookie("original").unwrap().value(), "old");
+        let mut hyper = req.strip_to_hyper::<ReqBody>().unwrap();
+        hyper
+            .headers_mut()
+            .insert(http::header::COOKIE, "original=new".parse().unwrap());
+        hyper
+            .headers_mut()
+            .append(http::header::COOKIE, "additional=new".parse().unwrap());
+        req.merge_hyper(hyper);
+        assert_eq!(req.cookie("original").unwrap().value(), "new");
+        assert_eq!(req.cookie("additional").unwrap().value(), "new");
+        assert!(req.cookie("removed").is_none());
+        let mut hyper = req.strip_to_hyper::<ReqBody>().unwrap();
+        hyper.headers_mut().remove(http::header::COOKIE);
+        req.merge_hyper(hyper);
+        assert!(req.cookies().iter().next().is_none());
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn merge_hyper_preserves_cookie_edits_when_headers_are_unchanged() {
+        let mut req = TestClient::get("http://localhost/")
+            .add_header("cookie", "original=old", true)
+            .build();
+        req.cookies_mut().add(Cookie::new("original", "middleware"));
+        req.cookies_mut().add(Cookie::new("added", "middleware"));
+        let hyper = req.strip_to_hyper::<ReqBody>().unwrap();
+        req.merge_hyper(hyper);
+        assert_eq!(req.cookie("original").unwrap().value(), "middleware");
+        assert_eq!(req.cookie("added").unwrap().value(), "middleware");
+    }
 
     #[test]
     #[cfg(feature = "response-observers")]

@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and bypass cached representations for range requests.
 - Forward parameter names through optional extractors and reject missing required
   header, query and cookie values before constructing their wrappers.
+- Refresh query, payload, form and cookie caches after Tower request rewrites,
+  while preserving consumed-body caches and application cookie edits during pass-through.
 - Honor ETag precedence, lists and wildcards in conditional responses, while
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
