@@ -520,47 +520,58 @@ impl DataStore for DiskStore {
                 _ => TusError::Internal(e.to_string()),
             })?;
 
+        // Metadata is the committed boundary. A cancelled write (or an older
+        // failed write) may have left an uncommitted tail on disk. Remove it
+        // before retrying, including retries with an empty body.
+        file.set_len(offset)
+            .await
+            .map_err(|e| TusError::Internal(e.to_string()))?;
         file.seek(SeekFrom::Start(offset))
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
         let original_offset = offset;
-        let mut written: u64 = 0;
         let mut stream = stream;
-        while let Some(item) = stream.next().await {
-            let chunk = match item {
-                Ok(chunk) => chunk,
-                Err(e) if is_upload_size_limit_error(&e) => {
-                    let _ = file.set_len(original_offset).await;
+        let result = async {
+            let mut written: u64 = 0;
+            while let Some(item) = stream.next().await {
+                let chunk = item.map_err(|e| {
+                    if is_upload_size_limit_error(&e) {
+                        TusError::PayloadTooLarge
+                    } else {
+                        TusError::Internal(e.to_string())
+                    }
+                })?;
+                let new_offset = written
+                    .checked_add(chunk.len() as u64)
+                    .and_then(|w| original_offset.checked_add(w))
+                    .ok_or(TusError::PayloadTooLarge)?;
+                if meta.size.is_some_and(|size| new_offset > size) {
                     return Err(TusError::PayloadTooLarge);
                 }
-                Err(e) => return Err(TusError::Internal(e.to_string())),
-            };
-            // Accumulate with overflow checks: `write` is a public `DataStore`
-            // API and, on the deferred-size path (`meta.size == None`), there is
-            // no upper bound, so an extreme starting offset could otherwise wrap.
-            let new_offset = written
-                .checked_add(chunk.len() as u64)
-                .and_then(|w| original_offset.checked_add(w));
-            let Some(new_offset) = new_offset else {
-                let _ = file.set_len(original_offset).await;
-                return Err(TusError::PayloadTooLarge);
-            };
-            if let Some(size) = meta.size
-                && new_offset > size
-            {
-                let _ = file.set_len(original_offset).await;
-                return Err(TusError::PayloadTooLarge);
+                file.write_all(&chunk)
+                    .await
+                    .map_err(|e| TusError::Internal(e.to_string()))?;
+                written += chunk.len() as u64;
             }
-            file.write_all(&chunk)
+
+            file.flush()
                 .await
                 .map_err(|e| TusError::Internal(e.to_string()))?;
-            written += chunk.len() as u64;
+            Ok(written)
         }
-
-        file.flush()
-            .await
-            .map_err(|e| TusError::Internal(e.to_string()))?;
+        .await;
+        let written = match result {
+            Ok(written) => written,
+            Err(error) => {
+                // Roll back stream and I/O failures as well as size violations.
+                // set_len waits for pending Tokio file writes before truncating.
+                if let Err(rollback_error) = file.set_len(original_offset).await {
+                    warn!(id, error = %rollback_error, "failed to roll back tus upload data");
+                }
+                return Err(error);
+            }
+        };
 
         // `original_offset + written` was validated each iteration above, so this
         // cannot overflow; `saturating_add` is a belt-and-braces guard.
@@ -1307,6 +1318,86 @@ mod tests {
 
         let info = store.get_upload_file_info("test-write").await.unwrap();
         assert_eq!(info.offset, Some(13));
+    }
+
+    #[tokio::test]
+    async fn interrupted_write_preserves_committed_prefix() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        let (store, _directory) = create_test_store();
+        let id = "interrupted-write";
+        let mut upload = create_test_upload_info(id);
+        upload.size = None;
+        store.create(upload).await.unwrap();
+        store
+            .write(
+                id,
+                0,
+                Box::pin(stream::iter([Ok(Bytes::from_static(b"prefix"))])),
+            )
+            .await
+            .unwrap();
+        let result = store
+            .write(
+                id,
+                6,
+                Box::pin(stream::iter([
+                    Ok(Bytes::from_static(b"old tail")),
+                    Err(io::Error::new(io::ErrorKind::UnexpectedEof, "interrupted")),
+                ])),
+            )
+            .await;
+        assert!(matches!(result, Err(TusError::Internal(_))));
+        assert_eq!(store.read_meta(id).await.unwrap().offset, 6);
+        assert_eq!(fs::read(store.data_path(id)).await.unwrap(), b"prefix");
+    }
+
+    #[tokio::test]
+    async fn retry_discards_uncommitted_tail_before_completing() {
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        for suffix in ["", "abc"] {
+            let (store, _directory) = create_test_store();
+            let id = "retry-old-tail";
+            let mut upload = create_test_upload_info(id);
+            upload.size = None;
+            store.create(upload).await.unwrap();
+            store
+                .write(
+                    id,
+                    0,
+                    Box::pin(stream::iter([Ok(Bytes::from_static(b"prefix"))])),
+                )
+                .await
+                .unwrap();
+            // Simulate data left beyond the committed offset by an older
+            // failed write. Even an empty completion must remove that tail.
+            fs::write(store.data_path(id), b"prefix old uncommitted tail")
+                .await
+                .unwrap();
+            store
+                .declare_upload_length(id, 6 + suffix.len() as u64)
+                .await
+                .unwrap();
+            store
+                .write(
+                    id,
+                    6,
+                    Box::pin(stream::iter([Ok(Bytes::copy_from_slice(
+                        suffix.as_bytes(),
+                    ))])),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                fs::read(store.data_path(id)).await.unwrap(),
+                format!("prefix{suffix}").as_bytes()
+            );
+            let info = store.get_upload_file_info(id).await.unwrap();
+            assert_eq!(info.offset, info.size);
+        }
     }
 
     #[tokio::test]
