@@ -133,13 +133,13 @@ where
         let value = req
             .cookies()
             .get(arg)
-            .and_then(|v| parse_cookie_value(v.value()))
+            .and_then(|v| parse_cookie_value::<T>(v.value()))
             .ok_or_else(|| {
                 ParseError::other(format!(
                     "cookie parameter {arg} not found or convert to type failed"
                 ))
             })?;
-        Ok(Self(value))
+        Ok(Self(Some(value)))
     }
 }
 
@@ -325,15 +325,14 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic]
-    async fn test_required_cookie_param_extract_with_value_panic() {
+    async fn test_required_cookie_param_extract_missing_value_returns_error() {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
         let mut depot = Depot::new();
         let result =
             CookieParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
-        assert_eq!(result.unwrap().0.unwrap(), "param");
+        assert!(result.is_err());
     }
 
     #[test]

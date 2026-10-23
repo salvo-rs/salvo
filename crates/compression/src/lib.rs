@@ -570,6 +570,57 @@ mod tests {
 
     use super::*;
 
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn compression_preserves_trailers_after_final_data() {
+        use std::io::Read;
+        use std::pin::Pin;
+
+        use salvo_core::http::HeaderMap;
+        use salvo_core::http::body::{Body, BytesFrame, Frame};
+
+        #[handler]
+        async fn with_trailers(res: &mut Response) {
+            res.add_header("content-type", "text/plain", true).unwrap();
+            res.add_header("trailer", "x-checksum", true).unwrap();
+            let mut trailers = HeaderMap::new();
+            trailers.insert("x-checksum", "complete".parse().unwrap());
+            let frames = vec![
+                Ok::<_, std::io::Error>(BytesFrame::data(vec![b'a'; 32 * 1024])),
+                Ok(BytesFrame(Frame::trailers(trailers))),
+            ];
+            res.stream(futures_util::stream::iter(frames));
+        }
+
+        let router = Router::with_hoop(super::Compression::new().min_length(1)).get(with_trailers);
+        let mut response = TestClient::get("http://localhost/")
+            .add_header("accept-encoding", "gzip", true)
+            .send(router)
+            .await;
+        assert_eq!(response.headers()["content-encoding"], "gzip");
+        assert_eq!(response.headers()["trailer"], "x-checksum");
+        let mut body = response.take_body();
+        let mut compressed = Vec::new();
+        let mut trailers = None;
+        while let Some(frame) =
+            futures_util::future::poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await
+        {
+            match frame.unwrap().into_data() {
+                Ok(data) => {
+                    assert!(trailers.is_none());
+                    compressed.extend_from_slice(&data);
+                }
+                Err(frame) => trailers = Some(frame.into_trailers().unwrap()),
+            }
+        }
+        assert_eq!(trailers.unwrap()["x-checksum"], "complete");
+        let mut decoded = Vec::new();
+        flate2::read::GzDecoder::new(&compressed[..])
+            .read_to_end(&mut decoded)
+            .unwrap();
+        assert_eq!(decoded, vec![b'a'; 32 * 1024]);
+    }
+
     #[handler]
     async fn hello() -> &'static str {
         "hello"

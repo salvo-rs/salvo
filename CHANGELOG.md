@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Exclude pending cookie jar changes and partial responses from response caching,
+  and bypass cached representations for range requests.
+- Forward parameter names through optional extractors and reject missing required
+  header, query and cookie values before constructing their wrappers.
+- Honor ETag precedence, lists and wildcards in conditional responses, while
+  preserving write responses and non-200 statuses.
+- Preserve response trailers during compression and offload compression flushing
+  and finalization together with expensive writes.
+- Validate tus creation requests before allocating storage, remove uploads after
+  creation-time stream failures, and pass final storage metadata to completion hooks.
+- Merge multipart form and file schemas instead of overwriting earlier endpoint
+  parameters, preserving required fields and form constraints.
 - Generate `Allow` for automatic 405 responses from complete built-in route matches,
   without replaying custom callbacks or overriding middleware response policies.
   When opaque filters prevent safely inferring any supported method, routing defaults
