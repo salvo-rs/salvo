@@ -366,10 +366,11 @@ mod tests {
 
     #[tokio::test]
     async fn multipart_limits_map_to_413_at_every_read_stage() {
+        use http_body_util::StreamBody;
+
         use crate::http::body::{Frame, ReqBody};
         use crate::test::TestClient;
         use crate::{Depot, Response, Writer};
-        use http_body_util::StreamBody;
 
         for file in [false, true] {
             let filename = if file {
