@@ -650,10 +650,8 @@ mod tests {
 
     #[tokio::test]
     async fn backend_failures_obey_policy() {
-        use std::sync::{
-            Arc,
-            atomic::{AtomicUsize, Ordering},
-        };
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
         for operation in ["load", "save", "destroy"] {
             for policy in [StoreErrorPolicy::FailClosed, StoreErrorPolicy::Ignore] {
