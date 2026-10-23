@@ -18,6 +18,78 @@ use tempfile::Builder;
 
 use crate::http::ParseError;
 use crate::http::header::{CONTENT_TYPE, HeaderMap};
+use crate::{Depot, FlowCtrl, Handler, Request, Response, async_trait};
+
+/// Limits on the number of multipart parts and files parsed by [`Request::form_data`].
+///
+/// Defaults to 128 parts in total, including unnamed parts, and 32 file parts.
+/// A zero limit rejects every part of that kind. These counts supplement the
+/// request's byte limit; URL-encoded forms are governed by the byte limit only.
+///
+/// This type also implements [`Handler`]. Install it before the first form read
+/// to customize a route, or use [`Request::set_form_limits`] inside a handler.
+/// Already parsed, cached forms are not checked again. Direct calls to
+/// [`FilePart::create`] are outside these request-level limits.
+///
+/// ```
+/// use salvo_core::Router;
+/// use salvo_core::http::form::FormLimits;
+///
+/// let uploads = Router::with_path("uploads").hoop(FormLimits::new().max_parts(256).max_files(64));
+/// # let _ = uploads;
+/// ```
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct FormLimits {
+    /// Maximum total number of multipart parts, including file and unnamed parts.
+    pub max_parts: usize,
+    /// Maximum number of multipart parts with a filename, including empty files.
+    pub max_files: usize,
+}
+
+impl Default for FormLimits {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FormLimits {
+    /// Creates the default limits: 128 parts and 32 files.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            max_parts: 128,
+            max_files: 32,
+        }
+    }
+
+    /// Sets the maximum total part count. Use `usize::MAX` to remove this bound.
+    #[must_use]
+    pub const fn max_parts(mut self, max_parts: usize) -> Self {
+        self.max_parts = max_parts;
+        self
+    }
+
+    /// Sets the maximum file count. Use `usize::MAX` to remove this bound.
+    #[must_use]
+    pub const fn max_files(mut self, max_files: usize) -> Self {
+        self.max_files = max_files;
+        self
+    }
+}
+
+#[async_trait]
+impl Handler for FormLimits {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        _depot: &mut Depot,
+        _res: &mut Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
+        req.set_form_limits(*self);
+    }
+}
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 #[derive(Debug)]
@@ -43,7 +115,25 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-    pub(crate) async fn read<S, O, E>(headers: &HeaderMap, body: S) -> Result<Self, ParseError>
+    pub(crate) async fn read<S, O, E>(
+        headers: &HeaderMap,
+        body: S,
+        limits: FormLimits,
+    ) -> Result<Self, ParseError>
+    where
+        S: Stream<Item = Result<O, E>> + Send,
+        O: Into<Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
+        Self::read_with_directory(headers, body, limits, temporary_directory).await
+    }
+
+    async fn read_with_directory<S, O, E>(
+        headers: &HeaderMap,
+        body: S,
+        limits: FormLimits,
+        create_directory: impl Fn() -> std::io::Result<tempfile::TempDir> + Clone + Send + 'static,
+    ) -> Result<Self, ParseError>
     where
         S: Stream<Item = Result<O, E>> + Send,
         O: Into<Bytes> + 'static,
@@ -81,12 +171,29 @@ impl FormData {
                     return Err(ParseError::InvalidContentType);
                 };
                 let mut multipart = Multipart::new(body, boundary);
+                let mut parts = 0;
+                let mut files = 0;
                 while let Some(mut field) = multipart.next_field().await? {
+                    if parts >= limits.max_parts {
+                        return Err(ParseError::PayloadTooLarge);
+                    }
+                    parts += 1;
+                    if field.file_name().is_some() {
+                        if files >= limits.max_files {
+                            return Err(ParseError::PayloadTooLarge);
+                        }
+                        files += 1;
+                    }
                     if let Some(name) = field.name().map(|s| s.to_owned()) {
                         if field.file_name().is_some() {
-                            form_data
-                                .files
-                                .insert(name, FilePart::create(&mut field).await?);
+                            form_data.files.insert(
+                                name,
+                                FilePart::create_with_directory(
+                                    &mut field,
+                                    create_directory.clone(),
+                                )
+                                .await?,
+                            );
                         } else {
                             form_data.fields.insert(name, field.text().await?);
                         }
@@ -207,10 +314,7 @@ impl FilePart {
     /// fill the temporary directory's disk (denial of service), so make sure the
     /// request body is bounded before the first read.
     pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
-        Self::create_with_directory(field, || {
-            Builder::new().prefix("salvo_http_multipart").tempdir()
-        })
-        .await
+        Self::create_with_directory(field, temporary_directory).await
     }
 
     async fn create_with_directory(
@@ -275,6 +379,10 @@ impl FilePart {
             storage,
         })
     }
+}
+
+fn temporary_directory() -> std::io::Result<tempfile::TempDir> {
+    Builder::new().prefix("salvo_http_multipart").tempdir()
 }
 
 fn cleanup_temporary_upload(path: &Path, temp_dir: &Path) {
@@ -346,6 +454,219 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    #[tokio::test]
+    async fn multipart_default_counts_reject_many_small_parts() {
+        use crate::test::TestClient;
+
+        for (parts, filename) in [(129, ""), (33, "; filename=\"x\"")] {
+            let part =
+                format!("--b\r\nContent-Disposition: form-data; name=\"f\"{filename}\r\n\r\n\r\n");
+            let body = format!("{}--b--\r\n", part.repeat(parts));
+            assert!(body.len() < 64 * 1024);
+            let mut req = TestClient::post("http://localhost/")
+                .add_header("content-type", "multipart/form-data; boundary=b", true)
+                .body(body)
+                .build();
+            assert!(
+                matches!(req.form_data().await, Err(ParseError::PayloadTooLarge)),
+                "must reject {parts} multipart parts before the byte limit is reached"
+            );
+        }
+    }
+
+    fn multipart_request(parts: usize, files: usize) -> Request {
+        let mut body = String::new();
+        for index in 0..parts {
+            let filename = if index < files {
+                "; filename=\"x\""
+            } else {
+                ""
+            };
+            body.push_str(&format!(
+                "--b\r\nContent-Disposition: form-data; name=\"f\"{filename}\r\n\r\n\r\n"
+            ));
+        }
+        body.push_str("--b--\r\n");
+        crate::test::TestClient::post("http://localhost/")
+            .add_header("content-type", "multipart/form-data; boundary=b", true)
+            .body(body)
+            .build()
+    }
+
+    #[tokio::test]
+    async fn multipart_count_boundaries_and_custom_limits() {
+        for (parts, files, limits) in [
+            (128, 0, FormLimits::default()),
+            (32, 32, FormLimits::default()),
+            (3, 2, FormLimits::new().max_parts(3).max_files(2)),
+            (129, 0, FormLimits::new().max_parts(129)),
+            (33, 33, FormLimits::new().max_files(33)),
+            (1, 0, FormLimits::new().max_files(0)),
+        ] {
+            let mut req = multipart_request(parts, files);
+            req.set_form_limits(limits);
+            assert_eq!(req.form_limits(), limits);
+            let form = req.form_data().await.unwrap();
+            let count = form.files.get_vec("f").map_or(0, Vec::len)
+                + form.fields.get_vec("f").map_or(0, Vec::len);
+            assert_eq!(count, parts);
+        }
+        for (parts, files, limits) in [
+            (4, 0, FormLimits::new().max_parts(3)),
+            (3, 3, FormLimits::new().max_files(2)),
+            (1, 0, FormLimits::new().max_parts(0)),
+            (1, 1, FormLimits::new().max_files(0)),
+        ] {
+            let mut req = multipart_request(parts, files);
+            req.set_form_limits(limits);
+            assert!(matches!(
+                req.form_data().await,
+                Err(ParseError::PayloadTooLarge)
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn multipart_count_limits_cover_cached_payload_and_unnamed_parts() {
+        let mut req = multipart_request(3, 0);
+        req.payload().await.unwrap();
+        req.set_form_limits(FormLimits::new().max_parts(2));
+        assert!(matches!(
+            req.form_data().await,
+            Err(ParseError::PayloadTooLarge)
+        ));
+
+        let mut req = crate::test::TestClient::post("http://localhost/")
+            .add_header("content-type", "multipart/form-data; boundary=b", true)
+            .body("--b\r\nContent-Disposition: form-data\r\n\r\na\r\n--b\r\nContent-Disposition: form-data\r\n\r\nb\r\n--b--\r\n")
+            .build();
+        req.set_form_limits(FormLimits::new().max_parts(1));
+        assert!(matches!(
+            req.form_data().await,
+            Err(ParseError::PayloadTooLarge)
+        ));
+
+        let mut req = crate::test::TestClient::post("http://localhost/")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .body("a=1&b=2")
+            .build();
+        req.set_form_limits(FormLimits::new().max_parts(0).max_files(0));
+        assert_eq!(req.form_data().await.unwrap().fields.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn multipart_count_middleware_returns_413() {
+        #[crate::handler]
+        async fn parse(req: &mut Request) -> Result<&'static str, ParseError> {
+            req.form_data().await?;
+            Ok("ok")
+        }
+        let router = crate::Router::new()
+            .hoop(FormLimits::new().max_parts(1).max_files(0))
+            .post(parse);
+        let service = crate::Service::new(router);
+        for (parts, files, status) in [
+            (1, 0, crate::http::StatusCode::OK),
+            (2, 0, crate::http::StatusCode::PAYLOAD_TOO_LARGE),
+            (1, 1, crate::http::StatusCode::PAYLOAD_TOO_LARGE),
+        ] {
+            let response = service.handle(multipart_request(parts, files)).await;
+            assert_eq!(response.status_code, Some(status));
+        }
+    }
+
+    #[tokio::test]
+    async fn multipart_count_overflow_rejects_before_creation_and_cleans_previous_files() {
+        use std::sync::atomic::AtomicUsize;
+
+        use http_body_util::BodyExt;
+
+        for limits in [
+            FormLimits::new().max_parts(1),
+            FormLimits::new().max_files(1),
+        ] {
+            let root = Builder::new().tempdir().unwrap();
+            let root_path = root.path().to_owned();
+            let created = Arc::new(AtomicUsize::new(0));
+            let count = created.clone();
+            let mut req = multipart_request(2, 2);
+            let headers = req.headers().clone();
+            let result = FormData::read_with_directory(
+                &headers,
+                req.take_body().into_data_stream(),
+                limits,
+                move || {
+                    count.fetch_add(1, Ordering::Relaxed);
+                    Builder::new().tempdir_in(&root_path)
+                },
+            )
+            .await;
+            assert!(matches!(result, Err(ParseError::PayloadTooLarge)));
+            assert_eq!(created.load(Ordering::Relaxed), 1);
+            wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelling_multipart_parse_cleans_accumulated_files() {
+        use std::sync::atomic::AtomicUsize;
+
+        let root = Builder::new().tempdir().unwrap();
+        let root_path = root.path().to_owned();
+        let (sender, receiver) = tokio::sync::mpsc::channel(1);
+        sender.send(Ok::<_, std::io::Error>(Bytes::from_static(
+            b"--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"x\"\r\n\r\ndata\r\n--b\r\nContent-Disposition: form-data; name=\"pending\"; filename=\"y\"\r\n\r\nwaiting",
+        ))).await.unwrap();
+        let second_file_started = Arc::new(tokio::sync::Notify::new());
+        let notify = second_file_started.clone();
+        let created = Arc::new(AtomicUsize::new(0));
+        let count = created.clone();
+        let first_directory = Arc::new(std::sync::Mutex::new(None));
+        let first = first_directory.clone();
+        let stream = futures_util::stream::unfold(receiver, |mut receiver| async {
+            receiver.recv().await.map(|frame| (frame, receiver))
+        });
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            "multipart/form-data; boundary=b".parse().unwrap(),
+        );
+        let mut parse = Box::pin(FormData::read_with_directory(
+            &headers,
+            stream,
+            FormLimits::default(),
+            move || {
+                let directory = Builder::new().tempdir_in(&root_path)?;
+                match count.fetch_add(1, Ordering::Relaxed) {
+                    0 => *first.lock().unwrap() = Some(directory.path().to_owned()),
+                    // FormData creates files sequentially, so the first FilePart
+                    // is complete and stored before it starts creating the second.
+                    // Stream polls cannot establish this: multra may read ahead.
+                    1 => notify.notify_one(),
+                    _ => panic!("unexpected third file"),
+                }
+                Ok(directory)
+            },
+        ));
+        tokio::select! {
+            result = &mut parse => panic!("multipart parse finished before stream ended: {result:?}"),
+            result = tokio::time::timeout(Duration::from_secs(5), second_file_started.notified()) => {
+                result.expect("parser did not start the second file");
+            }
+        }
+        assert_eq!(created.load(Ordering::Relaxed), 2);
+        let directory = first_directory.lock().unwrap().clone().unwrap();
+        let files = std::fs::read_dir(directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(files.len(), 1);
+        assert_eq!(std::fs::read(&files[0]).unwrap(), b"data");
+        drop(parse);
+        drop(sender);
+        wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
+    }
 
     fn file_part_in(root: &Path) -> FilePart {
         let temp_dir = Builder::new().tempdir_in(root).unwrap().keep();

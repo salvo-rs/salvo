@@ -65,6 +65,7 @@ cfg_feature! {
 }
 
 pub use errors::{ParseError, ParseResult, StatusError, StatusResult};
+pub use form::FormLimits;
 cfg_feature! {
     #![feature = "rfc9457"]
     pub use errors::{NoExtensions, PROBLEM_JSON, PlainProblem, Problem};
