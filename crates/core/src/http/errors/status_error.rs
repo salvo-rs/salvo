@@ -345,6 +345,22 @@ impl StatusError {
 impl Scribe for StatusError {
     #[inline]
     fn render(self, res: &mut Response) {
+        // The error replaces the previous representation. Keep policy and tracing
+        // headers, but discard metadata that describes the discarded body.
+        for name in [
+            "content-type",
+            "content-length",
+            "content-encoding",
+            "content-range",
+            "content-disposition",
+            "etag",
+            "last-modified",
+            "digest",
+            "content-digest",
+            "repr-digest",
+        ] {
+            res.headers.remove(name);
+        }
         res.status_code = Some(self.code);
         res.body = ResBody::Error(self);
     }
@@ -353,6 +369,34 @@ impl Scribe for StatusError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replacing_body_discards_representation_headers() {
+        let mut res = Response::default();
+        for name in [
+            "content-type",
+            "content-length",
+            "content-encoding",
+            "content-range",
+            "content-disposition",
+            "etag",
+            "last-modified",
+            "digest",
+            "content-digest",
+            "repr-digest",
+        ] {
+            res.headers.insert(name, "old".parse().unwrap());
+        }
+        res.headers
+            .insert("access-control-allow-origin", "*".parse().unwrap());
+        res.headers
+            .insert("x-request-id", "request-1".parse().unwrap());
+        StatusError::internal_server_error().render(&mut res);
+        assert_eq!(res.headers.len(), 2);
+        assert_eq!(res.headers["access-control-allow-origin"], "*");
+        assert_eq!(res.headers["x-request-id"], "request-1");
+        assert!(res.body.is_error());
+    }
 
     #[test]
     fn test_source_exposes_cause() {

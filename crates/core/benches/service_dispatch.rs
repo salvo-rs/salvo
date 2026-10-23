@@ -69,6 +69,51 @@ fn benches(c: &mut Criterion) {
     plain(c);
     hoop_chain(c);
     dynamic_path(c);
+    negative_routes(c);
+}
+
+fn negative_routes(c: &mut Criterion) {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .expect("build runtime");
+    let mut group = c.benchmark_group("dispatch/negative_routes");
+    group.sample_size(10);
+    for count in [100, 1_000, 10_000] {
+        for multi in [false, true] {
+            let mut router = Router::new();
+            for i in 0..count {
+                let mut route = Router::with_path(format!("route-{i}")).get(hello);
+                if multi {
+                    route = route.post(hello).put(hello);
+                }
+                router = router.push(route);
+            }
+            let service = Service::new(router);
+            for (position, path, status) in [
+                (
+                    "first",
+                    "route-0".to_owned(),
+                    StatusCode::METHOD_NOT_ALLOWED,
+                ),
+                (
+                    "last",
+                    format!("route-{}", count - 1),
+                    StatusCode::METHOD_NOT_ALLOWED,
+                ),
+                ("missing", "missing".to_owned(), StatusCode::NOT_FOUND),
+            ] {
+                let url = format!("http://t.dev/{path}");
+                group.bench_function(format!("{count}/{multi}/{position}"), |b| {
+                    b.iter(|| {
+                        let res = rt.block_on(TestClient::delete(&url).send(&service));
+                        assert_eq!(res.status_code, Some(status));
+                        black_box(res);
+                    })
+                });
+            }
+        }
+    }
+    group.finish();
 }
 
 criterion_group!(service_dispatch, benches);
