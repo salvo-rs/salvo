@@ -5,6 +5,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(feature = "response-observers")]
+use std::sync::{Mutex, Weak};
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -31,6 +33,35 @@ use crate::serde::{
 use crate::{Depot, Error, FlowCtrl, Handler, async_trait};
 
 static GLOBAL_SECURE_MAX_SIZE: AtomicUsize = AtomicUsize::new(64 * 1024);
+
+#[cfg(feature = "response-observers")]
+type ResponseObserver = Box<dyn FnOnce(&Response) + Send>;
+
+#[cfg(feature = "response-observers")]
+pub(crate) struct ResponseObservers(Mutex<Option<Vec<ResponseObserver>>>);
+
+#[cfg(feature = "response-observers")]
+impl Default for ResponseObservers {
+    fn default() -> Self {
+        Self(Mutex::new(Some(Vec::new())))
+    }
+}
+
+#[cfg(feature = "response-observers")]
+impl ResponseObservers {
+    pub(crate) fn observe(&self, res: &Response) {
+        // Close registration and release the lock before invoking application code.
+        let observers = self.0.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(observers) = observers {
+            for observer in observers {
+                if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer(res))).is_err()
+                {
+                    tracing::error!("final response observer panicked");
+                }
+            }
+        }
+    }
+}
 
 /// Returns the process-wide fallback limit for bounded request-body reads.
 ///
@@ -164,6 +195,10 @@ pub struct Request {
     // The request body as a reader.
     pub(crate) body: ReqBody,
     pub(crate) extensions: Extensions,
+    // Service owns the queue: replacing this Request cannot discard observers,
+    // and retaining it cannot keep observers alive after Service cancellation.
+    #[cfg(feature = "response-observers")]
+    pub(crate) response_observers: Weak<ResponseObservers>,
 
     // The request method.
     method: Method,
@@ -221,6 +256,8 @@ impl Request {
             headers: HeaderMap::default(),
             body: ReqBody::default(),
             extensions: Extensions::default(),
+            #[cfg(feature = "response-observers")]
+            response_observers: Weak::new(),
             method: Method::default(),
             #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
@@ -287,6 +324,8 @@ impl Request {
             body: body.into(),
             extensions,
             method,
+            #[cfg(feature = "response-observers")]
+            response_observers: Weak::new(),
             #[cfg(feature = "cookie")]
             cookies,
             // accept: None,
@@ -302,6 +341,38 @@ impl Request {
             #[cfg(feature = "matched-path")]
             matched_path: Default::default(),
         }
+    }
+
+    /// Registers a one-shot observer of the response finalized by [`crate::Service`].
+    ///
+    /// Observers run in registration order after middleware, media-type checks,
+    /// catchers and HEAD body removal, before transmission starts. They cannot
+    /// change the response and should not block. Unwinding panics are logged and
+    /// isolated so the remaining observers still run.
+    /// Replacing or moving the Request does not discard registered observers.
+    /// Capture any needed request metadata when registering the callback.
+    ///
+    /// Returns the callback unchanged when this request is not being processed
+    /// by a Service, allowing middleware called directly to observe its response
+    /// after `call_next` instead. If the Service future is cancelled or unwinds
+    /// without producing a response, callbacks are dropped without being called;
+    /// captured RAII guards can perform cancellation cleanup.
+    ///
+    /// Requires the `response-observers` feature, enabled automatically by `salvo-otel`.
+    #[cfg(feature = "response-observers")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "response-observers")))]
+    pub fn try_on_response<F>(&mut self, observer: F) -> Result<(), F>
+    where
+        F: FnOnce(&Response) + Send + 'static,
+    {
+        if let Some(queue) = self.response_observers.upgrade() {
+            let mut pending = queue.0.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(observers) = pending.as_mut() {
+                observers.push(Box::new(observer));
+                return Ok(());
+            }
+        }
+        Err(observer)
     }
 
     /// Strip the request to [`hyper::Request`].
@@ -1581,6 +1652,59 @@ mod tests {
 
     use super::*;
     use crate::test::TestClient;
+
+    #[test]
+    #[cfg(feature = "response-observers")]
+    fn response_observer_returns_callback_without_service() {
+        let mut req = Request::new();
+        let called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let observed = called.clone();
+        let callback = req.try_on_response(move |_| observed.store(true, Ordering::SeqCst));
+        assert!(!called.load(Ordering::SeqCst));
+        if let Err(callback) = callback {
+            callback(&Response::new());
+        } else {
+            panic!("standalone request must return the callback");
+        }
+        assert!(called.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    #[cfg(feature = "response-observers")]
+    fn response_observers_survive_conversion_and_run_once_in_order_despite_panics() {
+        let mut req = Request::new();
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Request>();
+        let observers = std::sync::Arc::new(ResponseObservers::default());
+        req.response_observers = std::sync::Arc::downgrade(&observers);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        for index in 0..3 {
+            let calls = calls.clone();
+            assert!(
+                req.try_on_response(move |res| {
+                    assert_eq!(res.status_code, Some(http::StatusCode::ACCEPTED));
+                    calls.lock().unwrap().push(index);
+                    if index == 1 {
+                        panic!("observer must not break response finalization");
+                    }
+                })
+                .is_ok()
+            );
+        }
+        let hyper = req.strip_to_hyper::<ReqBody>().unwrap();
+        req.merge_hyper(hyper);
+        let mut res = Response::new();
+        res.status_code(http::StatusCode::ACCEPTED);
+        let registration = req.response_observers.clone();
+        // Tower layers can consume the entire original request on a short circuit.
+        drop(req);
+        observers.observe(&res);
+        observers.observe(&res);
+        assert_eq!(*calls.lock().unwrap(), [0, 1, 2]);
+        let mut late_request = Request::new();
+        late_request.response_observers = registration;
+        assert!(late_request.try_on_response(|_| {}).is_err());
+    }
 
     #[tokio::test]
     async fn test_parse_queries() {

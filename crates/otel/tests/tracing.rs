@@ -160,10 +160,13 @@ async fn test_span_marks_server_error() {
 
     assert_eq!(span.attr("http.response.status_code"), Some("500"));
     assert_eq!(span.attr("error.type"), Some("500"));
-    assert_eq!(
-        span.attr("http.response.body.size"),
-        None,
-        "the error body is written after middleware returns, so its size is unknown here"
+    assert!(
+        span.attr("http.response.body.size")
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 0,
+        "the finalized catcher body is observed"
     );
     assert_eq!(
         span.status,
@@ -200,10 +203,13 @@ async fn test_span_without_matched_route() {
         None,
         "a client error is a valid outcome for a server span"
     );
-    assert_eq!(
-        span.attr("http.response.body.size"),
-        None,
-        "the 404 body is written after middleware returns, so its size is unknown here"
+    assert!(
+        span.attr("http.response.body.size")
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 0,
+        "the finalized 404 body is observed"
     );
     assert_eq!(span.status, Status::Unset);
 }
