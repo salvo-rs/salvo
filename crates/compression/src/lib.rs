@@ -782,24 +782,44 @@ mod tests {
         // Cover the preloaded and streaming NamedFile paths.
         for preload in [0, u64::MAX] {
             let url = format!("http://localhost/?preload={preload}");
-            for head in [false, true] {
+            for (head, encoding) in [(false, "gzip"), (true, "identity"), (true, "gzip")] {
                 let request = if head {
                     TestClient::head(&url)
                 } else {
                     TestClient::get(&url)
                 };
                 let mut response = request
-                    .add_header(ACCEPT_ENCODING, "gzip", true)
+                    .add_header(ACCEPT_ENCODING, encoding, true)
                     .add_header("range", "bytes=16-79", true)
                     .send(&service)
                     .await;
-                assert_eq!(response.status_code, Some(StatusCode::PARTIAL_CONTENT));
-                assert_eq!(
-                    response.headers()[CONTENT_RANGE],
-                    format!("bytes 16-79/{}", original.len())
-                );
-                assert_eq!(response.headers()[CONTENT_LENGTH], "64");
-                assert!(!response.headers().contains_key(CONTENT_ENCODING));
+                if head {
+                    // HEAD ignores Range and describes the full representation.
+                    assert_eq!(response.status_code, Some(StatusCode::OK));
+                    assert!(!response.headers().contains_key(CONTENT_RANGE));
+                    if encoding == "identity" {
+                        assert_eq!(
+                            response.headers()[CONTENT_LENGTH],
+                            original.len().to_string()
+                        );
+                    } else {
+                        // The compressed representation length is unknown without
+                        // reading and compressing a body, which HEAD must not do.
+                        assert!(!response.headers().contains_key(CONTENT_LENGTH));
+                    }
+                } else {
+                    assert_eq!(response.status_code, Some(StatusCode::PARTIAL_CONTENT));
+                    assert_eq!(
+                        response.headers()[CONTENT_RANGE],
+                        format!("bytes 16-79/{}", original.len())
+                    );
+                    assert_eq!(response.headers()[CONTENT_LENGTH], "64");
+                }
+                if head && encoding == "gzip" {
+                    assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+                } else {
+                    assert!(!response.headers().contains_key(CONTENT_ENCODING));
+                }
                 let bytes = response.take_bytes(None).await.unwrap();
                 assert_eq!(&bytes[..], if head { &[][..] } else { &original[16..80] });
             }
