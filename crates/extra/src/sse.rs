@@ -180,13 +180,9 @@ impl Display for SseEvent {
         }
 
         match &self.data {
-            Some(DataType::Text(data)) => {
+            Some(DataType::Text(data) | DataType::Json(data)) => {
+                // RawValue can retain literal line endings even in compact JSON.
                 write_event_lines(f, "data:", data)?;
-            }
-            Some(DataType::Json(data)) => {
-                "data:".fmt(f)?;
-                data.fmt(f)?;
-                f.write_char('\n')?;
             }
             None => {}
         }
@@ -358,6 +354,20 @@ mod tests {
     use tokio_stream;
 
     use super::*;
+
+    #[test]
+    fn raw_json_preserves_event_framing() {
+        for ending in ["\n", "\r", "\r\n"] {
+            let json = format!("{{{ending}{ending}\"value\":\"雪\"{ending}}}");
+            let raw: &serde_json::value::RawValue = serde_json::from_str(&json).unwrap();
+            // RawValue retains whitespace even through the compact serializer,
+            // both as the whole value and when nested in another JSON value.
+            let event = SseEvent::default().json(&raw).unwrap().to_string();
+            assert_eq!(event, "data:{\ndata:\ndata:\"value\":\"雪\"\ndata:}\n\n");
+            let event = SseEvent::default().json(&[raw]).unwrap().to_string();
+            assert_eq!(event, "data:[{\ndata:\ndata:\"value\":\"雪\"\ndata:}]\n\n");
+        }
+    }
 
     #[test]
     fn text_and_comments_preserve_all_line_endings() {
