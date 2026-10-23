@@ -592,6 +592,9 @@ impl Handler for StaticDir {
 
             let named_path = if !is_compressed_ext && !is_self_coded_ext {
                 if !self.compressed_variations.is_empty() {
+                    // Even an identity response participates in negotiation.
+                    // Its Vary policy must not depend on this request's header.
+                    varies_on_accept_encoding = true;
                     let mut new_abs_path = None;
                     let header = req
                         .headers()
@@ -600,7 +603,6 @@ impl Handler for StaticDir {
                         .unwrap_or_default();
                     // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
-                        varies_on_accept_encoding = true;
                         'accepted_encoding: for (algo, level) in http::parse_accept_encoding(header)
                         {
                             if level == 0 {
