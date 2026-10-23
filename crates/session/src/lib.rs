@@ -48,8 +48,13 @@
 //!
 //! ### Error Handling
 //!
-//! If any failures occur during session retrieval, a new empty session
-//! is generated for the request, which proceeds through the application normally.
+//! Backend load, save and destruction failures return HTTP 503 by default.
+//! A load failure stops the request before application handlers execute; save or
+//! destruction failures replace the downstream response. Failed destruction does
+//! not remove the session cookie and does not guarantee server-side revocation.
+//! Applications can explicitly choose the legacy best-effort behavior using
+//! [`HandlerBuilder::store_error_policy`]. Missing or expired sessions still
+//! create a new empty session.
 //!
 //! ## Stale/Expired Session Cleanup
 //!
@@ -113,6 +118,21 @@ impl SessionDepotExt for Depot {
     }
 }
 
+/// How session middleware handles backend failures.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum StoreErrorPolicy {
+    /// Return HTTP 503, stopping downstream handlers when loading fails.
+    #[default]
+    FailClosed,
+    /// Log the error and retain the legacy best-effort behavior.
+    ///
+    /// Loading uses an empty session; save failures preserve the response;
+    /// destruction failures still remove the client cookie. This cannot assure
+    /// persistence or server-side revocation and is unsuitable for critical auth.
+    Ignore,
+}
+
 /// `HandlerBuilder` is a builder for [`SessionHandler`].
 pub struct HandlerBuilder<S> {
     store: S,
@@ -121,6 +141,7 @@ pub struct HandlerBuilder<S> {
     cookie_domain: Option<String>,
     session_ttl: Option<Duration>,
     save_unchanged: bool,
+    store_error_policy: StoreErrorPolicy,
     same_site_policy: SameSite,
     secure_cookie_policy: SecureCookiePolicy,
     key: Key,
@@ -142,6 +163,7 @@ where
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
+            .field("store_error_policy", &self.store_error_policy)
             .finish()
     }
 }
@@ -187,6 +209,7 @@ where
         Ok(Self {
             store,
             save_unchanged: true,
+            store_error_policy: StoreErrorPolicy::default(),
             cookie_path: "/".into(),
             cookie_name: "salvo.session.id".into(),
             cookie_domain: None,
@@ -196,6 +219,16 @@ where
             key,
             fallback_keys: vec![],
         })
+    }
+
+    /// Sets backend failure handling. Defaults to [`StoreErrorPolicy::FailClosed`].
+    ///
+    /// Fail-closed save and destroy errors replace the response with HTTP 503;
+    /// application side effects already performed cannot be rolled back.
+    #[must_use]
+    pub fn store_error_policy(mut self, policy: StoreErrorPolicy) -> Self {
+        self.store_error_policy = policy;
+        self
     }
 
     /// Sets a cookie path for this session middleware.
@@ -309,6 +342,7 @@ where
         let Self {
             store,
             save_unchanged,
+            store_error_policy,
             cookie_path,
             cookie_name,
             cookie_domain,
@@ -328,6 +362,7 @@ where
         Ok(SessionHandler {
             store,
             save_unchanged,
+            store_error_policy,
             cookie_path,
             cookie_name,
             cookie_domain,
@@ -348,6 +383,7 @@ pub struct SessionHandler<S> {
     cookie_domain: Option<String>,
     session_ttl: Option<Duration>,
     save_unchanged: bool,
+    store_error_policy: StoreErrorPolicy,
     same_site_policy: SameSite,
     secure_cookie_policy: SecureCookiePolicy,
     hmac: Hmac<Sha256>,
@@ -370,6 +406,7 @@ where
             .field("key", &"..")
             .field("fallback_keys", &"..")
             .field("save_unchanged", &self.save_unchanged)
+            .field("store_error_policy", &self.store_error_policy)
             .finish()
     }
 }
@@ -388,7 +425,17 @@ where
         let cookie = req.cookies().get(&self.cookie_name);
         let cookie_value = cookie.and_then(|cookie| self.verify_signature(cookie.value()).ok());
 
-        let mut session = self.load_or_create(cookie_value).await;
+        let mut session = match self.load_or_create(cookie_value).await {
+            Ok(session) => session,
+            Err(error) => {
+                tracing::error!(error = ?error, "load session error");
+                if self.store_error_policy == StoreErrorPolicy::FailClosed {
+                    Self::store_unavailable(res, ctrl);
+                    return;
+                }
+                Session::new()
+            }
+        };
 
         if let Some(ttl) = self.session_ttl {
             session.expire_in(ttl);
@@ -405,6 +452,10 @@ where
         if session.is_destroyed() {
             if let Err(e) = self.store.destroy_session(session).await {
                 tracing::error!(error = ?e, "unable to destroy session");
+                if self.store_error_policy == StoreErrorPolicy::FailClosed {
+                    Self::store_unavailable(res, ctrl);
+                    return;
+                }
             }
             let secure_cookie =
                 self.same_site_policy == SameSite::None || self.secure_cookie_policy.is_secure(req);
@@ -421,6 +472,9 @@ where
                 }
                 Err(e) => {
                     tracing::error!(error = ?e, "store session error");
+                    if self.store_error_policy == StoreErrorPolicy::FailClosed {
+                        Self::store_unavailable(res, ctrl);
+                    }
                 }
             }
         }
@@ -436,15 +490,31 @@ where
         HandlerBuilder::new(store, secret)
     }
     #[inline]
-    async fn load_or_create(&self, cookie_value: Option<String>) -> Session {
+    async fn load_or_create(&self, cookie_value: Option<String>) -> saysion::Result<Session> {
         let session = match cookie_value {
-            Some(cookie_value) => self.store.load_session(cookie_value).await.ok().flatten(),
+            Some(cookie_value) => self.store.load_session(cookie_value).await?,
             None => None,
         };
 
-        session
+        Ok(session
             .and_then(|session| session.validate())
-            .unwrap_or_default()
+            .unwrap_or_default())
+    }
+
+    fn store_unavailable(res: &mut Response, ctrl: &mut FlowCtrl) {
+        // The old representation and redirect headers no longer describe this error.
+        for name in [
+            "content-length",
+            "content-encoding",
+            "content-range",
+            "etag",
+            "last-modified",
+            "location",
+        ] {
+            res.headers_mut().remove(name);
+        }
+        res.render(salvo_core::http::StatusError::service_unavailable());
+        ctrl.skip_rest();
     }
     // the following is reused verbatim from
     // https://github.com/SergioBenitez/cookie-rs/blob/master/src/secure/signed.rs#L51-L66
@@ -538,6 +608,141 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
+
+    #[derive(Debug, Clone)]
+    struct FailingStore {
+        inner: MemoryStore,
+        operation: &'static str,
+    }
+
+    #[async_trait]
+    impl SessionStore for FailingStore {
+        async fn load_session(&self, value: String) -> saysion::Result<Option<Session>> {
+            if self.operation == "load" {
+                return Err(saysion::Error::msg("injected load failure"));
+            }
+            // Model a remote backend's serialization boundary: MemoryStore clones
+            // share interior state and would mutate before store_session is called.
+            match self.inner.load_session(value).await? {
+                Some(session) => {
+                    let encoded = CookieStore.store_session(session).await?.unwrap();
+                    CookieStore.load_session(encoded).await
+                }
+                None => Ok(None),
+            }
+        }
+        async fn store_session(&self, session: Session) -> saysion::Result<Option<String>> {
+            if self.operation == "save" {
+                return Err(saysion::Error::msg("injected save failure"));
+            }
+            self.inner.store_session(session).await
+        }
+        async fn destroy_session(&self, session: Session) -> saysion::Result {
+            if self.operation == "destroy" {
+                return Err(saysion::Error::msg("injected destroy failure"));
+            }
+            self.inner.destroy_session(session).await
+        }
+        async fn clear_store(&self) -> saysion::Result {
+            self.inner.clear_store().await
+        }
+    }
+
+    #[tokio::test]
+    async fn backend_failures_obey_policy() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+
+        for operation in ["load", "save", "destroy"] {
+            for policy in [StoreErrorPolicy::FailClosed, StoreErrorPolicy::Ignore] {
+                let inner = MemoryStore::new();
+                let mut original = Session::new();
+                original.insert("value", "original").unwrap();
+                let value = inner.store_session(original).await.unwrap().unwrap();
+                let handler = SessionHandler::builder(
+                    FailingStore {
+                        inner: inner.clone(),
+                        operation,
+                    },
+                    b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+                )
+                .store_error_policy(policy)
+                .build()
+                .unwrap();
+                let cookie = handler.build_cookie(false, value.clone());
+                let called = Arc::new(AtomicUsize::new(0));
+                struct Application {
+                    called: Arc<AtomicUsize>,
+                    destroy: bool,
+                }
+                #[async_trait]
+                impl Handler for Application {
+                    async fn handle(
+                        &self,
+                        _req: &mut Request,
+                        depot: &mut Depot,
+                        res: &mut Response,
+                        _ctrl: &mut FlowCtrl,
+                    ) {
+                        self.called.fetch_add(1, Ordering::SeqCst);
+                        let session = depot.session_mut().unwrap();
+                        if self.destroy {
+                            session.destroy();
+                        } else {
+                            session.insert("value", "changed").unwrap();
+                        }
+                        res.headers_mut()
+                            .insert(CONTENT_ENCODING, "gzip".parse().unwrap());
+                        res.headers_mut()
+                            .insert(CONTENT_LENGTH, "1".parse().unwrap());
+                        res.render("application success");
+                    }
+                }
+                let service = Service::new(Router::new().hoop(handler).get(Application {
+                    called: called.clone(),
+                    destroy: operation == "destroy",
+                }));
+                let response = TestClient::get("http://localhost/")
+                    .add_header(
+                        COOKIE,
+                        format!("{}={}", cookie.name(), cookie.value()),
+                        true,
+                    )
+                    .send(&service)
+                    .await;
+                let closed = policy == StoreErrorPolicy::FailClosed;
+                assert_eq!(
+                    response.status_code,
+                    Some(if closed {
+                        StatusCode::SERVICE_UNAVAILABLE
+                    } else {
+                        StatusCode::OK
+                    }),
+                    "{operation}: {policy:?}"
+                );
+                assert_eq!(
+                    called.load(Ordering::SeqCst),
+                    usize::from(!(closed && operation == "load"))
+                );
+                if closed {
+                    assert!(!response.headers().contains_key(CONTENT_ENCODING));
+                    assert!(!response.headers().contains_key(SET_COOKIE));
+                }
+                if operation == "destroy" {
+                    // The failed backend operation leaves the old credential valid;
+                    // only the explicit Ignore policy pretends logout succeeded.
+                    assert!(inner.load_session(value.clone()).await.unwrap().is_some());
+                    assert_eq!(response.headers().contains_key(SET_COOKIE), !closed);
+                }
+                if operation == "save" {
+                    let saved = inner.load_session(value).await.unwrap().unwrap();
+                    assert_eq!(saved.get::<String>("value").unwrap(), "original");
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_session_data() {
@@ -674,6 +879,7 @@ mod tests {
         assert_eq!(builder.cookie_name, "salvo.session.id");
         assert!(builder.cookie_domain.is_none());
         assert!(builder.save_unchanged);
+        assert_eq!(builder.store_error_policy, StoreErrorPolicy::FailClosed);
         assert_eq!(builder.same_site_policy, SameSite::Lax);
         assert_eq!(
             builder.secure_cookie_policy,
