@@ -97,7 +97,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
-use salvo_core::http::header::{AUTHORIZATION, CACHE_CONTROL, COOKIE, SET_COOKIE, VARY};
+use salvo_core::http::header::{
+    AUTHORIZATION, CACHE_CONTROL, CONTENT_RANGE, COOKIE, RANGE, SET_COOKIE, VARY,
+};
 use salvo_core::http::{HeaderMap, ResBody, StatusCode};
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
 use tokio::sync::Notify;
@@ -557,10 +559,11 @@ where
 
     /// Allow caching requests or responses that contain private-user cache signals.
     ///
-    /// By default, requests with `Authorization` or `Cookie`, and responses with `Set-Cookie`,
-    /// `Vary`, or `Cache-Control: private`, are not cached. Enabling this lifts those
-    /// privacy restrictions. `Cache-Control: no-store`/`no-cache` responses are never
-    /// cached regardless of this setting.
+    /// By default, requests with `Authorization` or `Cookie`, and responses with a
+    /// `Set-Cookie` header or `Cache-Control: private`, are not cached. Enabling this
+    /// lifts those privacy restrictions. Responses with pending cookie jar changes,
+    /// `Vary`, or `Cache-Control: no-store`/`no-cache` are never cached. Range requests
+    /// and partial responses are also excluded regardless of this setting.
     #[inline]
     #[must_use]
     pub fn cache_private(mut self, cache_private: bool) -> Self {
@@ -611,7 +614,9 @@ fn cached_response(
     headers_before: &HeaderMap,
     cache_private: bool,
 ) -> Option<CachedEntry> {
-    if res.body.is_stream() || res.body.is_error() {
+    // Cookie jar changes are serialized into headers only after middleware returns.
+    // Entries cannot replay the jar, so skip these responses even in private mode.
+    if res.body.is_stream() || res.body.is_error() || res.has_cookie_changes() {
         return None;
     }
     // Only cache successful responses. Use the *effective* status: a missing
@@ -625,7 +630,8 @@ fn cached_response(
     } else {
         StatusCode::OK
     });
-    if !effective_status.is_success() {
+    // The cache stores complete representations and does not assemble byte ranges.
+    if !effective_status.is_success() || effective_status == StatusCode::PARTIAL_CONTENT {
         return None;
     }
     // `no-store`/`no-cache` forbid storing or reusing without revalidation in
@@ -698,6 +704,7 @@ fn response_disallows_caching(headers: &HeaderMap) -> bool {
     cache_control_contains(headers, "no-store")
         || cache_control_contains(headers, "no-cache")
         || headers.contains_key(VARY)
+        || headers.contains_key(CONTENT_RANGE)
 }
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
@@ -729,6 +736,8 @@ where
         ctrl: &mut FlowCtrl,
     ) {
         if self.skipper.skipped(req, depot)
+            // Range is not part of the default key, and hits do not apply ranges.
+            || req.headers().contains_key(RANGE)
             || (!self.cache_private && request_has_private_cache_headers(req))
         {
             ctrl.call_next(req, depot, res).await;
@@ -1359,6 +1368,116 @@ mod tests {
             res.headers_mut().insert(name, value.parse().unwrap());
             assert!(cached_response(&res, &HeaderMap::new(), false).is_none());
             assert!(cached_response(&res, &HeaderMap::new(), true).is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn cookie_jar_changes_are_not_cached() {
+        #[derive(Debug)]
+        struct CookiePage {
+            calls: Arc<AtomicUsize>,
+            remove: bool,
+        }
+        #[async_trait]
+        impl Handler for CookiePage {
+            async fn handle(
+                &self,
+                _req: &mut Request,
+                _depot: &mut Depot,
+                res: &mut Response,
+                _ctrl: &mut FlowCtrl,
+            ) {
+                let call = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+                if self.remove {
+                    res.remove_cookie("session");
+                } else {
+                    res.add_cookie(salvo_core::http::cookie::Cookie::new(
+                        "session",
+                        format!("session-{call}"),
+                    ));
+                }
+                res.render(format!("session-specific body {call}"));
+            }
+        }
+
+        for cache_private in [false, true] {
+            for remove in [false, true] {
+                let calls = Arc::new(AtomicUsize::new(0));
+                let cache = Cache::new(MokaStore::new(100), RequestIssuer::default())
+                    .cache_private(cache_private);
+                let service = Service::new(Router::new().hoop(cache).goal(CookiePage {
+                    calls: calls.clone(),
+                    remove,
+                }));
+                for call in 1..=2 {
+                    let mut res = TestClient::get("http://example.test/").send(&service).await;
+                    assert!(res.headers().contains_key(SET_COOKIE));
+                    assert_eq!(
+                        res.take_string().await.unwrap(),
+                        format!("session-specific body {call}")
+                    );
+                }
+                assert_eq!(calls.load(Ordering::SeqCst), 2);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn range_requests_bypass_cached_full_responses() {
+        #[handler]
+        async fn range_page(req: &mut Request, res: &mut Response) {
+            if req.headers().contains_key(salvo_core::http::header::RANGE) {
+                res.status_code(StatusCode::PARTIAL_CONTENT);
+                res.add_header("content-range", "bytes 0-1/4", true)
+                    .unwrap();
+                res.render("ab");
+            } else {
+                res.render("abcd");
+            }
+        }
+
+        // Exercise both request orders: a range must neither poison the full entry
+        // nor receive an already cached full representation.
+        for range_first in [false, true] {
+            let cache = Cache::new(MokaStore::new(100), RequestIssuer::default());
+            let service = Service::new(Router::new().hoop(cache).get(range_page));
+            for range in [range_first, !range_first, range_first] {
+                let request = TestClient::get("http://example.test/");
+                let request = if range {
+                    request.add_header("range", "bytes=0-1", true)
+                } else {
+                    request
+                };
+                let mut res = request.send(&service).await;
+                assert_eq!(
+                    res.status_code,
+                    Some(if range {
+                        StatusCode::PARTIAL_CONTENT
+                    } else {
+                        StatusCode::OK
+                    })
+                );
+                assert_eq!(
+                    res.take_string().await.unwrap(),
+                    if range { "ab" } else { "abcd" }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cached_response_rejects_partial_representations() {
+        for cache_private in [false, true] {
+            let mut res = Response::new();
+            res.render("ab");
+            res.status_code(StatusCode::PARTIAL_CONTENT);
+            assert!(cached_response(&res, &HeaderMap::new(), cache_private).is_none());
+
+            // Also reject an incomplete representation with an incorrect 200 status.
+            res.status_code(StatusCode::OK);
+            res.add_header("content-range", "bytes 0-1/4", true)
+                .unwrap();
+            assert!(cached_response(&res, &HeaderMap::new(), cache_private).is_none());
         }
     }
 

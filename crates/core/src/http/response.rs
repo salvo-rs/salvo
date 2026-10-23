@@ -347,6 +347,24 @@ impl Response {
         self.body = body.into();
     }
 
+    /// Returns whether the cookie jar contains additions or removals that will
+    /// become `Set-Cookie` headers when this response is serialized.
+    ///
+    /// This does not inspect headers added directly to the response. It returns
+    /// `false` when the `cookie` feature is disabled.
+    #[inline]
+    #[must_use]
+    pub fn has_cookie_changes(&self) -> bool {
+        #[cfg(feature = "cookie")]
+        {
+            self.cookies.delta().next().is_some()
+        }
+        #[cfg(not(feature = "cookie"))]
+        {
+            false
+        }
+    }
+
     cfg_feature! {
         #![feature = "cookie"]
         /// Get cookies reference.
@@ -648,6 +666,28 @@ mod test {
     use futures_util::stream::{StreamExt, iter};
 
     use super::*;
+
+    #[test]
+    fn unchanged_response_has_no_cookie_changes() {
+        assert!(!Response::new().has_cookie_changes());
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn cookie_changes_track_additions_removals_and_serialization() {
+        let mut cookies = CookieJar::new();
+        cookies.add_original(Cookie::new("session", "original"));
+        let mut res = Response::with_cookies(cookies);
+        assert!(!res.has_cookie_changes());
+
+        res.add_cookie(Cookie::new("session", "updated"));
+        assert!(res.has_cookie_changes());
+        let _ = res.strip_to_hyper();
+        assert!(!res.has_cookie_changes());
+
+        res.remove_cookie("session");
+        assert!(res.has_cookie_changes());
+    }
 
     #[test]
     fn test_body_empty() {
