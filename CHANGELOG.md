@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve consecutive path filters on the same router when generating OpenAPI paths.
 - Honor `If-Range` validators in file responses, returning the full representation
   when a resumable download refers to a different version.
+- Enforce strong `If-Match` preconditions for embedded assets before cache and range handling.
 - Restore path cursors, captured parameters and matched path templates after failed
   composite filters, so alternative routes start from the original matching state.
   Routing tests also compile when `matched-path` is disabled.
