@@ -1,6 +1,9 @@
 //! Form parse module.
 use std::ffi::OsStr;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use base64::engine::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -12,8 +15,6 @@ use multra::{Field, Multipart};
 use rand::TryRng;
 use rand::rngs::SysRng;
 use tempfile::Builder;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 
 use crate::http::ParseError;
 use crate::http::header::{CONTENT_TYPE, HeaderMap};
@@ -125,8 +126,22 @@ pub struct FilePart {
     /// Optionally, the size of the file.  This is filled when multiparts are parsed, but is
     /// not necessary when they are generated.
     size: u64,
-    // The temporary directory the upload was put into, saved for the Drop trait
-    temp_dir: Option<PathBuf>,
+    // Cleanup belongs to the upload, rather than any particular FilePart clone.
+    storage: Arc<TemporaryUpload>,
+}
+
+#[derive(Debug)]
+struct TemporaryUpload {
+    path: PathBuf,
+    temp_dir: PathBuf,
+    delete_on_drop: AtomicBool,
+}
+
+// Field order closes the file before releasing the cleanup guard. Keeping both
+// in the blocking task also covers cancellation while a disk operation runs.
+struct UploadWriter {
+    file: std::fs::File,
+    storage: Arc<TemporaryUpload>,
 }
 impl FilePart {
     /// Get file name.
@@ -172,9 +187,12 @@ impl FilePart {
     }
     /// If you do not want the file on disk to be deleted when Self drops, call this
     /// function.  It will become your responsibility to clean up.
+    ///
+    /// This applies to all clones of this file part. Otherwise the file is removed
+    /// after the last clone is dropped.
     #[inline]
     pub fn do_not_delete_on_drop(&mut self) {
-        self.temp_dir = None;
+        self.storage.delete_on_drop.store(false, Ordering::Relaxed);
     }
 
     /// Create a new temporary FilePart (when created this way, the file will be
@@ -199,15 +217,16 @@ impl FilePart {
     /// fill the temporary directory's disk (denial of service), so make sure the
     /// request body is bounded before the first read.
     pub async fn create(field: &mut Field<'_>) -> Result<Self, ParseError> {
-        // Setup a file to capture the contents.
-        // Map the `JoinError` to a `ParseError` instead of panicking, so a
-        // runtime issue (e.g. shutdown) on this request path doesn't abort.
-        let mut path =
-            tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
-                .await
-                .map_err(ParseError::other)??
-                .keep();
-        let temp_dir = Some(path.clone());
+        Self::create_with_directory(field, || {
+            Builder::new().prefix("salvo_http_multipart").tempdir()
+        })
+        .await
+    }
+
+    async fn create_with_directory(
+        field: &mut Field<'_>,
+        create_directory: impl FnOnce() -> std::io::Result<tempfile::TempDir> + Send + 'static,
+    ) -> Result<Self, ParseError> {
         let name = field.file_name().map(|s| {
             // Sanitize filename by removing invalid characters
             s.chars()
@@ -219,26 +238,51 @@ impl FilePart {
                 })
                 .collect::<String>()
         });
-        path.push(format!(
-            "{}.{}",
-            text_nonce(),
-            name.as_deref()
-                .and_then(|name| { Path::new(name).extension().and_then(OsStr::to_str) })
-                .unwrap_or("unknown")
-        ));
-        let mut file = File::create(&path).await?;
+        let extension = name
+            .as_deref()
+            .and_then(|name| Path::new(name).extension().and_then(OsStr::to_str))
+            .unwrap_or("unknown")
+            .to_owned();
+        let mut writer = tokio::task::spawn_blocking(move || -> std::io::Result<UploadWriter> {
+            let directory = create_directory()?;
+            let path = directory
+                .path()
+                .join(format!("{}.{}", text_nonce(), extension));
+            let storage = Arc::new(TemporaryUpload {
+                path: path.clone(),
+                temp_dir: directory.keep(),
+                delete_on_drop: AtomicBool::new(true),
+            });
+            let file = std::fs::File::create(path)?;
+            Ok(UploadWriter { file, storage })
+        })
+        .await
+        .map_err(ParseError::other)??;
         let mut size = 0;
         while let Some(chunk) = field.chunk().await? {
             size += chunk.len() as u64;
-            file.write_all(&chunk).await?;
+            writer = tokio::task::spawn_blocking(move || -> std::io::Result<UploadWriter> {
+                writer.file.write_all(&chunk)?;
+                Ok(writer)
+            })
+            .await
+            .map_err(ParseError::other)??;
         }
-        file.sync_all().await?;
+        let storage =
+            tokio::task::spawn_blocking(move || -> std::io::Result<Arc<TemporaryUpload>> {
+                writer.file.sync_all()?;
+                let UploadWriter { file, storage } = writer;
+                drop(file);
+                Ok(storage)
+            })
+            .await
+            .map_err(ParseError::other)??;
         Ok(Self {
             name,
             headers: field.headers().to_owned(),
-            path,
+            path: storage.path.clone(),
             size,
-            temp_dir,
+            storage,
         })
     }
 }
@@ -267,9 +311,10 @@ fn cleanup_temporary_upload(path: &Path, temp_dir: &Path) {
     }
 }
 
-impl Drop for FilePart {
+impl Drop for TemporaryUpload {
     fn drop(&mut self) {
-        if let Some(temp_dir) = self.temp_dir.take() {
+        if self.delete_on_drop.load(Ordering::Relaxed) {
+            let temp_dir = self.temp_dir.clone();
             let path = self.path.clone();
             if tokio::runtime::Handle::try_current().is_ok() {
                 tokio::task::spawn_blocking(move || cleanup_temporary_upload(&path, &temp_dir));
@@ -308,29 +353,162 @@ fn text_nonce() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
+
+    fn file_part_in(root: &Path) -> FilePart {
+        let temp_dir = Builder::new().tempdir_in(root).unwrap().keep();
+        let path = temp_dir.join("upload.tmp");
+        std::fs::write(&path, b"data").unwrap();
+        FilePart {
+            name: None,
+            headers: HeaderMap::new(),
+            path: path.clone(),
+            size: 4,
+            storage: Arc::new(TemporaryUpload {
+                path,
+                temp_dir,
+                delete_on_drop: AtomicBool::new(true),
+            }),
+        }
+    }
 
     #[test]
     fn file_part_drop_removes_temp_files_without_tokio_runtime() {
-        let temp_dir = Builder::new()
-            .prefix("salvo_http_multipart_drop_test")
-            .tempdir()
-            .expect("create temp dir")
-            .keep();
-        let path = temp_dir.join("upload.tmp");
-        std::fs::write(&path, b"data").expect("write temp upload");
-
-        {
-            let _file_part = FilePart {
-                name: None,
-                headers: HeaderMap::new(),
-                path: path.clone(),
-                size: 4,
-                temp_dir: Some(temp_dir.clone()),
-            };
-        }
+        let root = Builder::new().tempdir().unwrap();
+        let file_part = file_part_in(root.path());
+        let path = file_part.path().clone();
+        let temp_dir = path.parent().unwrap().to_owned();
+        drop(file_part);
 
         assert!(!path.exists());
         assert!(!temp_dir.exists());
+    }
+
+    #[test]
+    fn file_part_clones_keep_upload_until_last_owner_drops() {
+        let root = Builder::new().tempdir().unwrap();
+        let file_part = file_part_in(root.path());
+        let path = file_part.path().clone();
+        let retained = file_part.clone();
+        drop(file_part.clone());
+        assert_eq!(std::fs::read(&path).unwrap(), b"data");
+        drop(file_part);
+        assert_eq!(std::fs::read(retained.path()).unwrap(), b"data");
+        drop(retained);
+        assert!(!path.exists());
+        assert!(!path.parent().unwrap().exists());
+    }
+
+    #[test]
+    fn retaining_file_part_disables_cleanup_for_all_clones() {
+        let root = Builder::new().tempdir().unwrap();
+        let file_part = file_part_in(root.path());
+        let path = file_part.path().clone();
+        let mut retained = file_part.clone();
+        retained.do_not_delete_on_drop();
+        drop(retained);
+        drop(file_part);
+        assert_eq!(std::fs::read(path).unwrap(), b"data");
+    }
+
+    async fn wait_until(mut condition: impl FnMut() -> bool) {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !condition() {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("temporary upload did not reach expected state");
+    }
+
+    fn contains_written_file(root: &Path) -> bool {
+        std::fs::read_dir(root).unwrap().any(|directory| {
+            std::fs::read_dir(directory.unwrap().path())
+                .unwrap()
+                .any(|file| {
+                    // Query the open file rather than the directory entry: Windows can
+                    // cache the entry's length until the writing handle closes.
+                    std::fs::File::open(file.unwrap().path())
+                        .unwrap()
+                        .metadata()
+                        .unwrap()
+                        .len()
+                        > 0
+                })
+        })
+    }
+
+    #[tokio::test]
+    async fn failed_or_cancelled_multipart_write_removes_partial_upload() {
+        for cancel in [false, true] {
+            let root = Builder::new().tempdir().unwrap();
+            let root_path = root.path().to_owned();
+            let (sender, receiver) = tokio::sync::mpsc::channel(1);
+            sender
+                .send(Ok::<_, std::io::Error>(Bytes::from_static(
+                    b"--boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\npartial upload",
+                )))
+                .await
+                .unwrap();
+            let stream = futures_util::stream::unfold(receiver, |mut receiver| async {
+                receiver.recv().await.map(|frame| (frame, receiver))
+            });
+            let mut multipart = Multipart::new(stream, "boundary");
+            let mut field = multipart.next_field().await.unwrap().unwrap();
+            let mut create = Box::pin(FilePart::create_with_directory(&mut field, move || {
+                Builder::new().tempdir_in(root_path)
+            }));
+            tokio::select! {
+                result = &mut create => panic!("upload finished before source ended: {result:?}"),
+                _ = wait_until(|| contains_written_file(root.path())) => {}
+            }
+            if cancel {
+                drop(create);
+            } else {
+                sender
+                    .send(Err(std::io::Error::other("client disconnected")))
+                    .await
+                    .unwrap();
+                assert!(create.await.is_err());
+            }
+            wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelled_blocking_operation_closes_file_before_cleanup() {
+        let root = Builder::new().tempdir().unwrap();
+        let file_part = file_part_in(root.path());
+        let path = file_part.path().clone();
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            // Windows must not delete the upload until this handle closes.
+            options.share_mode(0);
+        }
+        let writer = UploadWriter {
+            file: options.open(&path).unwrap(),
+            storage: file_part.storage.clone(),
+        };
+        drop(file_part);
+        let (started, start) = tokio::sync::oneshot::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        let operation = tokio::task::spawn_blocking(move || {
+            started.send(()).unwrap();
+            released.recv().unwrap();
+            writer
+        });
+        start.await.unwrap();
+        drop(operation);
+        assert!(
+            path.exists(),
+            "the blocking operation still owns the upload"
+        );
+        release.send(()).unwrap();
+        wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
     }
 }
