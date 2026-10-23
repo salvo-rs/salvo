@@ -623,86 +623,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_cors_preserves_ordinary_options_responses() {
-        #[handler]
-        async fn options(req: &mut Request, res: &mut Response) {
-            res.status_code = Some(if req.uri().path() == "/denied" {
-                StatusCode::UNAUTHORIZED
-            } else {
-                StatusCode::OK
-            });
-            res.render("options response");
-        }
-
-        for mode in [CallNext::Before, CallNext::After] {
-            let cors = Cors::new()
-                .allow_origin("https://app.example.com")
-                .allow_methods([Method::GET])
-                .allow_headers([CONTENT_TYPE])
-                .expose_headers([ETAG])
-                .max_age(60);
-            let router = Router::new()
-                .options(options)
-                .push(Router::with_path("denied").options(options));
-            let service = Service::new(router).hoop(CorsHandler::new(cors, mode));
-            for (path, expected) in [("/", StatusCode::OK), ("/denied", StatusCode::UNAUTHORIZED)] {
-                // Neither header, Origin only, and Request-Method only are all
-                // ordinary OPTIONS requests, rather than CORS preflights.
-                for (origin, method) in [(false, false), (true, false), (false, true)] {
-                    let mut request = TestClient::options(format!("http://localhost{path}"));
-                    if origin {
-                        request = request.add_header(ORIGIN, "https://app.example.com", true);
-                    }
-                    if method {
-                        request = request.add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true);
-                    }
-                    let mut res = request.send(&service).await;
-                    assert_eq!(
-                        res.status_code,
-                        Some(expected),
-                        "mode={mode:?}, origin={origin}, method={method}"
-                    );
-                    assert_eq!(res.take_string().await.unwrap(), "options response");
-                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_METHODS));
-                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_HEADERS));
-                    assert!(!res.headers().contains_key(ACCESS_CONTROL_MAX_AGE));
-                    if origin {
-                        assert_eq!(res.headers()[ACCESS_CONTROL_EXPOSE_HEADERS], "etag");
-                    }
-                }
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_cors_preflight_without_options_route_in_both_modes() {
-        #[handler]
-        async fn hello() -> &'static str {
-            "hello"
-        }
-
-        for mode in [CallNext::Before, CallNext::After] {
-            let cors = Cors::new()
-                .allow_origin("https://app.example.com")
-                .allow_methods([Method::GET])
-                .allow_headers([CONTENT_TYPE])
-                .expose_headers([ETAG])
-                .max_age(60);
-            let service = Service::new(Router::new().get(hello)).hoop(CorsHandler::new(cors, mode));
-            let res = TestClient::options("http://localhost/")
-                .add_header(ORIGIN, "https://app.example.com", true)
-                .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
-                .send(&service)
-                .await;
-            assert_eq!(res.status_code, Some(StatusCode::NO_CONTENT));
-            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_METHODS], "GET");
-            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_HEADERS], "content-type");
-            assert_eq!(res.headers()[ACCESS_CONTROL_MAX_AGE], "60");
-            assert!(!res.headers().contains_key(ACCESS_CONTROL_EXPOSE_HEADERS));
-        }
-    }
-
-    #[tokio::test]
     async fn test_cors_drops_credentials_with_wildcard_origin() {
         // A dynamic credentials policy bypasses the build-time assertions, so the
         // runtime guard must drop `Allow-Credentials: true` when the resolved
@@ -1000,6 +920,86 @@ mod tests {
             "POST, GET, DELETE, OPTIONS"
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_cors_preserves_ordinary_options_responses() {
+        #[handler]
+        async fn options(req: &mut Request, res: &mut Response) {
+            res.status_code = Some(if req.uri().path() == "/denied" {
+                StatusCode::UNAUTHORIZED
+            } else {
+                StatusCode::OK
+            });
+            res.render("options response");
+        }
+
+        for mode in [CallNext::Before, CallNext::After] {
+            let cors = Cors::new()
+                .allow_origin("https://app.example.com")
+                .allow_methods([Method::GET])
+                .allow_headers([CONTENT_TYPE])
+                .expose_headers([ETAG])
+                .max_age(60);
+            let router = Router::new()
+                .options(options)
+                .push(Router::with_path("denied").options(options));
+            let service = Service::new(router).hoop(CorsHandler::new(cors, mode));
+            for (path, expected) in [("/", StatusCode::OK), ("/denied", StatusCode::UNAUTHORIZED)] {
+                // Neither header, Origin only, and Request-Method only are all
+                // ordinary OPTIONS requests, rather than CORS preflights.
+                for (origin, method) in [(false, false), (true, false), (false, true)] {
+                    let mut request = TestClient::options(format!("http://localhost{path}"));
+                    if origin {
+                        request = request.add_header(ORIGIN, "https://app.example.com", true);
+                    }
+                    if method {
+                        request = request.add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true);
+                    }
+                    let mut res = request.send(&service).await;
+                    assert_eq!(
+                        res.status_code,
+                        Some(expected),
+                        "mode={mode:?}, origin={origin}, method={method}"
+                    );
+                    assert_eq!(res.take_string().await.unwrap(), "options response");
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_METHODS));
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_HEADERS));
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_MAX_AGE));
+                    if origin {
+                        assert_eq!(res.headers()[ACCESS_CONTROL_EXPOSE_HEADERS], "etag");
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cors_preflight_without_options_route_in_both_modes() {
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        for mode in [CallNext::Before, CallNext::After] {
+            let cors = Cors::new()
+                .allow_origin("https://app.example.com")
+                .allow_methods([Method::GET])
+                .allow_headers([CONTENT_TYPE])
+                .expose_headers([ETAG])
+                .max_age(60);
+            let service = Service::new(Router::new().get(hello)).hoop(CorsHandler::new(cors, mode));
+            let res = TestClient::options("http://localhost/")
+                .add_header(ORIGIN, "https://app.example.com", true)
+                .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code, Some(StatusCode::NO_CONTENT));
+            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_METHODS], "GET");
+            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_HEADERS], "content-type");
+            assert_eq!(res.headers()[ACCESS_CONTROL_MAX_AGE], "60");
+            assert!(!res.headers().contains_key(ACCESS_CONTROL_EXPOSE_HEADERS));
+        }
     }
 
     #[test]
