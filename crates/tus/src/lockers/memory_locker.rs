@@ -10,7 +10,13 @@ use crate::lockers::{LockGuard, Locker};
 /// In-memory [`Locker`] implementation backed by Tokio locks.
 #[derive(Clone, Debug)]
 pub struct MemoryLocker {
-    inner: Arc<Mutex<HashMap<String, Arc<RwLock<()>>>>>,
+    inner: Arc<Mutex<LockMap>>,
+}
+
+#[derive(Debug)]
+struct LockMap {
+    locks: HashMap<String, Arc<RwLock<()>>>,
+    cleanup_at: usize,
 }
 
 impl Default for MemoryLocker {
@@ -24,19 +30,35 @@ impl MemoryLocker {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(HashMap::new())),
+            inner: Arc::new(Mutex::new(LockMap {
+                locks: HashMap::new(),
+                cleanup_at: 64,
+            })),
         }
     }
 
     async fn get_lock(&self, id: &str) -> Arc<RwLock<()>> {
         let mut map = self.inner.lock().await;
-        if let Some(lock) = map.get(id) {
+        if let Some(lock) = map.locks.get(id) {
             return lock.clone();
         }
 
-        map.retain(|_, lock| Arc::strong_count(lock) > 1);
+        // Charge a sweep to growth since the previous one. With N live IDs,
+        // geometrically spaced sweeps visit O(N) entries rather than O(N²).
+        // Hold the map lock while checking ownership so a waiter cannot lose
+        // its lock identity to another concurrent lookup.
+        if map.locks.len() >= map.cleanup_at {
+            map.locks.retain(|_, lock| Arc::strong_count(lock) > 1);
+            map.cleanup_at = map.locks.len().saturating_mul(2).max(64);
+            // HashMap::retain scans capacity, so release an oversized table
+            // after a traffic peak before returning to small periodic sweeps.
+            let cleanup_at = map.cleanup_at;
+            if map.locks.capacity() > cleanup_at.saturating_mul(2) {
+                map.locks.shrink_to(cleanup_at);
+            }
+        }
         let lock = Arc::new(RwLock::new(()));
-        map.insert(id.to_owned(), lock.clone());
+        map.locks.insert(id.to_owned(), lock.clone());
         lock
     }
 }
@@ -246,7 +268,7 @@ mod tests {
 
         // Verify internal map has 100 entries
         let map = locker.inner.lock().await;
-        assert_eq!(map.len(), 100);
+        assert_eq!(map.locks.len(), 100);
     }
 
     #[tokio::test]
@@ -258,9 +280,94 @@ mod tests {
             let _guard = locker.write_lock("test-id").await.unwrap();
         }
 
-        let _ = locker.get_lock("other-id").await;
+        for i in 0..64 {
+            let _ = locker.get_lock(&format!("other-{i}")).await;
+        }
         let map = locker.inner.lock().await;
-        assert!(!map.contains_key("test-id"));
+        assert!(!map.locks.contains_key("test-id"));
+    }
+
+    #[tokio::test]
+    async fn cleanup_preserves_holders_and_queued_waiters() {
+        let locker = MemoryLocker::new();
+        let first = locker.write_lock("shared").await.unwrap();
+        let identity = locker.get_lock("shared").await;
+        let waiter = locker.write_lock("shared");
+        tokio::pin!(waiter);
+        std::future::poll_fn(|cx| {
+            assert!(waiter.as_mut().poll(cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        // Force several sweeps while both a holder and a waiter exist.
+        for i in 0..256 {
+            drop(locker.write_lock(&format!("churn-{i}")).await.unwrap());
+        }
+        assert!(Arc::ptr_eq(&identity, &locker.get_lock("shared").await));
+        drop(first);
+        let second = tokio::time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), locker.write_lock("shared"))
+                .await
+                .is_err()
+        );
+        drop(second);
+        drop(identity);
+        for i in 0..256 {
+            drop(locker.write_lock(&format!("reclaim-{i}")).await.unwrap());
+        }
+        assert!(!locker.inner.lock().await.locks.contains_key("shared"));
+    }
+
+    #[tokio::test]
+    async fn cleanup_releases_peak_capacity() {
+        let locker = MemoryLocker::new();
+        let mut guards = Vec::new();
+        for i in 0..1_000 {
+            guards.push(locker.write_lock(&format!("peak-{i}")).await.unwrap());
+        }
+        let peak_capacity = locker.inner.lock().await.locks.capacity();
+        drop(guards);
+        for i in 0..1_100 {
+            drop(locker.write_lock(&format!("tail-{i}")).await.unwrap());
+        }
+        let map = locker.inner.lock().await;
+        assert!(map.locks.len() <= 64);
+        assert!(map.locks.capacity() < peak_capacity / 2);
+    }
+
+    /// Run with `cargo test -p salvo-tus live_lock_growth_benchmark -- --ignored --nocapture`.
+    /// This compares identical lock acquisition workloads with the old sweep policy.
+    #[tokio::test]
+    #[ignore = "manual timing benchmark"]
+    async fn live_lock_growth_benchmark() {
+        for count in [100, 1_000, 10_000] {
+            let mut old = HashMap::<String, Arc<RwLock<()>>>::new();
+            let mut guards = Vec::with_capacity(count);
+            let start = std::time::Instant::now();
+            for i in 0..count {
+                old.retain(|_, lock| Arc::strong_count(lock) > 1);
+                let lock = Arc::new(RwLock::new(()));
+                old.insert(i.to_string(), lock.clone());
+                guards.push(lock.write_owned().await);
+            }
+            let old_elapsed = start.elapsed();
+            drop(guards);
+            let locker = MemoryLocker::new();
+            let mut guards = Vec::with_capacity(count);
+            let start = std::time::Instant::now();
+            for i in 0..count {
+                guards.push(locker.write_lock(&i.to_string()).await.unwrap());
+            }
+            eprintln!(
+                "live IDs={count}: legacy={old_elapsed:?}, geometric={:?}",
+                start.elapsed()
+            );
+            assert_eq!(locker.inner.lock().await.locks.len(), count);
+        }
     }
 
     #[tokio::test]

@@ -78,7 +78,7 @@ pub enum ParseError {
 
     /// A multra error. Variant name is kept for backward compatibility.
     #[error("multra error: {0}")]
-    Multer(#[from] multra::Error),
+    Multer(#[source] multra::Error),
 
     /// An I/O error.
     #[error("I/O error: {0}")]
@@ -99,6 +99,39 @@ pub enum ParseError {
     /// Custom error that does not fall under any other error kind.
     #[error("other error: {0}")]
     Other(BoxedError),
+}
+
+impl From<multra::Error> for ParseError {
+    fn from(error: multra::Error) -> Self {
+        let mut source: &(dyn std::error::Error + 'static) = &error;
+        loop {
+            if source.is::<http_body_util::LengthLimitError>()
+                || matches!(
+                    source.downcast_ref::<multra::Error>(),
+                    Some(
+                        multra::Error::FieldSizeExceeded { .. }
+                            | multra::Error::StreamSizeExceeded { .. }
+                            | multra::Error::HeadersSizeExceeded { .. }
+                    )
+                )
+            {
+                return Self::PayloadTooLarge;
+            }
+            // io::Error::source can skip its wrapped error itself. Inspect
+            // get_ref first so a directly wrapped LengthLimitError is retained.
+            let next = source
+                .downcast_ref::<IoError>()
+                .and_then(|error| {
+                    error
+                        .get_ref()
+                        .map(|error| error as &(dyn std::error::Error + 'static))
+                })
+                .or_else(|| source.source());
+            let Some(next) = next else { break };
+            source = next;
+        }
+        Self::Multer(error)
+    }
 }
 
 impl ParseError {
@@ -123,6 +156,23 @@ impl Writer for ParseError {
 mod tests {
     use super::*;
     use crate::prelude::*;
+
+    #[test]
+    fn multipart_native_limits_are_payload_too_large() {
+        for error in [
+            multra::Error::FieldSizeExceeded {
+                limit: 1,
+                field_name: None,
+            },
+            multra::Error::StreamSizeExceeded { limit: 1 },
+            multra::Error::HeadersSizeExceeded { limit: 1 },
+        ] {
+            assert!(matches!(
+                ParseError::from(error),
+                ParseError::PayloadTooLarge
+            ));
+        }
+    }
 
     #[tokio::test]
     async fn test_write_error() {
