@@ -84,6 +84,13 @@ impl From<MetaUpload> for UploadInfo {
 /// are deliberately not auto-discovered: user-uploaded JSON cannot be trusted as
 /// metadata. Stop uploads and explicitly migrate trusted records and their storage
 /// paths before reusing a legacy directory.
+///
+/// Completing an upload commits its offset before attempting the optional final
+/// filename. Naming is best effort: use the returned storage path, which may
+/// remain the internal filename after an I/O failure. The source is retained
+/// until metadata refers to the complete destination. Cancellation can leave
+/// extra files, but the committed upload remains readable; this is not a
+/// multi-file transaction or a guarantee of durability across power loss.
 #[derive(Debug, Clone)]
 pub struct DiskStore {
     root: PathBuf,
@@ -304,15 +311,9 @@ impl DiskStore {
         }
     }
 
-    async fn move_file_no_replace(source: &Path, target: &Path) -> io::Result<bool> {
+    async fn retain_file_no_replace(source: &Path, target: &Path) -> io::Result<bool> {
         match fs::hard_link(source, target).await {
-            Ok(()) => {
-                if let Err(err) = fs::remove_file(source).await {
-                    let _ = fs::remove_file(target).await;
-                    return Err(err);
-                }
-                Ok(true)
-            }
+            Ok(()) => Ok(true),
             Err(err) if err.kind() == io::ErrorKind::AlreadyExists => Ok(false),
             Err(err) => {
                 tracing::debug!(
@@ -327,6 +328,9 @@ impl DiskStore {
     }
 
     async fn copy_file_no_replace(source: &Path, target: &Path) -> io::Result<bool> {
+        // Keep the committed source throughout the fallback copy. A cancelled
+        // copy may leave a partial destination, which later attempts must treat
+        // as a collision, never as an already-completed copy of this upload.
         let mut source_file = fs::File::open(source).await?;
         let mut target_file = match fs::OpenOptions::new()
             .write(true)
@@ -344,10 +348,6 @@ impl DiskStore {
             return Err(err);
         }
         if let Err(err) = target_file.sync_all().await {
-            let _ = fs::remove_file(target).await;
-            return Err(err);
-        }
-        if let Err(err) = fs::remove_file(source).await {
             let _ = fs::remove_file(target).await;
             return Err(err);
         }
@@ -375,6 +375,11 @@ impl DiskStore {
                 return;
             }
         };
+        // A completed upload may already use the primary or fallback name.
+        // Do not rename it again when an empty PATCH retries completion.
+        if current_path != self.data_path(&meta.id) {
+            return;
+        }
         let dir = current_path.parent().unwrap_or(self.root.as_path());
         let fallback = Self::with_id_suffix(&file_name, &meta.id);
         let candidates = [dir.join(&file_name), dir.join(fallback)];
@@ -382,14 +387,38 @@ impl DiskStore {
             if target_path == current_path {
                 return;
             }
-            match Self::move_file_no_replace(&current_path, &target_path).await {
+            match Self::retain_file_no_replace(&current_path, &target_path).await {
                 Ok(true) => {
-                    let storage = meta.storage.get_or_insert_with(|| MetaStoreInfo {
+                    let mut finalized = meta.clone();
+                    let storage = finalized.storage.get_or_insert_with(|| MetaStoreInfo {
                         type_name: "file".to_owned(),
                         path: target_path.to_string_lossy().into_owned(),
                         bucket: None,
                     });
                     storage.path = target_path.to_string_lossy().into_owned();
+                    if let Err(err) = self.write_meta_atomic(&finalized).await {
+                        // The completed offset and original path are already
+                        // committed. Naming is best effort; keep that valid
+                        // record and remove only our uncommitted destination.
+                        let _ = fs::remove_file(&target_path).await;
+                        warn!(
+                            "finalize upload metadata failed: id={}, error={}",
+                            meta.id, err
+                        );
+                        return;
+                    }
+                    *meta = finalized;
+                    // Never unlink the source before metadata points to the
+                    // complete destination. Cancellation between these steps
+                    // can leave an extra link/copy, but cannot strand the upload.
+                    // In particular, do not delete the destination in a Drop
+                    // guard: a cancelled metadata rename may have committed.
+                    if let Err(err) = fs::remove_file(&current_path).await {
+                        warn!(
+                            "finalize upload source cleanup failed: id={}, error={}",
+                            meta.id, err
+                        );
+                    }
                     return;
                 }
                 Ok(false) => {}
@@ -471,14 +500,14 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
-        let mut meta = MetaUpload::from(upload.clone());
-        self.try_finalize_if_complete(&mut meta).await;
+        let mut meta = MetaUpload::from(upload);
         if let Err(err) = self.write_meta_atomic(&meta).await {
             let _ = fs::remove_file(&data_path).await;
             return Err(err);
         }
 
-        Ok(upload)
+        self.try_finalize_if_complete(&mut meta).await;
+        Ok(meta.into())
     }
 
     async fn remove(&self, id: &str) -> TusResult<()> {
@@ -594,8 +623,11 @@ impl DataStore for DiskStore {
         // `original_offset + written` was validated each iteration above, so this
         // cannot overflow; `saturating_add` is a belt-and-braces guard.
         meta.offset = original_offset.saturating_add(written);
-        self.try_finalize_if_complete(&mut meta).await;
+        // Commit progress while the original payload is still reachable. A
+        // failed commit leaves its old offset available for a normal retry.
         self.write_meta_atomic(&meta).await?;
+        drop(file);
+        self.try_finalize_if_complete(&mut meta).await;
 
         Ok(written)
     }
@@ -1637,6 +1669,215 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn finalization_second_commit_failure_preserves_completed_record() {
+        let (store, directory) = create_test_store();
+        let id = "completed-record";
+        let mut upload = create_test_upload_info(id);
+        upload.size = Some(5);
+        upload.metadata = Some(Metadata(HashMap::from([(
+            "filename".into(),
+            Some("completed.txt".into()),
+        )])));
+        store.create(upload).await.unwrap();
+        let mut meta = store.read_meta(id).await.unwrap();
+        fs::write(store.data_path(id), b"hello").await.unwrap();
+        meta.offset = 5;
+        store.write_meta_atomic(&meta).await.unwrap();
+
+        fs::create_dir(store.meta_tmp_path(id)).await.unwrap();
+        store.try_finalize_if_complete(&mut meta).await;
+        let recorded = store.get_upload_file_info(id).await.unwrap();
+        assert_eq!(recorded.offset, Some(5));
+        assert_eq!(
+            recorded.storage.unwrap().path,
+            store.data_path(id).to_string_lossy()
+        );
+        assert_eq!(fs::read(store.data_path(id)).await.unwrap(), b"hello");
+        assert!(!directory.path().join("data/completed.txt").exists());
+        assert_eq!(
+            meta.storage.unwrap().path,
+            store.data_path(id).to_string_lossy()
+        );
+        fs::remove_dir(store.meta_tmp_path(id)).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn interrupted_finalization_states_remain_readable_and_idempotent() {
+        use salvo_core::Service;
+        use salvo_core::http::StatusCode;
+        use salvo_core::test::{ResponseExt, TestClient};
+
+        use crate::Tus;
+
+        // Reconstruct the on-disk states at cancellation boundaries. Unlike
+        // timing a task abort, this deterministically covers partial fallback
+        // copies and metadata committed before source cleanup on every platform.
+        for phase in 0..4 {
+            let (store, directory) = create_test_store();
+            let id = "interrupted-finalization";
+            let mut upload = create_test_upload_info(id);
+            upload.size = Some(5);
+            upload.metadata = Some(Metadata(HashMap::from([(
+                "filename".into(),
+                Some("completed.txt".into()),
+            )])));
+            store.create(upload).await.unwrap();
+            fs::write(store.data_path(id), b"hello").await.unwrap();
+            let mut meta = store.read_meta(id).await.unwrap();
+            meta.offset = 5;
+            store.write_meta_atomic(&meta).await.unwrap();
+            let destination = directory.path().join("data/completed.txt");
+            match phase {
+                0 => {}                                             /* Progress committed, no
+                                                                      * destination yet. */
+                1 => fs::write(&destination, b"he").await.unwrap(), // Copy cancelled.
+                2 | 3 => {
+                    assert!(
+                        DiskStore::copy_file_no_replace(&store.data_path(id), &destination)
+                            .await
+                            .unwrap()
+                    );
+                    if phase == 3 {
+                        meta.storage.as_mut().unwrap().path =
+                            destination.to_string_lossy().into_owned();
+                        store.write_meta_atomic(&meta).await.unwrap();
+                    }
+                }
+                _ => unreachable!(),
+            }
+            // Reopen from disk: recovery does not depend on process-local state.
+            let reopened = DiskStore::new().disk_root(directory.path());
+            let service = Service::new(
+                Tus::new()
+                    .path("/uploads")
+                    .store(reopened.clone())
+                    .into_router(),
+            );
+            let url = format!("http://localhost/uploads/{id}");
+            let head = TestClient::head(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .send(&service)
+                .await;
+            assert_eq!(head.status_code, Some(StatusCode::OK));
+            assert_eq!(head.headers()["upload-offset"], "5");
+            let mut get = TestClient::get(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .send(&service)
+                .await;
+            assert_eq!(get.status_code, Some(StatusCode::OK));
+            assert_eq!(get.take_bytes(None).await.unwrap(), "hello");
+            let replay = TestClient::patch(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .add_header("content-type", "application/offset+octet-stream", true)
+                .add_header("upload-offset", "0", true)
+                .body("hello")
+                .send(&service)
+                .await;
+            assert_eq!(replay.status_code, Some(StatusCode::CONFLICT));
+            let mut final_path = None;
+            for _ in 0..2 {
+                let retry = TestClient::patch(&url)
+                    .add_header("tus-resumable", "1.0.0", true)
+                    .add_header("content-type", "application/offset+octet-stream", true)
+                    .add_header("upload-offset", "5", true)
+                    .body("")
+                    .send(&service)
+                    .await;
+                assert_eq!(retry.status_code, Some(StatusCode::NO_CONTENT));
+                assert_eq!(retry.headers()["upload-offset"], "5");
+                let info = reopened.get_upload_file_info(id).await.unwrap();
+                let path = info.storage.unwrap().path;
+                assert_eq!(fs::read(&path).await.unwrap(), b"hello");
+                if let Some(previous) = &final_path {
+                    assert_eq!(&path, previous);
+                }
+                final_path = Some(path);
+            }
+            let deleted = TestClient::delete(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .send(&service)
+                .await;
+            assert_eq!(deleted.status_code, Some(StatusCode::NO_CONTENT));
+            assert!(!Path::new(&final_path.unwrap()).exists());
+            let head = TestClient::head(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .send(&service)
+                .await;
+            assert_eq!(head.status_code, Some(StatusCode::NOT_FOUND));
+            let get = TestClient::get(&url)
+                .add_header("tus-resumable", "1.0.0", true)
+                .send(&service)
+                .await;
+            assert_eq!(get.status_code, Some(StatusCode::NOT_FOUND));
+        }
+    }
+    #[tokio::test]
+    async fn finalization_metadata_failure_keeps_upload_retryable() {
+        use bytes::Bytes;
+        use futures_util::stream;
+        let (store, _directory) = create_test_store();
+        let id = "finalization-retry";
+        let mut upload = create_test_upload_info(id);
+        upload.size = Some(5);
+        upload.metadata = Some(Metadata(HashMap::from([(
+            "filename".into(),
+            Some("completed.txt".into()),
+        )])));
+        store.create(upload).await.unwrap();
+        // Deterministic metadata write failure on Windows and Unix.
+        fs::create_dir(store.meta_tmp_path(id)).await.unwrap();
+        assert!(
+            store
+                .write(
+                    id,
+                    0,
+                    Box::pin(stream::iter([Ok(Bytes::from_static(b"hello"))]))
+                )
+                .await
+                .is_err()
+        );
+        fs::remove_dir(store.meta_tmp_path(id)).await.unwrap();
+        let info = store.get_upload_file_info(id).await.unwrap();
+        assert_eq!(info.offset, Some(0));
+        assert!(Path::new(&info.storage.unwrap().path).exists());
+        assert_eq!(
+            store
+                .write(
+                    id,
+                    0,
+                    Box::pin(stream::iter([Ok(Bytes::from_static(b"hello"))]))
+                )
+                .await
+                .unwrap(),
+            5
+        );
+        let info = store.get_upload_file_info(id).await.unwrap();
+        assert_eq!(info.offset, Some(5));
+        assert_eq!(
+            fs::read(info.storage.unwrap().path).await.unwrap(),
+            b"hello"
+        );
+    }
+
+    #[tokio::test]
+    async fn zero_length_create_finalization_failure_does_not_publish_payload() {
+        let (store, directory) = create_test_store();
+        let id = "empty-finalization";
+        store.ensure_root().await.unwrap();
+        let mut upload = create_test_upload_info(id);
+        upload.size = Some(0);
+        upload.metadata = Some(Metadata(HashMap::from([(
+            "filename".into(),
+            Some("empty.txt".into()),
+        )])));
+        fs::create_dir(store.meta_tmp_path(id)).await.unwrap();
+        assert!(store.create(upload.clone()).await.is_err());
+        assert!(!directory.path().join("data/empty.txt").exists());
+        fs::remove_dir(store.meta_tmp_path(id)).await.unwrap();
+        let created = store.create(upload).await.unwrap();
+        assert!(Path::new(&created.storage.unwrap().path).exists());
+    }
+    #[tokio::test]
     async fn test_disk_store_finalize_on_complete() {
         use bytes::Bytes;
         use futures_util::stream;
@@ -1797,7 +2038,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_copy_file_no_replace_moves_without_overwriting() {
+    async fn test_copy_file_no_replace_retains_source_without_overwriting() {
         let (_store, temp_dir) = create_test_store();
         let source = temp_dir.path().join("source.bin");
         let target = temp_dir.path().join("target.bin");
@@ -1808,7 +2049,7 @@ mod tests {
                 .await
                 .unwrap()
         );
-        assert!(!source.exists());
+        assert!(source.exists());
         assert_eq!(fs::read(&target).await.unwrap().as_slice(), b"new");
 
         let second_source = temp_dir.path().join("second-source.bin");
