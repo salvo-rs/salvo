@@ -506,6 +506,10 @@ mod tests {
             }
             res.add_header("content-type", "application/json", true)
                 .unwrap();
+            // Metadata prepared by a compressor or proxy must not describe
+            // the replacement error representation.
+            res.add_header("content-encoding", "gzip", true).unwrap();
+            res.add_header("content-length", "1", true).unwrap();
         }
         let service = Service::new(Router::with_path("{**path}").goal(disallowed))
             .allowed_media_types(vec![mime::TEXT_PLAIN]);
@@ -517,6 +521,10 @@ mod tests {
                 response.status_code,
                 Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
             );
+            assert!(!response.headers().contains_key("content-encoding"));
+            assert!(!response.headers().contains_key("content-length"));
+            // ResponseExt decodes according to Content-Encoding, so this also
+            // verifies that clients can read the replacement representation.
             let body = response.take_string().await.unwrap();
             assert!(body.contains("Unsupported Media Type"));
             assert!(!body.contains("discarded original representation"));
@@ -529,26 +537,36 @@ mod tests {
             Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
         );
         assert!(response.body.is_none());
+        assert!(!response.headers().contains_key("content-encoding"));
+        assert!(!response.headers().contains_key("content-length"));
     }
 
     #[tokio::test]
     async fn rejected_media_type_runs_custom_catcher() {
         #[handler]
-        async fn disallowed(res: &mut Response) {
+        async fn disallowed(req: &mut Request, res: &mut Response) {
             res.add_header("content-type", "application/json", true)
                 .unwrap();
             res.render("discarded original representation");
+            if req.uri().path() == "/encoded" {
+                res.add_header("content-encoding", "gzip", true).unwrap();
+                res.add_header("content-length", "1", true).unwrap();
+            }
         }
         #[handler]
         async fn catch(res: &mut Response, ctrl: &mut FlowCtrl) {
             assert_eq!(res.status_code, Some(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+            assert!(!res.headers().contains_key("content-encoding"));
+            assert!(!res.headers().contains_key("content-length"));
             res.render("custom media type error");
             ctrl.skip_rest();
         }
-        let service = Service::new(Router::new().get(disallowed))
+        let service = Service::new(Router::with_path("encoded").get(disallowed))
             .allowed_media_types(vec![mime::TEXT_PLAIN])
             .catcher(Catcher::default().hoop(catch));
-        let mut response = TestClient::get("http://localhost/").send(&service).await;
+        let mut response = TestClient::get("http://localhost/encoded")
+            .send(&service)
+            .await;
         assert_eq!(
             response.status_code,
             Some(StatusCode::UNSUPPORTED_MEDIA_TYPE)
