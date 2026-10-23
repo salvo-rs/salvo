@@ -373,7 +373,7 @@ impl HyperHandler {
             {
                 // check for avoid warning when errors (404 etc.)
                 tracing::warn!(
-                    uri = ?req.uri(),
+                    path = req.uri().path(),
                     method = req.method().as_str(),
                     "http response content type header not set"
                 );
@@ -500,6 +500,20 @@ mod tests {
     #[handler]
     async fn method_probe_goal() -> &'static str {
         "ok"
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn empty_response_warning_omits_query_secrets() {
+        #[handler]
+        async fn empty() {}
+        let response = TestClient::get("http://localhost/warning-path?token=private-query-marker")
+            .send(Router::with_path("warning-path").get(empty))
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert!(logs_contain("http response content type header not set"));
+        assert!(logs_contain("/warning-path"));
+        assert!(!logs_contain("private-query-marker"));
     }
 
     #[tokio::test]

@@ -153,6 +153,7 @@ zstd = { workspace = true, optional = true, features = ["default"] }
 nix = { workspace = true, optional = true, features = ["fs", "user"] }
 
 [dev-dependencies]
+tracing-test = { workspace = true }
 criterion = { workspace = true }
 fastrand = { workspace = true }
 # Both backends on purpose: this makes rustls unable to pick a provider from crate features,
