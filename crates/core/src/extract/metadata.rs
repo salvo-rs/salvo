@@ -248,6 +248,9 @@ impl Field {
     /// Check is this field has body required.
     pub(crate) fn has_body_required(&self) -> bool {
         self.sources.iter().any(|s| s.from == SourceFrom::Body)
+            // Flattened fields deserialize from the same request payload, so their
+            // descendants must participate in deciding whether to read the body.
+            || (self.flatten && self.metadata.is_some_and(Metadata::has_body_required))
     }
 }
 
