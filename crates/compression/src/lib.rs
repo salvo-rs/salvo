@@ -397,6 +397,10 @@ impl Compression {
                 return None;
             }
         }
+        self.negotiate_encoding(req)
+    }
+
+    fn negotiate_encoding(&self, req: &Request) -> Option<(CompressionAlgo, CompressionLevel)> {
         let header = req
             .headers()
             .get(ACCEPT_ENCODING)
@@ -491,7 +495,14 @@ impl Handler for Compression {
             // A 304 can update a previously compressed cache entry even though
             // it has no body or content type to negotiate here. Do not upgrade
             // that entry's weak validator back to the original strong one.
-            weaken_etag(res);
+            let encoding = if res.headers().contains_key(CONTENT_TYPE) {
+                self.negotiate(req, res)
+            } else {
+                self.negotiate_encoding(req)
+            };
+            if encoding.is_some() && !self.content_length_is_below_minimum(res) {
+                weaken_etag(res);
+            }
             append_vary_header(res.headers_mut(), "accept-encoding");
             return;
         }
@@ -669,6 +680,22 @@ mod tests {
             assert_eq!(cached.status_code, Some(StatusCode::NOT_MODIFIED));
             assert_eq!(cached.headers()[ETAG], weak);
 
+            for encoding in ["identity", "gzip;q=0", "unsupported"] {
+                let cached = TestClient::get(&url)
+                    .add_header(ACCEPT_ENCODING, encoding, true)
+                    .add_header("if-none-match", strong, true)
+                    .send(&service)
+                    .await;
+                assert_eq!(cached.status_code, Some(StatusCode::NOT_MODIFIED));
+                assert_eq!(cached.headers()[ETAG], strong);
+            }
+            let cached = TestClient::get(&url)
+                .add_header("if-none-match", strong, true)
+                .send(&service)
+                .await;
+            assert_eq!(cached.status_code, Some(StatusCode::NOT_MODIFIED));
+            assert_eq!(cached.headers()[ETAG], strong);
+
             let partial = TestClient::get(&url)
                 .add_header("range", "bytes=0-19", true)
                 .add_header("if-range", strong, true)
@@ -693,6 +720,40 @@ mod tests {
             .await;
         assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
         assert_eq!(response.headers()[ETAG], "W/\"version\"");
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn not_modified_without_content_type_preserves_weak_cache_validation() {
+        #[handler]
+        async fn unchanged(req: &mut Request, res: &mut Response) {
+            res.status_code(StatusCode::NOT_MODIFIED);
+            res.add_header(ETAG, "\"version\"", true).unwrap();
+            if req.query::<String>("kind").as_deref() == Some("small") {
+                res.add_header(CONTENT_LENGTH, "1", true).unwrap();
+            }
+            if req.query::<String>("kind").as_deref() == Some("binary") {
+                res.add_header(CONTENT_TYPE, "application/octet-stream", true)
+                    .unwrap();
+            }
+        }
+        let service = Service::new(Router::with_hoop(Compression::new()).goal(unchanged));
+        let response = TestClient::get("http://localhost/")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
+            .add_header("if-none-match", "W/\"version\"", true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
+        assert_eq!(response.headers()[ETAG], "W/\"version\"");
+        assert_eq!(response.headers()[VARY], "accept-encoding");
+        assert!(!response.headers().contains_key(CONTENT_ENCODING));
+        for path in ["small", "binary"] {
+            let response = TestClient::get(format!("http://localhost/?kind={path}"))
+                .add_header(ACCEPT_ENCODING, "gzip", true)
+                .send(&service)
+                .await;
+            assert_eq!(response.headers()[ETAG], "\"version\"");
+        }
     }
 
     #[cfg(feature = "gzip")]
