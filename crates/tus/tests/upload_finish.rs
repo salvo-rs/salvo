@@ -255,8 +255,9 @@ async fn creation_and_deferred_length_uploads_notify_completion() {
                 })
                 .into_router(),
         );
-        let mut request =
-            TestClient::post("http://localhost/uploads").add_header("tus-resumable", "1.0.0", true);
+        let mut request = TestClient::post("http://localhost/uploads")
+            .add_header("tus-resumable", "1.0.0", true)
+            .add_header("upload-metadata", "filename ZmluaXNoZWQudHh0", true);
         request = match mode {
             "empty" => request.add_header("upload-length", "0", true),
             "creation-with-upload" => request
@@ -285,7 +286,131 @@ async fn creation_and_deferred_length_uploads_notify_completion() {
         assert_eq!(uploads.len(), 1, "{mode}");
         assert_eq!(uploads[0].size, Some(if mode == "empty" { 0 } else { 3 }));
         assert_eq!(uploads[0].offset, uploads[0].size);
+        let stored = &uploads[0]
+            .storage
+            .as_ref()
+            .expect("final storage info")
+            .path;
+        assert_eq!(
+            std::path::Path::new(stored).file_name().unwrap(),
+            "finished.txt"
+        );
+        assert_eq!(
+            std::fs::read(stored).unwrap(),
+            if mode == "empty" {
+                b"".as_slice()
+            } else {
+                b"abc"
+            }
+        );
     }
+}
+
+#[tokio::test]
+async fn rejected_creation_does_not_leave_upload_files() {
+    use bytes::Bytes;
+    use salvo_core::hyper::body::Frame;
+
+    for mode in [
+        "length",
+        "invalid-length",
+        "stream-limit",
+        "interrupted",
+        "invalid-url",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let mut tus = Tus::new().path("/uploads").storage_root(directory.path());
+        if mode == "invalid-url" {
+            tus = tus.generate_url_function(|_, _| Ok("/uploads/invalid\nlocation".into()));
+        }
+        let service = Service::new(tus.into_router());
+        let mut request = TestClient::post("http://localhost/uploads")
+            .add_header("tus-resumable", "1.0.0", true)
+            .add_header("upload-length", "1", true)
+            .add_header("content-type", "application/offset+octet-stream", true);
+        request = match mode {
+            "length" => request.add_header("content-length", "2", true).body("ab"),
+            "invalid-length" => request.add_header("content-length", "invalid", true),
+            "stream-limit" => request.body(streamed_body(vec![
+                Ok(Frame::data(Bytes::from_static(b"a"))),
+                Ok(Frame::data(Bytes::from_static(b"b"))),
+            ])),
+            "interrupted" => request.body(streamed_body(vec![
+                Ok(Frame::data(Bytes::from_static(b"a"))),
+                Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "interrupted").into()),
+            ])),
+            _ => request.body("a"),
+        };
+        let response = request.send(&service).await;
+        let expected = match mode {
+            "length" | "stream-limit" => StatusCode::PAYLOAD_TOO_LARGE,
+            "invalid-length" => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        assert_eq!(response.status_code, Some(expected), "{mode}");
+        assert!(!response.headers().contains_key("location"), "{mode}");
+        assert_eq!(
+            std::fs::read_dir(directory.path()).unwrap().count(),
+            0,
+            "{mode}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn creation_removes_upload_when_final_metadata_cannot_be_read() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use salvo_tus::stores::{ByteStream, DataStore, UploadInfo};
+
+    struct UnreadableStore(Arc<AtomicBool>);
+
+    #[salvo_core::async_trait]
+    impl DataStore for UnreadableStore {
+        async fn create(&self, upload: UploadInfo) -> Result<UploadInfo, TusError> {
+            Ok(upload)
+        }
+        async fn remove(&self, _id: &str) -> Result<(), TusError> {
+            self.0.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+        async fn write(
+            &self,
+            _id: &str,
+            _offset: u64,
+            _stream: ByteStream,
+        ) -> Result<u64, TusError> {
+            Err(TusError::Internal("unexpected write".into()))
+        }
+        async fn get_upload_file_info(&self, _id: &str) -> Result<UploadInfo, TusError> {
+            Err(TusError::Internal("metadata unavailable".into()))
+        }
+        async fn declare_upload_length(&self, _id: &str, _length: u64) -> Result<(), TusError> {
+            Err(TusError::Internal("unexpected length declaration".into()))
+        }
+    }
+
+    let removed = Arc::new(AtomicBool::new(false));
+    let service = Service::new(
+        Tus::new()
+            .path("/uploads")
+            .store(UnreadableStore(removed.clone()))
+            .on_upload_finish(|_, _| async {
+                panic!("completion must not run with missing metadata")
+            })
+            .into_router(),
+    );
+    let response = TestClient::post("http://localhost/uploads")
+        .add_header("tus-resumable", "1.0.0", true)
+        .add_header("upload-length", "0", true)
+        .send(&service)
+        .await;
+    assert_eq!(
+        response.status_code,
+        Some(StatusCode::INTERNAL_SERVER_ERROR)
+    );
+    assert!(!response.headers().contains_key("location"));
+    assert!(removed.load(Ordering::SeqCst));
 }
 
 #[tokio::test]

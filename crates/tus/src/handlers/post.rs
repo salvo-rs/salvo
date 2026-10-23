@@ -147,6 +147,28 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
+    // Reject invalid creation requests before allocating persistent storage.
+    let max_allowed = match (upload_length_value, max_file_size) {
+        (Some(size), max) if max > 0 => Some(size.min(max)),
+        (Some(size), _) => Some(size),
+        (None, max) if max > 0 => Some(max),
+        _ => None,
+    };
+    if creation_with_upload && let Some(value) = req.headers().get(H_CONTENT_LENGTH) {
+        let content_length = match value.to_str().ok().and_then(|v| v.parse::<u64>().ok()) {
+            Some(length) => length,
+            None => {
+                res.status_code =
+                    Some(TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH)).status());
+                return;
+            }
+        };
+        if max_allowed.is_some_and(|limit| content_length > limit) {
+            res.status_code = Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
+            return;
+        }
+    }
+
     if let Some(on_incoming_request) = &opts.on_incoming_request {
         on_incoming_request(req, upload_id.clone()).await;
     }
@@ -174,6 +196,17 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
+    let Ok(url) = opts.generate_upload_url(req, &upload_id) else {
+        res.status_code = Some(TusError::GenerateUploadURLError.status());
+        return;
+    };
+    let Ok(location) = HeaderValue::from_str(&url) else {
+        res.status_code = Some(
+            TusError::Internal("Generated upload URL is not a valid header value".into()).status(),
+        );
+        return;
+    };
+
     res.status_code = Some(StatusCode::CREATED);
 
     let is_final = {
@@ -194,42 +227,6 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         };
 
         if creation_with_upload {
-            let content_length = match req.headers().get(H_CONTENT_LENGTH) {
-                Some(value) => {
-                    if let Ok(v) = value.to_str() {
-                        match parse_u64(Some(v), H_CONTENT_LENGTH) {
-                            Ok(size) => Some(size),
-                            Err(e) => {
-                                res.status_code = Some(TusError::Protocol(e).status());
-                                return;
-                            }
-                        }
-                    } else {
-                        res.status_code = Some(
-                            TusError::Protocol(ProtocolError::InvalidInt(H_CONTENT_LENGTH))
-                                .status(),
-                        );
-                        return;
-                    }
-                }
-                None => None,
-            };
-
-            let max_allowed = match (upload.size, max_file_size) {
-                (Some(size), max) if max > 0 => Some(size.min(max)),
-                (Some(size), _) => Some(size),
-                (None, max) if max > 0 => Some(max),
-                _ => None,
-            };
-
-            if let (Some(incoming), Some(max_allowed)) = (content_length, max_allowed)
-                && incoming > max_allowed
-            {
-                res.status_code =
-                    Some(TusError::Protocol(ProtocolError::ErrMaxSizeExceeded).status());
-                return;
-            }
-
             let body = req.take_body();
             let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
             let written = match store
@@ -238,6 +235,11 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             {
                 Ok(written) => written,
                 Err(e) => {
+                    // No Location has been returned, so the client cannot resume or
+                    // terminate this resource. Remove any partially written upload.
+                    if let Err(cleanup_error) = store.remove(&upload_id).await {
+                        tracing::warn!(id = %upload_id, error = %cleanup_error, "failed to remove rejected upload");
+                    }
                     res.status_code = Some(e.status());
                     return;
                 }
@@ -248,13 +250,22 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 .insert(H_UPLOAD_OFFSET, HeaderValue::from(written));
         }
 
-        upload.size.is_some_and(|x| x == 0) && !upload.is_size_deferred()
-            || creation_with_upload && upload.size.is_some_and(|x| x == upload.offset.unwrap_or(0))
-    };
-
-    let Ok(url) = opts.generate_upload_url(req, &upload_id) else {
-        res.status_code = Some(TusError::GenerateUploadURLError.status());
-        return;
+        let is_final = upload.size == upload.offset;
+        if is_final && opts.on_upload_finish.is_some() {
+            // A store can assign or rename its storage path during creation and
+            // writing. Read the final metadata while still holding the write lock.
+            upload = match store.get_upload_file_info(&upload_id).await {
+                Ok(upload) => upload,
+                Err(error) => {
+                    if let Err(cleanup_error) = store.remove(&upload_id).await {
+                        tracing::warn!(id = %upload_id, error = %cleanup_error, "failed to remove upload after reading final metadata failed");
+                    }
+                    res.status_code = Some(error.status());
+                    return;
+                }
+            };
+        }
+        is_final
     };
 
     tracing::info!("Generated file url: {}", &url);
@@ -293,15 +304,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let should_set_location = matches!(res.status_code, Some(StatusCode::CREATED))
         || res.status_code.is_some_and(|s| s.is_redirection());
     if should_set_location {
-        if let Ok(v) = HeaderValue::from_str(&url) {
-            res.headers.insert("Location", v);
-        } else {
-            res.status_code = Some(
-                TusError::Internal("Generated upload URL is not a valid header value".into())
-                    .status(),
-            );
-            return;
-        }
+        res.headers.insert("Location", location);
     }
 
     if res.body.is_none() {
