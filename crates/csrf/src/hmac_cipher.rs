@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Formatter};
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -8,10 +8,18 @@ use sha2::Sha256;
 use super::CsrfCipher;
 
 /// A CSRF protection implementation that uses HMAC.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HmacCipher {
     hmac_key: [u8; 32],
     token_size: usize,
+}
+
+impl Debug for HmacCipher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HmacCipher")
+            .field("token_size", &self.token_size)
+            .finish_non_exhaustive()
+    }
 }
 
 impl HmacCipher {
@@ -73,6 +81,25 @@ mod tests {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
     use super::*;
+
+    #[test]
+    fn debug_omits_key_material() {
+        let cipher = super::HmacCipher::new([123; 32]);
+        let debug = format!("{cipher:?}");
+        assert!(debug.contains("token_size"));
+        assert!(!debug.contains("hmac_key"));
+        assert!(!debug.contains("123"));
+
+        #[cfg(feature = "cookie-store")]
+        {
+            let csrf = crate::Csrf::new(
+                cipher,
+                crate::CookieStore::new(),
+                crate::HeaderFinder::new("x-csrf-token"),
+            );
+            assert!(!format!("{csrf:?}").contains("123"));
+        }
+    }
 
     #[test]
     fn test_new() {

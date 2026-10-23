@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Formatter};
 
 use aead::array::Array;
 use aead::consts::U12;
@@ -11,10 +11,18 @@ use subtle::ConstantTimeEq;
 use super::CsrfCipher;
 
 /// CcpCipher is a CSRF protection implementation that uses [`ChaCha20Poly1305`](https://datatracker.ietf.org/doc/html/rfc8439).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CcpCipher {
     aead_key: [u8; 32],
     token_size: usize,
+}
+
+impl Debug for CcpCipher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CcpCipher")
+            .field("token_size", &self.token_size)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CcpCipher {
@@ -80,5 +88,17 @@ impl CsrfCipher for CcpCipher {
                 .expect("encryption failed"),
         );
         (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn debug_omits_key_material() {
+        let cipher = super::CcpCipher::new([123; 32]);
+        let debug = format!("{cipher:?}");
+        assert!(debug.contains("token_size"));
+        assert!(!debug.contains("aead_key"));
+        assert!(!debug.contains("123"));
     }
 }

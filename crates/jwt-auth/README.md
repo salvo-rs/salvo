@@ -187,6 +187,16 @@ let decoder = OidcDecoder::builder("https://issuer.example.com")
     .await?;
 ```
 
+Passing `.validation(Validation::new(Algorithm::RS256))` also restricts accepted
+JWK algorithms to RS256. Without explicit validation options, the decoder uses
+each trusted JWK's declared algorithm; symmetric JWKs still require the explicit
+`allow_symmetric_jwks(true)` opt-in.
+
+An unknown `kid` can trigger an early JWKS refresh for key rotation. Refreshes
+are shared across decoder clones and have a one-second cooldown after completion,
+including failures, so repeated cache misses do not cause one provider request
+per token. A new key might require retrying after that cooldown.
+
 Troubleshooting audience failures:
 
 - Make sure the token actually contains an `aud` claim. `OidcDecoder::new` and

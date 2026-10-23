@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
+  verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
+- Honor explicit OIDC JWT algorithm allowlists and share a one-second JWKS refresh cooldown
+  across decoder clones, including failed refreshes and unknown key identifiers.
 - Preserve consecutive path filters on the same router when generating OpenAPI paths.
 - Honor `If-Range` validators in file responses, returning the full representation
   when a resumable download refers to a different version.
