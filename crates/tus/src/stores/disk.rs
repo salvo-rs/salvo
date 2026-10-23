@@ -678,7 +678,10 @@ mod tests {
     fn test_disk_store_meta_tmp_path() {
         let store = DiskStore::new().disk_root("/uploads");
         let path = store.meta_tmp_path("test-id");
-        assert_eq!(path, PathBuf::from("/uploads/metadata-tmp/test-id.json.tmp"));
+        assert_eq!(
+            path,
+            PathBuf::from("/uploads/metadata-tmp/test-id.json.tmp")
+        );
     }
 
     #[test]
