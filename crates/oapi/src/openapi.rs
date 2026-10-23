@@ -218,7 +218,7 @@ impl OpenApi {
     /// # Documentation UI support
     ///
     /// All four bundled UIs load a 3.2 document, but their support for the new `query`
-    /// operation differs. As of Swagger UI v5.32.11 (vendored in this crate) `query` operations
+    /// operation differs. As of Swagger UI v5.34.0 (vendored in this crate) `query` operations
     /// render correctly; Scalar, RapiDoc and ReDoc — which load from a CDN at runtime — display
     /// the rest of the document but omit `query` operations.
     ///
