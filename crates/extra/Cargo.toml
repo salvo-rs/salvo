@@ -62,6 +62,7 @@ websocket = [
 request-id = ["dep:ulid", "dep:tracing"]
 tower-compat = [
     "dep:futures-util",
+    "dep:hyper",
     "dep:http-body-util",
     "dep:tower",
     "dep:tracing",

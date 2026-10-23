@@ -121,6 +121,29 @@ jobs:
       - name: check --feature-powerset
         run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps --exclude-features server --at-least-one-of aws-lc-rs,ring --exclude-no-default-features
 
+  middleware-features:
+    name: Standalone middleware features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check each extra middleware independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          for feature in affix-state basic-auth caching-headers catch-panic force-https logging concurrency-limiter size-limiter sse trailing-slash timeout websocket request-id tower-compat; do
+            cargo check -p salvo --no-default-features --features "$feature"
+          done
+      - name: Verify logging does not enable unrelated middleware dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p salvo --no-default-features --features logging --edges normal,build --prefix none)
+          if grep -Eq '^(tokio-tungstenite|tungstenite|tower|ulid) v' <<< "$tree"; then
+            echo 'logging unexpectedly enabled unrelated middleware dependencies'
+            exit 1
+          fi
+
   protocols:
     name: Protocol features (${{ matrix.features }})
     runs-on: ubuntu-latest
