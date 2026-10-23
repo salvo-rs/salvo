@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Bound multipart parsing to 128 parts and 32 files by default, rejecting count
+  overflows with HTTP 413 before creating additional temporary files. Configure
+  larger or smaller route-specific limits with `FormLimits` middleware or
+  `Request::set_form_limits`; byte limits continue to apply independently.
 - Clean up interrupted multipart uploads and keep temporary files alive until
   the last `FilePart` clone is released.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.

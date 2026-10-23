@@ -24,7 +24,7 @@ use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
 use crate::fuse::TransProto;
 use crate::http::body::ReqBody;
-use crate::http::form::{FilePart, FormData};
+use crate::http::form::{FilePart, FormData, FormLimits};
 use crate::http::{Mime, ParseError, ParseResult, Response, Version};
 use crate::routing::PathParams;
 use crate::serde::{
@@ -219,6 +219,7 @@ pub struct Request {
     pub(crate) remote_addr: SocketAddr,
 
     pub(crate) secure_max_size: Option<usize>,
+    pub(crate) form_limits: FormLimits,
     #[cfg(feature = "matched-path")]
     pub(crate) matched_path: String,
 }
@@ -270,6 +271,7 @@ impl Request {
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
             secure_max_size: None,
+            form_limits: FormLimits::default(),
             #[cfg(feature = "matched-path")]
             matched_path: Default::default(),
         }
@@ -338,6 +340,7 @@ impl Request {
             version,
             scheme,
             secure_max_size: None,
+            form_limits: FormLimits::default(),
             #[cfg(feature = "matched-path")]
             matched_path: Default::default(),
         }
@@ -773,6 +776,21 @@ impl Request {
     /// otherwise returns the global default (64KB).
     pub fn secure_max_size(&self) -> usize {
         self.secure_max_size.unwrap_or_else(global_secure_max_size)
+    }
+
+    /// Sets multipart part and file count limits for the first form parse.
+    ///
+    /// Defaults to 128 total parts and 32 file parts. Set this before any call
+    /// that parses form data; an already parsed form remains cached. Count
+    /// limits also apply when parsing a previously cached raw payload.
+    /// Use [`FormLimits`] as middleware to configure a route subtree.
+    pub fn set_form_limits(&mut self, limits: FormLimits) {
+        self.form_limits = limits;
+    }
+
+    /// Returns the multipart part and file count limits for this request.
+    pub fn form_limits(&self) -> FormLimits {
+        self.form_limits
     }
 
     cfg_feature! {
@@ -1327,6 +1345,9 @@ impl Request {
     ///
     /// For multipart form data, file uploads are written to temporary files but the
     /// overall request size is still subject to the secure max size limit.
+    /// Multipart forms also allow at most 128 parts and 32 files by default;
+    /// configure these counts with [`Request::set_form_limits`] or [`FormLimits`].
+    /// Exceeding either count returns [`ParseError::PayloadTooLarge`] (HTTP 413).
     ///
     /// # Examples
     ///
@@ -1368,6 +1389,7 @@ impl Request {
     /// ```
     #[inline]
     pub async fn form_data_max_size(&mut self, max_size: usize) -> ParseResult<&FormData> {
+        let limits = self.form_limits;
         if self.form_data.get().is_some() {
             return Ok(self
                 .form_data
@@ -1382,7 +1404,8 @@ impl Request {
                     let headers = self.headers();
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read(headers, ReqBody::Once(bytes).into_data_stream()).await
+                            FormData::read(headers, ReqBody::Once(bytes).into_data_stream(), limits)
+                                .await
                         })
                         .await
                 } else {
@@ -1390,7 +1413,7 @@ impl Request {
                     let limited = Limited::new(body, max_size);
                     self.form_data
                         .get_or_try_init(|| async {
-                            FormData::read(headers, limited.into_data_stream()).await
+                            FormData::read(headers, limited.into_data_stream(), limits).await
                         })
                         .await
                 }
