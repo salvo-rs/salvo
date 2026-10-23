@@ -25,7 +25,7 @@ use crate::http::header::{
     X_CONTENT_TYPE_OPTIONS,
 };
 use crate::http::mime::{detect_text_mime, fill_mime_charset_if_need, is_charset_required_mime};
-use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
+use crate::http::{HttpRange, Method, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer, async_trait};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -803,13 +803,16 @@ impl NamedFile {
 
     /// Consume self and send only the headers to [`Response`].
     ///
-    /// This follows the same conditional and range handling as [`Self::send`], but does not attach
-    /// a response body.
+    /// This follows the same conditional handling as [`Self::send`], but ignores `Range` and
+    /// does not attach a response body, as required for a HEAD request.
     pub async fn send_head(self, req_headers: &HeaderMap, res: &mut Response) {
         self.send_inner(req_headers, res, false).await;
     }
 
     async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, send_body: bool) {
+        if !send_body {
+            res.take_body();
+        }
         let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
@@ -929,6 +932,14 @@ impl NamedFile {
             return;
         }
 
+        // Range only applies to GET. HEAD describes the entire representation,
+        // even if the requested range is malformed or unsatisfiable.
+        if !send_body {
+            res.status_code(StatusCode::OK);
+            res.headers_mut().typed_insert(ContentLength(length));
+            return;
+        }
+
         let file_size = self.metadata.len();
         let mut offset = 0;
         let mut is_partial = false;
@@ -976,10 +987,6 @@ impl NamedFile {
             }
             res.headers_mut().typed_insert(ContentLength(total_size));
 
-            if !send_body {
-                return;
-            }
-
             // Fast path: slice from preread bytes if available
             if let Some(preread) = self.preread.take() {
                 let end = cmp::min(offset.saturating_add(total_size) as usize, preread.len());
@@ -999,10 +1006,6 @@ impl NamedFile {
             // Full file response
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(length));
-
-            if !send_body {
-                return;
-            }
 
             // Fast path: send preread bytes directly — zero spawn_blocking calls
             if let Some(preread) = self.preread.take() {
@@ -1024,7 +1027,11 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.send(req.headers(), res).await;
+        if req.method() == Method::HEAD {
+            self.send_head(req.headers(), res).await;
+        } else {
+            self.send(req.headers(), res).await;
+        }
     }
 }
 

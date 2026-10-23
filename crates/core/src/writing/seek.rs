@@ -6,7 +6,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::header::{IF_NONE_MATCH, IF_RANGE, RANGE};
-use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
+use crate::http::{HttpRange, Method, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Writer, async_trait};
 
 /// `ReadSeeker` is used to write data to [`Response`] from a reader which implements [`AsyncRead`]
@@ -62,7 +62,20 @@ where
     }
 
     /// Consume self and send content to [`Response`].
-    pub async fn send(mut self, req_headers: &HeaderMap, res: &mut Response) {
+    pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
+        self.send_inner(req_headers, res, true).await;
+    }
+
+    /// Send only the headers for a HEAD request, preserving conditional request
+    /// handling while ignoring `Range`. The reader is not read or sought.
+    pub async fn send_head(self, req_headers: &HeaderMap, res: &mut Response) {
+        self.send_inner(req_headers, res, false).await;
+    }
+
+    async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, send_body: bool) {
+        if !send_body {
+            res.take_body();
+        }
         // check preconditions
         let precondition_failed = if !any_match(self.etag.as_ref(), req_headers) {
             true
@@ -119,6 +132,12 @@ where
             return;
         } else if not_modified {
             res.status_code(StatusCode::NOT_MODIFIED);
+            return;
+        }
+
+        if !send_body {
+            res.status_code(StatusCode::OK);
+            res.headers_mut().typed_insert(ContentLength(self.length));
             return;
         }
 
@@ -189,7 +208,11 @@ where
 {
     #[inline]
     async fn write(self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.send(req.headers(), res).await;
+        if req.method() == Method::HEAD {
+            self.send_head(req.headers(), res).await;
+        } else {
+            self.send(req.headers(), res).await;
+        }
     }
 }
 
