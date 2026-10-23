@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Refresh query, payload, form and cookie caches after Tower request rewrites,
+  while preserving consumed-body caches and application cookie edits during pass-through.
 - Clean up interrupted multipart uploads and keep temporary files alive until
   the last `FilePart` clone is released.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
