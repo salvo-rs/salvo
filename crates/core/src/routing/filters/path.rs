@@ -1129,16 +1129,16 @@ impl PathFilter {
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState<'_>) -> bool {
-        let original_cursor = state.cursor;
+        let checkpoint = state.checkpoint();
         for ps in &self.path_wisps {
             let row = state.cursor.0;
             if ps.detect(state) {
                 if row == state.cursor.0 && row != state.parts_len() {
-                    state.cursor = original_cursor;
+                    state.rollback(checkpoint);
                     return false;
                 }
             } else {
-                state.cursor = original_cursor;
+                state.rollback(checkpoint);
                 return false;
             }
         }
@@ -1472,6 +1472,7 @@ mod tests {
         let mut state =
             PathState::from_borrowed_path("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
         assert!(filter.detect(&mut state));
+        #[cfg(feature = "matched-path")]
         assert_eq!(
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned()]
@@ -1482,6 +1483,7 @@ mod tests {
         let filter = PathFilter::new("/users/{id}/{**rest}");
         let mut state = PathState::from_borrowed_path("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
+        #[cfg(feature = "matched-path")]
         assert_eq!(
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
@@ -1490,6 +1492,7 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::from_borrowed_path("/users/12");
         assert!(filter.detect(&mut state));
+        #[cfg(feature = "matched-path")]
         assert_eq!(
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned(), "{**rest}".to_owned()]
@@ -1512,6 +1515,7 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::from_borrowed_path("/users/12/abc");
         assert!(filter.detect(&mut state));
+        #[cfg(feature = "matched-path")]
         assert_eq!(
             state.matched_parts,
             vec!["users".to_owned(), "{id}".to_owned(), "{*?rest}".to_owned()]

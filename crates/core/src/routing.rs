@@ -594,6 +594,7 @@ mod tests {
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 
+    #[cfg(feature = "matched-path")]
     #[tokio::test]
     async fn test_matched_path() {
         #[handler]

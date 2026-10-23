@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve consecutive path filters on the same router when generating OpenAPI paths.
+- Honor `If-Range` validators in file responses, returning the full representation
+  when a resumable download refers to a different version.
+- Restore path cursors, captured parameters and matched path templates after failed
+  composite filters, so alternative routes start from the original matching state.
+  Routing tests also compile when `matched-path` is disabled.
 - Enable only the requested `salvo_extra` middleware features through `salvo`,
   avoiding unrelated WebSocket, Tower and request-ID dependencies for logging-only builds.
 - Declare the Hyper dependency directly for standalone `tower-compat` builds.
