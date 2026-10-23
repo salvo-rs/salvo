@@ -33,7 +33,7 @@ pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
 use rand::RngExt;
 use rand::distr::StandardUniform;
 use salvo_core::handler::Skipper;
-use salvo_core::http::{Method, StatusCode};
+use salvo_core::http::StatusCode;
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
 
 cfg_feature! {
@@ -179,10 +179,7 @@ pub enum CsrfRotationPolicy {
 }
 
 fn default_skipper(req: &mut Request, _depot: &Depot) -> bool {
-    !matches!(
-        *req.method(),
-        Method::POST | Method::PATCH | Method::DELETE | Method::PUT
-    )
+    req.method().is_safe()
 }
 
 /// Storage backend for CSRF `(token, proof)` pairs.
@@ -392,8 +389,9 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::Method;
     use salvo_core::prelude::*;
-    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::test::{RequestBuilder, ResponseExt, TestClient};
 
     use super::*;
 
@@ -408,6 +406,105 @@ mod tests {
     #[handler]
     async fn post_token(depot: &mut Depot) -> String {
         depot.csrf_token().unwrap().to_owned()
+    }
+
+    #[test]
+    fn test_default_skipper_only_skips_safe_methods() {
+        let depot = Depot::new();
+        for method in [
+            Method::GET,
+            Method::HEAD,
+            Method::OPTIONS,
+            Method::TRACE,
+            Method::QUERY,
+        ] {
+            let mut req = Request::new();
+            *req.method_mut() = method.clone();
+            assert!(default_skipper(&mut req, &depot), "{method}");
+        }
+        for method in [
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::CONNECT,
+            Method::from_bytes(b"PROPFIND").unwrap(),
+            Method::from_bytes(b"CUSTOM-WRITE").unwrap(),
+        ] {
+            let mut req = Request::new();
+            *req.method_mut() = method.clone();
+            assert!(!default_skipper(&mut req, &depot), "{method}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_extension_methods_require_valid_csrf_tokens() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
+        let service = Service::new(Router::new().hoop(csrf).goal(get_index));
+        let mut res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        let token = res.take_string().await.unwrap();
+        let cookie = res.cookie("salvo.csrf").unwrap().to_string();
+
+        for method in ["PROPFIND", "CUSTOM-WRITE"] {
+            let method = Method::from_bytes(method.as_bytes()).unwrap();
+            let res = RequestBuilder::new("http://127.0.0.1:5801", method.clone())
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN, "{method}");
+
+            let res = RequestBuilder::new("http://127.0.0.1:5801", method.clone())
+                .add_header("cookie", cookie.clone(), true)
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN, "{method}");
+
+            let res = RequestBuilder::new("http://127.0.0.1:5801", method.clone())
+                .add_header("cookie", cookie.clone(), true)
+                .add_header("x-csrf-token", "invalid-token", true)
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN, "{method}");
+
+            let mut res = RequestBuilder::new("http://127.0.0.1:5801", method.clone())
+                .add_header("cookie", cookie.clone(), true)
+                .add_header("x-csrf-token", token.clone(), true)
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code.unwrap(), StatusCode::OK, "{method}");
+            assert_eq!(res.take_string().await.unwrap(), token);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_custom_skipper_replaces_safe_method_default() {
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        )
+        .skipper(|req: &mut Request, _depot: &Depot| req.method().as_str() == "PROPFIND");
+        let service = Service::new(Router::new().hoop(csrf).goal(get_index));
+
+        let res = TestClient::get("http://127.0.0.1:5801")
+            .send(&service)
+            .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
+
+        let mut res = RequestBuilder::new(
+            "http://127.0.0.1:5801",
+            Method::from_bytes(b"PROPFIND").unwrap(),
+        )
+        .send(&service)
+        .await;
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert!(!res.take_string().await.unwrap().is_empty());
     }
 
     #[tokio::test]
