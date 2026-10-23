@@ -81,17 +81,7 @@ impl FormData {
                     return Err(ParseError::InvalidContentType);
                 };
                 let mut multipart = Multipart::new(body, boundary);
-                while let Some(mut field) = multipart.next_field().await.map_err(|e| {
-                    // Check if the multra error contains a LengthLimitError
-                    let mut source = std::error::Error::source(&e);
-                    while let Some(err) = source {
-                        if err.is::<http_body_util::LengthLimitError>() {
-                            return ParseError::PayloadTooLarge;
-                        }
-                        source = std::error::Error::source(err);
-                    }
-                    ParseError::Multer(e)
-                })? {
+                while let Some(mut field) = multipart.next_field().await? {
                     if let Some(name) = field.name().map(|s| s.to_owned()) {
                         if field.file_name().is_some() {
                             form_data
@@ -372,6 +362,87 @@ mod tests {
                 delete_on_drop: AtomicBool::new(true),
             }),
         }
+    }
+
+    #[tokio::test]
+    async fn multipart_limits_map_to_413_at_every_read_stage() {
+        use crate::http::body::{Frame, ReqBody};
+        use crate::test::TestClient;
+        use crate::{Depot, Response, Writer};
+        use http_body_util::StreamBody;
+
+        for file in [false, true] {
+            let filename = if file {
+                "; filename=\"upload.txt\""
+            } else {
+                ""
+            };
+            let first =
+                format!("--b\r\nContent-Disposition: form-data; name=\"data\"{filename}\r\n\r\n");
+            let second = "x".repeat(100);
+            let third =
+                "\r\n--b\r\nContent-Disposition: form-data; name=\"next\"\r\n\r\nnext\r\n--b--\r\n";
+            // Fail in the first header, field contents, and next field header.
+            for limit in [
+                first.len() - 1,
+                first.len() + 10,
+                first.len() + second.len() + 10,
+            ] {
+                let frames = [first.clone(), second.clone(), third.to_owned()]
+                    .into_iter()
+                    .map(|chunk| Ok::<_, crate::BoxedError>(Frame::data(Bytes::from(chunk))));
+                let body = ReqBody::Boxed {
+                    inner: Box::pin(StreamBody::new(futures_util::stream::iter(frames))),
+                    fuse_config: None,
+                };
+                let mut req = TestClient::post("http://localhost/")
+                    .add_header("content-type", "multipart/form-data; boundary=b", true)
+                    .body(body)
+                    .build();
+                req.set_secure_max_size(limit);
+                let error = req.form_data().await.unwrap_err();
+                assert!(
+                    matches!(error, ParseError::PayloadTooLarge),
+                    "file={file}, limit={limit}: {error:?}"
+                );
+                let mut response = Response::default();
+                error
+                    .write(&mut req, &mut Depot::new(), &mut response)
+                    .await;
+                assert_eq!(
+                    response.status_code,
+                    Some(crate::http::StatusCode::PAYLOAD_TOO_LARGE)
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn wrapped_multipart_limit_cleans_up_partial_file() {
+        use http_body_util::{BodyExt, Full, Limited};
+        let limit_error = Limited::new(Full::new(Bytes::from_static(b"large")), 1)
+            .collect()
+            .await
+            .unwrap_err();
+        let root = Builder::new().tempdir().unwrap();
+        let root_path = root.path().to_owned();
+        let stream = futures_util::stream::iter([
+            Ok(Bytes::from_static(b"--b\r\nContent-Disposition: form-data; name=\"file\"; filename=\"upload.txt\"\r\n\r\npartial")),
+            Err(std::io::Error::other(limit_error)),
+        ]);
+        let mut multipart = Multipart::new(stream, "b");
+        let mut field = multipart.next_field().await.unwrap().unwrap();
+        let error = FilePart::create_with_directory(&mut field, move || {
+            Builder::new().tempdir_in(root_path)
+        })
+        .await
+        .unwrap_err();
+        assert!(matches!(error, ParseError::PayloadTooLarge));
+        wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
+        assert!(matches!(
+            ParseError::from(multra::Error::IncompleteStream),
+            ParseError::Multer(_)
+        ));
     }
 
     #[test]
