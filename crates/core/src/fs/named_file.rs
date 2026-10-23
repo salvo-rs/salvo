@@ -21,7 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use super::{ChunkedFile, ChunkedState};
 use crate::http::body::ResBody;
 use crate::http::header::{
-    CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_NONE_MATCH, IF_RANGE, RANGE,
+    CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_MATCH, IF_NONE_MATCH, IF_RANGE, RANGE,
     X_CONTENT_TYPE_OPTIONS,
 };
 use crate::http::mime::{detect_text_mime, fill_mime_charset_if_need, is_charset_required_mime};
@@ -824,6 +824,10 @@ impl NamedFile {
         // check preconditions
         let precondition_failed = if !any_match(etag.as_ref(), req_headers) {
             true
+        } else if req_headers.contains_key(IF_MATCH) {
+            // If-Match takes precedence over If-Unmodified-Since (RFC 9110,
+            // section 13.1.4), including the wildcard existence precondition.
+            false
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
@@ -1086,6 +1090,65 @@ fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn if_match_takes_precedence_over_if_unmodified_since() {
+        use crate::http::header::IF_UNMODIFIED_SINCE;
+        use crate::test::ResponseExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("preconditions.txt");
+        std::fs::write(&path, b"content").unwrap();
+        for (if_match, expected) in [
+            (Some("matching"), StatusCode::OK),
+            (Some("*"), StatusCode::OK),
+            (Some("\"outdated\""), StatusCode::PRECONDITION_FAILED),
+            (Some("weak"), StatusCode::PRECONDITION_FAILED),
+            (None, StatusCode::PRECONDITION_FAILED),
+        ] {
+            for head in [false, true] {
+                let mut file = NamedFile::open(&path).await.unwrap();
+                // Deterministic times, independent of filesystem timestamps.
+                file.modified = Some(UNIX_EPOCH + Duration::from_secs(100));
+                let mut headers = HeaderMap::new();
+                if let Some(value) = if_match {
+                    // Derive the matching validator after setting the timestamp.
+                    if value == "matching" || value == "weak" {
+                        let mut current = HeaderMap::new();
+                        current.typed_insert(file.etag().unwrap());
+                        let value = current[crate::http::header::ETAG].to_str().unwrap();
+                        headers.insert(
+                            IF_MATCH,
+                            if if_match == Some("matching") {
+                                value.parse().unwrap()
+                            } else {
+                                format!("W/{value}").parse().unwrap()
+                            },
+                        );
+                    } else {
+                        headers.insert(IF_MATCH, value.parse().unwrap());
+                    }
+                }
+                headers.insert(
+                    IF_UNMODIFIED_SINCE,
+                    "Thu, 01 Jan 1970 00:00:00 GMT".parse().unwrap(),
+                );
+                let mut res = Response::new();
+                if head {
+                    file.send_head(&headers, &mut res).await;
+                } else {
+                    file.send(&headers, &mut res).await;
+                }
+                assert_eq!(res.status_code, Some(expected));
+                let body = res.take_bytes(None).await.unwrap();
+                if !head && expected == StatusCode::OK {
+                    assert_eq!(body.as_ref(), b"content");
+                } else {
+                    assert!(body.is_empty());
+                }
+            }
+        }
+    }
 
     #[tokio::test]
     async fn if_range_requires_a_matching_validator() {
