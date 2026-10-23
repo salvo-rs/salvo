@@ -6,7 +6,10 @@ dependency changes. Existing local lockfiles should be refreshed with
 `cargo update` before interpreting findings as the current dependency resolution.
 
 The direct rustls and quinn minimums exclude known vulnerable releases of those
-packages. Transitive dependency findings remain covered by the audit job; raising
+packages. The core TLS feature activates rustls as a normal optional dependency,
+so its minimum also applies to downstream server builds without workspace dev
+dependencies. CI checks that an isolated downstream TLS application cannot resolve
+rustls 0.23.40. Transitive dependency findings remain covered by the audit job; raising
 a direct dependency minimum does not guarantee every transitive version is safe.
 
 ## RUSTSEC-2023-0071: rsa timing side channel

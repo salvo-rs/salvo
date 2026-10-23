@@ -2,9 +2,9 @@
 use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
 
-use tokio_rustls::rustls::RootCertStore;
-use tokio_rustls::rustls::crypto::CryptoProvider;
-use tokio_rustls::rustls::pki_types::{CertificateDer, pem::PemObject};
+use rustls::RootCertStore;
+use rustls::crypto::CryptoProvider;
+use rustls::pki_types::{CertificateDer, pem::PemObject};
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
@@ -42,11 +42,11 @@ pub fn default_crypto_provider() -> Arc<CryptoProvider> {
 
     #[cfg(any(feature = "aws-lc-rs", not(feature = "ring")))]
     {
-        Arc::new(tokio_rustls::rustls::crypto::aws_lc_rs::default_provider())
+        Arc::new(rustls::crypto::aws_lc_rs::default_provider())
     }
     #[cfg(all(not(feature = "aws-lc-rs"), feature = "ring"))]
     {
-        Arc::new(tokio_rustls::rustls::crypto::ring::default_provider())
+        Arc::new(rustls::crypto::ring::default_provider())
     }
 }
 
