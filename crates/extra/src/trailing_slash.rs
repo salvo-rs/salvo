@@ -183,9 +183,20 @@ impl Handler for TrailingSlash {
 
 fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Result<Uri, ParseError> {
     let mut uri_parts = original_uri.clone().into_parts();
+    // A relative Location beginning with two separators is interpreted by
+    // browsers as a new authority (including /\\ on HTTP URLs). A dot segment
+    // keeps it origin-relative while preserving the path after URL resolution.
+    // Do not rely on the optional HTTP/1 URI fix to supply an authority.
+    let new_path = if original_uri.authority().is_none()
+        && (new_path.starts_with("//") || new_path.starts_with("/\\"))
+    {
+        Cow::Owned(format!("/.{new_path}"))
+    } else {
+        Cow::Borrowed(new_path)
+    };
     let path = match original_uri.query() {
         Some(query) => Cow::from(format!("{new_path}?{query}")),
-        None => Cow::from(new_path),
+        None => new_path,
     };
     uri_parts.path_and_query = Some(PathAndQuery::from_str(path.as_ref())?);
     Ok(Uri::from_parts(uri_parts)?)
@@ -208,10 +219,63 @@ pub fn remove_slash() -> TrailingSlash {
 #[cfg(test)]
 mod tests {
     use salvo_core::http::StatusCode;
-    use salvo_core::prelude::*;
     use salvo_core::test::TestClient;
 
     use super::*;
+
+    #[test]
+    fn relative_redirects_preserve_origin_and_path() {
+        let base = url::Url::parse("http://trusted.example/current").unwrap();
+        for path in ["/hello", "//evil.example/path", "///evil.example/path", "/\\evil.example/path"] {
+            let original: Uri = format!("{path}?next=%2Faccount").parse().unwrap();
+            let target = replace_uri_path(&original, &format!("{path}/")).unwrap();
+            let resolved = base.join(&target.to_string()).unwrap();
+            assert_eq!(resolved.origin(), base.origin(), "{target}");
+            assert_eq!(resolved.path(), format!("{}/", path.replace('\\', "/")));
+            assert_eq!(resolved.query(), Some("next=%2Faccount"));
+        }
+        let original: Uri = "http://trusted.example//path?q=1".parse().unwrap();
+        assert_eq!(
+            replace_uri_path(&original, "//path/").unwrap().to_string(),
+            "http://trusted.example//path/?q=1"
+        );
+    }
+
+    #[tokio::test]
+    async fn hyper_redirects_stay_same_origin_with_or_without_uri_fix() {
+        use salvo_core::hyper::service::Service as _;
+        use salvo_core::http::ReqBody;
+
+        for (action, input, expected_path) in [
+            (TrailingSlashAction::Add, "//evil.example/path", "//evil.example/path/"),
+            (TrailingSlashAction::Remove, "//evil.example/path/", "//evil.example/path"),
+        ] {
+            let service = Service::new(Router::with_hoop(
+                TrailingSlash::new(action).skipper(|_: &mut Request, _: &Depot| false),
+            ).push(Router::with_path("{**rest}").goal(hello)));
+            let handler = service.hyper_handler(
+                "127.0.0.1:80".parse::<std::net::SocketAddr>().unwrap().into(),
+                "127.0.0.1:1234".parse::<std::net::SocketAddr>().unwrap().into(),
+                salvo_core::http::uri::Scheme::HTTP,
+                None,
+                salvo_core::ConnCtrl::new(),
+                None,
+            );
+            let request = salvo_core::hyper::Request::builder()
+                .uri(format!("{input}?q=1"))
+                .header("host", "trusted.example")
+                .body(ReqBody::None)
+                .unwrap();
+            let response = handler.call(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::MOVED_PERMANENTLY);
+            let base = url::Url::parse("http://trusted.example/").unwrap();
+            let location = response.headers()["location"].to_str().unwrap();
+            let resolved = base.join(location).unwrap();
+            assert_eq!(resolved.origin(), base.origin());
+            assert_eq!(resolved.path(), expected_path);
+            assert_eq!(resolved.query(), Some("q=1"));
+        }
+    }
 
     #[handler]
     async fn hello() -> &'static str {
