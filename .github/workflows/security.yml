@@ -1,0 +1,47 @@
+name: Dependency security
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.cargo/audit.toml'
+      - '.github/DEPENDENCY_SECURITY.md'
+      - '.github/workflows/security.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.cargo/audit.toml'
+      - '.github/DEPENDENCY_SECURITY.md'
+      - '.github/workflows/security.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: ['.', 'examples', 'fuzz']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - name: Require review of the rsa advisory exception
+        run: |
+          python3 - <<'PY'
+          import datetime
+          if datetime.datetime.now(datetime.timezone.utc).date() > datetime.date(2027, 1, 23):
+              raise SystemExit('Review the rsa advisory exception in .cargo/audit.toml')
+          PY
+      - name: Resolve dependencies and audit
+        run: |
+          cargo generate-lockfile --manifest-path '${{ matrix.workspace }}/Cargo.toml'
+          cargo audit --file '${{ matrix.workspace }}/Cargo.lock'
