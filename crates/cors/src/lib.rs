@@ -486,6 +486,11 @@ impl Handler for CorsHandler {
         }
 
         let origin = req.headers().get(&header::ORIGIN);
+        let is_preflight = req.method() == Method::OPTIONS
+            && origin.is_some()
+            && req
+                .headers()
+                .contains_key(header::ACCESS_CONTROL_REQUEST_METHOD);
         let mut headers = HeaderMap::new();
 
         // These headers are applied to both preflight and subsequent regular CORS requests:
@@ -521,8 +526,9 @@ impl Handler for CorsHandler {
             }
         }
 
-        // Return results immediately upon preflight request
-        if req.method() == Method::OPTIONS {
+        // Only a CORS preflight gets a generated response. Ordinary OPTIONS
+        // requests must keep the status and body produced by their handlers.
+        if is_preflight {
             // These headers are applied only to preflight requests
             headers.extend(self.cors.allow_methods.to_header(origin, req, depot).await);
             headers.extend(self.cors.allow_headers.to_header(origin, req, depot).await);
@@ -542,12 +548,8 @@ impl Handler for CorsHandler {
         // Run the wildcard/credentials guard last, after every `call_next` point,
         // so it always sees the truly final response regardless of whether the
         // downstream chain ran before or after this handler. A genuine CORS
-        // preflight is an OPTIONS request carrying `Access-Control-Request-
-        // Method`; a plain actual request may also use OPTIONS without it.
-        let is_preflight = req.method() == Method::OPTIONS
-            && req
-                .headers()
-                .contains_key(header::ACCESS_CONTROL_REQUEST_METHOD);
+        // preflight is an OPTIONS request carrying Origin and Access-Control-
+        // Request-Method; ordinary OPTIONS requests use the actual-response rules.
         enforce_credentials_safety(res, is_preflight);
     }
 }
@@ -619,7 +621,7 @@ pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {
 mod tests {
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
-    use salvo_core::test::TestClient;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -1005,6 +1007,86 @@ mod tests {
             "POST, GET, DELETE, OPTIONS"
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_cors_preserves_ordinary_options_responses() {
+        #[handler]
+        async fn options(req: &mut Request, res: &mut Response) {
+            res.status_code = Some(if req.uri().path() == "/denied" {
+                StatusCode::UNAUTHORIZED
+            } else {
+                StatusCode::OK
+            });
+            res.render("options response");
+        }
+
+        for mode in [CallNext::Before, CallNext::After] {
+            let cors = Cors::new()
+                .allow_origin("https://app.example.com")
+                .allow_methods([Method::GET])
+                .allow_headers([CONTENT_TYPE])
+                .expose_headers([ETAG])
+                .max_age(60);
+            let router = Router::new()
+                .options(options)
+                .push(Router::with_path("denied").options(options));
+            let service = Service::new(router).hoop(CorsHandler::new(cors, mode));
+            for (path, expected) in [("/", StatusCode::OK), ("/denied", StatusCode::UNAUTHORIZED)] {
+                // Neither header, Origin only, and Request-Method only are all
+                // ordinary OPTIONS requests, rather than CORS preflights.
+                for (origin, method) in [(false, false), (true, false), (false, true)] {
+                    let mut request = TestClient::options(format!("http://localhost{path}"));
+                    if origin {
+                        request = request.add_header(ORIGIN, "https://app.example.com", true);
+                    }
+                    if method {
+                        request = request.add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true);
+                    }
+                    let mut res = request.send(&service).await;
+                    assert_eq!(
+                        res.status_code,
+                        Some(expected),
+                        "mode={mode:?}, origin={origin}, method={method}"
+                    );
+                    assert_eq!(res.take_string().await.unwrap(), "options response");
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_METHODS));
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_ALLOW_HEADERS));
+                    assert!(!res.headers().contains_key(ACCESS_CONTROL_MAX_AGE));
+                    if origin {
+                        assert_eq!(res.headers()[ACCESS_CONTROL_EXPOSE_HEADERS], "etag");
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cors_preflight_without_options_route_in_both_modes() {
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        for mode in [CallNext::Before, CallNext::After] {
+            let cors = Cors::new()
+                .allow_origin("https://app.example.com")
+                .allow_methods([Method::GET])
+                .allow_headers([CONTENT_TYPE])
+                .expose_headers([ETAG])
+                .max_age(60);
+            let service = Service::new(Router::new().get(hello)).hoop(CorsHandler::new(cors, mode));
+            let res = TestClient::options("http://localhost/")
+                .add_header(ORIGIN, "https://app.example.com", true)
+                .add_header(ACCESS_CONTROL_REQUEST_METHOD, "GET", true)
+                .send(&service)
+                .await;
+            assert_eq!(res.status_code, Some(StatusCode::NO_CONTENT));
+            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_METHODS], "GET");
+            assert_eq!(res.headers()[ACCESS_CONTROL_ALLOW_HEADERS], "content-type");
+            assert_eq!(res.headers()[ACCESS_CONTROL_MAX_AGE], "60");
+            assert!(!res.headers().contains_key(ACCESS_CONTROL_EXPOSE_HEADERS));
+        }
     }
 
     #[test]
