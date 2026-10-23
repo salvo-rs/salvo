@@ -262,6 +262,7 @@ where
     #[must_use]
     pub fn max_interval(mut self, time: Duration) -> Self {
         self.max_interval = time;
+        self.alive_timer = time::sleep(time);
         self
     }
 
@@ -424,6 +425,34 @@ mod tests {
             .stream(&mut res);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("data:1"));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn keep_alive_uses_configured_interval_from_first_heartbeat() {
+        let mut cx = Context::from_waker(std::task::Waker::noop());
+
+        for interval in [Duration::from_secs(1), Duration::from_secs(30)] {
+            let event_stream = futures_util::stream::pending::<Result<SseEvent, Infallible>>();
+            let keep_alive = SseKeepAlive::new(event_stream).max_interval(interval);
+            tokio::pin!(keep_alive);
+
+            assert!(keep_alive.as_mut().poll_next(&mut cx).is_pending());
+            time::advance(interval - Duration::from_millis(1)).await;
+            assert!(keep_alive.as_mut().poll_next(&mut cx).is_pending());
+            time::advance(Duration::from_millis(1)).await;
+            let Poll::Ready(Some(Ok(event))) = keep_alive.as_mut().poll_next(&mut cx) else {
+                panic!("first heartbeat must use the configured interval");
+            };
+            assert_eq!(event.to_string(), ":\n\n");
+
+            time::advance(interval - Duration::from_millis(1)).await;
+            assert!(keep_alive.as_mut().poll_next(&mut cx).is_pending());
+            time::advance(Duration::from_millis(1)).await;
+            assert!(matches!(
+                keep_alive.as_mut().poll_next(&mut cx),
+                Poll::Ready(Some(Ok(_)))
+            ));
+        }
     }
 
     #[tokio::test]

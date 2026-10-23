@@ -95,6 +95,7 @@ ulid = { workspace = true, optional = true, features = ["std"] }
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["http1", "server", "test", "rustls"] }
 time = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 tokio-stream = { workspace = true }
 tower = { workspace = true, features = ["limit"] }
 tracing-test = { workspace = true }
