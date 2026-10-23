@@ -504,17 +504,20 @@ impl Handler for CorsHandler {
                 .await,
         );
 
-        let mut vary_headers = self.cors.vary.values();
-        if let Some(first) = vary_headers.next() {
-            let mut header = match headers.entry(header::VARY) {
-                header::Entry::Occupied(_) => {
-                    unreachable!("no vary header inserted up to this point")
-                }
-                header::Entry::Vacant(v) => v.insert_entry(first),
-            };
-
-            for val in vary_headers {
-                header.append(val);
+        // Keep cache selectors set by other middleware or the endpoint. HeaderMap::extend
+        // replaces all existing values, so Vary must be merged separately.
+        for value in self.cors.vary.values() {
+            let already_varies = res.headers().get_all(header::VARY).iter().any(|existing| {
+                existing
+                    .as_bytes()
+                    .split(|byte| *byte == b',')
+                    .any(|token| {
+                        let token = token.trim_ascii();
+                        token == b"*" || token.eq_ignore_ascii_case(value.as_bytes())
+                    })
+            });
+            if !already_varies {
+                res.headers_mut().append(header::VARY, value);
             }
         }
 
@@ -619,6 +622,90 @@ mod tests {
     use salvo_core::test::TestClient;
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_cors_preserves_downstream_vary() {
+        #[handler]
+        async fn varies(res: &mut Response) {
+            res.headers_mut()
+                .append(VARY, HeaderValue::from_static("Accept-Encoding, Origin"));
+            res.headers_mut()
+                .append(VARY, HeaderValue::from_static("Accept-Language"));
+            res.render("hello");
+        }
+
+        let service = Service::new(Router::new().goal(varies)).hoop(Cors::new().into_handler());
+        let res = TestClient::get("http://localhost/").send(&service).await;
+        let tokens: Vec<_> = res
+            .headers()
+            .get_all(VARY)
+            .iter()
+            .flat_map(|value| {
+                value
+                    .to_str()
+                    .unwrap()
+                    .split(',')
+                    .map(|token| token.trim().to_ascii_lowercase())
+            })
+            .collect();
+        assert_eq!(
+            tokens,
+            [
+                "accept-encoding",
+                "origin",
+                "accept-language",
+                "access-control-request-method",
+                "access-control-request-headers"
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_merges_existing_vary_in_both_call_next_modes() {
+        #[handler]
+        async fn existing_vary(req: &mut Request, res: &mut Response) {
+            let value = if req.uri().path() == "/wildcard" {
+                "*"
+            } else {
+                "Accept-Language, ORIGIN"
+            };
+            res.headers_mut()
+                .insert(VARY, HeaderValue::from_static(value));
+        }
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        for mode in [CallNext::Before, CallNext::After] {
+            let service = Service::new(Router::new().goal(hello))
+                .hoop(existing_vary)
+                .hoop(CorsHandler::new(Cors::new(), mode));
+            for path in ["/", "/wildcard"] {
+                let res = TestClient::get(format!("http://localhost{path}"))
+                    .send(&service)
+                    .await;
+                let values: Vec<_> = res
+                    .headers()
+                    .get_all(VARY)
+                    .iter()
+                    .map(|value| value.to_str().unwrap())
+                    .collect();
+                if path == "/wildcard" {
+                    assert_eq!(values, ["*"]);
+                } else {
+                    assert_eq!(
+                        values,
+                        [
+                            "Accept-Language, ORIGIN",
+                            "access-control-request-method",
+                            "access-control-request-headers"
+                        ]
+                    );
+                }
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_cors_drops_credentials_with_wildcard_origin() {
