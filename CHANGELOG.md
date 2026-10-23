@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Enforce strong `If-Match` preconditions for embedded assets before cache and range handling.
+
 - Clean up interrupted multipart uploads and keep temporary files alive until
   the last `FilePart` clone is released.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
