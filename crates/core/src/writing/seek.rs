@@ -66,6 +66,10 @@ where
         // check preconditions
         let precondition_failed = if !any_match(self.etag.as_ref(), req_headers) {
             true
+        } else if req_headers.contains_key(crate::http::header::IF_MATCH) {
+            // If-Match takes precedence over If-Unmodified-Since, including
+            // the wildcard existence precondition (RFC 9110 section 13.1.4).
+            false
         } else if let (Some(last_modified), Some(since)) = (
             &self.last_modified,
             req_headers.typed_get::<IfUnmodifiedSince>(),
