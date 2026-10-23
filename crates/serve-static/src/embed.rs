@@ -5,13 +5,12 @@ use std::marker::PhantomData;
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::handler::Handler;
 use salvo_core::http::header::{
-    ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE,
-    X_CONTENT_TYPE_OPTIONS,
+    ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RANGE, X_CONTENT_TYPE_OPTIONS,
 };
 use salvo_core::http::headers::{ContentLength, ContentRange, HeaderMapExt};
 use salvo_core::http::mime::fill_mime_charset_if_need;
-use salvo_core::http::{HeaderValue, HttpRange, Mime, Request, Response, StatusCode};
-use salvo_core::routing::{decode_url_path, redirect_to_dir_url, normalize_url_path};
+use salvo_core::http::{HeaderValue, HttpRange, Method, Mime, Request, Response, StatusCode};
+use salvo_core::routing::{decode_url_path, normalize_url_path, redirect_to_dir_url};
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
 /// Handler that serves embedded files using `rust-embed`.
@@ -106,6 +105,9 @@ fn render_embedded_data(
     res: &mut Response,
     mime: Option<Mime>,
 ) {
+    if req.method() == Method::HEAD {
+        res.take_body();
+    }
     // Determine Content-Type once
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
@@ -155,6 +157,12 @@ fn render_embedded_data(
         .insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
 
     let total_data_len = data.len() as u64;
+    if req.method() == Method::HEAD {
+        res.status_code(StatusCode::OK);
+        res.headers_mut()
+            .typed_insert(ContentLength(total_data_len));
+        return;
+    }
     let mut is_partial_content = false;
     let mut range_to_send: Option<(u64, u64)> = None; // (start_offset, length_of_part)
 
