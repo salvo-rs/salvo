@@ -610,26 +610,23 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_multipart_parse_cleans_accumulated_files() {
+        use std::sync::atomic::AtomicUsize;
+
         let root = Builder::new().tempdir().unwrap();
         let root_path = root.path().to_owned();
         let (sender, receiver) = tokio::sync::mpsc::channel(1);
         sender.send(Ok::<_, std::io::Error>(Bytes::from_static(
-            b"--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"x\"\r\n\r\ndata\r\n--b\r\nContent-Disposition: form-data; name=\"text\"\r\n\r\nwaiting",
+            b"--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"x\"\r\n\r\ndata\r\n--b\r\nContent-Disposition: form-data; name=\"pending\"; filename=\"y\"\r\n\r\nwaiting",
         ))).await.unwrap();
-        let waiting_for_text = Arc::new(tokio::sync::Notify::new());
-        let notify = waiting_for_text.clone();
-        let stream =
-            futures_util::stream::unfold((receiver, false), move |(mut receiver, received)| {
-                let notify = notify.clone();
-                async move {
-                    if received {
-                        // The first chunk contains the complete file and the next
-                        // field's headers, so this poll happens after storing FilePart.
-                        notify.notify_one();
-                    }
-                    receiver.recv().await.map(|frame| (frame, (receiver, true)))
-                }
-            });
+        let second_file_started = Arc::new(tokio::sync::Notify::new());
+        let notify = second_file_started.clone();
+        let created = Arc::new(AtomicUsize::new(0));
+        let count = created.clone();
+        let first_directory = Arc::new(std::sync::Mutex::new(None));
+        let first = first_directory.clone();
+        let stream = futures_util::stream::unfold(receiver, |mut receiver| async {
+            receiver.recv().await.map(|frame| (frame, receiver))
+        });
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -639,15 +636,33 @@ mod tests {
             &headers,
             stream,
             FormLimits::default(),
-            move || Builder::new().tempdir_in(&root_path),
+            move || {
+                let directory = Builder::new().tempdir_in(&root_path)?;
+                match count.fetch_add(1, Ordering::Relaxed) {
+                    0 => *first.lock().unwrap() = Some(directory.path().to_owned()),
+                    // FormData creates files sequentially, so the first FilePart
+                    // is complete and stored before it starts creating the second.
+                    // Stream polls cannot establish this: multra may read ahead.
+                    1 => notify.notify_one(),
+                    _ => panic!("unexpected third file"),
+                }
+                Ok(directory)
+            },
         ));
         tokio::select! {
             result = &mut parse => panic!("multipart parse finished before stream ended: {result:?}"),
-            result = tokio::time::timeout(Duration::from_secs(5), waiting_for_text.notified()) => {
-                result.expect("parser did not finish the first file");
+            result = tokio::time::timeout(Duration::from_secs(5), second_file_started.notified()) => {
+                result.expect("parser did not start the second file");
             }
         }
-        assert!(contains_written_file(root.path()));
+        assert_eq!(created.load(Ordering::Relaxed), 2);
+        let directory = first_directory.lock().unwrap().clone().unwrap();
+        let files = std::fs::read_dir(directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(files.len(), 1);
+        assert_eq!(std::fs::read(&files[0]).unwrap(), b"data");
         drop(parse);
         drop(sender);
         wait_until(|| std::fs::read_dir(root.path()).unwrap().next().is_none()).await;
