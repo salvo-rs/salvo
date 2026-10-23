@@ -223,9 +223,31 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     }
 
-    // let max_body_size = opts.calculate_max_body_size(req, already_uploaded_info,
-    // max_file_size).await; let new_offset = store.write(req.body, already_uploaded_info,
-    // max_body_size, context);
+    let body = req.take_body();
+    let mut stream = Box::pin(
+        body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()))
+            .fuse(),
+    );
+
+    // Declaring the current offset as the final length would complete the
+    // upload before write_limited can reject extra bytes or a broken stream.
+    // Validate EOF first so a rejected request leaves the length deferred and
+    // a retry can still reach the completion hook. No body buffering is needed.
+    if declared_length == Some(offset) {
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(chunk) if chunk.is_empty() => {}
+                Ok(_) => {
+                    res.status_code = Some(TusError::PayloadTooLarge.status());
+                    return;
+                }
+                Err(error) => {
+                    res.status_code = Some(TusError::Internal(error.to_string()).status());
+                    return;
+                }
+            }
+        }
+    }
 
     // Do not persist a deferred length until all headers and size bounds have
     // been validated. An invalid request must not complete the stored upload
@@ -237,10 +259,8 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    let body = req.take_body();
-    let stream = body.map(|frame| frame.map(|frame| frame.into_data().unwrap_or_default()));
     let written = match store
-        .write_limited(&id, offset, Box::pin(stream), max_write_size)
+        .write_limited(&id, offset, stream, max_write_size)
         .await
     {
         Ok(written) => written,
