@@ -284,10 +284,10 @@ impl HyperHandler {
 
         async move {
             let path = req.uri().path().to_owned();
-            let mut path_state = PathState::from_owned_path(path);
+            let mut path_state = PathState::from_borrowed_path(&path);
             let matched = state.router.detect(&mut req, &mut path_state).await;
             let allowed = if matched.is_none() {
-                state.router.allowed_methods(&mut req).await
+                state.router.allowed_methods(&mut req, &path).await
             } else {
                 Vec::new()
             };
@@ -524,6 +524,44 @@ mod tests {
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
         assert!(response.headers().get("allow").is_none());
+    }
+
+    #[tokio::test]
+    async fn automatic_405_keeps_the_original_path_after_a_filter_rewrites_the_uri() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        for (original, rewritten, status, allow) in [
+            ("missing", "items", StatusCode::NOT_FOUND, None),
+            (
+                "items",
+                "missing",
+                StatusCode::METHOD_NOT_ALLOWED,
+                Some("GET"),
+            ),
+        ] {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let observed = calls.clone();
+            let router = Router::new()
+                .push(Router::new().filter_fn(move |req, _| {
+                    observed.fetch_add(1, Ordering::Relaxed);
+                    *req.uri_mut() = format!("http://localhost/{rewritten}").parse().unwrap();
+                    false
+                }))
+                .push(Router::with_path("items").get(method_probe_goal));
+            let response = TestClient::delete(format!("http://localhost/{original}"))
+                .send(router)
+                .await;
+            assert_eq!(response.status_code, Some(status));
+            assert_eq!(
+                response
+                    .headers()
+                    .get("allow")
+                    .map(|value| value.to_str().unwrap()),
+                allow,
+            );
+            assert_eq!(calls.load(Ordering::Relaxed), 1);
+        }
     }
 
     #[tokio::test]

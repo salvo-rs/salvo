@@ -125,7 +125,7 @@ impl Router {
 
     /// Discover only methods whose complete route can be checked without
     /// executing application-defined filters or changing the request method.
-    pub(crate) async fn allowed_methods(&self, req: &mut Request) -> Vec<Method> {
+    pub(crate) async fn allowed_methods(&self, req: &mut Request, path: &str) -> Vec<Method> {
         let mut methods = Vec::new();
         let mut routers = vec![self];
         while let Some(router) = routers.pop() {
@@ -137,10 +137,11 @@ impl Router {
         methods.sort_unstable_by(|a, b| a.as_str().cmp(b.as_str()));
         methods.dedup();
 
-        let path = req.uri().path().to_owned();
+        // Normal detection keeps its original path even if a failed application
+        // filter rewrites the request URI. Method probes must use that same path.
         let mut allowed = Vec::new();
         for method in methods {
-            let mut state = PathState::from_borrowed_path(&path);
+            let mut state = PathState::from_borrowed_path(path);
             if self
                 .detect_with_method(req, &mut state, Some(&method))
                 .await
