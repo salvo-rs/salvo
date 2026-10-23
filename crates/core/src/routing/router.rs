@@ -187,8 +187,9 @@ impl Router {
         path_state: &mut PathState<'_>,
         method: &mut Option<Method>,
     ) -> Option<bool> {
-        use super::filters::{HostFilter, MethodFilter, PortFilter, SchemeFilter};
         use std::any::TypeId;
+
+        use super::filters::{HostFilter, MethodFilter, PortFilter, SchemeFilter};
 
         for filter in &self.filters {
             let kind = filter.type_id();
