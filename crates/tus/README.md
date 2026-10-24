@@ -131,6 +131,38 @@ let tus = Tus::new()
 
 By default, files are stored on disk using `DiskStore`. Implement the `DataStore` trait for custom storage (S3, database, etc.).
 
+## Upgrading from 1.0.1
+
+**Version 1.1.0 changes the built-in `DiskStore` format and is incompatible with
+existing upload directories from 1.0.1.** The configured root is unchanged, but
+payloads and metadata are now isolated:
+
+| Files | 1.0.1 | 1.1.0 |
+|-------|-------|-------|
+| Upload payload | `<root>/<id>.bin` or its finalized filename | `<root>/data/<id>.bin` or its finalized filename |
+| Upload metadata | `<root>/<id>.json` | `<root>/metadata/<id>.json` |
+| Temporary metadata | `<root>/<id>.json.tmp` | `<root>/metadata-tmp/<id>.json.tmp` |
+
+Legacy records are not discovered or migrated automatically. Reusing an old
+root without migration makes existing uploads unavailable through their upload
+URLs, including unfinished uploads that clients try to resume. Old files are
+not automatically deleted.
+
+Before upgrading, stop uploads and back up the entire directory. Either use a
+fresh `DiskStore::disk_root` and ask clients to start new uploads, or explicitly
+migrate trusted records: move each referenced payload into `data`, place its
+committed metadata in `metadata`, and update the metadata's `storage.path` to
+the new payload location while preserving the upload ID and committed offset.
+Finalized payloads may have custom filenames; use their recorded storage paths
+rather than assuming every payload is named `<id>.bin`. Do not promote temporary
+metadata to committed records without verifying its state.
+
+Only migrate metadata verified as server-generated. The legacy layout mixed
+uploaded files with metadata, so an uploaded JSON file must never be imported
+as a trusted upload record solely because its name or contents resemble one.
+No compatibility reader or automatic migration utility is provided. This disk
+format change does not apply to custom `DataStore` implementations.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-tus)

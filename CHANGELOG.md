@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-24
+
+### Upgrade notes
+
+- **Breaking change: the built-in TUS `DiskStore` cannot read the legacy disk
+  layout used by 1.0.1.** Upload payloads, metadata and temporary metadata now
+  live in separate `data`, `metadata` and `metadata-tmp` subdirectories of the
+  configured root. Existing upload URLs cannot access or resume legacy uploads
+  until their trusted records and storage paths are explicitly migrated. There
+  is no automatic discovery or migration: uploaded JSON must not be treated as
+  trusted metadata. Stop uploads and back up the old directory before migrating,
+  or configure a fresh disk root and have clients start new uploads. See the
+  [TUS upgrade guide](crates/tus/README.md#upgrading-from-101).
+- Multipart forms now default to at most 128 parts and 32 files. Requests above
+  either limit return HTTP 413. Applications accepting larger forms must set
+  `FormLimits` before the first form read; byte limits still apply independently.
+- Session backend load, save and destruction failures now return HTTP 503 by
+  default. Set `HandlerBuilder::store_error_policy(StoreErrorPolicy::Ignore)`
+  explicitly if the previous best-effort behavior is required.
+
+### Added
+
+- `FormLimits` middleware and `Request::set_form_limits` / `form_limits` for
+  configuring multipart part and file counts per request or route.
+- `StoreErrorPolicy` and `HandlerBuilder::store_error_policy` for configuring
+  session backend failure handling.
+- `Request::try_on_response`, behind the `response-observers` feature, for
+  observing finalized responses before transmission starts.
+- `ReadSeeker::send_head` for serving HEAD representations without range handling.
+
 ### Fixed
 
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
