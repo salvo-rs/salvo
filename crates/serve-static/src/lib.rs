@@ -568,6 +568,25 @@ mod tests {
         assert_eq!(response.take_string().await.unwrap(), "copy1");
     }
 
+    #[tokio::test]
+    async fn test_serve_static_dir_accept_encoding_is_case_insensitive() {
+        let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
+        let service = Service::new(router);
+
+        for accept_encoding in ["GZIP", "br;Q=0, gzip"] {
+            let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+                .add_header("accept-encoding", accept_encoding, true)
+                .send(&service)
+                .await;
+            assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(CONTENT_ENCODING),
+                Some(&HeaderValue::from_static("gzip")),
+                "{accept_encoding}"
+            );
+        }
+    }
+
     #[cfg(feature = "embed")]
     #[tokio::test]
     async fn test_serve_embed_files() {

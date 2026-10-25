@@ -1177,6 +1177,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_accept_encoding_is_case_insensitive() {
+        // Content codings and the `q` parameter name are case-insensitive.
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .enable_brotli(CompressionLevel::Default)
+            .min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        for (accept_encoding, expected) in [
+            ("GZIP", "gzip"),
+            ("gzip;Q=0, br", "br"),
+            ("*, GZIP;q=0", "br"),
+        ] {
+            let res = TestClient::get("http://127.0.0.1:5801/hello")
+                .add_header(ACCEPT_ENCODING, accept_encoding, true)
+                .send(&service)
+                .await;
+            assert_eq!(
+                res.headers()
+                    .get(CONTENT_ENCODING)
+                    .and_then(|v| v.to_str().ok()),
+                Some(expected),
+                "{accept_encoding}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn test_multiple_wildcards_take_highest_q() {
         // When the client lists multiple wildcards, the effective q-value
         // is the highest one — matching the pre-refactor behaviour. With
