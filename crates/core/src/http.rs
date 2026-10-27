@@ -109,15 +109,18 @@ pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
         .filter_map(|s| {
             let mut iter = s.trim().split(';');
             let (algo, q) = (iter.next()?, iter.next());
-            let algo = algo.trim();
+            // Content codings and the `q` parameter name are case-insensitive.
+            let algo = algo.trim().to_ascii_lowercase();
             let q = q
                 .and_then(|q| {
-                    q.trim()
-                        .strip_prefix("q=")
-                        .and_then(|q| q.parse::<f32>().map(|f| (f * 100.0) as u8).ok())
+                    let (name, value) = q.trim().split_once('=')?;
+                    if !name.eq_ignore_ascii_case("q") {
+                        return None;
+                    }
+                    value.parse::<f32>().map(|f| (f * 100.0) as u8).ok()
                 })
                 .unwrap_or(100u8);
-            Some((algo.to_owned(), q))
+            Some((algo, q))
         })
         .collect::<Vec<(String, u8)>>();
 
