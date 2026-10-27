@@ -56,12 +56,12 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-audit
-      - name: Require review of the rsa advisory exception
+      - name: Require review of the crypto advisory exceptions
         run: |
           python3 - <<'PY'
           import datetime
           if datetime.datetime.now(datetime.timezone.utc).date() > datetime.date(2027, 1, 23):
-              raise SystemExit('Review the rsa advisory exception in .cargo/audit.toml')
+              raise SystemExit('Review the crypto advisory exceptions in .cargo/audit.toml')
           PY
       - name: Resolve dependencies and audit
         run: |

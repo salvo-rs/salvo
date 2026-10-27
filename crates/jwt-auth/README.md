@@ -21,7 +21,7 @@
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.94%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -91,6 +91,13 @@ fn main() {
 AWS-LC takes precedence when both Salvo JWT provider features are enabled. If
 the application uses a custom process-wide `jsonwebtoken` provider, install
 that provider itself instead of calling `install_crypto_provider`.
+
+The RustCrypto JWT backend currently depends on crypto-bigint affected by
+[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+Salvo's middleware uses it for public-key verification. Applications signing
+JWTs with EC private keys should use the default AWS-LC provider until upstream
+dependencies are fixed. See [the dependency security review](../../.github/DEPENDENCY_SECURITY.md)
+for the limited audit exception and its review deadline.
 
 ## Quick Start
 

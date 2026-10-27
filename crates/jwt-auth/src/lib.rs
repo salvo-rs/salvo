@@ -23,6 +23,12 @@
 //!
 //! # Security Considerations
 //!
+//! The `ring` feature selects jsonwebtoken's RustCrypto backend, which currently
+//! depends on crypto-bigint affected by RUSTSEC-2026-0387. Salvo uses it for
+//! public-key verification. Applications signing JWTs with EC private keys
+//! should use the default `aws-lc-rs` provider until upstream dependencies are
+//! fixed. See the repository's `.github/DEPENDENCY_SECURITY.md` for the review.
+//!
 //! **Warning: avoid passing JWT tokens in URL query parameters in production.**
 //!
 //! While this crate supports extracting tokens from query parameters (via [`QueryFinder`]),

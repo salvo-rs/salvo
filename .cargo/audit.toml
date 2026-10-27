@@ -1,5 +1,10 @@
 [advisories]
 # certon 0.3 uses rsa for key generation and DER conversion, not private-key
 # decryption. TLS operations use rustls' ring/aws-lc backend. No fixed rsa release
-# exists for this advisory. See .github/DEPENDENCY_SECURITY.md; review by 2027-01-23.
-ignore = ["RUSTSEC-2023-0071"]
+# exists for this advisory. jsonwebtoken's RustCrypto backend also uses rsa for
+# public-key verification in Salvo's JWT middleware.
+# crypto-bigint 0.5 is pulled in by that backend's p256/p384 dependencies; the
+# middleware only verifies signatures with public integers. jsonwebtoken 11 has
+# no released upgrade to crypto-bigint >=0.7.6. Use AWS-LC for private-key signing.
+# See .github/DEPENDENCY_SECURITY.md; review both exceptions by 2027-01-23.
+ignore = ["RUSTSEC-2023-0071", "RUSTSEC-2026-0387"]
