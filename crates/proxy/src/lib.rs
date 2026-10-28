@@ -650,13 +650,25 @@ where
                         res.body(body);
                     }
                     Err(e) => {
-                        tracing::error!( error = ?e, uri = ?req.uri(), "get response data failed: {}", e);
+                        // A client error can embed the entire upstream URL too.
+                        // Keep diagnostics structured without logging URL credentials.
+                        tracing::error!(
+                            method = %req.method(),
+                            path = req.uri().path(),
+                            error_type = std::any::type_name_of_val(&e),
+                            "upstream request failed"
+                        );
                         res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
             }
             Err(e) => {
-                tracing::error!(error = ?e, "build proxied request failed");
+                tracing::error!(
+                    method = %req.method(),
+                    path = req.uri().path(),
+                    error_type = std::any::type_name_of_val(&e),
+                    "build proxied request failed"
+                );
                 res.status_code(StatusCode::BAD_REQUEST);
             }
         }
@@ -754,6 +766,87 @@ mod tests {
     use tokio_tungstenite::tungstenite::protocol::Role;
 
     use super::*;
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn upstream_failure_logs_omit_request_and_error_url_secrets() {
+        struct FailedClient;
+        impl Client for FailedClient {
+            type Error = std::io::Error;
+            async fn execute(
+                &self,
+                req: HyperRequest,
+                _: Option<OnUpgrade>,
+            ) -> Result<HyperResponse, Self::Error> {
+                Err(std::io::Error::other(format!(
+                    "failed to connect to {}",
+                    req.uri()
+                )))
+            }
+        }
+
+        let mut req = salvo_core::test::TestClient::get(
+            "https://local.example/download?token=proxy-secret-marker",
+        )
+        .build();
+        let mut res = Response::new();
+        Proxy::new("https://upstream.example", FailedClient)
+            .handle(
+                &mut req,
+                &mut Depot::new(),
+                &mut res,
+                &mut FlowCtrl::new(vec![]),
+            )
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(!logs_contain("proxy-secret-marker"));
+        assert!(logs_contain("upstream request failed"));
+        assert!(logs_contain("/download"));
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn upstream_selection_failure_logs_omit_url_secrets() {
+        struct FailedUpstreams;
+        impl Upstreams for FailedUpstreams {
+            type Error = std::io::Error;
+            async fn elect(&self, req: &Request, _: &Depot) -> Result<&str, Self::Error> {
+                Err(std::io::Error::other(format!(
+                    "no upstream for {}",
+                    req.uri()
+                )))
+            }
+        }
+        struct NeverCalled;
+        impl Client for NeverCalled {
+            type Error = Infallible;
+            async fn execute(
+                &self,
+                _: HyperRequest,
+                _: Option<OnUpgrade>,
+            ) -> Result<HyperResponse, Self::Error> {
+                unreachable!("failed upstream selection must not execute a request")
+            }
+        }
+
+        let mut req = salvo_core::test::TestClient::get(
+            "https://local.example/selection?token=selection-secret-marker",
+        )
+        .build();
+        let mut res = Response::new();
+        Proxy::new(FailedUpstreams, NeverCalled)
+            .handle(
+                &mut req,
+                &mut Depot::new(),
+                &mut res,
+                &mut FlowCtrl::new(vec![]),
+            )
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::BAD_REQUEST));
+        assert!(!logs_contain("selection-secret-marker"));
+        assert!(logs_contain("build proxied request failed"));
+        assert!(logs_contain("/selection"));
+    }
 
     #[handler]
     async fn websocket_echo(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {

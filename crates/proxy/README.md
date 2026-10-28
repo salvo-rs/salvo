@@ -21,7 +21,7 @@
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.94%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -101,6 +101,13 @@ forward only the bare host name without the port.
 Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
 forwarding chain.
+
+### Failure logging
+
+Upstream request failures log the request method, path, and client error type.
+Query strings and client error messages are excluded because they can contain
+signed URLs, tokens, or other credentials. Custom clients can add their own
+sanitized diagnostics when more detail is required.
 
 [![Docs](https://docs.rs/salvo-proxy/badge.svg)](https://docs.rs/salvo-proxy)
 
