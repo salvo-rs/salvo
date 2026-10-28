@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Apply method-aware preconditions to ReadSeeker responses: ignore Range outside
+  GET, ignore If-Modified-Since outside GET/HEAD, and return 412 for a matching
+  If-None-Match on other methods.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until

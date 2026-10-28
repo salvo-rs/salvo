@@ -61,18 +61,22 @@ where
         self
     }
 
-    /// Consume self and send content to [`Response`].
+    /// Consume self and send content to [`Response`] with GET semantics.
+    ///
+    /// Use the [`Writer`] implementation to apply the actual request method.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
-        self.send_inner(req_headers, res, true).await;
+        self.send_inner(req_headers, res, &Method::GET).await;
     }
 
     /// Send only the headers for a HEAD request, preserving conditional request
     /// handling while ignoring `Range`. The reader is not read or sought.
     pub async fn send_head(self, req_headers: &HeaderMap, res: &mut Response) {
-        self.send_inner(req_headers, res, false).await;
+        self.send_inner(req_headers, res, &Method::HEAD).await;
     }
 
-    async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, send_body: bool) {
+    async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, method: &Method) {
+        let send_body = method != Method::HEAD;
+        let retrieval = method == Method::GET || method == Method::HEAD;
         if !send_body {
             res.take_body();
         }
@@ -95,7 +99,7 @@ where
         // check last modified
         let not_modified = if !none_match(self.etag.as_ref(), req_headers) {
             true
-        } else if req_headers.contains_key(IF_NONE_MATCH) {
+        } else if req_headers.contains_key(IF_NONE_MATCH) || !retrieval {
             false
         } else if let (Some(last_modified), Some(since)) = (
             &self.last_modified,
@@ -131,7 +135,11 @@ where
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
-            res.status_code(StatusCode::NOT_MODIFIED);
+            res.status_code(if retrieval {
+                StatusCode::NOT_MODIFIED
+            } else {
+                StatusCode::PRECONDITION_FAILED
+            });
             return;
         }
 
@@ -145,7 +153,10 @@ where
         let mut length = self.length;
         let mut is_partial = false;
         // check for range header
-        if let Some(range) = req_headers.get(RANGE).filter(|_| range_allowed) {
+        if let Some(range) = req_headers
+            .get(RANGE)
+            .filter(|_| method == Method::GET && range_allowed)
+        {
             let Ok(range) = range.to_str() else {
                 res.status_code(StatusCode::BAD_REQUEST);
                 return;
@@ -208,11 +219,7 @@ where
 {
     #[inline]
     async fn write(self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        if req.method() == Method::HEAD {
-            self.send_head(req.headers(), res).await;
-        } else {
-            self.send(req.headers(), res).await;
-        }
+        self.send_inner(req.headers(), res, req.method()).await;
     }
 }
 
