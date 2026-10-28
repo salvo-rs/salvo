@@ -103,7 +103,11 @@ pub enum Extension {
     CreationWithUpload,
     /// Creation-defer-length extension.
     CreationDeferLength,
-    /// Concatenation extension.
+    /// Reserved concatenation extension.
+    ///
+    /// The tus handlers do not implement partial or final uploads. This value
+    /// is omitted from capability responses, and `Upload-Concat` creation
+    /// requests are rejected even when a custom backend declares it.
     Concatenation,
     /// Termination extension.
     Termination,
@@ -151,6 +155,9 @@ impl Extension {
 #[async_trait]
 pub trait DataStore: Send + Sync + 'static {
     /// Returns the tus extensions supported by this storage backend.
+    ///
+    /// Only extensions also implemented by the tus handlers can be served.
+    /// In particular, [`Extension::Concatenation`] is currently unsupported.
     fn extensions(&self) -> HashSet<Extension> {
         HashSet::new()
     }

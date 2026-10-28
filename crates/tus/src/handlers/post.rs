@@ -36,9 +36,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    if req.headers().get(H_UPLOAD_CONCAT).is_some()
-        && !store.has_extension(Extension::Concatenation)
-    {
+    if req.headers().get(H_UPLOAD_CONCAT).is_some() {
         res.status_code =
             Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
         return;
