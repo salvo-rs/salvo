@@ -25,6 +25,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
+- Reject `QueryString` in `ToParameters` derives instead of producing an invalid
+  schema and extracting a named query parameter. Use `Query` for named values
+  or construct a whole-query parameter with `content` manually.
+- Preserve large floating-point OpenAPI constraints when their values fall
+  outside the integer serialization range.
 - Apply method-aware preconditions to ReadSeeker responses: ignore Range outside
   GET, ignore If-Modified-Since outside GET/HEAD, and return 412 for a matching
   If-None-Match on other methods.
