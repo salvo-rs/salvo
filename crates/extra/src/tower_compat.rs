@@ -1,6 +1,9 @@
 //! Adapters for [`tower::Layer`](https://docs.rs/tower/latest/tower/trait.Layer.html) and
 //! [`tower::Service`](https://docs.rs/tower/latest/tower/trait.Service.html).
 //!
+//! For an MCP server built with the official Rust SDK (`rmcp`), see the
+//! [Streamable HTTP example](https://github.com/salvo-rs/salvo/tree/main/examples/mcp).
+//!
 //! # Example
 //!
 //! ```no_run
