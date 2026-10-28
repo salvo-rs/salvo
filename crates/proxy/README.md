@@ -102,6 +102,13 @@ Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
 forwarding chain.
 
+### Failure logging
+
+Upstream request failures log the request method, path, and client error type.
+Query strings and client error messages are excluded because they can contain
+signed URLs, tokens, or other credentials. Custom clients can add their own
+sanitized diagnostics when more detail is required.
+
 [![Docs](https://docs.rs/salvo-proxy/badge.svg)](https://docs.rs/salvo-proxy)
 
 ## ☕ Donate
