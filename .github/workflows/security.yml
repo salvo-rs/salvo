@@ -24,6 +24,24 @@ on:
       - '.github/workflows/security.yml'
 
 jobs:
+  downstream-default-jwt:
+    name: Audit isolated default JWT dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - name: Verify the default JWT backend without feature unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture=$(mktemp -d)
+          mkdir "$fixture/src"
+          printf 'fn main() {}\n' > "$fixture/src/main.rs"
+          printf '[package]\nname = "downstream-default-jwt"\nversion = "0.0.0"\nedition = "2024"\n[workspace]\n[dependencies]\nsalvo-jwt-auth = { path = "%s/crates/jwt-auth" }\n' "$GITHUB_WORKSPACE" > "$fixture/Cargo.toml"
+          cargo generate-lockfile --manifest-path "$fixture/Cargo.toml"
+          cargo audit --deny unsound --file "$fixture/Cargo.lock"
+
   downstream-tls:
     runs-on: ubuntu-latest
     steps:

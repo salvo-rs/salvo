@@ -62,6 +62,15 @@ RustCrypto provider for JWTs instead, disable Salvo's default features and
 select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
 rustls integration:
 
+**Current dependency limitation:** the RustCrypto JWT backend selected by
+`jwt-auth-ring` still resolves crypto-bigint 0.5 through jsonwebtoken 11.1's
+p256/p384 dependencies and is affected by
+[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+There is no Salvo audit exception for it. Prefer the default AWS-LC JWT backend
+where suitable, audit your application's final lockfile, and see the repository's
+[dependency security policy](../../.github/DEPENDENCY_SECURITY.md) for the upstream
+blocker. The alternative configuration below retains this unresolved dependency.
+
 ```toml
 salvo = { version = "*", default-features = false, features = [
     "server",

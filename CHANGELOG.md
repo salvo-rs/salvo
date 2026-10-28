@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Audit dependencies before publishing any crate, document the unresolved
+  RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
+  the affected backend and release remain blocked.
+
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
