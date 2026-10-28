@@ -21,7 +21,7 @@
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.94%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -205,6 +205,12 @@ An unknown `kid` can trigger an early JWKS refresh for key rotation. Refreshes
 are shared across decoder clones and have a one-second cooldown after completion,
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
+
+Discovery metadata must include an `issuer` that exactly matches the configured
+issuer URL, including any trailing slash. JWKS keys with an explicit `use` must
+declare `sig`; explicit `key_ops` must include `verify` and contain only signature
+operations. Keys without these optional fields remain supported. These checks
+also apply when the provider rotates or refreshes its key set.
 
 Troubleshooting audience failures:
 

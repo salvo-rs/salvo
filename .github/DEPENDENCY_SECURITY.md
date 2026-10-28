@@ -61,5 +61,16 @@ after the RustCrypto feature also passes. See the
   fixed version or replacement is available. Reassess it before adding any new
   use of rsa, including through other dependencies.
 
-All other advisories fail the audit. The workflow checks the exception review
-date so that it cannot remain unreviewed indefinitely.
+Security CI fails on vulnerability advisories and `unsound` informational
+advisories, except for explicitly reviewed entries in `.cargo/audit.toml`.
+Unmaintained and yanked packages remain visible warnings for maintenance review.
+The workflow tests this policy with an offline advisory fixture and checks the
+exception review date so that it cannot remain unreviewed indefinitely.
+
+The examples workspace currently resolves `rbdc 4.9.10 -> lru 0.14.0`, which is
+affected by RUSTSEC-2026-0002 and RUSTSEC-2026-0253. The first fixed `lru` releases
+for these advisories are 0.16.3 and 0.18.2 respectively; rbdc's `^0.14.0`
+requirement cannot select them. The examples audit must remain blocked until the
+upstream dependency is upgraded or replaced. No exception is added for this path.
+The dependency finding alone does not establish that the example reaches the
+affected iterator or panic-unwinding operations.
