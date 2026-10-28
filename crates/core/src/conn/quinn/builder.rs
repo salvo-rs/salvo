@@ -11,6 +11,7 @@ use futures_util::Stream;
 use futures_util::future::poll_fn;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
 use crate::conn::ctrl::ConnState;
@@ -139,10 +140,20 @@ impl Builder {
             .await
             .map_err(|e| IoError::other(format!("invalid connection: {e}")))?;
 
+        // Own every request task for the connection's entire lifetime. Dropping
+        // this future (including a server force-stop) or leaving the accept loop
+        // aborts pending handlers instead of detaching them from the connection.
+        let mut requests = JoinSet::new();
         let mut shutting_down = false;
         loop {
             let accepted = tokio::select! {
                 accepted = conn.accept() => Some(accepted),
+                completed = requests.join_next(), if !requests.is_empty() => {
+                    if let Some(Err(error)) = completed {
+                        tracing::error!(?error, "HTTP/3 request task failed");
+                    }
+                    None
+                }
                 state = async {
                     if shutting_down {
                         conn_ctrl.aborted().await
@@ -245,7 +256,7 @@ impl Builder {
                         }
                         _ => {
                             let request_conn_ctrl = hyper_handler.conn_ctrl.clone();
-                            tokio::spawn(async move {
+                            requests.spawn(async move {
                                 tokio::select! {
                                     result = process_request(request, stream, hyper_handler) => {
                                         if let Err(error) = result {
@@ -253,8 +264,8 @@ impl Builder {
                                         }
                                     }
                                     _ = request_conn_ctrl.aborted() => {
-                                        // The connection loop closes QUIC. Ending
-                                        // this detached task avoids retaining the
+                                        // The connection loop closes QUIC. End
+                                        // the request without retaining the
                                         // deliberately pending service future.
                                     }
                                 }

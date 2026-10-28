@@ -14,6 +14,10 @@ Thank you for contributing to Salvo.
 2. Fork the repository and create a topic branch from `main`.
 3. Clone your fork and enter the workspace root.
 
+Salvo and the examples workspace require Rust 1.95 or newer. The MSRV CI job
+reads the root workspace declaration and checks the library crates and the
+Toasty example with that toolchain.
+
 ```bash
 git clone https://github.com/<your-user>/salvo.git
 cd salvo

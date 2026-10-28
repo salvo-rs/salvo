@@ -523,6 +523,12 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
     } else {
         format!("{path}/")
     };
+    // Browsers treat // and /\ as authority prefixes in a relative Location.
+    // A dot segment preserves the path after URL resolution while keeping the
+    // redirect on the current origin, even when URI fixing supplied an authority.
+    if redirect_uri.starts_with("//") || redirect_uri.starts_with("/\\") {
+        redirect_uri.insert_str(0, "/.");
+    }
     if let Some(query) = path_and_query.query() {
         redirect_uri.push('?');
         redirect_uri.push_str(query);
@@ -705,6 +711,31 @@ mod tests {
         super::redirect_to_dir_url(&uri, &mut res);
 
         assert_eq!(res.headers()[LOCATION], "/assets/?x=1");
+    }
+
+    #[test]
+    fn directory_redirect_keeps_ambiguous_paths_on_the_same_origin() {
+        for (path, expected) in [
+            (
+                "//evil.example/assets",
+                "/.//evil.example/assets/?token=example",
+            ),
+            (
+                "///evil.example/assets",
+                "/.///evil.example/assets/?token=example",
+            ),
+            (
+                "/\\evil.example/assets",
+                "/./%5Cevil.example/assets/?token=example",
+            ),
+        ] {
+            for prefix in ["", "http://trusted.example"] {
+                let uri: Uri = format!("{prefix}{path}?token=example").parse().unwrap();
+                let mut res = Response::new();
+                super::redirect_to_dir_url(&uri, &mut res);
+                assert_eq!(res.headers()[LOCATION], expected);
+            }
+        }
     }
 
     #[test]

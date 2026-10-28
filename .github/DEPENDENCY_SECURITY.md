@@ -12,6 +12,40 @@ dependencies. CI checks that an isolated downstream TLS application cannot resol
 rustls 0.23.40. Transitive dependency findings remain covered by the audit job; raising
 a direct dependency minimum does not guarantee every transitive version is safe.
 
+## RUSTSEC-2026-0387: RustCrypto JWT dependency blocker
+
+As checked on 2026-10-28, the latest published `jsonwebtoken` is 11.1.0. Its
+`rust_crypto` feature requires `p256 ^0.13.2` and `p384 ^0.13`, which require
+`elliptic-curve 0.13` and `crypto-bigint 0.5.5`. The patched crypto-bigint series
+starts at 0.7.6 and cannot satisfy that dependency chain. Upstream tracks the
+blocked migration in [jsonwebtoken issue 549](https://github.com/Keats/jsonwebtoken/issues/549).
+
+Salvo enables this JWT backend through `salvo-jwt-auth/ring` or the umbrella
+`salvo/jwt-auth-ring` feature. The separately named `salvo/ring` feature selects
+the TLS backend and does not, by itself, select the RustCrypto JWT backend.
+Cargo features are additive: selecting AWS-LC at runtime does not remove a
+RustCrypto dependency that another enabled feature pulled into the lockfile.
+
+There is **no audit exception** for RUSTSEC-2026-0387. The root workspace audit
+and the release workflow's audit before any crate is published remain blocked
+until a supported upstream release removes the affected chain. Replacing the
+lockfile or installing a different runtime
+provider is not a resolution for a lockfile that still contains it. Do not
+resume publication on the strength of the default-only consumer check below.
+
+An isolated consumer using only the default JWT AWS-LC backend does not require
+the affected RustCrypto chain; CI audits that exact consumer separately to
+guard this feature boundary. Applications that can use that backend should
+disable the alternative JWT backend and audit their own final lockfile. This
+is a narrower dependency configuration, not a fix for the RustCrypto backend.
+The advisory concerns secret integer operations; dependency presence alone
+does not establish a timing attack against Salvo's token verification path.
+
+After an upstream fix, update the dependency requirement, audit all three
+workspace lockfiles and isolated JWT consumers, and remove this blocker only
+after the RustCrypto feature also passes. See the
+[RustSec advisory](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+
 ## RUSTSEC-2023-0071: rsa timing side channel
 
 - Owner: Salvo maintainers. Review by **2027-01-23**, and whenever certon or its
@@ -27,5 +61,16 @@ a direct dependency minimum does not guarantee every transitive version is safe.
   fixed version or replacement is available. Reassess it before adding any new
   use of rsa, including through other dependencies.
 
-All other advisories fail the audit. The workflow checks the exception review
-date so that it cannot remain unreviewed indefinitely.
+Security CI fails on vulnerability advisories and `unsound` informational
+advisories, except for explicitly reviewed entries in `.cargo/audit.toml`.
+Unmaintained and yanked packages remain visible warnings for maintenance review.
+The workflow tests this policy with an offline advisory fixture and checks the
+exception review date so that it cannot remain unreviewed indefinitely.
+
+The examples workspace currently resolves `rbdc 4.9.10 -> lru 0.14.0`, which is
+affected by RUSTSEC-2026-0002 and RUSTSEC-2026-0253. The first fixed `lru` releases
+for these advisories are 0.16.3 and 0.18.2 respectively; rbdc's `^0.14.0`
+requirement cannot select them. The examples audit must remain blocked until the
+upstream dependency is upgraded or replaced. No exception is added for this path.
+The dependency finding alone does not establish that the example reaches the
+affected iterator or panic-unwinding operations.

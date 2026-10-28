@@ -24,6 +24,27 @@ struct Query {
 }
 ```
 
+`ToParameters` describes named parameters. OpenAPI 3.2's `QueryString` location
+describes the entire query string and requires `content` instead of `schema`.
+It is not supported by this derive; use the ordinary `Query` location for named
+query parameters, or construct a `Parameter` with `content` manually.
+
+```compile_fail
+#[derive(salvo_oapi::ToParameters, serde::Deserialize)]
+#[salvo(parameters(default_parameter_in = QueryString))]
+struct WholeQuery {
+    filter: String,
+}
+```
+
+```compile_fail
+#[derive(salvo_oapi::ToParameters, serde::Deserialize)]
+struct WholeQuery {
+    #[salvo(parameter(parameter_in = QueryString))]
+    filter: String,
+}
+```
+
 # ToParameters Container Attributes for `#[salvo(parameters(...))]`
 
 The following attributes are available on the container attribute `#[salvo(parameters(...))]` for the struct

@@ -21,7 +21,7 @@
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.94%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -61,6 +61,15 @@ Salvo uses `aws-lc-rs` as its default cryptography provider. To use the
 RustCrypto provider for JWTs instead, disable Salvo's default features and
 select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
 rustls integration:
+
+**Current dependency limitation:** the RustCrypto JWT backend selected by
+`jwt-auth-ring` still resolves crypto-bigint 0.5 through jsonwebtoken 11.1's
+p256/p384 dependencies and is affected by
+[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+There is no Salvo audit exception for it. Prefer the default AWS-LC JWT backend
+where suitable, audit your application's final lockfile, and see the repository's
+[dependency security policy](../../.github/DEPENDENCY_SECURITY.md) for the upstream
+blocker. The alternative configuration below retains this unresolved dependency.
 
 ```toml
 salvo = { version = "*", default-features = false, features = [
@@ -196,6 +205,12 @@ An unknown `kid` can trigger an early JWKS refresh for key rotation. Refreshes
 are shared across decoder clones and have a one-second cooldown after completion,
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
+
+Discovery metadata must include an `issuer` that exactly matches the configured
+issuer URL, including any trailing slash. JWKS keys with an explicit `use` must
+declare `sig`; explicit `key_ops` must include `verify` and contain only signature
+operations. Keys without these optional fields remain supported. These checks
+also apply when the provider rotates or refreshes its key set.
 
 Troubleshooting audience failures:
 
