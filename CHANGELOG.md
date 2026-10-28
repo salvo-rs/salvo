@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Require OIDC discovery metadata to contain the exact configured issuer, and
+  exclude JWKs whose declared use or key operations do not permit verification.
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
