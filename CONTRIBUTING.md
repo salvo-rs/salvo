@@ -52,6 +52,10 @@ cd examples
 cargo check --all --bins --examples --tests
 ```
 
+The Salvo workspace and most examples declare Rust 1.94. The PostgreSQL Toasty
+example declares Rust 1.95 because Toasty 0.8 requires it. CI checks that example
+on its own declared minimum version in addition to the normal stable build.
+
 ## Coding Guidelines
 
 - Follow the existing crate naming, feature flag, and API style.

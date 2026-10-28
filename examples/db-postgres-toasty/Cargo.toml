@@ -3,7 +3,8 @@ name = "example-db-postgres-toasty"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-rust-version.workspace = true
+# Toasty 0.8 requires Rust 1.95; other examples and Salvo retain their own MSRV.
+rust-version = "1.95"
 
 [dependencies]
 salvo = { workspace = true, features = ["affix-state", "oapi"] }

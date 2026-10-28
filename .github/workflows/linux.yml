@@ -66,6 +66,29 @@ jobs:
 
       - name: check crates
         run: cargo check --all --bins --examples --tests
+  toasty-msrv:
+    name: Check Toasty example MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Read the example's declared MSRV
+        id: msrv
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import pathlib
+          import tomllib
+          manifest = pathlib.Path('examples/db-postgres-toasty/Cargo.toml')
+          version = tomllib.loads(manifest.read_text())['package']['rust-version']
+          if not isinstance(version, str):
+              raise SystemExit('Toasty must declare its own minimum Rust version')
+          print(f'version={version}')
+          PY
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - name: Check Toasty at its minimum Rust version
+        run: cargo check --manifest-path examples/Cargo.toml -p example-db-postgres-toasty --all-targets
+
   test:
     strategy:
         fail-fast: false
