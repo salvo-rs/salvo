@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fail dependency security CI on RustSec `unsound` advisories as well as
+  vulnerability advisories, with an offline regression for the audit policy.
+
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
