@@ -1428,6 +1428,8 @@ mod tests {
                        }
                     }
                  }"#
+                 .replace("uint64", if cfg!(feature = "non-strict-integers") { "uint64" } else { "int64" })
+                 .as_str()
             )
             .unwrap(),
             Value::from_str(&doc.to_json().unwrap()).unwrap()
@@ -2219,7 +2221,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "uint16",
+                                    "format": if cfg!(feature = "non-strict-integers") { "uint16" } else { "int32" },
                                     "minimum": 0
                                 },
                                 "detail": {

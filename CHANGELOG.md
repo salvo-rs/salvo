@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Reject `QueryString` in `ToParameters` derives instead of producing an invalid
+  schema and extracting a named query parameter. Use `Query` for named values
+  or construct a whole-query parameter with `content` manually.
+- Preserve large floating-point OpenAPI constraints when their values fall
+  outside the integer serialization range.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
