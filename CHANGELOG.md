@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
+
 ### Fixed
 
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
