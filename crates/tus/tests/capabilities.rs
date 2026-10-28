@@ -1,3 +1,5 @@
+//! Capability responses match the operations implemented by the tus handlers.
+
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
