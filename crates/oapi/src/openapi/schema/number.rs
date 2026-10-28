@@ -6,6 +6,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// This type preserves the distinction between integers and floating-point numbers,
 /// ensuring that integer values like `1` serialize as `1` rather than `1.0` in JSON output.
 ///
+/// Non-finite floating-point values are passed to the selected serializer.
+/// For example, `serde_json` encodes them as `null`, which this type rejects when
+/// deserializing. Non-finite values therefore do not round-trip through JSON.
+///
 /// # Examples
 ///
 /// ```
@@ -177,6 +181,24 @@ mod tests {
             let decoded: serde_json::Value = serde_json::from_str(&encoded).unwrap();
             assert!(decoded.is_f64(), "{value}: {encoded}");
             assert_eq!(decoded.as_f64(), Some(value), "{encoded}");
+        }
+    }
+
+    #[test]
+    fn large_finite_floats_round_trip_as_numbers() {
+        for value in [1e20, 1e30, -1e30] {
+            let encoded = serde_json::to_string(&Number::Float(value)).unwrap();
+            let decoded: Number = serde_json::from_str(&encoded).unwrap();
+            assert!(matches!(decoded, Number::Float(restored) if restored == value));
+        }
+    }
+
+    #[test]
+    fn non_finite_json_serialization_is_not_a_number_round_trip() {
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let encoded = serde_json::to_string(&Number::Float(value)).unwrap();
+            assert_eq!(encoded, "null");
+            assert!(serde_json::from_str::<Number>(&encoded).is_err());
         }
     }
 
