@@ -1,3 +1,5 @@
+//! Completed resources remain available after their upload deadline.
+
 use std::collections::HashSet;
 use std::time::Duration;
 
