@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Expose client certificate chains, SNI and ALPN through `Request::tls_info` for
   Rustls and Rustls-backed HTTP/3 connections, with an mTLS authorization example.
+
 ### Changed
 
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
@@ -23,7 +24,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cancel HTTP/3 request tasks when their connection closes or the server stops
   forcefully, while allowing accepted requests to finish on graceful shutdown.
 
-### Fixed
 - Preserve outer request extensions across direct Tower service calls, including
   failures and cancellation.
 - Keep static directory slash redirects on the same origin for paths beginning
