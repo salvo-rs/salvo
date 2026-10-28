@@ -197,6 +197,12 @@ are shared across decoder clones and have a one-second cooldown after completion
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
 
+Discovery metadata must include an `issuer` that exactly matches the configured
+issuer URL, including any trailing slash. JWKS keys with an explicit `use` must
+declare `sig`; explicit `key_ops` must include `verify` and contain only signature
+operations. Keys without these optional fields remain supported. These checks
+also apply when the provider rotates or refreshes its key set.
+
 Troubleshooting audience failures:
 
 - Make sure the token actually contains an `aud` claim. `OidcDecoder::new` and
