@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
+- Fail dependency security CI on RustSec `unsound` advisories as well as
+  vulnerability advisories, with an offline regression for the audit policy.
+
 - Reject `QueryString` in `ToParameters` derives instead of producing an invalid
   schema and extracting a named query parameter. Use `Query` for named values
   or construct a whole-query parameter with `content` manually.
