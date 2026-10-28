@@ -141,7 +141,14 @@ fn alpn_protocols() -> Vec<Vec<u8>> {
     alpn_protocols
 }
 
-/// Builder to set the configuration for the Tls server.
+/// Builder to set the configuration for the TLS server.
+///
+/// Use [`client_auth_required`](Self::client_auth_required) or
+/// [`client_auth_optional`](Self::client_auth_optional) with PEM-encoded client
+/// CA certificates to enable mTLS. After the handshake, handlers can read the
+/// client certificate chain through [`Request::tls_info`](crate::Request::tls_info)
+/// and apply application-specific authorization. Certificate authentication does
+/// not grant access to every resource automatically.
 #[derive(Clone, Debug)]
 pub struct RustlsConfig {
     /// Fallback keycert.
@@ -170,10 +177,12 @@ impl RustlsConfig {
         }
     }
 
-    /// Sets the trust anchor for optional Tls client authentication via file path.
+    /// Sets PEM-encoded client CA certificates for optional TLS authentication from a file.
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
+    /// A presented but invalid certificate is rejected during the handshake. Anonymous
+    /// requests have an empty certificate chain in [`Request::tls_info`](crate::Request::tls_info).
     pub fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
@@ -182,20 +191,24 @@ impl RustlsConfig {
         Ok(self)
     }
 
-    /// Sets the trust anchor for optional Tls client authentication via bytes slice.
+    /// Sets PEM-encoded client CA certificates for optional TLS authentication.
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
+    /// A presented but invalid certificate is rejected during the handshake. Anonymous
+    /// requests have an empty certificate chain in [`Request::tls_info`](crate::Request::tls_info).
     #[must_use]
     pub fn client_auth_optional(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         self.client_auth = TlsClientAuth::Optional(trust_anchor.into());
         self
     }
 
-    /// Sets the trust anchor for required Tls client authentication via file path.
+    /// Sets PEM-encoded client CA certificates for required TLS authentication from a file.
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
+    /// Missing or invalid certificates fail the handshake before an HTTP handler runs.
+    /// Handlers can inspect the chain using [`Request::tls_info`](crate::Request::tls_info).
     pub fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
@@ -204,10 +217,12 @@ impl RustlsConfig {
         Ok(self)
     }
 
-    /// Sets the trust anchor for required Tls client authentication via bytes slice.
+    /// Sets PEM-encoded client CA certificates for required TLS authentication.
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
+    /// Missing or invalid certificates fail the handshake before an HTTP handler runs.
+    /// Handlers can inspect the chain using [`Request::tls_info`](crate::Request::tls_info).
     #[inline]
     #[must_use]
     pub fn client_auth_required(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
@@ -276,22 +291,29 @@ impl RustlsConfig {
             }
         }
 
+        let provider = default_crypto_provider();
         let client_auth = match &self.client_auth {
             TlsClientAuth::Off => WebPkiClientVerifier::no_client_auth(),
             TlsClientAuth::Optional(trust_anchor) => {
-                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                WebPkiClientVerifier::builder_with_provider(
+                    read_trust_anchor(trust_anchor)?.into(),
+                    provider.clone(),
+                )
                     .allow_unauthenticated()
                     .build()
                     .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             }
             TlsClientAuth::Required(trust_anchor) => {
-                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                WebPkiClientVerifier::builder_with_provider(
+                    read_trust_anchor(trust_anchor)?.into(),
+                    provider.clone(),
+                )
                     .build()
                     .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             }
         };
 
-        let mut config = ServerConfig::builder_with_provider(default_crypto_provider())
+        let mut config = ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(self.tls_versions)
             .map_err(|e| IoError::other(format!("failed to build server config: {e}")))?
             .with_client_cert_verifier(client_auth)

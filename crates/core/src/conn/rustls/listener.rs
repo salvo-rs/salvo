@@ -214,9 +214,15 @@ where
         let Some(tls_acceptor) = self.current_acceptor.load_full() else {
             return Err(IoError::other("rustls: no active tls config"));
         };
+        let tls_conn_ctrl = conn_ctrl.clone();
+        let handshake = async move {
+            let stream = tls_acceptor.accept(stream).await?;
+            tls_conn_ctrl.set_tls_info(crate::conn::TlsInfo::from_rustls(stream.get_ref().1));
+            Ok(stream)
+        };
         Ok(Accepted {
             coupler: TcpCoupler::new(),
-            stream: HandshakeStream::new(tls_acceptor.accept(stream), fuse_config),
+            stream: HandshakeStream::new(handshake, fuse_config),
             fuse_config,
             conn_ctrl,
             local_addr,

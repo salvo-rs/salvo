@@ -179,6 +179,7 @@ salvo new my_project
 - [官方网站](https://salvo.rs)
 - [API 文档](https://docs.rs/salvo)
 - [示例代码](./examples/)
+- [mTLS 认证与基于客户端证书的授权](./examples/mtls-rustls/)
 - [按功能拆分的 crate](./crates/)
 
 ## 推荐项目

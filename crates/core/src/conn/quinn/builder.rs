@@ -131,6 +131,9 @@ impl Builder {
             raw_conn.close(0u32.into(), b"handshake timed out");
             return Ok(());
         }
+        if let Some(tls_info) = crate::conn::TlsInfo::from_quinn(&raw_conn) {
+            conn_ctrl.set_tls_info(tls_info);
+        }
         let mut conn = self
             .inner
             .build::<salvo_http3::quinn::Connection, bytes::Bytes>(inner)

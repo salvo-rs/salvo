@@ -67,6 +67,8 @@ mod proto;
 pub use proto::HttpBuilder;
 mod ctrl;
 pub use ctrl::ConnCtrl;
+mod tls;
+pub use tls::TlsInfo;
 mod stream;
 pub use stream::*;
 

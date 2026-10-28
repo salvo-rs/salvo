@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Expose client certificate chains, SNI and ALPN through `Request::tls_info` for
+  Rustls and Rustls-backed HTTP/3 connections, with an mTLS authorization example.
+
 ### Changed
 
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
@@ -19,7 +24,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cancel HTTP/3 request tasks when their connection closes or the server stops
   forcefully, while allowing accepted requests to finish on graceful shutdown.
 
-### Fixed
 - Preserve outer request extensions across direct Tower service calls, including
   failures and cancellation.
 - Keep static directory slash redirects on the same origin for paths beginning
@@ -32,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fail dependency security CI on RustSec `unsound` advisories as well as
   vulnerability advisories, with an offline regression for the audit policy.
 
+- Use the same explicit crypto provider for Rustls client certificate verification
+  and server configuration, avoiding ambiguous provider selection with mTLS.
 - Reject `QueryString` in `ToParameters` derives instead of producing an invalid
   schema and extracting a named query parameter. Use `Query` for named values
   or construct a whole-query parameter with `content` manually.

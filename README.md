@@ -176,6 +176,7 @@ salvo new my_project
 - [Official Website](https://salvo.rs)
 - [API Documentation](https://docs.rs/salvo)
 - [Examples](./examples/)
+- [mTLS authentication and certificate-based authorization](./examples/mtls-rustls/)
 - [MCP server using the Rust SDK and Tower compatibility](./examples/mcp/)
 - [Feature-specific crates](./crates/)
 
