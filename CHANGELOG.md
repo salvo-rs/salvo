@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve outer request extensions across direct Tower service calls, including
+  failures and cancellation.
 - Keep static directory slash redirects on the same origin for paths beginning
   with multiple separators, including after filesystem path normalization.
 - Require OIDC discovery metadata to contain the exact configured issuer, and

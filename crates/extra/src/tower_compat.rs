@@ -106,7 +106,13 @@ where
             res.render(StatusError::internal_server_error().cause("tower service not ready"));
             return;
         }
-        let Ok(hyper_req) = req.strip_to_hyper::<QB>() else {
+        // Both Tower and the outer Salvo flow need the original metadata. Keep
+        // the outer extensions even if body conversion fails or the call is
+        // cancelled; the one-shot body remains owned by Tower.
+        let extensions = req.extensions().clone();
+        let stripped = req.strip_to_hyper::<QB>();
+        *req.extensions_mut() = extensions;
+        let Ok(hyper_req) = stripped else {
             tracing::error!("strip request to hyper failed");
             res.render(StatusError::internal_server_error().cause("strip request to hyper failed"));
             return;
@@ -393,6 +399,70 @@ mod tests {
     use salvo_core::{Router, handler};
 
     use super::*;
+
+    #[tokio::test]
+    async fn tower_service_preserves_outer_extensions_on_success_and_error() {
+        for fail in [false, true] {
+            let service = tower::service_fn(move |req: hyper::Request<ReqBody>| {
+                assert_eq!(req.extensions().get::<u32>(), Some(&42));
+                ready(if fail {
+                    Err(io::Error::other("upstream failed"))
+                } else {
+                    Ok(hyper::Response::new(ResBody::from("upstream")))
+                })
+            })
+            .compat();
+            let mut req = Request::new();
+            req.extensions_mut().insert(42_u32);
+            let mut res = Response::new();
+            service
+                .handle(&mut req, &mut Depot::new(), &mut res, &mut FlowCtrl::new(vec![]))
+                .await;
+            assert_eq!(req.extensions().get::<u32>(), Some(&42));
+            if fail {
+                assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+            } else {
+                assert_eq!(res.take_string().await.unwrap(), "upstream");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn tower_service_cancellation_preserves_outer_extensions() {
+        let service = tower::service_fn(|req: hyper::Request<ReqBody>| async move {
+            assert_eq!(req.extensions().get::<u32>(), Some(&42));
+            std::future::pending::<Result<hyper::Response<ResBody>, io::Error>>().await
+        })
+        .compat();
+        let mut req = Request::new();
+        req.extensions_mut().insert(42_u32);
+        let mut res = Response::new();
+        let mut depot = Depot::new();
+        let mut ctrl = FlowCtrl::new(vec![]);
+        assert!(tokio::time::timeout(
+            std::time::Duration::from_millis(10),
+            service.handle(&mut req, &mut depot, &mut res, &mut ctrl),
+        ).await.is_err());
+        assert_eq!(req.extensions().get::<u32>(), Some(&42));
+    }
+
+    #[tokio::test]
+    async fn tower_service_body_conversion_error_preserves_outer_extensions() {
+        let service = TowerServiceHandler::<_, RejectBody>(
+            tower::service_fn(|_: hyper::Request<RejectBody>| {
+                ready(Ok::<_, io::Error>(hyper::Response::new(ResBody::None)))
+            }),
+            PhantomData,
+        );
+        let mut req = Request::new();
+        req.extensions_mut().insert(42_u32);
+        let mut res = Response::new();
+        service
+            .handle(&mut req, &mut Depot::new(), &mut res, &mut FlowCtrl::new(vec![]))
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(req.extensions().get::<u32>(), Some(&42));
+    }
 
     fn short_circuit(
         error: bool,
