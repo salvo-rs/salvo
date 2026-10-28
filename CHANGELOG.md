@@ -6,13 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
+
 ### Fixed
+
+- Cancel HTTP/3 request tasks when their connection closes or the server stops
+  forcefully, while allowing accepted requests to finish on graceful shutdown.
+
+### Fixed
+- Preserve outer request extensions across direct Tower service calls, including
+  failures and cancellation.
+- Keep static directory slash redirects on the same origin for paths beginning
+  with multiple separators, including after filesystem path normalization.
+- Require OIDC discovery metadata to contain the exact configured issuer, and
+  exclude JWKs whose declared use or key operations do not permit verification.
+- Exclude request query strings and client error URL contents from proxy failure
+  logs while retaining the request method, path, and error type.
 
 - Reject `QueryString` in `ToParameters` derives instead of producing an invalid
   schema and extracting a named query parameter. Use `Query` for named values
   or construct a whole-query parameter with `content` manually.
 - Preserve large floating-point OpenAPI constraints when their values fall
   outside the integer serialization range.
+- Apply method-aware preconditions to ReadSeeker responses: ignore Range outside
+  GET, ignore If-Modified-Since outside GET/HEAD, and return 412 for a matching
+  If-None-Match on other methods.
+- Bypass response caching and concurrent fill coalescing for conditional requests
+  so origin handlers retain their precondition and conditional download behavior.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
