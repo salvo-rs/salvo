@@ -6,10 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
+
 ### Fixed
 
 - Preserve outer request extensions across direct Tower service calls, including
   failures and cancellation.
+- Keep static directory slash redirects on the same origin for paths beginning
+  with multiple separators, including after filesystem path normalization.
+- Require OIDC discovery metadata to contain the exact configured issuer, and
+  exclude JWKs whose declared use or key operations do not permit verification.
+- Exclude request query strings and client error URL contents from proxy failure
+  logs while retaining the request method, path, and error type.
+
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
