@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Cancel queued compression tasks when their response body is dropped instead of
+  continuing work for disconnected clients.
+
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
   the affected backend and release remain blocked.
