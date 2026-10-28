@@ -8,9 +8,6 @@ on:
     tags:
       - "v*.*.*"
 
-env:
-  CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -21,7 +18,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - uses: taiki-e/install-action@cargo-audit
+
+      - name: Audit dependencies before publishing any crate
+        run: |
+          cargo generate-lockfile
+          cargo audit --deny unsound --file Cargo.lock
+
       - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
