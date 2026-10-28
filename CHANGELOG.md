@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
+- Bypass response caching and concurrent fill coalescing for conditional requests
+  so origin handlers retain their precondition and conditional download behavior.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
