@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
+- Apply method-aware preconditions to ReadSeeker responses: ignore Range outside
+  GET, ignore If-Modified-Since outside GET/HEAD, and return 412 for a matching
+  If-None-Match on other methods.
 - Bypass response caching and concurrent fill coalescing for conditional requests
   so origin handlers retain their precondition and conditional download behavior.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
