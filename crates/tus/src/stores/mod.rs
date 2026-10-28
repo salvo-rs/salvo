@@ -190,7 +190,11 @@ pub trait DataStore: Send + Sync + 'static {
     async fn delete_expired(&self) -> TusResult<u32> {
         Ok(0)
     }
-    /// Returns the upload expiration duration configured by this backend.
+    /// Returns the expiration duration for unfinished uploads.
+    ///
+    /// Completed resource retention is a separate backend policy. The tus
+    /// handlers stop applying this upload timeout once the offset equals the
+    /// declared upload length.
     fn get_expiration(&self) -> Option<std::time::Duration> {
         None
     }

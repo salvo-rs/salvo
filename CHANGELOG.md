@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Apply TUS upload expiration only to unfinished resources, preserving completed
+  uploads when their original upload timeout passes.
+
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
   the affected backend and release remain blocked.
