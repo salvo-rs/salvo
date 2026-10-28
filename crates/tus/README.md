@@ -127,6 +127,51 @@ let tus = Tus::new()
     });
 ```
 
+## Binary Upload Metadata and Migration
+
+`Metadata` stores decoded values as `HashMap<String, Option<Vec<u8>>>` so arbitrary
+binary values survive creation, persistence, and `HEAD` responses. TUS headers
+continue to use base64. `None` represents a key without a value;
+`Some(Vec::new())` represents an explicitly empty value.
+
+**Breaking Rust API change:** metadata values were previously `Option<String>`.
+Convert text when inserting it, and use `get_text` when a field is expected to be
+UTF-8:
+
+```rust
+use salvo::tus::Metadata;
+
+let mut metadata = Metadata::default();
+metadata.insert("filename".to_owned(), Some("report.pdf".as_bytes().to_vec()));
+metadata.insert("checksum".to_owned(), Some(vec![0xff, 0, 0x80]));
+metadata.insert("flag".to_owned(), None);
+
+assert_eq!(metadata.get_text("filename").unwrap(), Some("report.pdf"));
+assert!(metadata.get_text("checksum").is_err());
+```
+
+For an owned `String`, replace `Some(text)` with `Some(text.into_bytes())`.
+`get_text` returns an error for invalid UTF-8 without changing the raw bytes;
+missing keys and valueless keys return `Ok(None)`, while an explicitly empty
+value returns `Ok(Some(""))`. Direct map access now returns byte vectors.
+Custom `DataStore` implementations, upload hooks, naming callbacks, and
+`UploadPatch` producers must adapt their metadata values and persistence formats.
+The built-in filename and filetype hints use strict UTF-8: binary values remain
+metadata but are ignored for naming.
+
+`DiskStore` reads both the previous JSON string values and new JSON byte arrays
+inside its separated `metadata` directory. New records and subsequent updates
+write arrays, including for valid UTF-8 text; valueless keys remain `null` and
+explicitly empty values use `[]`. Reading an old record alone does not rewrite it.
+Previously corrupted binary values cannot be reconstructed from old strings.
+
+**Disk format downgrade limit:** older versions cannot read the new byte arrays.
+Stop older readers and writers before upgrading a shared store. Keep a backup
+before the first new write. Downgrading requires an explicit conversion of
+valid UTF-8 values back to strings; arbitrary binary values cannot be represented
+losslessly in the old format. This compatibility reader does not import legacy
+flat-layout uploads or change the existing directory trust boundary.
+
 ## Storage Backends
 
 By default, files are stored on disk using `DiskStore`. Implement the `DataStore` trait for custom storage (S3, database, etc.).

@@ -341,7 +341,7 @@ mod tests {
         use crate::handlers::Metadata;
 
         let mut map = HashMap::new();
-        map.insert("filename".to_owned(), Some("test.txt".to_owned()));
+        map.insert("filename".to_owned(), Some("test.txt".as_bytes().to_vec()));
 
         let info = UploadInfo {
             id: "test".to_owned(),
@@ -354,7 +354,10 @@ mod tests {
 
         assert!(info.metadata.is_some());
         let metadata = info.metadata.unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".as_bytes().to_vec()))
+        );
     }
 
     #[test]

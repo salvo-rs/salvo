@@ -13,9 +13,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Breaking:** tus `Metadata` values are now `Option<Vec<u8>>` instead of
+  `Option<String>`. Use `Metadata::get_text` for strict UTF-8 access and convert
+  text with `into_bytes` in custom stores and hooks. DiskStore reads previous
+  string records but writes byte arrays, which older versions cannot read.
+
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
 
 ### Fixed
+
+- Preserve binary tus upload metadata and explicit empty values through parsing,
+  storage reopening, and HEAD responses; ignore non-UTF-8 filename/filetype hints.
 
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
