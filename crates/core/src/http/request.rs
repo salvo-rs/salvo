@@ -756,6 +756,36 @@ impl Request {
         &self.extensions
     }
 
+    /// Borrows TLS metadata from the connection serving this request.
+    ///
+    /// Available after a successful handshake on `RustlsListener`
+    /// and Rustls-backed `QuinnListener`
+    /// connections, including TLS without client authentication. An empty
+    /// [`peer_certificates`](crate::conn::TlsInfo::peer_certificates) slice means
+    /// no client certificate was supplied. Returns `None` for plain HTTP, other
+    /// TLS backends, and requests without connection metadata (such as TestClient).
+    ///
+    /// The certificates describe the direct TLS peer. If a proxy terminates TLS,
+    /// they do not describe the original client. Reading this information performs
+    /// no certificate parsing, allocation, or certificate copying.
+    ///
+    /// ```
+    /// # use salvo_core::Request;
+    /// let req = Request::new();
+    /// assert!(req.tls_info().is_none());
+    /// ```
+    #[must_use]
+    pub fn tls_info(&self) -> Option<&crate::conn::TlsInfo> {
+        #[cfg(feature = "rustls")]
+        {
+            self.extensions.get::<crate::conn::ConnCtrl>()?.tls_info()
+        }
+        #[cfg(not(feature = "rustls"))]
+        {
+            None
+        }
+    }
+
     /// Sets the maximum allowed body size for this request.
     ///
     /// This overrides both the global default and any value set by the

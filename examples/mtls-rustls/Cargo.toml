@@ -1,0 +1,12 @@
+[package]
+name = "example-mtls-rustls"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+salvo = { workspace = true, features = ["rustls"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing-subscriber.workspace = true
+x509-parser = "0.18"

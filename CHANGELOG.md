@@ -6,8 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Expose client certificate chains, SNI and ALPN through `Request::tls_info` for
+  Rustls and Rustls-backed HTTP/3 connections, with an mTLS authorization example.
+
 ### Fixed
 
+- Use the same explicit crypto provider for Rustls client certificate verification
+  and server configuration, avoiding ambiguous provider selection with mTLS.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until

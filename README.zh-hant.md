@@ -177,6 +177,7 @@ salvo new my_project
 - [官方網站](https://salvo.rs)
 - [API 文件](https://docs.rs/salvo)
 - [範例程式碼](./examples/)
+- [mTLS 認證與基於用戶端憑證的授權](./examples/mtls-rustls/)
 - [按功能拆分的 crate](./crates/)
 
 ## 推薦專案

@@ -176,6 +176,7 @@ salvo new my_project
 - [Official Website](https://salvo.rs)
 - [API Documentation](https://docs.rs/salvo)
 - [Examples](./examples/)
+- [mTLS authentication and certificate-based authorization](./examples/mtls-rustls/)
 - [Feature-specific crates](./crates/)
 
 ## Recommended Projects
