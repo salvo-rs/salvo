@@ -938,6 +938,37 @@ mod tests {
         CurrentInfo, DirInfo, FileInfo, human_size, is_safe_relative_path, list_html, xml_escape,
     };
 
+    #[tokio::test]
+    async fn directory_redirect_cannot_change_authority_after_path_normalization() {
+        use salvo_core::http::StatusCode;
+        use salvo_core::http::header::LOCATION;
+        use salvo_core::{Depot, FlowCtrl, Handler, Request, Response};
+
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        let handler = super::StaticDir::new(root.path().to_path_buf());
+        for prefix in ["", "http://trusted.example"] {
+            let mut req = Request::new();
+            *req.uri_mut() = format!("{prefix}//evil.example/../assets?download=1")
+                .parse()
+                .unwrap();
+            let mut res = Response::new();
+            handler
+                .handle(
+                    &mut req,
+                    &mut Depot::new(),
+                    &mut res,
+                    &mut FlowCtrl::new(vec![]),
+                )
+                .await;
+            assert_eq!(res.status_code, Some(StatusCode::FOUND));
+            assert_eq!(
+                res.headers()[LOCATION],
+                "/.//evil.example/../assets/?download=1"
+            );
+        }
+    }
+
     #[test]
     fn test_list_html_escapes_visible_names() {
         // Names in the listing are attacker-influenced only when the served

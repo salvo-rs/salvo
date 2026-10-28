@@ -66,6 +66,9 @@ jobs:
 
       - name: check crates
         run: cargo check --all --bins --examples --tests
+
+      - name: Check Toasty example on MSRV
+        run: cargo check --manifest-path examples/Cargo.toml -p example-db-postgres-toasty --all-targets
   test:
     strategy:
         fail-fast: false
