@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Base HTTPS redirects and server request schemes on the listener's transport,
+  preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
+
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
   the affected backend and release remain blocked.
