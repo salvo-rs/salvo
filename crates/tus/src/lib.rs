@@ -86,6 +86,7 @@ use crate::options::{MaxSize, TusOptions, UploadFinishPatch, UploadPatch};
 use crate::utils::normalize_path;
 
 mod handlers;
+mod method_override;
 
 /// Error types returned by the tus implementation.
 pub mod error;
@@ -391,6 +392,11 @@ impl Tus {
     }
 
     /// Builds the Salvo router that serves the configured tus endpoints.
+    ///
+    /// `X-HTTP-Method-Override` is resolved when a tus endpoint is selected,
+    /// before any service or router hoops run. Those hoops and lifecycle hooks
+    /// see the effective method. Filters outside this router still see the
+    /// original wire method; use hoops for access control by effective method.
     pub fn into_router(self) -> Router {
         let base_path = normalize_path(&self.options.path);
         if !self.options.relative_location && self.options.canonical_origin.is_none() {
@@ -411,6 +417,7 @@ impl Tus {
             .push(handlers::patch_handler())
             .push(handlers::delete_handler())
             .push(handlers::get_handler())
+            .push(method_override::invalid_override_router())
     }
 }
 

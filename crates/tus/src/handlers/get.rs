@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use salvo_core::http::HeaderValue;
+use salvo_core::http::{HeaderValue, Method};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
 use crate::handlers::apply_common_headers;
+use crate::method_override::TusMethodFilter;
 use crate::stores::Extension;
 use crate::utils::check_tus_version;
 use crate::{CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus};
@@ -97,5 +98,7 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub(crate) fn get_handler() -> Router {
-    Router::with_path("{id}").get(get)
+    Router::with_path("{id}")
+        .filter(TusMethodFilter(Method::GET))
+        .goal(get)
 }

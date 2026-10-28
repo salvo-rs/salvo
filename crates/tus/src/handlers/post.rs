@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
-use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
 use crate::handlers::{Metadata, apply_common_headers, finish_upload};
+use crate::method_override::TusMethodFilter;
 use crate::stores::{Extension, UploadInfo};
 use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64};
 use crate::{
@@ -321,5 +322,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub(crate) fn post_handler() -> Router {
-    Router::new().post(create)
+    Router::new()
+        .filter(TusMethodFilter(Method::POST))
+        .goal(create)
 }
