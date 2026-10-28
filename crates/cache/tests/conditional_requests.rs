@@ -1,5 +1,7 @@
 //! Conditional requests must reach the origin handler, even with a warm cache.
 
+#![cfg(feature = "moka-store")]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -117,7 +119,9 @@ async fn conditional_request_does_not_join_unconditional_in_flight_request() {
             .send(&*first_service)
             .await
     });
-    started.notified().await;
+    tokio::time::timeout(std::time::Duration::from_secs(2), started.notified())
+        .await
+        .expect("unconditional request must enter the origin handler");
     let response = tokio::time::timeout(
         std::time::Duration::from_secs(2),
         TestClient::get("http://localhost/")
