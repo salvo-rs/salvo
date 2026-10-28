@@ -12,7 +12,7 @@ use http_body_util::{BodyExt, Full, Limited};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{Client, connect::HttpConnector};
 use hyper_util::rt::TokioExecutor;
-use jsonwebtoken::jwk::{Jwk, JwkSet};
+use jsonwebtoken::jwk::{Jwk, JwkSet, KeyOperations, PublicKeyUse};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::Depot;
 use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
@@ -225,7 +225,7 @@ where
             raw_issuer,
             audiences,
         )?;
-        let issuer = raw_issuer.trim_end_matches('/').to_owned();
+        let issuer = raw_issuer.to_owned();
         let cache = Arc::new(RwLock::new(
             JwkSetStore::new(jwks, CachePolicy::default(), validation)
                 .with_allow_symmetric_jwks(allow_symmetric_jwks),
@@ -262,7 +262,10 @@ impl OidcDecoder {
     }
 
     fn config_url(&self) -> String {
-        format!("{}/.well-known/openid-configuration", &self.issuer)
+        format!(
+            "{}/.well-known/openid-configuration",
+            self.issuer.trim_end_matches('/')
+        )
     }
     async fn get_config(&self) -> Result<OidcConfig, JwtAuthError> {
         let res = timeout(
@@ -275,7 +278,12 @@ impl OidcDecoder {
             return Err(JwtAuthError::OidcHttpStatus(res.status()));
         }
         let body = collect_limited_body(res.into_body(), OIDC_CONFIG_MAX_BYTES).await?;
-        let config = serde_json::from_slice(&body)?;
+        let config: OidcConfig = serde_json::from_slice(&body)?;
+        // Bind the discovered key set to the exact configured issuer. In
+        // particular, normalizing a trailing slash can cross issuer boundaries.
+        if config.issuer != self.issuer {
+            return Err(JwtAuthError::DiscoverError);
+        }
         Ok(config)
     }
     async fn jwks_uri(&self) -> Result<String, JwtAuthError> {
@@ -530,6 +538,7 @@ pub(crate) struct JwkSetFetch {
 
 #[derive(Debug, Deserialize)]
 struct OidcConfig {
+    issuer: String,
     jwks_uri: String,
 }
 
@@ -556,6 +565,20 @@ pub(crate) fn decode_jwk(
     validation: &Validation,
     allow_symmetric_jwks: bool,
 ) -> Result<(String, DecodingInfo), JwtAuthError> {
+    if jwk
+        .common
+        .public_key_use
+        .as_ref()
+        .is_some_and(|usage| *usage != PublicKeyUse::Signature)
+        || jwk.common.key_operations.as_ref().is_some_and(|operations| {
+            !operations.contains(&KeyOperations::Verify)
+                || operations
+                    .iter()
+                    .any(|operation| !matches!(operation, KeyOperations::Sign | KeyOperations::Verify))
+        })
+    {
+        return Err(JwtAuthError::InvalidJwk);
+    }
     let kid = jwk.common.key_id.clone();
     let alg = jwk.common.key_algorithm;
 
@@ -624,6 +647,112 @@ mod tests {
 
     use super::*;
 
+    fn test_http_client() -> HyperClient {
+        let tls = rustls::ClientConfig::builder_with_provider(default_rustls_crypto_provider())
+            .with_safe_default_protocol_versions().unwrap()
+            .with_root_certificates(rustls::RootCertStore::empty()).with_no_client_auth();
+        let connector = HttpsConnectorBuilder::new().with_tls_config(tls)
+            .https_or_http().enable_http1().build();
+        Client::builder(TokioExecutor::new()).build(connector)
+    }
+
+    #[tokio::test]
+    async fn discovery_issuer_is_required_and_must_match_before_fetching_jwks() {
+        for mode in ["mismatch", "missing", "missing-slash", "extra-slash", "match", "tenant"] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let configured = match mode {
+                "missing-slash" => format!("{base}/"),
+                "tenant" => format!("{base}/tenant/"),
+                _ => base.clone(),
+            };
+            let mut metadata = json!({"jwks_uri": format!("{base}/jwks")});
+            if mode != "missing" {
+                metadata["issuer"] = json!(match mode {
+                    "mismatch" => format!("{base}/other-tenant"),
+                    "missing-slash" => base.clone(),
+                    "extra-slash" => format!("{base}/"),
+                    _ => configured.clone(),
+                });
+            }
+            let metadata = metadata.to_string();
+            let fetches = Arc::new(AtomicUsize::new(0));
+            let server_fetches = Arc::clone(&fetches);
+            let server = tokio::spawn(async move {
+                loop {
+                    let (stream, _) = listener.accept().await.unwrap();
+                    let metadata = metadata.clone();
+                    let fetches = Arc::clone(&server_fetches);
+                    tokio::spawn(async move {
+                        let service = service_fn(move |req: salvo_core::hyper::Request<_>| {
+                            let body = if req.uri().path() == "/jwks" {
+                                fetches.fetch_add(1, Ordering::Relaxed);
+                                r#"{"keys":[]}"#.to_owned()
+                            } else { metadata.clone() };
+                            async move { Ok::<_, Infallible>(Response::new(Full::new(Bytes::from(body)))) }
+                        });
+                        let _ = http1::Builder::new().serve_connection(TokioIo::new(stream), service).await;
+                    });
+                }
+            });
+            let result = OidcDecoder::builder(&configured).audience("test-client")
+                .http_client(test_http_client()).build().await;
+            server.abort();
+            let expected = matches!(mode, "match" | "tenant");
+            assert_eq!(result.is_ok(), expected, "discovery mode {mode}");
+            assert_eq!(fetches.load(Ordering::Relaxed), usize::from(expected), "discovery mode {mode}");
+        }
+    }
+
+    #[test]
+    fn jwk_rejects_explicit_non_verification_purposes() {
+        for usage in [
+            json!({"use":"enc"}), json!({"use":"unknown"}),
+            json!({"key_ops":[]}), json!({"key_ops":["encrypt"]}),
+            json!({"key_ops":["sign"]}), json!({"key_ops":["verify", "encrypt"]}),
+            json!({"use":"enc", "key_ops":["verify"]}),
+            json!({"use":"sig", "key_ops":["encrypt"]}),
+        ] {
+            let mut key = json!({"kty":"oct", "kid":"test", "alg":"HS256", "k":"c2VjcmV0"});
+            key.as_object_mut().unwrap().extend(usage.as_object().unwrap().clone());
+            let jwk: Jwk = serde_json::from_value(key).unwrap();
+            assert!(matches!(decode_jwk(&jwk, &Validation::new(Algorithm::HS256), true), Err(JwtAuthError::InvalidJwk)), "purpose {usage}");
+        }
+    }
+
+    #[test]
+    fn jwk_accepts_missing_or_consistent_verification_purposes() {
+        let _ = crate::install_crypto_provider();
+        let token = jsonwebtoken::encode(&jsonwebtoken::Header::new(Algorithm::HS256),
+            &json!({"exp": current_time() + 3600}), &jsonwebtoken::EncodingKey::from_secret(b"secret")).unwrap();
+        for usage in [json!({}), json!({"use":"sig"}), json!({"key_ops":["verify"]}),
+            json!({"key_ops":["sign", "verify"]}), json!({"use":"sig", "key_ops":["verify"]})] {
+            let mut key = json!({"kty":"oct", "kid":"test", "alg":"HS256", "k":"c2VjcmV0"});
+            key.as_object_mut().unwrap().extend(usage.as_object().unwrap().clone());
+            let jwk: Jwk = serde_json::from_value(key).unwrap();
+            let (_, info) = decode_jwk(&jwk, &Validation::new(Algorithm::HS256), true).unwrap();
+            assert!(info.decode::<serde_json::Value>(&token).is_ok(), "purpose {usage}");
+        }
+    }
+
+    #[test]
+    fn refreshed_jwks_excludes_encryption_keys_and_removes_revoked_purposes() {
+        let mut store = JwkSetStore::new(JwkSet { keys: vec![] }, CachePolicy::default(), Validation::new(Algorithm::HS256))
+            .with_allow_symmetric_jwks(true);
+        let signing = json!({"kty":"oct", "kid":"signing", "alg":"HS256", "k":"c2VjcmV0", "use":"sig", "key_ops":["verify"]});
+        let encryption = json!({"kty":"oct", "kid":"encryption", "alg":"HS256", "k":"c2VjcmV0", "use":"enc", "key_ops":["encrypt"]});
+        store.update_fetch(JwkSetFetch { jwks: serde_json::from_value(json!({"keys":[signing.clone(), encryption]})).unwrap(),
+            cache_policy: Some(CachePolicy::default()), fetched_at: current_time() });
+        assert!(store.get_key("signing").is_some());
+        assert!(store.get_key("encryption").is_none());
+        let mut revoked = signing;
+        revoked["use"] = json!("enc");
+        revoked["key_ops"] = json!(["encrypt"]);
+        store.update_fetch(JwkSetFetch { jwks: serde_json::from_value(json!({"keys":[revoked]})).unwrap(),
+            cache_policy: Some(CachePolicy::default()), fetched_at: current_time() });
+        assert!(store.get_key("signing").is_none());
+    }
+
     #[test]
     fn explicit_algorithm_policy_rejects_an_otherwise_valid_signature() {
         let _ = crate::install_crypto_provider();
@@ -671,7 +800,7 @@ mod tests {
     async fn unknown_kids_share_a_cooldown_and_rotation_remains_possible() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let issuer = format!("http://{}", listener.local_addr().unwrap());
-        let discovery = format!(r#"{{"jwks_uri":"{issuer}/jwks"}}"#);
+        let discovery = format!(r#"{{"issuer":"{issuer}","jwks_uri":"{issuer}/jwks"}}"#);
         let keys = Arc::new(std::sync::RwLock::new(
             json!({"keys": [{
                 "kty": "oct", "kid": "initial", "alg": "HS256", "k": "c2VjcmV0"
