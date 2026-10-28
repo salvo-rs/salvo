@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Bypass response caching and concurrent fill coalescing for conditional requests
+  so origin handlers retain their precondition and conditional download behavior.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Clean up interrupted multipart uploads and keep temporary files alive until
