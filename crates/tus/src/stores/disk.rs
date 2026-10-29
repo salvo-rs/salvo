@@ -538,6 +538,22 @@ impl DataStore for DiskStore {
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
 
+        // The internal payload name is also our creation reservation. A
+        // completed payload may have moved away from it, but its metadata
+        // still owns this ID. Check after create_new so another creator cannot
+        // finish and release that name between our check and reservation.
+        let collision = match fs::symlink_metadata(self.meta_path(&upload.id)).await {
+            Ok(_) => Some(TusError::Internal("upload ID already exists".into())),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+            Err(error) => Some(TusError::Internal(error.to_string())),
+        };
+        if let Some(error) = collision {
+            if let Err(cleanup_error) = fs::remove_file(&data_path).await {
+                warn!(id = %upload.id, error = %cleanup_error, "failed to remove rejected upload reservation");
+            }
+            return Err(error);
+        }
+
         let mut meta = MetaUpload::from(upload);
         if let Err(err) = self.write_meta_atomic(&meta).await {
             let _ = fs::remove_file(&data_path).await;

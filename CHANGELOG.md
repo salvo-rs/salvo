@@ -121,6 +121,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   response customization and error handling with creation-time completion.
 - Apply TUS upload expiration only to unfinished resources, preserving completed
   uploads when their original upload timeout passes.
+- Keep completed tus upload IDs reserved after payload renaming, preventing
+  duplicate custom IDs from replacing existing upload metadata and download URLs.
+
 - Preserve existing tus metadata if replacing its temporary file fails on Windows.
 - Keep graceful server shutdown responsive to force-stop commands and release active
   connection accounting when a connection task panics or is cancelled.
