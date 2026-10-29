@@ -37,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Cancel HTTP/3 request tasks when their connection closes or the server stops
   forcefully, while allowing accepted requests to finish on graceful shutdown.
+- Cancel accepted connection tasks when the server's serving future is dropped,
+  including pending handlers and idle keep-alive connections, while preserving
+  graceful draining through `ServerHandle`.
 - Resolve HTTP/3 request headers independently for peers that do not negotiate
   WebTransport, so incomplete headers do not block sibling HTTP requests.
   Preserve sequential acceptance for WebTransport's early stream handoff.
