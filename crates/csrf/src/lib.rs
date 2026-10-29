@@ -18,6 +18,8 @@
 //! work with `salvo-session` crate.
 //!
 //! Use [`Csrf::rotation_policy`] to opt into request-level rotation when needed.
+//! If saving a newly issued or rotated token fails, the middleware responds with
+//! HTTP 500 and does not execute downstream handlers or expose the unsaved token.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -321,13 +323,14 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
         req: &mut Request,
         depot: &mut Depot,
         res: &mut Response,
-    ) -> String {
+    ) -> Result<String, S::Error> {
         let (token, proof) = self.cipher.generate();
         if let Err(e) = self.store.save(req, depot, res, &token, &proof).await {
             tracing::error!(error = ?e, "csrf token save failed");
+            return Err(e);
         }
         tracing::debug!("new csrf token generated");
-        token
+        Ok(token)
     }
 }
 
@@ -365,7 +368,12 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 }
 
                 let token = if matches!(self.rotation_policy, CsrfRotationPolicy::PerRequest) {
-                    self.issue_token(req, depot, res).await
+                    let Ok(token) = self.issue_token(req, depot, res).await else {
+                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                        ctrl.skip_rest();
+                        return;
+                    };
+                    token
                 } else {
                     current_token
                 };
@@ -378,7 +386,11 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                     res.status_code(StatusCode::FORBIDDEN);
                     ctrl.skip_rest();
                 } else {
-                    let token = self.issue_token(req, depot, res).await;
+                    let Ok(token) = self.issue_token(req, depot, res).await else {
+                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                        ctrl.skip_rest();
+                        return;
+                    };
                     depot.insert(CSRF_TOKEN_KEY, token);
                     ctrl.call_next(req, depot, res).await;
                 }
@@ -537,7 +549,7 @@ mod tests {
 
     #[cfg(feature = "session-store")]
     #[tokio::test]
-    async fn test_session_store_without_session_middleware_does_not_panic() {
+    async fn test_session_store_without_session_middleware_returns_server_error() {
         let csrf = Csrf::new(
             BcryptCipher::new(),
             SessionStore::new(),
@@ -547,7 +559,7 @@ mod tests {
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(router).await;
 
-        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
         assert_ne!(res.take_string().await.unwrap(), "");
     }
 
