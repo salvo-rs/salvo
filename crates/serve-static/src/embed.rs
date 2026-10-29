@@ -117,22 +117,27 @@ fn render_embedded_data(
 
     // Some extensions describe an encoded representation, e.g. .svgz is SVG
     // inside gzip. Use the resolved asset name for defaults and fallbacks, and
-    // preserve an explicit coding already configured by the caller.
-    if !res.headers().contains_key(CONTENT_ENCODING)
-        && let Some(encoding) = Path::new(source_path)
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .and_then(extension_content_encoding)
-    {
-        res.headers_mut()
-            .insert(CONTENT_ENCODING, HeaderValue::from_static(encoding));
-    }
+    // preserve an explicit coding already configured by the caller. Do not
+    // install an inferred coding until this response actually describes the
+    // asset: a failed precondition or range can be rendered as plain HTML by
+    // the service's catcher.
+    let inferred_encoding = Path::new(source_path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .and_then(extension_content_encoding)
+        .filter(|_| !res.headers().contains_key(CONTENT_ENCODING));
+    let set_inferred_encoding = |res: &mut Response| {
+        if let Some(encoding) = inferred_encoding {
+            res.headers_mut()
+                .insert(CONTENT_ENCODING, HeaderValue::from_static(encoding));
+        }
+    };
 
     // Determine Content-Type once
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
             // Encoded bytes cannot tell us the charset of the decoded text.
-            if !res.headers().contains_key(CONTENT_ENCODING) {
+            if inferred_encoding.is_none() && !res.headers().contains_key(CONTENT_ENCODING) {
                 fill_mime_charset_if_need(&mut mime, &data);
             }
             mime
@@ -183,6 +188,7 @@ fn render_embedded_data(
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| if_none_match_matches(value, &hash));
     if not_modified {
+        set_inferred_encoding(res);
         res.status_code(StatusCode::NOT_MODIFIED);
         return;
     }
@@ -193,6 +199,7 @@ fn render_embedded_data(
 
     let total_data_len = data.len() as u64;
     if req.method() == Method::HEAD {
+        set_inferred_encoding(res);
         res.status_code(StatusCode::OK);
         res.headers_mut()
             .typed_insert(ContentLength(total_data_len));
@@ -258,6 +265,7 @@ fn render_embedded_data(
                 .checked_add(length)
                 .expect("Range calculation overflowed");
             if end_offset <= total_data_len {
+                set_inferred_encoding(res);
                 // Check to prevent panic on slice
                 let partial_data_vec = data[offset as usize..end_offset as usize].to_vec();
                 res.headers_mut().typed_insert(ContentLength(length));
@@ -278,6 +286,7 @@ fn render_embedded_data(
         }
     } else {
         // Serve full content
+        set_inferred_encoding(res);
         res.status_code(StatusCode::OK); // Ensure OK status
         res.headers_mut()
             .typed_insert(ContentLength(total_data_len));

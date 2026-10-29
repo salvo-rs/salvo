@@ -1,3 +1,4 @@
+//! Content codings for embedded assets and their HTTP error responses.
 #![cfg(feature = "embed")]
 
 use rust_embed::RustEmbed;
@@ -9,6 +10,64 @@ use salvo_serve_static::{EmbeddedFileExt, StaticEmbed, render_embedded_file};
 #[derive(RustEmbed)]
 #[folder = "test/static/"]
 struct Assets;
+
+#[tokio::test]
+async fn embedded_errors_do_not_advertise_the_asset_encoding() {
+    let service = Service::new(Router::with_path("{**path}").goal(StaticEmbed::<Assets>::new()));
+    let mut incorrect_codings = Vec::new();
+    for (name, value, status) in [
+        ("if-match", "\"different\"", StatusCode::PRECONDITION_FAILED),
+        ("range", "bytes=999999-", StatusCode::RANGE_NOT_SATISFIABLE),
+    ] {
+        let mut response = TestClient::get("http://localhost/logo.svgz")
+            .add_header("accept", "text/html", true)
+            .add_header(name, value, true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(status));
+        let body = response.take_bytes(None).await.unwrap();
+        let html = std::str::from_utf8(&body).expect("the catcher produces plain HTML");
+        assert!(html.to_ascii_lowercase().contains("<!doctype html>"));
+        if let Some(encoding) = response.headers().get("content-encoding") {
+            incorrect_codings.push(format!(
+                "{name}: {status} advertises {encoding:?} for plain HTML"
+            ));
+        }
+    }
+    assert!(
+        incorrect_codings.is_empty(),
+        "{}",
+        incorrect_codings.join("; ")
+    );
+}
+
+#[tokio::test]
+async fn embedded_conditional_and_partial_responses_keep_the_asset_encoding() {
+    let service = Service::new(Router::with_path("{**path}").goal(StaticEmbed::<Assets>::new()));
+    let original = TestClient::get("http://localhost/logo.svgz")
+        .send(&service)
+        .await;
+    let etag = original.headers()["etag"].to_str().unwrap();
+    for method in [Method::GET, Method::HEAD] {
+        let mut response = RequestBuilder::new("http://localhost/logo.svgz", method)
+            .add_header("if-none-match", etag, true)
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
+        assert_eq!(response.headers()["content-encoding"], "gzip");
+        assert!(response.take_bytes(None).await.unwrap().is_empty());
+    }
+    let mut response = TestClient::get("http://localhost/logo.svgz")
+        .add_header("range", "bytes=0-9", true)
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::PARTIAL_CONTENT));
+    assert_eq!(response.headers()["content-encoding"], "gzip");
+    assert_eq!(
+        response.take_bytes(None).await.unwrap().as_ref(),
+        &Assets::get("logo.svgz").unwrap().data[..10]
+    );
+}
 
 #[tokio::test]
 async fn embedded_self_coded_files_advertise_their_stored_encoding() {
