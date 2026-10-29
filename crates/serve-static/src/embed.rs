@@ -239,6 +239,11 @@ fn render_embedded_data(
                         }
                     }
                 }
+                // RFC 9110 section 14.2 requires ignoring unknown range units.
+                Err(_)
+                    if range_str
+                        .split_once('=')
+                        .is_some_and(|(unit, _)| !unit.eq_ignore_ascii_case("bytes")) => {}
                 Err(_) => {
                     // HttpRange::parse returns Err if the range is unsatisfiable or malformed.
                     res.headers_mut()

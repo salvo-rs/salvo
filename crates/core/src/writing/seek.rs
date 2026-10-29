@@ -172,6 +172,11 @@ where
                 // is not supported here. Per RFC 7233 the server may ignore the Range
                 // header and return the full `200 OK` representation instead.
                 Ok(ranges) if ranges.len() > 1 => {}
+                // RFC 9110 section 14.2 requires ignoring unknown range units.
+                Err(_)
+                    if range
+                        .split_once('=')
+                        .is_some_and(|(unit, _)| !unit.eq_ignore_ascii_case("bytes")) => {}
                 // Empty / unsatisfiable range.
                 _ => {
                     res.headers_mut()
