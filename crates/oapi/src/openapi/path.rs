@@ -38,27 +38,14 @@ impl Paths {
         self
     }
     /// Inserts a key-value pair into the instance.
+    ///
+    /// Existing paths are merged using [`PathItem::append`], including extensions.
     pub fn insert<K: Into<String>, V: Into<PathItem>>(&mut self, key: K, value: V) {
         let key = key.into();
         let mut value = value.into();
         self.0
             .entry(key)
-            .and_modify(|item| {
-                if value.ref_location.is_some() {
-                    item.ref_location = value.ref_location.take();
-                }
-                if value.summary.is_some() {
-                    item.summary = value.summary.take();
-                }
-                if value.description.is_some() {
-                    item.description = value.description.take();
-                }
-                item.servers.append(&mut value.servers);
-                item.parameters.append(&mut value.parameters);
-                item.operations.append(&mut value.operations);
-                item.additional_operations
-                    .append(&mut value.additional_operations);
-            })
+            .and_modify(|item| item.append(&mut value))
             .or_insert(value);
     }
     /// Moves all elements from `other` into `self`, leaving `other` empty.
@@ -232,6 +219,7 @@ impl PathItem {
     ///
     /// If a key from `other` is already present in `self`, the respective
     /// value from `self` will be overwritten with the respective value from `other`.
+    /// Extensions keep the existing value on a name collision.
     pub fn append(&mut self, other: &mut Self) {
         self.operations.append(&mut other.operations);
         self.additional_operations
