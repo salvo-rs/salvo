@@ -93,6 +93,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Refresh query, payload, form and cookie caches after Tower request rewrites,
   while preserving consumed-body caches and application cookie edits during pass-through.
+- Preserve bracketed query-list tokens around whitespace and opposite quote
+  characters instead of rejecting numbers or silently corrupting string values.
 - Honor ETag precedence, lists and wildcards in conditional responses, while
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
