@@ -4,6 +4,8 @@
 
 use std::convert::Infallible;
 
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper_rustls::HttpsConnectorBuilder;
@@ -18,7 +20,7 @@ use salvo_jwt_auth::oidc::OidcDecoder;
 use salvo_jwt_auth::{JwtAuthDecoder, install_crypto_provider};
 use serde_json::{Value, json};
 
-const MODULUS: &str = "yksZDps8QJGj5Fuk8Lro5iBoPcYyJuH_plPCD7AGC9yWNK_IzO63Gl6IlvoV4EQW_9xkW-UXkEu7wVIy1nQxnZc6DHKd4-W1IxQ46ifWMf7wS2nejKswAcBH08yf_2suyqagASRfxHqpr3DXDCsGsbr-ZrVWl212BslYCXXFIHQGpCoQMAhdEWsJoMTtvVzEu8ow_ZpsQL_SgZ_e6fBZX26Hzlv5QeDIijeVj1nHvEnN0Wubi5cNW3VLE6Or5ozjT54vvt00PDT83zIrahRoX9IhT0Gp8Ro9Nmop7edzowvA-ca3RyLXImBESiQ9-gj7Kx6lEVlCWqWJj4o8RmsBIQ";
+const MODULUS: &[u8] = include_bytes!("fixtures/oidc-rsa-modulus.bin");
 // Public test fixture only; never use this key outside tests.
 const PRIVATE_KEY: &[u8] = include_bytes!("fixtures/oidc-rsa.pem");
 
@@ -86,7 +88,7 @@ async fn provider(jwk: Value, validation: Option<Validation>) -> (OidcDecoder, S
 }
 
 fn rsa_jwk() -> Value {
-    json!({"kty":"RSA", "kid":"signing", "use":"sig", "key_ops":["verify"], "n":MODULUS, "e":"AQAB"})
+    json!({"kty":"RSA", "kid":"signing", "use":"sig", "key_ops":["verify"], "n":URL_SAFE_NO_PAD.encode(MODULUS), "e":"AQAB"})
 }
 
 fn token(issuer: &str, algorithm: Algorithm) -> String {
