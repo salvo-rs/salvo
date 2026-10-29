@@ -115,6 +115,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Log finalized response statuses after Service media checks and catchers while retaining error diagnostics.
 - Match `Accept-Encoding` content codings and the `q` parameter case-insensitively, so
   `gzip;Q=0` and `GZIP;q=0` reject gzip in compression and precompressed static file selection.
+- Preserve leading spaces in Server-Sent Event data, event names, and IDs after
+  standard EventSource parsing.
 
 ## [1.0.1] - 2026-10-05
 

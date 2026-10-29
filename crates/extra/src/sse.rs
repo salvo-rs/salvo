@@ -95,6 +95,7 @@ impl SseEvent {
     /// Sets Server-sent event data.
     ///
     /// CR, LF, and CRLF line endings are normalized to LF in the event data.
+    /// Other whitespace, including leading spaces on each line, is preserved.
     #[inline]
     #[must_use]
     pub fn text<T: Into<String>>(mut self, data: T) -> Self {
@@ -174,7 +175,7 @@ impl Display for SseEvent {
         }
 
         if let Some(name) = &self.name {
-            "event:".fmt(f)?;
+            "event: ".fmt(f)?;
             name.fmt(f)?;
             f.write_char('\n')?;
         }
@@ -182,13 +183,15 @@ impl Display for SseEvent {
         match &self.data {
             Some(DataType::Text(data) | DataType::Json(data)) => {
                 // RawValue can retain literal line endings even in compact JSON.
-                write_event_lines(f, "data:", data)?;
+                // EventSource removes one space after the colon. Supply that
+                // separator explicitly so leading spaces in the value survive.
+                write_event_lines(f, "data: ", data)?;
             }
             None => {}
         }
 
         if let Some(id) = &self.id {
-            "id:".fmt(f)?;
+            "id: ".fmt(f)?;
             id.fmt(f)?;
             f.write_char('\n')?;
         }
@@ -356,6 +359,45 @@ mod tests {
 
     use super::*;
 
+    // Apply the event-stream field parsing rules rather than comparing only
+    // wire strings: split at the first colon and remove at most one space.
+    fn parse_event_fields(wire: &str) -> (String, String, String) {
+        let (mut data, mut name, mut id) = (String::new(), String::new(), String::new());
+        for line in wire.lines().filter(|line| !line.is_empty() && !line.starts_with(':')) {
+            let (field, value) = line.split_once(':').unwrap_or((line, ""));
+            let value = value.strip_prefix(' ').unwrap_or(value);
+            match field {
+                "data" => {
+                    data.push_str(value);
+                    data.push('\n');
+                }
+                "event" => name = value.to_owned(),
+                "id" if !value.contains('\0') => id = value.to_owned(),
+                _ => {}
+            }
+        }
+        data.pop();
+        (data, name, id)
+    }
+
+    #[test]
+    fn event_source_parsing_preserves_leading_whitespace() {
+        for text in ["", " ", " hello", "  hello", "\thello", "雪", "a\n b", " a\r\n  b\rc\n "] {
+            let event = SseEvent::default().text(text).name("  event").id("  id");
+            let (data, name, id) = parse_event_fields(&event.to_string());
+            assert_eq!(data, text.replace("\r\n", "\n").replace('\r', "\n"));
+            assert_eq!(name, "  event");
+            assert_eq!(id, "  id");
+        }
+        for value in ["", " ", " hello", "  hello", "\thello", "雪"] {
+            let event = SseEvent::default().text("payload").name(value).id(value);
+            let (data, name, id) = parse_event_fields(&event.to_string());
+            assert_eq!(data, "payload");
+            assert_eq!(name, value);
+            assert_eq!(id, value);
+        }
+    }
+
     #[test]
     fn raw_json_preserves_event_framing() {
         for ending in ["\n", "\r", "\r\n"] {
@@ -364,9 +406,9 @@ mod tests {
             // RawValue retains whitespace even through the compact serializer,
             // both as the whole value and when nested in another JSON value.
             let event = SseEvent::default().json(&raw).unwrap().to_string();
-            assert_eq!(event, "data:{\ndata:\ndata:\"value\":\"雪\"\ndata:}\n\n");
+            assert_eq!(event, "data: {\ndata: \ndata: \"value\":\"雪\"\ndata: }\n\n");
             let event = SseEvent::default().json(&[raw]).unwrap().to_string();
-            assert_eq!(event, "data:[{\ndata:\ndata:\"value\":\"雪\"\ndata:}]\n\n");
+            assert_eq!(event, "data: [{\ndata: \ndata: \"value\":\"雪\"\ndata: }]\n\n");
         }
     }
 
@@ -376,7 +418,7 @@ mod tests {
             let text = format!("hello{ending}{ending}event:admin{ending}data:injected{ending}");
             assert_eq!(
                 SseEvent::default().text(&text).to_string(),
-                "data:hello\ndata:\ndata:event:admin\ndata:data:injected\ndata:\n\n"
+                "data: hello\ndata: \ndata: event:admin\ndata: data:injected\ndata: \n\n"
             );
             assert_eq!(
                 SseEvent::default().comment(&text).to_string(),
@@ -385,9 +427,9 @@ mod tests {
         }
         assert_eq!(
             SseEvent::default().text("雪\r\n雨\r風\n").to_string(),
-            "data:雪\ndata:雨\ndata:風\ndata:\n\n"
+            "data: 雪\ndata: 雨\ndata: 風\ndata: \n\n"
         );
-        assert_eq!(SseEvent::default().text("").to_string(), "data:\n\n");
+        assert_eq!(SseEvent::default().text("").to_string(), "data: \n\n");
         assert_eq!(SseEvent::default().comment("").to_string(), ":\n\n");
     }
 
@@ -399,7 +441,7 @@ mod tests {
             assert!(std::panic::catch_unwind(|| SseEvent::default().id(&value)).is_err());
         }
         assert!(std::panic::catch_unwind(|| SseEvent::default().id("ignored\0id")).is_err());
-        assert_eq!(SseEvent::default().id("").to_string(), "id:\n\n");
+        assert_eq!(SseEvent::default().id("").to_string(), "id: \n\n");
     }
 
     #[tokio::test]
@@ -411,7 +453,7 @@ mod tests {
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
-        assert!(text.contains("data:1") && text.contains("data:2"));
+        assert!(text.contains("data: 1") && text.contains("data: 2"));
     }
 
     #[tokio::test]
@@ -424,7 +466,7 @@ mod tests {
             .max_interval(Duration::from_secs(1))
             .stream(&mut res);
         let text = res.take_string().await.unwrap();
-        assert!(text.contains("data:1"));
+        assert!(text.contains("data: 1"));
     }
 
     #[tokio::test(start_paused = true)]
@@ -468,7 +510,7 @@ mod tests {
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
-        assert!(text.contains(r#"data:{"name":"jobs"}"#));
+        assert!(text.contains(r#"data: {"name":"jobs"}"#));
     }
 
     #[tokio::test]
@@ -489,7 +531,7 @@ mod tests {
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
-        assert!(text.contains("event:evt2"));
+        assert!(text.contains("event: evt2"));
     }
 
     #[tokio::test]
@@ -518,6 +560,6 @@ mod tests {
         let mut res = Response::new();
         super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
-        assert!(text.contains("id:jobs"));
+        assert!(text.contains("id: jobs"));
     }
 }
