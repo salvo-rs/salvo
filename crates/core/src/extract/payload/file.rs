@@ -3,31 +3,23 @@ use std::path::PathBuf;
 
 use crate::extract::{Extractible, Metadata};
 use crate::http::form::FilePart;
-use crate::http::header::CONTENT_TYPE;
 use crate::http::{HeaderMap, Mime, ParseError};
 use crate::{Depot, Request};
 
 /// Represents the upload file.
+///
+/// Keeps its temporary upload alive until the last `FormFile` or `FilePart`
+/// owner is dropped, including after the request has ended.
 #[derive(Clone, Debug)]
 pub struct FormFile {
-    name: Option<String>,
-    /// The headers of the part
-    headers: HeaderMap,
-    /// A temporary file containing the file content
-    path: PathBuf,
-    /// Optionally, the size of the file.  This is filled when multiparts are parsed, but is
-    /// not necessary when they are generated.
-    size: u64,
+    file_part: FilePart,
 }
 impl FormFile {
     /// Create a new `FormFile` from a `FilePart`.
     #[must_use]
     pub fn new(file_part: &FilePart) -> Self {
         Self {
-            name: file_part.name().map(|s| s.to_owned()),
-            headers: file_part.headers().clone(),
-            path: file_part.path().to_owned(),
-            size: file_part.size(),
+            file_part: file_part.clone(),
         }
     }
 
@@ -35,42 +27,39 @@ impl FormFile {
     #[inline]
     #[must_use]
     pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+        self.file_part.name()
     }
     /// Get file name mutable reference.
     #[inline]
     pub fn name_mut(&mut self) -> Option<&mut String> {
-        self.name.as_mut()
+        self.file_part.name_mut()
     }
     /// Get headers.
     #[inline]
     #[must_use]
     pub fn headers(&self) -> &HeaderMap {
-        &self.headers
+        self.file_part.headers()
     }
     /// Get headers mutable reference.
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
-        &mut self.headers
+        self.file_part.headers_mut()
     }
     /// Get content type.
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
-        self.headers
-            .get(CONTENT_TYPE)
-            .and_then(|h| h.to_str().ok())
-            .and_then(|v| v.parse().ok())
+        self.file_part.content_type()
     }
     /// Get file path.
     #[inline]
     #[must_use]
     pub fn path(&self) -> &PathBuf {
-        &self.path
+        self.file_part.path()
     }
     /// Get file size.
     #[inline]
     #[must_use]
     pub fn size(&self) -> u64 {
-        self.size
+        self.file_part.size()
     }
 }
 
