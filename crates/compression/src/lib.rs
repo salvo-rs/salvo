@@ -595,6 +595,19 @@ impl Handler for Compression {
                     return;
                 }
             }
+            body @ (ResBody::Boxed(_) | ResBody::Channel(_)) => {
+                if self.content_length_is_below_minimum(res) {
+                    res.body(body);
+                    return;
+                }
+                if let Some((algo, level)) = self.negotiate(req, res) {
+                    res.stream(EncodeStream::new(algo, level, body));
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
+                } else {
+                    res.body(body);
+                    return;
+                }
+            }
             body => {
                 res.body(body);
                 return;

@@ -122,6 +122,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
   and finalization together with expensive writes.
+- Compress boxed and channel response bodies with the same streaming negotiation,
+  trailer forwarding, error handling and cancellation as other supported bodies.
 - Cancel queued compression tasks when their response body is dropped instead of
   continuing work for disconnected clients.
 - Compare wildcard and explicitly listed Accept-Encoding quality values when
