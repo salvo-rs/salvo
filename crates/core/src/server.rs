@@ -15,6 +15,7 @@ use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
 use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 #[cfg(feature = "server-handle")]
 use tokio::{
     sync::{
@@ -31,6 +32,14 @@ use crate::Service;
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Coupler, Holding, HttpBuilder};
 use crate::fuse::{ArcFusePolicy, FuseConfig, FusePolicy};
+
+fn reap_finished_connections(connections: &mut JoinSet<()>) {
+    while let Some(result) = connections.try_join_next() {
+        if let Err(error) = result {
+            tracing::error!(?error, "connection task failed");
+        }
+    }
+}
 
 #[cfg(feature = "server-handle")]
 #[derive(Debug)]
@@ -347,6 +356,9 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Try to serve a [`Service`].
+    ///
+    /// Dropping the returned future cancels its accepted connection tasks.
+    /// Use [`ServerHandle::stop_graceful`] to drain requests before it returns.
     #[cfg(feature = "server-handle")]
     #[allow(clippy::manual_async_fn)] //Fix: https://github.com/salvo-rs/salvo/issues/902
     pub fn try_serve<S>(self, service: S) -> impl Future<Output = IoResult<()>> + Send
@@ -396,6 +408,9 @@ impl<A: Acceptor + Send> Server<A> {
 
             let service: Arc<Service> = Arc::new(service.into());
             let builder = Arc::new(builder);
+            // The serving future owns accepted connections. Dropping it cancels
+            // them; a normal graceful stop still drains them before returning.
+            let mut connections = JoinSet::new();
             // Apply a received stop command. Used from both the permit-acquire and the
             // accept `select!` so shutdown is observed even while saturated.
             macro_rules! handle_stop_command {
@@ -425,6 +440,7 @@ impl<A: Acceptor + Send> Server<A> {
                 };
             }
             loop {
+                reap_finished_connections(&mut connections);
                 // Acquire a connection permit before accepting (backpressure when at
                 // `max_connections`). Race it against the stop channel so a *saturated*
                 // server (no free permit) still observes shutdown instead of blocking
@@ -468,7 +484,7 @@ impl<A: Acceptor + Send> Server<A> {
                                 let force_stop_token = force_stop_token.clone();
                                 let graceful_stop_token = graceful_stop_token.clone();
 
-                                tokio::spawn(async move {
+                                connections.spawn(async move {
                                     // Hold the permit for the connection's lifetime; it is
                                     // released back to the semaphore when this task ends.
                                     let _permit = permit;
@@ -522,6 +538,8 @@ impl<A: Acceptor + Send> Server<A> {
         }
     }
     /// Try to serve a [`Service`].
+    ///
+    /// Dropping this future also cancels its accepted connection tasks.
     #[cfg(not(feature = "server-handle"))]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
@@ -564,7 +582,9 @@ impl<A: Acceptor + Send> Server<A> {
 
         let service: Arc<Service> = Arc::new(service.into());
         let builder = Arc::new(builder);
+        let mut connections = JoinSet::new();
         loop {
+            reap_finished_connections(&mut connections);
             // Acquire a connection permit before accepting (backpressure when at
             // `max_connections`). There is no graceful-stop channel in this build,
             // so a plain blocking acquire is sufficient.
@@ -600,7 +620,7 @@ impl<A: Acceptor + Send> Server<A> {
                     );
                     let builder = builder.clone();
 
-                    tokio::spawn(async move {
+                    connections.spawn(async move {
                         let _permit = permit;
                         let _ = coupler.couple(stream, handler, builder, None).await;
                     });
