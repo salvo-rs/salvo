@@ -606,6 +606,54 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn repeated_accept_encoding_fields_match_the_combined_value() {
+        let service = Service::new(
+            Router::with_path("{*path}")
+                .filter(filters::get().or(filters::head()))
+                .goal(StaticDir::new(vec!["test/static"])),
+        );
+        for (first, second, expected) in [
+            ("gzip;q=0.2", "br;q=1", "br"),
+            ("unknown", "gzip", "gzip"),
+            ("", "gzip", "gzip"),
+            ("gzip;q=0", "br", "br"),
+        ] {
+            for head in [false, true] {
+                let request = || {
+                    if head {
+                        TestClient::head("http://localhost/test1.txt")
+                    } else {
+                        TestClient::get("http://localhost/test1.txt")
+                    }
+                };
+                let mut combined = request()
+                    .add_header("accept-encoding", format!("{first},{second}"), true)
+                    .send(&service)
+                    .await;
+                let mut split = request()
+                    .add_header("accept-encoding", first, false)
+                    .add_header("accept-encoding", second, false)
+                    .send(&service)
+                    .await;
+                assert_eq!(combined.headers().get(CONTENT_ENCODING).unwrap(), expected);
+                assert_eq!(
+                    split.headers().get(CONTENT_ENCODING),
+                    combined.headers().get(CONTENT_ENCODING),
+                    "split fields {first:?} and {second:?} must preserve negotiation"
+                );
+                assert_eq!(
+                    split.headers().get(CONTENT_LENGTH),
+                    combined.headers().get(CONTENT_LENGTH)
+                );
+                assert_eq!(
+                    split.take_bytes(None).await.unwrap(),
+                    combined.take_bytes(None).await.unwrap()
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn test_serve_static_dir_accept_encoding_is_case_insensitive() {
         let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
         let service = Service::new(router);

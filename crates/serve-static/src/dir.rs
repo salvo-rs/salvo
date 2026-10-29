@@ -1,5 +1,6 @@
 //! Serve static directories with directory listing support
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display, Formatter, Write};
@@ -596,15 +597,28 @@ impl Handler for StaticDir {
                     // Its Vary policy must not depend on this request's header.
                     varies_on_accept_encoding = true;
                     let mut new_abs_path = None;
-                    let header = req
+                    // Accept-Encoding has list semantics across field lines.
+                    // Borrow the common single-field value and only allocate
+                    // when there are more preferences to combine.
+                    let mut header = Cow::Borrowed("");
+                    for value in req
                         .headers()
-                        .get(ACCEPT_ENCODING)
-                        .and_then(|v| v.to_str().ok())
-                        .unwrap_or_default();
+                        .get_all(ACCEPT_ENCODING)
+                        .iter()
+                        .filter_map(|value| value.to_str().ok())
+                    {
+                        if header.is_empty() {
+                            header = Cow::Borrowed(value);
+                        } else {
+                            let combined = header.to_mut();
+                            combined.push(',');
+                            combined.push_str(value);
+                        }
+                    }
                     // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
                         'accepted_encoding: for (algo, level) in
-                            http::parse_accept_encoding_with_quality(header)
+                            http::parse_accept_encoding_with_quality(&header)
                         {
                             if level == 0 {
                                 continue;

@@ -70,6 +70,7 @@
 //!
 //! Read more: <https://salvo.rs>
 
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -409,12 +410,26 @@ impl Compression {
     }
 
     fn negotiate_encoding(&self, req: &Request) -> Option<(CompressionAlgo, CompressionLevel)> {
-        let header = req
+        // List-valued fields can be split across multiple field lines. Keep
+        // the single-field path borrowed and combine all preferences before
+        // sorting, rather than negotiating from only the first field.
+        let mut header = Cow::Borrowed("");
+        for value in req
             .headers()
-            .get(ACCEPT_ENCODING)
-            .and_then(|v| v.to_str().ok())?;
+            .get_all(ACCEPT_ENCODING)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+        {
+            if header.is_empty() {
+                header = Cow::Borrowed(value);
+            } else {
+                let combined = header.to_mut();
+                combined.push(',');
+                combined.push_str(value);
+            }
+        }
 
-        let accept_list = http::parse_accept_encoding_with_quality(header);
+        let accept_list = http::parse_accept_encoding_with_quality(&header);
 
         // Encoding preferences are sorted by descending q-value, so the
         // first wildcard token is also the one with the highest q. Mirror the
@@ -710,6 +725,38 @@ mod tests {
                     .map(|value| value.to_str().unwrap()),
                 expected,
                 "{accept}"
+            );
+        }
+    }
+
+    #[cfg(all(feature = "gzip", feature = "brotli"))]
+    #[tokio::test]
+    async fn repeated_accept_encoding_fields_match_the_combined_value() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.render("a response whose representation is selected by Accept-Encoding");
+        }
+        let service = Service::new(Router::with_hoop(Compression::new().min_length(0)).get(hello));
+        for (first, second, expected) in [
+            ("gzip;q=0.2", "br;q=1", "br"),
+            ("unknown", "gzip", "gzip"),
+            ("", "gzip", "gzip"),
+            ("gzip;q=0", "br", "br"),
+        ] {
+            let combined = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, format!("{first},{second}"), true)
+                .send(&service)
+                .await;
+            let split = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, first, false)
+                .add_header(ACCEPT_ENCODING, second, false)
+                .send(&service)
+                .await;
+            assert_eq!(combined.headers().get(CONTENT_ENCODING).unwrap(), expected);
+            assert_eq!(
+                split.headers().get(CONTENT_ENCODING),
+                combined.headers().get(CONTENT_ENCODING),
+                "split fields {first:?} and {second:?} must preserve negotiation"
             );
         }
     }
