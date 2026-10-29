@@ -26,6 +26,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Combine every OIDC JWKS Cache-Control field before parsing, so later cache
+  directives such as `stale-if-error=0` also constrain cached key use.
+
 - Stop sending HTTP/3 responses at the first header, data, trailer, or body
   error, reset the affected stream, and promptly release its response body.
   Preserve the connection when a rejected WebTransport CONNECT response fails.

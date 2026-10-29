@@ -304,12 +304,9 @@ impl OidcDecoder {
             return Err(JwtAuthError::OidcHttpStatus(res.status()));
         }
 
-        let cache_policy = {
-            // Determine it from the cache_control header
-            let cache_control = res.headers().get(CACHE_CONTROL);
-            let cache_policy = CachePolicy::from_header_val(cache_control);
-            Some(cache_policy)
-        };
+        let cache_policy = Some(CachePolicy::from_header_values(
+            res.headers().get_all(CACHE_CONTROL).iter(),
+        ));
         let age = response_age(res.headers().get(AGE));
         let jwks = collect_limited_body(res.into_body(), OIDC_JWKS_MAX_BYTES).await?;
 
@@ -699,6 +696,75 @@ mod tests {
             ("99999999999999999999999999999999", u64::MAX),
         ] {
             assert_eq!(response_age(Some(&HeaderValue::from_str(value).unwrap())), expected, "{value}");
+        }
+    }
+
+    #[tokio::test]
+    async fn later_cache_control_field_limits_failed_refresh_fallback() {
+        let _ = crate::install_crypto_provider();
+        // The positive case ensures a refresh failure can still use an explicitly
+        // permitted stale key. Only the policy in the second field differs.
+        for (stale_if_error, allow_stale) in [(0, false), (60, true)] {
+            timeout(Duration::from_secs(5), async {
+                struct ServerTask(tokio::task::JoinHandle<()>);
+                impl Drop for ServerTask {
+                    fn drop(&mut self) {
+                        self.0.abort();
+                    }
+                }
+
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let issuer = format!("http://{}", listener.local_addr().unwrap());
+                let discovery = json!({"issuer":issuer,"jwks_uri":format!("{issuer}/jwks")}).to_string();
+                let unavailable = Arc::new(std::sync::atomic::AtomicBool::new(false));
+                let fetches = Arc::new(AtomicUsize::new(0));
+                let (server_unavailable, server_fetches) = (unavailable.clone(), fetches.clone());
+                let _server = ServerTask(tokio::spawn(async move {
+                    loop {
+                        let (stream, _) = listener.accept().await.unwrap();
+                        let (unavailable, fetches, discovery) = (
+                            server_unavailable.clone(), server_fetches.clone(), discovery.clone(),
+                        );
+                        tokio::spawn(async move {
+                            let service = service_fn(move |req: salvo_core::hyper::Request<_>| {
+                                let jwks = req.uri().path() == "/jwks";
+                                let failed = jwks && unavailable.load(Ordering::SeqCst);
+                                let body = if jwks {
+                                    fetches.fetch_add(1, Ordering::SeqCst);
+                                    json!({"keys":[{"kty":"oct","kid":"cached","alg":"HS256","k":"c2VjcmV0"}]}).to_string()
+                                } else {
+                                    discovery.clone()
+                                };
+                                async move {
+                                    Ok::<_, Infallible>(Response::builder()
+                                        .status(if failed { 503 } else { 200 })
+                                        .header(CACHE_CONTROL, "max-age=1, stale-while-revalidate=0")
+                                        .header(CACHE_CONTROL, format!("stale-if-error={stale_if_error}"))
+                                        .body(Full::new(Bytes::from(body))).unwrap())
+                                }
+                            });
+                            let _ = http1::Builder::new().serve_connection(TokioIo::new(stream), service).await;
+                        });
+                    }
+                }));
+
+                let decoder = OidcDecoder::builder(issuer)
+                    .audience("test-client")
+                    .allow_symmetric_jwks(true)
+                    .http_client(test_http_client())
+                    .build().await.unwrap();
+                assert!(decoder.get_kid_retry("cached").await.is_ok());
+                assert_eq!(fetches.load(Ordering::SeqCst), 1);
+
+                unavailable.store(true, Ordering::SeqCst);
+                // Expire the cache without waiting for wall-clock boundaries.
+                decoder.cache_state.set_last_update(current_time() - 3);
+                let result = decoder.get_kid_retry("cached").await;
+                assert_eq!(result.is_ok(), allow_stale, "stale-if-error={stale_if_error}");
+                assert!(decoder.cache_state.is_error());
+                assert_eq!(fetches.load(Ordering::SeqCst), 2);
+                assert!(decoder.cache.read().await.get_key("cached").is_some());
+            }).await.expect("local JWKS fallback test timed out");
         }
     }
 
