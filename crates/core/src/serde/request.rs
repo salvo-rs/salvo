@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -76,13 +76,24 @@ where
     )?)?)
 }
 
+// JSON member names can borrow the input when unescaped, but need owned storage
+// when serde_json decodes an escape. Values remain borrowed RawValue slices.
+#[derive(Debug, serde::Deserialize, Eq, Hash, PartialEq)]
+pub(crate) struct JsonKey<'a>(#[serde(borrow)] Cow<'a, str>);
+
+impl Borrow<str> for JsonKey<'_> {
+    fn borrow(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Payload<'a> {
     FormData(&'a FormData),
     JsonStr(&'a str),
     // Behind an `Arc` so cloning a `Payload` (e.g. once per flattened field) is a
     // refcount bump instead of rebuilding the whole map.
-    JsonMap(Arc<HashMap<&'a str, &'a RawValue>>),
+    JsonMap(Arc<HashMap<JsonKey<'a>, &'a RawValue>>),
 }
 impl Payload<'_> {
     #[allow(dead_code)]
@@ -135,7 +146,9 @@ impl<'de> RequestDeserializer<'de> {
                         && !data.is_empty()
                     {
                         // https://github.com/serde-rs/json/issues/903
-                        payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                        payload = match serde_json::from_slice::<HashMap<JsonKey<'_>, &RawValue>>(
+                            data,
+                        ) {
                             Ok(map) => Some(Payload::JsonMap(Arc::new(map))),
                             Err(e) => {
                                 tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
@@ -410,7 +423,7 @@ impl<'de> RequestDeserializer<'de> {
                                         let mut value = map.get(field_name);
                                         if value.is_none() {
                                             for alias in &field.aliases {
-                                                value = map.get(alias);
+                                                value = map.get(*alias);
                                                 if value.is_some() {
                                                     break;
                                                 }
