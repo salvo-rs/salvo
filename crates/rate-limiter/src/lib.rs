@@ -245,6 +245,9 @@ impl RateIssuer for ForwardedHeaderIssuer {
 /// other source it ignores those headers and returns the direct connection
 /// IP, so a client that connects to the application directly cannot forge
 /// `X-Forwarded-For` to bypass rate limiting.
+/// Repeated `X-Forwarded-For` fields form one ordered chain. A malformed hop
+/// encountered before a client address ends that chain's trust and falls back
+/// to the direct connection IP rather than consulting addresses to its left.
 ///
 /// # When to use it
 ///
@@ -328,13 +331,16 @@ fn extract_client_ip_via_trusted_proxies(
     req: &Request,
     trusted: &HashSet<IpAddr>,
 ) -> Option<IpAddr> {
-    if let Some(xff) = req.headers().get("x-forwarded-for")
-        && let Ok(xff_str) = xff.to_str()
-    {
+    // Field lines are ordered parts of the same list. Start with the last
+    // field, otherwise a client-controlled first field can hide the real peer
+    // address appended by a trusted proxy in a later field.
+    for xff in req.headers().get_all("x-forwarded-for").iter().rev() {
+        let xff_str = xff.to_str().ok()?;
         for part in xff_str.rsplit(',') {
-            if let Ok(ip) = part.trim().parse::<IpAddr>()
-                && !trusted.contains(&ip)
-            {
+            // Never cross an unknown hop to select a spoofable value further
+            // left, or fall back to another forwarded header after a broken chain.
+            let ip = part.trim().parse::<IpAddr>().ok()?;
+            if !trusted.contains(&ip) {
                 return Some(ip);
             }
         }

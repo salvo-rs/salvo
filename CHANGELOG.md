@@ -74,6 +74,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   If-None-Match on other methods.
 - Bypass response caching and concurrent fill coalescing for conditional requests
   so origin handlers retain their precondition and conditional download behavior.
+- Read all repeated `X-Forwarded-For` fields as one right-to-left chain in
+  `TrustedProxyIssuer`, and stop at malformed hops so client-supplied prefixes
+  cannot create fresh rate-limit identities behind a trusted proxy.
 - Validate CSRF tokens for every unsafe HTTP method by default, including CONNECT
   and extension methods, while preserving explicit skipper overrides.
 - Return HTTP 500 when saving a new or rotated CSRF token fails, instead of
