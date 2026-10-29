@@ -49,6 +49,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
+- Accept upstream protocol selections from multi-value `Upgrade` offers,
+  including repeated header fields, while rejecting unoffered protocols or versions.
 
 - Fail dependency security CI on RustSec `unsound` advisories as well as
   vulnerability advisories, with an offline regression for the audit policy.

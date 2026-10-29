@@ -60,8 +60,7 @@ impl Client for ReqwestClient {
         proxied_request: HyperRequest,
         request_upgraded: Option<OnUpgrade>,
     ) -> Result<HyperResponse, Self::Error> {
-        let request_upgrade_type =
-            crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
+        let request_upgrade_type = crate::get_upgrade_type(proxied_request.headers());
 
         let proxied_request = proxied_request.map(|body| {
             // Forward only data frames; drop non-data frames (e.g. trailers, which
@@ -81,7 +80,7 @@ impl Client for ReqwestClient {
         let status = response.status();
         let version = response.version();
         let response_upgrade_type = if status == StatusCode::SWITCHING_PROTOCOLS {
-            crate::get_upgrade_type(response.headers()).map(str::to_owned)
+            crate::get_upgrade_type(response.headers())
         } else {
             None
         };
@@ -91,8 +90,6 @@ impl Client for ReqwestClient {
             .version(version);
 
         let mut hyper_response = if status == StatusCode::SWITCHING_PROTOCOLS {
-            // RFC 7230 §6.7 makes Upgrade tokens case-insensitive (`websocket`,
-            // `WebSocket`, ... are all the same protocol). Compare without allocating.
             if crate::upgrade_types_match(
                 request_upgrade_type.as_deref(),
                 response_upgrade_type.as_deref(),
