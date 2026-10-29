@@ -12,7 +12,8 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     // Create a new router and register the hello handler
-    let mut router = Router::new().get(hello);
+    let router = Router::new().get(hello);
+    let mut challenge_router = Router::new();
 
     // Set up a TCP listener on port 443 for HTTPS
     let listener = TcpListener::new("0.0.0.0:443")
@@ -22,11 +23,14 @@ async fn main() {
         // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
         .cache_path("/temp/letsencrypt") // Specify the path to store the certificate cache
         .add_domain("test.salvo.rs") // replace with your domain
-        .http01_challenge(&mut router); // Add routes to handle ACME challenge requests
+        .http01_challenge(&mut challenge_router);
 
-    // Create an acceptor that listens on both port 80 (HTTP) and port 443 (HTTPS)
-    let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
+    // Serve challenges before TLS binding waits for initial CA validation.
+    let http = TcpListener::new("0.0.0.0:80").bind().await;
+    let http_task = tokio::spawn(Server::new(http).serve(challenge_router));
+    let acceptor = listener.bind().await;
 
     // Start the server with the configured acceptor and router
     Server::new(acceptor).serve(router).await;
+    http_task.abort();
 }

@@ -40,7 +40,7 @@ const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
 /// from this crate's `aws-lc-rs` / `ring` features without installing it globally. Passing the
 /// provider explicitly keeps rustls from panicking when feature unification makes both backends
 /// available at once. `ring` wins when both are on, matching this crate's default.
-fn default_crypto_provider() -> Arc<CryptoProvider> {
+pub(crate) fn default_crypto_provider() -> Arc<CryptoProvider> {
     if let Some(provider) = CryptoProvider::get_default() {
         return Arc::clone(provider);
     }
@@ -150,6 +150,9 @@ impl<T> AcmeListenerBuilder<T> {
     }
 
     /// Create a handler for HTTP-01 challenge.
+    ///
+    /// Serve `router` on port 80 before awaiting this listener's bind. Initial
+    /// certificate issuance waits for the CA to read that challenge route.
     #[must_use]
     pub fn http01_challenge(self, router: &mut Router) -> Self {
         let config_builder = self.config_builder.http01_challenge();
@@ -285,7 +288,11 @@ impl<T> AcmeListenerBuilder<T> {
     }
 
     /// Build a certon CertManager from our AcmeConfig.
-    async fn build_certon_manager(config: &AcmeConfig) -> CoreResult<certon::CertManager> {
+    async fn build_certon_manager(
+        config: &AcmeConfig,
+        cache: Arc<certon::CertCache>,
+        cert_resolver: Arc<CertResolver>,
+    ) -> CoreResult<certon::CertManager> {
         // Determine storage backend.
         let storage: Arc<dyn Storage> = if let Some(ref s) = config.storage {
             s.clone()
@@ -309,19 +316,33 @@ impl<T> AcmeListenerBuilder<T> {
         // Configure challenge solver based on challenge type.
         match config.challenge_type {
             ChallengeType::Http01 => {
-                if let Some(ref solver) = config.http01_solver {
-                    acme_builder = acme_builder.http01_solver(solver.clone());
-                }
-                // If no custom solver, the Http01Handler serves challenges
-                // through salvo's router — certon's global active_challenges
-                // map is used as fallback.
+                let solver = config.http01_solver.clone().unwrap_or_else(|| {
+                    Arc::new(super::solvers::TrackedSolver(Arc::new(
+                        super::solvers::Http01Solver {
+                            keys: config.keys_for_http01.clone().expect("HTTP-01 map exists"),
+                        },
+                    )))
+                });
+                acme_builder = acme_builder
+                    .disable_tlsalpn_challenge(true)
+                    .http01_solver(solver);
             }
             ChallengeType::TlsAlpn01 => {
-                if let Some(ref solver) = config.tls_alpn01_solver {
-                    acme_builder = acme_builder.tlsalpn01_solver(solver.clone());
-                }
+                let solver = config.tls_alpn01_solver.clone().unwrap_or_else(|| {
+                    Arc::new(super::solvers::TrackedSolver(Arc::new(
+                        super::solvers::TlsAlpn01Solver {
+                            resolver: cert_resolver,
+                        },
+                    )))
+                });
+                acme_builder = acme_builder
+                    .disable_http_challenge(true)
+                    .tlsalpn01_solver(solver);
             }
             ChallengeType::Dns01 => {
+                acme_builder = acme_builder
+                    .disable_http_challenge(true)
+                    .disable_tlsalpn_challenge(true);
                 if let Some(ref solver) = config.dns01_solver {
                     acme_builder = acme_builder.dns01_solver(solver.clone());
                 }
@@ -355,10 +376,11 @@ impl<T> AcmeListenerBuilder<T> {
         }
 
         // Add the default ACME issuer.
-        issuers.push(Arc::new(acme_issuer));
+        issuers.push(Arc::new(super::solvers::AcmeIssuer(acme_issuer)));
 
         let mut certon_builder = certon::CertManager::builder()
             .storage(storage)
+            .cache(cache)
             .issuers(issuers)
             .key_type(config.key_type)
             .ocsp(config.ocsp.clone());
@@ -374,20 +396,16 @@ impl<T> AcmeListenerBuilder<T> {
     async fn build_server_config(
         config: &AcmeConfig,
     ) -> CoreResult<(ServerConfig, Arc<CertResolver>, certon::CertManager)> {
-        let certon_manager: certon::CertManager = Self::build_certon_manager(config).await?;
-
-        // Attempt to load/obtain certificates for configured domains.
-        if let Err(e) = certon_manager.manage(&config.domains).await {
-            tracing::warn!(error = ?e, "initial certificate management failed; will retry in background");
-        }
-
         // Build the cert resolver backed by certon's cache.
+        let cache = certon::CertCache::new(Default::default());
         let cert_resolver = if let Some(ref on_demand) = config.on_demand {
-            CertResolver::with_on_demand(certon_manager.cache.clone(), on_demand.clone())
+            CertResolver::with_on_demand(cache.clone(), on_demand.clone())
         } else {
-            CertResolver::new(certon_manager.cache.clone())
+            CertResolver::new(cache.clone())
         };
         let cert_resolver = Arc::new(cert_resolver);
+        let certon_manager =
+            Self::build_certon_manager(config, cache, cert_resolver.clone()).await?;
 
         let mut server_config = ServerConfig::builder_with_provider(default_crypto_provider())
             .with_safe_default_protocol_versions()
@@ -423,11 +441,47 @@ where
         } = self;
 
         let acme_config = config_builder.build()?;
+        let mut inner = inner.try_bind().await?;
         let (server_config, _cert_resolver, certon_manager) =
             Self::build_server_config(&acme_config).await?;
         let server_config = Arc::new(server_config);
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
-        let inner = inner.try_bind().await?;
+
+        // Certificate issuance remains synchronous. While the CA validates a
+        // TLS-ALPN-01 challenge, complete handshakes on the bound listener using
+        // the same resolver that will serve renewals after startup.
+        {
+            let mut handshakes = tokio::task::JoinSet::new();
+            let management = certon_manager.manage(&acme_config.domains);
+            tokio::pin!(management);
+            loop {
+                tokio::select! {
+                    result = &mut management => {
+                        if let Err(error) = result {
+                            tracing::warn!(error = ?error, "initial certificate management failed");
+                        }
+                        break;
+                    }
+                    accepted = inner.accept(None), if acme_config.challenge_type == ChallengeType::TlsAlpn01 && handshakes.len() < 64 => {
+                        let accepted = accepted?;
+                        let tls_acceptor = tls_acceptor.clone();
+                        handshakes.spawn(async move {
+                            let _ = tokio::time::timeout(Duration::from_secs(10), tls_acceptor.accept(accepted.stream)).await;
+                        });
+                    }
+                    Some(_) = handshakes.join_next(), if !handshakes.is_empty() => {}
+                }
+            }
+            handshakes.abort_all();
+            while handshakes.join_next().await.is_some() {}
+        }
+        // Certon's obtain path persists new certificates, but unlike its load
+        // path does not put them in the resolver's cache.
+        for domain in &acme_config.domains {
+            if let Err(error) = certon_manager.cache_certificate(domain).await {
+                tracing::warn!(domain, error = ?error, "certificate unavailable after initial management");
+            }
+        }
 
         // Start certon's background maintenance for renewal + OCSP. Dropping the
         // returned `JoinHandle` *detaches* the spawned task rather than cancelling
