@@ -138,12 +138,8 @@ pub fn empty() -> Schema {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines array schema from another schema. Typically used with
-    /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
-    Array(Array),
-    /// Defines object schema. Object is either `object` holding **properties** which are other
-    /// [`Schema`]s or can be a field within the [`Object`].
-    Object(Box<Object>),
+    // Try compositions before the permissive object fallback, including when a
+    // composition declares an explicit `type` alongside its applicator.
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -160,6 +156,13 @@ pub enum Schema {
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AnyOf(AnyOf),
+
+    /// Defines array schema from another schema. Typically used with
+    /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
+    Array(Array),
+    /// Defines object schema. Object is either `object` holding **properties** which are other
+    /// [`Schema`]s or can be a field within the [`Object`].
+    Object(Box<Object>),
 }
 
 impl Default for Schema {
