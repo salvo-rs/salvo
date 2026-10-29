@@ -605,27 +605,36 @@ impl Handler for Compression {
 
 fn no_transform(headers: &http::HeaderMap) -> bool {
     headers.get_all(CACHE_CONTROL).iter().any(|value| {
-        let Ok(value) = value.to_str() else {
-            return false;
-        };
         // Extension directive values can contain commas and escaped quotes.
+        // Quoted strings also permit obs-text, so scan bytes rather than reject
+        // an entire field value because an extension is not ASCII text.
         // Only a directive name outside a quoted value can prohibit a transform.
         let mut quoted = false;
         let mut escaped = false;
         value
-            .split(|character| {
+            .as_bytes()
+            .split(|&byte| {
                 if escaped {
                     escaped = false;
-                } else if quoted && character == '\\' {
+                } else if quoted && byte == b'\\' {
                     escaped = true;
-                } else if character == '"' {
+                } else if byte == b'"' {
                     quoted = !quoted;
-                } else if !quoted && character == ',' {
+                } else if !quoted && byte == b',' {
                     return true;
                 }
                 false
             })
-            .any(|directive| directive.trim().eq_ignore_ascii_case("no-transform"))
+            .any(|mut directive| {
+                // HTTP optional whitespace consists only of SP and HTAB.
+                while matches!(directive.first(), Some(b' ' | b'\t')) {
+                    directive = &directive[1..];
+                }
+                while matches!(directive.last(), Some(b' ' | b'\t')) {
+                    directive = &directive[..directive.len() - 1];
+                }
+                directive.eq_ignore_ascii_case(b"no-transform")
+            })
     })
 }
 

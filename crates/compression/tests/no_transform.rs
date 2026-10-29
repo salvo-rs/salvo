@@ -2,6 +2,7 @@
 #![allow(missing_docs, clippy::unwrap_used)]
 
 use salvo_compression::Compression;
+use salvo_core::http::HeaderValue;
 use salvo_core::http::header::{CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH, ETAG, VARY};
 use salvo_core::prelude::*;
 use salvo_core::test::{ResponseExt, TestClient};
@@ -110,6 +111,46 @@ async fn no_transform_also_preserves_stream_head_and_not_modified_metadata() {
             assert_eq!(response.take_bytes(None).await.unwrap(), "a".repeat(4096));
         } else {
             assert!(response.take_bytes(None).await.unwrap().is_empty());
+        }
+    }
+}
+
+#[tokio::test]
+async fn obs_text_extensions_do_not_hide_request_or_response_no_transform() {
+    let service = Service::new(Router::new().hoop(Compression::new()).get(representation));
+    for name in ["cache-control", "x-origin-cache-control"] {
+        for value in [
+            b"extension=\"\x80\", \tNo-TrAnSfOrM\t ".as_slice(),
+            b"extension=\"\xff\\\", no-transform\", no-transform".as_slice(),
+        ] {
+            let mut response = TestClient::get("http://localhost/")
+                .add_header("accept-encoding", "gzip", true)
+                .add_header(name, HeaderValue::from_bytes(value).unwrap(), true)
+                .send(&service)
+                .await;
+            assert!(response.headers().get(CONTENT_ENCODING).is_none(), "{name}");
+            assert_eq!(response.headers()[CONTENT_LENGTH], "4096");
+            assert_eq!(response.headers()[ETAG], "\"original\"");
+            assert!(response.headers().get(VARY).is_none());
+            assert_eq!(response.take_bytes(None).await.unwrap(), "a".repeat(4096));
+        }
+    }
+}
+
+#[tokio::test]
+async fn obs_text_quoted_false_directives_do_not_disable_compression() {
+    let service = Service::new(Router::new().hoop(Compression::new()).get(representation));
+    for name in ["cache-control", "x-origin-cache-control"] {
+        for value in [
+            b"extension=\"\x80, no-transform\"".as_slice(),
+            b"extension=\"\xff\\\", no-transform\"".as_slice(),
+        ] {
+            let response = TestClient::get("http://localhost/")
+                .add_header("accept-encoding", "gzip", true)
+                .add_header(name, HeaderValue::from_bytes(value).unwrap(), true)
+                .send(&service)
+                .await;
+            assert_eq!(response.headers()[CONTENT_ENCODING], "gzip", "{name}");
         }
     }
 }
