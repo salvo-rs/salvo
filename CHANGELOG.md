@@ -115,6 +115,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hoops and lifecycle hooks run, and reject malformed override headers.
 - Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
   verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
+- Reissue invalid session-backed CSRF proofs on safe requests after cipher key
+  or token-size changes, instead of indefinitely reusing unusable tokens.
 - Replace all depot JWT authentication results on each attempt so missing or
   rejected credentials cannot retain another middleware instance's claims/token,
   and successful authentication cannot retain an earlier error.

@@ -4,6 +4,10 @@ use salvo_session::SessionDepotExt;
 use super::{CsrfCipher, CsrfStore};
 
 /// A `CsrfStore` implementation that stores the CSRF proof in a session.
+///
+/// Stored proofs are checked with the current cipher before reuse. An invalid
+/// proof is treated as missing, allowing a safe request to issue a fresh token
+/// after a key or token-format change; unsafe requests still require a valid pair.
 #[derive(Debug)]
 pub struct SessionStore {
     name: String,
@@ -26,11 +30,12 @@ impl SessionStore {
 
 impl CsrfStore for SessionStore {
     type Error = Error;
-    async fn load<C: CsrfCipher>(&self, _req: &mut Request, depot: &mut Depot, _cipher: &C) -> Option<(String, String)> {
+    async fn load<C: CsrfCipher>(&self, _req: &mut Request, depot: &mut Depot, cipher: &C) -> Option<(String, String)> {
         depot
             .session()
             .and_then(|s| s.get::<String>(&self.name))
-            .and_then(|s| s.split_once('.').map(|(t, p)| (t.into(), p.into())))
+            .and_then(|s| s.split_once('.').map(|(t, p)| (t.to_owned(), p.to_owned())))
+            .filter(|(token, proof)| cipher.verify(token, proof))
     }
     async fn save(
         &self,
