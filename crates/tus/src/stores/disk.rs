@@ -46,9 +46,40 @@ struct MetaUpload {
     id: String,
     size: Option<u64>,
     offset: u64,
-    metadata: Option<HashMap<String, Option<String>>>,
+    #[serde(default, deserialize_with = "deserialize_metadata")]
+    metadata: Option<HashMap<String, Option<Vec<u8>>>>,
     storage: Option<MetaStoreInfo>,
     creation_date: String,
+}
+
+// Existing separated-layout records stored UTF-8 strings. Read both that
+// representation and byte arrays, but always write byte arrays losslessly.
+fn deserialize_metadata<'de, D>(
+    deserializer: D,
+) -> Result<Option<HashMap<String, Option<Vec<u8>>>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Value {
+        Text(String),
+        Bytes(Vec<u8>),
+    }
+
+    let metadata = Option::<HashMap<String, Option<Value>>>::deserialize(deserializer)?;
+    Ok(metadata.map(|values| {
+        values
+            .into_iter()
+            .map(|(key, value)| {
+                let bytes = value.map(|value| match value {
+                    Value::Text(text) => text.into_bytes(),
+                    Value::Bytes(bytes) => bytes,
+                });
+                (key, bytes)
+            })
+            .collect()
+    }))
 }
 
 impl From<UploadInfo> for MetaUpload {
@@ -84,6 +115,12 @@ impl From<MetaUpload> for UploadInfo {
 /// are deliberately not auto-discovered: user-uploaded JSON cannot be trusted as
 /// metadata. Stop uploads and explicitly migrate trusted records and their storage
 /// paths before reusing a legacy directory.
+///
+/// Metadata values in separated-layout JSON records are written as byte arrays.
+/// Records using the previous UTF-8 string representation remain readable;
+/// writing them upgrades their representation. Older versions cannot read the
+/// byte arrays, so do not share a store with an older writer or downgrade without
+/// migrating the records. Invalid bytes lost by older versions cannot be recovered.
 ///
 /// Completing an upload commits its offset before attempting the optional final
 /// filename. Naming is best effort: use the returned storage path, which may
@@ -255,8 +292,9 @@ impl DiskStore {
         meta.metadata
             .as_ref()
             .and_then(|m| m.get(key))
-            .and_then(|v| v.as_ref())
-            .map(|v| v.to_owned())
+            .and_then(|v| v.as_deref())
+            .and_then(|value| std::str::from_utf8(value).ok())
+            .map(str::to_owned)
     }
 
     fn sanitize_filename(name: &str) -> Option<String> {
@@ -771,7 +809,10 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filename".to_owned(), Some("document.pdf".to_owned()));
+                m.insert(
+                    "filename".to_owned(),
+                    Some("document.pdf".as_bytes().to_vec()),
+                );
                 m
             }),
             storage: None,
@@ -804,7 +845,10 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filetype".to_owned(), Some("application/pdf".to_owned()));
+                m.insert(
+                    "filetype".to_owned(),
+                    Some("application/pdf".as_bytes().to_vec()),
+                );
                 m
             }),
             storage: None,
@@ -824,7 +868,7 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filetype".to_owned(), Some("image/png".to_owned()));
+                m.insert("filetype".to_owned(), Some("image/png".as_bytes().to_vec()));
                 m
             }),
             storage: None,
@@ -844,7 +888,7 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filetype".to_owned(), Some("invalid".to_owned()));
+                m.insert("filetype".to_owned(), Some("invalid".as_bytes().to_vec()));
                 m
             }),
             storage: None,
@@ -861,7 +905,10 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filetype".to_owned(), Some("application/".to_owned()));
+                m.insert(
+                    "filetype".to_owned(),
+                    Some("application/".as_bytes().to_vec()),
+                );
                 m
             }),
             storage: None,
@@ -884,7 +931,7 @@ mod tests {
                 offset: 0,
                 metadata: Some({
                     let mut m = HashMap::new();
-                    m.insert("filetype".to_owned(), Some(filetype.to_owned()));
+                    m.insert("filetype".to_owned(), Some(filetype.as_bytes().to_vec()));
                     m
                 }),
                 storage: None,
@@ -902,7 +949,10 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filename".to_owned(), Some("document.pdf".to_owned()));
+                m.insert(
+                    "filename".to_owned(),
+                    Some("document.pdf".as_bytes().to_vec()),
+                );
                 m
             }),
             storage: None,
@@ -922,8 +972,11 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filename".to_owned(), Some("document".to_owned()));
-                m.insert("filetype".to_owned(), Some("application/pdf".to_owned()));
+                m.insert("filename".to_owned(), Some("document".as_bytes().to_vec()));
+                m.insert(
+                    "filetype".to_owned(),
+                    Some("application/pdf".as_bytes().to_vec()),
+                );
                 m
             }),
             storage: None,
@@ -943,7 +996,7 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("filetype".to_owned(), Some("image/png".to_owned()));
+                m.insert("filetype".to_owned(), Some("image/png".as_bytes().to_vec()));
                 m
             }),
             storage: None,
@@ -1109,7 +1162,7 @@ mod tests {
             upload.size = Some(forged.len() as u64);
             upload.metadata = Some(Metadata(HashMap::from([(
                 "filename".into(),
-                Some(filename.into()),
+                Some(filename.as_bytes().to_vec()),
             )])));
             store.create(upload).await.unwrap();
             store
@@ -1676,7 +1729,7 @@ mod tests {
         upload.size = Some(5);
         upload.metadata = Some(Metadata(HashMap::from([(
             "filename".into(),
-            Some("completed.txt".into()),
+            Some(b"completed.txt".to_vec()),
         )])));
         store.create(upload).await.unwrap();
         let mut meta = store.read_meta(id).await.unwrap();
@@ -1719,7 +1772,7 @@ mod tests {
             upload.size = Some(5);
             upload.metadata = Some(Metadata(HashMap::from([(
                 "filename".into(),
-                Some("completed.txt".into()),
+                Some(b"completed.txt".to_vec()),
             )])));
             store.create(upload).await.unwrap();
             fs::write(store.data_path(id), b"hello").await.unwrap();
@@ -1821,7 +1874,7 @@ mod tests {
         upload.size = Some(5);
         upload.metadata = Some(Metadata(HashMap::from([(
             "filename".into(),
-            Some("completed.txt".into()),
+            Some(b"completed.txt".to_vec()),
         )])));
         store.create(upload).await.unwrap();
         // Deterministic metadata write failure on Windows and Unix.
@@ -1868,7 +1921,7 @@ mod tests {
         upload.size = Some(0);
         upload.metadata = Some(Metadata(HashMap::from([(
             "filename".into(),
-            Some("empty.txt".into()),
+            Some(b"empty.txt".to_vec()),
         )])));
         fs::create_dir(store.meta_tmp_path(id)).await.unwrap();
         assert!(store.create(upload.clone()).await.is_err());
@@ -1885,7 +1938,10 @@ mod tests {
         let (store, temp_dir) = create_test_store();
 
         let mut metadata = HashMap::new();
-        metadata.insert("filename".to_owned(), Some("myfile.txt".to_owned()));
+        metadata.insert(
+            "filename".to_owned(),
+            Some("myfile.txt".as_bytes().to_vec()),
+        );
 
         let upload_info = UploadInfo {
             id: "test-finalize".to_owned(),
@@ -1925,7 +1981,10 @@ mod tests {
             .unwrap();
 
         let mut metadata = HashMap::new();
-        metadata.insert("filename".to_owned(), Some("myfile.txt".to_owned()));
+        metadata.insert(
+            "filename".to_owned(),
+            Some("myfile.txt".as_bytes().to_vec()),
+        );
         let id = "test-finalize-fallback";
         let upload_info = UploadInfo {
             id: id.to_owned(),
@@ -1990,7 +2049,10 @@ mod tests {
         .unwrap();
 
         let mut metadata = HashMap::new();
-        metadata.insert("filename".to_owned(), Some("myfile.txt".to_owned()));
+        metadata.insert(
+            "filename".to_owned(),
+            Some("myfile.txt".as_bytes().to_vec()),
+        );
         let id = "test-finalize-collision";
         let upload_info = UploadInfo {
             id: id.to_owned(),
@@ -2068,8 +2130,11 @@ mod tests {
         let (store, _temp_dir) = create_test_store();
 
         let mut metadata = HashMap::new();
-        metadata.insert("filename".to_owned(), Some("test.pdf".to_owned()));
-        metadata.insert("filetype".to_owned(), Some("application/pdf".to_owned()));
+        metadata.insert("filename".to_owned(), Some("test.pdf".as_bytes().to_vec()));
+        metadata.insert(
+            "filetype".to_owned(),
+            Some("application/pdf".as_bytes().to_vec()),
+        );
 
         let upload_info = UploadInfo {
             id: "test-metadata".to_owned(),
@@ -2085,7 +2150,7 @@ mod tests {
         let info = store.get_upload_file_info("test-metadata").await.unwrap();
         assert!(info.metadata.is_some());
         let meta = info.metadata.unwrap();
-        assert_eq!(meta.get("filename"), Some(&Some("test.pdf".to_owned())));
+        assert_eq!(meta.get("filename"), Some(&Some(b"test.pdf".to_vec())));
     }
 
     #[test]
@@ -2096,7 +2161,7 @@ mod tests {
             offset: 0,
             metadata: Some({
                 let mut m = HashMap::new();
-                m.insert("key1".to_owned(), Some("value1".to_owned()));
+                m.insert("key1".to_owned(), Some("value1".as_bytes().to_vec()));
                 m.insert("key2".to_owned(), None);
                 m
             }),
