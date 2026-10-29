@@ -16,6 +16,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Breaking:** JWT finders now use `Option<Vec<Method>>` for their public
+  `allowed_methods` field: `None` accepts every method, including extensions;
+  `Some(methods)` restricts extraction to that list. Wrap direct field assignments
+  in `Some(...)`. The existing `allowed_methods(Vec<Method>)` builder still works,
+  and an explicit empty list still disables token extraction. Mutable list access
+  turns an unrestricted finder into an explicit list of standard methods.
+
 - **Breaking:** tus `Metadata` values are now `Option<Vec<u8>>` instead of
   `Option<String>`. Use `Metadata::get_text` for strict UTF-8 access and convert
   text with `into_bytes` in custom stores and hooks. DiskStore reads previous
