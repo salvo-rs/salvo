@@ -17,8 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Cancel queued compression tasks when their response body is dropped instead of
-  continuing work for disconnected clients.
+- Base HTTPS redirects and server request schemes on the listener's transport,
+  preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
@@ -73,6 +73,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
   and finalization together with expensive writes.
+- Cancel queued compression tasks when their response body is dropped instead of
+  continuing work for disconnected clients.
 - Validate tus creation requests before allocating storage, remove uploads after
   creation-time stream failures, and pass final storage metadata to completion hooks.
 - Merge multipart form and file schemas instead of overwriting earlier endpoint
