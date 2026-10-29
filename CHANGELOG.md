@@ -52,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Use only `Authorization` for Basic authentication by default, keeping proxy
   credentials out of origin authentication. Applications that intentionally
   accept `Proxy-Authorization` can opt in with `BasicAuth::set_header_names`.
+- Apply flash message minimum levels when reading incoming messages as well as
+  saving outgoing messages, including when routes use different level policies.
 
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
