@@ -99,6 +99,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve multipart parsing failures in `FormFile` and `FormFiles` extractors,
   returning HTTP 413 for upload byte or count limits instead of HTTP 400.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
+- Accept case-insensitive tus upload media types and surrounding HTTP whitespace
+  in creation-with-upload and PATCH requests.
 - Preserve binary tus upload metadata and explicit empty values through parsing,
   storage reopening, and HEAD responses; ignore non-UTF-8 filename/filetype hints.
 - Preserve byte ranges by skipping dynamic compression for partial responses.

@@ -8,7 +8,7 @@ use crate::error::{ProtocolError, TusError};
 use crate::handlers::{apply_common_headers, finish_upload, upload_expiration};
 use crate::method_override::TusMethodFilter;
 use crate::stores::Extension;
-use crate::utils::{check_tus_version, parse_u64};
+use crate::utils::{check_tus_version, parse_u64, validate_header};
 use crate::{
     CT_OFFSET_OCTET_STREAM, CancellationContext, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
     H_TUS_VERSION, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH, H_UPLOAD_OFFSET, TUS_VERSION, Tus,
@@ -44,11 +44,7 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     }
 
     // 2. Check Content Type. The request MUST include a Content-Type header
-    let content_type = req
-        .headers()
-        .get(H_CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok());
-    if content_type != Some(CT_OFFSET_OCTET_STREAM) {
+    if !validate_header(CT_OFFSET_OCTET_STREAM, req.headers().get(H_CONTENT_TYPE)) {
         res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
         return;
     }

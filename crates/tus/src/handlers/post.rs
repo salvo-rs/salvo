@@ -8,7 +8,7 @@ use crate::error::{ProtocolError, TusError};
 use crate::handlers::{Metadata, apply_common_headers, finish_upload, upload_expiration};
 use crate::method_override::TusMethodFilter;
 use crate::stores::{Extension, UploadInfo};
-use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64};
+use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64, validate_header};
 use crate::{
     CT_OFFSET_OCTET_STREAM, CancellationContext, H_CONTENT_LENGTH, H_CONTENT_TYPE, H_TUS_RESUMABLE,
     H_TUS_VERSION, H_UPLOAD_CONCAT, H_UPLOAD_DEFER_LENGTH, H_UPLOAD_EXPIRES, H_UPLOAD_LENGTH,
@@ -67,12 +67,8 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    let creation_with_upload = match req
-        .headers()
-        .get(H_CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-    {
-        Some(value) if value == CT_OFFSET_OCTET_STREAM => true,
+    let creation_with_upload = match req.headers().get(H_CONTENT_TYPE) {
+        Some(value) if validate_header(CT_OFFSET_OCTET_STREAM, Some(value)) => true,
         Some(_) => {
             res.status_code = Some(TusError::Protocol(ProtocolError::InvalidContentType).status());
             return;
