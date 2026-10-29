@@ -1,14 +1,18 @@
 //! HTTP/3 support.
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::future::pending;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::task::Poll;
 
 use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::future::poll_fn;
+use futures_util::stream::{FuturesUnordered, StreamExt};
+use salvo_http3::ConnectionState;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio::task::JoinSet;
@@ -144,10 +148,53 @@ impl Builder {
         // this future (including a server force-stop) or leaving the accept loop
         // aborts pending handlers instead of detaching them from the connection.
         let mut requests = JoinSet::new();
+        // Resolving a request waits for its HEADERS frame. Keep those futures
+        // owned by the connection. HTTP-only peers resolve them independently;
+        // WebTransport peers retain sequential acceptance so early WT streams
+        // remain available when their CONNECT handler takes over the connection.
+        let mut resolving = FuturesUnordered::new();
         let mut shutting_down = false;
         loop {
-            let accepted = tokio::select! {
-                accepted = conn.accept() => Some(accepted),
+            let waiting_headers = !resolving.is_empty();
+            let resolved = tokio::select! {
+                accepted = poll_fn(|cx| {
+                    if waiting_headers {
+                        match conn.settings() {
+                            Cow::Borrowed(settings) if settings.enable_webtransport() => {
+                                return Poll::Pending;
+                            }
+                            Cow::Owned(_) => {
+                                // SETTINGS may arrive after a request on another stream.
+                                // Drive their arrival without accepting a second stream,
+                                // while the first request can still resolve immediately.
+                                return conn.inner.poll_control(cx).map(|result| match result {
+                                    Ok(_) => None,
+                                    Err(error) => Some(Err(error)),
+                                });
+                            }
+                            Cow::Borrowed(_) => {}
+                        }
+                    }
+                    let accepted = conn.accept();
+                    tokio::pin!(accepted);
+                    accepted.poll(cx).map(Some)
+                }) => {
+                    let Some(accepted) = accepted else {
+                        continue;
+                    };
+                    match accepted {
+                        Ok(Some(resolver)) => resolving.push(resolver.resolve_request()),
+                        Ok(None) => break,
+                        Err(error) => {
+                            if !error.is_h3_no_error() {
+                                tracing::error!("Connection errored with {}", error);
+                            }
+                            break;
+                        }
+                    }
+                    None
+                }
+                resolved = resolving.next(), if !resolving.is_empty() => resolved,
                 completed = requests.join_next(), if !requests.is_empty() => {
                     if let Some(Err(error)) = completed {
                         tracing::error!(?error, "HTTP/3 request task failed");
@@ -206,29 +253,12 @@ impl Builder {
                     None
                 }
             };
-            let Some(accepted) = accepted else {
+            let Some(resolved) = resolved else {
                 continue;
             };
-            match accepted {
-                Ok(Some(resolver)) => {
+            match resolved {
+                Ok((request, stream)) => {
                     let hyper_handler = hyper_handler.clone();
-                    // Keep the connection abortable while the client sends the request head. A
-                    // stream that stalls before its headers arrive must not block a handler on
-                    // another stream from tearing the QUIC connection down.
-                    let resolved = tokio::select! {
-                        resolved = resolver.resolve_request() => resolved,
-                        _ = conn_ctrl.aborted() => {
-                            raw_conn.close(0u32.into(), b"aborted by handler");
-                            return Ok(());
-                        }
-                    };
-                    let (request, stream) = match resolved {
-                        Ok(request) => request,
-                        Err(err) => {
-                            tracing::error!("error resolving request: {err:?}");
-                            continue;
-                        }
-                    };
                     tracing::debug!("new request: {:#?}", request);
                     match request.method() {
                         &Method::CONNECT
@@ -273,14 +303,8 @@ impl Builder {
                         }
                     }
                 }
-                Ok(None) => {
-                    break;
-                }
-                Err(e) => {
-                    if !e.is_h3_no_error() {
-                        tracing::error!("Connection errored with {}", e);
-                    }
-                    break;
+                Err(error) => {
+                    tracing::error!("error resolving request: {error:?}");
                 }
             }
         }
