@@ -449,25 +449,27 @@ impl Compression {
                 })
                 .map(|(algo, level)| (*algo, *level))
         } else {
-            // Client preference: pick the highest q-value algo the server supports.
-            let result = parsed
+            // Compare explicitly listed algorithms with those accepted by `*`.
+            // A wildcard only matches algorithms not explicitly listed, even
+            // when the explicit quality is lower than the wildcard's quality.
+            let explicit = parsed
                 .iter()
                 .filter(|(_, q)| *q > 0)
-                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
-
-            if result.is_some() {
-                return result;
-            }
-
-            // Wildcard `*`: use the server's top algo that is not explicitly rejected.
-            if wildcard_q.is_some_and(|q| q > 0) {
+                .find_map(|(algo, q)| self.algos.get(algo).map(|level| (*algo, *level, *q)));
+            let wildcard = wildcard_q.filter(|q| *q > 0).and_then(|q| {
                 self.algos
                     .iter()
-                    .find(|(algo, _)| !is_rejected(algo))
-                    .map(|(algo, level)| (*algo, *level))
-            } else {
-                None
-            }
+                    .find(|(algo, _)| !parsed.iter().any(|(listed, _)| listed == *algo))
+                    .map(|(algo, level)| (*algo, *level, q))
+            });
+            // Preserve the explicit client order on equal qualities, and the
+            // server order among algorithms covered only by the wildcard.
+            let selected = match (explicit, wildcard) {
+                (Some(explicit), Some(wildcard)) if wildcard.2 > explicit.2 => Some(wildcard),
+                (Some(explicit), _) => Some(explicit),
+                (None, wildcard) => wildcard,
+            };
+            selected.map(|(algo, level, _)| (algo, level))
         }
     }
 }
