@@ -118,6 +118,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   while preserving consumed-body caches and application cookie edits during pass-through.
 - Preserve bracketed query-list tokens around whitespace and opposite quote
   characters instead of rejecting numbers or silently corrupting string values.
+- Read explicit empty bracketed query and header lists as empty typed collections, while
+  preserving scalar strings and repeated-parameter values containing `[]`.
 - Honor ETag precedence, lists and wildcards in conditional responses, while
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
