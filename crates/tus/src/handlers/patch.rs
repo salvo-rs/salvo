@@ -5,7 +5,7 @@ use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::{apply_common_headers, finish_upload};
+use crate::handlers::{apply_common_headers, finish_upload, upload_expiration};
 use crate::method_override::TusMethodFilter;
 use crate::stores::Extension;
 use crate::utils::{check_tus_version, parse_u64};
@@ -91,23 +91,11 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         }
     };
 
-    let mut expires_at = None;
-    if store.has_extension(Extension::Expiration)
-        && let Some(expiration) = store.get_expiration()
-        && expiration > std::time::Duration::from_secs(0)
-        && !already_uploaded_info.creation_date.is_empty()
-        && let Ok(created_at) =
-            chrono::DateTime::parse_from_rfc3339(&already_uploaded_info.creation_date)
-        && let Ok(delta) = chrono::Duration::from_std(expiration)
-    {
-        let expires = created_at.with_timezone(&chrono::Utc) + delta;
-        if chrono::Utc::now() > expires {
-            res.status_code = Some(TusError::FileNoLongerExists.status());
-            return;
-        }
-        expires_at = Some(expires);
+    let expires_at = upload_expiration(store.as_ref(), &already_uploaded_info);
+    if expires_at.is_some_and(|expires| chrono::Utc::now() > expires) {
+        res.status_code = Some(TusError::FileNoLongerExists.status());
+        return;
     }
-
     // If a Client does attempt to resume an upload which has since
     // been removed by the Server, the Server SHOULD respond with the
     // with the 404 Not Found or 410 Gone status. The latter one SHOULD

@@ -21,7 +21,11 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     let headers = apply_options_headers(req, opts, &mut res.headers);
 
     headers.insert(H_TUS_VERSION, HeaderValue::from_static(TUS_VERSION));
-    if let Some(ext_header) = Extension::to_header_value(&store.extensions()) {
+    // A storage backend cannot implement concatenation by itself: the request
+    // handlers and UploadInfo do not model partial or final uploads yet.
+    let mut extensions = store.extensions();
+    extensions.remove(&Extension::Concatenation);
+    if let Some(ext_header) = Extension::to_header_value(&extensions) {
         headers.insert(H_TUS_EXTENSION, ext_header);
     }
 

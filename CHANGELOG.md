@@ -73,8 +73,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
   and finalization together with expensive writes.
+- Cancel queued compression tasks when their response body is dropped instead of
+  continuing work for disconnected clients.
 - Validate tus creation requests before allocating storage, remove uploads after
   creation-time stream failures, and pass final storage metadata to completion hooks.
+- Omit unsupported TUS concatenation from advertised capabilities and reject
+  partial or final creation requests even when a custom store declares it.
 - Merge multipart form and file schemas instead of overwriting earlier endpoint
   parameters, preserving required fields and form constraints.
 - Generate `Allow` for automatic 405 responses from complete built-in route matches,
@@ -102,6 +106,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cancel their inner future, preserving HEAD handling and prepared response policy headers.
 - Invoke tus upload completion hooks when PATCH finishes an upload, sharing
   response customization and error handling with creation-time completion.
+- Apply TUS upload expiration only to unfinished resources, preserving completed
+  uploads when their original upload timeout passes.
 - Preserve existing tus metadata if replacing its temporary file fails on Windows.
 - Keep graceful server shutdown responsive to force-stop commands and release active
   connection accounting when a connection task panics or is cancelled.
@@ -115,6 +121,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Log finalized response statuses after Service media checks and catchers while retaining error diagnostics.
 - Match `Accept-Encoding` content codings and the `q` parameter case-insensitively, so
   `gzip;Q=0` and `GZIP;q=0` reject gzip in compression and precompressed static file selection.
+- Preserve leading spaces in Server-Sent Event data, event names, and IDs after
+  standard EventSource parsing.
 
 ## [1.0.1] - 2026-10-05
 

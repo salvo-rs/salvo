@@ -21,11 +21,33 @@ use salvo_core::{Request, Response};
 
 use crate::error::{ProtocolError, TusError};
 use crate::options::TusOptions;
-use crate::stores::UploadInfo;
+use crate::stores::{DataStore, Extension, UploadInfo};
 use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
 pub(crate) const DEFAULT_ALLOW_HEADERS: &str = "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length, X-HTTP-Method-Override";
+
+// Upload expiration applies to unfinished uploads. Retention of completed
+// resources is a separate storage policy, not an upload timeout.
+pub(crate) fn upload_expiration(
+    store: &dyn DataStore,
+    info: &UploadInfo,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    if !store.has_extension(Extension::Expiration)
+        || matches!((info.size, info.offset), (Some(size), Some(offset)) if size == offset)
+    {
+        return None;
+    }
+    let expiration = store.get_expiration()?;
+    if expiration.is_zero() {
+        return None;
+    }
+    let created = chrono::DateTime::parse_from_rfc3339(&info.creation_date).ok()?;
+    let delta = chrono::Duration::from_std(expiration).ok()?;
+    created
+        .with_timezone(&chrono::Utc)
+        .checked_add_signed(delta)
+}
 
 pub(crate) async fn finish_upload(
     req: &Request,

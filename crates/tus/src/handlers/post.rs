@@ -5,7 +5,7 @@ use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::{Metadata, apply_common_headers, finish_upload};
+use crate::handlers::{Metadata, apply_common_headers, finish_upload, upload_expiration};
 use crate::method_override::TusMethodFilter;
 use crate::stores::{Extension, UploadInfo};
 use crate::utils::{check_tus_version, is_safe_upload_id, parse_u64};
@@ -37,9 +37,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         return;
     }
 
-    if req.headers().get(H_UPLOAD_CONCAT).is_some()
-        && !store.has_extension(Extension::Concatenation)
-    {
+    if req.headers().get(H_UPLOAD_CONCAT).is_some() {
         res.status_code =
             Some(TusError::Protocol(ProtocolError::UnsupportedConcatenationExtension).status());
         return;
@@ -271,28 +269,12 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     tracing::info!("Generated file url: {}", &url);
 
-    if store.has_extension(Extension::Expiration)
-        && let Some(expiration) = store.get_expiration()
-        && expiration > std::time::Duration::from_secs(0)
-        && !upload.creation_date.is_empty()
-    {
-        let is_finished = match (upload.offset, upload.size) {
-            (Some(offset), Some(size)) => offset == size,
-            _ => false,
-        };
-
-        if !is_finished
-            && let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload.creation_date)
-            && let Ok(delta) = chrono::Duration::from_std(expiration)
-        {
-            let expires = created_at.with_timezone(&chrono::Utc) + delta;
-            let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
-            if let Ok(v) = HeaderValue::from_str(&expires_value) {
-                res.headers.insert(H_UPLOAD_EXPIRES, v);
-            }
+    if let Some(expires) = upload_expiration(store.as_ref(), &upload) {
+        let expires_value = expires.format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+        if let Ok(v) = HeaderValue::from_str(&expires_value) {
+            res.headers.insert(H_UPLOAD_EXPIRES, v);
         }
     }
-
     if is_final && let Err(error) = finish_upload(req, res, opts, upload.clone()).await {
         res.status_code = Some(error.status());
         return;
