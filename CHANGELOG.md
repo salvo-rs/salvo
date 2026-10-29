@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Advertise the stored gzip coding of embedded `.svgz` and compressed X3D
+  assets, including assets selected as directory defaults or fallbacks.
+
 - Base HTTPS redirects and server request schemes on the listener's transport,
   preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 

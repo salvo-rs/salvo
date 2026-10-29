@@ -1,11 +1,13 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
+use std::path::Path;
 
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
+use salvo_core::fs::extension_content_encoding;
 use salvo_core::handler::Handler;
 use salvo_core::http::header::{
-    ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, IF_RANGE, RANGE,
+    ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, IF_RANGE, RANGE,
     X_CONTENT_TYPE_OPTIONS,
 };
 use salvo_core::http::headers::{
@@ -58,7 +60,7 @@ pub fn render_embedded_file(
     mime: Option<Mime>,
 ) {
     let EmbeddedFile { data, metadata } = file;
-    render_embedded_data(data, &metadata, req, res, mime);
+    render_embedded_data(data, &metadata, req, res, mime, req.uri().path());
 }
 
 /// Returns whether an `If-None-Match` header value matches the given hash.
@@ -107,14 +109,32 @@ fn render_embedded_data(
     req: &Request,
     res: &mut Response,
     mime: Option<Mime>,
+    source_path: &str,
 ) {
     if req.method() == Method::HEAD {
         res.take_body();
     }
+
+    // Some extensions describe an encoded representation, e.g. .svgz is SVG
+    // inside gzip. Use the resolved asset name for defaults and fallbacks, and
+    // preserve an explicit coding already configured by the caller.
+    if !res.headers().contains_key(CONTENT_ENCODING)
+        && let Some(encoding) = Path::new(source_path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .and_then(extension_content_encoding)
+    {
+        res.headers_mut()
+            .insert(CONTENT_ENCODING, HeaderValue::from_static(encoding));
+    }
+
     // Determine Content-Type once
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
-            fill_mime_charset_if_need(&mut mime, &data);
+            // Encoded bytes cannot tell us the charset of the decoded text.
+            if !res.headers().contains_key(CONTENT_ENCODING) {
+                fill_mime_charset_if_need(&mut mime, &data);
+            }
             mime
         } else {
             mime::APPLICATION_OCTET_STREAM
@@ -352,7 +372,7 @@ where
         match embedded_file {
             Some(file) => {
                 let mime = mime_infer::from_path(&*key_path).first();
-                render_embedded_file(file, req, res, mime);
+                render_embedded_data(file.data, &file.metadata, req, res, mime, &key_path);
             }
             None => {
                 res.status_code(StatusCode::NOT_FOUND);
@@ -379,7 +399,14 @@ impl Handler for EmbeddedFileHandler {
         res: &mut Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        render_embedded_data(self.0.data.clone(), &self.0.metadata, req, res, None);
+        render_embedded_data(
+            self.0.data.clone(),
+            &self.0.metadata,
+            req,
+            res,
+            None,
+            req.uri().path(),
+        );
     }
 }
 
