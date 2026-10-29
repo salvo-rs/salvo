@@ -227,7 +227,7 @@ impl TryToTokens for ToParameters {
         tokens.extend(quote!{
             impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
                 fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
-                    #oapi::oapi::Parameters(#params.to_vec())
+                    #oapi::oapi::Parameters(#params.into_iter().map(#oapi::oapi::RefOr::Type).collect())
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {

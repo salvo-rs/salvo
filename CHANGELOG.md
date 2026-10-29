@@ -16,6 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Breaking:** OpenAPI `Parameters.0` and its owned iterator now contain
+  `RefOr<Parameter>` so path and operation parameter lists can retain references.
+  Existing inline builders still accept `Parameter`; use `Parameters::from(vec)`
+  instead of `Parameters(vec)` for a `Vec<Parameter>`, and match `RefOr` when
+  reading the public list or use `iter_inline` to inspect inline entries.
+
 - **Breaking:** tus `Metadata` values are now `Option<Vec<u8>>` instead of
   `Option<String>`. Use `Metadata::get_text` for strict UTF-8 access and convert
   text with `into_bytes` in custom stores and hooks. DiskStore reads previous
@@ -25,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Check every root workspace target and feature in the Rust 1.95 MSRV CI job.
 
 ### Fixed
+
+- Read and write OpenAPI references in path and operation parameter lists,
+  preserving local and external references and their sibling metadata.
 
 - Stop sending HTTP/3 responses at the first header, data, trailer, or body
   error, reset the affected stream, and promptly release its response body.

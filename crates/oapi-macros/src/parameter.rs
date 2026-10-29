@@ -79,7 +79,7 @@ impl TryToTokens for Parameter<'_> {
                     tokens.extend(quote!{
                         {
                             let mut new_parameter = #parameter;
-                            if let Some(exist_parameter) = operation.parameters.0.iter_mut().find(|p|p.name == new_parameter.name) {
+                            if let Some(exist_parameter) = operation.parameters.iter_inline_mut().find(|p|p.name == new_parameter.name) {
                                 new_parameter.parameter_in = exist_parameter.parameter_in.clone();
                                 exist_parameter.merge(new_parameter);
                             } else {

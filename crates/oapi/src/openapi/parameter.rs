@@ -6,23 +6,41 @@ use serde_json::Value;
 
 use super::content::Content;
 use super::example::Example;
-use super::{Deprecated, RefOr, Required, Schema};
+use super::{Deprecated, Ref, RefOr, Required, Schema};
 use crate::PropMap;
 
 fn is_required_unset(value: &Required) -> bool {
     matches!(value, Required::Unset)
 }
 
-/// Collection for OpenAPI Parameter Objects.
+/// Collection of inline OpenAPI Parameter Objects and references to reusable parameters.
+///
+/// Inline entries are identified by name and location. References are identified by their
+/// reference location; they are retained without resolving their target, including external
+/// references. Consequently an inline entry and a reference remain distinct entries.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
-pub struct Parameters(pub Vec<Parameter>);
+pub struct Parameters(pub Vec<RefOr<Parameter>>);
 
 impl IntoIterator for Parameters {
-    type Item = Parameter;
-    type IntoIter = <Vec<Parameter> as IntoIterator>::IntoIter;
+    type Item = RefOr<Parameter>;
+    type IntoIter = <Vec<RefOr<Parameter>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<P: Into<RefOr<Parameter>>> From<Vec<P>> for Parameters {
+    fn from(parameters: Vec<P>) -> Self {
+        let mut result = Self::new();
+        result.extend(parameters);
+        result
+    }
+}
+
+impl From<Ref> for RefOr<Parameter> {
+    fn from(reference: Ref) -> Self {
+        Self::Ref(reference)
     }
 }
 
@@ -40,32 +58,63 @@ impl Parameters {
     }
     /// Add a new parameter and returns `self`.
     #[must_use]
-    pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
+    pub fn parameter<P: Into<RefOr<Parameter>>>(mut self, parameter: P) -> Self {
         self.insert(parameter);
         self
     }
-    /// Returns `true` if instance contains a parameter with the given name and location.
+    /// Iterate over inline parameters, skipping references without resolving their targets.
+    pub fn iter_inline(&self) -> impl Iterator<Item = &Parameter> {
+        self.0.iter().filter_map(|parameter| match parameter {
+            RefOr::Type(parameter) => Some(parameter),
+            RefOr::Ref(_) => None,
+        })
+    }
+
+    /// Mutably iterate over inline parameters, skipping references.
+    pub fn iter_inline_mut(&mut self) -> impl Iterator<Item = &mut Parameter> {
+        self.0.iter_mut().filter_map(|parameter| match parameter {
+            RefOr::Type(parameter) => Some(parameter),
+            RefOr::Ref(_) => None,
+        })
+    }
+
+    /// Returns `true` if an inline parameter has the given name and location.
+    /// References are not resolved by this method.
     #[must_use]
     pub fn contains(&self, name: &str, parameter_in: ParameterIn) -> bool {
-        self.0
-            .iter()
+        self.iter_inline()
             .any(|item| item.name == name && item.parameter_in == parameter_in)
     }
-    /// Inserts a parameter into the instance.
-    pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
-        let mut parameter = parameter.into();
-        // Per the OpenAPI 3.1 spec, path parameters MUST have `required: true`.
-        if parameter.parameter_in == ParameterIn::Path {
-            parameter.required = Required::True;
-        }
-        let exist_item = self.0.iter_mut().find(|item| {
-            item.name == parameter.name && item.parameter_in == parameter.parameter_in
-        });
-
-        if let Some(exist_item) = exist_item {
-            exist_item.merge(parameter);
-        } else {
-            self.0.push(parameter);
+    /// Insert an inline parameter or reference.
+    ///
+    /// Matching inline entries are merged by name and location. A reference replaces an
+    /// existing reference with the same location, including its sibling metadata.
+    pub fn insert<P: Into<RefOr<Parameter>>>(&mut self, parameter: P) {
+        match parameter.into() {
+            RefOr::Type(mut parameter) => {
+                // Per the OpenAPI 3.1 spec, path parameters MUST have `required: true`.
+                if parameter.parameter_in == ParameterIn::Path {
+                    parameter.required = Required::True;
+                }
+                let existing = self.iter_inline_mut().find(|item| {
+                    item.name == parameter.name && item.parameter_in == parameter.parameter_in
+                });
+                if let Some(existing) = existing {
+                    existing.merge(parameter);
+                    return;
+                }
+                self.0.push(RefOr::Type(parameter));
+            }
+            RefOr::Ref(reference) => {
+                let existing = self.0.iter_mut().find(|item| {
+                    matches!(item, RefOr::Ref(existing) if existing.ref_location == reference.ref_location)
+                });
+                if let Some(existing) = existing {
+                    *existing = RefOr::Ref(reference);
+                } else {
+                    self.0.push(RefOr::Ref(reference));
+                }
+            }
         }
     }
     /// Moves all elements from `other` into `self`, leaving `other` empty.
@@ -78,9 +127,10 @@ impl Parameters {
         }
     }
     /// Extends a collection with the contents of an iterator.
-    pub fn extend<I>(&mut self, iter: I)
+    pub fn extend<I, P>(&mut self, iter: I)
     where
-        I: IntoIterator<Item = Parameter>,
+        I: IntoIterator<Item = P>,
+        P: Into<RefOr<Parameter>>,
     {
         for item in iter {
             self.insert(item);
@@ -647,7 +697,9 @@ mod tests {
         // `Required::Unset`.
         assert_eq!(
             iter.next(),
-            Some(Parameter::new("param").required(Required::True))
+            Some(RefOr::Type(
+                Parameter::new("param").required(Required::True)
+            ))
         );
         assert!(iter.next().is_none());
     }

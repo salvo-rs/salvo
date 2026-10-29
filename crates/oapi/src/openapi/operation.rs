@@ -224,17 +224,16 @@ impl Operation {
 
     /// Add or change parameters of the [`Operation`].
     #[must_use]
-    pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
+    pub fn parameters<I: IntoIterator<Item = P>, P: Into<RefOr<Parameter>>>(
         mut self,
         parameters: I,
     ) -> Self {
-        self.parameters
-            .extend(parameters.into_iter().map(|parameter| parameter.into()));
+        self.parameters.extend(parameters);
         self
     }
     /// Append parameter to [`Operation`] parameters and returns `Self`.
     #[must_use]
-    pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
+    pub fn add_parameter<P: Into<RefOr<Parameter>>>(mut self, parameter: P) -> Self {
         self.parameters.insert(parameter);
         self
     }
