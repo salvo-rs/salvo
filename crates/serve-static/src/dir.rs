@@ -618,7 +618,7 @@ impl Handler for StaticDir {
                     // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
                         'accepted_encoding: for (algo, level) in
-                            http::parse_accept_encoding(&header)
+                            http::parse_accept_encoding_with_quality(&header)
                         {
                             if level == 0 {
                                 continue;
