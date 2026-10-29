@@ -414,14 +414,14 @@ impl Compression {
             .get(ACCEPT_ENCODING)
             .and_then(|v| v.to_str().ok())?;
 
-        let accept_list = http::parse_accept_encoding(header);
+        let accept_list = http::parse_accept_encoding_with_quality(header);
 
-        // `parse_accept_encoding` sorts entries by descending q-value, so the
+        // Encoding preferences are sorted by descending q-value, so the
         // first wildcard token is also the one with the highest q. Mirror the
         // original `.find(...)` semantics rather than overwriting `wildcard_q`
         // on every iteration — see https://github.com/salvo-rs/salvo/pull/1489
         // for the multi-wildcard regression this guards against.
-        let wildcard_q: Option<u8> = accept_list
+        let wildcard_q: Option<u16> = accept_list
             .iter()
             .find(|(name, _)| name == "*")
             .map(|(_, q)| *q);
@@ -430,8 +430,8 @@ impl Compression {
         // that do not name a known compression algorithm. The lookups below
         // (`is_accepted` / `is_rejected` / client-preference) then never have
         // to call `.parse::<CompressionAlgo>()` again. Entries keep the order
-        // produced by `parse_accept_encoding` (descending q-value).
-        let parsed: smallvec::SmallVec<[(CompressionAlgo, u8); 4]> = accept_list
+        // produced by the parser (descending q-value).
+        let parsed: smallvec::SmallVec<[(CompressionAlgo, u16); 4]> = accept_list
             .iter()
             .filter(|(name, _)| name != "*")
             .filter_map(|(name, q)| name.parse::<CompressionAlgo>().ok().map(|algo| (algo, *q)))
@@ -677,6 +677,42 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
+
+    #[cfg(all(feature = "gzip", feature = "brotli"))]
+    #[tokio::test]
+    async fn encoding_negotiation_preserves_three_decimal_quality_values() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.render("a response whose representation is selected by Accept-Encoding");
+        }
+        let compression = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .enable_brotli(CompressionLevel::Default)
+            .min_length(0);
+        let service = Service::new(Router::with_hoop(compression).get(hello));
+        for (accept, expected) in [
+            ("gzip;q=0.001, identity;q=0", Some("gzip")),
+            ("gzip;q=0.101, br;q=0.109", Some("br")),
+            ("gzip;q=0.101, *;q=0.109", Some("br")),
+            ("gzip;q=0.109, *;q=0.101", Some("gzip")),
+            ("gzip;q=0, br;q=0", None),
+            ("gzip;q=1, br;q=0.999", Some("gzip")),
+        ] {
+            let response = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, accept, true)
+                .send(&service)
+                .await;
+            assert_eq!(
+                response
+                    .headers()
+                    .get(CONTENT_ENCODING)
+                    .map(|value| value.to_str().unwrap()),
+                expected,
+                "{accept}"
+            );
+        }
+    }
 
     #[cfg(feature = "gzip")]
     #[tokio::test]

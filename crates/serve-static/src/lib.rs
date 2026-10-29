@@ -569,6 +569,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn encoding_negotiation_preserves_three_decimal_quality_values() {
+        let service = Service::new(
+            Router::with_path("{*path}")
+                .filter(filters::get().or(filters::head()))
+                .goal(StaticDir::new(vec!["test/static"])),
+        );
+        for (accept, expected) in [
+            ("gzip;q=0.001, identity;q=0", Some("gzip")),
+            ("gzip;q=0.101, br;q=0.109", Some("br")),
+            ("gzip;q=0.109, identity;q=0.101", Some("gzip")),
+            ("gzip;q=0.101, identity;q=0.109", None),
+            ("gzip;q=0, br;q=0", None),
+            ("gzip;q=1, br;q=0.999", Some("gzip")),
+        ] {
+            for head in [false, true] {
+                let request = if head {
+                    TestClient::head("http://localhost/test1.txt")
+                } else {
+                    TestClient::get("http://localhost/test1.txt")
+                };
+                let response = request
+                    .add_header("accept-encoding", accept, true)
+                    .send(&service)
+                    .await;
+                assert_eq!(
+                    response
+                        .headers()
+                        .get(CONTENT_ENCODING)
+                        .map(|value| value.to_str().unwrap()),
+                    expected,
+                    "{accept} (HEAD={head})"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn test_serve_static_dir_accept_encoding_is_case_insensitive() {
         let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
         let service = Service::new(router);
