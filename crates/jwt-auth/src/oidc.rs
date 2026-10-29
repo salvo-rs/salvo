@@ -3,7 +3,7 @@
 use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -15,7 +15,7 @@ use hyper_util::rt::TokioExecutor;
 use jsonwebtoken::jwk::{Jwk, JwkSet, KeyOperations, PublicKeyUse};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::Depot;
-use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
+use salvo_core::http::{HeaderValue, header::{AGE, CACHE_CONTROL}, uri::Uri};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::{Notify, RwLock};
@@ -295,6 +295,7 @@ impl OidcDecoder {
         let uri = self.jwks_uri().await?.parse::<Uri>()?;
         // Get the jwks endpoint
         tracing::debug!("Requesting JWKS From Uri: {uri}");
+        let request_started = Instant::now();
         let res = timeout(OIDC_HTTP_TIMEOUT, self.http_client.get(uri))
             .await
             .map_err(|_| JwtAuthError::OidcHttpTimeout)??;
@@ -308,9 +309,14 @@ impl OidcDecoder {
             let cache_policy = CachePolicy::from_header_val(cache_control);
             Some(cache_policy)
         };
+        let age = response_age(res.headers().get(AGE));
         let jwks = collect_limited_body(res.into_body(), OIDC_JWKS_MAX_BYTES).await?;
 
-        let fetched_at = current_time();
+        // RFC 9111 section 4.2.3: freshness is measured from origin validation,
+        // not from receipt of an already aged response from an intermediary.
+        // Include transfer time so waiting for a response body adds no freshness.
+        let age = age.saturating_add(request_started.elapsed().as_secs());
+        let fetched_at = current_time().saturating_sub(age);
         Ok(JwkSetFetch {
             jwks: serde_json::from_slice(&jwks)?,
             cache_policy,
@@ -627,6 +633,20 @@ fn b64_decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, base64::DecodeError> 
     URL_SAFE_NO_PAD.decode(input.as_ref())
 }
 
+fn response_age(value: Option<&HeaderValue>) -> u64 {
+    // Age is a non-negative integer. Use only the first list member if an
+    // intermediary combined duplicate fields (RFC 9111 section 5.1).
+    let Some(value) = value.and_then(|value| value.as_bytes().split(|byte| *byte == b',').next()) else {
+        return 0;
+    };
+    let value = value.trim_ascii();
+    if value.is_empty() || !value.iter().all(u8::is_ascii_digit) {
+        return 0;
+    }
+    // An overflowing age means very old, rather than an apparently fresh zero.
+    value.iter().fold(0u64, |age, byte| age.saturating_mul(10).saturating_add(u64::from(byte - b'0')))
+}
+
 pub(crate) fn current_time() -> u64 {
     // Called on the token-validation hot path; treat a clock set before the epoch
     // (NTP step / VM time travel) as `0` rather than panicking.
@@ -654,6 +674,20 @@ mod tests {
         let connector = HttpsConnectorBuilder::new().with_tls_config(tls)
             .https_or_http().enable_http1().build();
         Client::builder(TokioExecutor::new()).build(connector)
+    }
+
+    #[test]
+    fn response_age_uses_first_delta_seconds_and_saturates_overflow() {
+        assert_eq!(response_age(None), 0);
+        for (value, expected) in [
+            ("0", 0), ("3600", 3600), (" 3599 \t", 3599), ("12, 999", 12),
+            ("+12", 0), ("-12", 0), ("1.2", 0), ("unknown", 0), ("", 0),
+            ("18446744073709551615", u64::MAX),
+            ("18446744073709551616", u64::MAX),
+            ("99999999999999999999999999999999", u64::MAX),
+        ] {
+            assert_eq!(response_age(Some(&HeaderValue::from_str(value).unwrap())), expected, "{value}");
+        }
     }
 
     #[tokio::test]
