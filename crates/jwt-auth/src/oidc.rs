@@ -657,6 +657,91 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn quoted_cache_extensions_do_not_delay_jwks_key_revocation() {
+        let _ = crate::install_crypto_provider();
+        struct ServerTask(tokio::task::JoinHandle<()>);
+        impl Drop for ServerTask {
+            fn drop(&mut self) {
+                self.0.abort();
+            }
+        }
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let issuer = format!("http://{}", listener.local_addr().unwrap());
+        let discovery = json!({"issuer":issuer,"jwks_uri":format!("{issuer}/jwks")}).to_string();
+        let revoked = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let fetches = Arc::new(AtomicUsize::new(0));
+        let (server_revoked, server_fetches) = (revoked.clone(), fetches.clone());
+        let _server = ServerTask(tokio::spawn(async move {
+            loop {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (revoked, fetches, discovery) = (
+                    server_revoked.clone(),
+                    server_fetches.clone(),
+                    discovery.clone(),
+                );
+                tokio::spawn(async move {
+                    let service = service_fn(move |req: salvo_core::hyper::Request<_>| {
+                        let body = if req.uri().path() == "/jwks" {
+                            fetches.fetch_add(1, Ordering::SeqCst);
+                            if revoked.load(Ordering::SeqCst) {
+                                json!({"keys":[]})
+                            } else {
+                                json!({"keys":[{"kty":"oct","kid":"initial","alg":"HS256","k":"c2VjcmV0"}]})
+                            }.to_string()
+                        } else {
+                            discovery.clone()
+                        };
+                        async move {
+                            Ok::<_, Infallible>(Response::builder()
+                                .header(CACHE_CONTROL, "max-age=1, stale-while-revalidate=0, extension=\"ignored,max-age=2592000,ignored\"")
+                                .body(Full::new(Bytes::from(body))).unwrap())
+                        }
+                    });
+                    let _ = http1::Builder::new()
+                        .serve_connection(TokioIo::new(stream), service)
+                        .await;
+                });
+            }
+        }));
+
+        let mut header = jsonwebtoken::Header::new(Algorithm::HS256);
+        header.kid = Some("initial".into());
+        let token = jsonwebtoken::encode(
+            &header,
+            &json!({"iss":issuer,"aud":"test-client","exp":current_time()+3600}),
+            &jsonwebtoken::EncodingKey::from_secret(b"secret"),
+        )
+        .unwrap();
+        let decoder = OidcDecoder::builder(issuer)
+            .audience("test-client")
+            .allow_symmetric_jwks(true)
+            .http_client(test_http_client())
+            .build()
+            .await
+            .unwrap();
+        assert!(
+            decoder
+                .decode::<serde_json::Value>(&token, &mut Depot::new())
+                .await
+                .is_ok()
+        );
+        assert_eq!(fetches.load(Ordering::SeqCst), 1);
+        revoked.store(true, Ordering::SeqCst);
+        // Real elapsed time exceeds the trusted endpoint's one-second policy
+        // even with the cache's whole-second clock granularity.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        assert!(
+            decoder
+                .decode::<serde_json::Value>(&token, &mut Depot::new())
+                .await
+                .is_err(),
+            "revoked key remained usable after the endpoint's max-age"
+        );
+        assert_eq!(fetches.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
     async fn discovery_issuer_is_required_and_must_match_before_fetching_jwks() {
         for mode in ["mismatch", "missing", "missing-slash", "extra-slash", "match", "tenant"] {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
