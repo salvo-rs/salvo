@@ -77,6 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   continuing work for disconnected clients.
 - Validate tus creation requests before allocating storage, remove uploads after
   creation-time stream failures, and pass final storage metadata to completion hooks.
+- Omit unsupported TUS concatenation from advertised capabilities and reject
+  partial or final creation requests even when a custom store declares it.
 - Merge multipart form and file schemas instead of overwriting earlier endpoint
   parameters, preserving required fields and form constraints.
 - Generate `Allow` for automatic 405 responses from complete built-in route matches,

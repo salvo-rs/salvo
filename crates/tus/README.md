@@ -56,6 +56,10 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - **Extensions**: creation, creation-with-upload, creation-defer-length, termination
 - **Built-in handlers**: OPTIONS, POST, HEAD, PATCH, DELETE, GET
 
+The Concatenation extension is not implemented. Custom `DataStore` backends
+cannot enable it by returning `Extension::Concatenation`: it is omitted from
+`Tus-Extension`, and creation requests containing `Upload-Concat` are rejected.
+
 ## TUS Protocol Endpoints
 
 | Method | Path | Description |
