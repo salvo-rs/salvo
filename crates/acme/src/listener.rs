@@ -452,6 +452,7 @@ where
         // the same resolver that will serve renewals after startup.
         {
             let mut handshakes = tokio::task::JoinSet::new();
+            let mut accept_retry_at = None;
             let management = certon_manager.manage(&acme_config.domains);
             tokio::pin!(management);
             loop {
@@ -462,8 +463,24 @@ where
                         }
                         break;
                     }
-                    accepted = inner.accept(None), if acme_config.challenge_type == ChallengeType::TlsAlpn01 && handshakes.len() < 64 => {
-                        let accepted = accepted?;
+                    accepted = async {
+                        if let Some(deadline) = accept_retry_at {
+                            tokio::time::sleep_until(deadline).await;
+                        }
+                        inner.accept(None).await
+                    }, if acme_config.challenge_type == ChallengeType::TlsAlpn01 && handshakes.len() < 64 => {
+                        let accepted = match accepted {
+                            Ok(accepted) => accepted,
+                            Err(error) => {
+                                tracing::error!(error = ?error, "accept connection failed during initial certificate management");
+                                // Match the server's accept-error backoff. Keep the
+                                // delay in this select branch so certificate loading
+                                // or issuance can still finish while accept waits.
+                                accept_retry_at = Some(tokio::time::Instant::now() + Duration::from_millis(10));
+                                continue;
+                            }
+                        };
+                        accept_retry_at = None;
                         let tls_acceptor = tls_acceptor.clone();
                         handshakes.spawn(async move {
                             let _ = tokio::time::timeout(Duration::from_secs(10), tls_acceptor.accept(accepted.stream)).await;

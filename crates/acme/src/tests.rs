@@ -2,13 +2,14 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use rcgen::{CertificateParams, CertificateSigningRequestParams, CertifiedIssuer, IsCa, KeyPair};
-use salvo_core::conn::Listener;
 use salvo_core::conn::tcp::{TcpAcceptor, TcpListener};
+use salvo_core::conn::{Accepted, Acceptor, Holding, Listener};
+use salvo_core::fuse::ArcFusePolicy;
 use salvo_core::http::StatusCode;
 use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, Handler, Request, Response, Router, Server, async_trait};
@@ -29,13 +30,45 @@ use crate::listener::default_crypto_provider;
 use crate::{AcmeListenerBuilder, ChallengeType};
 
 #[derive(Debug)]
-struct BoundListener(TcpAcceptor);
+struct BoundListener(TcpAcceptor, usize, Arc<AtomicUsize>);
+
+#[derive(Debug)]
+struct FaultyAcceptor {
+    inner: TcpAcceptor,
+    errors_left: usize,
+    observed: Arc<AtomicUsize>,
+}
+
+impl Acceptor for FaultyAcceptor {
+    type Coupler = <TcpAcceptor as Acceptor>::Coupler;
+    type Stream = <TcpAcceptor as Acceptor>::Stream;
+
+    fn holdings(&self) -> &[Holding] {
+        self.inner.holdings()
+    }
+
+    async fn accept(
+        &mut self,
+        policy: Option<ArcFusePolicy>,
+    ) -> std::io::Result<Accepted<Self::Coupler, Self::Stream>> {
+        if self.errors_left > 0 {
+            self.errors_left -= 1;
+            self.observed.fetch_add(1, Ordering::SeqCst);
+            return Err(std::io::Error::from(std::io::ErrorKind::ConnectionAborted));
+        }
+        self.inner.accept(policy).await
+    }
+}
 
 impl Listener for BoundListener {
-    type Acceptor = TcpAcceptor;
+    type Acceptor = FaultyAcceptor;
 
     async fn try_bind(self) -> salvo_core::Result<Self::Acceptor> {
-        Ok(self.0)
+        Ok(FaultyAcceptor {
+            inner: self.0,
+            errors_left: self.1,
+            observed: self.2,
+        })
     }
 }
 
@@ -281,16 +314,22 @@ async fn challenge_handshake(addr: SocketAddr, key_auth: &str) -> std::io::Resul
     Ok(())
 }
 
-async fn initial_issuance(challenge_type: ChallengeType) {
+async fn initial_issuance(
+    challenge_type: ChallengeType,
+    accept_errors: usize,
+    check_cached_restart: bool,
+) {
     let tls = TcpListener::new("127.0.0.1:0").try_bind().await.unwrap();
     let tls_addr = tls.local_addr().unwrap();
     let ca = TcpListener::new("127.0.0.1:0").try_bind().await.unwrap();
     let base = format!("http://{}", ca.local_addr().unwrap());
     let directory = tempfile::tempdir().unwrap();
-    let mut listener = AcmeListenerBuilder::new(BoundListener(tls))
-        .add_domain("example.com")
-        .directory("local", format!("{base}/directory"))
-        .cache_path(directory.path());
+    let observed = Arc::new(AtomicUsize::new(0));
+    let mut listener =
+        AcmeListenerBuilder::new(BoundListener(tls, accept_errors, observed.clone()))
+            .add_domain("example.com")
+            .directory("local", format!("{base}/directory"))
+            .cache_path(directory.path());
     let mut http_task = None;
     let mut http_base = None;
     if challenge_type == ChallengeType::Http01 {
@@ -320,6 +359,7 @@ async fn initial_issuance(challenge_type: ChallengeType) {
         .unwrap()
         .unwrap();
     assert!(state.validated.load(Ordering::SeqCst));
+    assert_eq!(observed.load(Ordering::SeqCst), accept_errors);
     assert_eq!(
         *state.selected.lock().await,
         [if challenge_type == ChallengeType::Http01 {
@@ -334,16 +374,18 @@ async fn initial_issuance(challenge_type: ChallengeType) {
             .unwrap();
         assert_eq!(response.status().as_u16(), StatusCode::NOT_FOUND.as_u16());
     }
-    let _server = ServerTask(tokio::spawn(Server::new(acceptor).serve(Router::new())));
+    let mut server = ServerTask(tokio::spawn(Server::new(acceptor).serve(Router::new())));
     let mut roots = RootCertStore::empty();
     roots.add(state.issuer.der().clone()).unwrap();
-    let config = ClientConfig::builder_with_provider(default_crypto_provider())
-        .with_safe_default_protocol_versions()
-        .unwrap()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+    let config = Arc::new(
+        ClientConfig::builder_with_provider(default_crypto_provider())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(roots)
+            .with_no_client_auth(),
+    );
     let stream = tokio::net::TcpStream::connect(tls_addr).await.unwrap();
-    TlsConnector::from(Arc::new(config))
+    TlsConnector::from(config.clone())
         .connect(ServerName::try_from("example.com").unwrap(), stream)
         .await
         .unwrap();
@@ -362,15 +404,44 @@ async fn initial_issuance(challenge_type: ChallengeType) {
         ),
         "{error:?}"
     );
+    if check_cached_restart {
+        server.0.abort();
+        assert!((&mut server.0).await.unwrap_err().is_cancelled());
+        let tcp = TcpListener::new("127.0.0.1:0").try_bind().await.unwrap();
+        let addr = tcp.local_addr().unwrap();
+        let observed = Arc::new(AtomicUsize::new(0));
+        let listener = AcmeListenerBuilder::new(BoundListener(tcp, 1, observed.clone()))
+            .add_domain("example.com")
+            .directory("local", format!("{}/directory", state.base))
+            .cache_path(directory.path());
+        let acceptor = tokio::time::timeout(std::time::Duration::from_secs(2), listener.try_bind())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(observed.load(Ordering::SeqCst), 1);
+        let _cached_server = ServerTask(tokio::spawn(Server::new(acceptor).serve(Router::new())));
+        let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        TlsConnector::from(config)
+            .connect(ServerName::try_from("example.com").unwrap(), stream)
+            .await
+            .unwrap();
+        // Cached startup does not need another CA order or challenge.
+        assert_eq!(state.selected.lock().await.len(), 1);
+    }
     drop(http_task);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn default_tls_alpn_initial_issuance_and_cleanup() {
-    initial_issuance(ChallengeType::TlsAlpn01).await;
+    initial_issuance(ChallengeType::TlsAlpn01, 0, false).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn built_in_http01_initial_issuance_and_cleanup() {
-    initial_issuance(ChallengeType::Http01).await;
+    initial_issuance(ChallengeType::Http01, 0, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn transient_accept_errors_preserve_initial_issuance_and_cached_certificates() {
+    initial_issuance(ChallengeType::TlsAlpn01, 1, true).await;
 }
