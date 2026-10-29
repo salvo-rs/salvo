@@ -81,6 +81,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   excluding routes whose method constraints conflict.
 - Exclude pending cookie jar changes and partial responses from response caching,
   and bypass cached representations for range requests.
+- Parse response cache directives as raw bytes with quoted-value boundaries,
+  so opaque extensions cannot hide private/no-store/no-cache and quoted text
+  cannot manufacture directives.
 - Forward parameter names through optional extractors and reject missing required
   header, query and cookie values before constructing their wrappers.
 - Decode escaped JSON object member names in derived request extractors while
