@@ -40,7 +40,7 @@ pub trait JwtTokenFinder: Send + Sync {
 /// // Custom configuration for specific methods
 /// let get_only = HeaderFinder::new().allowed_methods(vec![Method::GET]);
 /// ```
-#[derive(Eq, PartialEq, Clone, Default, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 #[non_exhaustive]
 pub struct HeaderFinder {
     /// Allowed HTTP methods for which this finder should extract tokens.
@@ -50,6 +50,12 @@ pub struct HeaderFinder {
     /// List of headers names to check for Bearer tokens.
     pub header_names: Vec<HeaderName>,
 }
+impl Default for HeaderFinder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HeaderFinder {
     /// Creates a new `HeaderFinder`.
     #[inline]
