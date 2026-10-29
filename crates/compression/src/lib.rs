@@ -8,6 +8,8 @@
 //! Responses with status `206 Partial Content` or a `Content-Range` header are
 //! preserved because their byte offsets refer to the original representation.
 //! Strong ETags are weakened when compression changes the representation bytes.
+//! Requests and responses with `Cache-Control: no-transform` are preserved,
+//! including when this middleware wraps a proxy forwarding an origin response.
 //!
 //! # Supported Algorithms
 //!
@@ -75,8 +77,8 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG,
-    HeaderValue,
+    ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+    ETAG, HeaderValue,
 };
 use salvo_core::http::headers::{ContentLength, HeaderMapExt};
 use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
@@ -486,6 +488,8 @@ impl Handler for Compression {
         // body would invalidate those offsets, including representation headers
         // synthesized for HEAD. Leave the body and headers together untouched.
         if ctrl.is_ceased()
+            || no_transform(req.headers())
+            || no_transform(res.headers())
             || res.headers().contains_key(CONTENT_ENCODING)
             || res.headers().contains_key(CONTENT_RANGE)
             || res.status_code == Some(StatusCode::PARTIAL_CONTENT)
@@ -597,6 +601,41 @@ impl Handler for Compression {
         res.headers_mut().remove(CONTENT_LENGTH);
         weaken_etag(res);
     }
+}
+
+fn no_transform(headers: &http::HeaderMap) -> bool {
+    headers.get_all(CACHE_CONTROL).iter().any(|value| {
+        // Extension directive values can contain commas and escaped quotes.
+        // Quoted strings also permit obs-text, so scan bytes rather than reject
+        // an entire field value because an extension is not ASCII text.
+        // Only a directive name outside a quoted value can prohibit a transform.
+        let mut quoted = false;
+        let mut escaped = false;
+        value
+            .as_bytes()
+            .split(|&byte| {
+                if escaped {
+                    escaped = false;
+                } else if quoted && byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    quoted = !quoted;
+                } else if !quoted && byte == b',' {
+                    return true;
+                }
+                false
+            })
+            .any(|mut directive| {
+                // HTTP optional whitespace consists only of SP and HTAB.
+                while matches!(directive.first(), Some(b' ' | b'\t')) {
+                    directive = &directive[1..];
+                }
+                while matches!(directive.last(), Some(b' ' | b'\t')) {
+                    directive = &directive[..directive.len() - 1];
+                }
+                directive.eq_ignore_ascii_case(b"no-transform")
+            })
+    })
 }
 
 fn weaken_etag(res: &mut Response) {
