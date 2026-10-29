@@ -4,8 +4,7 @@ use salvo_core::http::HeaderValue;
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::apply_common_headers;
-use crate::stores::Extension;
+use crate::handlers::{apply_common_headers, upload_expiration};
 use crate::utils::check_tus_version;
 use crate::{CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, TUS_VERSION, Tus};
 
@@ -60,22 +59,12 @@ async fn get(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             }
         };
 
-        // An expired upload should report `410 Gone` instead of being served,
-        // consistent with the HEAD handler (per the tus expiration extension).
-        if store.has_extension(Extension::Expiration)
-            && let Some(expiration) = store.get_expiration()
-            && expiration > std::time::Duration::from_secs(0)
-            && !info.creation_date.is_empty()
-            && let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&info.creation_date)
-            && let Ok(delta) = chrono::Duration::from_std(expiration)
+        if upload_expiration(store.as_ref(), &info)
+            .is_some_and(|expires| chrono::Utc::now() > expires)
         {
-            let expires = created_at.with_timezone(&chrono::Utc) + delta;
-            if chrono::Utc::now() > expires {
-                res.status_code = Some(TusError::FileNoLongerExists.status());
-                return;
-            }
+            res.status_code = Some(TusError::FileNoLongerExists.status());
+            return;
         }
-
         let Some(storage) = info.storage else {
             res.status_code =
                 Some(TusError::Internal("upload storage info missing".into()).status());
