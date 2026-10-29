@@ -197,9 +197,11 @@ let decoder = OidcDecoder::builder("https://issuer.example.com")
 ```
 
 Passing `.validation(Validation::new(Algorithm::RS256))` also restricts accepted
-JWK algorithms to RS256. Without explicit validation options, the decoder uses
-each trusted JWK's declared algorithm; symmetric JWKs still require the explicit
-`allow_symmetric_jwks(true)` opt-in.
+JWK algorithms to RS256. A JWK may omit the optional `alg` field: the decoder then
+uses only algorithms already allowed by the validation policy and compatible with
+the key type and curve. A declared `alg` further restricts that policy. For
+deployments with a known signing algorithm, configure it explicitly; symmetric
+JWKs still require the explicit `allow_symmetric_jwks(true)` opt-in.
 
 An unknown `kid` can trigger an early JWKS refresh for key rotation. Refreshes
 are shared across decoder clones and have a one-second cooldown after completion,

@@ -12,7 +12,7 @@ use http_body_util::{BodyExt, Full, Limited};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::{Client, connect::HttpConnector};
 use hyper_util::rt::TokioExecutor;
-use jsonwebtoken::jwk::{Jwk, JwkSet, KeyOperations, PublicKeyUse};
+use jsonwebtoken::jwk::{AlgorithmParameters, EllipticCurve, Jwk, JwkSet, KeyOperations, PublicKeyUse};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::Depot;
 use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
@@ -165,8 +165,9 @@ where
     /// Set the validation options for the decoder.
     ///
     /// The algorithm allowlist is honored as well. Without explicit validation
-    /// options, the algorithm is selected from each trusted JWK; symmetric keys
-    /// still require [`Self::allow_symmetric_jwks`].
+    /// options, the allowed algorithms are restricted by each trusted JWK's key
+    /// type, curve and optional `alg`; symmetric keys still require
+    /// [`Self::allow_symmetric_jwks`].
     #[must_use]
     pub fn validation(mut self, validation: Validation) -> Self {
         self.validation = Some(validation);
@@ -499,11 +500,11 @@ impl Debug for DecodingInfo {
     }
 }
 impl DecodingInfo {
-    fn new(key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {
+    fn new(key: DecodingKey, alg: Option<Algorithm>, validation_settings: &Validation) -> Self {
         let mut validation = validation_settings.clone();
-        // A key can only validate its declared algorithm, and only when that
-        // algorithm is permitted by the caller's validation policy.
-        validation.algorithms.retain(|allowed| *allowed == alg);
+        // An explicit JWK algorithm further restricts the caller's allowlist.
+        // RFC 7517 section 4.4 makes `alg` optional, not a reason to add algorithms.
+        validation.algorithms.retain(|allowed| alg.is_none_or(|alg| *allowed == alg));
 
         Self {
             // jwk,
@@ -580,7 +581,19 @@ pub(crate) fn decode_jwk(
         return Err(JwtAuthError::InvalidJwk);
     }
     let kid = jwk.common.key_id.clone();
-    let alg = jwk.common.key_algorithm;
+    let alg = jwk.common.key_algorithm
+        .map(|alg| Algorithm::from_str(alg.to_string().as_str()))
+        .transpose()?;
+    let mut validation = validation.clone();
+    validation.algorithms.retain(|algorithm| match (&jwk.algorithm, algorithm) {
+        (AlgorithmParameters::RSA(_), Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512
+            | Algorithm::PS256 | Algorithm::PS384 | Algorithm::PS512) => true,
+        (AlgorithmParameters::EllipticCurve(params), Algorithm::ES256) => params.curve == EllipticCurve::P256,
+        (AlgorithmParameters::EllipticCurve(params), Algorithm::ES384) => params.curve == EllipticCurve::P384,
+        (AlgorithmParameters::OctetKey(_), Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512) => true,
+        (AlgorithmParameters::OctetKeyPair(params), Algorithm::EdDSA) => params.curve == EllipticCurve::Ed25519,
+        _ => false,
+    });
 
     let dec_key = match jwk.algorithm {
         jsonwebtoken::jwk::AlgorithmParameters::EllipticCurve(ref params) => {
@@ -613,10 +626,9 @@ pub(crate) fn decode_jwk(
         }
         _ => None,
     };
-    match (kid, alg, dec_key) {
-        (Some(kid), Some(alg), Some(dec_key)) => {
-            let alg = Algorithm::from_str(alg.to_string().as_str())?;
-            let info = DecodingInfo::new(dec_key, alg, validation);
+    match (kid, dec_key) {
+        (Some(kid), Some(dec_key)) => {
+            let info = DecodingInfo::new(dec_key, alg, &validation);
             Ok((kid, info))
         }
         _ => Err(JwtAuthError::InvalidJwk),
@@ -852,21 +864,21 @@ mod tests {
 
         let denied = DecodingInfo::new(
             DecodingKey::from_secret(secret),
-            Algorithm::HS512,
+            Some(Algorithm::HS512),
             &Validation::new(Algorithm::HS256),
         );
         assert!(denied.decode::<serde_json::Value>(&token).is_err());
 
         let allowed = DecodingInfo::new(
             DecodingKey::from_secret(secret),
-            Algorithm::HS512,
+            Some(Algorithm::HS512),
             &Validation::new(Algorithm::HS512),
         );
         assert!(allowed.decode::<serde_json::Value>(&token).is_ok());
 
         let default = DecodingInfo::new(
             DecodingKey::from_secret(secret),
-            Algorithm::HS512,
+            Some(Algorithm::HS512),
             &default_oidc_validation(),
         );
         assert!(default.decode::<serde_json::Value>(&token).is_ok());
@@ -875,7 +887,7 @@ mod tests {
         validation.algorithms.clear();
         let info = DecodingInfo::new(
             DecodingKey::from_secret(secret),
-            Algorithm::HS512,
+            Some(Algorithm::HS512),
             &validation,
         );
         assert!(info.decode::<serde_json::Value>(&token).is_err());
@@ -989,7 +1001,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_jwk_missing_alg() {
+    fn test_decode_jwk_invalid_rsa_components() {
         let jwk_json = json!({
             "kty": "RSA",
             "kid": "test-rsa",
@@ -1000,6 +1012,31 @@ mod tests {
         let validation = Validation::new(Algorithm::RS256);
         let result = decode_jwk(&jwk, &validation, false);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn missing_jwk_algorithm_only_keeps_compatible_policy_algorithms() {
+        let policy = default_oidc_validation();
+        for (parameters, expected) in [
+            (json!({"kty":"RSA", "n":"AQ", "e":"AQAB"}), vec![Algorithm::RS256, Algorithm::RS384, Algorithm::RS512, Algorithm::PS256, Algorithm::PS384, Algorithm::PS512]),
+            (json!({"kty":"EC", "crv":"P-256", "x":"AQ", "y":"AQ"}), vec![Algorithm::ES256]),
+            (json!({"kty":"EC", "crv":"P-384", "x":"AQ", "y":"AQ"}), vec![Algorithm::ES384]),
+            (json!({"kty":"EC", "crv":"P-521", "x":"AQ", "y":"AQ"}), vec![]),
+            (json!({"kty":"OKP", "crv":"Ed25519", "x":"AQ"}), vec![Algorithm::EdDSA]),
+            (json!({"kty":"OKP", "crv":"P-256", "x":"AQ"}), vec![]),
+            (json!({"kty":"oct", "k":"c2VjcmV0"}), vec![Algorithm::HS256, Algorithm::HS384, Algorithm::HS512]),
+        ] {
+            let mut parameters = parameters;
+            parameters["kid"] = json!("test");
+            let jwk: Jwk = serde_json::from_value(parameters).unwrap();
+            let (_, info) = decode_jwk(&jwk, &policy, true).unwrap();
+            assert_eq!(info.validation.algorithms, expected);
+
+            let mut deny_all = policy.clone();
+            deny_all.algorithms.clear();
+            let (_, info) = decode_jwk(&jwk, &deny_all, true).unwrap();
+            assert!(info.validation.algorithms.is_empty());
+        }
     }
 
     #[test]
