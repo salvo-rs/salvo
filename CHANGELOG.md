@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Stop sending HTTP/3 responses at the first header, data, trailer, or body
+  error, reset the affected stream, and promptly release its response body.
+  Preserve the connection when a rejected WebTransport CONNECT response fails.
+
 - Parse `i128` and `u128` request parameters, including full-width values,
   lists and optional values, rather than returning an unsupported-type error.
 
