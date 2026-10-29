@@ -208,6 +208,10 @@ are shared across decoder clones and have a one-second cooldown after completion
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
 
+JWKS freshness accounts for the response's `Age` and the time spent fetching it.
+A key set served by an intermediary therefore retains only its remaining
+`max-age` and stale allowance, rather than receiving a new lifetime on arrival.
+
 Discovery metadata must include an `issuer` that exactly matches the configured
 issuer URL, including any trailing slash. JWKS keys with an explicit `use` must
 declare `sig`; explicit `key_ops` must include `verify` and contain only signature
