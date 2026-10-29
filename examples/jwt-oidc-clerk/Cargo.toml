@@ -7,7 +7,6 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = "1"
-dotenv = "0.15.0"
 jsonwebtoken.workspace = true
 salvo = { workspace = true, features = ["anyhow", "jwt-auth", "proxy"] }
 serde = "1"

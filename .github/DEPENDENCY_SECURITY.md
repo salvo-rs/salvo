@@ -14,11 +14,17 @@ a direct dependency minimum does not guarantee every transitive version is safe.
 
 ## RUSTSEC-2026-0387: RustCrypto JWT dependency blocker
 
-As checked on 2026-10-28, the latest published `jsonwebtoken` is 11.1.0. Its
+As checked on 2026-10-30, the latest published `jsonwebtoken` is 11.1.0. Its
 `rust_crypto` feature requires `p256 ^0.13.2` and `p384 ^0.13`, which require
 `elliptic-curve 0.13` and `crypto-bigint 0.5.5`. The patched crypto-bigint series
 starts at 0.7.6 and cannot satisfy that dependency chain. Upstream tracks the
-blocked migration in [jsonwebtoken issue 549](https://github.com/Keats/jsonwebtoken/issues/549).
+blocked migration in [jsonwebtoken issue 549](https://github.com/Keats/jsonwebtoken/issues/549),
+closed as not planned while the RustCrypto stack awaits rsa 0.10. Stable
+`p256 0.14.0`, `p384 0.14.0`, and `crypto-bigint 0.7.10` are now published and
+declare Rust versions below 1.95, but they do not satisfy jsonwebtoken's current
+requirements. Raising Salvo's Rust version or updating the lockfile cannot bridge
+these incompatible dependency ranges. Published requirements can be checked in
+the [jsonwebtoken registry entry](https://index.crates.io/js/on/jsonwebtoken).
 
 Salvo enables this JWT backend through `salvo-jwt-auth/ring` or the umbrella
 `salvo/jwt-auth-ring` feature. The separately named `salvo/ring` feature selects
@@ -67,10 +73,29 @@ Unmaintained and yanked packages remain visible warnings for maintenance review.
 The workflow tests this policy with an offline advisory fixture and checks the
 exception review date so that it cannot remain unreviewed indefinitely.
 
-The examples workspace currently resolves `rbdc 4.9.10 -> lru 0.14.0`, which is
+As checked on 2026-10-30, the latest published `rbdc` is still 4.9.10. The
+examples workspace resolves `rbdc 4.9.10 -> lru 0.14.0`, which is
 affected by RUSTSEC-2026-0002 and RUSTSEC-2026-0253. The first fixed `lru` releases
 for these advisories are 0.16.3 and 0.18.2 respectively; rbdc's `^0.14.0`
 requirement cannot select them. The examples audit must remain blocked until the
 upstream dependency is upgraded or replaced. No exception is added for this path.
 The dependency finding alone does not establish that the example reaches the
 affected iterator or panic-unwinding operations.
+
+The current [rbdc registry entry](https://index.crates.io/rb/dc/rbdc) still
+requires `lru ^0.14.0`. Fixed lru releases support Rust 1.95, but cannot satisfy
+that requirement. A supported rbdc release must update it before a compatible
+dependency refresh can clear this blocker.
+
+Fresh lockfiles generated with Rust 1.95 on 2026-10-30 were audited against
+RustSec database commit `ee1a49a2769a24a596afc1c20cb33748d2769586` with
+`cargo audit --deny unsound`: the root and examples workspaces still fail on
+the blockers above, and fuzz passes. The isolated default JWT AWS-LC consumer
+also passes; this does not clear the root workspace blocker.
+
+The unused direct `dotenv` dependency was removed from the OIDC Clerk example;
+it did not load a `.env` file. No remaining example directly depends on the
+unmaintained `dotenv` or `rustls-pemfile` packages. `rustls-pemfile 2.2.0` remains
+an unmaintained warning through `rbdc 4.9.10` and
+`toasty-driver-postgresql 0.8.0`; addressing those paths requires upstream
+dependency changes or a database stack migration.
