@@ -17,8 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Omit unsupported TUS concatenation from advertised capabilities and reject
-  partial or final creation requests even when a custom store declares it.
+- Base HTTPS redirects and server request schemes on the listener's transport,
+  preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
@@ -75,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and finalization together with expensive writes.
 - Validate tus creation requests before allocating storage, remove uploads after
   creation-time stream failures, and pass final storage metadata to completion hooks.
+- Omit unsupported TUS concatenation from advertised capabilities and reject
+  partial or final creation requests even when a custom store declares it.
 - Merge multipart form and file schemas instead of overwriting earlier endpoint
   parameters, preserving required fields and form constraints.
 - Generate `Allow` for automatic 405 responses from complete built-in route matches,
