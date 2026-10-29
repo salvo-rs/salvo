@@ -54,6 +54,11 @@ use salvo_core::writing::Redirect;
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
 /// Middleware that redirects HTTP requests to their HTTPS equivalent.
+///
+/// Uses [`Request::scheme`], which servers obtain from the connection rather than
+/// the request URI or forwarded headers. Applications behind a TLS-terminating
+/// proxy must validate the proxy before overriding the scheme with trusted
+/// middleware, or use a [`skipper`](Self::skipper) for that deployment policy.
 #[derive(Default)]
 pub struct ForceHttps {
     https_port: Option<u16>,
@@ -130,7 +135,7 @@ impl Handler for ForceHttps {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        if req.uri().scheme() == Some(&Scheme::HTTPS)
+        if req.scheme() == &Scheme::HTTPS
             || self
                 .skipper
                 .as_ref()
@@ -330,5 +335,61 @@ mod tests {
             response.headers().get(LOCATION),
             Some(&"https://public.example.com/".parse().unwrap())
         );
+    }
+
+    #[tokio::test]
+    async fn redirects_follow_the_connection_scheme_independently_of_the_uri() {
+        use salvo_core::conn::{ConnCtrl, SocketAddr};
+        use salvo_core::http::ReqBody;
+        use salvo_core::hyper::service::Service as _;
+
+        let service = Service::new(
+            Router::with_hoop(ForceHttps::new().canonical_host("public.example.com"))
+                .path("hello")
+                .goal(hello),
+        );
+        for transport in [Scheme::HTTP, Scheme::HTTPS] {
+            for uri in ["/hello?q=1", "https://public.example.com/hello?q=1", "http://public.example.com/hello?q=1"] {
+                let handler = service.hyper_handler(
+                    SocketAddr::Unknown,
+                    SocketAddr::Unknown,
+                    transport.clone(),
+                    None,
+                    ConnCtrl::new(),
+                    None,
+                );
+                let request = salvo_core::hyper::Request::builder()
+                    .uri(uri)
+                    .header(HOST, "public.example.com")
+                    .header("x-forwarded-proto", "https")
+                    .body(ReqBody::None)
+                    .unwrap();
+                let response = handler.call(request).await.unwrap();
+                if transport == Scheme::HTTPS {
+                    assert_eq!(response.status(), StatusCode::OK, "uri={uri}");
+                    assert!(!response.headers().contains_key(LOCATION));
+                } else {
+                    assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT, "uri={uri}");
+                    assert_eq!(response.headers()[LOCATION], "https://public.example.com/hello?q=1");
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn trusted_middleware_can_explicitly_override_the_scheme() {
+        #[handler]
+        async fn trusted_proxy(req: &mut Request) {
+            // A real deployment must validate the proxy before this override.
+            *req.scheme_mut() = Scheme::HTTPS;
+        }
+        let service = Service::new(
+            Router::with_hoop(trusted_proxy)
+                .hoop(ForceHttps::new().canonical_host("public.example.com"))
+                .goal(hello),
+        );
+        let response = TestClient::get("http://public.example.com/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert!(!response.headers().contains_key(LOCATION));
     }
 }
