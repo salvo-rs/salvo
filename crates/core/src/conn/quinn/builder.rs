@@ -1,15 +1,18 @@
 //! HTTP/3 support.
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::future::pending;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::task::Poll;
 
 use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::future::poll_fn;
 use futures_util::stream::{FuturesUnordered, StreamExt};
+use salvo_http3::ConnectionState;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio::task::JoinSet;
@@ -146,13 +149,39 @@ impl Builder {
         // aborts pending handlers instead of detaching them from the connection.
         let mut requests = JoinSet::new();
         // Resolving a request waits for its HEADERS frame. Keep those futures
-        // owned by the connection, but poll them independently so one partial
-        // head cannot stop other streams or connection-control processing.
+        // owned by the connection. HTTP-only peers resolve them independently;
+        // WebTransport peers retain sequential acceptance so early WT streams
+        // remain available when their CONNECT handler takes over the connection.
         let mut resolving = FuturesUnordered::new();
         let mut shutting_down = false;
         loop {
+            let waiting_headers = !resolving.is_empty();
             let resolved = tokio::select! {
-                accepted = conn.accept() => {
+                accepted = poll_fn(|cx| {
+                    if waiting_headers {
+                        match conn.settings() {
+                            Cow::Borrowed(settings) if settings.enable_webtransport() => {
+                                return Poll::Pending;
+                            }
+                            Cow::Owned(_) => {
+                                // SETTINGS may arrive after a request on another stream.
+                                // Drive their arrival without accepting a second stream,
+                                // while the first request can still resolve immediately.
+                                return conn.inner.poll_control(cx).map(|result| match result {
+                                    Ok(_) => None,
+                                    Err(error) => Some(Err(error)),
+                                });
+                            }
+                            Cow::Borrowed(_) => {}
+                        }
+                    }
+                    let accepted = conn.accept();
+                    tokio::pin!(accepted);
+                    accepted.poll(cx).map(Some)
+                }) => {
+                    let Some(accepted) = accepted else {
+                        continue;
+                    };
                     match accepted {
                         Ok(Some(resolver)) => resolving.push(resolver.resolve_request()),
                         Ok(None) => break,
