@@ -73,6 +73,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving write responses and non-200 statuses.
 - Preserve response trailers during compression and offload compression flushing
   and finalization together with expensive writes.
+- Cancel queued compression tasks when their response body is dropped instead of
+  continuing work for disconnected clients.
 - Validate tus creation requests before allocating storage, remove uploads after
   creation-time stream failures, and pass final storage metadata to completion hooks.
 - Merge multipart form and file schemas instead of overwriting earlier endpoint
