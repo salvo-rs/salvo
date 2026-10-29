@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Replace all depot JWT authentication results on each attempt so missing or
+  rejected credentials cannot retain another middleware instance's claims/token,
+  and successful authentication cannot retain an earlier error.
+
 - Base HTTPS redirects and server request schemes on the listener's transport,
   preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 

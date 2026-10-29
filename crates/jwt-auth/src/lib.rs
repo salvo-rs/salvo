@@ -379,6 +379,9 @@ impl JwtAuthDepotExt for Depot {
 ///
 /// `JwtAuth` extracts and validates JWT tokens from incoming requests based on the configured
 /// token finders and decoder. If valid, it stores the decoded data in the depot for later use.
+/// Each execution replaces the previous JWT authentication result, including claims,
+/// token and error. Multiple instances in one chain share this result; copy any outer
+/// identity to an application-specific depot key before running another instance.
 ///
 /// # Type Parameters
 ///
@@ -477,6 +480,16 @@ where
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
+        // Authentication state belongs to this attempt. Remove values without
+        // downcasting: a previous instance may have used another claims/error type.
+        for key in [
+            JWT_AUTH_DATA_KEY,
+            JWT_AUTH_STATE_KEY,
+            JWT_AUTH_TOKEN_KEY,
+            JWT_AUTH_ERROR_KEY,
+        ] {
+            depot.remove(key);
+        }
         let token = self.find_token(req).await;
         if let Some(token) = token {
             match self.decoder.decode::<C>(&token, depot).await {
@@ -532,6 +545,115 @@ mod tests {
             exp: (OffsetDateTime::now_utc() + Duration::days(exp_days)).unix_timestamp(),
         };
         encode_test_token(&claim, &EncodingKey::from_secret(secret))
+    }
+
+    #[tokio::test]
+    async fn repeated_authentication_replaces_all_depot_state() {
+        #[handler]
+        async fn inspect(depot: &mut Depot) -> String {
+            serde_json::json!({
+                "state": format!("{:?}", depot.jwt_auth_state()),
+                "has_data": depot.jwt_auth_data::<JwtClaims>().is_some(),
+                "has_token": depot.jwt_auth_token().is_some(),
+                "has_error": depot.jwt_auth_error().is_some(),
+            })
+            .to_string()
+        }
+
+        let outer: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"outer"))
+            .finders(vec![Box::new(
+                HeaderFinder::new().header_names(vec!["x-outer-token".parse().unwrap()]),
+            )])
+            .force_passed(true);
+        let inner: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"inner"))
+            .finders(vec![Box::new(
+                HeaderFinder::new().header_names(vec!["x-inner-token".parse().unwrap()]),
+            )])
+            .force_passed(true);
+        let service = Service::new(Router::new().hoop(outer).hoop(inner).goal(inspect));
+        let outer_token = create_test_token(b"outer", 1);
+        let inner_token = create_test_token(b"inner", 1);
+
+        for (outer, inner, state, has_data, has_error) in [
+            (Some(&outer_token), None, "Unauthorized", false, false),
+            (
+                Some(&outer_token),
+                Some(&outer_token),
+                "Forbidden",
+                false,
+                true,
+            ),
+            (
+                Some(&inner_token),
+                Some(&inner_token),
+                "Authorized",
+                true,
+                false,
+            ),
+            (Some(&inner_token), None, "Unauthorized", false, false),
+            (None, Some(&inner_token), "Authorized", true, false),
+            (
+                Some(&outer_token),
+                Some(&inner_token),
+                "Authorized",
+                true,
+                false,
+            ),
+        ] {
+            let mut request = TestClient::get("http://localhost/");
+            if let Some(token) = outer {
+                request = request.add_header("x-outer-token", format!("Bearer {token}"), true);
+            }
+            if let Some(token) = inner {
+                request = request.add_header("x-inner-token", format!("Bearer {token}"), true);
+            }
+            let mut response = request.send(&service).await;
+            let body: serde_json::Value =
+                serde_json::from_str(&response.take_string().await.unwrap()).unwrap();
+            assert_eq!(body["state"], state);
+            assert_eq!(body["has_data"], has_data, "{body}");
+            assert_eq!(body["has_token"], has_data, "{body}");
+            assert_eq!(body["has_error"], has_error, "{body}");
+        }
+    }
+
+    #[tokio::test]
+    async fn repeated_authentication_clears_other_claims_and_error_types() {
+        #[derive(Clone, Deserialize)]
+        struct OtherClaims {
+            #[serde(rename = "user")]
+            _user: String,
+        }
+
+        #[handler]
+        async fn seed_state(depot: &mut Depot) {
+            depot.insert(
+                JWT_AUTH_DATA_KEY,
+                TokenData {
+                    header: jsonwebtoken::Header::default(),
+                    claims: OtherClaims {
+                        _user: "outer".into(),
+                    },
+                },
+            );
+            depot.insert(JWT_AUTH_ERROR_KEY, std::io::Error::other("outer error"));
+            depot.insert(JWT_AUTH_TOKEN_KEY, "outer token".to_owned());
+            depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Authorized);
+        }
+        #[handler]
+        async fn inspect(depot: &mut Depot) -> &'static str {
+            assert!(!depot.contains_key(JWT_AUTH_DATA_KEY));
+            assert!(!depot.contains_key(JWT_AUTH_ERROR_KEY));
+            assert!(!depot.contains_key(JWT_AUTH_TOKEN_KEY));
+            assert_eq!(depot.jwt_auth_state(), JwtAuthState::Unauthorized);
+            "anonymous"
+        }
+
+        let auth: JwtAuth<JwtClaims, _> =
+            JwtAuth::new(ConstDecoder::from_secret(b"inner")).force_passed(true);
+        let service = Service::new(Router::new().hoop(seed_state).hoop(auth).goal(inspect));
+        let mut response = TestClient::get("http://localhost/").send(&service).await;
+        assert_eq!(response.take_string().await.unwrap(), "anonymous");
     }
 
     // ==================== ConstDecoder Tests ====================
