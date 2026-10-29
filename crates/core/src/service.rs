@@ -453,11 +453,10 @@ where
         #[cfg(not(feature = "fix-http1-request-uri"))] req: HyperRequest<B>,
         #[cfg(feature = "fix-http1-request-uri")] mut req: HyperRequest<B>,
     ) -> Self::Future {
-        let scheme = req
-            .uri()
-            .scheme()
-            .cloned()
-            .unwrap_or_else(|| self.http_scheme.clone());
+        // The request target is client-controlled, including its scheme in
+        // absolute-form requests. Security decisions must use the listener's
+        // connection scheme, independently of URI normalization below.
+        let scheme = self.http_scheme.clone();
         // https://github.com/hyperium/hyper/issues/1310
         #[cfg(feature = "fix-http1-request-uri")]
         if req.uri().scheme().is_none()

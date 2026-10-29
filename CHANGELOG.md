@@ -17,8 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Apply TUS upload expiration only to unfinished resources, preserving completed
-  uploads when their original upload timeout passes.
+- Base HTTPS redirects and server request schemes on the listener's transport,
+  preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
@@ -100,6 +100,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cancel their inner future, preserving HEAD handling and prepared response policy headers.
 - Invoke tus upload completion hooks when PATCH finishes an upload, sharing
   response customization and error handling with creation-time completion.
+- Apply TUS upload expiration only to unfinished resources, preserving completed
+  uploads when their original upload timeout passes.
 - Preserve existing tus metadata if replacing its temporary file fails on Windows.
 - Keep graceful server shutdown responsive to force-stop commands and release active
   connection accounting when a connection task panics or is cancelled.

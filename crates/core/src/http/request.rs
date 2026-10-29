@@ -535,13 +535,22 @@ impl Request {
         &mut self.version
     }
 
-    /// Returns the URI scheme of the request (e.g., `http` or `https`).
+    /// Returns the request scheme (e.g., `http` or `https`).
+    ///
+    /// For requests received by a server, this is supplied by the listener,
+    /// independently of the client-controlled URI scheme. Forwarded headers do
+    /// not change it. Trusted proxy middleware may explicitly override it through
+    /// [`scheme_mut`](Self::scheme_mut) after validating the proxy's identity.
     #[inline]
     pub fn scheme(&self) -> &Scheme {
         &self.scheme
     }
 
-    /// Returns a mutable reference to the URI scheme.
+    /// Returns a mutable reference to the request scheme.
+    ///
+    /// Changing this value affects security-sensitive middleware such as HTTPS
+    /// redirects and automatic secure-cookie policies. Only accept an external
+    /// scheme after validating the source, such as a trusted TLS-terminating proxy.
     #[inline]
     pub fn scheme_mut(&mut self) -> &mut Scheme {
         &mut self.scheme
