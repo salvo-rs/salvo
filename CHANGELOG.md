@@ -78,6 +78,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   outside the integer serialization range.
 - Read back typeless OpenAPI schemas and preserve typed composition variants
   instead of rejecting generated documents or treating compositions as objects.
+- Preserve JSON Schema constraints and other fields alongside `$ref` when
+  reading OpenAPI schemas, instead of silently dropping reference siblings.
 - Apply method-aware preconditions to ReadSeeker responses: ignore Range outside
   GET, ignore If-Modified-Since outside GET/HEAD, and return 412 for a matching
   If-None-Match on other methods.
