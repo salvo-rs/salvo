@@ -253,16 +253,6 @@ mod tests {
                 res.body(ResBody::Once(Default::default()));
                 return;
             }
-            "old" => {
-                // The previous Chunks algorithm hashed this exact text for `ab`.
-                let old = [
-                    EntityTag::from_data(b"a").tag(),
-                    EntityTag::from_data(b"b").tag(),
-                ]
-                .concat();
-                res.render(old);
-                return;
-            }
             _ => {
                 res.render("ab");
                 return;
@@ -278,13 +268,43 @@ mod tests {
 
     #[tokio::test]
     async fn buffered_etags_distinguish_old_structural_collision() {
-        let service = Service::new(Router::with_hoop(ETag::new()).get(buffered));
-        let mut old = TestClient::get("http://localhost/?case=old")
-            .send(&service)
-            .await;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        struct VersionedBody(Arc<AtomicBool>);
+
+        #[async_trait]
+        impl Handler for VersionedBody {
+            async fn handle(
+                &self,
+                _req: &mut Request,
+                _depot: &mut Depot,
+                res: &mut Response,
+                _ctrl: &mut FlowCtrl,
+            ) {
+                if self.0.load(Ordering::SeqCst) {
+                    res.write_body("a").unwrap();
+                    res.write_body("b").unwrap();
+                } else {
+                    // The previous Chunks algorithm hashed this exact text for `ab`.
+                    let old = [
+                        EntityTag::from_data(b"a").tag(),
+                        EntityTag::from_data(b"b").tag(),
+                    ]
+                    .concat();
+                    res.render(old);
+                }
+            }
+        }
+
+        let updated = Arc::new(AtomicBool::new(false));
+        let service =
+            Service::new(Router::with_hoop(ETag::new()).get(VersionedBody(updated.clone())));
+        let mut old = TestClient::get("http://localhost/").send(&service).await;
         let old_tag = old.headers()[ETAG].clone();
         assert_ne!(old.take_string().await.unwrap(), "ab");
-        let mut current = TestClient::get("http://localhost/?case=split")
+        updated.store(true, Ordering::SeqCst);
+        let mut current = TestClient::get("http://localhost/")
             .add_header(IF_NONE_MATCH, old_tag.clone(), true)
             .send(&service)
             .await;
