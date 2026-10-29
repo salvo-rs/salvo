@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Generate buffered response ETags from the ordered response bytes, regardless of
+  chunk boundaries, preventing incorrect `304 Not Modified` responses for distinct
+  bodies. Single-buffer ETags and explicitly supplied response ETags are preserved.
+
 - Parse `i128` and `u128` request parameters, including full-width values,
   lists and optional values, rather than returning an unsupported-type error.
 

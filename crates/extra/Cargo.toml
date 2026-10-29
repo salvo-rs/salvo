@@ -36,7 +36,7 @@ full = [
 ]
 affix-state = []
 basic-auth = ["dep:base64"]
-caching-headers = ["dep:etag", "dep:tracing"]
+caching-headers = ["dep:etag", "dep:tracing", "dep:xxhash-rust"]
 catch-panic = ["dep:futures-util", "dep:tracing"]
 force-https = ["dep:tracing"]
 logging = ["dep:tracing", "salvo_core/response-observers"]
@@ -93,8 +93,10 @@ tower = { workspace = true, optional = true, default-features = false, features 
 ] }
 tracing = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true, features = ["std"] }
+xxhash-rust = { workspace = true, features = ["xxh3"], optional = true }
 
 [dev-dependencies]
+bytes = { workspace = true }
 salvo_core = { workspace = true, features = ["http1", "server", "test", "rustls", "ring"] }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
@@ -106,3 +108,8 @@ url = { workspace = true }
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "buffered_etag"
+harness = false
+required-features = ["caching-headers"]

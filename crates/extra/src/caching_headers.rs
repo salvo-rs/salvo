@@ -96,12 +96,15 @@ impl Handler for ETag {
             let etag = match &res.body {
                 ResBody::Once(bytes) => Some(EntityTag::from_data(bytes)),
                 ResBody::Chunks(bytes) => {
-                    let tags = bytes
-                        .iter()
-                        .map(|item| EntityTag::from_data(item).tag().to_owned())
-                        .collect::<Vec<_>>()
-                        .concat();
-                    Some(EntityTag::from_data(tags.as_bytes()))
+                    // Match etag 4's from_data format, hashing the original bytes
+                    // without allocating a contiguous copy of the response body.
+                    let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+                    let mut len = 0u64;
+                    for chunk in bytes {
+                        hasher.update(chunk);
+                        len += chunk.len() as u64;
+                    }
+                    Some(EntityTag::strong(&format!("{len}-{}", hasher.digest128())))
                 }
                 ResBody::Stream(_) => {
                     tracing::debug!("etag not supported for streaming body");
@@ -229,13 +232,146 @@ impl Handler for CachingHeaders {
 mod tests {
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
-    use salvo_core::test::TestClient;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
     #[handler]
     async fn hello() -> &'static str {
         "Hello World"
+    }
+
+    #[handler]
+    async fn buffered(req: &mut Request, res: &mut Response) {
+        let case = req.query::<String>("case").unwrap_or_default();
+        let chunks: &[&'static [u8]] = match case.as_str() {
+            "split" => &[b"a", b"b"],
+            "empty-chunks" => &[],
+            "empty-padded" => &[b"", b""],
+            "padded" => &[b"", b"a", b"", b"b", b""],
+            "empty-once" => {
+                res.body(ResBody::Once(Default::default()));
+                return;
+            }
+            "old" => {
+                // The previous Chunks algorithm hashed this exact text for `ab`.
+                let old = [
+                    EntityTag::from_data(b"a").tag(),
+                    EntityTag::from_data(b"b").tag(),
+                ]
+                .concat();
+                res.render(old);
+                return;
+            }
+            _ => {
+                res.render("ab");
+                return;
+            }
+        };
+        res.body(ResBody::Chunks(
+            chunks.iter().map(|chunk| (*chunk).into()).collect(),
+        ));
+        if req.query::<bool>("manual").unwrap_or(false) {
+            res.add_header(ETAG, "\"manual\"", true).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn buffered_etags_distinguish_old_structural_collision() {
+        let service = Service::new(Router::with_hoop(ETag::new()).get(buffered));
+        let mut old = TestClient::get("http://localhost/?case=old")
+            .send(&service)
+            .await;
+        let old_tag = old.headers()[ETAG].clone();
+        assert_ne!(old.take_string().await.unwrap(), "ab");
+        let mut current = TestClient::get("http://localhost/?case=split")
+            .add_header(IF_NONE_MATCH, old_tag.clone(), true)
+            .send(&service)
+            .await;
+        assert_eq!(current.status_code, Some(StatusCode::OK));
+        assert_ne!(current.headers()[ETAG], old_tag);
+        assert_eq!(current.take_string().await.unwrap(), "ab");
+    }
+
+    #[tokio::test]
+    async fn buffered_etags_depend_only_on_ordered_bytes() {
+        let service = Service::new(Router::with_hoop(ETag::new()).get(buffered));
+        for (cases, bytes) in [
+            (&["once", "split", "padded"][..], &b"ab"[..]),
+            (
+                &["empty-once", "empty-chunks", "empty-padded"][..],
+                &b""[..],
+            ),
+        ] {
+            let expected = EntityTag::from_data(bytes).to_string();
+            for case in cases {
+                let mut response = TestClient::get(format!("http://localhost/?case={case}"))
+                    .send(&service)
+                    .await;
+                assert_eq!(response.status_code, Some(StatusCode::OK));
+                assert_eq!(response.headers()[ETAG], expected, "{case}");
+                assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), bytes);
+            }
+        }
+        let response = TestClient::get("http://localhost/?case=split&manual=true")
+            .send(&service)
+            .await;
+        assert_eq!(response.headers()[ETAG], "\"manual\"");
+    }
+
+    #[tokio::test]
+    async fn buffered_etags_match_once_across_hash_block_boundaries() {
+        #[handler]
+        async fn body(req: &mut Request, res: &mut Response) {
+            let len = req.query::<usize>("len").unwrap();
+            let size = req.query::<usize>("size").unwrap();
+            let bytes: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            res.body(ResBody::Chunks(
+                bytes
+                    .chunks(size)
+                    .map(|chunk| chunk.to_vec().into())
+                    .collect(),
+            ));
+        }
+        let service = Service::new(Router::with_hoop(ETag::new()).get(body));
+        for len in [1, 16, 17, 128, 129, 240, 241, 1024, 1025, 16385] {
+            let bytes: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            let expected = EntityTag::from_data(&bytes).to_string();
+            for size in [1, 7, 64, 1024] {
+                let mut response =
+                    TestClient::get(format!("http://localhost/?len={len}&size={size}"))
+                        .send(&service)
+                        .await;
+                assert_eq!(response.headers()[ETAG], expected, "len={len}, size={size}");
+                assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), bytes);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn buffered_etags_revalidate_across_chunk_boundaries() {
+        let tag = EntityTag::from_data(b"ab").to_string();
+        for strong in [false, true] {
+            let hoop = if strong {
+                ETag::new().strong()
+            } else {
+                ETag::new()
+            };
+            let service = Service::new(Router::with_hoop(hoop).get(buffered));
+            for condition in [tag.clone(), format!("W/{tag}")] {
+                let mut response = TestClient::get("http://localhost/?case=padded")
+                    .add_header(IF_NONE_MATCH, &condition, true)
+                    .send(&service)
+                    .await;
+                if strong && condition.starts_with("W/") {
+                    assert_eq!(response.status_code, Some(StatusCode::OK));
+                    assert_eq!(response.take_string().await.unwrap(), "ab");
+                } else {
+                    assert_eq!(response.status_code, Some(StatusCode::NOT_MODIFIED));
+                    assert!(response.body.is_none());
+                }
+            }
+        }
     }
 
     const MODIFIED_AT: &str = "Wed, 21 Oct 2015 07:28:00 GMT";
