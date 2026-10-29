@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::handlers::{DEFAULT_ALLOW_HEADERS, apply_options_headers, insert_joined_header};
+use crate::method_override::TusMethodFilter;
 use crate::stores::Extension;
 use crate::{
     H_ACCESS_CONTROL_ALLOW_HEADERS, H_ACCESS_CONTROL_ALLOW_METHODS, H_ACCESS_CONTROL_MAX_AGE,
@@ -61,6 +62,14 @@ async fn options(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
 pub(crate) fn options_handler() -> Router {
     Router::new()
-        .options(options)
-        .push(Router::with_path("{id}").options(options))
+        .push(
+            Router::new()
+                .filter(TusMethodFilter(Method::OPTIONS))
+                .goal(options),
+        )
+        .push(
+            Router::with_path("{id}")
+                .filter(TusMethodFilter(Method::OPTIONS))
+                .goal(options),
+        )
 }

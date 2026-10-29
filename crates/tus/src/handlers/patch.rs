@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
-use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
 use crate::handlers::{apply_common_headers, finish_upload, upload_expiration};
+use crate::method_override::TusMethodFilter;
 use crate::stores::Extension;
 use crate::utils::{check_tus_version, parse_u64};
 use crate::{
@@ -303,7 +304,9 @@ async fn patch(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub(crate) fn patch_handler() -> Router {
-    Router::with_path("{id}").patch(patch)
+    Router::with_path("{id}")
+        .filter(TusMethodFilter(Method::PATCH))
+        .goal(patch)
 }
 
 #[cfg(test)]

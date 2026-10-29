@@ -92,6 +92,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   without replaying custom callbacks or overriding middleware response policies.
   When opaque filters prevent safely inferring any supported method, routing defaults
   to 404; service middleware can provide its own 405 status and `Allow` header.
+- Honor TUS method overrides during endpoint selection, before access-control
+  hoops and lifecycle hooks run, and reject malformed override headers.
 - Reject malformed CSRF bcrypt proofs and costs that differ from the configured cost before
   verification, require bcrypt 0.19.2 or newer, and omit CSRF cipher keys from debug output.
 - Honor explicit OIDC JWT algorithm allowlists and share a one-second JWKS refresh cooldown
