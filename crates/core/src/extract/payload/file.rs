@@ -78,8 +78,8 @@ impl<'ex> Extractible<'ex> for FormFile {
         _depot: &'ex mut Depot,
         arg: &str,
     ) -> Result<Self, ParseError> {
-        req.file(arg)
-            .await
+        req.try_file(arg)
+            .await?
             .map(Self::new)
             .ok_or_else(|| ParseError::other("file not found"))
     }
@@ -131,8 +131,8 @@ impl<'ex> Extractible<'ex> for FormFiles {
         arg: &str,
     ) -> Result<Self, ParseError> {
         Ok(Self(
-            req.files(arg)
-                .await
+            req.try_files(arg)
+                .await?
                 .ok_or_else(|| ParseError::other("file not found"))?
                 .iter()
                 .map(FormFile::new)

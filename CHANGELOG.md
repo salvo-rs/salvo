@@ -89,6 +89,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   overflows with HTTP 413 before creating additional temporary files. Configure
   larger or smaller route-specific limits with `FormLimits` middleware or
   `Request::set_form_limits`; byte limits continue to apply independently.
+- Preserve multipart parsing failures in `FormFile` and `FormFiles` extractors,
+  returning HTTP 413 for upload byte or count limits instead of HTTP 400.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
 - Preserve binary tus upload metadata and explicit empty values through parsing,
   storage reopening, and HEAD responses; ignore non-UTF-8 filename/filetype hints.
