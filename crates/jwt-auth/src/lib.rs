@@ -286,8 +286,8 @@ pub enum JwtAuthError {
     /// Decoding of JWKS error
     #[error("Decoding of JWKS error")]
     DecodeError(#[from] base64::DecodeError),
-    /// JWT is missing kid, alg, or decoding components
-    #[error("JWT is missing kid, alg, or decoding components")]
+    /// JWK has missing or unsupported verification parameters.
+    #[error("JWK has missing or unsupported verification parameters")]
     InvalidJwk,
     /// Issuer URL invalid
     #[error("Issuer URL invalid")]
