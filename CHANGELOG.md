@@ -159,6 +159,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   file, reader and embedded responses, while retaining byte-range error handling.
 - Advertise the stored gzip coding of embedded `.svgz` and compressed X3D
   assets, including assets selected as directory defaults or fallbacks.
+- Keep file content codings off generated precondition and range error pages,
+  while preserving them for successful and not-modified file responses.
 
 - Enforce strong `If-Match` preconditions for embedded assets before cache and range handling.
 - Restore path cursors, captured parameters and matched path templates after failed
