@@ -37,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Cancel HTTP/3 request tasks when their connection closes or the server stops
   forcefully, while allowing accepted requests to finish on graceful shutdown.
+- Resolve HTTP/3 request headers independently, so a stream with incomplete
+  headers does not block sibling requests or connection-control processing.
 
 - Preserve outer request extensions across direct Tower service calls, including
   failures and cancellation.

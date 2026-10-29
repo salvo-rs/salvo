@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::future::poll_fn;
+use futures_util::stream::{FuturesUnordered, StreamExt};
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
 use tokio::task::JoinSet;
@@ -144,10 +145,27 @@ impl Builder {
         // this future (including a server force-stop) or leaving the accept loop
         // aborts pending handlers instead of detaching them from the connection.
         let mut requests = JoinSet::new();
+        // Resolving a request waits for its HEADERS frame. Keep those futures
+        // owned by the connection, but poll them independently so one partial
+        // head cannot stop other streams or connection-control processing.
+        let mut resolving = FuturesUnordered::new();
         let mut shutting_down = false;
         loop {
-            let accepted = tokio::select! {
-                accepted = conn.accept() => Some(accepted),
+            let resolved = tokio::select! {
+                accepted = conn.accept() => {
+                    match accepted {
+                        Ok(Some(resolver)) => resolving.push(resolver.resolve_request()),
+                        Ok(None) => break,
+                        Err(error) => {
+                            if !error.is_h3_no_error() {
+                                tracing::error!("Connection errored with {}", error);
+                            }
+                            break;
+                        }
+                    }
+                    None
+                }
+                resolved = resolving.next(), if !resolving.is_empty() => resolved,
                 completed = requests.join_next(), if !requests.is_empty() => {
                     if let Some(Err(error)) = completed {
                         tracing::error!(?error, "HTTP/3 request task failed");
@@ -206,29 +224,12 @@ impl Builder {
                     None
                 }
             };
-            let Some(accepted) = accepted else {
+            let Some(resolved) = resolved else {
                 continue;
             };
-            match accepted {
-                Ok(Some(resolver)) => {
+            match resolved {
+                Ok((request, stream)) => {
                     let hyper_handler = hyper_handler.clone();
-                    // Keep the connection abortable while the client sends the request head. A
-                    // stream that stalls before its headers arrive must not block a handler on
-                    // another stream from tearing the QUIC connection down.
-                    let resolved = tokio::select! {
-                        resolved = resolver.resolve_request() => resolved,
-                        _ = conn_ctrl.aborted() => {
-                            raw_conn.close(0u32.into(), b"aborted by handler");
-                            return Ok(());
-                        }
-                    };
-                    let (request, stream) = match resolved {
-                        Ok(request) => request,
-                        Err(err) => {
-                            tracing::error!("error resolving request: {err:?}");
-                            continue;
-                        }
-                    };
                     tracing::debug!("new request: {:#?}", request);
                     match request.method() {
                         &Method::CONNECT
@@ -273,14 +274,8 @@ impl Builder {
                         }
                     }
                 }
-                Ok(None) => {
-                    break;
-                }
-                Err(e) => {
-                    if !e.is_h3_no_error() {
-                        tracing::error!("Connection errored with {}", e);
-                    }
-                    break;
+                Err(error) => {
+                    tracing::error!("error resolving request: {error:?}");
                 }
             }
         }
