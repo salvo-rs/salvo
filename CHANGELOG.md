@@ -145,6 +145,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cancel their inner future, preserving HEAD handling and prepared response policy headers.
 - Invoke tus upload completion hooks when PATCH finishes an upload, sharing
   response customization and error handling with creation-time completion.
+- Preserve repeated response fields from tus completion hooks, including all
+  `Set-Cookie` values, without overriding fields already set on the response.
 - Apply TUS upload expiration only to unfinished resources, preserving completed
   uploads when their original upload timeout passes.
 - Keep completed tus upload IDs reserved after payload renaming, preventing

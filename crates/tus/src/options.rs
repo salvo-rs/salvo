@@ -99,6 +99,9 @@ pub struct UploadFinishPatch {
     /// HTTP status code to return.
     pub status_code: Option<StatusCode>,
     /// Additional response headers to return.
+    ///
+    /// All values of a field are added when the response does not already
+    /// contain that field. Existing response fields are left intact.
     pub headers: Option<HeaderMap>,
     /// Response body bytes to return.
     ///

@@ -71,11 +71,11 @@ pub(crate) async fn finish_upload(
             .map_err(|_| TusError::Internal("failed to write response body".into()))?;
     }
     if let Some(headers) = patch.headers {
-        for (key, value) in headers {
-            if let Some(key) = key
-                && !res.headers.contains_key(&key)
-            {
-                res.headers.insert(key, value);
+        for name in headers.keys() {
+            if !res.headers.contains_key(name) {
+                for value in headers.get_all(name) {
+                    res.headers.append(name, value.clone());
+                }
             }
         }
     }
