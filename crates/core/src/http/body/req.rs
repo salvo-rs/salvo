@@ -293,6 +293,13 @@ cfg_feature! {
         use crate::BoxedError;
         use crate::http::ReqBody;
 
+        #[derive(Clone, Copy)]
+        enum ReceiveState {
+            Data,
+            Trailers,
+            Done,
+        }
+
         /// HTTP/3 request body.
         pub struct H3ReqBody<S, B>
         where
@@ -300,6 +307,7 @@ cfg_feature! {
             B: Buf + Send + Unpin,
         {
             inner: salvo_http3::server::RequestStream<S, B>,
+            state: ReceiveState,
         }
         impl<S, B> Debug for H3ReqBody<S, B>
         where
@@ -317,7 +325,7 @@ cfg_feature! {
         {
             /// Creates a new `H3ReqBody` instance.
             pub fn new(inner: salvo_http3::server::RequestStream<S, B>) -> Self {
-                Self { inner }
+                Self { inner, state: ReceiveState::Data }
             }
         }
 
@@ -334,17 +342,35 @@ cfg_feature! {
                 cx: &mut Context<'_>,
             ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
                 let this = &mut *self;
-                match ready!(this.inner.poll_recv_data(cx)) {
-                    Ok(Some(buf)) => {
-                        Poll::Ready(Some(Ok(Frame::data(Bytes::copy_from_slice(buf.chunk())))))
+                if matches!(this.state, ReceiveState::Data) {
+                    match ready!(this.inner.poll_recv_data(cx)) {
+                        Ok(Some(buf)) => {
+                            return Poll::Ready(Some(Ok(Frame::data(Bytes::copy_from_slice(buf.chunk())))));
+                        }
+                        // End of DATA can mean a trailing HEADERS section, not
+                        // the end of the HTTP message. Keep polling trailers
+                        // across Pending so their fields and errors are retained.
+                        Ok(None) => this.state = ReceiveState::Trailers,
+                        Err(error) => {
+                            this.state = ReceiveState::Done;
+                            return Poll::Ready(Some(Err(error.into())));
+                        }
                     }
-                    Ok(None) => Poll::Ready(None),
-                    Err(e) => Poll::Ready(Some(Err(e.into()))),
                 }
+                if matches!(this.state, ReceiveState::Trailers) {
+                    let trailers = ready!(this.inner.poll_recv_trailers(cx));
+                    this.state = ReceiveState::Done;
+                    return Poll::Ready(match trailers {
+                        Ok(Some(trailers)) => Some(Ok(Frame::trailers(trailers))),
+                        Ok(None) => None,
+                        Err(error) => Some(Err(error.into())),
+                    });
+                }
+                Poll::Ready(None)
             }
 
             fn is_end_stream(&self) -> bool {
-                false // TODO: check this
+                matches!(self.state, ReceiveState::Done)
             }
 
             fn size_hint(&self) -> SizeHint {
