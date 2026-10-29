@@ -400,9 +400,18 @@ impl Cors {
     /// or if you use a closure for one of the other headers and want to add a
     /// vary header accordingly.
     ///
+    /// ```
+    /// use salvo_core::http::header;
+    /// use salvo_cors::{Cors, Vary};
+    ///
+    /// let _cors = Cors::new().vary([header::ORIGIN, header::ACCEPT_LANGUAGE]);
+    /// let _cors = Cors::new().vary(vec![header::ORIGIN]);
+    /// let _cors = Cors::new().vary(Vary::default());
+    /// ```
+    ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
     #[must_use]
-    pub fn vary<T>(mut self, headers: impl Into<Vary>) -> Self {
+    pub fn vary(mut self, headers: impl Into<Vary>) -> Self {
         self.vary = headers.into();
         self
     }
