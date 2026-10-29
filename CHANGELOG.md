@@ -22,9 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Decode escaped JSON object member names in derived request extractors while
-  retaining borrowed values and support for field renames and aliases.
-
 - Base HTTPS redirects and server request schemes on the listener's transport,
   preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
@@ -77,6 +74,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and bypass cached representations for range requests.
 - Forward parameter names through optional extractors and reject missing required
   header, query and cookie values before constructing their wrappers.
+- Decode escaped JSON object member names in derived request extractors while
+  retaining borrowed values and support for field renames and aliases.
+
 - Refresh query, payload, form and cookie caches after Tower request rewrites,
   while preserving consumed-body caches and application cookie edits during pass-through.
 - Honor ETag precedence, lists and wildcards in conditional responses, while
