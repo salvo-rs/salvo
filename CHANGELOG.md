@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Parse `i128` and `u128` request parameters, including full-width values,
+  lists and optional values, rather than returning an unsupported-type error.
+
 - Base HTTPS redirects and server request schemes on the listener's transport,
   preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
