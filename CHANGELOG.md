@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Stop sending HTTP/3 responses at the first header, data, trailer, or body
+  error, reset the affected stream, and promptly release its response body.
+  Preserve the connection when a rejected WebTransport CONNECT response fails.
+
 - Generate buffered response ETags from the ordered response bytes, regardless of
   chunk boundaries, preventing incorrect `304 Not Modified` responses for distinct
   bodies. Single-buffer ETags and explicitly supplied response ETags are preserved.
