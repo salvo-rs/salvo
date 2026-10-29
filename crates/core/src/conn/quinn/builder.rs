@@ -392,7 +392,7 @@ where
 }
 
 // Keep the response writer shared by ordinary requests and rejected
-// WebTransport CONNECTs. This narrow interface also permits bounded I/O tests.
+// WebTransport CONNECT requests. This narrow interface also permits bounded I/O tests.
 trait ResponseStream {
     type Error: std::error::Error + Send + Sync + 'static;
 
