@@ -226,9 +226,8 @@ impl<'de> Iterator for FlatParser<'de> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut quote = None;
         let mut in_escape = false;
-        let mut in_next = false;
         let base_start = self.start;
-        let mut item_start = base_start;
+        let mut item_start = None;
         let rest = self.input.get(base_start..)?;
         for (offset, c) in rest.char_indices() {
             let current = base_start + offset;
@@ -236,38 +235,39 @@ impl<'de> Iterator for FlatParser<'de> {
                 in_escape = false;
                 continue;
             }
-            match c {
-                '\\' => {
+            if let Some(delimiter) = quote {
+                if c == '\\' {
                     in_escape = true;
-                    in_next = true;
+                } else if c == delimiter {
+                    let item = self.input.get(item_start?..current)?.to_owned();
+                    // Resume at the separator rather than skipping an assumed
+                    // one-byte separator after the closing quote.
+                    self.start = current + c.len_utf8();
+                    return Some(CowValue(Cow::Owned(item)));
                 }
-                ' ' => {
-                    if quote.is_none() {
-                        item_start = current + c.len_utf8();
-                    }
-                }
-                '"' | '\'' => {
-                    in_next = true;
-                    if quote == Some(c) {
-                        let item = Cow::Owned(self.input.get(item_start..current)?.to_owned());
-                        self.start = current + c.len_utf8() + 1;
-                        return Some(CowValue(item));
-                    } else {
-                        quote = Some(c);
-                        item_start = current + c.len_utf8();
-                    }
-                }
-                ',' | ']' => {
-                    if quote.is_none() && in_next {
-                        let item = Cow::Owned(self.input.get(item_start..current)?.to_owned());
-                        self.start = current + c.len_utf8();
-                        return Some(CowValue(item));
-                    }
-                }
-                _ => {
-                    in_next = true;
-                }
+                continue;
             }
+            if item_start.is_none() {
+                if c.is_whitespace() || c == ',' {
+                    continue;
+                }
+                if c == ']' {
+                    self.start = current + c.len_utf8();
+                    return None;
+                }
+                if matches!(c, '"' | '\'') {
+                    quote = Some(c);
+                    item_start = Some(current + c.len_utf8());
+                    continue;
+                }
+                item_start = Some(current);
+            }
+            if matches!(c, ',' | ']') {
+                let item = self.input.get(item_start?..current)?.trim_end().to_owned();
+                self.start = current + c.len_utf8();
+                return Some(CowValue(Cow::Owned(item)));
+            }
+            in_escape = c == '\\';
         }
         None
     }
