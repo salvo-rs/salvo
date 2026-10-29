@@ -22,8 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Preserve binary tus upload metadata and explicit empty values through parsing,
-  storage reopening, and HEAD responses; ignore non-UTF-8 filename/filetype hints.
+- Base HTTPS redirects and server request schemes on the listener's transport,
+  preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
 - Audit dependencies before publishing any crate, document the unresolved
   RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
@@ -65,6 +65,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   larger or smaller route-specific limits with `FormLimits` middleware or
   `Request::set_form_limits`; byte limits continue to apply independently.
 - Roll back failed tus writes and discard uncommitted file tails before retrying.
+- Preserve binary tus upload metadata and explicit empty values through parsing,
+  storage reopening, and HEAD responses; ignore non-UTF-8 filename/filetype hints.
 - Preserve byte ranges by skipping dynamic compression for partial responses.
 - Inherit ancestor HTTP method constraints when generating OpenAPI operations,
   excluding routes whose method constraints conflict.
