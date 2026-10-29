@@ -96,7 +96,7 @@ use salvo_core::http::header::{ORIGIN, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VER
 use salvo_core::http::headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade,
 };
-use salvo_core::http::{StatusCode, StatusError};
+use salvo_core::http::{Method, StatusCode, StatusError};
 use salvo_core::rt::tokio::TokioIo;
 use salvo_core::conn::ConnCtrl;
 use salvo_core::{Error, Request, Response};
@@ -384,6 +384,11 @@ impl WebSocketUpgrade {
         F: FnOnce(WebSocket) -> Fut + Send + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
+        // RFC 6455 section 4.2.1 requires GET even when the surrounding
+        // router intentionally matches requests of every method.
+        if req.method() != Method::GET {
+            return Err(StatusError::bad_request().brief("websocket handshake requires GET"));
+        }
         let req_headers = req.headers();
         let matched = req_headers
             .typed_get::<Connection>()
@@ -879,6 +884,49 @@ mod tests {
                 .unwrap()
                 .contains("origin not allowed")
         );
+    }
+
+    #[tokio::test]
+    async fn websocket_handshake_requires_get_over_http() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        struct ServerTask(tokio::task::JoinHandle<()>);
+        impl Drop for ServerTask {
+            fn drop(&mut self) {
+                self.0.abort();
+            }
+        }
+
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
+        // A goal deliberately matches every method, as in the module example.
+        let _server = ServerTask(tokio::spawn(async move {
+            Server::new(acceptor).serve(Router::new().goal(connect)).await;
+        }));
+
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            for method in ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CUSTOM"] {
+                let mut socket = tokio::net::TcpStream::connect(addr).await.unwrap();
+                let request = format!(
+                    "{method} / HTTP/1.1\r\nHost: {addr}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: 6D69KGBOr4Re+Nj6zx9aQA==\r\nSec-WebSocket-Version: 13\r\nContent-Length: 0\r\n\r\n"
+                );
+                socket.write_all(request.as_bytes()).await.unwrap();
+                let mut head = Vec::new();
+                while !head.ends_with(b"\r\n\r\n") {
+                    head.push(socket.read_u8().await.unwrap());
+                    assert!(head.len() < 16_384);
+                }
+                let head = String::from_utf8(head).unwrap().to_ascii_lowercase();
+                if method == "GET" {
+                    assert!(head.starts_with("http/1.1 101 "), "{head}");
+                    assert!(head.contains("\r\nsec-websocket-accept:"), "{head}");
+                } else {
+                    assert!(head.starts_with("http/1.1 400 "), "{method}: {head}");
+                    assert!(!head.contains("\r\nsec-websocket-accept:"), "{head}");
+                    assert!(!head.contains("\r\nupgrade:"), "{head}");
+                }
+            }
+        }).await.expect("WebSocket method validation timed out");
     }
 
     #[tokio::test]
