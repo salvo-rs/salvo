@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Decode escaped JSON object member names in derived request extractors while
+  retaining borrowed values and support for field renames and aliases.
+
 - Base HTTPS redirects and server request schemes on the listener's transport,
   preventing absolute-form URI spoofing and TLS redirect loops without URI fixing.
 
