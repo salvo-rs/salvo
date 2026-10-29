@@ -15,6 +15,13 @@
 //! - **Persistent storage**: pluggable storage backend via [`Storage`].
 //! - **Background renewal**: automatic certificate renewal and OCSP refresh.
 //!
+//! Initial certificate management is synchronous. TLS-ALPN-01 validation is
+//! served on the bound TLS listener while it obtains its first certificate.
+//! For HTTP-01, start the challenge router on port 80 before awaiting TLS bind.
+//! Initial management errors are logged while available certificates remain
+//! usable. Background maintenance renews cached certificates; a domain that has
+//! never obtained a certificate is not automatically retried by that maintenance.
+//!
 //! ## Certificate key type
 //!
 //! Salvo ACME defaults to [`KeyType::EcdsaP256`] for newly generated
@@ -35,14 +42,19 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mut router = Router::new().get(hello);
+//!     let router = Router::new().get(hello);
+//!     let mut challenge_router = Router::new();
 //!     let listener = TcpListener::new("0.0.0.0:443")
 //!         .acme()
 //!         .cache_path("acme/letsencrypt")
 //!         .add_domain("example.com")
-//!         .http01_challenge(&mut router);
-//!     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
+//!         .http01_challenge(&mut challenge_router);
+//!     // The CA must reach port 80 while TLS binding obtains its first certificate.
+//!     let http = TcpListener::new("0.0.0.0:80").bind().await;
+//!     let http_task = tokio::spawn(Server::new(http).serve(challenge_router));
+//!     let acceptor = listener.bind().await;
 //!     Server::new(acceptor).serve(router).await;
+//!     http_task.abort();
 //! }
 //! ```
 //!
@@ -72,7 +84,11 @@
 use salvo_core::cfg_feature;
 
 mod config;
+#[cfg(test)]
+#[path = "tests.rs"]
+mod integration_tests;
 mod listener;
+mod solvers;
 
 use std::collections::HashMap;
 use std::sync::Arc;

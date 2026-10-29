@@ -65,6 +65,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Use the same explicit crypto provider for Rustls client certificate verification
   and server configuration, avoiding ambiguous provider selection with mTLS.
+- Restore built-in ACME HTTP-01 and TLS-ALPN-01 challenge presentation, serve
+  initial TLS validation on the bound listener, and cache newly issued certificates.
+  Remove temporary challenges after issuance errors or cancellation. HTTP-01
+  examples now start the challenge route before awaiting initial TLS binding.
 - Reject `QueryString` in `ToParameters` derives instead of producing an invalid
   schema and extracting a named query parameter. Use `Query` for named values
   or construct a whole-query parameter with `content` manually.
