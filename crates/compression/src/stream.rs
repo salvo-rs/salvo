@@ -7,7 +7,7 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
 use salvo_core::BoxedError;
-use salvo_core::http::body::{Body, BytesFrame, HyperBody};
+use salvo_core::http::body::{Body, BytesFrame, HyperBody, ResBody};
 use tokio::task::{JoinHandle, spawn_blocking};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
@@ -117,6 +117,11 @@ impl EncodeStream<HyperBody> {
             .map_err(IoError::other)
     }
 }
+impl EncodeStream<ResBody> {
+    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<BytesFrame>>> {
+        Body::poll_frame(Pin::new(&mut self.body), cx).map_ok(BytesFrame)
+    }
+}
 impl EncodeStream<Option<Bytes>> {
     fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<BytesFrame>>> {
         Poll::Ready(self.body.take().map(|chunk| Ok(BytesFrame::data(chunk))))
@@ -187,6 +192,7 @@ macro_rules! impl_stream {
 impl_stream!(BoxStream<'static, Result<Bytes, BoxedError>>);
 impl_stream!(BoxStream<'static, Result<BytesFrame, BoxedError>>);
 impl_stream!(HyperBody);
+impl_stream!(ResBody);
 impl_stream!(Option<Bytes>);
 impl_stream!(VecDeque<Bytes>);
 #[cfg(test)]
