@@ -54,6 +54,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   logs while retaining the request method, path, and error type.
 - Accept upstream protocol selections from multi-value `Upgrade` offers,
   including repeated header fields, while rejecting unoffered protocols or versions.
+- Reject non-GET WebSocket handshakes before switching protocols, including when
+  the upgrade handler is installed on a route that matches every method.
 
 - Fail dependency security CI on RustSec `unsound` advisories as well as
   vulnerability advisories, with an offline regression for the audit policy.
