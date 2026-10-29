@@ -25,14 +25,16 @@ macro_rules! forward_url_query_parsed_value {
     }
 }
 
-fn looks_like_list(value: &CowValue<'_>) -> bool {
+fn looks_like_list(value: &CowValue<'_>, allow_empty: bool) -> bool {
     let raw = value.0.as_ref().trim();
     let Some(inner) = raw.strip_prefix('[').and_then(|raw| raw.strip_suffix(']')) else {
         return false;
     };
     let inner = inner.trim();
     if inner.is_empty() {
-        return false;
+        // A typed sequence can unambiguously request an empty list. Keep
+        // deserialize_any's existing treatment of a literal `[]` as a string.
+        return allow_empty;
     }
     if inner.contains(',') || inner.contains('"') || inner.contains('\'') {
         return true;
@@ -60,7 +62,10 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let use_seq = match self.0.len() {
             0 => false,
-            1 => self.0.first().is_some_and(looks_like_list),
+            1 => self
+                .0
+                .first()
+                .is_some_and(|value| looks_like_list(value, false)),
             _ => true,
         };
         if use_seq {
@@ -164,7 +169,9 @@ impl<'de> Deserializer<'de> for FlatValue<'de> {
     {
         let mut items = std::mem::take(&mut self.0);
         let single_mode = if items.len() == 1 {
-            items.first().is_some_and(looks_like_list)
+            items
+                .first()
+                .is_some_and(|value| looks_like_list(value, true))
         } else {
             false
         };
