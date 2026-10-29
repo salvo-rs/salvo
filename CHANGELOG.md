@@ -44,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with multiple separators, including after filesystem path normalization.
 - Require OIDC discovery metadata to contain the exact configured issuer, and
   exclude JWKs whose declared use or key operations do not permit verification.
+- Make the default JWT header finder use the same methods and Authorization
+  header as `HeaderFinder::new`, instead of silently rejecting every token.
+
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
 
