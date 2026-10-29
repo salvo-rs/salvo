@@ -322,6 +322,15 @@ pub struct Ref {
     /// referenced component does not support summary field this does not have effect.
     #[serde(skip_serializing_if = "String::is_empty", default)]
     pub summary: String,
+
+    /// Additional fields alongside `$ref`, including Schema Object keywords.
+    ///
+    /// OpenAPI 3.1 Schema Objects can combine `$ref` with constraints such as
+    /// `minLength` or `properties`. Preserve those fields when reading a schema.
+    /// In other locations, OpenAPI Reference Object rules still determine which
+    /// fields are meaningful; retaining a field does not apply schema semantics there.
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Ref {
