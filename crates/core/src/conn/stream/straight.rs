@@ -115,6 +115,15 @@ impl<C: AsyncRead> AsyncRead for StraightStream<C> {
 impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         let mut this = self.project();
+        // A transport becoming writable must not revive a write that already
+        // stalled past its deadline while this task was waiting to be polled.
+        if *this.write_pending
+            && !this.conn_ctrl.is_relaxed()
+            && let Some(sleep) = this.write_sleep.as_mut()
+            && sleep.as_mut().poll(cx).is_ready()
+        {
+            return Poll::Ready(Err(timed_out("connection write stall timeout")));
+        }
         match this.inner.as_mut().poll_write(cx, buf) {
             Poll::Ready(Ok(written)) => {
                 *this.write_pending = false;
@@ -184,6 +193,13 @@ impl<C: AsyncWrite> AsyncWrite for StraightStream<C> {
         bufs: &[IoSlice<'_>],
     ) -> Poll<IoResult<usize>> {
         let mut this = self.project();
+        if *this.write_pending
+            && !this.conn_ctrl.is_relaxed()
+            && let Some(sleep) = this.write_sleep.as_mut()
+            && sleep.as_mut().poll(cx).is_ready()
+        {
+            return Poll::Ready(Err(timed_out("connection write stall timeout")));
+        }
         match this.inner.as_mut().poll_write_vectored(cx, bufs) {
             Poll::Ready(Ok(written)) => {
                 *this.write_pending = false;
