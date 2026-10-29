@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Run core routing and dispatch Criterion benchmarks in a dedicated workflow,
+  retaining measurements, logs, and environment metadata for review.
+
 - Expose client certificate chains, SNI and ALPN through `Request::tls_info` for
   Rustls and Rustls-backed HTTP/3 connections, with an mTLS authorization example.
 
@@ -19,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   string records but writes byte arrays, which older versions cannot read.
 
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
+- Check every root workspace target and feature in the Rust 1.95 MSRV CI job.
 
 ### Fixed
 
