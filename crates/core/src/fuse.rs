@@ -75,6 +75,8 @@ pub struct FuseConfig {
     /// `max_idle_timeout`, configured on the QUIC listener rather than through this field.
     pub connection_idle_timeout: Option<Duration>,
     /// Maximum time a requested transport write may remain pending.
+    /// Once an armed deadline has elapsed, the write fails even if the
+    /// transport also becomes ready before its next poll.
     ///
     /// Enforced for TCP-based transports only. It does **not** apply to HTTP/3, where each QUIC
     /// stream has independent flow control and there is no connection-wide pending write to

@@ -155,6 +155,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve existing tus metadata if replacing its temporary file fails on Windows.
 - Keep graceful server shutdown responsive to force-stop commands and release active
   connection accounting when a connection task panics or is cancelled.
+- Enforce armed transport write-stall deadlines before accepting late scalar
+  or vectored writes, while preserving relaxed upgraded connections.
 - Complete the Tokio and futures `AsyncWrite` shutdown operations on channel-backed
   response bodies without requiring the sender to be dropped.
 - Retain in-memory rate-limit guards until their reset time when idle expiration
