@@ -144,6 +144,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve consecutive path filters on the same router when generating OpenAPI paths.
 - Honor `If-Range` validators in file responses, returning the full representation
   when a resumable download refers to a different version.
+- Accept case-insensitive byte range units and ignore unknown range units in
+  file, reader and embedded responses, while retaining byte-range error handling.
 - Advertise the stored gzip coding of embedded `.svgz` and compressed X3D
   assets, including assets selected as directory defaults or fallbacks.
 
