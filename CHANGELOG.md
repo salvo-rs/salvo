@@ -46,6 +46,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   exclude JWKs whose declared use or key operations do not permit verification.
 - Make the default JWT header finder use the same methods and Authorization
   header as `HeaderFinder::new`, instead of silently rejecting every token.
+- Use only `Authorization` for Basic authentication by default, keeping proxy
+  credentials out of origin authentication. Applications that intentionally
+  accept `Proxy-Authorization` can opt in with `BasicAuth::set_header_names`.
 
 - Exclude request query strings and client error URL contents from proxy failure
   logs while retaining the request method, path, and error type.
