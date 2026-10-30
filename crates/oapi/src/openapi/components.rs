@@ -58,11 +58,14 @@ pub struct Components {
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
     pub headers: PropMap<String, RefOr<Header>>,
 
-    /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
+    /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s or references.
+    ///
+    /// Direct map insertions of inline schemes must convert them with `.into()`.
+    /// Match [`RefOr::Type`] to access an inline scheme and [`RefOr::Ref`] to access a reference.
     ///
     /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
     #[serde(skip_serializing_if = "PropMap::is_empty", default)]
-    pub security_schemes: PropMap<String, SecurityScheme>,
+    pub security_schemes: PropMap<String, RefOr<SecurityScheme>>,
 
     /// Map of reusable [OpenAPI Link Object][link]s, indexed by name.
     ///
@@ -105,14 +108,14 @@ impl Components {
         Default::default()
     }
 
-    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
+    /// Add a [`SecurityScheme`] or [`Ref`](crate::Ref) to [`Components`] and return `Self`.
     ///
     /// Accepts two arguments: the name of the [`SecurityScheme`] (used later when referenced
-    /// by [`SecurityRequirement`][requirement]s) and the [`SecurityScheme`] itself.
+    /// by [`SecurityRequirement`][requirement]s) and the scheme or reference itself.
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         mut self,
         name: N,
         security_scheme: S,
@@ -123,7 +126,7 @@ impl Components {
         self
     }
 
-    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    /// Add an iterator of [`SecurityScheme`]s or references to [`Components`].
     ///
     /// Accepts two arguments: the name of the [`SecurityScheme`] (used later when referenced
     /// by [`SecurityRequirement`][requirement]s) and the [`SecurityScheme`] itself.
@@ -133,7 +136,7 @@ impl Components {
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecurityScheme>,
+        S: Into<RefOr<SecurityScheme>>,
     >(
         mut self,
         schemas: I,

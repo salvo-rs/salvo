@@ -118,19 +118,23 @@ where
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let mut router = Router::new()
+    let router = Router::new()
         .push(Router::with_path("counter").goal(connect))
         .push(
             Router::with_path("{*path}")
                 .get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
         );
 
+    let mut challenge_router = Router::new();
     let listener = TcpListener::new("0.0.0.0:443")
         .acme()
         .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
-        .http01_challenge(&mut router)
+        .http01_challenge(&mut challenge_router)
         .quinn("0.0.0.0:443");
-    let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
+    let http = TcpListener::new("0.0.0.0:80").bind().await;
+    let http_task = tokio::spawn(Server::new(http).serve(challenge_router));
+    let acceptor = listener.bind().await;
     Server::new(acceptor).serve(router).await;
+    http_task.abort();
 }

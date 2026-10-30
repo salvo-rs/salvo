@@ -796,9 +796,11 @@ impl NamedFile {
             self.flags.remove(Flag::LastModified);
         }
     }
-    /// Consume self and send content to [`Response`].
+    /// Consume self and send content to [`Response`] with GET semantics.
+    ///
+    /// Use [`Self::send_with_method`] when the actual request method is available.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
-        self.send_inner(req_headers, res, true).await;
+        self.send_with_method(&Method::GET, req_headers, res).await;
     }
 
     /// Consume self and send only the headers to [`Response`].
@@ -806,10 +808,21 @@ impl NamedFile {
     /// This follows the same conditional handling as [`Self::send`], but ignores `Range` and
     /// does not attach a response body, as required for a HEAD request.
     pub async fn send_head(self, req_headers: &HeaderMap, res: &mut Response) {
-        self.send_inner(req_headers, res, false).await;
+        self.send_with_method(&Method::HEAD, req_headers, res).await;
     }
 
-    async fn send_inner(mut self, req_headers: &HeaderMap, res: &mut Response, send_body: bool) {
+    /// Send content using the request method for conditional and range handling.
+    ///
+    /// Only GET applies byte ranges. A matching `If-None-Match` returns 304 for
+    /// GET/HEAD and 412 for other methods; `If-Modified-Since` only applies to GET/HEAD.
+    pub async fn send_with_method(
+        mut self,
+        method: &Method,
+        req_headers: &HeaderMap,
+        res: &mut Response,
+    ) {
+        let send_body = method != Method::HEAD;
+        let retrieval = method == Method::GET || method == Method::HEAD;
         if !send_body {
             res.take_body();
         }
@@ -843,7 +856,7 @@ impl NamedFile {
         // check last modified
         let not_modified = if !none_match(etag.as_ref(), req_headers) {
             true
-        } else if req_headers.contains_key(IF_NONE_MATCH) {
+        } else if req_headers.contains_key(IF_NONE_MATCH) || !retrieval {
             false
         } else if let (Some(last_modified), Some(since)) =
             (&last_modified, req_headers.typed_get::<IfModifiedSince>())
@@ -917,10 +930,6 @@ impl NamedFile {
         res.headers_mut().typed_insert(AcceptRanges::bytes());
 
         let mut length = self.metadata.len();
-        if let Some(content_encoding) = &self.content_encoding {
-            res.headers_mut()
-                .insert(CONTENT_ENCODING, content_encoding.clone());
-        }
         // Conditional request handling must precede Range processing: per RFC 7232
         // a `304 Not Modified` / `412 Precondition Failed` takes priority over the
         // `206`/`416` produced by a Range request.
@@ -928,13 +937,25 @@ impl NamedFile {
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
-            res.status_code(StatusCode::NOT_MODIFIED);
+            if retrieval && let Some(content_encoding) = &self.content_encoding {
+                res.headers_mut()
+                    .insert(CONTENT_ENCODING, content_encoding.clone());
+            }
+            res.status_code(if retrieval {
+                StatusCode::NOT_MODIFIED
+            } else {
+                StatusCode::PRECONDITION_FAILED
+            });
             return;
         }
 
         // Range only applies to GET. HEAD describes the entire representation,
         // even if the requested range is malformed or unsatisfiable.
         if !send_body {
+            if let Some(content_encoding) = &self.content_encoding {
+                res.headers_mut()
+                    .insert(CONTENT_ENCODING, content_encoding.clone());
+            }
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(length));
             return;
@@ -945,7 +966,10 @@ impl NamedFile {
         let mut is_partial = false;
 
         // check for range header
-        if let Some(range) = req_headers.get(RANGE).filter(|_| range_allowed) {
+        if let Some(range) = req_headers
+            .get(RANGE)
+            .filter(|_| method == Method::GET && range_allowed)
+        {
             let Ok(range) = range.to_str() else {
                 res.status_code(StatusCode::BAD_REQUEST);
                 return;
@@ -961,6 +985,11 @@ impl NamedFile {
                 // is not supported here. Per RFC 7233 the server may ignore the Range
                 // header and return the full `200 OK` representation instead.
                 Ok(ranges) if ranges.len() > 1 => {}
+                // RFC 9110 section 14.2 requires ignoring unknown range units.
+                Err(_)
+                    if range
+                        .split_once('=')
+                        .is_some_and(|(unit, _)| !unit.eq_ignore_ascii_case("bytes")) => {}
                 // Empty / unsatisfiable range.
                 _ => {
                     res.headers_mut()
@@ -971,6 +1000,12 @@ impl NamedFile {
             }
         }
 
+        // Only label responses that describe or carry this file representation.
+        // Error bodies may be generated by the catcher or supplied by the application.
+        if let Some(content_encoding) = &self.content_encoding {
+            res.headers_mut()
+                .insert(CONTENT_ENCODING, content_encoding.clone());
+        }
         if is_partial {
             // Range request
             res.status_code(StatusCode::PARTIAL_CONTENT);
@@ -1027,11 +1062,8 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        if req.method() == Method::HEAD {
-            self.send_head(req.headers(), res).await;
-        } else {
-            self.send(req.headers(), res).await;
-        }
+        self.send_with_method(req.method(), req.headers(), res)
+            .await;
     }
 }
 

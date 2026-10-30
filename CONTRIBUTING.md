@@ -14,6 +14,11 @@ Thank you for contributing to Salvo.
 2. Fork the repository and create a topic branch from `main`.
 3. Clone your fork and enter the workspace root.
 
+Salvo and the examples workspace require Rust 1.95 or newer. The MSRV CI job
+reads the root workspace declaration and checks the library crates and the
+Toasty example with that toolchain. It checks the root workspace with both
+default features and all targets and features, including benchmark targets.
+
 ```bash
 git clone https://github.com/<your-user>/salvo.git
 cd salvo
@@ -32,6 +37,7 @@ Run these commands before opening a pull request:
 ```bash
 cargo +nightly fmt --all -- --check
 cargo check --all --bins --examples --tests
+cargo +1.95.0 check --workspace --all-targets --all-features
 cargo test --all --all-features --no-fail-fast
 cargo test --workspace --doc
 ```
@@ -51,6 +57,32 @@ When your change affects examples, also verify the examples workspace:
 cd examples
 cargo check --all --bins --examples --tests
 ```
+
+## Performance Benchmarks
+
+The `Performance benchmarks` workflow runs the core `router_detect` and
+`service_dispatch` Criterion benchmarks on Ubuntu 24.04 with Rust 1.95.0. Run it
+manually for implementation changes; it also runs when the benchmark sources,
+their manifests, or the workflow change. Each run uploads Criterion results,
+the resolved lockfile, command output, and Git, compiler, runner image, and CPU
+metadata, including available diagnostics when the job fails.
+
+Run the same measurements locally with:
+
+```bash
+cargo +1.95.0 bench -p salvo_core --bench router_detect --bench service_dispatch -- --noplot --sample-size 20 --warm-up-time 1 --measurement-time 2
+```
+
+For a quick correctness smoke check without a release build, use:
+
+```bash
+cargo +1.95.0 bench --profile dev -p salvo_core --bench router_detect --bench service_dispatch -- --test
+```
+
+Smoke checks execute each scenario without collecting performance measurements.
+The workflow records measurements without enforcing a regression threshold.
+Compare results from equivalent hardware and toolchains; hosted runner timing
+varies between runs, and a single run does not establish a performance change.
 
 ## Coding Guidelines
 

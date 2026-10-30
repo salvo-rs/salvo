@@ -21,11 +21,33 @@ use salvo_core::{Request, Response};
 
 use crate::error::{ProtocolError, TusError};
 use crate::options::TusOptions;
-use crate::stores::UploadInfo;
+use crate::stores::{DataStore, Extension, UploadInfo};
 use crate::{H_TUS_RESUMABLE, TUS_VERSION};
 
 pub(crate) const EXPOSE_HEADERS: &str = "Location, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Expires, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size";
-pub(crate) const DEFAULT_ALLOW_HEADERS: &str = "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length";
+pub(crate) const DEFAULT_ALLOW_HEADERS: &str = "Tus-Resumable, Upload-Length, Upload-Defer-Length, Upload-Offset, Upload-Metadata, Upload-Concat, Content-Type, Content-Length, X-HTTP-Method-Override";
+
+// Upload expiration applies to unfinished uploads. Retention of completed
+// resources is a separate storage policy, not an upload timeout.
+pub(crate) fn upload_expiration(
+    store: &dyn DataStore,
+    info: &UploadInfo,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    if !store.has_extension(Extension::Expiration)
+        || matches!((info.size, info.offset), (Some(size), Some(offset)) if size == offset)
+    {
+        return None;
+    }
+    let expiration = store.get_expiration()?;
+    if expiration.is_zero() {
+        return None;
+    }
+    let created = chrono::DateTime::parse_from_rfc3339(&info.creation_date).ok()?;
+    let delta = chrono::Duration::from_std(expiration).ok()?;
+    created
+        .with_timezone(&chrono::Utc)
+        .checked_add_signed(delta)
+}
 
 pub(crate) async fn finish_upload(
     req: &Request,
@@ -49,11 +71,11 @@ pub(crate) async fn finish_upload(
             .map_err(|_| TusError::Internal("failed to write response body".into()))?;
     }
     if let Some(headers) = patch.headers {
-        for (key, value) in headers {
-            if let Some(key) = key
-                && !res.headers.contains_key(&key)
-            {
-                res.headers.insert(key, value);
+        for name in headers.keys() {
+            if !res.headers.contains_key(name) {
+                for value in headers.get_all(name) {
+                    res.headers.append(name, value.clone());
+                }
             }
         }
     }
@@ -156,13 +178,41 @@ pub(crate) fn insert_joined_header(
 }
 
 /// Parsed tus `Upload-Metadata` values.
+///
+/// Values are decoded bytes. `None` represents a key with no value, while
+/// `Some(Vec::new())` represents an explicitly empty value. Use
+/// [`Metadata::get_text`] when a field is expected to contain UTF-8 text.
 #[derive(Clone, Debug, Default)]
 pub struct Metadata(
     /// Parsed `Upload-Metadata` values keyed by metadata name.
-    pub HashMap<String, Option<String>>,
+    pub HashMap<String, Option<Vec<u8>>>,
 );
 
 impl Metadata {
+    /// Borrows a metadata value as UTF-8 text without replacing invalid bytes.
+    ///
+    /// Returns `Ok(None)` for a missing key or a key without a value, and
+    /// `Ok(Some(""))` for an explicitly empty value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the value is not valid UTF-8. The raw bytes remain
+    /// available through the underlying map.
+    ///
+    /// ```
+    /// use salvo_tus::Metadata;
+    ///
+    /// let metadata = Metadata::parse_metadata("name 5paH5Lu2,binary /w==").unwrap();
+    /// assert_eq!(metadata.get_text("name").unwrap(), Some("文件"));
+    /// assert!(metadata.get_text("binary").is_err());
+    /// ```
+    pub fn get_text(&self, key: &str) -> Result<Option<&str>, std::str::Utf8Error> {
+        self.get(key)
+            .and_then(Option::as_deref)
+            .map(std::str::from_utf8)
+            .transpose()
+    }
+
     /// Parses a tus `Upload-Metadata` header value.
     pub fn parse_metadata(raw: &str) -> Result<Self, ProtocolError> {
         if raw.trim().is_empty() {
@@ -172,7 +222,14 @@ impl Metadata {
         let mut map = HashMap::new();
         let mut seen = HashSet::new();
 
-        for item in raw.split(',') {
+        for (index, item) in raw.split(',').enumerate() {
+            // Accept the separator spaces emitted by `stringify`, preserving
+            // a trailing space that denotes an explicitly empty value.
+            let item = if index == 0 {
+                item
+            } else {
+                item.trim_start_matches(' ')
+            };
             let tokens: Vec<&str> = item.split(' ').collect();
             if tokens.is_empty() || tokens.len() > 2 {
                 return Err(ProtocolError::InvalidMetadata);
@@ -196,9 +253,7 @@ impl Metadata {
             let decoded = base64::engine::general_purpose::STANDARD
                 .decode(value)
                 .map_err(|_| ProtocolError::InvalidMetadata)?;
-            let decoded_value = String::from_utf8_lossy(&decoded).into_owned();
-
-            map.insert(key.to_owned(), Some(decoded_value));
+            map.insert(key.to_owned(), Some(decoded));
         }
 
         Ok(Self(map))
@@ -212,8 +267,7 @@ impl Metadata {
             .iter()
             .map(|(key, value)| match value {
                 Some(value) => {
-                    let encoded =
-                        base64::engine::general_purpose::STANDARD.encode(value.as_bytes());
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(value);
                     format!("{key} {encoded}")
                 }
                 None => key.to_owned(),
@@ -235,16 +289,13 @@ fn validate_key(key: &str) -> bool {
 }
 
 fn validate_value(value: &str) -> bool {
-    if value.is_empty() {
-        return false;
-    }
     base64::engine::general_purpose::STANDARD
         .decode(value)
         .is_ok()
 }
 
 impl Deref for Metadata {
-    type Target = HashMap<String, Option<String>>;
+    type Target = HashMap<String, Option<Vec<u8>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -284,17 +335,23 @@ mod tests {
     fn test_metadata_parse_single_key_value() {
         let raw = "filename dGVzdC50eHQ="; // "test.txt" in base64
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".as_bytes().to_vec()))
+        );
     }
 
     #[test]
     fn test_metadata_parse_multiple_key_values() {
         let raw = "filename dGVzdC50eHQ=,filetype dGV4dC9wbGFpbg=="; // "test.txt", "text/plain"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".as_bytes().to_vec()))
+        );
         assert_eq!(
             metadata.get("filetype"),
-            Some(&Some("text/plain".to_owned()))
+            Some(&Some("text/plain".as_bytes().to_vec()))
         );
     }
 
@@ -309,9 +366,15 @@ mod tests {
     fn test_metadata_parse_mixed_keys() {
         let raw = "filename dGVzdC50eHQ=,is_private,size MTAyNA=="; // "test.txt", no value, "1024"
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".as_bytes().to_vec()))
+        );
         assert_eq!(metadata.get("is_private"), Some(&None));
-        assert_eq!(metadata.get("size"), Some(&Some("1024".to_owned())));
+        assert_eq!(
+            metadata.get("size"),
+            Some(&Some("1024".as_bytes().to_vec()))
+        );
     }
 
     #[test]
@@ -382,7 +445,7 @@ mod tests {
         let raw = "file,name dGVzdA==";
         let result = Metadata::parse_metadata(raw).unwrap();
         assert_eq!(result.get("file"), Some(&None));
-        assert_eq!(result.get("name"), Some(&Some("test".to_owned())));
+        assert_eq!(result.get("name"), Some(&Some("test".as_bytes().to_vec())));
     }
 
     #[test]
@@ -413,7 +476,7 @@ mod tests {
     #[test]
     fn test_metadata_stringify_single_key_value() {
         let mut metadata = Metadata::default();
-        metadata.insert("filename".to_owned(), Some("test.txt".to_owned()));
+        metadata.insert("filename".to_owned(), Some("test.txt".as_bytes().to_vec()));
         let result = Metadata::stringify(metadata);
         assert_eq!(result, "filename dGVzdC50eHQ=");
     }
@@ -429,7 +492,7 @@ mod tests {
     #[test]
     fn test_metadata_stringify_multiple_keys() {
         let mut metadata = Metadata::default();
-        metadata.insert("filename".to_owned(), Some("test.txt".to_owned()));
+        metadata.insert("filename".to_owned(), Some("test.txt".as_bytes().to_vec()));
         metadata.insert("is_private".to_owned(), None);
         let result = Metadata::stringify(metadata);
         // Order may vary due to HashMap, so check both parts are present
@@ -454,9 +517,41 @@ mod tests {
     }
 
     #[test]
+    fn metadata_roundtrip_preserves_binary_empty_and_valueless_values() {
+        let metadata = Metadata(HashMap::from([
+            ("binary".to_owned(), Some(vec![0xff, 0, 0x80])),
+            ("unicode".to_owned(), Some("文件".as_bytes().to_vec())),
+            ("empty".to_owned(), Some(Vec::new())),
+            ("flag".to_owned(), None),
+        ]));
+        let serialized = Metadata::stringify(metadata.clone());
+        let parsed = Metadata::parse_metadata(&serialized).unwrap();
+        assert_eq!(parsed.0, metadata.0);
+        assert_eq!(
+            Metadata::parse_metadata("binary /w==")
+                .unwrap()
+                .get("binary"),
+            Some(&Some(vec![0xff]))
+        );
+    }
+
+    #[test]
+    fn metadata_text_access_is_strict_and_preserves_empty_values() {
+        let metadata =
+            Metadata::parse_metadata("binary /w==, text 5paH5Lu2, empty , flag").unwrap();
+        assert!(metadata.get_text("binary").is_err());
+        assert_eq!(metadata.get_text("text").unwrap(), Some("文件"));
+        assert_eq!(metadata.get_text("empty").unwrap(), Some(""));
+        assert_eq!(metadata.get_text("flag").unwrap(), None);
+        assert_eq!(metadata.get_text("missing").unwrap(), None);
+        assert_eq!(metadata.get("flag"), Some(&None));
+        assert_eq!(metadata.get("empty"), Some(&Some(Vec::new())));
+    }
+
+    #[test]
     fn test_metadata_deref() {
         let mut metadata = Metadata::default();
-        metadata.insert("key".to_owned(), Some("value".to_owned()));
+        metadata.insert("key".to_owned(), Some("value".as_bytes().to_vec()));
 
         // Test Deref
         assert!(metadata.contains_key("key"));
@@ -472,7 +567,10 @@ mod tests {
         // "文件" (Chinese for "file") in base64
         let raw = "name 5paH5Lu2";
         let metadata = Metadata::parse_metadata(raw).unwrap();
-        assert_eq!(metadata.get("name"), Some(&Some("文件".to_owned())));
+        assert_eq!(
+            metadata.get("name"),
+            Some(&Some("文件".as_bytes().to_vec()))
+        );
     }
 
     #[test]
@@ -482,7 +580,7 @@ mod tests {
         let metadata = Metadata::parse_metadata(raw).unwrap();
         assert_eq!(
             metadata.get("content"),
-            Some(&Some("hello\nworld".to_owned()))
+            Some(&Some("hello\nworld".as_bytes().to_vec()))
         );
     }
 
@@ -504,6 +602,7 @@ mod tests {
 
     #[test]
     fn test_validate_value_valid() {
+        assert!(validate_value("")); // explicit empty value
         assert!(validate_value("dGVzdA==")); // "test"
         assert!(validate_value("aGVsbG8=")); // "hello"
         assert!(validate_value("YQ==")); // "a"
@@ -511,7 +610,6 @@ mod tests {
 
     #[test]
     fn test_validate_value_invalid() {
-        assert!(!validate_value("")); // empty
         assert!(!validate_value("!!!")); // invalid base64
         assert!(!validate_value("not base64!")); // invalid base64
     }

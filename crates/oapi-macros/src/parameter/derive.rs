@@ -32,6 +32,8 @@ use crate::{
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
+const QUERYSTRING_DERIVE_ERROR: &str = "querystring is not supported by ToParameters; use Query for named parameters or construct a Parameter with content manually";
+
 /// Container attribute `#[salvo(parameters(...))]`.
 pub(crate) struct ToParametersFeatures(Vec<Feature>);
 
@@ -110,9 +112,14 @@ impl TryToTokens for ToParameters {
                 default_parameter_in
             {
                 match default_parameter_in {
-                    // `querystring` describes the whole query string as one value; salvo
-                    // extracts from the same place, so it shares `SourceFrom::Query`.
-                    ParameterIn::Query | ParameterIn::QueryString => {
+                    ParameterIn::QueryString => {
+                        return Err(Diagnostic::spanned(
+                            ident.span(),
+                            DiagLevel::Error,
+                            QUERYSTRING_DERIVE_ERROR,
+                        ));
+                    }
+                    ParameterIn::Query => {
                         quote! { #salvo::extract::metadata::SourceFrom::Query }
                     }
                     ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
@@ -220,7 +227,7 @@ impl TryToTokens for ToParameters {
         tokens.extend(quote!{
             impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
                 fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
-                    #oapi::oapi::Parameters(#params.to_vec())
+                    #oapi::oapi::Parameters(#params.into_iter().map(#oapi::oapi::RefOr::Type).collect())
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {
@@ -427,6 +434,19 @@ impl Parameter<'_> {
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
 
+        if field_features.iter().any(|feature| {
+            matches!(
+                feature,
+                Feature::ParameterIn(attributes::ParameterIn(ParameterIn::QueryString))
+            )
+        }) {
+            return Err(Diagnostic::spanned(
+                self.field.span(),
+                DiagLevel::Error,
+                QUERYSTRING_DERIVE_ERROR,
+            ));
+        }
+
         Ok(field_features.into_iter().fold(
             (Vec::<Feature>::new(), Vec::<Feature>::new()),
             |(mut schema_features, mut param_features), feature| {
@@ -482,8 +502,8 @@ impl Parameter<'_> {
         });
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
-                // `querystring` describes the whole query string as one value; salvo extracts
-                // from the same place, so it shares `SourceFrom::Query`.
+                // QueryString is rejected by resolve_field_features before extraction
+                // metadata is generated; named query parameters use this source.
                 attributes::ParameterIn(
                     crate::parameter::ParameterIn::Query
                     | crate::parameter::ParameterIn::QueryString,
@@ -639,5 +659,42 @@ impl TryToTokens for Parameter<'_> {
             tokens.extend(quote! { .schema(#schema) });
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    #[test]
+    fn querystring_container_is_rejected_instead_of_generating_an_invalid_schema() {
+        let input = parse_quote! {
+            #[salvo(parameters(default_parameter_in = QueryString))]
+            struct WholeQuery { filter: String }
+        };
+        assert!(crate::parameter::to_parameters(input).is_err());
+    }
+
+    #[test]
+    fn querystring_field_is_rejected_instead_of_extracting_a_named_query() {
+        let input = parse_quote! {
+            struct WholeQuery {
+                #[salvo(parameter(parameter_in = QueryString))]
+                filter: String,
+            }
+        };
+        assert!(crate::parameter::to_parameters(input).is_err());
+    }
+
+    #[test]
+    fn ordinary_query_parameters_remain_supported() {
+        let input = parse_quote! {
+            #[salvo(parameters(default_parameter_in = Query))]
+            struct Query {
+                #[salvo(parameter(parameter_in = Query))]
+                filter: String,
+            }
+        };
+        assert!(crate::parameter::to_parameters(input).is_ok());
     }
 }

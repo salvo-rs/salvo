@@ -33,7 +33,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 use base64::engine::{Engine, general_purpose};
-use salvo_core::http::header::{AUTHORIZATION, HeaderName, HeaderValue, PROXY_AUTHORIZATION};
+use salvo_core::http::header::{AUTHORIZATION, HeaderName, HeaderValue};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{Depot, Error, FlowCtrl, Handler, async_trait};
 
@@ -66,7 +66,11 @@ impl BasicAuthDepotExt for Depot {
     }
 }
 
-/// BasicAuth
+/// HTTP Basic authentication using the `Authorization` header by default.
+///
+/// Proxy credentials belong to a separate authentication scope. Applications
+/// that deliberately use `Proxy-Authorization` for origin authentication must
+/// opt in with [`BasicAuth::set_header_names`].
 pub struct BasicAuth<V: BasicAuthValidator> {
     realm: String,
     header_names: Vec<HeaderName>,
@@ -91,7 +95,7 @@ where
     pub fn new(validator: V) -> Self {
         Self {
             realm: "realm".to_owned(),
-            header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
+            header_names: vec![AUTHORIZATION],
             validator,
         }
     }
@@ -231,6 +235,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::header::PROXY_AUTHORIZATION;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 

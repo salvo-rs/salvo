@@ -82,6 +82,8 @@
 //!
 //! - Streaming responses ([`ResBody::Stream`]) cannot be cached
 //! - Error responses are not cached
+//! - Range and conditional requests bypass the cache, so the origin handler can apply its range and
+//!   precondition semantics to the current request
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -98,7 +100,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
 use salvo_core::http::header::{
-    AUTHORIZATION, CACHE_CONTROL, CONTENT_RANGE, COOKIE, RANGE, SET_COOKIE, VARY,
+    AUTHORIZATION, CACHE_CONTROL, CONTENT_RANGE, COOKIE, IF_MATCH, IF_MODIFIED_SINCE,
+    IF_NONE_MATCH, IF_RANGE, IF_UNMODIFIED_SINCE, RANGE, SET_COOKIE, VARY,
 };
 use salvo_core::http::{HeaderMap, ResBody, StatusCode};
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, async_trait, cfg_feature};
@@ -709,15 +712,37 @@ fn response_disallows_caching(headers: &HeaderMap) -> bool {
 
 fn cache_control_contains(headers: &HeaderMap, directive: &str) -> bool {
     headers.get_all(CACHE_CONTROL).iter().any(|value| {
-        value.to_str().ok().is_some_and(|value| {
-            value.split(',').any(|part| {
-                let part = part.trim();
-                part.eq_ignore_ascii_case(directive)
-                    || part
-                        .split_once('=')
-                        .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(directive))
+        // Quoted extension values may contain commas, escapes and opaque
+        // obs-text bytes. Scan the original field instead of requiring ASCII
+        // text or treating a comma inside a quoted value as a directive boundary.
+        let mut quoted = false;
+        let mut escaped = false;
+        value
+            .as_bytes()
+            .split(|&byte| {
+                if escaped {
+                    escaped = false;
+                } else if quoted && byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    quoted = !quoted;
+                } else if !quoted && byte == b',' {
+                    return true;
+                }
+                false
             })
-        })
+            .any(|part| {
+                // Qualified private/no-cache directives still apply. Values
+                // (including quoted field-name lists) are not directive names.
+                let mut name = part.split(|&byte| byte == b'=').next().unwrap_or_default();
+                while matches!(name.first(), Some(b' ' | b'\t')) {
+                    name = &name[1..];
+                }
+                while matches!(name.last(), Some(b' ' | b'\t')) {
+                    name = &name[..name.len() - 1];
+                }
+                name.eq_ignore_ascii_case(directive.as_bytes())
+            })
     })
 }
 
@@ -738,6 +763,11 @@ where
         if self.skipper.skipped(req, depot)
             // Range is not part of the default key, and hits do not apply ranges.
             || req.headers().contains_key(RANGE)
+            // Hits and coalesced followers skip the origin handler. Let it
+            // evaluate preconditions instead of reusing an unconditional response.
+            || [IF_MATCH, IF_UNMODIFIED_SINCE, IF_NONE_MATCH, IF_MODIFIED_SINCE, IF_RANGE]
+                .iter()
+                .any(|header| req.headers().contains_key(header))
             || (!self.cache_private && request_has_private_cache_headers(req))
         {
             ctrl.call_next(req, depot, res).await;

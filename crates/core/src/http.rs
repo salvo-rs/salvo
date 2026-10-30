@@ -104,24 +104,97 @@ pub fn append_vary_header(headers: &mut HeaderMap, vary_by: &'static str) {
 #[doc(hidden)]
 #[must_use]
 pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
+    parse_accept_encoding_impl(header, 100, |value| {
+        value.parse::<f32>().map(|f| (f * 100.0) as u8).ok()
+    })
+}
+
+/// Parse encoding preferences using the full three-decimal precision of RFC 9110.
+///
+/// Valid quality values are represented as integers from 0 through 1000.
+/// [`parse_accept_encoding`] retains its original percentage-based return values.
+#[doc(hidden)]
+#[must_use]
+pub fn parse_accept_encoding_with_quality(header: &str) -> Vec<(String, u16)> {
+    parse_accept_encoding_impl(header, 1000, parse_quality_thousandths)
+}
+
+fn parse_quality_thousandths(value: &str) -> Option<u16> {
+    let (whole, fraction) = value.split_once('.').unwrap_or((value, ""));
+    if fraction.len() <= 3
+        && fraction.bytes().all(|byte| byte.is_ascii_digit())
+        && (whole == "0" || whole == "1" && fraction.bytes().all(|byte| byte == b'0'))
+    {
+        let mut quality = if whole == "1" { 1000 } else { 0 };
+        let mut scale = 100;
+        for digit in fraction.bytes() {
+            quality += u16::from(digit - b'0') * scale;
+            scale /= 10;
+        }
+        return Some(quality);
+    }
+
+    // Keep the previous recovery policy for non-conforming weights, including
+    // float syntax, out-of-range values, and failed parses. Only valid RFC
+    // qvalues gain precision; malformed input must not acquire new meaning.
+    value
+        .parse::<f32>()
+        .map(|f| u16::from((f * 100.0) as u8) * 10)
+        .ok()
+}
+
+fn parse_accept_encoding_impl<Q: Copy + Ord>(
+    header: &str,
+    default_quality: Q,
+    parse_quality: impl Fn(&str) -> Option<Q>,
+) -> Vec<(String, Q)> {
     let mut vec = header
         .split(',')
         .filter_map(|s| {
             let mut iter = s.trim().split(';');
             let (algo, q) = (iter.next()?, iter.next());
-            let algo = algo.trim();
+            // Content codings and the `q` parameter name are case-insensitive.
+            let algo = algo.trim().to_ascii_lowercase();
             let q = q
                 .and_then(|q| {
-                    q.trim()
-                        .strip_prefix("q=")
-                        .and_then(|q| q.parse::<f32>().map(|f| (f * 100.0) as u8).ok())
+                    let (name, value) = q.trim().split_once('=')?;
+                    if !name.eq_ignore_ascii_case("q") {
+                        return None;
+                    }
+                    parse_quality(value)
                 })
-                .unwrap_or(100u8);
-            Some((algo.to_owned(), q))
+                .unwrap_or(default_quality);
+            Some((algo, q))
         })
-        .collect::<Vec<(String, u8)>>();
+        .collect::<Vec<(String, Q)>>();
 
     vec.sort_by(|(_, a), (_, b)| b.cmp(a));
 
     vec
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_accept_encoding, parse_accept_encoding_with_quality};
+
+    #[test]
+    fn malformed_encoding_weights_keep_the_previous_recovery_policy() {
+        for value in [
+            "invalid", "NaN", "-1", "2", "1e-3", "0.0001", "0.1234", "1.001", "1e3",
+        ] {
+            let header = format!("gzip;q={value}");
+            let legacy = parse_accept_encoding(&header)[0].1;
+            assert_eq!(
+                parse_accept_encoding_with_quality(&header)[0].1,
+                u16::from(legacy) * 10,
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn percentage_helper_keeps_its_existing_return_values() {
+        let parsed: Vec<(String, u8)> = parse_accept_encoding("gzip;q=0.001, br;q=0.109");
+        assert_eq!(parsed, [("br".to_owned(), 10), ("gzip".to_owned(), 0)]);
+    }
 }

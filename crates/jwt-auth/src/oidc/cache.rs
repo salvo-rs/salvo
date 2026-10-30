@@ -25,7 +25,7 @@ pub struct CachePolicy {
     /// The amount of time the stale JWKS data can be used while it is being revalidated.
     pub stale_while_revalidate: Option<Duration>,
     /// The amount of time the stale JWKS data should be valid for if we are unable to re-validate it from the URL.
-    /// Minimum Value: 60 Seconds
+    /// Defaults to 60 seconds. An explicit zero disables stale-on-error use.
     pub stale_if_error: Option<Duration>,
 }
 
@@ -33,55 +33,104 @@ impl CachePolicy {
     /// Create a new cache policy from the header value of the Cache-Control header
     #[must_use]
     pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
+        Self::from_header_values(value)
+    }
+
+    /// Creates a policy from all Cache-Control field values in their received order.
+    ///
+    /// Repeated field lines are combined with commas before parsing, preserving
+    /// quoted extension arguments and opaque bytes. No values yields the default policy.
+    #[must_use]
+    pub fn from_header_values<'a>(values: impl IntoIterator<Item = &'a HeaderValue>) -> Self {
         // Initialize the default config of polling every second
         let mut config = Self::default();
-
-        if let Some(value) = value
-            && let Ok(value) = value.to_str() {
-                config.parse_str(value);
+        let mut values = values.into_iter();
+        if let Some(first) = values.next() {
+            if let Some(second) = values.next() {
+                let mut combined = first.as_bytes().to_vec();
+                for value in std::iter::once(second).chain(values) {
+                    combined.push(b',');
+                    combined.extend_from_slice(value.as_bytes());
+                }
+                config.parse_bytes(&combined);
+            } else {
+                config.parse_bytes(first.as_bytes());
             }
+        }
         config
     }
 
-    fn parse_str(&mut self, value: &str) {
+    fn parse_bytes(&mut self, value: &[u8]) {
         // Upper bound for any cache directive (30 days). Without it, a malicious or
         // misconfigured IdP returning a huge `max-age` could overflow the downstream
         // `fetched + max_age` arithmetic (debug panic / release wrap) and pin a stale
         // JWKS indefinitely.
         const MAX_CACHE_AGE_SECS: u64 = 30 * 24 * 60 * 60;
-        // Iterate over every token in the header value
-        for token in value.split(',') {
-            // split them into whitespace trimmed pairs
-            let (key, directive_value) = {
-                let mut split = token.split('=').map(str::trim);
-                (split.next(), split.next())
+        // RFC 9111 section 5.2: commas in quoted extension arguments are not
+        // directive boundaries, and directive names are case insensitive. Work
+        // on bytes so a legal opaque extension does not discard the whole field.
+        let mut quoted = false;
+        let mut escaped = false;
+        for token in value.split(|byte| {
+            if escaped {
+                escaped = false;
+                return false;
+            }
+            if quoted && *byte == b'\\' {
+                escaped = true;
+            } else if *byte == b'"' {
+                quoted = !quoted;
+            }
+            *byte == b',' && !quoted
+        }) {
+            let Some(equal) = token.iter().position(|byte| *byte == b'=') else {
+                continue;
+            };
+            let key = token[..equal].trim_ascii();
+            let Some(secs) = delta_seconds(token[equal + 1..].trim_ascii()) else {
+                continue;
             };
             // Modify the default config based on the values that matter.
             // Any values here would be more permissive than the default behavior.
-            match (key, directive_value) {
-                (Some("max-age"), Some(directive_value)) => {
-                    if let Ok(secs) = directive_value.parse::<u64>() {
-                        // Keep at least 1s so `max-age=0` cannot make every request
-                        // revalidate and amplify load back onto the IdP.
-                        self.max_age = Duration::from_secs(secs.clamp(1, MAX_CACHE_AGE_SECS));
-                    }
-                }
-                (Some("stale-while-revalidate"), Some(directive_value)) => {
-                    if let Ok(secs) = directive_value.parse::<u64>() {
-                        self.stale_while_revalidate =
-                            Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
-                    }
-                }
-                (Some("stale-if-error"), Some(directive_value)) => {
-                    if let Ok(secs) = directive_value.parse::<u64>() {
-                        self.stale_if_error =
-                            Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
-                    }
-                }
-                _ => {},
-            };
+            if key.eq_ignore_ascii_case(b"max-age") {
+                // Keep at least 1s so `max-age=0` cannot make every request
+                // revalidate and amplify load back onto the IdP.
+                self.max_age = Duration::from_secs(secs.clamp(1, MAX_CACHE_AGE_SECS));
+            } else if key.eq_ignore_ascii_case(b"stale-while-revalidate") {
+                self.stale_while_revalidate =
+                    Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
+            } else if key.eq_ignore_ascii_case(b"stale-if-error") {
+                self.stale_if_error = Some(Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS)));
+            }
         }
     }
+}
+
+fn delta_seconds(value: &[u8]) -> Option<u64> {
+    let quoted = value.first() == Some(&b'"');
+    let value = if quoted {
+        value.strip_prefix(b"\"")?.strip_suffix(b"\"")?
+    } else {
+        value
+    };
+    let mut bytes = value.iter().copied();
+    let mut result = 0u64;
+    let mut digits = 0;
+    while let Some(byte) = bytes.next() {
+        let byte = if quoted && byte == b'\\' {
+            bytes.next()?
+        } else {
+            byte
+        };
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        result = result
+            .checked_mul(10)?
+            .checked_add(u64::from(byte - b'0'))?;
+        digits += 1;
+    }
+    (digits != 0).then_some(result)
 }
 
 impl Default for CachePolicy {
@@ -97,7 +146,8 @@ impl Default for CachePolicy {
 /// The update action of cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateAction {
-    /// We checked the JWKS uri and it was the same as the last time we refreshed it so no action was taken
+    /// We checked the JWKS uri and it was the same as the last time we refreshed it so no action
+    /// was taken
     NoUpdate,
     /// We checked the JWKS uri and it was different so we updated our local cache
     JwksUpdate,

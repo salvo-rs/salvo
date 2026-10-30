@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use salvo_core::http::{HeaderValue, StatusCode};
+use salvo_core::http::{HeaderValue, Method, StatusCode};
 use salvo_core::{Depot, Request, Response, Router, handler};
 
 use crate::error::{ProtocolError, TusError};
-use crate::handlers::{Metadata, apply_common_headers};
-use crate::stores::Extension;
+use crate::handlers::{Metadata, apply_common_headers, upload_expiration};
+use crate::method_override::TusMethodFilter;
 use crate::utils::check_tus_version;
 use crate::{
     CancellationContext, H_TUS_RESUMABLE, H_TUS_VERSION, H_UPLOAD_EXPIRES, TUS_VERSION, Tus,
@@ -72,22 +72,11 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 
     // TODO: Time handle
 
-    let mut expires_at = None;
-    if store.has_extension(Extension::Expiration)
-        && let Some(expiration) = store.get_expiration()
-        && expiration > std::time::Duration::from_secs(0)
-        && !upload_info.creation_date.is_empty()
-        && let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(&upload_info.creation_date)
-        && let Ok(delta) = chrono::Duration::from_std(expiration)
-    {
-        let expires = created_at.with_timezone(&chrono::Utc) + delta;
-        if chrono::Utc::now() > expires {
-            res.status_code = Some(TusError::FileNoLongerExists.status());
-            return;
-        }
-        expires_at = Some(expires);
+    let expires_at = upload_expiration(store.as_ref(), &upload_info);
+    if expires_at.is_some_and(|expires| chrono::Utc::now() > expires) {
+        res.status_code = Some(TusError::FileNoLongerExists.status());
+        return;
     }
-
     res.status_code = Some(StatusCode::OK);
 
     let Some(offset) = &upload_info.offset else {
@@ -129,5 +118,7 @@ async fn head(req: &mut Request, depot: &mut Depot, res: &mut Response) {
 }
 
 pub(crate) fn head_handler() -> Router {
-    Router::with_path("{id}").head(head)
+    Router::with_path("{id}")
+        .filter(TusMethodFilter(Method::HEAD))
+        .goal(head)
 }

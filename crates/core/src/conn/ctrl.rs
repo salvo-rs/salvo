@@ -22,6 +22,11 @@ struct Inner {
     state: AtomicU8,
     notify: Notify,
     relax: AtomicBool,
+    // Reuse the connection state already exposed on Request. Request dispatch
+    // needs no additional extension insertion, certificate clone, or synchronization.
+    // Boxing keeps connections without TLS from reserving a full TlsInfo.
+    #[cfg(feature = "rustls")]
+    tls_info: std::sync::OnceLock<Box<super::TlsInfo>>,
 }
 
 impl Default for ConnCtrl {
@@ -47,8 +52,20 @@ impl ConnCtrl {
                 state: AtomicU8::new(RUNNING),
                 notify: Notify::new(),
                 relax: AtomicBool::new(false),
+                #[cfg(feature = "rustls")]
+                tls_info: std::sync::OnceLock::new(),
             }),
         }
+    }
+
+    #[cfg(feature = "rustls")]
+    pub(crate) fn set_tls_info(&self, info: super::TlsInfo) {
+        let _ = self.inner.tls_info.set(Box::new(info));
+    }
+
+    #[cfg(feature = "rustls")]
+    pub(crate) fn tls_info(&self) -> Option<&super::TlsInfo> {
+        self.inner.tls_info.get().map(Box::as_ref)
     }
 
     /// Stops accepting new requests and lets accepted requests finish.

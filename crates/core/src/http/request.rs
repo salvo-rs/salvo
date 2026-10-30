@@ -535,13 +535,22 @@ impl Request {
         &mut self.version
     }
 
-    /// Returns the URI scheme of the request (e.g., `http` or `https`).
+    /// Returns the request scheme (e.g., `http` or `https`).
+    ///
+    /// For requests received by a server, this is supplied by the listener,
+    /// independently of the client-controlled URI scheme. Forwarded headers do
+    /// not change it. Trusted proxy middleware may explicitly override it through
+    /// [`scheme_mut`](Self::scheme_mut) after validating the proxy's identity.
     #[inline]
     pub fn scheme(&self) -> &Scheme {
         &self.scheme
     }
 
-    /// Returns a mutable reference to the URI scheme.
+    /// Returns a mutable reference to the request scheme.
+    ///
+    /// Changing this value affects security-sensitive middleware such as HTTPS
+    /// redirects and automatic secure-cookie policies. Only accept an external
+    /// scheme after validating the source, such as a trusted TLS-terminating proxy.
     #[inline]
     pub fn scheme_mut(&mut self) -> &mut Scheme {
         &mut self.scheme
@@ -754,6 +763,36 @@ impl Request {
     #[inline]
     pub fn extensions(&self) -> &Extensions {
         &self.extensions
+    }
+
+    /// Borrows TLS metadata from the connection serving this request.
+    ///
+    /// Available after a successful handshake on `RustlsListener`
+    /// and Rustls-backed `QuinnListener`
+    /// connections, including TLS without client authentication. An empty
+    /// [`peer_certificates`](crate::conn::TlsInfo::peer_certificates) slice means
+    /// no client certificate was supplied. Returns `None` for plain HTTP, other
+    /// TLS backends, and requests without connection metadata (such as TestClient).
+    ///
+    /// The certificates describe the direct TLS peer. If a proxy terminates TLS,
+    /// they do not describe the original client. Reading this information performs
+    /// no certificate parsing, allocation, or certificate copying.
+    ///
+    /// ```
+    /// # use salvo_core::Request;
+    /// let req = Request::new();
+    /// assert!(req.tls_info().is_none());
+    /// ```
+    #[must_use]
+    pub fn tls_info(&self) -> Option<&crate::conn::TlsInfo> {
+        #[cfg(feature = "rustls")]
+        {
+            self.extensions.get::<crate::conn::ConnCtrl>()?.tls_info()
+        }
+        #[cfg(not(feature = "rustls"))]
+        {
+            None
+        }
     }
 
     /// Sets the maximum allowed body size for this request.
@@ -1494,16 +1533,26 @@ impl Request {
     }
 
     /// Parse headers as type `T` from request.
+    ///
+    /// Repeated values are grouped by header name. Sequence fields receive all
+    /// values in their stored order; scalar fields use the first value, as with
+    /// [`Request::header`]. Values are not split on commas.
     #[inline]
     pub fn parse_headers<'de, T>(&'de mut self) -> ParseResult<T>
     where
         T: Deserialize<'de>,
     {
-        let iter = self
-            .headers()
-            .iter()
-            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()));
-        from_str_map(iter).map_err(ParseError::Deserialize)
+        let headers = self.headers();
+        let iter = headers.keys().map(|name| {
+            (
+                name.as_str(),
+                headers
+                    .get_all(name)
+                    .iter()
+                    .map(|value| value.to_str().unwrap_or_default()),
+            )
+        });
+        from_str_multi_map(iter).map_err(ParseError::Deserialize)
     }
 
     cfg_feature! {

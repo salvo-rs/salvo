@@ -568,6 +568,110 @@ mod tests {
         assert_eq!(response.take_string().await.unwrap(), "copy1");
     }
 
+    #[tokio::test]
+    async fn encoding_negotiation_preserves_three_decimal_quality_values() {
+        let service = Service::new(
+            Router::with_path("{*path}")
+                .filter(filters::get().or(filters::head()))
+                .goal(StaticDir::new(vec!["test/static"])),
+        );
+        for (accept, expected) in [
+            ("gzip;q=0.001, identity;q=0", Some("gzip")),
+            ("gzip;q=0.101, br;q=0.109", Some("br")),
+            ("gzip;q=0.109, identity;q=0.101", Some("gzip")),
+            ("gzip;q=0.101, identity;q=0.109", None),
+            ("gzip;q=0, br;q=0", None),
+            ("gzip;q=1, br;q=0.999", Some("gzip")),
+        ] {
+            for head in [false, true] {
+                let request = if head {
+                    TestClient::head("http://localhost/test1.txt")
+                } else {
+                    TestClient::get("http://localhost/test1.txt")
+                };
+                let response = request
+                    .add_header("accept-encoding", accept, true)
+                    .send(&service)
+                    .await;
+                assert_eq!(
+                    response
+                        .headers()
+                        .get(CONTENT_ENCODING)
+                        .map(|value| value.to_str().unwrap()),
+                    expected,
+                    "{accept} (HEAD={head})"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn repeated_accept_encoding_fields_match_the_combined_value() {
+        let service = Service::new(
+            Router::with_path("{*path}")
+                .filter(filters::get().or(filters::head()))
+                .goal(StaticDir::new(vec!["test/static"])),
+        );
+        for (first, second, expected) in [
+            ("gzip;q=0.2", "br;q=1", "br"),
+            ("unknown", "gzip", "gzip"),
+            ("", "gzip", "gzip"),
+            ("gzip;q=0", "br", "br"),
+        ] {
+            for head in [false, true] {
+                let request = || {
+                    if head {
+                        TestClient::head("http://localhost/test1.txt")
+                    } else {
+                        TestClient::get("http://localhost/test1.txt")
+                    }
+                };
+                let mut combined = request()
+                    .add_header("accept-encoding", format!("{first},{second}"), true)
+                    .send(&service)
+                    .await;
+                let mut split = request()
+                    .add_header("accept-encoding", first, false)
+                    .add_header("accept-encoding", second, false)
+                    .send(&service)
+                    .await;
+                assert_eq!(combined.headers().get(CONTENT_ENCODING).unwrap(), expected);
+                assert_eq!(
+                    split.headers().get(CONTENT_ENCODING),
+                    combined.headers().get(CONTENT_ENCODING),
+                    "split fields {first:?} and {second:?} must preserve negotiation"
+                );
+                assert_eq!(
+                    split.headers().get(CONTENT_LENGTH),
+                    combined.headers().get(CONTENT_LENGTH)
+                );
+                assert_eq!(
+                    split.take_bytes(None).await.unwrap(),
+                    combined.take_bytes(None).await.unwrap()
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_serve_static_dir_accept_encoding_is_case_insensitive() {
+        let router = Router::with_path("{*path}").get(StaticDir::new(vec!["test/static"]));
+        let service = Service::new(router);
+
+        for accept_encoding in ["GZIP", "br;Q=0, gzip"] {
+            let response = TestClient::get("http://127.0.0.1:5801/test1.txt")
+                .add_header("accept-encoding", accept_encoding, true)
+                .send(&service)
+                .await;
+            assert_eq!(response.status_code.unwrap(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(CONTENT_ENCODING),
+                Some(&HeaderValue::from_static("gzip")),
+                "{accept_encoding}"
+            );
+        }
+    }
+
     #[cfg(feature = "embed")]
     #[tokio::test]
     async fn test_serve_embed_files() {

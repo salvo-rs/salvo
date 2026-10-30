@@ -383,8 +383,11 @@ where
         ctrl: &mut FlowCtrl,
     ) {
         let mut has_incoming = false;
-        if let Some(flash) = self.store.load_flash(req, depot).await {
+        if let Some(mut flash) = self.store.load_flash(req, depot).await {
             has_incoming = !flash.is_empty();
+            if let Some(min_level) = self.minimum_level {
+                flash.0.retain(|msg| msg.level >= min_level);
+            }
             depot.insert(INCOMING_FLASH_KEY, flash);
         }
         depot.insert(OUTGOING_FLASH_KEY, Flash(vec![]));

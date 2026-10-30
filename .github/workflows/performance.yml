@@ -1,0 +1,74 @@
+name: Performance benchmarks
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'crates/core/benches/**'
+      - 'Cargo.toml'
+      - 'crates/core/Cargo.toml'
+      - 'crates/macros/Cargo.toml'
+      - '.github/workflows/performance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'crates/core/benches/**'
+      - 'Cargo.toml'
+      - 'crates/core/Cargo.toml'
+      - 'crates/macros/Cargo.toml'
+      - '.github/workflows/performance.yml'
+
+jobs:
+  criterion:
+    name: Core routing and dispatch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_TARGET_DIR: target
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.95.0'
+      - name: Record benchmark environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark-artifacts
+          {
+            git rev-parse HEAD
+            git show -s --format=fuller HEAD
+            rustc -Vv
+            cargo -V
+            uname -a
+            lscpu
+            printf 'RUNNER_OS=%s\nRUNNER_ARCH=%s\nImageOS=%s\nImageVersion=%s\n' \
+              "$RUNNER_OS" "$RUNNER_ARCH" "${ImageOS:-unknown}" "${ImageVersion:-unknown}"
+          } > benchmark-artifacts/environment.txt
+      - name: Resolve benchmark dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo generate-lockfile 2>&1 | tee benchmark-artifacts/resolve.log
+          cp Cargo.lock benchmark-artifacts/Cargo.lock
+      - name: Run Criterion benchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo bench --locked -p salvo_core --bench router_detect --bench service_dispatch -- \
+            --noplot --sample-size 20 --warm-up-time 1 --measurement-time 2 \
+            2>&1 | tee benchmark-artifacts/criterion.log
+      - name: Upload benchmark results and environment
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-criterion-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            benchmark-artifacts/
+            target/criterion/
+          if-no-files-found: warn
+          retention-days: 30

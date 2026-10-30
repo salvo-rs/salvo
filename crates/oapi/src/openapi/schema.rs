@@ -138,12 +138,14 @@ pub fn empty() -> Schema {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines array schema from another schema. Typically used with
-    /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
-    Array(Array),
-    /// Defines object schema. Object is either `object` holding **properties** which are other
-    /// [`Schema`]s or can be a field within the [`Object`].
-    Object(Box<Object>),
+    /// A boolean JSON Schema: `true` accepts every value and `false` rejects every value.
+    ///
+    /// Boolean schemas are supported by the OpenAPI 3.1 and 3.2 JSON Schema dialects.
+    /// This differs from `{"type": "boolean"}`, which describes boolean instance values.
+    Boolean(bool),
+
+    // Try compositions before the permissive object fallback, including when a
+    // composition declares an explicit `type` alongside its applicator.
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -160,11 +162,30 @@ pub enum Schema {
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AnyOf(AnyOf),
+
+    /// Defines array schema from another schema. Typically used with
+    /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
+    Array(Array),
+    /// Defines object schema. Object is either `object` holding **properties** which are other
+    /// [`Schema`]s or can be a field within the [`Object`].
+    Object(Box<Object>),
 }
 
 impl Default for Schema {
     fn default() -> Self {
         Self::Object(Default::default())
+    }
+}
+
+impl From<bool> for Schema {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+
+impl From<bool> for RefOr<Schema> {
+    fn from(value: bool) -> Self {
+        Self::Type(Schema::Boolean(value))
     }
 }
 
@@ -262,10 +283,10 @@ fn is_false(value: &bool) -> bool {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum AdditionalProperties<T> {
-    /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
-    RefOr(RefOr<T>),
     /// Use _`AdditionalProperties::FreeForm(true)`_ when any value is allowed in the map.
     FreeForm(bool),
+    /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
+    RefOr(RefOr<T>),
 }
 
 impl<T> From<RefOr<T>> for AdditionalProperties<T> {
@@ -319,6 +340,15 @@ pub struct Ref {
     /// referenced component does not support summary field this does not have effect.
     #[serde(skip_serializing_if = "String::is_empty", default)]
     pub summary: String,
+
+    /// Additional fields alongside `$ref`, including Schema Object keywords.
+    ///
+    /// OpenAPI 3.1 Schema Objects can combine `$ref` with constraints such as
+    /// `minLength` or `properties`. Preserve those fields when reading a schema.
+    /// In other locations, OpenAPI Reference Object rules still determine which
+    /// fields are meaningful; retaining a field does not apply schema semantics there.
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Ref {

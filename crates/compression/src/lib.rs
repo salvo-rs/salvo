@@ -8,6 +8,8 @@
 //! Responses with status `206 Partial Content` or a `Content-Range` header are
 //! preserved because their byte offsets refer to the original representation.
 //! Strong ETags are weakened when compression changes the representation bytes.
+//! Requests and responses with `Cache-Control: no-transform` are preserved,
+//! including when this middleware wraps a proxy forwarding an origin response.
 //!
 //! # Supported Algorithms
 //!
@@ -68,6 +70,7 @@
 //!
 //! Read more: <https://salvo.rs>
 
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -75,8 +78,8 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG,
-    HeaderValue,
+    ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+    ETAG, HeaderValue,
 };
 use salvo_core::http::headers::{ContentLength, HeaderMapExt};
 use salvo_core::http::{self, Method, Mime, StatusCode, append_vary_header, mime};
@@ -407,19 +410,33 @@ impl Compression {
     }
 
     fn negotiate_encoding(&self, req: &Request) -> Option<(CompressionAlgo, CompressionLevel)> {
-        let header = req
+        // List-valued fields can be split across multiple field lines. Keep
+        // the single-field path borrowed and combine all preferences before
+        // sorting, rather than negotiating from only the first field.
+        let mut header = Cow::Borrowed("");
+        for value in req
             .headers()
-            .get(ACCEPT_ENCODING)
-            .and_then(|v| v.to_str().ok())?;
+            .get_all(ACCEPT_ENCODING)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+        {
+            if header.is_empty() {
+                header = Cow::Borrowed(value);
+            } else {
+                let combined = header.to_mut();
+                combined.push(',');
+                combined.push_str(value);
+            }
+        }
 
-        let accept_list = http::parse_accept_encoding(header);
+        let accept_list = http::parse_accept_encoding_with_quality(&header);
 
-        // `parse_accept_encoding` sorts entries by descending q-value, so the
+        // Encoding preferences are sorted by descending q-value, so the
         // first wildcard token is also the one with the highest q. Mirror the
         // original `.find(...)` semantics rather than overwriting `wildcard_q`
         // on every iteration — see https://github.com/salvo-rs/salvo/pull/1489
         // for the multi-wildcard regression this guards against.
-        let wildcard_q: Option<u8> = accept_list
+        let wildcard_q: Option<u16> = accept_list
             .iter()
             .find(|(name, _)| name == "*")
             .map(|(_, q)| *q);
@@ -428,8 +445,8 @@ impl Compression {
         // that do not name a known compression algorithm. The lookups below
         // (`is_accepted` / `is_rejected` / client-preference) then never have
         // to call `.parse::<CompressionAlgo>()` again. Entries keep the order
-        // produced by `parse_accept_encoding` (descending q-value).
-        let parsed: smallvec::SmallVec<[(CompressionAlgo, u8); 4]> = accept_list
+        // produced by the parser (descending q-value).
+        let parsed: smallvec::SmallVec<[(CompressionAlgo, u16); 4]> = accept_list
             .iter()
             .filter(|(name, _)| name != "*")
             .filter_map(|(name, q)| name.parse::<CompressionAlgo>().ok().map(|algo| (algo, *q)))
@@ -449,25 +466,27 @@ impl Compression {
                 })
                 .map(|(algo, level)| (*algo, *level))
         } else {
-            // Client preference: pick the highest q-value algo the server supports.
-            let result = parsed
+            // Compare explicitly listed algorithms with those accepted by `*`.
+            // A wildcard only matches algorithms not explicitly listed, even
+            // when the explicit quality is lower than the wildcard's quality.
+            let explicit = parsed
                 .iter()
                 .filter(|(_, q)| *q > 0)
-                .find_map(|(algo, _)| self.algos.get(algo).map(|level| (*algo, *level)));
-
-            if result.is_some() {
-                return result;
-            }
-
-            // Wildcard `*`: use the server's top algo that is not explicitly rejected.
-            if wildcard_q.is_some_and(|q| q > 0) {
+                .find_map(|(algo, q)| self.algos.get(algo).map(|level| (*algo, *level, *q)));
+            let wildcard = wildcard_q.filter(|q| *q > 0).and_then(|q| {
                 self.algos
                     .iter()
-                    .find(|(algo, _)| !is_rejected(algo))
-                    .map(|(algo, level)| (*algo, *level))
-            } else {
-                None
-            }
+                    .find(|(algo, _)| !parsed.iter().any(|(listed, _)| listed == *algo))
+                    .map(|(algo, level)| (*algo, *level, q))
+            });
+            // Preserve the explicit client order on equal qualities, and the
+            // server order among algorithms covered only by the wildcard.
+            let selected = match (explicit, wildcard) {
+                (Some(explicit), Some(wildcard)) if wildcard.2 > explicit.2 => Some(wildcard),
+                (Some(explicit), _) => Some(explicit),
+                (None, wildcard) => wildcard,
+            };
+            selected.map(|(algo, level, _)| (algo, level))
         }
     }
 }
@@ -486,6 +505,8 @@ impl Handler for Compression {
         // body would invalidate those offsets, including representation headers
         // synthesized for HEAD. Leave the body and headers together untouched.
         if ctrl.is_ceased()
+            || no_transform(req.headers())
+            || no_transform(res.headers())
             || res.headers().contains_key(CONTENT_ENCODING)
             || res.headers().contains_key(CONTENT_RANGE)
             || res.status_code == Some(StatusCode::PARTIAL_CONTENT)
@@ -589,6 +610,19 @@ impl Handler for Compression {
                     return;
                 }
             }
+            body @ (ResBody::Boxed(_) | ResBody::Channel(_)) => {
+                if self.content_length_is_below_minimum(res) {
+                    res.body(body);
+                    return;
+                }
+                if let Some((algo, level)) = self.negotiate(req, res) {
+                    res.stream(EncodeStream::new(algo, level, body));
+                    res.headers_mut().insert(CONTENT_ENCODING, algo.into());
+                } else {
+                    res.body(body);
+                    return;
+                }
+            }
             body => {
                 res.body(body);
                 return;
@@ -597,6 +631,41 @@ impl Handler for Compression {
         res.headers_mut().remove(CONTENT_LENGTH);
         weaken_etag(res);
     }
+}
+
+fn no_transform(headers: &http::HeaderMap) -> bool {
+    headers.get_all(CACHE_CONTROL).iter().any(|value| {
+        // Extension directive values can contain commas and escaped quotes.
+        // Quoted strings also permit obs-text, so scan bytes rather than reject
+        // an entire field value because an extension is not ASCII text.
+        // Only a directive name outside a quoted value can prohibit a transform.
+        let mut quoted = false;
+        let mut escaped = false;
+        value
+            .as_bytes()
+            .split(|&byte| {
+                if escaped {
+                    escaped = false;
+                } else if quoted && byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    quoted = !quoted;
+                } else if !quoted && byte == b',' {
+                    return true;
+                }
+                false
+            })
+            .any(|mut directive| {
+                // HTTP optional whitespace consists only of SP and HTAB.
+                while matches!(directive.first(), Some(b' ' | b'\t')) {
+                    directive = &directive[1..];
+                }
+                while matches!(directive.last(), Some(b' ' | b'\t')) {
+                    directive = &directive[..directive.len() - 1];
+                }
+                directive.eq_ignore_ascii_case(b"no-transform")
+            })
+    })
 }
 
 fn weaken_etag(res: &mut Response) {
@@ -623,6 +692,74 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
+
+    #[cfg(all(feature = "gzip", feature = "brotli"))]
+    #[tokio::test]
+    async fn encoding_negotiation_preserves_three_decimal_quality_values() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.render("a response whose representation is selected by Accept-Encoding");
+        }
+        let compression = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .enable_brotli(CompressionLevel::Default)
+            .min_length(0);
+        let service = Service::new(Router::with_hoop(compression).get(hello));
+        for (accept, expected) in [
+            ("gzip;q=0.001, identity;q=0", Some("gzip")),
+            ("gzip;q=0.101, br;q=0.109", Some("br")),
+            ("gzip;q=0.101, *;q=0.109", Some("br")),
+            ("gzip;q=0.109, *;q=0.101", Some("gzip")),
+            ("gzip;q=0, br;q=0", None),
+            ("gzip;q=1, br;q=0.999", Some("gzip")),
+        ] {
+            let response = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, accept, true)
+                .send(&service)
+                .await;
+            assert_eq!(
+                response
+                    .headers()
+                    .get(CONTENT_ENCODING)
+                    .map(|value| value.to_str().unwrap()),
+                expected,
+                "{accept}"
+            );
+        }
+    }
+
+    #[cfg(all(feature = "gzip", feature = "brotli"))]
+    #[tokio::test]
+    async fn repeated_accept_encoding_fields_match_the_combined_value() {
+        #[handler]
+        async fn hello(res: &mut Response) {
+            res.render("a response whose representation is selected by Accept-Encoding");
+        }
+        let service = Service::new(Router::with_hoop(Compression::new().min_length(0)).get(hello));
+        for (first, second, expected) in [
+            ("gzip;q=0.2", "br;q=1", "br"),
+            ("unknown", "gzip", "gzip"),
+            ("", "gzip", "gzip"),
+            ("gzip;q=0", "br", "br"),
+        ] {
+            let combined = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, format!("{first},{second}"), true)
+                .send(&service)
+                .await;
+            let split = TestClient::get("http://localhost/")
+                .add_header(ACCEPT_ENCODING, first, false)
+                .add_header(ACCEPT_ENCODING, second, false)
+                .send(&service)
+                .await;
+            assert_eq!(combined.headers().get(CONTENT_ENCODING).unwrap(), expected);
+            assert_eq!(
+                split.headers().get(CONTENT_ENCODING),
+                combined.headers().get(CONTENT_ENCODING),
+                "split fields {first:?} and {second:?} must preserve negotiation"
+            );
+        }
+    }
 
     #[cfg(feature = "gzip")]
     #[tokio::test]
@@ -1174,6 +1311,36 @@ mod tests {
             .send(router)
             .await;
         assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
+    }
+
+    #[tokio::test]
+    async fn test_accept_encoding_is_case_insensitive() {
+        // Content codings and the `q` parameter name are case-insensitive.
+        let comp_handler = Compression::new()
+            .disable_all()
+            .enable_gzip(CompressionLevel::Default)
+            .enable_brotli(CompressionLevel::Default)
+            .min_length(1);
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        for (accept_encoding, expected) in [
+            ("GZIP", "gzip"),
+            ("gzip;Q=0, br", "br"),
+            ("*, GZIP;q=0", "br"),
+        ] {
+            let res = TestClient::get("http://127.0.0.1:5801/hello")
+                .add_header(ACCEPT_ENCODING, accept_encoding, true)
+                .send(&service)
+                .await;
+            assert_eq!(
+                res.headers()
+                    .get(CONTENT_ENCODING)
+                    .and_then(|v| v.to_str().ok()),
+                Some(expected),
+                "{accept_encoding}"
+            );
+        }
     }
 
     #[tokio::test]

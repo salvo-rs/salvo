@@ -164,9 +164,14 @@ pub struct Operation {
     ///
     /// Security for the [`Operation`] can be set to optional by adding empty security with
     /// [`SecurityRequirement::default`].
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    ///
+    /// `None` inherits the document's security policy. `Some(Vec::new())` serializes as
+    /// `security: []` and removes that policy for this operation. Direct field users should
+    /// wrap an explicit list in `Some`; the [`Operation::securities`] builder accepts the
+    /// list directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(rename = "security")]
-    pub securities: Vec<SecurityRequirement>,
+    pub securities: Option<Vec<SecurityRequirement>>,
 
     /// Alternative [`Server`]s for this [`Operation`].
     #[serde(default, skip_serializing_if = "Servers::is_empty")]
@@ -224,17 +229,16 @@ impl Operation {
 
     /// Add or change parameters of the [`Operation`].
     #[must_use]
-    pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
+    pub fn parameters<I: IntoIterator<Item = P>, P: Into<RefOr<Parameter>>>(
         mut self,
         parameters: I,
     ) -> Self {
-        self.parameters
-            .extend(parameters.into_iter().map(|parameter| parameter.into()));
+        self.parameters.extend(parameters);
         self
     }
     /// Append parameter to [`Operation`] parameters and returns `Self`.
     #[must_use]
-    pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
+    pub fn add_parameter<P: Into<RefOr<Parameter>>>(mut self, parameter: P) -> Self {
         self.parameters.insert(parameter);
         self
     }
@@ -274,18 +278,19 @@ impl Operation {
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
+    /// An empty list explicitly removes the document's security policy for this operation.
     #[must_use]
     pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(
         mut self,
         securities: I,
     ) -> Self {
-        self.securities = securities.into_iter().collect();
+        self.securities = Some(securities.into_iter().collect());
         self
     }
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements and returns `Self`.
     #[must_use]
     pub fn add_security(mut self, security: SecurityRequirement) -> Self {
-        self.securities.push(security);
+        self.securities.get_or_insert_default().push(security);
         self
     }
 
@@ -364,7 +369,7 @@ mod tests {
         assert!(operation.responses.is_empty());
         assert!(operation.callbacks.is_empty());
         assert!(operation.deprecated.is_none());
-        assert!(operation.securities.is_empty());
+        assert!(operation.securities.is_none());
         assert!(operation.servers.is_empty());
     }
 
@@ -427,7 +432,7 @@ mod tests {
             .add_security(security_requirement1)
             .add_security(security_requirement2);
 
-        assert!(!operation.securities.is_empty());
+        assert_eq!(operation.securities.as_ref().unwrap().len(), 2);
     }
 
     #[test]

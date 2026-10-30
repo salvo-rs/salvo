@@ -138,7 +138,7 @@ impl<'a> Operation<'a> {
         // });
         if let Some(security_requirements) = self.security {
             modifiers.push(quote! {
-                operation.securities.append(&mut #security_requirements.into_iter().collect());
+                operation.securities.get_or_insert_default().extend(#security_requirements);
             })
         }
         if let Some(operation_id) = &self.operation_id {

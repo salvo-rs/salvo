@@ -560,7 +560,7 @@ where
             .method(req.method())
             .uri(&forward_url);
         let connection_headers = connection_header_names(req.headers());
-        let upgrade_type = get_upgrade_type(req.headers()).map(str::to_owned);
+        let upgrade_type = get_upgrade_type(req.headers());
         for (key, value) in req.headers() {
             if key == HOST || is_hop_by_hop_header(key, &connection_headers) {
                 continue;
@@ -650,13 +650,25 @@ where
                         res.body(body);
                     }
                     Err(e) => {
-                        tracing::error!( error = ?e, uri = ?req.uri(), "get response data failed: {}", e);
+                        // A client error can embed the entire upstream URL too.
+                        // Keep diagnostics structured without logging URL credentials.
+                        tracing::error!(
+                            method = %req.method(),
+                            path = req.uri().path(),
+                            error_type = std::any::type_name_of_val(&e),
+                            "upstream request failed"
+                        );
                         res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
             }
             Err(e) => {
-                tracing::error!(error = ?e, "build proxied request failed");
+                tracing::error!(
+                    method = %req.method(),
+                    path = req.uri().path(),
+                    error_type = std::any::type_name_of_val(&e),
+                    "build proxied request failed"
+                );
                 res.status_code(StatusCode::BAD_REQUEST);
             }
         }
@@ -683,7 +695,7 @@ fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) ->
 fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap, status: StatusCode) {
     let connection_headers = connection_header_names(source);
     let upgrade_type = if status == StatusCode::SWITCHING_PROTOCOLS {
-        get_upgrade_type(source).map(str::to_owned)
+        get_upgrade_type(source)
     } else {
         None
     };
@@ -709,34 +721,63 @@ fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap, st
 }
 
 #[inline]
-fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
-    if connection_header_names(headers).contains(&UPGRADE)
-        && let Some(upgrade_value) = headers.get(&UPGRADE)
-    {
-        tracing::debug!(
-            "found upgrade header with value: {:?}",
-            upgrade_value.to_str()
-        );
-        return upgrade_value.to_str().ok();
+fn get_upgrade_type(headers: &HeaderMap) -> Option<String> {
+    if !connection_header_names(headers).contains(&UPGRADE) {
+        return None;
     }
-
-    None
+    let values = headers
+        .get_all(UPGRADE)
+        .iter()
+        .map(HeaderValue::to_str)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    if values.is_empty() {
+        None
+    } else {
+        Some(values.join(", "))
+    }
 }
 
-/// Compare two `Upgrade` token candidates from request and response.
+/// Validate the upstream's selected protocols against the client's offers.
 ///
-/// Per RFC 7230 §6.7 the upgrade token is case-insensitive (`websocket`,
-/// `WebSocket`, `WEBSOCKET` are equivalent), so this helper compares with
-/// `eq_ignore_ascii_case`. Two missing tokens compare equal (the previous
-/// case-sensitive check matched too) so callers behave the same when neither
-/// side advertises an upgrade.
+/// RFC 9110 §7.8 permits multiple offers and a selection of one or more of
+/// them. Protocol names compare case-insensitively, while versions are opaque.
 #[inline]
 pub(crate) fn upgrade_types_match(request: Option<&str>, response: Option<&str>) -> bool {
-    match (request, response) {
-        (Some(req), Some(resp)) => req.eq_ignore_ascii_case(resp),
-        (None, None) => true,
-        _ => false,
+    let (Some(request), Some(response)) = (request, response) else {
+        return false;
+    };
+    let (Some(offered), Some(selected)) = (upgrade_protocols(request), upgrade_protocols(response))
+    else {
+        return false;
+    };
+    !offered.is_empty()
+        && !selected.is_empty()
+        && selected.iter().all(|(name, version)| {
+            offered.iter().any(|(offered_name, offered_version)| {
+                name.eq_ignore_ascii_case(offered_name) && version == offered_version
+            })
+        })
+}
+
+fn upgrade_protocols(value: &str) -> Option<Vec<(&str, Option<&str>)>> {
+    fn is_token(value: &str) -> bool {
+        !value.is_empty()
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte))
     }
+    value
+        .split(',')
+        .map(|item| item.trim_matches([' ', '\t']))
+        .filter(|item| !item.is_empty())
+        .map(|item| {
+            let (name, version) = item
+                .split_once('/')
+                .map_or((item, None), |(name, version)| (name, Some(version)));
+            (is_token(name) && version.is_none_or(is_token)).then_some((name, version))
+        })
+        .collect()
 }
 
 // Unit tests for Proxy
@@ -754,6 +795,87 @@ mod tests {
     use tokio_tungstenite::tungstenite::protocol::Role;
 
     use super::*;
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn upstream_failure_logs_omit_request_and_error_url_secrets() {
+        struct FailedClient;
+        impl Client for FailedClient {
+            type Error = std::io::Error;
+            async fn execute(
+                &self,
+                req: HyperRequest,
+                _: Option<OnUpgrade>,
+            ) -> Result<HyperResponse, Self::Error> {
+                Err(std::io::Error::other(format!(
+                    "failed to connect to {}",
+                    req.uri()
+                )))
+            }
+        }
+
+        let mut req = salvo_core::test::TestClient::get(
+            "https://local.example/download?token=proxy-secret-marker",
+        )
+        .build();
+        let mut res = Response::new();
+        Proxy::new("https://upstream.example", FailedClient)
+            .handle(
+                &mut req,
+                &mut Depot::new(),
+                &mut res,
+                &mut FlowCtrl::new(vec![]),
+            )
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(!logs_contain("proxy-secret-marker"));
+        assert!(logs_contain("upstream request failed"));
+        assert!(logs_contain("/download"));
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn upstream_selection_failure_logs_omit_url_secrets() {
+        struct FailedUpstreams;
+        impl Upstreams for FailedUpstreams {
+            type Error = std::io::Error;
+            async fn elect(&self, req: &Request, _: &Depot) -> Result<&str, Self::Error> {
+                Err(std::io::Error::other(format!(
+                    "no upstream for {}",
+                    req.uri()
+                )))
+            }
+        }
+        struct NeverCalled;
+        impl Client for NeverCalled {
+            type Error = Infallible;
+            async fn execute(
+                &self,
+                _: HyperRequest,
+                _: Option<OnUpgrade>,
+            ) -> Result<HyperResponse, Self::Error> {
+                unreachable!("failed upstream selection must not execute a request")
+            }
+        }
+
+        let mut req = salvo_core::test::TestClient::get(
+            "https://local.example/selection?token=selection-secret-marker",
+        )
+        .build();
+        let mut res = Response::new();
+        Proxy::new(FailedUpstreams, NeverCalled)
+            .handle(
+                &mut req,
+                &mut Depot::new(),
+                &mut res,
+                &mut FlowCtrl::new(vec![]),
+            )
+            .await;
+        assert_eq!(res.status_code, Some(StatusCode::BAD_REQUEST));
+        assert!(!logs_contain("selection-secret-marker"));
+        assert!(logs_contain("build proxied request failed"));
+        assert!(logs_contain("/selection"));
+    }
 
     #[handler]
     async fn websocket_echo(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
@@ -797,11 +919,40 @@ mod tests {
         assert!(upgrade_types_match(Some("WebSocket"), Some("websocket")));
         assert!(upgrade_types_match(Some("WEBSOCKET"), Some("WebSocket")));
         assert!(upgrade_types_match(Some("h2c"), Some("h2c")));
-        assert!(upgrade_types_match(None, None));
+        assert!(!upgrade_types_match(None, None));
 
         assert!(!upgrade_types_match(Some("websocket"), Some("h2c")));
         assert!(!upgrade_types_match(Some("websocket"), None));
         assert!(!upgrade_types_match(None, Some("websocket")));
+    }
+
+    #[test]
+    fn test_upgrade_selection_validates_protocol_lists_and_versions() {
+        assert!(upgrade_types_match(
+            Some("other, Chat/1, Extra"),
+            Some("cHaT/1, extra")
+        ));
+        assert!(upgrade_types_match(Some(",\tChat/1, "), Some("Chat/1, ")));
+        for response in [
+            "",
+            " ",
+            "Other",
+            "Chat/2",
+            "Chat/1, other",
+            "Chat/",
+            "Chat/1/2",
+            "Chat/ 1",
+        ] {
+            assert!(
+                !upgrade_types_match(Some("Chat/1"), Some(response)),
+                "{response}"
+            );
+        }
+        assert!(!upgrade_types_match(
+            Some("Chat/Version"),
+            Some("Chat/version")
+        ));
+        assert!(!upgrade_types_match(Some("Chat /1"), Some("Chat/1")));
     }
 
     #[test]
@@ -859,7 +1010,7 @@ mod tests {
         headers.insert(CONNECTION, HeaderValue::from_static("upgrade"));
         headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
         let upgrade_type = get_upgrade_type(&headers);
-        assert_eq!(upgrade_type, Some("websocket"));
+        assert_eq!(upgrade_type.as_deref(), Some("websocket"));
     }
 
     #[test]
@@ -871,7 +1022,7 @@ mod tests {
 
         let upgrade_type = get_upgrade_type(&headers);
 
-        assert_eq!(upgrade_type, Some("websocket"));
+        assert_eq!(upgrade_type.as_deref(), Some("websocket"));
     }
 
     #[test]

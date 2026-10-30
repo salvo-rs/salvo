@@ -112,7 +112,11 @@ pub struct OpenApi {
 
     /// Available paths and operations for the API.
     ///
+    /// Documents that only describe components or webhooks can omit this field;
+    /// it is deserialized as an empty collection.
+    ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
+    #[serde(default)]
     pub paths: Paths,
 
     /// Incoming webhooks that may be received as part of this API.
@@ -439,15 +443,15 @@ impl OpenApi {
         self
     }
 
-    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
+    /// Add a [`SecurityScheme`] or [`Ref`] to [`Components`] and return `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
-    /// [`SecurityScheme`].
+    /// scheme or reference.
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         mut self,
         name: N,
         security_scheme: S,
@@ -459,7 +463,7 @@ impl OpenApi {
         self
     }
 
-    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    /// Add an iterator of [`SecurityScheme`]s or references to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
@@ -470,7 +474,7 @@ impl OpenApi {
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecurityScheme>,
+        S: Into<RefOr<SecurityScheme>>,
     >(
         mut self,
         schemas: I,
@@ -683,13 +687,15 @@ impl OpenApi {
                     mut components,
                 } = creator();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
-                operation
-                    .securities
-                    .extend(node.metadata.securities.iter().cloned());
+                if !node.metadata.securities.is_empty() {
+                    operation
+                        .securities
+                        .get_or_insert_default()
+                        .extend(node.metadata.securities.iter().cloned());
+                }
                 let not_exist_parameters = operation
                     .parameters
-                    .0
-                    .iter()
+                    .iter_inline()
                     .filter(|p| {
                         p.parameter_in == ParameterIn::Path
                             && !path_parameter_names.contains(&p.name)
@@ -705,7 +711,7 @@ impl OpenApi {
                         .iter()
                         .filter(|name| {
                             !name.starts_with('*')
-                                && !operation.parameters.0.iter().any(|parameter| {
+                                && !operation.parameters.iter_inline().any(|parameter| {
                                     parameter.name == **name
                                         && parameter.parameter_in == ParameterIn::Path
                                 })
@@ -1313,7 +1319,7 @@ mod tests {
         );
         doc.components.security_schemes.insert(
             "token_jwt".into(),
-            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")),
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")).into(),
         );
 
         let router = Router::with_path("/pets/{id}").get(get_pet_by_id);
@@ -1428,6 +1434,8 @@ mod tests {
                        }
                     }
                  }"#
+                 .replace("uint64", if cfg!(feature = "non-strict-integers") { "uint64" } else { "int64" })
+                 .as_str()
             )
             .unwrap(),
             Value::from_str(&doc.to_json().unwrap()).unwrap()
@@ -1504,8 +1512,7 @@ mod tests {
         let by_name = |name: &str| {
             operation
                 .parameters
-                .0
-                .iter()
+                .iter_inline()
                 .find(|p| p.name == name)
                 .unwrap_or_else(|| panic!("parameter `{name}` should exist"))
         };
@@ -1555,13 +1562,12 @@ mod tests {
             .expect("get operation should exist");
         let names: Vec<&str> = operation
             .parameters
-            .0
-            .iter()
+            .iter_inline()
             .map(|p| p.name.as_str())
             .collect();
 
         // container singular alias honored: every parameter is in `header`.
-        for param in &operation.parameters.0 {
+        for param in operation.parameters.iter_inline() {
             assert_eq!(
                 param.parameter_in,
                 ParameterIn::Header,
@@ -2219,7 +2225,7 @@ mod tests {
                                 },
                                 "code": {
                                     "type": "integer",
-                                    "format": "uint16",
+                                    "format": if cfg!(feature = "non-strict-integers") { "uint16" } else { "int32" },
                                     "minimum": 0
                                 },
                                 "detail": {

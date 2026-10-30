@@ -18,7 +18,7 @@
 <a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
 <br>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
-<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://img.shields.io/docsrs/salvo.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
 <a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
@@ -49,6 +49,19 @@ JWT (JSON Web Token) authentication middleware for the Salvo web framework.
 - **Type-safe claims**: Decode tokens into your own custom claims structs
 - **Configurable validation**: Customize token validation rules
 
+## HTTP method selection
+
+Token finders accept every HTTP method by default, including extension methods
+such as `PROPFIND`. Use `.allowed_methods(vec![Method::GET])` to restrict a finder;
+an explicit empty vector disables extraction for all methods.
+
+The public `allowed_methods` field is now `Option<Vec<Method>>`: `None` means
+unrestricted, and `Some(methods)` is an explicit allowlist. Wrap previous direct
+vector assignments in `Some(...)`. The builder still accepts `Vec<Method>`.
+Calling `allowed_methods_mut()` on an unrestricted finder first creates an
+explicit list of standard methods, so edits and `clear()` keep their allowlist
+semantics. Set the public field to `None` to restore unrestricted extraction.
+
 ## Installation
 
 This is an official crate, so you can enable it in `Cargo.toml`:
@@ -61,6 +74,15 @@ Salvo uses `aws-lc-rs` as its default cryptography provider. To use the
 RustCrypto provider for JWTs instead, disable Salvo's default features and
 select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
 rustls integration:
+
+**Current dependency limitation:** the RustCrypto JWT backend selected by
+`jwt-auth-ring` still resolves crypto-bigint 0.5 through jsonwebtoken 11.1's
+p256/p384 dependencies and is affected by
+[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+There is no Salvo audit exception for it. Prefer the default AWS-LC JWT backend
+where suitable, audit your application's final lockfile, and see the repository's
+[dependency security policy](../../.github/DEPENDENCY_SECURITY.md) for the upstream
+blocker. The alternative configuration below retains this unresolved dependency.
 
 ```toml
 salvo = { version = "*", default-features = false, features = [
@@ -195,14 +217,26 @@ let decoder = OidcDecoder::builder("https://issuer.example.com")
 ```
 
 Passing `.validation(Validation::new(Algorithm::RS256))` also restricts accepted
-JWK algorithms to RS256. Without explicit validation options, the decoder uses
-each trusted JWK's declared algorithm; symmetric JWKs still require the explicit
-`allow_symmetric_jwks(true)` opt-in.
+JWK algorithms to RS256. A JWK may omit the optional `alg` field: the decoder then
+uses only algorithms already allowed by the validation policy and compatible with
+the key type and curve. A declared `alg` further restricts that policy. For
+deployments with a known signing algorithm, configure it explicitly; symmetric
+JWKs still require the explicit `allow_symmetric_jwks(true)` opt-in.
 
 An unknown `kid` can trigger an early JWKS refresh for key rotation. Refreshes
 are shared across decoder clones and have a one-second cooldown after completion,
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
+
+JWKS freshness accounts for the response's `Age` and the time spent fetching it.
+A key set served by an intermediary therefore retains only its remaining
+`max-age` and stale allowance, rather than receiving a new lifetime on arrival.
+
+Discovery metadata must include an `issuer` that exactly matches the configured
+issuer URL, including any trailing slash. JWKS keys with an explicit `use` must
+declare `sig`; explicit `key_ops` must include `verify` and contain only signature
+operations. Keys without these optional fields remain supported. These checks
+also apply when the provider rotates or refreshes its key set.
 
 Troubleshooting audience failures:
 

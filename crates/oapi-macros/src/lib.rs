@@ -635,7 +635,7 @@ mod tests {
                                     .required(salvo::oapi::Required::True)
                                     .schema(<PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
                             ]
-                            .to_vec()
+                            .into_iter().map(salvo::oapi::RefOr::Type).collect()
                         )
                     }
                 }

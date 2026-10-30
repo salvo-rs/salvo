@@ -1,5 +1,6 @@
 //! Serve static directories with directory listing support
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display, Formatter, Write};
@@ -596,14 +597,28 @@ impl Handler for StaticDir {
                     // Its Vary policy must not depend on this request's header.
                     varies_on_accept_encoding = true;
                     let mut new_abs_path = None;
-                    let header = req
+                    // Accept-Encoding has list semantics across field lines.
+                    // Borrow the common single-field value and only allocate
+                    // when there are more preferences to combine.
+                    let mut header = Cow::Borrowed("");
+                    for value in req
                         .headers()
-                        .get(ACCEPT_ENCODING)
-                        .and_then(|v| v.to_str().ok())
-                        .unwrap_or_default();
+                        .get_all(ACCEPT_ENCODING)
+                        .iter()
+                        .filter_map(|value| value.to_str().ok())
+                    {
+                        if header.is_empty() {
+                            header = Cow::Borrowed(value);
+                        } else {
+                            let combined = header.to_mut();
+                            combined.push(',');
+                            combined.push_str(value);
+                        }
+                    }
                     // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
-                        'accepted_encoding: for (algo, level) in http::parse_accept_encoding(header)
+                        'accepted_encoding: for (algo, level) in
+                            http::parse_accept_encoding_with_quality(&header)
                         {
                             if level == 0 {
                                 continue;
@@ -669,12 +684,9 @@ impl Handler for StaticDir {
                 (builder, varies_on_accept_encoding)
             };
             if let Ok(named_file) = builder.build().await {
-                let headers = req.headers();
-                if req.method() == Method::HEAD {
-                    named_file.send_head(headers, res).await;
-                } else {
-                    named_file.send(headers, res).await;
-                }
+                named_file
+                    .send_with_method(req.method(), req.headers(), res)
+                    .await;
                 if varies_on_accept_encoding {
                     append_vary_header(res.headers_mut(), "accept-encoding");
                 }
@@ -937,6 +949,37 @@ mod tests {
     use crate::dir::{
         CurrentInfo, DirInfo, FileInfo, human_size, is_safe_relative_path, list_html, xml_escape,
     };
+
+    #[tokio::test]
+    async fn directory_redirect_cannot_change_authority_after_path_normalization() {
+        use salvo_core::http::StatusCode;
+        use salvo_core::http::header::LOCATION;
+        use salvo_core::{Depot, FlowCtrl, Handler, Request, Response};
+
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        let handler = super::StaticDir::new(root.path().to_path_buf());
+        for prefix in ["", "http://trusted.example"] {
+            let mut req = Request::new();
+            *req.uri_mut() = format!("{prefix}//evil.example/../assets?download=1")
+                .parse()
+                .unwrap();
+            let mut res = Response::new();
+            handler
+                .handle(
+                    &mut req,
+                    &mut Depot::new(),
+                    &mut res,
+                    &mut FlowCtrl::new(vec![]),
+                )
+                .await;
+            assert_eq!(res.status_code, Some(StatusCode::FOUND));
+            assert_eq!(
+                res.headers()[LOCATION],
+                "/.//evil.example/../assets/?download=1"
+            );
+        }
+    }
 
     #[test]
     fn test_list_html_escapes_visible_names() {

@@ -19,7 +19,11 @@ use crate::{Array, Deprecated, PropMap, RefOr, Schema, SchemaFormat, SchemaType,
 pub struct Object {
     /// Type of [`Object`] e.g. [`BasicType::Object`][crate::BasicType] for `object` and
     /// [`BasicType::String`][crate::BasicType] for `string` types.
-    #[serde(rename = "type", skip_serializing_if = "SchemaType::is_any_value")]
+    #[serde(
+        rename = "type",
+        default = "SchemaType::any",
+        skip_serializing_if = "SchemaType::is_any_value"
+    )]
     pub schema_type: SchemaType,
 
     /// Changes the [`Object`] name.

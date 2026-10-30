@@ -31,14 +31,22 @@ futures-util = { workspace = true, features = ["io"], optional = true }
 quinn = { workspace = true, optional = true, default-features = false, features = [
     "runtime-tokio",
 ] }
+rcgen = { workspace = true }
 salvo_core = { workspace = true, features = ["http1", "http2"] }
+sha2 = { workspace = true }
 tokio = { workspace = true }
 tokio-rustls = { workspace = true, features = ["logging"] }
 tracing = { workspace = true }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["test"] }
+base64 = { workspace = true }
+rcgen = { workspace = true, features = ["x509-parser"] }
+reqwest = { workspace = true }
+salvo_core = { workspace = true, features = ["test", "server"] }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+x509-parser = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,11 +1,13 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
+use std::path::Path;
 
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
+use salvo_core::fs::extension_content_encoding;
 use salvo_core::handler::Handler;
 use salvo_core::http::header::{
-    ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, IF_RANGE, RANGE,
+    ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, IF_RANGE, RANGE,
     X_CONTENT_TYPE_OPTIONS,
 };
 use salvo_core::http::headers::{
@@ -58,7 +60,7 @@ pub fn render_embedded_file(
     mime: Option<Mime>,
 ) {
     let EmbeddedFile { data, metadata } = file;
-    render_embedded_data(data, &metadata, req, res, mime);
+    render_embedded_data(data, &metadata, req, res, mime, req.uri().path());
 }
 
 /// Returns whether an `If-None-Match` header value matches the given hash.
@@ -107,14 +109,38 @@ fn render_embedded_data(
     req: &Request,
     res: &mut Response,
     mime: Option<Mime>,
+    source_path: &str,
 ) {
+    let retrieval = req.method() == Method::GET || req.method() == Method::HEAD;
     if req.method() == Method::HEAD {
         res.take_body();
     }
+
+    // Some extensions describe an encoded representation, e.g. .svgz is SVG
+    // inside gzip. Use the resolved asset name for defaults and fallbacks, and
+    // preserve an explicit coding already configured by the caller. Do not
+    // install an inferred coding until this response actually describes the
+    // asset: a failed precondition or range can be rendered as plain HTML by
+    // the service's catcher.
+    let inferred_encoding = Path::new(source_path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .and_then(extension_content_encoding)
+        .filter(|_| !res.headers().contains_key(CONTENT_ENCODING));
+    let set_inferred_encoding = |res: &mut Response| {
+        if let Some(encoding) = inferred_encoding {
+            res.headers_mut()
+                .insert(CONTENT_ENCODING, HeaderValue::from_static(encoding));
+        }
+    };
+
     // Determine Content-Type once
     let content_type =
         if let Some(mut mime) = mime.or_else(|| mime_infer::from_path(req.uri().path()).first()) {
-            fill_mime_charset_if_need(&mut mime, &data);
+            // Encoded bytes cannot tell us the charset of the decoded text.
+            if inferred_encoding.is_none() && !res.headers().contains_key(CONTENT_ENCODING) {
+                fill_mime_charset_if_need(&mut mime, &data);
+            }
             mime
         } else {
             mime::APPLICATION_OCTET_STREAM
@@ -159,11 +185,19 @@ fn render_embedded_data(
 
     let not_modified = req
         .headers()
-        .get(IF_NONE_MATCH)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| if_none_match_matches(value, &hash));
+        .get_all(IF_NONE_MATCH)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .any(|value| if_none_match_matches(value, &hash));
     if not_modified {
-        res.status_code(StatusCode::NOT_MODIFIED);
+        if retrieval {
+            set_inferred_encoding(res);
+        }
+        res.status_code(if retrieval {
+            StatusCode::NOT_MODIFIED
+        } else {
+            StatusCode::PRECONDITION_FAILED
+        });
         return;
     }
 
@@ -173,6 +207,7 @@ fn render_embedded_data(
 
     let total_data_len = data.len() as u64;
     if req.method() == Method::HEAD {
+        set_inferred_encoding(res);
         res.status_code(StatusCode::OK);
         res.headers_mut()
             .typed_insert(ContentLength(total_data_len));
@@ -188,7 +223,10 @@ fn render_embedded_data(
         || req_headers.typed_get::<IfRange>().is_some_and(|if_range| {
             !if_range.is_modified(res.headers().typed_get::<ETag>().as_ref(), None)
         });
-    if let Some(range_header_val) = req_headers.get(RANGE).filter(|_| range_allowed) {
+    if let Some(range_header_val) = req_headers
+        .get(RANGE)
+        .filter(|_| req.method() == Method::GET && range_allowed)
+    {
         if let Ok(range_str) = range_header_val.to_str() {
             match HttpRange::parse(range_str, total_data_len) {
                 Ok(ranges) if !ranges.is_empty() => {
@@ -212,6 +250,11 @@ fn render_embedded_data(
                         }
                     }
                 }
+                // RFC 9110 section 14.2 requires ignoring unknown range units.
+                Err(_)
+                    if range_str
+                        .split_once('=')
+                        .is_some_and(|(unit, _)| !unit.eq_ignore_ascii_case("bytes")) => {}
                 Err(_) => {
                     // HttpRange::parse returns Err if the range is unsatisfiable or malformed.
                     res.headers_mut()
@@ -238,6 +281,7 @@ fn render_embedded_data(
                 .checked_add(length)
                 .expect("Range calculation overflowed");
             if end_offset <= total_data_len {
+                set_inferred_encoding(res);
                 // Check to prevent panic on slice
                 let partial_data_vec = data[offset as usize..end_offset as usize].to_vec();
                 res.headers_mut().typed_insert(ContentLength(length));
@@ -258,6 +302,7 @@ fn render_embedded_data(
         }
     } else {
         // Serve full content
+        set_inferred_encoding(res);
         res.status_code(StatusCode::OK); // Ensure OK status
         res.headers_mut()
             .typed_insert(ContentLength(total_data_len));
@@ -352,7 +397,7 @@ where
         match embedded_file {
             Some(file) => {
                 let mime = mime_infer::from_path(&*key_path).first();
-                render_embedded_file(file, req, res, mime);
+                render_embedded_data(file.data, &file.metadata, req, res, mime, &key_path);
             }
             None => {
                 res.status_code(StatusCode::NOT_FOUND);
@@ -379,7 +424,14 @@ impl Handler for EmbeddedFileHandler {
         res: &mut Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        render_embedded_data(self.0.data.clone(), &self.0.metadata, req, res, None);
+        render_embedded_data(
+            self.0.data.clone(),
+            &self.0.metadata,
+            req,
+            res,
+            None,
+            req.uri().path(),
+        );
     }
 }
 

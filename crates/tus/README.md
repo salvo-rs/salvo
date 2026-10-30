@@ -18,7 +18,7 @@
 <a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
 <br>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
-<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://img.shields.io/docsrs/salvo.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
 <a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
@@ -55,6 +55,17 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - **TUS protocol version**: 1.0.0
 - **Extensions**: creation, creation-with-upload, creation-defer-length, termination
 - **Built-in handlers**: OPTIONS, POST, HEAD, PATCH, DELETE, GET
+
+The Concatenation extension is not implemented. Custom `DataStore` backends
+cannot enable it by returning `Extension::Concatenation`: it is omitted from
+`Tus-Extension`, and creation requests containing `Upload-Concat` are rejected.
+
+Clients unable to send PATCH or DELETE can use `X-HTTP-Method-Override`.
+The override is resolved during tus endpoint selection, before service and router
+hoops run. Hoops and lifecycle hooks see the effective method; use hoops for
+method-based authorization. Filters outside the tus router still see the wire
+method. Malformed or repeated override headers are rejected with 400; unknown
+methods receive 405. Requests outside the tus endpoints are unchanged.
 
 ## TUS Protocol Endpoints
 
@@ -126,6 +137,51 @@ let tus = Tus::new()
         Ok(UploadFinishPatch::default())
     });
 ```
+
+## Binary Upload Metadata and Migration
+
+`Metadata` stores decoded values as `HashMap<String, Option<Vec<u8>>>` so arbitrary
+binary values survive creation, persistence, and `HEAD` responses. TUS headers
+continue to use base64. `None` represents a key without a value;
+`Some(Vec::new())` represents an explicitly empty value.
+
+**Breaking Rust API change:** metadata values were previously `Option<String>`.
+Convert text when inserting it, and use `get_text` when a field is expected to be
+UTF-8:
+
+```rust
+use salvo::tus::Metadata;
+
+let mut metadata = Metadata::default();
+metadata.insert("filename".to_owned(), Some("report.pdf".as_bytes().to_vec()));
+metadata.insert("checksum".to_owned(), Some(vec![0xff, 0, 0x80]));
+metadata.insert("flag".to_owned(), None);
+
+assert_eq!(metadata.get_text("filename").unwrap(), Some("report.pdf"));
+assert!(metadata.get_text("checksum").is_err());
+```
+
+For an owned `String`, replace `Some(text)` with `Some(text.into_bytes())`.
+`get_text` returns an error for invalid UTF-8 without changing the raw bytes;
+missing keys and valueless keys return `Ok(None)`, while an explicitly empty
+value returns `Ok(Some(""))`. Direct map access now returns byte vectors.
+Custom `DataStore` implementations, upload hooks, naming callbacks, and
+`UploadPatch` producers must adapt their metadata values and persistence formats.
+The built-in filename and filetype hints use strict UTF-8: binary values remain
+metadata but are ignored for naming.
+
+`DiskStore` reads both the previous JSON string values and new JSON byte arrays
+inside its separated `metadata` directory. New records and subsequent updates
+write arrays, including for valid UTF-8 text; valueless keys remain `null` and
+explicitly empty values use `[]`. Reading an old record alone does not rewrite it.
+Previously corrupted binary values cannot be reconstructed from old strings.
+
+**Disk format downgrade limit:** older versions cannot read the new byte arrays.
+Stop older readers and writers before upgrading a shared store. Keep a backup
+before the first new write. Downgrading requires an explicit conversion of
+valid UTF-8 values back to strings; arbitrary binary values cannot be represented
+losslessly in the old format. This compatibility reader does not import legacy
+flat-layout uploads or change the existing directory trust boundary.
 
 ## Storage Backends
 

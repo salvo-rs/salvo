@@ -7,7 +7,7 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
 use salvo_core::BoxedError;
-use salvo_core::http::body::{Body, BytesFrame, HyperBody};
+use salvo_core::http::body::{Body, BytesFrame, HyperBody, ResBody};
 use tokio::task::{JoinHandle, spawn_blocking};
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
@@ -25,6 +25,17 @@ pub(super) struct EncodeStream<B> {
     offload: bool,
     trailers: Option<BytesFrame>,
     encoding: Option<JoinHandle<IoResult<Encoded>>>,
+}
+
+impl<B> Drop for EncodeStream<B> {
+    fn drop(&mut self) {
+        if let Some(encoding) = &self.encoding {
+            // Dropping a JoinHandle alone detaches its task. Abort queued work
+            // when the response is no longer needed; a blocking task that has
+            // already started must still finish on its worker thread.
+            encoding.abort();
+        }
+    }
 }
 
 impl<B> EncodeStream<B> {
@@ -106,6 +117,11 @@ impl EncodeStream<HyperBody> {
             .map_err(IoError::other)
     }
 }
+impl EncodeStream<ResBody> {
+    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<BytesFrame>>> {
+        Body::poll_frame(Pin::new(&mut self.body), cx).map_ok(BytesFrame)
+    }
+}
 impl EncodeStream<Option<Bytes>> {
     fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<BytesFrame>>> {
         Poll::Ready(self.body.take().map(|chunk| Ok(BytesFrame::data(chunk))))
@@ -176,6 +192,7 @@ macro_rules! impl_stream {
 impl_stream!(BoxStream<'static, Result<Bytes, BoxedError>>);
 impl_stream!(BoxStream<'static, Result<BytesFrame, BoxedError>>);
 impl_stream!(HyperBody);
+impl_stream!(ResBody);
 impl_stream!(Option<Bytes>);
 impl_stream!(VecDeque<Bytes>);
 #[cfg(test)]
@@ -349,6 +366,66 @@ mod tests {
     #[test]
     fn encode_in_place_threshold_covers_json_chunks() {
         const _: () = assert!(MAX_CHUNK_SIZE_ENCODE_IN_PLACE >= 8 * 1024);
+    }
+
+    #[test]
+    fn dropping_stream_aborts_queued_compression_work() {
+        struct Input {
+            dropped: Option<tokio::sync::oneshot::Sender<()>>,
+        }
+
+        impl AsRef<[u8]> for Input {
+            fn as_ref(&self) -> &[u8] {
+                b"queued response body"
+            }
+        }
+
+        impl Drop for Input {
+            fn drop(&mut self) {
+                let _ = self.dropped.take().unwrap().send(());
+            }
+        }
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            for algo in algorithms() {
+                let (release, blocked) = std::sync::mpsc::channel();
+                let (started, wait_started) = tokio::sync::oneshot::channel();
+                let blocker = spawn_blocking(move || {
+                    started.send(()).unwrap();
+                    // Dropping `release` on assertion failure also unblocks us.
+                    let _ = blocked.recv();
+                });
+                wait_started.await.unwrap();
+
+                let (dropped, wait_dropped) = tokio::sync::oneshot::channel();
+                let input = Bytes::from_owner(Input {
+                    dropped: Some(dropped),
+                });
+                let executions = Arc::new(AtomicUsize::new(0));
+                let count = executions.clone();
+                let mut stream = EncodeStream::new(algo, CompressionLevel::Default, None::<Bytes>);
+                // Observe whether the owned task runs without doing unnecessary
+                // compression. Both chunk and finalization work use this slot.
+                stream.encoding = Some(spawn_blocking(move || {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    Ok((None, input))
+                }));
+                drop(stream);
+
+                release.send(()).unwrap();
+                blocker.await.unwrap();
+                tokio::time::timeout(std::time::Duration::from_secs(5), wait_dropped)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(executions.load(Ordering::SeqCst), 0);
+            }
+        });
     }
 
     #[cfg(feature = "gzip")]

@@ -103,7 +103,11 @@ pub enum Extension {
     CreationWithUpload,
     /// Creation-defer-length extension.
     CreationDeferLength,
-    /// Concatenation extension.
+    /// Reserved concatenation extension.
+    ///
+    /// The tus handlers do not implement partial or final uploads. This value
+    /// is omitted from capability responses, and `Upload-Concat` creation
+    /// requests are rejected even when a custom backend declares it.
     Concatenation,
     /// Termination extension.
     Termination,
@@ -151,6 +155,9 @@ impl Extension {
 #[async_trait]
 pub trait DataStore: Send + Sync + 'static {
     /// Returns the tus extensions supported by this storage backend.
+    ///
+    /// Only extensions also implemented by the tus handlers can be served.
+    /// In particular, [`Extension::Concatenation`] is currently unsupported.
     fn extensions(&self) -> HashSet<Extension> {
         HashSet::new()
     }
@@ -190,7 +197,11 @@ pub trait DataStore: Send + Sync + 'static {
     async fn delete_expired(&self) -> TusResult<u32> {
         Ok(0)
     }
-    /// Returns the upload expiration duration configured by this backend.
+    /// Returns the expiration duration for unfinished uploads.
+    ///
+    /// Completed resource retention is a separate backend policy. The tus
+    /// handlers stop applying this upload timeout once the offset equals the
+    /// declared upload length.
     fn get_expiration(&self) -> Option<std::time::Duration> {
         None
     }
@@ -341,7 +352,7 @@ mod tests {
         use crate::handlers::Metadata;
 
         let mut map = HashMap::new();
-        map.insert("filename".to_owned(), Some("test.txt".to_owned()));
+        map.insert("filename".to_owned(), Some("test.txt".as_bytes().to_vec()));
 
         let info = UploadInfo {
             id: "test".to_owned(),
@@ -354,7 +365,10 @@ mod tests {
 
         assert!(info.metadata.is_some());
         let metadata = info.metadata.unwrap();
-        assert_eq!(metadata.get("filename"), Some(&Some("test.txt".to_owned())));
+        assert_eq!(
+            metadata.get("filename"),
+            Some(&Some("test.txt".as_bytes().to_vec()))
+        );
     }
 
     #[test]

@@ -18,7 +18,7 @@
 <a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
 <br>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
-<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://img.shields.io/docsrs/salvo.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
 <a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
@@ -76,6 +76,33 @@ async fn main() {
 ```
 
 Open `http://127.0.0.1:7878/swagger-ui` to inspect the generated API document.
+
+## Security scheme references
+
+Security schemes in components accept inline objects and Reference Objects, including
+references to another document. The builders preserve existing inline `SecurityScheme`,
+`ApiKey`, `OAuth2`, and `OpenIdConnect` inputs and also accept `Ref` or
+`RefOr<SecurityScheme>`:
+
+```rust
+use salvo_oapi::{Components, Ref, SecurityScheme};
+use salvo_oapi::security::{Http, HttpAuthScheme};
+
+let mut components = Components::new()
+    .add_security_scheme("Bearer", SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)))
+    .add_security_scheme("Shared", Ref::new("security.yaml#/components/securitySchemes/Bearer"));
+
+components.security_schemes.insert(
+    "Basic".into(),
+    SecurityScheme::Http(Http::new(HttpAuthScheme::Basic)).into(),
+);
+```
+
+`Components::security_schemes` now stores `RefOr<SecurityScheme>`. When migrating direct
+map writes, add `.into()` to inline values as above. When reading entries, match
+`RefOr::Type(scheme)` or `RefOr::Ref(reference)`. Custom wrapper types implementing
+`Into<SecurityScheme>` should first convert to `SecurityScheme` before calling either
+`add_security_scheme` or `extend_security_schemes`.
 
 ## Documentation & Resources
 

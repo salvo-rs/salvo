@@ -14,12 +14,10 @@ pub struct HttpRange {
     pub length: u64,
 }
 
-static PREFIX: &str = "bytes=";
-
 impl HttpRange {
     /// Parses and normalizes the value of an HTTP byte `Range` header.
     ///
-    /// `header` must use the `bytes` range unit, for example `bytes=0-9`.
+    /// `header` must use the case-insensitive `bytes` range unit, for example `bytes=0-9`.
     /// `size` is the complete representation length. Values above
     /// [`i64::MAX`] are treated as `i64::MAX`. Explicit end positions beyond
     /// the effective size are clamped, and suffix ranges are converted to
@@ -47,9 +45,12 @@ impl HttpRange {
         if header.is_empty() {
             return Ok(Vec::new());
         }
-        let Some(ranges_header) = header.strip_prefix(PREFIX) else {
+        let Some((unit, ranges_header)) = header.split_once('=') else {
             return Err(ParseError::InvalidRange);
         };
+        if !unit.eq_ignore_ascii_case("bytes") {
+            return Err(ParseError::InvalidRange);
+        }
 
         // Clamp to `i64::MAX`: the signed arithmetic below would otherwise wrap a
         // `size` above `i64::MAX` into a negative value and corrupt every bound.
@@ -149,6 +150,20 @@ mod tests {
     use super::*;
 
     struct T(&'static str, u64, Vec<HttpRange>);
+
+    #[test]
+    fn byte_range_unit_is_case_insensitive() {
+        for header in ["bytes=2-3", "BYTES=2-3", "bYtEs=2-3"] {
+            let ranges = HttpRange::parse(header, 10).unwrap();
+            assert_eq!(ranges.len(), 1);
+            assert_eq!((ranges[0].start, ranges[0].length), (2, 2));
+        }
+        // Parsing stays strict; response writers decide to ignore unknown units.
+        assert!(matches!(
+            HttpRange::parse("items=2-3", 10),
+            Err(ParseError::InvalidRange)
+        ));
+    }
 
     #[test]
     fn test_parse() {

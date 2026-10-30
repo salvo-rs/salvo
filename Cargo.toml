@@ -148,6 +148,7 @@ ulid = { version = "3", default-features = false }
 url = "2"
 uuid = "1"
 x509-parser = "0.18"
+xxhash-rust = "0.8.6"
 
 # Compress
 brotli = { version = "9", default-features = false }
