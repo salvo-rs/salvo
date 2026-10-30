@@ -23,7 +23,7 @@ async fn repeated_if_none_match_fields_share_combined_list_semantics() {
             .send(&service)
             .await;
         let etag = original.headers()["etag"].to_str().unwrap();
-        for method in [Method::GET, Method::HEAD] {
+        for method in [Method::GET, Method::HEAD, Method::POST] {
             for (values, expected) in [
                 (
                     vec!["\"stale\"".to_owned(), etag.to_owned()],
@@ -59,7 +59,11 @@ async fn repeated_if_none_match_fields_share_combined_list_semantics() {
                     split = split.add_header("if-none-match", value, false);
                 }
                 let mut split = split.send(&service).await;
-                assert_eq!(combined.status_code, Some(expected));
+                // POST's conditional status is owned by method handling. This
+                // invariant must hold with either implementation of that rule.
+                if method != Method::POST {
+                    assert_eq!(combined.status_code, Some(expected));
+                }
                 assert_eq!(split.status_code, combined.status_code);
                 assert_eq!(split.headers()["etag"], combined.headers()["etag"]);
                 assert_eq!(
