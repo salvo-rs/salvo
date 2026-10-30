@@ -5,7 +5,7 @@ exclude = ["todos-utoipa", "target", "temp"]
 
 [workspace.package]
 version = "0.1.0"
-authors = ["chrislearn <chris@acroidea.com>"]
+authors = ["Chris Young <chris@veco.id>"]
 edition = "2024"
 publish = false
 rust-version = "1.95"

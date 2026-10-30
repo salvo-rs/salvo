@@ -2,7 +2,7 @@
 name = "salvo_macros"
 version = { workspace = true }
 authors = [
-    "chrislearn <chris@acroidea.com>",
+    "Chris Young <chris@veco.id>",
     "driftluo <driftluo@foxmail.com>",
 ]
 edition = { workspace = true }

@@ -14,7 +14,7 @@ Security fixes are provided for the latest stable release line and the `main` br
 
 Please do not report security issues in public GitHub issues, pull requests, or discussions.
 
-Report vulnerabilities by email to [chris@acroidea.com](mailto:chris@acroidea.com). Include:
+Report vulnerabilities by email to [chris@veco.id](mailto:chris@veco.id). Include:
 
 - A clear description of the issue and affected components.
 - The Salvo version or commit you tested.

@@ -13,7 +13,7 @@ keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
 authors = [
     "Juha Kukkonen <juha7kukkonen@gmail.com>",
-    "chrislearn <chris@acroidea.com>",
+    "Chris Young <chris@veco.id>",
 ]
 
 [lib]
