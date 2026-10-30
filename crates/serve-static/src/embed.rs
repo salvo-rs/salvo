@@ -184,9 +184,10 @@ fn render_embedded_data(
 
     let not_modified = req
         .headers()
-        .get(IF_NONE_MATCH)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| if_none_match_matches(value, &hash));
+        .get_all(IF_NONE_MATCH)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .any(|value| if_none_match_matches(value, &hash));
     if not_modified {
         set_inferred_encoding(res);
         res.status_code(StatusCode::NOT_MODIFIED);
