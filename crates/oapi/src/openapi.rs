@@ -439,15 +439,15 @@ impl OpenApi {
         self
     }
 
-    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
+    /// Add a [`SecurityScheme`] or [`Ref`] to [`Components`] and return `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
-    /// [`SecurityScheme`].
+    /// scheme or reference.
     ///
     /// [requirement]: crate::SecurityRequirement
     #[must_use]
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         mut self,
         name: N,
         security_scheme: S,
@@ -459,7 +459,7 @@ impl OpenApi {
         self
     }
 
-    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    /// Add an iterator of [`SecurityScheme`]s or references to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the
@@ -470,7 +470,7 @@ impl OpenApi {
     pub fn extend_security_schemes<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecurityScheme>,
+        S: Into<RefOr<SecurityScheme>>,
     >(
         mut self,
         schemas: I,
@@ -1315,7 +1315,7 @@ mod tests {
         );
         doc.components.security_schemes.insert(
             "token_jwt".into(),
-            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")),
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")).into(),
         );
 
         let router = Router::with_path("/pets/{id}").get(get_pet_by_id);

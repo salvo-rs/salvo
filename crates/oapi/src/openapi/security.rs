@@ -8,7 +8,7 @@ use std::iter;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::PropMap;
+use crate::{PropMap, Ref, RefOr};
 
 /// OpenAPI [security requirement][security] object.
 ///
@@ -172,6 +172,30 @@ impl From<ApiKey> for SecurityScheme {
 impl From<OpenIdConnect> for SecurityScheme {
     fn from(open_id_connect: OpenIdConnect) -> Self {
         Self::OpenIdConnect(open_id_connect)
+    }
+}
+
+impl From<Ref> for RefOr<SecurityScheme> {
+    fn from(reference: Ref) -> Self {
+        Self::Ref(reference)
+    }
+}
+
+impl From<OAuth2> for RefOr<SecurityScheme> {
+    fn from(oauth2: OAuth2) -> Self {
+        Self::Type(oauth2.into())
+    }
+}
+
+impl From<ApiKey> for RefOr<SecurityScheme> {
+    fn from(api_key: ApiKey) -> Self {
+        Self::Type(api_key.into())
+    }
+}
+
+impl From<OpenIdConnect> for RefOr<SecurityScheme> {
+    fn from(open_id_connect: OpenIdConnect) -> Self {
+        Self::Type(open_id_connect.into())
     }
 }
 
