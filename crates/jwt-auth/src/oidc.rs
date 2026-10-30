@@ -620,7 +620,9 @@ pub(crate) fn decode_jwk(
                 );
                 return Err(JwtAuthError::InvalidJwk);
             }
-            DecodingKey::from_base64_secret(&params.value).ok()
+            // RFC 7518 section 6.4.1 encodes `k` as unpadded base64url.
+            // from_base64_secret instead expects standard, padded base64.
+            Some(DecodingKey::from_secret(&b64_decode(&params.value)?))
         }
         jsonwebtoken::jwk::AlgorithmParameters::OctetKeyPair(ref params) => {
             let der = b64_decode(&params.x)?;
@@ -675,6 +677,43 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn symmetric_jwk_uses_unpadded_base64url_key_material() {
+        let _ = crate::install_crypto_provider();
+        for (algorithm, secret) in [
+            (Algorithm::HS256, vec![1; 32]),
+            (Algorithm::HS384, vec![1; 48]),
+            (Algorithm::HS512, vec![1; 64]),
+            (Algorithm::HS256, vec![251; 33]),
+            (Algorithm::HS256, vec![255; 33]),
+        ] {
+            let jwk: Jwk = serde_json::from_value(json!({
+                "kty": "oct", "kid": "local-test", "alg": algorithm,
+                "k": URL_SAFE_NO_PAD.encode(&secret),
+            })).unwrap();
+            let token = jsonwebtoken::encode(
+                &jsonwebtoken::Header::new(algorithm),
+                &json!({"sub": "local-user", "exp": current_time() + 300}),
+                &jsonwebtoken::EncodingKey::from_secret(&secret),
+            ).unwrap();
+            let validation = Validation::new(algorithm);
+            assert!(matches!(decode_jwk(&jwk, &validation, false), Err(JwtAuthError::InvalidJwk)));
+            let (_, info) = decode_jwk(&jwk, &validation, true)
+                .expect("a standards-compliant symmetric JWK must be accepted when enabled");
+            assert_eq!(info.decode::<serde_json::Value>(&token).unwrap().claims["sub"], "local-user");
+        }
+    }
+
+    #[test]
+    fn symmetric_jwk_rejects_non_base64url_key_material() {
+        for key in ["A", "AA==", "AA+A", "AA/A", "not base64url"] {
+            let jwk: Jwk = serde_json::from_value(json!({
+                "kty": "oct", "kid": "local-test", "alg": "HS256", "k": key,
+            })).unwrap();
+            assert!(decode_jwk(&jwk, &Validation::new(Algorithm::HS256), true).is_err());
+        }
+    }
 
     fn test_http_client() -> HyperClient {
         let tls = rustls::ClientConfig::builder_with_provider(default_rustls_crypto_provider())
