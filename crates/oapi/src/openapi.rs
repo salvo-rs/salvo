@@ -683,9 +683,12 @@ impl OpenApi {
                     mut components,
                 } = creator();
                 operation.tags.extend(node.metadata.tags.iter().cloned());
-                operation
-                    .securities
-                    .extend(node.metadata.securities.iter().cloned());
+                if !node.metadata.securities.is_empty() {
+                    operation
+                        .securities
+                        .get_or_insert_default()
+                        .extend(node.metadata.securities.iter().cloned());
+                }
                 let not_exist_parameters = operation
                     .parameters
                     .iter_inline()
