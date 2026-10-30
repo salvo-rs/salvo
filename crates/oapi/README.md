@@ -77,6 +77,33 @@ async fn main() {
 
 Open `http://127.0.0.1:7878/swagger-ui` to inspect the generated API document.
 
+## Security scheme references
+
+Security schemes in components accept inline objects and Reference Objects, including
+references to another document. The builders preserve existing inline `SecurityScheme`,
+`ApiKey`, `OAuth2`, and `OpenIdConnect` inputs and also accept `Ref` or
+`RefOr<SecurityScheme>`:
+
+```rust
+use salvo_oapi::{Components, Ref, SecurityScheme};
+use salvo_oapi::security::{Http, HttpAuthScheme};
+
+let mut components = Components::new()
+    .add_security_scheme("Bearer", SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)))
+    .add_security_scheme("Shared", Ref::new("security.yaml#/components/securitySchemes/Bearer"));
+
+components.security_schemes.insert(
+    "Basic".into(),
+    SecurityScheme::Http(Http::new(HttpAuthScheme::Basic)).into(),
+);
+```
+
+`Components::security_schemes` now stores `RefOr<SecurityScheme>`. When migrating direct
+map writes, add `.into()` to inline values as above. When reading entries, match
+`RefOr::Type(scheme)` or `RefOr::Ref(reference)`. Custom wrapper types implementing
+`Into<SecurityScheme>` should first convert to `SecurityScheme` before calling either
+`add_security_scheme` or `extend_security_schemes`.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-oapi)
