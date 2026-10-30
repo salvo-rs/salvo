@@ -111,6 +111,7 @@ fn render_embedded_data(
     mime: Option<Mime>,
     source_path: &str,
 ) {
+    let retrieval = req.method() == Method::GET || req.method() == Method::HEAD;
     if req.method() == Method::HEAD {
         res.take_body();
     }
@@ -188,8 +189,14 @@ fn render_embedded_data(
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| if_none_match_matches(value, &hash));
     if not_modified {
-        set_inferred_encoding(res);
-        res.status_code(StatusCode::NOT_MODIFIED);
+        if retrieval {
+            set_inferred_encoding(res);
+        }
+        res.status_code(if retrieval {
+            StatusCode::NOT_MODIFIED
+        } else {
+            StatusCode::PRECONDITION_FAILED
+        });
         return;
     }
 
@@ -215,7 +222,10 @@ fn render_embedded_data(
         || req_headers.typed_get::<IfRange>().is_some_and(|if_range| {
             !if_range.is_modified(res.headers().typed_get::<ETag>().as_ref(), None)
         });
-    if let Some(range_header_val) = req_headers.get(RANGE).filter(|_| range_allowed) {
+    if let Some(range_header_val) = req_headers
+        .get(RANGE)
+        .filter(|_| req.method() == Method::GET && range_allowed)
+    {
         if let Ok(range_str) = range_header_val.to_str() {
             match HttpRange::parse(range_str, total_data_len) {
                 Ok(ranges) if !ranges.is_empty() => {

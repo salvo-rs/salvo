@@ -104,8 +104,10 @@ impl Handler for StaticFile {
             builder = builder.preload_threshold(0);
         }
         match builder.build().await {
-            Ok(file) if req.method() == Method::HEAD => file.send_head(req.headers(), res).await,
-            Ok(file) => file.send(req.headers(), res).await,
+            Ok(file) => {
+                file.send_with_method(req.method(), req.headers(), res)
+                    .await
+            }
             Err(_) => {
                 res.render(StatusError::not_found());
             }
