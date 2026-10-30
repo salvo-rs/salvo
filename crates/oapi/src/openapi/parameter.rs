@@ -224,8 +224,13 @@ impl Parameter {
         self.location(parameter_in)
     }
 
-    /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not
-    /// set.
+    /// Merge values from another [`Parameter`] with the same name and location.
+    ///
+    /// Fields supplied by `other` overwrite the corresponding fields in `self`.
+    /// A supplied schema or nonempty content map replaces the complete value representation,
+    /// keeping `schema` and `content` mutually exclusive. When neither is supplied, the
+    /// existing representation is preserved. Returns `false` without changing `self` if
+    /// the name or location differs.
     pub fn merge(&mut self, other: Self) -> bool {
         let Self {
             name,
@@ -264,8 +269,12 @@ impl Parameter {
         if let Some(allow_empty_value) = allow_empty_value {
             self.allow_empty_value = Some(allow_empty_value);
         }
-        if let Some(schema) = schema {
+        if !content.is_empty() {
+            self.schema = None;
+            self.content = content;
+        } else if let Some(schema) = schema {
             self.schema = Some(schema);
+            self.content.clear();
         }
         if let Some(style) = style {
             self.style = Some(style);
@@ -282,10 +291,6 @@ impl Parameter {
         for (k, v) in examples {
             self.examples.insert(k, v);
         }
-        for (k, v) in content {
-            self.content.insert(k, v);
-        }
-
         self.extensions.extend(extensions);
         true
     }
@@ -318,9 +323,12 @@ impl Parameter {
     }
 
     /// Add or change [`Parameter`]s schema.
+    ///
+    /// Clears any previously configured [`Parameter::content`].
     #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = Some(component.into());
+        self.content.clear();
         self
     }
 
@@ -380,13 +388,14 @@ impl Parameter {
         self
     }
 
-    /// Insert a single media-type entry into [`Parameter::content`].
+    /// Set a single media-type entry in [`Parameter::content`].
     ///
     /// Per spec the `content` map must contain exactly one entry. Mutually exclusive with
-    /// [`Parameter::schema`].
+    /// [`Parameter::schema`]. Replaces previously configured content and clears the schema.
     #[must_use]
     pub fn content<S: Into<String>, C: Into<Content>>(mut self, media_type: S, content: C) -> Self {
-        self.content.insert(media_type.into(), content.into());
+        self.schema = None;
+        self.content = PropMap::from([(media_type.into(), content.into())]);
         self
     }
 
