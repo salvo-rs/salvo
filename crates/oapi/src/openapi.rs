@@ -688,8 +688,7 @@ impl OpenApi {
                     .extend(node.metadata.securities.iter().cloned());
                 let not_exist_parameters = operation
                     .parameters
-                    .0
-                    .iter()
+                    .iter_inline()
                     .filter(|p| {
                         p.parameter_in == ParameterIn::Path
                             && !path_parameter_names.contains(&p.name)
@@ -705,7 +704,7 @@ impl OpenApi {
                         .iter()
                         .filter(|name| {
                             !name.starts_with('*')
-                                && !operation.parameters.0.iter().any(|parameter| {
+                                && !operation.parameters.iter_inline().any(|parameter| {
                                     parameter.name == **name
                                         && parameter.parameter_in == ParameterIn::Path
                                 })
@@ -1506,8 +1505,7 @@ mod tests {
         let by_name = |name: &str| {
             operation
                 .parameters
-                .0
-                .iter()
+                .iter_inline()
                 .find(|p| p.name == name)
                 .unwrap_or_else(|| panic!("parameter `{name}` should exist"))
         };
@@ -1557,13 +1555,12 @@ mod tests {
             .expect("get operation should exist");
         let names: Vec<&str> = operation
             .parameters
-            .0
-            .iter()
+            .iter_inline()
             .map(|p| p.name.as_str())
             .collect();
 
         // container singular alias honored: every parameter is in `header`.
-        for param in &operation.parameters.0 {
+        for param in operation.parameters.iter_inline() {
             assert_eq!(
                 param.parameter_in,
                 ParameterIn::Header,

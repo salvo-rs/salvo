@@ -16,6 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Breaking:** OpenAPI `Parameters.0` and its owned iterator now contain
+  `RefOr<Parameter>` so path and operation parameter lists can retain references.
+  Existing inline builders still accept `Parameter`; use `Parameters::from(vec)`
+  instead of `Parameters(vec)` for a `Vec<Parameter>`, and match `RefOr` when
+  reading the public list or use `iter_inline` to inspect inline entries.
+
 - **Breaking:** JWT finders now use `Option<Vec<Method>>` for their public
   `allowed_methods` field: `None` accepts every method, including extensions;
   `Some(methods)` restricts extraction to that list. Wrap direct field assignments
@@ -32,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Check every root workspace target and feature in the Rust 1.95 MSRV CI job.
 
 ### Fixed
+
+- Read and write OpenAPI references in path and operation parameter lists,
+  preserving local and external references and their sibling metadata.
 
 - Keep OpenAPI parameter `schema` and `content` mutually exclusive when merging
   documents or using parameter builders. Incoming content replaces the complete

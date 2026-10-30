@@ -1093,8 +1093,9 @@ impl ComposeSchema for serde_json::value::RawValue {
 /// ```
 /// [derive]: derive.ToParameters.html
 pub trait ToParameters<'de>: Extractible<'de> {
-    /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros`
-    /// library to provide OpenAPI parameter information for the endpoint using the parameters.
+    /// Provide inline parameters or references to the caller. The result is used in
+    /// `salvo-oapi-macros` library to provide OpenAPI parameter information for the endpoint
+    /// using the parameters.
     fn to_parameters(components: &mut Components) -> Parameters;
 }
 

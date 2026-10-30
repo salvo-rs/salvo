@@ -6,7 +6,9 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Operation, Operations, Parameter, Parameters, PathMap, PropMap, Server, Servers};
+use super::{
+    Operation, Operations, Parameter, Parameters, PathMap, PropMap, RefOr, Server, Servers,
+};
 
 /// Implements [OpenAPI Path Object][paths] types.
 ///
@@ -297,10 +299,15 @@ impl PathItem {
         self
     }
 
-    /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
+    /// Set the inline parameters or references common to all operations in this path.
     #[must_use]
-    pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
-        self.parameters = Parameters(parameters.into_iter().collect());
+    pub fn parameters<I, P>(mut self, parameters: I) -> Self
+    where
+        I: IntoIterator<Item = P>,
+        P: Into<RefOr<Parameter>>,
+    {
+        self.parameters = Parameters::new();
+        self.parameters.extend(parameters);
         self
     }
 
