@@ -11,8 +11,6 @@ use crate::{Deprecated, PropMap, RefOr, Schema, SchemaType, Xml};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum ArrayItems {
-    /// Defines [`Array::items`] as [`RefOr::Type`]. This is the default for [`Array`].
-    RefOrSchema(Box<RefOr<Schema>>),
     /// Defines [`Array::items`] as `false` indicating that no extra items are allowed to the
     /// [`Array`]. This can be used together with [`Array::prefix_items`] to disallow [additional
     /// items][additional_items] in [`Array`].
@@ -20,6 +18,9 @@ pub enum ArrayItems {
     /// [additional_items]: <https://json-schema.org/understanding-json-schema/reference/array#additionalitems>
     #[serde(with = "array_items_false")]
     False,
+    /// Defines [`Array::items`] as a schema, including a boolean schema. This is the default
+    /// for [`Array`]. Boolean `false` is deserialized as [`ArrayItems::False`].
+    RefOrSchema(Box<RefOr<Schema>>),
 }
 
 impl Default for ArrayItems {
