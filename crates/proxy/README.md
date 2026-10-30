@@ -18,7 +18,7 @@
 <a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
 <br>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
-<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://img.shields.io/docsrs/salvo.svg" /></a>
 <a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
 <a href="https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.95%2B-blue" /></a>
@@ -109,7 +109,7 @@ Query strings and client error messages are excluded because they can contain
 signed URLs, tokens, or other credentials. Custom clients can add their own
 sanitized diagnostics when more detail is required.
 
-[![Docs](https://docs.rs/salvo-proxy/badge.svg)](https://docs.rs/salvo-proxy)
+[![Docs](https://img.shields.io/docsrs/salvo-proxy.svg)](https://docs.rs/salvo-proxy)
 
 ## ☕ Donate
 
