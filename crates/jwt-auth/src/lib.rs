@@ -216,7 +216,7 @@ pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::jwt_auth::auth_token";
 /// key used to insert auth error to depot.
 pub const JWT_AUTH_ERROR_KEY: &str = "::salvo::jwt_auth::auth_error";
 
-const ALL_METHODS: [Method; 10] = [
+const STANDARD_METHODS: [Method; 10] = [
     Method::GET,
     Method::POST,
     Method::PUT,
@@ -731,8 +731,7 @@ mod tests {
     #[test]
     fn test_header_finder_new() {
         let finder = HeaderFinder::new();
-        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
-        assert!(finder.allowed_methods.contains(&Method::QUERY));
+        assert!(finder.allowed_methods.is_none());
         assert_eq!(finder.header_names.len(), 1); // Authorization
     }
 
@@ -749,9 +748,21 @@ mod tests {
     #[test]
     fn test_header_finder_allowed_methods() {
         let finder = HeaderFinder::new().allowed_methods(vec![Method::GET, Method::POST]);
-        assert_eq!(finder.allowed_methods.len(), 2);
-        assert!(finder.allowed_methods.contains(&Method::GET));
-        assert!(finder.allowed_methods.contains(&Method::POST));
+        assert_eq!(finder.allowed_methods.as_ref().unwrap().len(), 2);
+        assert!(
+            finder
+                .allowed_methods
+                .as_ref()
+                .unwrap()
+                .contains(&Method::GET)
+        );
+        assert!(
+            finder
+                .allowed_methods
+                .as_ref()
+                .unwrap()
+                .contains(&Method::POST)
+        );
     }
 
     #[test]
@@ -777,7 +788,7 @@ mod tests {
     fn test_query_finder_new() {
         let finder = QueryFinder::new("token");
         assert_eq!(finder.query_name, "token");
-        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
+        assert!(finder.allowed_methods.is_none());
     }
 
     #[test]
@@ -795,8 +806,14 @@ mod tests {
     #[test]
     fn test_query_finder_allowed_methods() {
         let finder = QueryFinder::new("token").allowed_methods(vec![Method::GET]);
-        assert_eq!(finder.allowed_methods.len(), 1);
-        assert!(finder.allowed_methods.contains(&Method::GET));
+        assert_eq!(finder.allowed_methods.as_ref().unwrap().len(), 1);
+        assert!(
+            finder
+                .allowed_methods
+                .as_ref()
+                .unwrap()
+                .contains(&Method::GET)
+        );
     }
 
     // ==================== CookieFinder Tests ====================
@@ -805,20 +822,20 @@ mod tests {
     fn test_cookie_finder_new() {
         let finder = CookieFinder::new("session");
         assert_eq!(finder.cookie_name, "session");
-        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
+        assert!(finder.allowed_methods.is_none());
     }
 
     #[test]
     fn test_cookie_finder_allowed_methods() {
         let finder = CookieFinder::new("jwt").allowed_methods(vec![Method::GET, Method::POST]);
-        assert_eq!(finder.allowed_methods.len(), 2);
+        assert_eq!(finder.allowed_methods.as_ref().unwrap().len(), 2);
     }
 
     #[test]
     fn test_cookie_finder_mut_methods() {
         let mut finder = CookieFinder::new("token");
         finder.allowed_methods_mut().clear();
-        assert!(finder.allowed_methods.is_empty());
+        assert!(finder.allowed_methods.as_ref().unwrap().is_empty());
     }
 
     // ==================== FormFinder Tests ====================
@@ -827,14 +844,20 @@ mod tests {
     fn test_form_finder_new() {
         let finder = FormFinder::new("token");
         assert_eq!(finder.field_name, "token");
-        assert_eq!(finder.allowed_methods.len(), ALL_METHODS.len());
+        assert!(finder.allowed_methods.is_none());
     }
 
     #[test]
     fn test_form_finder_allowed_methods() {
         let finder = FormFinder::new("access_token").allowed_methods(vec![Method::POST]);
-        assert_eq!(finder.allowed_methods.len(), 1);
-        assert!(finder.allowed_methods.contains(&Method::POST));
+        assert_eq!(finder.allowed_methods.as_ref().unwrap().len(), 1);
+        assert!(
+            finder
+                .allowed_methods
+                .as_ref()
+                .unwrap()
+                .contains(&Method::POST)
+        );
     }
 
     // ==================== JwtAuthState Tests ====================
