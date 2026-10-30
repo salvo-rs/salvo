@@ -37,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
 - Check every root workspace target and feature in the Rust 1.95 MSRV CI job.
 
+- Import OpenAPI documents that omit the optional `paths` field, including
+  documents containing only reusable components or incoming webhooks.
+
 ### Fixed
 
 - Read and write OpenAPI references in path and operation parameter lists,

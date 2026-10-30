@@ -112,7 +112,11 @@ pub struct OpenApi {
 
     /// Available paths and operations for the API.
     ///
+    /// Documents that only describe components or webhooks can omit this field;
+    /// it is deserialized as an empty collection.
+    ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
+    #[serde(default)]
     pub paths: Paths,
 
     /// Incoming webhooks that may be received as part of this API.
