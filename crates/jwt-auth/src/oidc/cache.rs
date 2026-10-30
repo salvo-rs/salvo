@@ -25,7 +25,7 @@ pub struct CachePolicy {
     /// The amount of time the stale JWKS data can be used while it is being revalidated.
     pub stale_while_revalidate: Option<Duration>,
     /// The amount of time the stale JWKS data should be valid for if we are unable to re-validate it from the URL.
-    /// Minimum Value: 60 Seconds
+    /// Defaults to 60 seconds. An explicit zero disables stale-on-error use.
     pub stale_if_error: Option<Duration>,
 }
 
@@ -33,11 +33,29 @@ impl CachePolicy {
     /// Create a new cache policy from the header value of the Cache-Control header
     #[must_use]
     pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
+        Self::from_header_values(value)
+    }
+
+    /// Creates a policy from all Cache-Control field values in their received order.
+    ///
+    /// Repeated field lines are combined with commas before parsing, preserving
+    /// quoted extension arguments and opaque bytes. No values yields the default policy.
+    #[must_use]
+    pub fn from_header_values<'a>(values: impl IntoIterator<Item = &'a HeaderValue>) -> Self {
         // Initialize the default config of polling every second
         let mut config = Self::default();
-
-        if let Some(value) = value {
-            config.parse_bytes(value.as_bytes());
+        let mut values = values.into_iter();
+        if let Some(first) = values.next() {
+            if let Some(second) = values.next() {
+                let mut combined = first.as_bytes().to_vec();
+                for value in std::iter::once(second).chain(values) {
+                    combined.push(b',');
+                    combined.extend_from_slice(value.as_bytes());
+                }
+                config.parse_bytes(&combined);
+            } else {
+                config.parse_bytes(first.as_bytes());
+            }
         }
         config
     }
