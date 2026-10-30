@@ -684,12 +684,9 @@ impl Handler for StaticDir {
                 (builder, varies_on_accept_encoding)
             };
             if let Ok(named_file) = builder.build().await {
-                let headers = req.headers();
-                if req.method() == Method::HEAD {
-                    named_file.send_head(headers, res).await;
-                } else {
-                    named_file.send(headers, res).await;
-                }
+                named_file
+                    .send_with_method(req.method(), req.headers(), res)
+                    .await;
                 if varies_on_accept_encoding {
                     append_vary_header(res.headers_mut(), "accept-encoding");
                 }
