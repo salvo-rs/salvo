@@ -138,6 +138,12 @@ pub fn empty() -> Schema {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
+    /// A boolean JSON Schema: `true` accepts every value and `false` rejects every value.
+    ///
+    /// Boolean schemas are supported by the OpenAPI 3.1 and 3.2 JSON Schema dialects.
+    /// This differs from `{"type": "boolean"}`, which describes boolean instance values.
+    Boolean(bool),
+
     // Try compositions before the permissive object fallback, including when a
     // composition declares an explicit `type` alongside its applicator.
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
@@ -168,6 +174,18 @@ pub enum Schema {
 impl Default for Schema {
     fn default() -> Self {
         Self::Object(Default::default())
+    }
+}
+
+impl From<bool> for Schema {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+
+impl From<bool> for RefOr<Schema> {
+    fn from(value: bool) -> Self {
+        Self::Type(Schema::Boolean(value))
     }
 }
 
@@ -265,10 +283,10 @@ fn is_false(value: &bool) -> bool {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum AdditionalProperties<T> {
-    /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
-    RefOr(RefOr<T>),
     /// Use _`AdditionalProperties::FreeForm(true)`_ when any value is allowed in the map.
     FreeForm(bool),
+    /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
+    RefOr(RefOr<T>),
 }
 
 impl<T> From<RefOr<T>> for AdditionalProperties<T> {
