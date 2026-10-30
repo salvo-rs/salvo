@@ -1533,16 +1533,26 @@ impl Request {
     }
 
     /// Parse headers as type `T` from request.
+    ///
+    /// Repeated values are grouped by header name. Sequence fields receive all
+    /// values in their stored order; scalar fields use the first value, as with
+    /// [`Request::header`]. Values are not split on commas.
     #[inline]
     pub fn parse_headers<'de, T>(&'de mut self) -> ParseResult<T>
     where
         T: Deserialize<'de>,
     {
-        let iter = self
-            .headers()
-            .iter()
-            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()));
-        from_str_map(iter).map_err(ParseError::Deserialize)
+        let headers = self.headers();
+        let iter = headers.keys().map(|name| {
+            (
+                name.as_str(),
+                headers
+                    .get_all(name)
+                    .iter()
+                    .map(|value| value.to_str().unwrap_or_default()),
+            )
+        });
+        from_str_multi_map(iter).map_err(ParseError::Deserialize)
     }
 
     cfg_feature! {
