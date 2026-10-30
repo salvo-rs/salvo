@@ -49,6 +49,19 @@ JWT (JSON Web Token) authentication middleware for the Salvo web framework.
 - **Type-safe claims**: Decode tokens into your own custom claims structs
 - **Configurable validation**: Customize token validation rules
 
+## HTTP method selection
+
+Token finders accept every HTTP method by default, including extension methods
+such as `PROPFIND`. Use `.allowed_methods(vec![Method::GET])` to restrict a finder;
+an explicit empty vector disables extraction for all methods.
+
+The public `allowed_methods` field is now `Option<Vec<Method>>`: `None` means
+unrestricted, and `Some(methods)` is an explicit allowlist. Wrap previous direct
+vector assignments in `Some(...)`. The builder still accepts `Vec<Method>`.
+Calling `allowed_methods_mut()` on an unrestricted finder first creates an
+explicit list of standard methods, so edits and `clear()` keep their allowlist
+semantics. Set the public field to `None` to restore unrestricted extraction.
+
 ## Installation
 
 This is an official crate, so you can enable it in `Cargo.toml`:
