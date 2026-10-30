@@ -114,6 +114,13 @@ AWS-LC takes precedence when both Salvo JWT provider features are enabled. If
 the application uses a custom process-wide `jsonwebtoken` provider, install
 that provider itself instead of calling `install_crypto_provider`.
 
+The RustCrypto JWT backend currently depends on crypto-bigint affected by
+[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+Salvo's middleware uses it for public-key verification. Applications signing
+JWTs with EC private keys should use the default AWS-LC provider until upstream
+dependencies are fixed. See [the dependency security review](../../.github/DEPENDENCY_SECURITY.md)
+for the limited audit exception and its review deadline.
+
 ## Quick Start
 
 Use `HeaderFinder` for the standard `Authorization: Bearer <token>` header.

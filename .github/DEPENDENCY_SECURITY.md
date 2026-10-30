@@ -54,14 +54,18 @@ after the RustCrypto feature also passes. See the
 
 ## RUSTSEC-2023-0071: rsa timing side channel
 
-- Owner: Salvo maintainers. Review by **2027-01-23**, and whenever certon or its
-  cryptographic call sites change.
-- Applies to the rsa 0.9 dependency of certon 0.3, used by salvo-acme. There is no
+- Owner: Salvo maintainers. Review by **2027-01-23**, and whenever certon,
+  jsonwebtoken, or their cryptographic call sites change.
+- Applies to rsa 0.9 in certon 0.3 (salvo-acme) and in jsonwebtoken 11's optional
+  RustCrypto backend (salvo-jwt-auth's `ring` feature). There is no
   patched rsa version listed in the advisory at the time of this review.
 - certon's crypto module uses rsa for RSA key generation, PKCS#1/PKCS#8 parsing,
   and DER encoding. It does not use rsa private-key decryption. TLS signing and
   handshakes use rustls with ring/aws-lc instead. Salvo defaults new ACME keys to
   ECDSA P-256; applications may explicitly select RSA keys.
+- Salvo's JWT middleware and OIDC decoder only verify signatures with public RSA
+  keys; neither performs private-key decryption. Application code using
+  jsonwebtoken directly must be reviewed separately.
 - This is an audit exception for these reviewed call paths, not a claim that rsa
   is fixed or suitable for private-key decryption. Remove the exception when a
   fixed version or replacement is available. Reassess it before adding any new
