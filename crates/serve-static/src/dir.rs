@@ -403,7 +403,15 @@ impl StaticDir {
 
         let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
         let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
-        if !canonical_path.starts_with(&root.canonical_path) {
+        let relative_path = canonical_path.strip_prefix(&root.canonical_path).ok()?;
+        // Windows 8.3 aliases can resolve to dot files even when the requested
+        // path has no dot segments. Check the resolved path below the root too;
+        // the configured root itself may legitimately have a dot-prefixed name.
+        if !self.include_dot_files
+            && relative_path
+                .components()
+                .any(|component| component.as_os_str().as_encoded_bytes().starts_with(b"."))
+        {
             return None;
         }
         Some(ResolvedPath {
