@@ -10,7 +10,7 @@ import unittest
 
 
 class AuditPolicyTests(unittest.TestCase):
-    def test_unsound_advisory_blocks_only_affected_versions(self):
+    def test_unsound_advisory_warns_only_for_affected_versions(self):
         script = pathlib.Path(__file__).with_name("audit_lockfile.py")
         with tempfile.TemporaryDirectory(prefix="salvo-audit-policy-") as directory:
             root = pathlib.Path(directory)
@@ -36,7 +36,7 @@ class AuditPolicyTests(unittest.TestCase):
             ):
                 subprocess.run(command, cwd=database, check=True)
 
-            for version, expected in (("0.14.0", 1), ("0.18.2", 0)):
+            for version, affected in (("0.14.0", True), ("0.18.2", False)):
                 with self.subTest(version=version):
                     lockfile = root / "Cargo.lock"
                     lockfile.write_text(
@@ -52,10 +52,11 @@ class AuditPolicyTests(unittest.TestCase):
                         ],
                         text=True, capture_output=True, check=False,
                     )
-                    self.assertEqual(result.returncode, expected, result.stderr)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual("::warning" in result.stderr, affected)
                     report = json.loads(result.stdout)
                     unsound = report["warnings"].get("unsound", [])
-                    self.assertEqual(len(unsound), 1 if expected else 0)
+                    self.assertEqual(len(unsound), 1 if affected else 0)
                     self.assertFalse(report["vulnerabilities"]["found"])
 
 

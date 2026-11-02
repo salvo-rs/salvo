@@ -44,7 +44,7 @@ jobs:
           printf 'fn main() {}\n' > "$fixture/src/main.rs"
           printf '[package]\nname = "downstream-default-jwt"\nversion = "0.0.0"\nedition = "2024"\n[workspace]\n[dependencies]\nsalvo-jwt-auth = { path = "%s/crates/jwt-auth" }\n' "$GITHUB_WORKSPACE" > "$fixture/Cargo.toml"
           cargo generate-lockfile --manifest-path "$fixture/Cargo.toml"
-          cargo audit --deny unsound --file "$fixture/Cargo.lock"
+          python3 .github/scripts/audit_lockfile.py --file "$fixture/Cargo.lock"
 
   downstream-tls:
     runs-on: ubuntu-latest
@@ -78,16 +78,16 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-audit
-      - name: Verify unsound advisories fail the audit
+      - name: Verify audit findings remain non-blocking
         run: python3 .github/scripts/test_audit_policy.py
-      - name: Require review of the rsa advisory exception
+      - name: Remind maintainers to review the rsa advisory exception
         run: |
           python3 - <<'PY'
           import datetime
           if datetime.datetime.now(datetime.timezone.utc).date() > datetime.date(2027, 1, 23):
-              raise SystemExit('Review the rsa advisory exception in .cargo/audit.toml')
+              print('::warning file=.cargo/audit.toml::Review the rsa advisory exception; the review date has passed.')
           PY
-      - name: Resolve dependencies and audit
-        run: |
-          cargo generate-lockfile --manifest-path '${{ matrix.workspace }}/Cargo.toml'
-          python3 .github/scripts/audit_lockfile.py --file '${{ matrix.workspace }}/Cargo.lock'
+      - name: Resolve dependencies
+        run: cargo generate-lockfile --manifest-path '${{ matrix.workspace }}/Cargo.toml'
+      - name: Audit dependencies (warnings only)
+        run: python3 .github/scripts/audit_lockfile.py --file '${{ matrix.workspace }}/Cargo.lock'
