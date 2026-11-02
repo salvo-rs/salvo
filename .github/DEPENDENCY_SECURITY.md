@@ -96,13 +96,14 @@ affected iterator or panic-unwinding operations.
 The current [rbdc registry entry](https://index.crates.io/rb/dc/rbdc) still
 requires `lru ^0.14.0`. Fixed lru releases support Rust 1.95, but cannot satisfy
 that requirement. A supported rbdc release must update it before a compatible
-dependency refresh can clear this blocker.
+dependency refresh can resolve these advisories.
 
 Fresh lockfiles generated with Rust 1.95 on 2026-10-30 were audited against
 RustSec database commit `ee1a49a2769a24a596afc1c20cb33748d2769586` with
-`cargo audit --deny unsound`: the root and examples workspaces still fail on
-the blockers above, and fuzz passes. The isolated default JWT AWS-LC consumer
-also passes; this does not clear the root workspace blocker.
+`cargo audit --deny unsound`: the raw audit command returned nonzero for the root
+and examples workspaces on the findings above, and fuzz passed. The isolated
+default JWT AWS-LC consumer also passed; this did not resolve the root workspace
+findings. CI now reports these audit failures as warnings without blocking releases.
 
 The unused direct `dotenv` dependency was removed from the OIDC Clerk example;
 it did not load a `.env` file. No remaining example directly depends on the
