@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-02
+
 ### Added
 
 - Run core routing and dispatch Criterion benchmarks in a dedicated workflow,
@@ -36,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Raise the minimum supported Rust version to 1.95 for Salvo and its examples.
 - Check every root workspace target and feature in the Rust 1.95 MSRV CI job.
+
+- Report dependency audit findings as CI warnings without blocking releases,
+  while retaining audit output and the isolated default AWS-LC JWT consumer check.
 
 - Import OpenAPI documents that omit the optional `paths` field, including
   documents containing only reusable components or incoming webhooks.
@@ -72,9 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve response bytes and representation headers when a request or response
   carries `Cache-Control: no-transform`, including through compression-wrapped proxies.
 
-- Audit dependencies before publishing any crate, document the unresolved
-  RustCrypto JWT advisory, and audit an isolated default AWS-LC JWT consumer;
-  the affected backend and release remain blocked.
+- Audit dependencies before publishing any crate and document the unresolved
+  RustCrypto JWT advisory in the dependency security policy.
 
 - Cancel HTTP/3 request tasks when their connection closes or the server stops
   forcefully, while allowing accepted requests to finish on graceful shutdown.
@@ -108,8 +112,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Reject non-GET WebSocket handshakes before switching protocols, including when
   the upgrade handler is installed on a route that matches every method.
 
-- Fail dependency security CI on RustSec `unsound` advisories as well as
-  vulnerability advisories, with an offline regression for the audit policy.
+- Report RustSec `unsound` advisories as well as vulnerability advisories,
+  with an offline regression for the advisory-only audit policy.
 
 - Use the same explicit crypto provider for Rustls client certificate verification
   and server configuration, avoiding ambiguous provider selection with mTLS.
