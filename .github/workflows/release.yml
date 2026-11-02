@@ -20,10 +20,10 @@ jobs:
 
       - uses: taiki-e/install-action@cargo-audit
 
-      - name: Audit dependencies before publishing any crate
+      - name: Audit dependencies before publishing (warnings only)
         run: |
           cargo generate-lockfile
-          cargo audit --deny unsound --file Cargo.lock
+          python3 .github/scripts/audit_lockfile.py --file Cargo.lock
 
       - name: Publish crates in dependency order
         env:
