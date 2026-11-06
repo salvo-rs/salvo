@@ -210,10 +210,7 @@ mod test {
             .await
             .unwrap();
         assert_eq!(file.path(), Path::new(src));
-        assert_eq!(
-            file.content_type(),
-            &Mime::from_str("text/html; charset=utf8").unwrap()
-        );
+        assert_eq!(file.content_type(), &mime::TEXT_HTML_UTF_8);
         assert_eq!(
             file.content_disposition(),
             Some(&HeaderValue::from_static(

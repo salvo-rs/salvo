@@ -4,6 +4,9 @@ permissions:
   contents: read
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/coverage.yml'
   push:
     branches:
       - main
@@ -32,7 +35,7 @@ jobs:
       - name: Generate coverage file
         run: |
           cargo install cargo-tarpaulin
-          cargo tarpaulin --all-features --out xml
+          cargo tarpaulin --all-features --engine llvm --out xml
 
       - name: Upload to codecov
         uses: codecov/codecov-action@v4
