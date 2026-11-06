@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-06
+
+### Fixed
+
+- Upgrade session storage to saysion 0.4 so session regeneration revokes the
+  previous server-side session ID. MemoryStore isolates stored data from request
+  mutations and rejects stale saves after rotation or logout.
+- Add HTTP regression coverage for login rotation, logout, metadata-only
+  rotation, and concurrent requests attempting to restore revoked sessions.
+
+### Changed
+
+- Update certon to 0.4 and saysion to 0.4. Applications using saysion stores
+  directly must use the same saysion version as salvo-session.
+
 ## [1.1.0] - 2026-11-02
 
 ### Added

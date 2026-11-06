@@ -35,7 +35,7 @@ For a standalone application, enable these features:
 
 ```toml
 [dependencies]
-salvo = { version = "1.1.0", features = ["tower-compat"] }
+salvo = { version = "1.1.1", features = ["tower-compat"] }
 rmcp = { version = "3.5.1", features = ["server", "transport-streamable-http-server"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
