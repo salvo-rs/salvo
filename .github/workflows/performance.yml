@@ -7,19 +7,25 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'crates/core/src/**'
+      - 'crates/macros/src/**'
       - 'crates/core/benches/**'
       - 'Cargo.toml'
       - 'crates/core/Cargo.toml'
       - 'crates/macros/Cargo.toml'
       - '.github/workflows/performance.yml'
+      - '.github/scripts/test_performance_paths.py'
   push:
     branches: [main]
     paths:
+      - 'crates/core/src/**'
+      - 'crates/macros/src/**'
       - 'crates/core/benches/**'
       - 'Cargo.toml'
       - 'crates/core/Cargo.toml'
       - 'crates/macros/Cargo.toml'
       - '.github/workflows/performance.yml'
+      - '.github/scripts/test_performance_paths.py'
 
 jobs:
   criterion:
@@ -31,6 +37,10 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v6
+      - name: Check benchmark trigger coverage
+        run: |
+          python3 -m pip install 'PyYAML==6.0.3'
+          python3 .github/scripts/test_performance_paths.py
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: '1.95.0'
