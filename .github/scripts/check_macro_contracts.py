@@ -8,6 +8,24 @@ import subprocess
 from jsonschema import Draft202012Validator
 
 
+def check_semantics(document):
+    def walk(value):
+        if isinstance(value, dict):
+            ref = value.get("$ref")
+            if isinstance(ref, str) and ref.startswith("#/"):
+                target = document
+                for token in ref[2:].split("/"):
+                    target = target[token.replace("~1", "/").replace("~0", "~")]
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+    walk(document)
+    for parameter in document["paths"]["/contract"]["get"]["parameters"]:
+        assert not ("example" in parameter and "examples" in parameter)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
@@ -55,9 +73,21 @@ serde_json = "1"
             operation["responses"]["200"]["headers"]["x-contract"]["content"]["text/plain"] = {}
         if validator.is_valid(bad):
             raise AssertionError(f"standard schema unexpectedly accepted {invalid}")
-    # This normative mutual exclusion is not encoded in the official schema.
-    for parameter in document["paths"]["/contract"]["get"]["parameters"]:
-        assert not ("example" in parameter and "examples" in parameter)
+    # These textual cross-object requirements are not encoded in the schema.
+    check_semantics(document)
+    for invalid in ("dangling_reference", "example_and_examples"):
+        bad = copy.deepcopy(document)
+        parameter = bad["paths"]["/contract"]["get"]["parameters"][0]
+        if invalid == "dangling_reference":
+            parameter["content"]["application/json"]["schema"] = {"$ref":"#/components/schemas/missing"}
+        else:
+            parameter.update(example="x", examples={"named":{"value":"x"}})
+        try:
+            check_semantics(bad)
+        except (AssertionError, KeyError):
+            pass
+        else:
+            raise AssertionError(f"semantic contract unexpectedly accepted {invalid}")
     cases = [
         ('use renamed_framework::prelude::*; #[derive(serde::Deserialize, Extractible)] struct Bad { #[serde(flatten)] value: std::collections::HashMap<String,String> } fn main() {}', '`#[serde(flatten)]` is not supported'),
         ('struct Generic<T>(T); #[renamed_api::endpoint] impl<T> Generic<T> { async fn run() {} } fn main() {}', 'does not support generic `impl` blocks'),

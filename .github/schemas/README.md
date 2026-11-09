@@ -13,7 +13,9 @@ The vendored `openapi-3.1.json` SHA-256 is
 `da01ba28852cac0de53893797cb8d1942bc3b05084f526dcc216717dec314ed0`.
 It is distributed under the upstream Apache 2.0 license in `OpenAPI-LICENSE`.
 Intentional invalid schema/content and multi-media header mutations must fail
-validation. The normative example/examples exclusion is asserted separately;
+validation. Generated ToSchema references must resolve within the document;
+a dangling reference mutation must fail. The normative example/examples exclusion
+is asserted separately;
 the official schema does not encode that constraint. This is a representative
 generated document check, not a claim to validate embedded JSON Schema semantics
 or every OpenAPI document the library can express.
