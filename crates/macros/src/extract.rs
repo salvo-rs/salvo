@@ -295,6 +295,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let name = &args.ident;
     let mut default_sources = Vec::new();
     let mut fields = Vec::new();
+    let generic_metadata = args.generics.type_params().next().is_some()
+        || args.generics.const_params().next().is_some();
+    let mut nested_bindings = Vec::new();
+    let mut nested_keys = Vec::new();
 
     for source in &args.default_sources {
         let source = metadata_source(&salvo, source);
@@ -347,8 +351,21 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         if field.flatten {
             if let Type::Path(ty) = &field.ty {
                 let ty = omit_type_path_lifetimes(ty);
+                let nested = if generic_metadata {
+                    let binding = Ident::new(
+                        &format!("__salvo_nested_metadata_{}", nested_bindings.len()),
+                        Span::call_site(),
+                    );
+                    nested_bindings.push(quote! {
+                        let #binding = <#ty as #salvo::extract::Extractible>::metadata();
+                    });
+                    nested_keys.push(quote! { ::std::ptr::from_ref(#binding).addr() });
+                    quote! { #binding }
+                } else {
+                    quote! { <#ty as #salvo::extract::Extractible>::metadata() }
+                };
                 nested_metadata = Some(quote! {
-                    field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
+                    field = field.metadata(#nested);
                     field = field.flatten(true);
                 });
             } else {
@@ -401,21 +418,41 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     }
 
     let mt = name.to_string();
-    let metadata = quote! {
-        fn metadata() ->  &'static #salvo::extract::Metadata {
+    let initialize_metadata = quote! {
+        let mut metadata = #salvo::extract::Metadata::new(#mt);
+        #(#default_sources)*
+        #rename_all
+        #serde_rename_all
+        #(#fields)*
+        metadata
+    };
+    let metadata_body = if nested_bindings.is_empty() {
+        quote! {
             static METADATA: ::std::sync::OnceLock<#salvo::extract::Metadata> = ::std::sync::OnceLock::new();
-            METADATA.get_or_init(|| {
-                let mut metadata = #salvo::extract::Metadata::new(#mt);
-                #(
-                    #default_sources
-                )*
-                #rename_all
-                #serde_rename_all
-                #(
-                    #fields
-                )*
-                metadata
+            METADATA.get_or_init(|| { #initialize_metadata })
+        }
+    } else {
+        // A generic function's static is shared by all its instantiations. The only
+        // type-dependent parts of this metadata are its flattened child references,
+        // so key by those references instead of TypeId (which would require 'static
+        // extractors). Equivalent compositions can safely share the parent metadata.
+        // Resolve children before locking: Outer<Outer<T>> re-enters this same cache.
+        let nested_count = nested_keys.len();
+        quote! {
+            #(#nested_bindings)*
+            static METADATA: ::std::sync::OnceLock<::std::sync::Mutex<
+                ::std::collections::HashMap<[usize; #nested_count], &'static #salvo::extract::Metadata>
+            >> = ::std::sync::OnceLock::new();
+            let mut cache = METADATA.get_or_init(::std::default::Default::default)
+                .lock().unwrap_or_else(|error| error.into_inner());
+            *cache.entry([#(#nested_keys),*]).or_insert_with(|| {
+                ::std::boxed::Box::leak(::std::boxed::Box::new({ #initialize_metadata }))
             })
+        }
+    };
+    let metadata = quote! {
+        fn metadata() -> &'static #salvo::extract::Metadata {
+            #metadata_body
         }
     };
     let life_param = args.generics.lifetimes().next();
