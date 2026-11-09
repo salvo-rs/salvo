@@ -47,7 +47,7 @@ jobs:
           python3 .github/scripts/audit_lockfile.py --file "$fixture/Cargo.lock" --evidence-dir audit-evidence/default-jwt
       - name: Upload isolated JWT audit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: audit-default-jwt
           path: audit-evidence/
@@ -100,7 +100,7 @@ jobs:
         run: python3 .github/scripts/audit_lockfile.py --file '${{ matrix.workspace }}/Cargo.lock' --evidence-dir audit-evidence
       - name: Upload dependency audit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: audit-workspace-${{ strategy.job-index }}
           path: audit-evidence/

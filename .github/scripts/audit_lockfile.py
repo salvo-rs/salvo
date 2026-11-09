@@ -77,7 +77,13 @@ def save_evidence(directory, command, arguments, stdout, stderr, status):
         "ignored_advisories": report.get("settings", {}).get("ignore", []),
         "dependency_count": report.get("lockfile", {}).get("dependency-count"),
         "advisories": [entry["advisory"]["id"] for entry in vulnerabilities.get("list", [])],
-        "warnings": {kind: [entry["advisory"]["id"] for entry in entries] for kind, entries in warnings.items()},
+        # cargo-audit yanked warnings have no advisory. Retain the package
+        # diagnostic rather than treating a valid report as a tool failure.
+        "warnings": {
+            kind: [entry["advisory"]["id"] if entry.get("advisory") else {"package": entry.get("package"), "kind": entry.get("kind", kind)}
+                   for entry in entries]
+            for kind, entries in warnings.items()
+        },
     }
     (directory / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return outcome

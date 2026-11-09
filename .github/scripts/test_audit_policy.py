@@ -45,6 +45,27 @@ class AuditPolicyTests(unittest.TestCase):
                     self.assertIsNotNone(metadata["lockfile_sha256"])
                     self.assertEqual((output / "Cargo.lock").read_bytes(), lockfile.read_bytes())
 
+    def test_yanked_warning_without_advisory_preserves_package_and_warning_only_policy(self):
+        script = pathlib.Path(__file__).with_name("audit_lockfile.py")
+        spec = importlib.util.spec_from_file_location("audit_lockfile", script)
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.object(sys, "dont_write_bytecode", True):
+            spec.loader.exec_module(module)
+        package = {"name": "fixture-yanked", "version": "1.2.3", "source": "registry+https://github.com/rust-lang/crates.io-index"}
+        report = {"database": {"last-commit": "fixture"}, "lockfile": {"dependency-count": 1},
+                  "vulnerabilities": {"found": False, "list": []},
+                  "warnings": {"yanked": [{"kind": "yanked", "package": package, "advisory": None, "versions": None}]}}
+        for status in (0, 1):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                output = pathlib.Path(directory)
+                with mock.patch.object(module.subprocess, "run", return_value=subprocess.CompletedProcess([], status, json.dumps(report), "")):
+                    self.assertEqual(module.audit([], output), 0)
+                metadata = json.loads((output / "metadata.json").read_text())
+                self.assertEqual(metadata["outcome"], "findings")
+                self.assertEqual(metadata["policy"], "warning-only")
+                self.assertEqual(metadata["warnings"]["yanked"], [{"package": package, "kind": "yanked"}])
+                self.assertEqual(json.loads((output / "audit.json").read_text()), report)
+
     def test_unsound_advisory_warns_only_for_affected_versions(self):
         script = pathlib.Path(__file__).with_name("audit_lockfile.py")
         with tempfile.TemporaryDirectory(prefix="salvo-audit-policy-") as directory:

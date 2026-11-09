@@ -100,3 +100,8 @@ place. They exclude known affected direct releases, but do not prove every
 transitive dependency or feature combination safe. The offline audit-policy
 fixture verifies unsound advisories remain visible without changing warning-only
 policy; the evidence tests distinguish findings from audit execution errors.
+
+Warnings without a RustSec advisory (for example a yanked package) are retained in
+artifact metadata as a package diagnostic with its warning kind. Advisory-backed
+warnings retain their advisory IDs. Both are `findings` under the same warning-only
+policy; a null advisory does not indicate an unfinished audit.
