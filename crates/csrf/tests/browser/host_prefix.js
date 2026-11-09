@@ -12,6 +12,9 @@ export default async function hostPrefix(page) {
     } else if (url.pathname === "/inject") {
       await route.fulfill({status: 200, headers: {"content-type": "text/html", "set-cookie":
         "__Host-salvo.csrf=attacker; Secure; Domain=csrf.test; Path=/"}, body: "injection"});
+    } else if (url.pathname === "/encoded-alias") {
+      await route.fulfill({status: 200, headers: {"content-type": "text/html", "set-cookie":
+        "%5F_Host-salvo.csrf=encoded-attacker; Secure; SameSite=Strict; Domain=csrf.test; Path=/"}, body: "encoded alias"});
     } else if (url.pathname === "/legacy") {
       await route.fulfill({status: 200, headers: {"content-type": "text/html", "set-cookie":
         "salvo.csrf=attacker; Secure; SameSite=Strict; Domain=csrf.test; Path=/action"}, body: "legacy"});
@@ -33,6 +36,7 @@ export default async function hostPrefix(page) {
   });
   await page.goto("https://app.csrf.test/start");
   await page.goto("https://attacker.csrf.test/inject");
+  await page.goto("https://attacker.csrf.test/encoded-alias");
   await page.goto("https://attacker.csrf.test/legacy");
   await page.goto("https://attacker.csrf.test/own");
   await page.goto("https://attacker.csrf.test/bad-path");
@@ -40,6 +44,7 @@ export default async function hostPrefix(page) {
   const cookies = await context.cookies("https://app.csrf.test/action");
   const host = cookies.filter(c => c.name === "__Host-salvo.csrf");
   if (host.length !== 1 || host[0].value !== "victim" || host[0].domain !== "app.csrf.test") throw Error("host cookie overwritten");
+  if (!cookies.some(c => c.name === "%5F_Host-salvo.csrf" && c.value === "encoded-attacker")) throw Error("encoded alias control failed");
   if (!cookies.some(c => c.name === "salvo.csrf" && c.value === "attacker")) throw Error("legacy injection control failed");
   if ((await context.cookies()).some(c => c.name === "__Host-invalid" || c.name === "__Host-insecure")) throw Error("invalid prefix accepted");
   await page.evaluate(() => {
@@ -52,6 +57,6 @@ export default async function hostPrefix(page) {
   });
   await page.waitForURL("https://app.csrf.test/action");
   const cookie = submitted.headers.cookie || "";
-  if (submitted.method !== "POST" || !cookie.includes("__Host-salvo.csrf=victim") || !cookie.includes("salvo.csrf=attacker")) throw Error("same-site form control failed");
-  return {hostCookiePreserved: true, parentDomainInjectionRejected: true, invalidAttributesRejected: true, legacyInjectionControl: true, sameSiteFormCarriesVictimHostCookie: true};
+  if (submitted.method !== "POST" || !cookie.includes("__Host-salvo.csrf=victim") || !cookie.includes("salvo.csrf=attacker") || !cookie.includes("%5F_Host-salvo.csrf=encoded-attacker")) throw Error("same-site form control failed");
+  return {encodedParentDomainAliasIsDistinct: true, hostCookiePreserved: true, parentDomainInjectionRejected: true, invalidAttributesRejected: true, legacyInjectionControl: true, sameSiteFormCarriesVictimHostCookie: true};
 }

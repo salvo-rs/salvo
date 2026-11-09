@@ -46,7 +46,8 @@ impl CookieStore {
     ///
     /// This prevents parent-domain cookie injection; it does not bind tokens to
     /// a login session. Renaming the cookie without the prefix opts out of the
-    /// browser's host-prefix protection.
+    /// browser's host-prefix protection. Loads match the original request Cookie
+    /// name exactly, ignoring percent-encoded aliases and cookie-jar overrides.
     #[must_use]
     pub fn host_prefixed() -> Self {
         Self::new().name("__Host-salvo.csrf").secure(true)
@@ -140,15 +141,35 @@ impl CsrfStore for CookieStore {
         cipher: &C,
     ) -> Option<(String, String)> {
         self.validate_prefix(self.cookie_is_secure(req)).ok()?;
-        req.cookie(&self.name)
-            .and_then(|c| c.value().split_once('.'))
-            .and_then(|(token, proof)| {
-                if cipher.verify(token, proof) {
-                    Some((token.into(), proof.into()))
-                } else {
-                    None
-                }
-            })
+        let parsed;
+        let cookie = if self.name.starts_with("__Host-") {
+            // The general cookie jar decodes percent escapes in names. Browsers
+            // enforce prefixes on the original name, so an encoded alias must
+            // never replace a genuinely prefixed cookie in this store.
+            let mut exact = req
+                .headers()
+                .get_all(salvo_core::http::header::COOKIE)
+                .iter()
+                .filter_map(|header| header.to_str().ok())
+                .flat_map(|header| header.split(';'))
+                .map(str::trim)
+                .filter(|raw| {
+                    raw.split_once('=')
+                        .is_some_and(|(name, _)| name.trim() == self.name)
+                });
+            let raw = exact.next()?;
+            if exact.next().is_some() {
+                return None;
+            }
+            parsed = Cookie::parse_encoded(raw).ok()?;
+            &parsed
+        } else {
+            req.cookie(&self.name)?
+        };
+        let (token, proof) = cookie.value().split_once('.')?;
+        cipher
+            .verify(token, proof)
+            .then(|| (token.into(), proof.into()))
     }
     async fn save(
         &self,
@@ -198,6 +219,61 @@ mod tests {
         assert_eq!(cookie.path(), Some("/"));
         assert_eq!(cookie.domain(), None);
         assert_eq!(cookie.http_only(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn host_prefix_uses_original_cookie_names_not_decoded_jar_aliases() {
+        let store = CookieStore::host_prefixed();
+        let cipher = BcryptCipher::new().cost(4);
+        let (victim, victim_proof) = cipher.generate();
+        let (attacker, attacker_proof) = cipher.generate();
+        let genuine = format!("__Host-salvo.csrf={victim}.{victim_proof}");
+        for name in [
+            "%5F_Host-salvo.csrf",
+            "__Host-salvo%2Ecsrf",
+            "__%48ost-salvo.csrf",
+        ] {
+            let alias = format!("{name}={attacker}.{attacker_proof}");
+            let mut req = TestClient::get("https://app.example.com/")
+                .add_header("cookie", &genuine, true)
+                .add_header("cookie", &alias, false)
+                .build();
+            // Exercise the actual Request parser: the alias shadows the genuine
+            // cookie in its decoded jar, but must not affect prefixed-store load.
+            assert_eq!(
+                req.cookie(&store.name).unwrap().value(),
+                format!("{attacker}.{attacker_proof}")
+            );
+            assert_eq!(
+                store.load(&mut req, &mut Depot::new(), &cipher).await,
+                Some((victim.clone(), victim_proof.clone()))
+            );
+            let mut req = TestClient::get("https://app.example.com/")
+                .add_header("cookie", &alias, true)
+                .build();
+            assert!(
+                store
+                    .load(&mut req, &mut Depot::new(), &cipher)
+                    .await
+                    .is_none()
+            );
+            let mut req = TestClient::get("https://app.example.com/")
+                .add_header("cookie", format!("{alias}; {genuine}"), true)
+                .build();
+            assert_eq!(
+                store.load(&mut req, &mut Depot::new(), &cipher).await,
+                Some((victim.clone(), victim_proof.clone()))
+            );
+        }
+        let mut req = TestClient::get("https://app.example.com/")
+            .add_header("cookie", format!("{genuine}; {genuine}"), true)
+            .build();
+        assert!(
+            store
+                .load(&mut req, &mut Depot::new(), &cipher)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]

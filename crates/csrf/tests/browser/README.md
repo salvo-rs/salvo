@@ -18,3 +18,10 @@ legacy-cookie injection control, a sibling's separate host-only cookie,
 invalid Path/Secure rejection, and the cookies sent by the forged form.
 This covers browser cookie scope; Rust tests separately verify the store's
 actual cookie attributes and server-side rejection of invalid configuration.
+
+The browser also accepts a sibling's percent-encoded `%5F_Host-salvo.csrf` parent-domain
+cookie as a distinct, unprefixed name and sends it alongside the genuine cookie. This is
+an injection control, not a browser prefix violation. The Rust Request-parser regression
+in `host_prefix_uses_original_cookie_names_not_decoded_jar_aliases` verifies that
+CookieStore selects the original exact name even when the general decoded cookie jar
+has been shadowed by this alias. Duplicate exact names fail closed.
