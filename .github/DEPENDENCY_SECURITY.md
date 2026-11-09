@@ -1,113 +1,102 @@
 # Dependency security checks
 
 The root, examples, and fuzz workspaces intentionally ignore Cargo.lock. Security
-CI generates each lockfile before auditing it, and runs weekly as well as on
-dependency changes. Existing local lockfiles should be refreshed with
-`cargo update` before interpreting findings as the current dependency resolution.
+CI resolves fresh lockfiles and audits weekly and on dependency changes. Refresh
+old local lockfiles before interpreting their findings as a current resolution.
 
-Dependency audits are advisory: findings or errors from `cargo audit` produce
-GitHub Actions warnings and retain the full audit output without failing CI or
-blocking Salvo releases. Dependency resolution and downstream TLS checks still
-fail on errors. The release workflow also audits dependencies before publishing,
-using the same warning-only policy.
+Audits remain **warning-only**: advisories and failures to complete the audit do
+not fail CI or block releases. Dependency resolution and downstream TLS checks
+still fail on errors. The wrapper now distinguishes `clean`, `findings`, and
+`tool_error` in evidence metadata rather than treating a green job as a clean audit.
+No advisory exception or publication policy is changed by this evidence refresh.
 
-The direct rustls and quinn minimums exclude known vulnerable releases of those
-packages. The core TLS feature activates rustls as a normal optional dependency,
-so its minimum also applies to downstream server builds without workspace dev
-dependencies. CI checks that an isolated downstream TLS application cannot resolve
-rustls 0.23.40. Transitive dependency findings remain covered by the audit job; raising
-a direct dependency minimum does not guarantee every transitive version is safe.
+## Evidence and reproduction
 
-## RUSTSEC-2026-0387: RustCrypto JWT dependency advisory
+Pass `--evidence-dir DIRECTORY` to `.github/scripts/audit_lockfile.py` to save the
+raw JSON/stderr, actual lockfile, lockfile SHA-256, RustSec database commit,
+command, original exit code, and a machine-readable outcome. Security CI uploads
+these files even on failure for each workspace and the isolated default JWT
+consumer. `tool_error` means no complete report was available, not zero findings.
 
-As checked on 2026-10-30, the latest published `jsonwebtoken` is 11.1.0. Its
-`rust_crypto` feature requires `p256 ^0.13.2` and `p384 ^0.13`, which require
-`elliptic-curve 0.13` and `crypto-bigint 0.5.5`. The patched crypto-bigint series
-starts at 0.7.6 and cannot satisfy that dependency chain. Upstream tracks the
-blocked migration in [jsonwebtoken issue 549](https://github.com/Keats/jsonwebtoken/issues/549),
-closed as not planned while the RustCrypto stack awaits rsa 0.10. Stable
-`p256 0.14.0`, `p384 0.14.0`, and `crypto-bigint 0.7.10` are now published and
-declare Rust versions below 1.95, but they do not satisfy jsonwebtoken's current
-requirements. Raising Salvo's Rust version or updating the lockfile cannot bridge
-these incompatible dependency ranges. Published requirements can be checked in
-the [jsonwebtoken registry entry](https://index.crates.io/js/on/jsonwebtoken).
+The checked-in [2026-11-09 summary](security-audits/2026-11-09.json) records fresh
+lockfiles audited with cargo-audit 0.22.0 and Rust 1.99.1, using RustSec DB
+`899077d9d471b9fd3dbf4b2faea8ef26e83692e8` (1,429 advisories). The root/examples/fuzz
+resolver honors workspace Rust 1.95; the isolated consumer used the invoking
+Rust 1.99.1 toolchain. This is a dated snapshot, not a perpetual clean bill of health.
 
-Salvo enables this JWT backend through `salvo-jwt-auth/ring` or the umbrella
-`salvo/jwt-auth-ring` feature. The separately named `salvo/ring` feature selects
-the TLS backend and does not, by itself, select the RustCrypto JWT backend.
-Cargo features are additive: selecting AWS-LC at runtime does not remove a
-RustCrypto dependency that another enabled feature pulled into the lockfile.
+| Scope | Raw exit | Result |
+|---|---|---|
+| Root workspace | 1 | crypto-bigint 0.5.5 / RUSTSEC-2026-0387 |
+| Examples | 1 | libsqlite3-sys 0.30.1 / RUSTSEC-2026-0459; lru 0.14.0 unsound advisories RUSTSEC-2026-0002 and RUSTSEC-2026-0253; rustls-pemfile unmaintained warning |
+| Fuzz workspace | 0 | No findings in this resolution |
+| Isolated default JWT AWS-LC consumer | 0 | No findings in this narrower resolution |
 
-There is **no audit exception** for RUSTSEC-2026-0387. The root workspace audit
-and the release workflow's audit report it as a warning without blocking
-publication. Replacing the lockfile or installing a different runtime provider
-does not resolve the advisory for a lockfile that still contains it. A passing
-default-only consumer check does not resolve the RustCrypto dependency finding.
+Reproduce a workspace audit after resolution with:
 
-An isolated consumer using only the default JWT AWS-LC backend does not require
-the affected RustCrypto chain; CI audits that exact consumer separately to
-guard this feature boundary. Applications that can use that backend should
-disable the alternative JWT backend and audit their own final lockfile. This
-is a narrower dependency configuration, not a fix for the RustCrypto backend.
-The advisory concerns secret integer operations; dependency presence alone
-does not establish a timing attack against Salvo's token verification path.
+```sh
+cargo generate-lockfile
+python3 .github/scripts/audit_lockfile.py --file Cargo.lock --evidence-dir audit-evidence
+```
 
-After an upstream fix, update the dependency requirement, audit all three
-workspace lockfiles and isolated JWT consumers, and mark this advisory resolved only
-after the RustCrypto feature also passes. See the
-[RustSec advisory](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+For examples/fuzz pass their manifest to `cargo generate-lockfile` and their
+lockfile to the wrapper. To test the isolated JWT consumer, create a separate
+workspace containing only a default `salvo-jwt-auth` path dependency. Do not
+substitute the narrower consumer for the root or RustCrypto feature graph.
 
-## RUSTSEC-2023-0071: rsa timing side channel
+## RustCrypto JWT: RUSTSEC-2026-0387
 
-- Owner: Salvo maintainers. Review by **2027-01-23**, and whenever certon,
-  jsonwebtoken, or their cryptographic call sites change.
-- Applies to rsa 0.9 in certon 0.3 (salvo-acme) and in jsonwebtoken 11's optional
-  RustCrypto backend (salvo-jwt-auth's `ring` feature). There is no
-  patched rsa version listed in the advisory at the time of this review.
-- certon's crypto module uses rsa for RSA key generation, PKCS#1/PKCS#8 parsing,
-  and DER encoding. It does not use rsa private-key decryption. TLS signing and
-  handshakes use rustls with ring/aws-lc instead. Salvo defaults new ACME keys to
-  ECDSA P-256; applications may explicitly select RSA keys.
-- Salvo's JWT middleware and OIDC decoder only verify signatures with public RSA
-  keys; neither performs private-key decryption. Application code using
-  jsonwebtoken directly must be reviewed separately.
-- This is an audit exception for these reviewed call paths, not a claim that rsa
-  is fixed or suitable for private-key decryption. Remove the exception when a
-  fixed version or replacement is available. Reassess it before adding any new
-  use of rsa, including through other dependencies.
+The fresh root lockfile still contains `jsonwebtoken 11.1.0 -> p256/p384 0.13 ->
+elliptic-curve 0.13.8 -> crypto-bigint 0.5.5`. The patched crypto-bigint range is
+`>=0.7.6`, which does not satisfy this upstream requirement. Salvo enables this
+JWT backend through `salvo-jwt-auth/ring` or `salvo/jwt-auth-ring`; the separate
+`salvo/ring` feature selects TLS crypto only. Cargo features are additive, so
+choosing AWS-LC at runtime does not remove an enabled RustCrypto dependency.
 
-Security CI reports vulnerability advisories and `unsound` informational
-advisories as warnings, except for explicitly reviewed entries in `.cargo/audit.toml`.
-Unmaintained and yanked packages remain visible warnings for maintenance review.
-The workflow tests this policy with an offline advisory fixture. After the
-exception review date, it emits a warning reminding maintainers to review it;
-this reminder does not fail CI or block releases.
+Owner: Salvo maintainers. Recheck on upstream jsonwebtoken/RustCrypto releases
+and before publishing a dependency refresh. Upgrade a supported upstream graph,
+then audit all affected feature configurations. There is no exception for this
+finding. It concerns secret-integer operations; its presence does not by itself
+prove a timing attack on public-key token verification.
+[Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
 
-As checked on 2026-10-30, the latest published `rbdc` is still 4.9.10. The
-examples workspace resolves `rbdc 4.9.10 -> lru 0.14.0`, which is
-affected by RUSTSEC-2026-0002 and RUSTSEC-2026-0253. The first fixed `lru` releases
-for these advisories are 0.16.3 and 0.18.2 respectively; rbdc's `^0.14.0`
-requirement cannot select them. The examples audit reports these findings as
-warnings until the upstream dependency is upgraded or replaced. No exception is
-added for this path.
-The dependency finding alone does not establish that the example reaches the
-affected iterator or panic-unwinding operations.
+## RSA exception: RUSTSEC-2023-0071
 
-The current [rbdc registry entry](https://index.crates.io/rb/dc/rbdc) still
-requires `lru ^0.14.0`. Fixed lru releases support Rust 1.95, but cannot satisfy
-that requirement. A supported rbdc release must update it before a compatible
-dependency refresh can resolve these advisories.
+Owner: Salvo maintainers. Review by **2027-01-23**, or whenever certon,
+jsonwebtoken, or cryptographic call sites change. The current path is
+`salvo-acme -> certon 0.4.0 -> rsa 0.9.10`, not certon 0.3. In certon 0.4,
+`crypto.rs` uses RSA for key generation, PKCS#1/PKCS#8 parsing and DER encoding;
+it does not call private-key decryption. ACME JWS uses ECDSA P-256, and TLS
+signing/handshakes use rustls providers. Salvo defaults new ACME keys to ECDSA.
+The optional JWT RustCrypto backend verifies RSA signatures with public keys.
 
-Fresh lockfiles generated with Rust 1.95 on 2026-10-30 were audited against
-RustSec database commit `ee1a49a2769a24a596afc1c20cb33748d2769586` with
-`cargo audit --deny unsound`: the raw audit command returned nonzero for the root
-and examples workspaces on the findings above, and fuzz passed. The isolated
-default JWT AWS-LC consumer also passed; this did not resolve the root workspace
-findings. CI now reports these audit failures as warnings without blocking releases.
+The current advisory lists rsa `>=0.10.0` as patched; certon 0.4 still requires
+the 0.9 series. This existing exception covers these reviewed call paths only;
+it does not say the resolved RSA version is fixed or suitable for private-key
+decryption. Review application code using jsonwebtoken/rsa directly separately,
+and remove the exception after a supported upstream migration or replacement.
+[Advisory](https://rustsec.org/advisories/RUSTSEC-2023-0071.html).
 
-The unused direct `dotenv` dependency was removed from the OIDC Clerk example;
-it did not load a `.env` file. No remaining example directly depends on the
-unmaintained `dotenv` or `rustls-pemfile` packages. `rustls-pemfile 2.2.0` remains
-an unmaintained warning through `rbdc 4.9.10` and
-`toasty-driver-postgresql 0.8.0`; addressing those paths requires upstream
-dependency changes or a database stack migration.
+## Examples: database dependency findings
+
+The new snapshot includes `sqlx 0.8.6 -> sqlx-sqlite 0.8.6 -> libsqlite3-sys
+0.30.1` through the SQLx and SeaORM examples. RUSTSEC-2026-0459 covers bundled
+SQLite before 3.54.0; libsqlite3-sys `>=0.39.0` contains the patched bundled
+SQLite. Its attack requires opening a less-trusted database and sibling WAL
+file with mismatched page sizes. System SQLite and SQLCipher have their own
+version/exposure conditions. A lockfile entry alone does not establish that an
+example enables the affected bundle or opens attacker-controlled files.
+[Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0459.html).
+
+The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot
+select the fixed lru releases for RUSTSEC-2026-0002 (`>=0.16.3`) and
+RUSTSEC-2026-0253 (`>=0.18.2`). rustls-pemfile 2.2.0 remains an unmaintained
+warning through rbdc and toasty-driver-postgresql. Owner: Salvo maintainers;
+recheck on database-stack upgrades and before dependency refreshes. Supported
+upstream migrations are required; no exception has been added for these paths.
+Actual iterator/panic-unwind reachability must be assessed in each application.
+
+The direct rustls/quinn minimums and isolated downstream TLS checks remain in
+place. They exclude known affected direct releases, but do not prove every
+transitive dependency or feature combination safe. The offline audit-policy
+fixture verifies unsound advisories remain visible without changing warning-only
+policy; the evidence tests distinguish findings from audit execution errors.

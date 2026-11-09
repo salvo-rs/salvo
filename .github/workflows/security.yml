@@ -44,7 +44,14 @@ jobs:
           printf 'fn main() {}\n' > "$fixture/src/main.rs"
           printf '[package]\nname = "downstream-default-jwt"\nversion = "0.0.0"\nedition = "2024"\n[workspace]\n[dependencies]\nsalvo-jwt-auth = { path = "%s/crates/jwt-auth" }\n' "$GITHUB_WORKSPACE" > "$fixture/Cargo.toml"
           cargo generate-lockfile --manifest-path "$fixture/Cargo.toml"
-          python3 .github/scripts/audit_lockfile.py --file "$fixture/Cargo.lock"
+          python3 .github/scripts/audit_lockfile.py --file "$fixture/Cargo.lock" --evidence-dir audit-evidence/default-jwt
+      - name: Upload isolated JWT audit evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-default-jwt
+          path: audit-evidence/
+          if-no-files-found: warn
 
   downstream-tls:
     runs-on: ubuntu-latest
@@ -90,4 +97,11 @@ jobs:
       - name: Resolve dependencies
         run: cargo generate-lockfile --manifest-path '${{ matrix.workspace }}/Cargo.toml'
       - name: Audit dependencies (warnings only)
-        run: python3 .github/scripts/audit_lockfile.py --file '${{ matrix.workspace }}/Cargo.lock'
+        run: python3 .github/scripts/audit_lockfile.py --file '${{ matrix.workspace }}/Cargo.lock' --evidence-dir audit-evidence
+      - name: Upload dependency audit evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-workspace-${{ strategy.job-index }}
+          path: audit-evidence/
+          if-no-files-found: warn

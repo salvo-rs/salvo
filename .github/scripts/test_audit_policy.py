@@ -7,9 +7,44 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib.util
+from unittest import mock
 
 
 class AuditPolicyTests(unittest.TestCase):
+    def test_evidence_distinguishes_findings_from_an_unfinished_audit(self):
+        script = pathlib.Path(__file__).with_name("audit_lockfile.py")
+        spec = importlib.util.spec_from_file_location("audit_lockfile", script)
+        module = importlib.util.module_from_spec(spec)
+        bytecode = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            spec.loader.exec_module(module)
+        finally:
+            sys.dont_write_bytecode = bytecode
+        report = {"database": {"last-commit": "fixture"}, "lockfile": {"dependency-count": 1},
+                  "vulnerabilities": {"found": False, "list": []},
+                  "warnings": {"unsound": [{"advisory": {"id": "RUSTSEC-2020-0001"}}]}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            lockfile = root / "input.lock"
+            lockfile.write_text("version = 4\n", encoding="utf-8")
+            cases = [(json.dumps(report), 1, "findings"), ("", 2, "tool_error"), ("invalid", 0, "tool_error")]
+            report["warnings"] = {}
+            cases.append((json.dumps(report), 0, "clean"))
+            cases.append((json.dumps(report), 2, "tool_error"))
+            for stdout, status, expected in cases:
+                with self.subTest(expected=expected), mock.patch.object(module.subprocess, "run",
+                    return_value=subprocess.CompletedProcess([], status, stdout, "diagnostic")):
+                    output = root / expected
+                    self.assertEqual(module.audit(["--file", str(lockfile)], output), 0)
+                    metadata = json.loads((output / "metadata.json").read_text())
+                    self.assertEqual(metadata["outcome"], expected)
+                    self.assertEqual(metadata["raw_exit_code"], status)
+                    self.assertEqual(metadata["policy"], "warning-only")
+                    self.assertIsNotNone(metadata["lockfile_sha256"])
+                    self.assertEqual((output / "Cargo.lock").read_bytes(), lockfile.read_bytes())
+
     def test_unsound_advisory_warns_only_for_affected_versions(self):
         script = pathlib.Path(__file__).with_name("audit_lockfile.py")
         with tempfile.TemporaryDirectory(prefix="salvo-audit-policy-") as directory:
