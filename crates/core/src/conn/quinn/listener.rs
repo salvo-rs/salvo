@@ -14,9 +14,10 @@ use tokio_util::sync::CancellationToken;
 
 use super::{QuinnConnection, QuinnCoupler};
 use crate::Error;
+use crate::conn::admission::PendingAdmission;
 use crate::conn::quinn::ServerConfig;
 use crate::conn::{Accepted, Acceptor, Holding, IntoConfigStream, Listener};
-use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
+use crate::fuse::{ArcFusePolicy, FuseInfo, TransProto};
 use crate::http::Version;
 
 /// A wrapper of `Listener` with quinn.
@@ -125,10 +126,7 @@ pub struct QuinnAcceptor {
     holdings: Vec<Holding>,
     endpoint: Endpoint,
     cancel_reload: CancellationToken,
-    // An accepted QUIC incoming that has passed `endpoint.accept()` but not yet admission.
-    // Parking it here keeps it alive if the `accept` future is dropped during async admission
-    // (e.g. a `JoinedListener`'s `select!` picking the other listener).
-    pending: Option<Incoming>,
+    pending: Option<PendingAdmission<Incoming>>,
 }
 
 impl Debug for QuinnAcceptor {
@@ -179,41 +177,33 @@ impl Acceptor for QuinnAcceptor {
         fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         loop {
-            // Resume an incoming a cancelled call parked, or accept a new one.
-            let new_conn = match self.pending.take() {
-                Some(incoming) => incoming,
-                None => match self.endpoint.accept().await {
-                    Some(incoming) => incoming,
-                    None => return Err(IoError::other("quinn accept error")),
-                },
-            };
-            let remote_addr = new_conn.remote_address();
-            let local_addr = self.holdings[0].local_addr.clone();
-            // Park the incoming across the async admission below so a dropped `accept` future
-            // (e.g. a `JoinedListener` picking the other listener) leaves it for the next call.
-            self.pending = Some(new_conn);
-            let fuse_config = match &fuse_policy {
-                Some(policy) => match policy
-                    .decide(&FuseInfo {
-                        trans_proto: TransProto::Quic,
-                        remote_addr: remote_addr.into(),
-                        local_addr: local_addr.clone(),
-                    })
+            if self.pending.is_none() {
+                let incoming = self
+                    .endpoint
+                    .accept()
                     .await
-                {
-                    FuseAction::Accept(config) => Some(config),
-                    FuseAction::Reject => {
-                        self.pending = None;
-                        continue;
-                    }
-                },
-                None => None,
-            };
+                    .ok_or_else(|| IoError::other("quinn accept error"))?;
+                let info = FuseInfo {
+                    trans_proto: TransProto::Quic,
+                    remote_addr: incoming.remote_address().into(),
+                    local_addr: self.holdings[0].local_addr.clone(),
+                };
+                self.pending = Some(PendingAdmission::new(incoming, info, fuse_policy.clone()));
+            }
+            let decision = self
+                .pending
+                .as_mut()
+                .expect("incoming parked above")
+                .decide()
+                .await;
+            let pending = self.pending.take().expect("incoming parked above");
+            let Some(admitted) = decision else { continue };
+            let fuse_config = admitted.config;
             // Admission passed. Hand the connection over without awaiting its handshake, which
             // `serve_connection` awaits on the connection's own task. Awaiting it here would stall
             // every other accept, TCP included via `JoinedListener`, and would lose the
             // connection whenever this future is dropped mid-handshake.
-            let new_conn = self.pending.take().expect("incoming parked above");
+            let new_conn = pending.incoming;
             // Of the fuse timeouts, QUIC enforces the handshake timeout in `serve_connection` and
             // the request-body timeout via the H3 body. The transport idle and write-stall
             // timeouts are TCP/byte-stream concepts handled by `StraightStream`; QUIC relies on
@@ -230,9 +220,9 @@ impl Acceptor for QuinnAcceptor {
                 coupler: QuinnCoupler,
                 stream: QuinnConnection::new(conn, handshake_done, handshake_timeout),
                 fuse_config,
-                conn_ctrl: crate::conn::ConnCtrl::new(),
-                local_addr: self.holdings[0].local_addr.clone(),
-                remote_addr: remote_addr.into(),
+                conn_ctrl: pending.conn_ctrl,
+                local_addr: pending.info.local_addr,
+                remote_addr: pending.info.remote_addr,
                 http_scheme: self.holdings[0].http_scheme.clone(),
             });
         }

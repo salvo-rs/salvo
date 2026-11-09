@@ -233,3 +233,55 @@ async fn stalled_handshake_timeout_is_enforced() {
         .unwrap()
         .unwrap();
 }
+
+#[tokio::test(start_paused = true)]
+async fn cancelled_accept_resumes_quic_admission() {
+    use tokio::sync::{Notify, Semaphore};
+
+    use crate::conn::Acceptor;
+    use crate::fuse::{FuseAction, FuseConfig, FuseInfo, FusePolicy};
+
+    struct Policy {
+        calls: AtomicUsize,
+        entered: Notify,
+        proceed: Semaphore,
+    }
+    #[crate::async_trait]
+    impl FusePolicy for Policy {
+        async fn decide(&self, _: &FuseInfo) -> FuseAction {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.entered.notify_one();
+            self.proceed.acquire().await.unwrap().forget();
+            FuseAction::Accept(FuseConfig::disabled())
+        }
+    }
+
+    let network = Network::default();
+    let mut acceptor = acceptor(&network, 443, |_| Some(SHORT));
+    let client = client(&network, 1, |_| Some(SHORT));
+    let _connecting = client
+        .connect(([127, 0, 0, 1], 443).into(), "localhost")
+        .unwrap();
+    let policy = Arc::new(Policy {
+        calls: AtomicUsize::new(0),
+        entered: Notify::new(),
+        proceed: Semaphore::new(0),
+    });
+    timeout(Duration::from_secs(3), async {
+        tokio::select! {
+            biased;
+            _ = policy.entered.notified() => {},
+            _ = acceptor.accept(Some(policy.clone())) => panic!("admission should wait"),
+        }
+    })
+    .await
+    .unwrap();
+    policy.proceed.add_permits(1);
+    let accepted = timeout(Duration::from_secs(3), acceptor.accept(None))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(accepted.remote_addr.into_std().unwrap().port(), 1);
+    assert_eq!(accepted.fuse_config, Some(FuseConfig::disabled()));
+    assert_eq!(policy.calls.load(Ordering::SeqCst), 1);
+}

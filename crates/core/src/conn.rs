@@ -63,6 +63,7 @@ use crate::fuse::{ArcFusePolicy, FuseConfig};
 use crate::http::Version;
 use crate::service::HyperHandler;
 
+mod admission;
 mod proto;
 pub use proto::HttpBuilder;
 mod ctrl;
@@ -313,6 +314,10 @@ pub trait Acceptor: Send {
     ///
     /// This method waits for a new connection and returns an [`Accepted`] struct
     /// containing the connection stream and metadata.
+    /// Built-in acceptors retain the transport and any in-progress admission decision if
+    /// this future is cancelled. Resuming `accept` continues the original policy; changing
+    /// `fuse_policy` applies to subsequent connections. Dropping the acceptor releases its
+    /// pending transport and cancels that decision.
     ///
     /// # Parameters
     ///
