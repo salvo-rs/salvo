@@ -1,0 +1,12 @@
+Baseline: ec427f834afa22f29689c9c7a18366beeb691f5f
+Additional product validation: R03 7f370550bb79d052449a2fc4f7adc4c414be29af (runtime product changes in lib.rs; other changed file contains cfg(test) initializers).
+CPU Intel Core i7-14700KF; 28 logical processors
+OS Windows-11-10.0.26300-SP0
+Command: cargo bench --locked --offline -j 2 -p salvo-cache --bench cache_headers
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: x86_64-pc-windows-msvc
+release: 1.99.1
+LLVM version: 23.1.1
