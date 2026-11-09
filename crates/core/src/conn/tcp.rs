@@ -10,6 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
+use super::admission::PendingAdmission;
 use super::{Accepted, Acceptor, Coupler, DynStream, Listener};
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 use crate::conn::IntoConfigStream;
@@ -19,8 +20,8 @@ use crate::conn::native_tls::NativeTlsListener;
 use crate::conn::openssl::OpensslListener;
 #[cfg(feature = "rustls")]
 use crate::conn::rustls::RustlsListener;
-use crate::conn::{ConnCtrl, Holding, HttpBuilder, StraightStream};
-use crate::fuse::{ArcFusePolicy, FuseAction, FuseInfo, TransProto};
+use crate::conn::{Holding, HttpBuilder, StraightStream};
+use crate::fuse::{ArcFusePolicy, FuseInfo, TransProto};
 use crate::http::Version;
 use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
@@ -154,10 +155,8 @@ where
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,
-    // A raw socket accepted but not yet admitted. Holding it here (rather than on the
-    // `accept` future's stack) keeps it alive if that future is dropped during async
-    // admission — e.g. when a `JoinedListener`'s `select!` picks the other listener.
-    pending: Option<(TcpStream, SocketAddr)>,
+    // Both the socket and the admission future survive a cancelled accept call.
+    pending: Option<PendingAdmission<TcpStream>>,
 }
 
 impl TcpAcceptor {
@@ -228,42 +227,40 @@ impl Acceptor for TcpAcceptor {
         fuse_policy: Option<ArcFusePolicy>,
     ) -> IoResult<Accepted<Self::Coupler, Self::Stream>> {
         loop {
-            // Accept a raw socket, or resume one that a cancelled call left behind. It is
-            // parked in `self.pending` across the async admission below so a dropped future
-            // does not close an already-accepted client.
             if self.pending.is_none() {
-                self.pending = Some(self.inner.accept().await?);
-            }
-            let remote_addr = self.pending.as_ref().expect("pending set above").1;
-            let local_addr = self.holdings[0].local_addr.clone();
-            let conn_ctrl = ConnCtrl::new();
-            let (fuse_config, observer) = match &fuse_policy {
-                Some(policy) => {
-                    let info = FuseInfo {
+                let (conn, remote_addr) = self.inner.accept().await?;
+                self.pending = Some(PendingAdmission::new(
+                    conn,
+                    FuseInfo {
                         trans_proto: TransProto::Tcp,
                         remote_addr: remote_addr.into(),
-                        local_addr: local_addr.clone(),
-                    };
-                    match policy.decide(&info).await {
-                        FuseAction::Accept(config) => {
-                            (Some(config), policy.observe(&info, &conn_ctrl))
-                        }
-                        FuseAction::Reject => {
-                            self.pending = None;
-                            continue;
-                        }
-                    }
-                }
-                None => (None, None),
-            };
-            let (conn, remote_addr) = self.pending.take().expect("pending set above");
+                        local_addr: self.holdings[0].local_addr.clone(),
+                    },
+                    fuse_policy.clone(),
+                ));
+            }
+            let decision = self
+                .pending
+                .as_mut()
+                .expect("pending set above")
+                .decide()
+                .await;
+            let pending = self.pending.take().expect("pending set above");
+            let Some(admitted) = decision else { continue };
+            let conn_ctrl = pending.conn_ctrl;
+            let fuse_config = admitted.config;
             return Ok(Accepted {
                 coupler: TcpCoupler::new(),
-                stream: StraightStream::new(conn, fuse_config, conn_ctrl.clone(), observer),
+                stream: StraightStream::new(
+                    pending.incoming,
+                    fuse_config,
+                    conn_ctrl.clone(),
+                    admitted.observer,
+                ),
                 fuse_config,
                 conn_ctrl,
-                remote_addr: remote_addr.into(),
-                local_addr,
+                remote_addr: pending.info.remote_addr,
+                local_addr: pending.info.local_addr,
                 http_scheme: Scheme::HTTP,
             });
         }
@@ -458,9 +455,15 @@ impl Debug for DynTcpAcceptors {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::sync::{Notify, Semaphore};
 
     use super::*;
+    use crate::conn::ConnCtrl;
+    use crate::fuse::{ArcConnObserver, FuseAction, FuseConfig, FusePolicy};
 
     #[tokio::test]
     async fn test_tcp_listener() {
@@ -480,53 +483,251 @@ mod tests {
         assert_eq!(stream.read_i32().await.unwrap(), 150);
     }
 
-    #[tokio::test]
-    async fn accept_is_cancellation_safe_during_async_admission() {
-        use std::time::Duration;
+    struct AdmissionState {
+        entered: Notify,
+        proceed: Semaphore,
+        calls: AtomicUsize,
+        cancelled: AtomicUsize,
+        observed: AtomicUsize,
+    }
 
-        use crate::async_trait;
-        use crate::fuse::{FuseConfig, FusePolicy};
-
-        // An admission policy that blocks, widening the window in which `accept` can be
-        // cancelled while it already owns an accepted socket (as a `JoinedListener`'s
-        // `select!` does when the other listener wins the race).
-        struct SlowPolicy;
-        #[async_trait]
-        impl FusePolicy for SlowPolicy {
-            async fn decide(&self, _info: &FuseInfo) -> FuseAction {
-                std::future::pending::<()>().await;
-                FuseAction::Accept(FuseConfig::disabled())
+    impl Default for AdmissionState {
+        fn default() -> Self {
+            Self {
+                entered: Notify::new(),
+                proceed: Semaphore::new(0),
+                calls: Default::default(),
+                cancelled: Default::default(),
+                observed: Default::default(),
             }
         }
+    }
 
+    struct Attempt {
+        state: Arc<AdmissionState>,
+        complete: bool,
+    }
+    impl Drop for Attempt {
+        fn drop(&mut self) {
+            if !self.complete {
+                self.state.cancelled.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+    }
+
+    struct GatePolicy {
+        state: Arc<AdmissionState>,
+        slow_port: u16,
+        reject: bool,
+    }
+
+    #[crate::async_trait]
+    impl FusePolicy for GatePolicy {
+        async fn decide(&self, info: &FuseInfo) -> FuseAction {
+            if info.local_addr.clone().into_std().unwrap().port() == self.slow_port {
+                let mut attempt = Attempt {
+                    state: self.state.clone(),
+                    complete: false,
+                };
+                self.state.calls.fetch_add(1, Ordering::SeqCst);
+                self.state.entered.notify_one();
+                self.state.proceed.acquire().await.unwrap().forget();
+                attempt.complete = true;
+                if self.reject {
+                    return FuseAction::Reject;
+                }
+            }
+            FuseAction::Accept(FuseConfig::disabled())
+        }
+
+        fn observe(&self, info: &FuseInfo, _ctrl: &ConnCtrl) -> Option<ArcConnObserver> {
+            if info.local_addr.clone().into_std().unwrap().port() == self.slow_port {
+                self.state.observed.fetch_add(1, Ordering::SeqCst);
+            }
+            None
+        }
+    }
+
+    async fn pause_admission(
+        acceptor: &mut TcpAcceptor,
+        policy: ArcFusePolicy,
+        state: &AdmissionState,
+    ) {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            tokio::select! {
+                biased;
+                _ = state.entered.notified() => {},
+                _ = Acceptor::accept(acceptor, Some(policy)) => panic!("admission should wait for its gate"),
+            }
+        }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_accept_resumes_original_policy() {
         let mut acceptor = TcpListener::new("127.0.0.1:0").bind().await;
-        let addr = acceptor.holdings()[0]
-            .local_addr
-            .clone()
-            .into_std()
-            .unwrap();
+        let addr = acceptor.local_addr().unwrap();
         let client = TcpStream::connect(addr).await.unwrap();
-
-        // First accept parks on the slow admission after accepting the socket, then is
-        // cancelled — mimicking the losing branch of a joined listener.
-        let policy: ArcFusePolicy = Arc::new(SlowPolicy);
-        assert!(
-            tokio::time::timeout(Duration::from_millis(100), acceptor.accept(Some(policy)))
-                .await
-                .is_err(),
-            "the slow admission must not resolve within the window"
-        );
-
-        // The cancelled accept must not have dropped the socket: a second accept returns it
-        // without any new client connecting.
-        let accepted = tokio::time::timeout(Duration::from_millis(500), acceptor.accept(None))
+        let state = Arc::new(AdmissionState::default());
+        let policy: ArcFusePolicy = Arc::new(GatePolicy {
+            state: state.clone(),
+            slow_port: addr.port(),
+            reject: false,
+        });
+        pause_admission(&mut acceptor, policy, &state).await;
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 0);
+        state.proceed.add_permits(1);
+        // Removing the policy on the next call does not discard the first decision.
+        let accepted = tokio::time::timeout(Duration::from_secs(3), acceptor.accept(None))
             .await
-            .expect("the socket accepted by the cancelled call must still be available")
+            .unwrap()
             .unwrap();
         assert_eq!(
-            accepted.remote_addr.clone().into_std().unwrap(),
-            client.local_addr().unwrap(),
-            "the resumed connection must be the same client"
+            accepted.remote_addr.into_std().unwrap(),
+            client.local_addr().unwrap()
         );
+        assert_eq!(accepted.fuse_config, Some(FuseConfig::disabled()));
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(state.observed.load(Ordering::SeqCst), 1);
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 0);
+        // A later connection does use the new policy argument.
+        let _next_client = TcpStream::connect(addr).await.unwrap();
+        let next = tokio::time::timeout(Duration::from_secs(3), acceptor.accept(None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(next.fuse_config, None);
+    }
+
+    #[tokio::test]
+    async fn dropping_acceptor_cancels_admission_and_closes_socket() {
+        let mut acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.local_addr().unwrap();
+        let mut client = TcpStream::connect(addr).await.unwrap();
+        let state = Arc::new(AdmissionState::default());
+        let policy: ArcFusePolicy = Arc::new(GatePolicy {
+            state: state.clone(),
+            slow_port: addr.port(),
+            reject: false,
+        });
+        pause_admission(&mut acceptor, policy, &state).await;
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 0);
+        drop(acceptor);
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 1);
+        let read = tokio::time::timeout(Duration::from_secs(3), client.read_u8())
+            .await
+            .unwrap();
+        assert_eq!(read.unwrap_err().kind(), std::io::ErrorKind::UnexpectedEof);
+    }
+
+    #[tokio::test]
+    async fn resumed_rejection_closes_peer_and_accepts_next_connection() {
+        let mut acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.local_addr().unwrap();
+        let mut first = TcpStream::connect(addr).await.unwrap();
+        let state = Arc::new(AdmissionState::default());
+        let policy: ArcFusePolicy = Arc::new(GatePolicy {
+            state: state.clone(),
+            slow_port: addr.port(),
+            reject: true,
+        });
+        pause_admission(&mut acceptor, policy, &state).await;
+        let second = TcpStream::connect(addr).await.unwrap();
+        state.proceed.add_permits(1);
+        let accepted = tokio::time::timeout(Duration::from_secs(3), acceptor.accept(None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            accepted.remote_addr.into_std().unwrap(),
+            second.local_addr().unwrap()
+        );
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(state.observed.load(Ordering::SeqCst), 0);
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(3), first.read_u8())
+                .await
+                .unwrap()
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+    }
+
+    async fn assert_composed_admission_resumes<A: Acceptor + 'static>(
+        mut acceptor: A,
+        slow: SocketAddr,
+        fast: SocketAddr,
+    ) {
+        let slow_client = TcpStream::connect(slow).await.unwrap();
+        let state = Arc::new(AdmissionState::default());
+        let policy: ArcFusePolicy = Arc::new(GatePolicy {
+            state: state.clone(),
+            slow_port: slow.port(),
+            reject: false,
+        });
+        let driver = tokio::spawn(async move {
+            for _ in 0..3 {
+                let accepted = acceptor.accept(Some(policy.clone())).await.unwrap();
+                assert_eq!(accepted.local_addr.into_std().unwrap(), fast);
+            }
+            acceptor
+        });
+        tokio::time::timeout(Duration::from_secs(3), state.entered.notified())
+            .await
+            .unwrap();
+        let mut fast_clients = Vec::new();
+        for _ in 0..3 {
+            fast_clients.push(TcpStream::connect(fast).await.unwrap());
+        }
+        let mut acceptor = tokio::time::timeout(Duration::from_secs(3), driver)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            state.calls.load(Ordering::SeqCst),
+            1,
+            "same peer must not restart its decision"
+        );
+        assert_eq!(state.cancelled.load(Ordering::SeqCst), 0);
+        state.proceed.add_permits(1);
+        let accepted = tokio::time::timeout(Duration::from_secs(3), acceptor.accept(None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            accepted.remote_addr.into_std().unwrap(),
+            slow_client.local_addr().unwrap()
+        );
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(state.observed.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn joined_accept_resumes_admission_after_other_listener_wins() {
+        let slow = TcpListener::new("127.0.0.1:0").bind().await;
+        let fast = TcpListener::new("127.0.0.1:0").bind().await;
+        let slow_addr = slow.local_addr().unwrap();
+        let fast_addr = fast.local_addr().unwrap();
+        assert_composed_admission_resumes(
+            crate::conn::JoinedAcceptor::new(slow, fast),
+            slow_addr,
+            fast_addr,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn dynamic_accept_resumes_admission_after_other_listener_wins() {
+        let slow = TcpListener::new("127.0.0.1:0").bind().await;
+        let fast = TcpListener::new("127.0.0.1:0").bind().await;
+        let slow_addr = slow.local_addr().unwrap();
+        let fast_addr = fast.local_addr().unwrap();
+        assert_composed_admission_resumes(
+            DynTcpAcceptors::new(vec![slow.into_boxed(), fast.into_boxed()]),
+            slow_addr,
+            fast_addr,
+        )
+        .await;
     }
 }

@@ -225,6 +225,11 @@ pub type ArcConnObserver = Arc<dyn ConnObserver>;
 /// [`decide`](Self::decide) is `async` so admission can consult external state — a
 /// blocklist, a per-IP counter, a shared rate limiter — before a connection is served. It
 /// runs once, on the accept path, so keep it cheap; heavy work there serializes accepts.
+/// Built-in acceptors retain an in-progress decision when an `accept` call is cancelled.
+/// The policy passed when that connection was first accepted remains in effect, even if
+/// a later `accept` call supplies a different policy (or `None`). A new policy applies to
+/// subsequent connections. Dropping the acceptor cancels its pending decision and closes
+/// the transport; dropping only the `accept` future does neither.
 #[async_trait]
 pub trait FusePolicy: Send + Sync + 'static {
     /// Decides whether and how to protect a connection.
