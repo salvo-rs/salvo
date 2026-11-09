@@ -10,6 +10,9 @@ on:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,6 +20,13 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify tag versions and quality at the exact commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/release_preflight.py
+          --tag '${{ github.ref_name }}' --sha '${{ github.sha }}' --repo '${{ github.repository }}'
 
       - uses: taiki-e/install-action@cargo-audit
 
