@@ -274,23 +274,19 @@ fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
     let salvo = salvo_crate();
-    let (_, ty_generics, _where_clause) = args.generics.split_for_impl();
-
-    let where_predicate = args.generics.type_params().map(|t| {
-        let ty = &t.ident;
-        quote! {
-            #ty: #salvo::extract::Extractible<'__macro_gen_ex> + #salvo::serde::Deserialize<'__macro_gen_ex>,
-        }
-    }).collect::<Punctuated<_, Token![,]>>();
-
-    let where_clause = if where_predicate.is_empty() {
-        None
-    } else {
-        Some(quote! {
-            where
-                #where_predicate
-        })
-    };
+    let (_, ty_generics, _) = args.generics.split_for_impl();
+    let mut bounded_generics = args.generics.clone();
+    for param in args.generics.type_params() {
+        let ty = &param.ident;
+        bounded_generics
+            .make_where_clause()
+            .predicates
+            .push(syn::parse_quote! {
+                #ty: #salvo::extract::Extractible<'__macro_gen_ex>
+                    + #salvo::serde::Deserialize<'__macro_gen_ex>
+            });
+    }
+    let where_clause = &bounded_generics.where_clause;
 
     let name = &args.ident;
     let mut default_sources = Vec::new();
