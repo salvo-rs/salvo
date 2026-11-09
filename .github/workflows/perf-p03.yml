@@ -22,8 +22,8 @@ on:
       - '.github/workflows/perf-p03.yml'
 
 concurrency:
-  group: perf-p03-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   benchmark:
