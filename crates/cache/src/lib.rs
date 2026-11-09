@@ -84,6 +84,12 @@
 //! - Error responses are not cached
 //! - Range and conditional requests bypass the cache, so the origin handler can apply its range and
 //!   precondition semantics to the current request
+//! - This is application response memoization, not a complete HTTP intermediary cache: retention is
+//!   configured by the store, and entries do not implement Age or conditional revalidation.
+//!   Requests with `no-cache`, `no-store`, `max-age`, or `min-fresh` bypass both lookup and
+//!   storage, including miss coalescing. Freshness directives bypass conservatively because HTTP
+//!   response age is unknown. Legacy `Pragma: no-cache` also bypasses. Other HTTP cache directives
+//!   do not override store policy.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -689,6 +695,22 @@ fn request_has_private_cache_headers(req: &Request) -> bool {
     req.headers().contains_key(AUTHORIZATION) || req.headers().contains_key(COOKIE)
 }
 
+fn request_disallows_reuse(req: &Request) -> bool {
+    ["no-cache", "no-store", "max-age", "min-fresh"]
+        .into_iter()
+        .any(|directive| cache_control_contains(req.headers(), directive))
+        || req
+            .headers()
+            .get_all(salvo_core::http::header::PRAGMA)
+            .iter()
+            .any(|value| {
+                value
+                    .as_bytes()
+                    .split(|byte| *byte == b',')
+                    .any(|part| part.trim_ascii().eq_ignore_ascii_case(b"no-cache"))
+            })
+}
+
 fn response_has_private_cache_headers(headers: &HeaderMap) -> bool {
     headers.contains_key(SET_COOKIE) || cache_control_contains(headers, "private")
 }
@@ -761,6 +783,7 @@ where
         ctrl: &mut FlowCtrl,
     ) {
         if self.skipper.skipped(req, depot)
+            || request_disallows_reuse(req)
             // Range is not part of the default key, and hits do not apply ranges.
             || req.headers().contains_key(RANGE)
             // Hits and coalesced followers skip the origin handler. Let it
