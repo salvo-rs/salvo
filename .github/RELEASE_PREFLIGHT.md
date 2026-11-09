@@ -15,3 +15,5 @@ owners/exception review dates in DEPENDENCY_SECURITY.md.
 The registry lookup and dependency evidence work are separate changes. This PR
 does not claim that an absent advisory warning means the dependency graph is safe.
 Run `python3 .github/scripts/test_release_preflight.py` for the offline contracts.
+
+Only `push` runs qualify as exact-commit evidence. Pull-request runs check out synthetic merge trees and are excluded even when their API `head_sha` matches the tag.

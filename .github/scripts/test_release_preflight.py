@@ -14,9 +14,12 @@ class ReleasePreflightTests(unittest.TestCase):
         with self.assertRaises(ValueError): check_versions(metadata, "v1.2.3")
 
     def test_only_successful_latest_runs_at_exact_commit_pass(self):
-        runs = [{"path":path, "id":i, "head_sha":"commit", "created_at":"1", "status":"completed", "conclusion":"success"}
+        runs = [{"path":path, "event":"push", "id":i, "head_sha":"commit", "created_at":"1", "status":"completed", "conclusion":"success"}
                 for i,path in enumerate(REQUIRED_WORKFLOWS)]
         check_runs(runs, "commit")
+        with self.assertRaises(ValueError): check_runs([{**r, "event":"pull_request"} for r in runs], "commit")
+        # A newer synthetic PR merge run is not evidence for the tagged tree.
+        check_runs(runs + [{**runs[0], "event":"pull_request", "id":200, "created_at":"3", "conclusion":"failure"}], "commit")
         with self.assertRaises(ValueError): check_runs(runs, "other-commit")
         with self.assertRaises(ValueError): check_runs(runs[:-1], "commit")
         for state, conclusion in [("in_progress",None), ("completed","failure"), ("completed","cancelled")]:

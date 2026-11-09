@@ -25,7 +25,7 @@ def check_versions(metadata, tag):
 
 def check_runs(runs, sha):
     for path in REQUIRED_WORKFLOWS:
-        candidates = [r for r in runs if r.get("path") == path and r.get("head_sha") == sha]
+        candidates = [r for r in runs if r.get("path") == path and r.get("head_sha") == sha and r.get("event") == "push"]
         if not candidates:
             raise ValueError(f"no quality run for {path} at tagged commit {sha}")
         latest = max(candidates, key=lambda r: (r.get("created_at", ""), r["id"]))
