@@ -13,6 +13,14 @@ python benchmarks/measure_runtime_costs.py --jobs 2 --samples 128
 
 The default current revision is `HEAD`; `--baseline`, `--current`,
 `--skip-feature-costs` and `--output target/another-comparison` support reruns.
+Executables are discovered from Cargo's JSON `compiler-artifact.executable`
+messages for both runtime execution and feature binary sizing. The runner inherits
+configured build targets (including `CARGO_BUILD_TARGET`); it does not assume a
+`target/release` layout or add a target override. Regression cases include stale
+default-layout binaries next to configured-target artifacts. CI additionally sets
+its native `CARGO_BUILD_TARGET` for a separate smoke step that builds and runs
+both real fixtures; the smoke script inherits that setting without overriding it.
+
 The output directory must stay in this checkout. The runner creates detached
 before/after worktrees inside it, copies the **same fixture** into both, resolves
 one dependency lock and builds both with that lock. It stops if that lock cannot

@@ -26,6 +26,31 @@ def command(arguments, cwd, output, env=None):
     return time.perf_counter() - started
 
 
+def artifact_executable(log, target_name):
+    executables = set()
+    for line in log.read_text(encoding="utf-8").splitlines():
+        try:
+            artifact = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # Cargo's progress on stderr shares this diagnostic log.
+        target = artifact.get("target", {})
+        if (artifact.get("reason") == "compiler-artifact"
+                and target.get("name") == target_name
+                and "bin" in target.get("kind", []) and artifact.get("executable")):
+            executables.add(pathlib.Path(artifact["executable"]))
+    if len(executables) != 1:
+        raise RuntimeError(f"{log}: expected one executable artifact for {target_name}")
+    executable = executables.pop()
+    if not executable.is_absolute() or not executable.is_file():
+        raise RuntimeError(f"{log}: Cargo executable artifact is missing: {executable}")
+    return executable
+
+
+def build_executable(arguments, cwd, log, target_name):
+    seconds = command([*arguments, "--message-format=json"], cwd, log)
+    return seconds, artifact_executable(log, target_name)
+
+
 def capture(arguments, cwd=ROOT):
     return subprocess.run(arguments, cwd=cwd, check=True, capture_output=True,
                           text=True).stdout.strip()
@@ -94,12 +119,12 @@ def runtime_costs(args, output):
         else:
             command(["cargo", "generate-lockfile", "--manifest-path", str(manifest)], checkout,
                     directory / "resolve.log")
-        command(["cargo", "build", "--release", "--locked", "-j", str(args.jobs),
-                 "--manifest-path", str(manifest)], checkout, directory / "build.log")
+        _, executable = build_executable(
+            ["cargo", "build", "--release", "--locked", "-j", str(args.jobs),
+             "--manifest-path", str(manifest)], checkout, directory / "build.log",
+            "salvo-runtime-costs")
         shutil.copyfile(lock, directory / "Cargo.lock")
         first_lock = directory / "Cargo.lock"
-        suffix = ".exe" if os.name == "nt" else ""
-        executable = pathlib.Path(data["target_directory"]) / "release" / f"salvo-runtime-costs{suffix}"
         environment = os.environ.copy()
         environment["SALVO_BENCH_SAMPLES"] = str(args.samples)
         invocation = [str(executable)]
@@ -128,17 +153,15 @@ def feature_costs(args, output):
         command(["cargo", "clean", "--manifest-path", str(manifest)], ROOT, directory / "clean.log")
         build = ["cargo", "build", "--release", "--locked", "--timings", "-j", str(args.jobs),
                  "--manifest-path", str(manifest), *flags]
-        cold = command(build, ROOT, directory / "cold.log")
+        cold, executable = build_executable(build, ROOT, directory / "cold.log", "salvo-feature-costs")
         timing = target / "cargo-timings"
         if timing.exists():
             shutil.copytree(timing, directory / "cargo-timings", dirs_exist_ok=True)
-        warm = command(build, ROOT, directory / "incremental.log")
+        warm, executable = build_executable(build, ROOT, directory / "incremental.log", "salvo-feature-costs")
         tree = capture(["cargo", "tree", "--locked", "--manifest-path", str(manifest),
                         "--edges", "normal,build", "--prefix", "none", *flags])
         (directory / "tree.txt").write_text(tree, encoding="utf-8")
         dependencies = {line.split(" (")[0] for line in tree.splitlines()}
-        suffix = ".exe" if os.name == "nt" else ""
-        executable = target / "release" / f"salvo-feature-costs{suffix}"
         records[label] = {"cold_target_seconds": cold, "unchanged_incremental_seconds": warm,
                           "normal_build_package_versions_including_consumer": len(dependencies),
                           "smoke_consumer_executable_bytes": executable.stat().st_size}

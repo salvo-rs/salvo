@@ -43,6 +43,12 @@ jobs:
           mkdir -p target/perf-p06
           lscpu > target/perf-p06/cpu.txt
           python3 benchmarks/measure_runtime_costs.py --jobs 2 --samples 128
+      - name: Verify both fixtures with a configured native target
+        shell: bash
+        run: |
+          set -euo pipefail
+          host=$(rustc -vV | sed -n 's/^host: //p')
+          CARGO_BUILD_TARGET="$host" python3 benchmarks/smoke_configured_artifacts.py
       - name: Preserve comparison evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

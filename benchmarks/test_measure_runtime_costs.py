@@ -1,6 +1,7 @@
 """Safety checks for profiling's fixture-local clean and checkout reuse."""
 import csv
 import importlib.util
+import json
 import pathlib
 import tempfile
 import types
@@ -45,6 +46,47 @@ class ProfilingSafety(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, r"failed \(2\)"):
                     costs.command(["compiler"], directory, output)
             self.assertTrue(output.exists())
+
+
+class ExecutableArtifacts(unittest.TestCase):
+    def check_configured_target(self, name):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            executable = root / "target" / "configured-host-triple" / "release" / name
+            executable.parent.mkdir(parents=True)
+            executable.write_bytes(b"configured target executable")
+            # A stale default-target executable must never be selected.
+            stale = root / "target" / "release" / name
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b"stale")
+            log = root / "build.jsonl"
+            messages = [
+                {"reason": "compiler-artifact", "target": {"name": "dependency", "kind": ["bin"]}, "executable": str(stale)},
+                {"reason": "compiler-artifact", "target": {"name": name, "kind": ["bin"]}, "executable": None},
+                {"reason": "compiler-artifact", "target": {"name": name, "kind": ["bin"]}, "executable": str(executable)},
+                {"reason": "build-finished", "success": True},
+            ]
+            log.write_text("Cargo progress on stderr\n" + "\n".join(map(json.dumps, messages)), encoding="utf-8")
+            with patch.object(costs, "command", return_value=1.0) as command:
+                seconds, actual = costs.build_executable(["cargo", "build", "--release"], root, log, name)
+            self.assertEqual(actual, executable)
+            self.assertEqual(seconds, 1.0)
+            self.assertIn("--message-format=json", command.call_args.args[0])
+            self.assertNotIn("--target", command.call_args.args[0])
+            self.assertEqual(actual.stat().st_size, len(b"configured target executable"))
+
+    def test_runtime_uses_configured_target_artifact(self):
+        self.check_configured_target("salvo-runtime-costs")
+
+    def test_feature_size_uses_configured_target_artifact(self):
+        self.check_configured_target("salvo-feature-costs")
+
+    def test_missing_executable_artifact_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = pathlib.Path(directory) / "build.jsonl"
+            log.write_text('{"reason":"build-finished","success":true}')
+            with self.assertRaisesRegex(RuntimeError, "expected one executable"):
+                costs.artifact_executable(log, "salvo-runtime-costs")
 
 
 class SampleEvidence(unittest.TestCase):
