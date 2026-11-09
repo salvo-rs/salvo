@@ -17,7 +17,7 @@ pub(super) fn samples() -> usize {
 
 pub(super) fn header() {
     println!(
-        "case,samples,p50_ns,p95_ns,p99_ns,operations_per_second,allocations_per_operation,allocated_bytes_per_operation"
+        "case,samples,p50_ns,p95_ns,p99_ns,operations_per_second,allocations_per_operation,allocated_bytes_per_operation,encoded_bytes,input_bytes,compression_ratio"
     );
 }
 

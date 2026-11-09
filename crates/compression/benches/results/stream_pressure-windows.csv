@@ -1,4 +1,4 @@
-case,samples,p50_ns,p95_ns,p99_ns,operations_per_second,allocations_per_operation,allocated_bytes_per_operation
+case,samples,p50_ns,p95_ns,p99_ns,operations_per_second,allocations_per_operation,allocated_bytes_per_operation,encoded_bytes,input_bytes,compression_ratio
 gzip/default/8192/ready/1,16,250500,283700,283700,3927.5,53.00,580552.00,1606,65536,0.0245
 gzip/default/8192/ready/8,16,2134300,2644500,2644500,449.5,410.00,4644416.00,1606,65536,0.0245
 gzip/default/8192/slow/1,16,139190300,141251100,141251100,7.2,53.00,580552.00,1606,65536,0.0245
