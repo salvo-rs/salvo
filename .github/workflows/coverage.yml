@@ -7,6 +7,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/coverage.yml'
+      - '.github/scripts/run_coverage.sh'
+      - '.github/scripts/test_run_coverage.py'
+      - '.github/COVERAGE.md'
   push:
     branches:
       - main
@@ -17,11 +20,14 @@ on:
 
 jobs:
   cover:
+    timeout-minutes: 45
+    env:
+      RUST_BACKTRACE: 1
     strategy:
       fail-fast: false
       matrix:
         version:
-          - stable
+          - '1.99.1'
 
     name: Coverage ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
@@ -32,14 +38,27 @@ jobs:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
 
+      - name: Verify failure diagnostics
+        run: python3 .github/scripts/test_run_coverage.py
+
+      - name: Install coverage tool
+        run: cargo install cargo-tarpaulin --version 0.37.6 --locked
+
       - name: Generate coverage file
-        run: |
-          cargo install cargo-tarpaulin
-          cargo tarpaulin --all-features --engine llvm --out xml
+        run: bash .github/scripts/run_coverage.sh
+
+      - name: Preserve coverage diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ github.sha }}-${{ github.run_attempt }}
+          path: coverage-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload to codecov
         uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          file: cobertura.xml
+          files: coverage-artifacts/cobertura.xml
