@@ -1,0 +1,43 @@
+name: Clippy correctness
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['**.rs', '**/Cargo.toml', '.github/workflows/clippy.yml', '.github/CLIPPY.md']
+  push:
+    branches: [main]
+    paths: ['**.rs', '**/Cargo.toml', '.github/workflows/clippy.yml', '.github/CLIPPY.md']
+jobs:
+  clippy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.1'
+          components: clippy
+      - name: Record environment and resolve dependencies
+        run: |
+          mkdir -p clippy-artifacts
+          rustc -Vv > clippy-artifacts/environment.txt
+          cargo clippy --version >> clippy-artifacts/environment.txt
+          git rev-parse HEAD >> clippy-artifacts/environment.txt
+          cargo generate-lockfile
+          cp Cargo.lock clippy-artifacts/Cargo.lock
+      - name: Check correctness lints and retain other diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo clippy --locked --workspace --all-targets --all-features --message-format=json -- \
+            -D clippy::await_holding_lock -D clippy::if_let_mutex -D clippy::dbg_macro \
+            2> >(tee clippy-artifacts/stderr.log >&2) | tee clippy-artifacts/diagnostics.jsonl
+      - name: Preserve lint evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clippy-${{ github.sha }}-${{ github.run_attempt }}
+          path: clippy-artifacts/
+          retention-days: 14
+          if-no-files-found: warn
