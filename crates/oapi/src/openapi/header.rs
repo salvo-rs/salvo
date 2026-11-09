@@ -101,18 +101,14 @@ impl Header {
     /// ```
     #[must_use]
     pub fn with_content<S: Into<String>, C: Into<Content>>(media_type: S, content: C) -> Self {
-        let mut header = Self {
-            schema: None,
-            ..Default::default()
-        };
-        header.content.insert(media_type.into(), content.into());
-        header
+        Self::default().content(media_type, content)
     }
 
-    /// Add schema of header.
+    /// Set the header schema, replacing any content representation.
     #[must_use]
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.schema = Some(component.into());
+        self.content.clear();
         self
     }
 
@@ -169,12 +165,14 @@ impl Header {
         self
     }
 
-    /// Insert a single media-type entry into [`Header::content`].
+    /// Set a single media-type entry in [`Header::content`], replacing any previous representation.
     ///
     /// Per spec the `content` map must contain exactly one entry. Mutually exclusive with
     /// [`Header::schema`].
     #[must_use]
     pub fn content<S: Into<String>, C: Into<Content>>(mut self, media_type: S, content: C) -> Self {
+        self.schema = None;
+        self.content.clear();
         self.content.insert(media_type.into(), content.into());
         self
     }
@@ -286,5 +284,39 @@ mod tests {
 
         let parsed: Header = serde_json::from_value(value).expect("deserialize");
         assert_eq!(parsed, header);
+    }
+
+    #[test]
+    fn header_representation_setters_replace_the_previous_representation() {
+        let content = || Content::new(Object::with_type(BasicType::String));
+        let cases = [
+            (
+                Header::default().content("application/json", content()),
+                json!({"content": {"application/json": {"schema": {"type": "string"}}}}),
+            ),
+            (
+                Header::with_content("application/json", content())
+                    .schema(Object::with_type(BasicType::Integer)),
+                json!({"schema": {"type": "integer"}}),
+            ),
+            (
+                Header::with_content("application/json", content())
+                    .content("text/plain", content()),
+                json!({"content": {"text/plain": {"schema": {"type": "string"}}}}),
+            ),
+            (
+                Header::default()
+                    .content("application/json", content())
+                    .schema(Object::with_type(BasicType::Integer))
+                    .content("text/plain", content()),
+                json!({"content": {"text/plain": {"schema": {"type": "string"}}}}),
+            ),
+        ];
+        for (header, expected) in cases {
+            let value = serde_json::to_value(&header).expect("serialize header");
+            assert_json_eq!(&value, expected);
+            let parsed: Header = serde_json::from_value(value).expect("deserialize header");
+            assert_eq!(parsed, header);
+        }
     }
 }
