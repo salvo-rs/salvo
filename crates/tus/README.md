@@ -187,6 +187,37 @@ flat-layout uploads or change the existing directory trust boundary.
 
 By default, files are stored on disk using `DiskStore`. Implement the `DataStore` trait for custom storage (S3, database, etc.).
 
+### Disk cancellation, retry, and durability
+
+The persisted metadata offset is the committed boundary. A cancelled PATCH may
+have committed before its response was delivered: obtain the offset with HEAD,
+then retry from that offset. Do not blindly resend at the previous offset or
+assume dropping an async future undoes an operating-system file operation.
+The next write truncates any tail beyond the committed offset before appending.
+An empty PATCH at the committed offset can retry best-effort final naming.
+
+The built-in Tus handler serializes operations for an upload through its locker.
+Direct DataStore callers must provide equivalent per-ID serialization; independent
+processes need a shared locker. Cancellation tests pause actual writes at chunk,
+flush, metadata temporary-file/rename, destination-retention, path-commit, and
+source-cleanup boundaries, abort the task, reopen the store, and immediately retry
+the same ID. They do not simulate all possible in-flight filesystem completion
+orders or prove a crash-safe transaction.
+
+Final naming retains the committed source until metadata points to the complete
+destination. Cancellation can leave an extra link/copy, a partial copy, or an
+uncommitted metadata temporary file. These are not automatically garbage-collected.
+Do not delete files merely because their names look temporary: metadata and a
+filesystem operation may still be in use. Maintenance must stop all writers,
+back up the store, identify every path referenced by validated persisted metadata,
+and separately inspect unreferenced files; never remove referenced payloads or
+unrelated files. A normal retry may choose a collision-safe fallback filename.
+
+File flush/sync and atomic metadata replacement do not provide a multi-file
+transaction or parent-directory fsync guarantee. Power-loss durability, recovery
+from arbitrary disk corruption, and automatic orphan collection require a separate
+storage/operational design; they are not implied by a successful PATCH response.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-tus)
