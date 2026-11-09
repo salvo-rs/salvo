@@ -15,6 +15,10 @@ on:
       - '**/Cargo.toml'         # or dependency updates
       - '.github/workflows/**'  # or workflow changes
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   cover:
     strategy:
@@ -25,9 +29,10 @@ jobs:
 
     name: Coverage ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
@@ -38,7 +43,7 @@ jobs:
           cargo tarpaulin --all-features --engine llvm --out xml
 
       - name: Upload to codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
