@@ -61,6 +61,7 @@ impl Client for ReqwestClient {
         request_upgraded: Option<OnUpgrade>,
     ) -> Result<HyperResponse, Self::Error> {
         let request_upgrade_type = crate::get_upgrade_type(proxied_request.headers());
+        let conn_ctrl = proxied_request.extensions().get::<salvo_core::conn::ConnCtrl>().cloned();
 
         let proxied_request = proxied_request.map(|body| {
             // Forward only data frames; drop non-data frames (e.g. trailers, which
@@ -98,7 +99,7 @@ impl Client for ReqwestClient {
                     Error::other(format!("response does not have an upgrade extension. {e}"))
                 })?;
                 if let Some(request_upgraded) = request_upgraded {
-                    tokio::spawn(async move {
+                    crate::spawn_upgrade(conn_ctrl, async move {
                         match request_upgraded.await {
                             Ok(request_upgraded) => {
                                 let mut request_upgraded = TokioIo::new(request_upgraded);

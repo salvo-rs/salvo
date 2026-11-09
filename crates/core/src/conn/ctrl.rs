@@ -4,6 +4,8 @@ use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use tokio::sync::Notify;
 
+use super::upgrades::UpgradeTask;
+
 const RUNNING: u8 = 0;
 const GRACEFUL_SHUTDOWN: u8 = 1;
 const ABORT: u8 = 2;
@@ -13,6 +15,8 @@ const ABORT: u8 = 2;
 /// A control is shared by every request multiplexed over the same connection.
 /// Shutting down an HTTP/2 or HTTP/3 connection therefore also affects its
 /// other in-flight request streams.
+/// Create a separate control for each physical connection; only clone it for
+/// the driver, streams, and handlers belonging to that same connection.
 #[derive(Clone)]
 pub struct ConnCtrl {
     inner: Arc<Inner>,
@@ -22,6 +26,7 @@ struct Inner {
     state: AtomicU8,
     notify: Notify,
     relax: AtomicBool,
+    upgrades: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<UpgradeTask>>,
     // Reuse the connection state already exposed on Request. Request dispatch
     // needs no additional extension insertion, certificate clone, or synchronization.
     // Boxing keeps connections without TLS from reserving a full TlsInfo.
@@ -52,10 +57,39 @@ impl ConnCtrl {
                 state: AtomicU8::new(RUNNING),
                 notify: Notify::new(),
                 relax: AtomicBool::new(false),
+                upgrades: std::sync::OnceLock::new(),
                 #[cfg(feature = "rustls")]
                 tls_info: std::sync::OnceLock::new(),
             }),
         }
+    }
+
+    /// Registers an upgraded-protocol task with its transport connection.
+    ///
+    /// Call this before returning the upgrade response. The server retains the
+    /// connection's capacity permit until the task finishes. Graceful shutdown
+    /// drains registered tasks; forceful shutdown, [`abort`](Self::abort), and
+    /// dropping the serving future cancel them. A task registered after its
+    /// connection scope has ended is discarded.
+    ///
+    /// For a control used outside a `Server`, the task is spawned
+    /// on the current Tokio runtime without server lifetime tracking.
+    pub fn spawn_upgrade(&self, task: impl Future<Output = ()> + Send + 'static) {
+        if let Some(upgrades) = self.inner.upgrades.get() {
+            let _ = upgrades.send(Box::pin(task));
+        } else {
+            tokio::spawn(task);
+        }
+    }
+
+    #[cfg(feature = "server")]
+    pub(crate) fn upgrade_scope(&self) -> super::upgrades::UpgradeScope {
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+        assert!(
+            self.inner.upgrades.set(sender).is_ok(),
+            "a connection control cannot belong to multiple server connections"
+        );
+        super::upgrades::UpgradeScope::new(self.clone(), receiver)
     }
 
     #[cfg(feature = "rustls")]

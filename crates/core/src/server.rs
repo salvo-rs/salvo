@@ -247,6 +247,8 @@ impl<A: Acceptor + Send> Server<A> {
     /// connections (applying backpressure to the OS listen backlog) until an
     /// existing connection closes. This bounds memory and file-descriptor use
     /// under load or connection-exhaustion attacks. By default there is no limit.
+    /// WebSocket sessions and registered protocol-upgrade tunnels keep their
+    /// connection permit until the upgraded task finishes.
     #[must_use]
     pub fn max_connections(mut self, max: usize) -> Self {
         self.max_connections = Some(max);
@@ -470,6 +472,7 @@ impl<A: Acceptor + Send> Server<A> {
                                     notify.clone(),
                                     graceful_stop_token.clone(),
                                 );
+                                let upgrade_scope = conn_ctrl.upgrade_scope();
                                 let service = service.clone();
                                 let handler = service.hyper_handler(
                                     local_addr,
@@ -490,12 +493,7 @@ impl<A: Acceptor + Send> Server<A> {
                                     let _permit = permit;
                                     let _connection_guard = connection_guard;
                                     let conn = coupler.couple(stream, handler, builder, Some(graceful_stop_token.clone()));
-                                    tokio::select! {
-                                        _ = conn => {
-                                        },
-                                        _ = force_stop_token.cancelled() => {
-                                        }
-                                    }
+                                    upgrade_scope.run(conn, force_stop_token.cancelled()).await;
                                 });
                             },
                             Err(e) => {
@@ -533,6 +531,13 @@ impl<A: Acceptor + Send> Server<A> {
                 }
             }
 
+            // A force stop wakes each connection scope, which cancels and joins
+            // its upgraded tasks before its capacity/accounting guards drop.
+            while let Some(result) = connections.join_next().await {
+                if let Err(error) = result {
+                    tracing::error!(?error, "connection task failed");
+                }
+            }
             tracing::info!("server stopped");
             Ok(())
         }
@@ -609,6 +614,7 @@ impl<A: Acceptor + Send> Server<A> {
                     http_scheme,
                     ..
                 }) => {
+                    let upgrade_scope = conn_ctrl.upgrade_scope();
                     let service = service.clone();
                     let handler = service.hyper_handler(
                         local_addr,
@@ -622,7 +628,8 @@ impl<A: Acceptor + Send> Server<A> {
 
                     connections.spawn(async move {
                         let _permit = permit;
-                        let _ = coupler.couple(stream, handler, builder, None).await;
+                        let conn = coupler.couple(stream, handler, builder, None);
+                        upgrade_scope.run(conn, std::future::pending::<()>()).await;
                     });
                 }
                 Err(e) => {

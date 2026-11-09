@@ -466,11 +466,12 @@ impl WebSocketUpgrade {
             // Doing this only after `OnUpgrade` is taken prevents a handshake that passes the
             // header checks but never upgrades from permanently disarming protection on the
             // shared keep-alive connection. No-op when the server runs without fuse protection.
-            if let Some(conn_ctrl) = req.extensions().get::<ConnCtrl>() {
+            let conn_ctrl = req.extensions().get::<ConnCtrl>().cloned();
+            if let Some(conn_ctrl) = &conn_ctrl {
                 conn_ctrl.relax_timeouts();
             }
             let config = self.config;
-            tokio::spawn(async move {
+            let task = async move {
                 let socket = on_upgrade
                     .and_then(move |upgraded| {
                         tracing::debug!("websocket upgrade complete");
@@ -486,7 +487,12 @@ impl WebSocketUpgrade {
                         tracing::debug!(?error, "websocket connection upgrade failed");
                     }
                 }
-            });
+            };
+            if let Some(conn_ctrl) = conn_ctrl {
+                conn_ctrl.spawn_upgrade(task);
+            } else {
+                tokio::spawn(task);
+            }
             Ok(())
         } else {
             tracing::debug!("websocket cannot be upgraded because no upgrade state was present");

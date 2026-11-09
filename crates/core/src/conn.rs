@@ -68,6 +68,7 @@ pub use proto::HttpBuilder;
 mod ctrl;
 pub use ctrl::ConnCtrl;
 mod tls;
+mod upgrades;
 pub use tls::TlsInfo;
 mod stream;
 pub use stream::*;
@@ -198,6 +199,8 @@ where
     ///
     /// Created when the connection is accepted and shared with its stream, protocol driver,
     /// and handlers so any of them can abort, gracefully shut down, or relax the fuse timers.
+    /// Each physical connection must have its own control; unrelated accepted
+    /// connections must not reuse clones of one control.
     pub conn_ctrl: ConnCtrl,
     /// The local address this connection was accepted on.
     ///
@@ -308,6 +311,8 @@ pub trait Acceptor: Send {
     ///
     /// This method waits for a new connection and returns an [`Accepted`] struct
     /// containing the connection stream and metadata.
+    /// Each physical connection must receive a distinct [`ConnCtrl`]. Its
+    /// clones are shared only within that connection, including after an upgrade.
     ///
     /// # Parameters
     ///
