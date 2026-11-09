@@ -1,0 +1,23 @@
+name: Release index contract
+permissions:
+  contents: read
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/check_published.py'
+      - '.github/scripts/test_check_published.py'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-index-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/check_published.py'
+      - '.github/scripts/test_check_published.py'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-index-tests.yml'
+jobs:
+  index-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 .github/scripts/test_check_published.py
