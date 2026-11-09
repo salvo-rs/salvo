@@ -58,12 +58,12 @@ tracing = { workspace = true }
 [dev-dependencies]
 tracing-test = { workspace = true }
 futures-util = { workspace = true, features = ["sink"] }
-salvo_core = { workspace = true, features = ["http1", "server", "test"] }
+salvo_core = { workspace = true, features = ["http1", "server", "server-handle", "test"] }
 # Both backends on purpose: this makes rustls unable to pick a provider from crate features,
 # which is exactly the situation that used to panic when building the default HTTPS connector.
 rustls = { workspace = true, features = ["aws-lc-rs", "ring"] }
 salvo_extra = { workspace = true, features = ["websocket"] }
-tokio-tungstenite = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["handshake"] }
 
 [lints]
 workspace = true

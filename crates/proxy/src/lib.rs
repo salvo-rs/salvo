@@ -571,6 +571,9 @@ where
             request_builder = request_builder.header(key, value);
         }
         if let Some(upgrade_type) = upgrade_type {
+            if let Some(conn_ctrl) = req.extensions().get::<salvo_core::conn::ConnCtrl>() {
+                request_builder = request_builder.extension(conn_ctrl.clone());
+            }
             request_builder =
                 request_builder.header(CONNECTION, HeaderValue::from_static("upgrade"));
             match HeaderValue::from_str(&upgrade_type) {
@@ -672,6 +675,19 @@ where
                 res.status_code(StatusCode::BAD_REQUEST);
             }
         }
+    }
+}
+
+#[cfg(any(feature = "hyper-client", feature = "reqwest-client"))]
+fn spawn_upgrade(
+    conn_ctrl: Option<salvo_core::conn::ConnCtrl>,
+    task: impl Future<Output = ()> + Send + 'static,
+) {
+    if let Some(conn_ctrl) = conn_ctrl {
+        conn_ctrl.relax_timeouts();
+        conn_ctrl.spawn_upgrade(task);
+    } else {
+        tokio::spawn(task);
     }
 }
 
