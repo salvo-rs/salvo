@@ -1,0 +1,19 @@
+[package]
+name = "salvo-runtime-costs"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace]
+
+[dependencies]
+salvo_core = { path = "../../crates/core", default-features = false, features = ["server", "server-handle", "http1", "test", "cookie"] }
+salvo_extra = { path = "../../crates/extra", default-features = false, features = ["tower-compat"] }
+serde = { version = "1", features = ["derive"] }
+stats_alloc = "0.1.10"
+tokio = { version = "1", features = ["rt", "macros", "net", "time", "sync", "io-util"] }
+tower = { version = "0.5", features = ["util"] }
+
+[lints.rust]
+unsafe_code = "forbid"
