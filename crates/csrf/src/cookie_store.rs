@@ -3,11 +3,15 @@ use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::SecureCookiePolicy;
 use salvo_core::{Depot, Error, Request, Response};
 
+use super::CsrfStore;
 use crate::CsrfCipher;
 
-use super::CsrfStore;
-
 /// A `CsrfStore` implementation that stores the CSRF proof in a cookie.
+///
+/// This is a double-submit cookie, not a token bound to an authentication session.
+/// Use [`Self::host_prefixed`] on HTTPS deployments to prevent sibling subdomains
+/// from injecting a parent-domain CSRF cookie, or use `SessionStore`
+/// when the token must be bound to a server-side session.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct CookieStore {
@@ -32,6 +36,22 @@ impl Default for CookieStore {
 }
 
 impl CookieStore {
+    /// Creates a host-only CSRF cookie for HTTPS deployments.
+    ///
+    /// The browser enforces the `__Host-` prefix: `Secure`, `Path=/`, and no
+    /// `Domain`. Invalid combinations (including public-field changes) are
+    /// rejected on save and ignored on load. TLS-terminating proxies may use
+    /// this constructor because it always emits `Secure` independently of the
+    /// internal connection scheme. The browser-facing origin must use HTTPS.
+    ///
+    /// This prevents parent-domain cookie injection; it does not bind tokens to
+    /// a login session. Renaming the cookie without the prefix opts out of the
+    /// browser's host-prefix protection.
+    #[must_use]
+    pub fn host_prefixed() -> Self {
+        Self::new().name("__Host-salvo.csrf").secure(true)
+    }
+
     /// Create a new `CookieStore`.
     #[must_use]
     pub fn new() -> Self {
@@ -92,6 +112,24 @@ impl CookieStore {
         self.secure_cookie_policy = policy;
         self
     }
+
+    fn cookie_is_secure(&self, req: &Request) -> bool {
+        self.secure
+            .map(SecureCookiePolicy::from_bool)
+            .unwrap_or(self.secure_cookie_policy)
+            .is_secure(req)
+    }
+
+    fn validate_prefix(&self, secure: bool) -> Result<(), Error> {
+        if self.name.starts_with("__Host-")
+            && (!secure || self.path != "/" || self.domain.is_some())
+        {
+            return Err(Error::other(
+                "__Host- CSRF cookies require Secure, Path=/, and no Domain",
+            ));
+        }
+        Ok(())
+    }
 }
 impl CsrfStore for CookieStore {
     type Error = Error;
@@ -101,6 +139,7 @@ impl CsrfStore for CookieStore {
         _depot: &mut Depot,
         cipher: &C,
     ) -> Option<(String, String)> {
+        self.validate_prefix(self.cookie_is_secure(req)).ok()?;
         req.cookie(&self.name)
             .and_then(|c| c.value().split_once('.'))
             .and_then(|(token, proof)| {
@@ -119,11 +158,8 @@ impl CsrfStore for CookieStore {
         token: &str,
         proof: &str,
     ) -> Result<(), Self::Error> {
-        let secure = self
-            .secure
-            .map(SecureCookiePolicy::from_bool)
-            .unwrap_or(self.secure_cookie_policy)
-            .is_secure(req);
+        let secure = self.cookie_is_secure(req);
+        self.validate_prefix(secure)?;
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
         let cookie_builder = Cookie::build((self.name.clone(), format!("{token}.{proof}")))
             .http_only(true)
@@ -143,9 +179,52 @@ impl CsrfStore for CookieStore {
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::test::TestClient;
+
     use super::*;
     use crate::bcrypt_cipher::BcryptCipher;
-    use salvo_core::test::TestClient;
+
+    #[tokio::test]
+    async fn host_prefixed_cookie_has_browser_enforced_scope() {
+        let store = CookieStore::host_prefixed();
+        let mut req = TestClient::get("http://internal-proxy/").build();
+        let mut res = Response::new();
+        store
+            .save(&mut req, &mut Depot::new(), &mut res, "token", "proof")
+            .await
+            .unwrap();
+        let cookie = res.cookies().get("__Host-salvo.csrf").unwrap();
+        assert_eq!(cookie.secure(), Some(true));
+        assert_eq!(cookie.path(), Some("/"));
+        assert_eq!(cookie.domain(), None);
+        assert_eq!(cookie.http_only(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn invalid_host_prefix_configuration_fails_closed() {
+        let cipher = BcryptCipher::new().cost(4);
+        let (token, proof) = cipher.generate();
+        for store in [
+            CookieStore::host_prefixed().domain("example.com"),
+            CookieStore::host_prefixed().path("/nested"),
+            CookieStore::host_prefixed().secure(false),
+            CookieStore::host_prefixed().secure_cookie_policy(SecureCookiePolicy::Never),
+        ] {
+            let mut req = TestClient::get("https://example.com/").build();
+            req.cookies_mut()
+                .add(Cookie::new("__Host-salvo.csrf", format!("{token}.{proof}")));
+            let mut depot = Depot::new();
+            let mut res = Response::new();
+            assert!(store.load(&mut req, &mut depot, &cipher).await.is_none());
+            assert!(
+                store
+                    .save(&mut req, &mut depot, &mut res, &token, &proof)
+                    .await
+                    .is_err()
+            );
+            assert!(res.cookies().get("__Host-salvo.csrf").is_none());
+        }
+    }
 
     #[tokio::test]
     async fn test_cookie_store() {
@@ -162,7 +241,10 @@ mod tests {
         assert_eq!(cookie_store.path, "/test");
         assert_eq!(cookie_store.domain.as_deref(), Some("example.com"));
         assert_eq!(cookie_store.secure, Some(true));
-        assert_eq!(cookie_store.secure_cookie_policy, SecureCookiePolicy::Always);
+        assert_eq!(
+            cookie_store.secure_cookie_policy,
+            SecureCookiePolicy::Always
+        );
 
         let mut req = TestClient::get("http://example.com/test").build();
         let mut depot = Depot::new();
