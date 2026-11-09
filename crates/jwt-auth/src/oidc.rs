@@ -424,11 +424,17 @@ impl OidcDecoder {
             // if we have it, then return it
             Ok(key)
         } else {
-            // Try to invalidate our cache. Maybe the JWKS has changed or our cached values expired.
-            // Even if it fails, stale-if-error may still let us retrieve a key.
-            self.revalidate_cache();
-            self.wait_update().await;
-            self.get_kid(kid).await?.ok_or(JwtAuthError::CacheError)
+            // The initiating lookup owns this refresh, so it can use a validated
+            // transient key even if the response switches to no-cache/no-store.
+            match self.revalidate_for_use(kid).await {
+                Ok(key) => Ok(key),
+                Err(error) => {
+                    // Another lookup may own the shared refresh. Cacheable
+                    // responses can be reused by waiters; per-use responses cannot.
+                    self.wait_update().await;
+                    self.get_kid(kid).await.ok().flatten().ok_or(error)
+                }
+            }
         }
     }
 
@@ -456,11 +462,18 @@ impl OidcDecoder {
             }
         };
         let mut cache = self.cache.write().await;
-        let key = cache.transient_key(&fetch.jwks, kid);
+        let per_use = fetch.restrictions.revalidate || fetch.restrictions.no_store;
+        let key = per_use.then(|| cache.transient_key(&fetch.jwks, kid)).flatten();
         self.cache_state.set_response_age(fetch.initial_age);
         self.cache_state.set_is_error(false);
         cache.update_fetch(fetch);
-        key.ok_or(JwtAuthError::CacheError)
+        drop(cache);
+        if per_use {
+            key.ok_or(JwtAuthError::CacheError)
+        } else {
+            // A cacheable response must still satisfy its corrected age window.
+            self.get_kid(kid).await?.ok_or(JwtAuthError::CacheError)
+        }
     }
 
     /// Gets the decoding components of a JWK by kid from the JWKS in our cache.

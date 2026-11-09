@@ -298,3 +298,36 @@ async fn explicit_zero_without_stale_allowances_never_has_a_fresh_window() {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn an_expired_cache_can_switch_to_per_use_policy_for_the_initiating_lookup() {
+    timeout(Duration::from_secs(5), async {
+        for policy in ["no-cache", "no-store"] {
+            let origin = Origin::start("max-age=600", None).await;
+            let decoder = origin.decoder().await;
+            let token = origin.token();
+            assert!(validates(&decoder, &token).await);
+            assert_eq!(origin.state.fetches.load(Ordering::SeqCst), 1);
+            *origin.state.policy.lock().unwrap() = policy;
+            decoder
+                .cache_state
+                .set_response_age(Duration::from_secs(1000));
+            // This validation itself fetched and verified the response. It must
+            // not lose its transient key merely because future reuse is forbidden.
+            assert!(validates(&decoder, &token).await);
+            assert_eq!(origin.state.fetches.load(Ordering::SeqCst), 2);
+            if policy == "no-store" {
+                assert!(decoder.cache.read().await.jwks.keys.is_empty());
+            }
+            // Every subsequent token needs its own response, and a removed key
+            // can never be borrowed from the initiating validation.
+            assert!(validates(&decoder, &token).await);
+            assert_eq!(origin.state.fetches.load(Ordering::SeqCst), 3);
+            origin.state.revoked.store(true, Ordering::SeqCst);
+            assert!(!validates(&decoder, &token).await);
+            assert_eq!(origin.state.fetches.load(Ordering::SeqCst), 4);
+        }
+    })
+    .await
+    .unwrap();
+}

@@ -259,7 +259,10 @@ still apply independently.
 | `must-revalidate` | Allow fresh reuse; disable all stale reuse, including on network failure. |
 
 These restrictions win over duration directives regardless of field order and
-apply on the next response even if the key bytes are unchanged. Qualified
+apply on the next response even if the key bytes are unchanged. If an expired
+cacheable response refreshes into `no-cache`/`no-store`, only the lookup that
+performed that validation may use its transient key; later lookups must validate
+again. Qualified
 `no-cache` is handled conservatively as applying to the entire response. The
 implementation does not use HTTP conditional requests or process `304` responses;
 a successful full JWKS response is required.
