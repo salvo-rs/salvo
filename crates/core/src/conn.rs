@@ -295,6 +295,8 @@ where
 ///     println!("Listening on {}", holding);
 /// }
 /// ```
+/// Each physical connection returned by an acceptor must receive a distinct [`ConnCtrl`].
+/// Its clones are shared only within that connection, including after an upgrade.
 pub trait Acceptor: Send {
     /// The coupler type used for HTTP protocol handling.
     type Coupler: Coupler<Stream = Self::Stream> + Unpin + Send + 'static;
@@ -311,8 +313,6 @@ pub trait Acceptor: Send {
     ///
     /// This method waits for a new connection and returns an [`Accepted`] struct
     /// containing the connection stream and metadata.
-    /// Each physical connection must receive a distinct [`ConnCtrl`]. Its
-    /// clones are shared only within that connection, including after an upgrade.
     ///
     /// # Parameters
     ///
