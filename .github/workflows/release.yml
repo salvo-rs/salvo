@@ -34,6 +34,8 @@ jobs:
           --tag '${{ github.ref_name }}' --sha '${{ github.sha }}' --repo '${{ github.repository }}'
 
       - uses: taiki-e/install-action@28bfb437c78d9b7ea8650351357e3eb8c0be2672 # cargo-audit
+        with:
+          tool: cargo-audit
 
       - name: Audit dependencies before publishing (warnings only)
         run: |

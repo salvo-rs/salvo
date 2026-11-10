@@ -18,6 +18,22 @@ class UniqueKeyLoader(yaml.BaseLoader):
 
 
 class WorkflowPolicyTests(unittest.TestCase):
+    def test_audit_jobs_install_the_audit_tool_explicitly(self):
+        root = pathlib.Path(__file__).parents[1] / "workflows"
+        for workflow, job_names in (
+            ("release.yml", ("publish",)),
+            ("security.yml", ("downstream-default-jwt", "audit")),
+        ):
+            config = yaml.load((root / workflow).read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
+            for job_name in job_names:
+                with self.subTest(workflow=workflow, job=job_name):
+                    installers = [
+                        step for step in config["jobs"][job_name]["steps"]
+                        if step.get("uses", "").startswith("taiki-e/install-action@")
+                    ]
+                    self.assertEqual(len(installers), 1)
+                    self.assertEqual(installers[0].get("with", {}).get("tool"), "cargo-audit")
+
     def test_duplicate_workflow_keys_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "duplicate YAML key 'timeout-minutes'"):
             yaml.load("job:\n  timeout-minutes: 45\n  timeout-minutes: 45\n", Loader=UniqueKeyLoader)
