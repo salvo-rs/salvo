@@ -84,6 +84,11 @@
 //! - Error responses are not cached
 //! - Range and conditional requests bypass the cache, so the origin handler can apply its range and
 //!   precondition semantics to the current request
+//! - Unchanged headers already present before the cache are ambiguous: an inner handler may have
+//!   explicitly written the same value. An entry is reused only when those outer headers still
+//!   match its original context. Changing per-request headers can therefore reduce cache hits. Put
+//!   such headers on the response after the cache returns when possible; they are never replayed
+//!   stale.
 //!
 //! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
@@ -461,14 +466,23 @@ pub struct CachedEntry {
     ///
     /// *Notice: If the response's body is streaming, it will be ignored and not cached.
     pub body: CachedBody,
+    // Preconditions for headers whose ownership cannot be inferred from a value diff.
+    // None denotes a manually constructed entry without provenance.
+    outer_headers: Option<HeaderMap>,
 }
 impl CachedEntry {
-    /// Create a new `CachedEntry`.
+    /// Create a new `CachedEntry` without outer-header provenance.
+    ///
+    /// Such entries conservatively bypass cache reuse until their saved context is
+    /// restored with [`Self::with_outer_header_context`]. Stores should preserve entries
+    /// they receive (for example by cloning), or persist [`Self::outer_header_context`]
+    /// alongside status, headers, and body.
     pub fn new(status: Option<StatusCode>, headers: HeaderMap, body: CachedBody) -> Self {
         Self {
             status,
             headers,
             body,
+            outer_headers: None,
         }
     }
 
@@ -487,6 +501,39 @@ impl CachedEntry {
     /// *Notice: If the response's body is streaming, it will be ignored and not cached.
     pub fn body(&self) -> &CachedBody {
         &self.body
+    }
+
+    /// Header context that a store must preserve when reconstructing this entry.
+    pub fn outer_header_context(&self) -> Option<&HeaderMap> {
+        self.outer_headers.as_ref()
+    }
+
+    /// Restore the header context previously obtained from [`Self::outer_header_context`].
+    ///
+    /// Use the exact saved context; inventing or omitting header values can make an
+    /// entry unsafe to replay after outer middleware changes its response headers.
+    #[must_use]
+    pub fn with_outer_header_context(mut self, context: HeaderMap) -> Self {
+        self.outer_headers = Some(context);
+        self
+    }
+
+    fn matches_outer_headers(&self, current: &HeaderMap) -> bool {
+        let Some(expected) = self.outer_headers.as_ref() else {
+            return false;
+        };
+        for name in expected.keys() {
+            if !expected
+                .get_all(name)
+                .iter()
+                .eq(current.get_all(name).iter())
+            {
+                return false;
+            }
+        }
+        current
+            .keys()
+            .all(|name| self.headers.contains_key(name) || expected.contains_key(name))
     }
 }
 
@@ -664,7 +711,13 @@ fn cached_response(
             return None;
         }
     };
-    Some(CachedEntry::new(res.status_code, headers, body))
+    let mut outer_headers = headers_before.clone();
+    for name in headers.keys() {
+        outer_headers.remove(name);
+    }
+    let mut entry = CachedEntry::new(res.status_code, headers, body);
+    entry.outer_headers = Some(outer_headers);
+    Some(entry)
 }
 
 /// Headers the inner handler contributed, i.e. names whose values changed
@@ -780,7 +833,12 @@ where
             ctrl.call_next(req, depot, res).await;
             return;
         };
-        let Some(cache) = self.store.load_entry(&key).await else {
+        let Some(cache) = self
+            .store
+            .load_entry(&key)
+            .await
+            .filter(|entry| entry.matches_outer_headers(res.headers()))
+        else {
             match self.in_flight.enter(key.clone()) {
                 FlightPermit::Leader(guard) => {
                     let cached_data = call_next_and_cache(
@@ -797,7 +855,10 @@ where
                 }
                 FlightPermit::Follower(flight) => {
                     flight.wait().await;
-                    if let Some(cache) = flight.entry() {
+                    if let Some(cache) = flight
+                        .entry()
+                        .filter(|entry| entry.matches_outer_headers(res.headers()))
+                    {
                         respond_from_cache(res, cache);
                         ctrl.skip_rest();
                     } else {
@@ -838,6 +899,7 @@ fn respond_from_cache(res: &mut Response, cache: CachedEntry) {
         status,
         headers,
         body,
+        ..
     } = cache;
     if let Some(status) = status {
         res.status_code(status);
@@ -1229,6 +1291,20 @@ mod tests {
         let debug_str = format!("{entry:?}");
         assert!(debug_str.contains("CachedEntry"));
         assert!(debug_str.contains("status"));
+    }
+
+    #[test]
+    fn reconstructed_entries_need_their_saved_outer_header_context() {
+        let mut before = HeaderMap::new();
+        before.insert("x-default", "from-outer".parse().unwrap());
+        let unknown = CachedEntry::new(Some(StatusCode::OK), HeaderMap::new(), CachedBody::None);
+        assert!(!unknown.matches_outer_headers(&before));
+        assert!(!unknown.matches_outer_headers(&HeaderMap::new()));
+
+        let restored = unknown.with_outer_header_context(before.clone());
+        assert_eq!(restored.outer_header_context(), Some(&before));
+        assert!(restored.matches_outer_headers(&before));
+        assert!(!restored.matches_outer_headers(&HeaderMap::new()));
     }
 
     #[test]
