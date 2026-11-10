@@ -1,0 +1,64 @@
+name: Performance guard_state
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'crates/rate-limiter/src/**'
+      - 'crates/rate-limiter/benches/**'
+      - 'crates/rate-limiter/Cargo.toml'
+      - 'Cargo.toml'
+      - '.github/workflows/perf-p04.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'crates/rate-limiter/src/**'
+      - 'crates/rate-limiter/benches/**'
+      - 'crates/rate-limiter/Cargo.toml'
+      - 'Cargo.toml'
+      - '.github/workflows/perf-p04.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SALVO_BENCH_SAMPLES: '128'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: '1.95.0'
+      - name: Record environment and build benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/perf-p04
+          git rev-parse HEAD > target/perf-p04/commit.txt
+          rustc -Vv > target/perf-p04/rustc.txt
+          lscpu > target/perf-p04/cpu.txt
+          cargo metadata --no-deps --format-version 1 > target/perf-p04/metadata.json
+          cargo generate-lockfile
+          cp Cargo.lock target/perf-p04/Cargo.lock
+          cargo build --release --locked -p salvo-rate-limiter --bench guard_state --message-format=json > target/perf-p04/build.jsonl
+      - name: Measure requests and process resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          executable=$(python3 -c 'import json,sys; rows=(json.loads(line) for line in open(sys.argv[1])); print(next(r["executable"] for r in rows if r.get("reason")=="compiler-artifact" and r.get("target",{}).get("name")=="guard_state" and r.get("executable")))' target/perf-p04/build.jsonl)
+          /usr/bin/time -v -o target/perf-p04/resources.txt "$executable" | tee target/perf-p04/samples.csv
+      - name: Preserve benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: perf-p04-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/perf-p04/
+          retention-days: 30
+          if-no-files-found: warn
