@@ -198,7 +198,11 @@ impl RequestIssuer {
         self.use_scheme = value;
         self
     }
-    /// Whether to use the request's URI authority when generating the key.
+    /// Whether to isolate keys by authority.
+    ///
+    /// Origin-form requests without a URI authority use one valid `Host` header instead.
+    /// Missing, repeated, or invalid Host values disable caching when this option is enabled.
+    /// Disabling this option makes host isolation the application's responsibility.
     #[must_use]
     pub fn use_authority(mut self, value: bool) -> Self {
         self.use_authority = value;
@@ -228,15 +232,26 @@ impl CacheIssuer for RequestIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         let mut key = String::with_capacity(req.uri().path().len() + 16);
-        if self.use_scheme
-            && let Some(scheme) = req.uri().scheme_str()
-        {
-            key.push_str(scheme);
+        if self.use_scheme {
+            key.push_str(req.uri().scheme_str().unwrap_or(req.scheme().as_str()));
             key.push_str("://");
         }
-        if self.use_authority
-            && let Some(authority) = req.uri().authority()
-        {
+        if self.use_authority {
+            let authority = match req.uri().authority() {
+                Some(authority) => authority.clone(),
+                None => {
+                    let mut hosts = req.headers().get_all(salvo_core::http::header::HOST).iter();
+                    let host = hosts.next()?;
+                    if hosts.next().is_some() {
+                        return None;
+                    }
+                    let host = host.to_str().ok()?;
+                    if host.contains('@') {
+                        return None;
+                    }
+                    host.parse::<salvo_core::http::uri::Authority>().ok()?
+                }
+            };
             key.push_str(authority.as_str());
         }
         if self.use_path {
