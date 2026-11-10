@@ -19,6 +19,7 @@ use super::{PropMap, Server};
 /// [link_object]: https://spec.openapis.org/oas/latest.html#link-object
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default, Debug)]
 #[non_exhaustive]
+#[serde(rename_all = "camelCase")]
 pub struct Link {
     /// A relative or absolute URI reference to an OAS operation. This field is
     /// mutually exclusive of the _`operation_id`_ field, and **must** point to an [Operation
@@ -29,13 +30,21 @@ pub struct Link {
     ///
     /// [relative_references]: https://spec.openapis.org/oas/latest.html#relative-references-in-uris
     /// [operation]: ../path/struct.Operation.html
-    #[serde(skip_serializing_if = "String::is_empty", default)]
+    #[serde(
+        skip_serializing_if = "String::is_empty",
+        default,
+        alias = "operation_ref"
+    )]
     pub operation_ref: String,
 
     /// The name of an existing, resolvable OAS operation, as defined with a unique
     /// _`operation_id`_.
     /// This field is mutually exclusive of the _`operation_ref`_ field.
-    #[serde(skip_serializing_if = "String::is_empty", default)]
+    #[serde(
+        skip_serializing_if = "String::is_empty",
+        default,
+        alias = "operation_id"
+    )]
     pub operation_id: String,
 
     /// A map representing parameters to pass to an operation as specified with _`operation_id`_
@@ -50,7 +59,7 @@ pub struct Link {
     /// called.
     ///
     /// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "request_body")]
     pub request_body: Option<serde_json::Value>,
 
     /// Description of the link. Value supports Markdown syntax.
@@ -62,6 +71,61 @@ pub struct Link {
     /// [server]: ../server/struct.Server.html
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<Server>,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::Link;
+    use crate::OpenApi;
+
+    #[test]
+    fn link_builders_emit_standard_field_names() {
+        for (link, expected) in [
+            (
+                Link::default()
+                    .operation_id("read")
+                    .request_body(Some("$response.body")),
+                json!({"operationId":"read","requestBody":"$response.body"}),
+            ),
+            (
+                Link::default().operation_ref("#/paths/~1items/get"),
+                json!({"operationRef":"#/paths/~1items/get"}),
+            ),
+        ] {
+            let value = serde_json::to_value(&link).unwrap();
+            assert_eq!(value, expected);
+            assert_eq!(serde_json::from_value::<Link>(value).unwrap(), link);
+        }
+    }
+
+    #[test]
+    fn legacy_link_input_is_accepted_but_normalized_on_output() {
+        for (legacy, standard) in [
+            (
+                json!({"operation_id":"read","request_body":{"value":1}}),
+                json!({"operationId":"read","requestBody":{"value":1}}),
+            ),
+            (
+                json!({"operation_ref":"#/paths/~1items/get"}),
+                json!({"operationRef":"#/paths/~1items/get"}),
+            ),
+        ] {
+            let link: Link = serde_json::from_value(legacy).unwrap();
+            assert_eq!(serde_json::to_value(link).unwrap(), standard);
+        }
+    }
+
+    #[test]
+    fn standard_links_survive_complete_document_round_trip() {
+        let mut value = serde_json::to_value(OpenApi::new("links", "1")).unwrap();
+        value["paths"] = json!({"/items":{"get":{"responses":{"200":{
+            "description":"ok", "links":{"next":{"operationId":"read", "requestBody":"$response.body"}}
+        }}}}});
+        let doc: OpenApi = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(serde_json::to_value(doc).unwrap()["paths"], value["paths"]);
+    }
 }
 
 impl Link {
