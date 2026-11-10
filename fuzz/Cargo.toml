@@ -10,9 +10,13 @@ cargo-fuzz = true
 [dependencies]
 base64 = "0.22"
 libfuzzer-sys = "0.4"
+salvo-jwt-auth = { path = "../crates/jwt-auth", features = ["oidc"] }
+salvo-oapi = { path = "../crates/oapi" }
+serde_json = "1"
+tempfile = "3"
 salvo-tus = { path = "../crates/tus" }
-salvo_core = { path = "../crates/core", default-features = false }
-salvo_extra = { path = "../crates/extra", default-features = false, features = ["basic-auth", "websocket"] }
+salvo_core = { path = "../crates/core", default-features = false, features = ["test"] }
+salvo_extra = { path = "../crates/extra", default-features = false, features = ["basic-auth", "websocket", "caching-headers"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [lib]
@@ -48,3 +52,38 @@ bench = false
 
 [workspace]
 members = ["."]
+
+[[bin]]
+name = "cache_control"
+path = "fuzz_targets/cache_control.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openapi_roundtrip"
+path = "fuzz_targets/openapi_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "conditional_headers"
+path = "fuzz_targets/conditional_headers.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "multipart"
+path = "fuzz_targets/multipart.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tus_state"
+path = "fuzz_targets/tus_state.rs"
+test = false
+doc = false
+bench = false

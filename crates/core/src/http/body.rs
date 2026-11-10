@@ -8,6 +8,8 @@
 //! - [`ResBody`]: Response body type with multiple representations
 //! - [`BodySender`] / [`BodyReceiver`]: Channel for streaming responses
 //! - [`BytesFrame`]: A single frame of body data
+//! - [`BodyObservation`] / [`BodyOutcome`]: Body-production completion metrics from
+//!   [`ResBody::observe`]
 //!
 //! # Request Bodies
 //!
@@ -48,8 +50,10 @@ mod req;
 pub use req::ReqBody;
 #[cfg(feature = "quinn")]
 pub use req::h3::H3ReqBody;
+mod observed;
 mod res;
 pub use hyper::body::Incoming as HyperBody;
+pub use observed::{BodyObservation, BodyOutcome};
 pub use res::ResBody;
 mod channel;
 use std::ops::{Deref, DerefMut};

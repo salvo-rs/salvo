@@ -116,3 +116,11 @@ Salvo is an open source project. If you want to support Salvo, you can ☕ [**bu
 ## ⚠️ License
 
 Salvo is licensed under [Apache License, Version 2.0](LICENSE) ([http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)).
+
+## Request body references
+
+`Operation::request_body` accepts either an inline `RequestBody` or a `Ref`.
+The public `Operation.request_body` field is `Option<RefOr<RequestBody>>`; direct
+field assignments must wrap inline bodies with `.into()`, and readers should match
+`RefOr::Type` or `RefOr::Ref`. Existing builder calls remain source compatible.
+Inferred payload extractors preserve an explicit unresolved request-body reference.

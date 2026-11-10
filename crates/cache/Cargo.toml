@@ -33,7 +33,7 @@ tracing = { workspace = true }
 [dev-dependencies]
 futures-util = { workspace = true }
 stats_alloc = "0.1.10"
-salvo_core = { workspace = true, features = ["test", "cookie"] }
+salvo_core = { workspace = true, features = ["test", "cookie", "server", "server-handle"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 time = { workspace = true }
 

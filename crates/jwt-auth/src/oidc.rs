@@ -1,4 +1,12 @@
 //! OIDC (OpenID Connect) support.
+//!
+//! JWKS age combines response Date/Age, transfer time, and monotonic residence.
+//! Default reuse ends after 1 second fresh plus at most 60 seconds on refresh
+//! failure. Each response duration is capped at 30 days (at most 60 days total).
+//! `no-cache`/`no-store` require per-use validation and never use stale keys;
+//! `must-revalidate` disables stale reuse. See the crate README for the provider
+//! key-removal contract and [`OidcDecoder::revalidation_interval`] for the
+//! separate, fail-closed refresh budget.
 
 use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
@@ -8,14 +16,22 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
+use cache::CacheRestrictions;
 use http_body_util::{BodyExt, Full, Limited};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::legacy::{Client, connect::HttpConnector};
+use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
-use jsonwebtoken::jwk::{AlgorithmParameters, EllipticCurve, Jwk, JwkSet, KeyOperations, PublicKeyUse};
+use jsonwebtoken::jwk::{
+    AlgorithmParameters, EllipticCurve, Jwk, JwkSet, KeyOperations, PublicKeyUse,
+};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::Depot;
-use salvo_core::http::{HeaderValue, header::{AGE, CACHE_CONTROL}, uri::Uri};
+use salvo_core::http::header::{AGE, CACHE_CONTROL};
+use salvo_core::http::headers::{Date, HeaderMapExt};
+use salvo_core::http::uri::Uri;
+use salvo_core::http::{HeaderMap, HeaderValue};
+use salvo_core::hyper::Request as HyperRequest;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::{Notify, RwLock};
@@ -24,6 +40,8 @@ use tokio::time::timeout;
 use super::{JwtAuthDecoder, JwtAuthError};
 
 mod cache;
+#[cfg(test)]
+mod freshness_tests;
 
 pub use cache::{CachePolicy, CacheState, JwkSetStore, UpdateAction};
 
@@ -32,8 +50,8 @@ pub(super) type HyperClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>
 const OIDC_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 const OIDC_CONFIG_MAX_BYTES: usize = 64 * 1024;
 const OIDC_JWKS_MAX_BYTES: usize = 1024 * 1024;
-// Match the minimum cache lifetime. A cache miss may trigger an early refresh,
-// but sequential unknown kids must not bypass the provider's cache policy.
+// Freshness is independent from refresh admission. Sequential unknown kids and
+// responses requiring per-use validation must not amplify provider traffic.
 const OIDC_REVALIDATION_INTERVAL: Duration = Duration::from_secs(1);
 
 fn default_http_client() -> Result<HyperClient, JwtAuthError> {
@@ -84,6 +102,7 @@ pub struct OidcDecoder {
     cache: Arc<RwLock<JwkSetStore>>,
     cache_state: Arc<CacheState>,
     notifier: Arc<Notify>,
+    revalidation_interval: Duration,
 }
 
 impl Debug for OidcDecoder {
@@ -218,7 +237,7 @@ where
         } = self;
         let raw_issuer = issuer.as_ref();
 
-        //Create an empty JWKS to initialize our Cache
+        // Create an empty JWKS to initialize our Cache
         let jwks = JwkSet { keys: Vec::new() };
 
         let validation = configure_oidc_validation(
@@ -239,6 +258,7 @@ where
             cache,
             cache_state,
             notifier: Arc::new(Notify::new()),
+            revalidation_interval: OIDC_REVALIDATION_INTERVAL,
         };
         decoder.update_cache().await?;
         Ok(decoder)
@@ -246,6 +266,18 @@ where
 }
 
 impl OidcDecoder {
+    /// Sets the minimum interval between on-demand JWKS revalidation attempts.
+    ///
+    /// Defaults to one second, including after failures. When `no-cache` or
+    /// `no-store` requires validation for each use, a request unable to acquire
+    /// this budget fails closed instead of reusing an unvalidated key. Set zero
+    /// only when the provider can tolerate per-request network validation.
+    #[must_use]
+    pub fn revalidation_interval(mut self, interval: Duration) -> Self {
+        self.revalidation_interval = interval;
+        self
+    }
+
     /// Create a new `OidcDecoder`.
     pub fn new(
         issuer: impl AsRef<str>,
@@ -297,50 +329,45 @@ impl OidcDecoder {
         // Get the jwks endpoint
         tracing::debug!("Requesting JWKS From Uri: {uri}");
         let request_started = Instant::now();
-        let res = timeout(OIDC_HTTP_TIMEOUT, self.http_client.get(uri))
+        let mut request = HyperRequest::new(Full::new(Bytes::new()));
+        *request.uri_mut() = uri;
+        request
+            .headers_mut()
+            .insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        let res = timeout(OIDC_HTTP_TIMEOUT, self.http_client.request(request))
             .await
             .map_err(|_| JwtAuthError::OidcHttpTimeout)??;
         if !res.status().is_success() {
             return Err(JwtAuthError::OidcHttpStatus(res.status()));
         }
 
-        let cache_policy = Some(CachePolicy::from_header_values(
-            res.headers().get_all(CACHE_CONTROL).iter(),
-        ));
-        let age = response_age(res.headers().get(AGE));
+        let (policy, restrictions) =
+            CachePolicy::from_response_values(res.headers().get_all(CACHE_CONTROL).iter());
+        let headers = res.headers().clone();
         let jwks = collect_limited_body(res.into_body(), OIDC_JWKS_MAX_BYTES).await?;
 
         // RFC 9111 section 4.2.3: freshness is measured from origin validation,
         // not from receipt of an already aged response from an intermediary.
         // Include transfer time so waiting for a response body adds no freshness.
-        let age = age.saturating_add(request_started.elapsed().as_secs());
-        let fetched_at = current_time().saturating_sub(age);
+        let initial_age =
+            corrected_initial_age(&headers, SystemTime::now(), request_started.elapsed());
         Ok(JwkSetFetch {
             jwks: serde_json::from_slice(&jwks)?,
-            cache_policy,
-            fetched_at,
+            cache_policy: Some(policy),
+            initial_age,
+            restrictions,
         })
     }
 
     /// Triggers an immediate update from the JWKS URL
-    /// Will only write lock the [`JwkSetStore`] if there is an actual change to the contents.
+    /// Publishes response age, restrictions, and key material under one write lock.
     async fn update_cache(&self) -> Result<UpdateAction, JwtAuthError> {
         let fetch = self.get_jwks().await;
         match fetch {
             Ok(fetch) => {
-                self.cache_state.set_last_update(fetch.fetched_at);
-                tracing::info!("Set Last update to {:#?}", fetch.fetched_at);
-                self.cache_state.set_is_error(false);
-                let read = self.cache.read().await;
-
-                if read.jwks == fetch.jwks
-                    && fetch.cache_policy.unwrap_or(read.cache_policy) == read.cache_policy
-                {
-                    return Ok(UpdateAction::NoUpdate);
-                }
-                drop(read);
                 let mut write = self.cache.write().await;
-
+                self.cache_state.set_response_age(fetch.initial_age);
+                self.cache_state.set_is_error(false);
                 Ok(write.update_fetch(fetch))
             }
             Err(e) => {
@@ -355,7 +382,7 @@ impl OidcDecoder {
     fn revalidate_cache(&self) {
         if self
             .cache_state
-            .begin_revalidation_after(OIDC_REVALIDATION_INTERVAL)
+            .begin_revalidation_after(self.revalidation_interval)
         {
             tracing::info!("Spawning Task to re-validate JWKS");
             let decoder = self.clone();
@@ -367,8 +394,9 @@ impl OidcDecoder {
         }
     }
 
-    /// If the JWKS is currently updating in the background, this function resolves when the update is complete.
-    /// If we are not currently updating the JWKS in the background, this function will resolve immediately.
+    /// If the JWKS is currently updating in the background, this function resolves when the update
+    /// is complete. If we are not currently updating the JWKS in the background, this function will
+    /// resolve immediately.
     async fn wait_update(&self) {
         loop {
             let notified = self.notifier.notified();
@@ -384,55 +412,104 @@ impl OidcDecoder {
     #[allow(clippy::future_not_send)]
     async fn get_kid_retry(&self, kid: impl AsRef<str>) -> Result<Arc<DecodingInfo>, JwtAuthError> {
         let kid = kid.as_ref();
+        let requires_validation = {
+            let read = self.cache.read().await;
+            read.restrictions.revalidate || read.restrictions.no_store
+        };
+        if requires_validation {
+            return self.revalidate_for_use(kid).await;
+        }
         // Check to see if we have the kid
         if let Ok(Some(key)) = self.get_kid(kid).await {
             // if we have it, then return it
             Ok(key)
         } else {
-            // Try to invalidate our cache. Maybe the JWKS has changed or our cached values expired.
-            // Even if it fails, stale-if-error may still let us retrieve a key.
-            self.revalidate_cache();
-            self.wait_update().await;
+            // The initiating lookup owns this refresh, so it can use a validated
+            // transient key even if the response switches to no-cache/no-store.
+            match self.revalidate_for_use(kid).await {
+                Ok(key) => Ok(key),
+                Err(error) => {
+                    // Another lookup may own the shared refresh. Cacheable
+                    // responses can be reused by waiters; per-use responses cannot.
+                    self.wait_update().await;
+                    self.get_kid(kid).await.ok().flatten().ok_or(error)
+                }
+            }
+        }
+    }
+
+    async fn revalidate_for_use(&self, kid: &str) -> Result<Arc<DecodingInfo>, JwtAuthError> {
+        if !self
+            .cache_state
+            .begin_revalidation_after(self.revalidation_interval)
+        {
+            return Err(JwtAuthError::CacheError);
+        }
+        // A cancelled validation must release the claim, too.
+        struct Claim<'a>(&'a CacheState, &'a Notify);
+        impl Drop for Claim<'_> {
+            fn drop(&mut self) {
+                self.0.finish_revalidation();
+                self.1.notify_waiters();
+            }
+        }
+        let _claim = Claim(&self.cache_state, &self.notifier);
+        let fetch = match self.get_jwks().await {
+            Ok(fetch) => fetch,
+            Err(error) => {
+                self.cache_state.set_is_error(true);
+                return Err(error);
+            }
+        };
+        let mut cache = self.cache.write().await;
+        let per_use = fetch.restrictions.revalidate || fetch.restrictions.no_store;
+        let key = per_use.then(|| cache.transient_key(&fetch.jwks, kid)).flatten();
+        self.cache_state.set_response_age(fetch.initial_age);
+        self.cache_state.set_is_error(false);
+        cache.update_fetch(fetch);
+        drop(cache);
+        if per_use {
+            key.ok_or(JwtAuthError::CacheError)
+        } else {
+            // A cacheable response must still satisfy its corrected age window.
             self.get_kid(kid).await?.ok_or(JwtAuthError::CacheError)
         }
     }
 
     /// Gets the decoding components of a JWK by kid from the JWKS in our cache.
-    /// Returns an Error, if the cache is stale and beyond the Stale While Revalidate and Stale If Error allowances configured in [`crate::cache::Settings`]
-    /// Returns `Ok` if the cache is not stale.
-    /// Returns `Ok` after triggering a background JWKS update if the cache is stale but within the
-    /// stale-while-revalidate and stale-if-error allowances.
+    /// Refuses reuse outside the fresh/stale allowances or when per-use validation
+    /// is required. Within an allowed stale window, also starts background refresh.
     #[allow(clippy::future_not_send)]
     async fn get_kid(&self, kid: &str) -> Result<Option<Arc<DecodingInfo>>, JwtAuthError> {
         let read_cache = self.cache.read().await;
-        let fetched = self.cache_state.last_update();
-        let max_age_secs = read_cache.cache_policy.max_age.as_secs();
-
-        let max_age = fetched + max_age_secs;
-        let now = current_time();
+        if read_cache.restrictions.revalidate || read_cache.restrictions.no_store {
+            return Err(JwtAuthError::CacheError);
+        }
+        let age = self.cache_state.age();
+        let max_age = read_cache.cache_policy.max_age;
         let cached_key = read_cache.get_key(kid);
 
-        if now <= max_age {
+        if age < max_age {
             return Ok(cached_key);
         }
 
         // If the stale while revalidate setting is present
         if let Some(swr) = read_cache.cache_policy.stale_while_revalidate {
             // if we're within the SWR allowed window
-            if now <= swr.as_secs() + max_age {
+            if age < max_age.saturating_add(swr) {
                 self.revalidate_cache();
                 return Ok(cached_key);
             }
         }
         if let Some(swr_err) = read_cache.cache_policy.stale_if_error {
             // if the last update failed and the stale-if-error is present
-            if now <= swr_err.as_secs() + max_age && self.cache_state.is_error() {
+            if age < max_age.saturating_add(swr_err) && self.cache_state.is_error() {
                 self.revalidate_cache();
                 return Ok(cached_key);
             }
         }
         drop(read_cache);
-        tracing::info!("Returning None: {now} - {max_age}");
+        tracing::debug!(?age, ?max_age, "JWKS cache is outside its reuse window");
         Err(JwtAuthError::CacheError)
     }
 }
@@ -537,7 +614,8 @@ impl DecodingInfo {
 pub(crate) struct JwkSetFetch {
     jwks: JwkSet,
     cache_policy: Option<CachePolicy>,
-    fetched_at: u64,
+    initial_age: Duration,
+    restrictions: CacheRestrictions,
 }
 
 #[derive(Debug, Deserialize)]
@@ -644,10 +722,23 @@ fn b64_decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, base64::DecodeError> 
     URL_SAFE_NO_PAD.decode(input.as_ref())
 }
 
+fn corrected_initial_age(
+    headers: &HeaderMap,
+    received: SystemTime,
+    transfer: Duration,
+) -> Duration {
+    let apparent = headers
+        .typed_get::<Date>()
+        .and_then(|date| received.duration_since(SystemTime::from(date)).ok())
+        .unwrap_or_default();
+    apparent.max(Duration::from_secs(response_age(headers.get(AGE))).saturating_add(transfer))
+}
+
 fn response_age(value: Option<&HeaderValue>) -> u64 {
     // Age is a non-negative integer. Use only the first list member if an
     // intermediary combined duplicate fields (RFC 9111 section 5.1).
-    let Some(value) = value.and_then(|value| value.as_bytes().split(|byte| *byte == b',').next()) else {
+    let Some(value) = value.and_then(|value| value.as_bytes().split(|byte| *byte == b',').next())
+    else {
         return 0;
     };
     let value = value.trim_ascii();
@@ -655,7 +746,10 @@ fn response_age(value: Option<&HeaderValue>) -> u64 {
         return 0;
     }
     // An overflowing age means very old, rather than an apparently fresh zero.
-    value.iter().fold(0u64, |age, byte| age.saturating_mul(10).saturating_add(u64::from(byte - b'0')))
+    value.iter().fold(0u64, |age, byte| {
+        age.saturating_mul(10)
+            .saturating_add(u64::from(byte - b'0'))
+    })
 }
 
 pub(crate) fn current_time() -> u64 {
@@ -715,7 +809,7 @@ mod tests {
         }
     }
 
-    fn test_http_client() -> HyperClient {
+    pub(super) fn test_http_client() -> HyperClient {
         let tls = rustls::ClientConfig::builder_with_provider(default_rustls_crypto_provider())
             .with_safe_default_protocol_versions().unwrap()
             .with_root_certificates(rustls::RootCertStore::empty()).with_no_client_auth();
@@ -978,14 +1072,14 @@ mod tests {
         let signing = json!({"kty":"oct", "kid":"signing", "alg":"HS256", "k":"c2VjcmV0", "use":"sig", "key_ops":["verify"]});
         let encryption = json!({"kty":"oct", "kid":"encryption", "alg":"HS256", "k":"c2VjcmV0", "use":"enc", "key_ops":["encrypt"]});
         store.update_fetch(JwkSetFetch { jwks: serde_json::from_value(json!({"keys":[signing.clone(), encryption]})).unwrap(),
-            cache_policy: Some(CachePolicy::default()), fetched_at: current_time() });
+            cache_policy: Some(CachePolicy::default()), initial_age: Duration::ZERO, restrictions: CacheRestrictions::default() });
         assert!(store.get_key("signing").is_some());
         assert!(store.get_key("encryption").is_none());
         let mut revoked = signing;
         revoked["use"] = json!("enc");
         revoked["key_ops"] = json!(["encrypt"]);
         store.update_fetch(JwkSetFetch { jwks: serde_json::from_value(json!({"keys":[revoked]})).unwrap(),
-            cache_policy: Some(CachePolicy::default()), fetched_at: current_time() });
+            cache_policy: Some(CachePolicy::default()), initial_age: Duration::ZERO, restrictions: CacheRestrictions::default() });
         assert!(store.get_key("signing").is_none());
     }
 

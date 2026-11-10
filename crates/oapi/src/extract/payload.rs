@@ -78,8 +78,13 @@ fn register_form_schema<'a>(
     components: &Components,
     operation: &'a mut Operation,
     schema: impl Into<RefOr<Schema>>,
-) -> &'a mut RequestBody {
-    let request_body = operation.request_body.get_or_insert_with(RequestBody::new);
+) -> Option<&'a mut RequestBody> {
+    let body = operation
+        .request_body
+        .get_or_insert_with(|| RequestBody::new().into());
+    let RefOr::Type(request_body) = body else {
+        return None;
+    };
     let content = request_body
         .contents
         .entry("multipart/form-data".into())
@@ -89,7 +94,7 @@ fn register_form_schema<'a>(
         Some(existing) => merge_form_schemas(components, existing, schema),
         None => schema,
     });
-    request_body
+    Some(request_body)
 }
 
 impl EndpointArgRegister for FormFile {
@@ -103,7 +108,9 @@ impl EndpointArgRegister for FormFile {
                 )
                 .required(arg),
         );
-        let body = register_form_schema(components, operation, schema);
+        let Some(body) = register_form_schema(components, operation, schema) else {
+            return;
+        };
         body.required = Some(Required::True);
         body.description
             .get_or_insert_with(|| "Upload a file.".into());
@@ -123,7 +130,9 @@ impl EndpointArgRegister for FormFiles {
                 )
                 .required(arg),
         );
-        let body = register_form_schema(components, operation, schema);
+        let Some(body) = register_form_schema(components, operation, schema) else {
+            return;
+        };
         body.required = Some(Required::True);
         body.description
             .get_or_insert_with(|| "Upload files.".into());
@@ -152,7 +161,9 @@ where
 {
     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
         let schema = T::to_schema(components);
-        let body = register_form_schema(components, operation, schema.clone());
+        let Some(body) = register_form_schema(components, operation, schema.clone()) else {
+            return;
+        };
         body.description = Some("Extract form format data from request.".into());
         body.contents.insert(
             "application/x-www-form-urlencoded".into(),
@@ -179,7 +190,9 @@ where
     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
         let request_body = Self::to_request_body(components);
         let _ = <T as ToSchema>::to_schema(components);
-        operation.request_body = Some(request_body);
+        if !matches!(operation.request_body, Some(RefOr::Ref(_))) {
+            operation.request_body = Some(request_body.into());
+        }
     }
 }
 
@@ -276,10 +289,14 @@ mod tests {
             "#/components/schemas/Cycle",
         ] {
             let mut operation = Operation::new();
-            operation.request_body = Some(RequestBody::new().add_content(
-                "multipart/form-data",
-                Content::new(crate::Ref::new(reference)),
-            ));
+            operation.request_body = Some(
+                RequestBody::new()
+                    .add_content(
+                        "multipart/form-data",
+                        Content::new(crate::Ref::new(reference)),
+                    )
+                    .into(),
+            );
             FormFile::register(&mut components, &mut operation, "file");
             let value = serde_json::to_value(operation.request_body.unwrap()).unwrap();
             let all_of = &value["content"]["multipart/form-data"]["schema"]["allOf"];
