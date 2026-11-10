@@ -14,6 +14,9 @@ concurrency:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -22,6 +25,13 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Verify tag versions and quality at the exact commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/release_preflight.py
+          --tag '${{ github.ref_name }}' --sha '${{ github.sha }}' --repo '${{ github.repository }}'
 
       - uses: taiki-e/install-action@f84dff0ad3f25ff0e5dc531e626734a4e7d11ac7 # cargo-audit
 
