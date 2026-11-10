@@ -49,6 +49,46 @@ salvo = { version = "*", features = ["csrf"] }
 
 [![Docs](https://img.shields.io/docsrs/salvo-csrf.svg)](https://docs.rs/salvo-csrf)
 
+## Choosing token storage
+
+For browser-facing HTTPS services, prefer `CookieStore::host_prefixed()` over
+the compatibility default `CookieStore::new()`:
+
+```rust,ignore
+use salvo::csrf::{BcryptCipher, CookieStore, Csrf, FormFinder};
+let csrf = Csrf::new(
+    BcryptCipher::new(),
+    CookieStore::host_prefixed(),
+    FormFinder::new("csrf"),
+);
+```
+
+The resulting `__Host-salvo.csrf` cookie has `Secure`, `HttpOnly`, `Path=/`,
+and no `Domain`. Browsers reject attempts by sibling subdomains to set a
+parent-domain cookie with that name. The server rejects invalid prefix
+configurations, including later builder or public-field changes. The public
+origin must use HTTPS; the constructor also works behind a trusted TLS-terminating
+proxy because `Secure` is explicit rather than inferred from the internal hop.
+
+The compatibility default is a double-submit cookie **without authentication
+session binding**. `SameSite=Strict` does not separate untrusted sibling subdomains.
+If an attacker can inject a known valid CSRF cookie and the application accepts
+form submissions without another origin check, that pair can be replayed with
+the victim's independent login cookie. Using a global HMAC key alone does not
+bind the pair to that login session. A custom-header finder also depends on the
+application's CORS and origin policy; do not grant credentialed access to untrusted
+origins.
+
+When the application already uses server-side sessions, enable `session-store`
+and use `SessionStore`, with `SessionHandler` before `Csrf`. The proof then belongs
+to that session; copying another session's token or CSRF cookie is insufficient.
+Secure the authentication session cookie as well, and rotate/reissue session
+state at the appropriate authentication boundary. Host-prefixed cookies prevent
+cookie injection, but do not protect against same-origin script execution or
+replace application authorization.
+
+See the [OWASP CSRF prevention guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#signed-double-submit-cookie-recommended).
+
 ## ☕ Donate
 
 Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
