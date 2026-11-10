@@ -18,29 +18,35 @@ on:
       - '**/Cargo.toml'         # or dependency updates
       - '.github/workflows/**'  # or workflow changes
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   typos:
     name: Typos
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: stable
           components: rustfmt, clippy
       - name: Typos check with custom config file
-        uses: crate-ci/typos@master
+        uses: crate-ci/typos@b41eb62e9a8096c9ba6636e2365d3f56018a203c # master
   udeps:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
 
       - name: Install cargo-udeps
-        uses: taiki-e/install-action@cargo-udeps
+        uses: taiki-e/install-action@28bfb437c78d9b7ea8650351357e3eb8c0be2672 # cargo-udeps
 
       - name: Check unused dependencies on default features
         run: cargo udeps
@@ -53,13 +59,14 @@ jobs:
   msrv:
     name: Check MSRV - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Get MSRV from package metadata
         id: msrv
         run: grep rust-version Cargo.toml | cut -d'"' -f2 | sed 's/^/version=/' >> $GITHUB_OUTPUT
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ steps.msrv.outputs.version }}
           components: rustfmt, clippy
@@ -81,9 +88,10 @@ jobs:
             # - nightly
     name: Cargo check ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
@@ -113,10 +121,11 @@ jobs:
             - nightly
     name: Cargo check ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [test]
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
@@ -130,9 +139,10 @@ jobs:
   middleware-features:
     name: Standalone middleware features
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - name: Check each extra middleware independently
         shell: bash
         run: |
@@ -155,6 +165,7 @@ jobs:
   protocols:
     name: Protocol features (${{ matrix.features }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -165,8 +176,8 @@ jobs:
           - 'server,http1,http2'
           - 'server,http1,websocket'
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - name: Check selected protocols
         run: cargo check -p salvo --no-default-features --features '${{ matrix.features }}'
       - name: Test core without matched-path

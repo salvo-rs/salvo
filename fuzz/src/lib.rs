@@ -1,3 +1,5 @@
+pub mod properties;
+
 pub fn split_even<'a>(data: &'a [u8], parts: usize) -> Vec<&'a [u8]> {
     assert!(parts > 0);
     if data.is_empty() {

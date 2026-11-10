@@ -5,10 +5,46 @@ permissions:
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'fuzz/**'
+      - 'crates/core/**'
+      - 'crates/extra/**'
+      - 'crates/jwt-auth/**'
+      - 'crates/oapi/**'
+      - 'crates/oapi-macros/**'
+      - 'crates/tus/**'
+      - 'Cargo.toml'
+      - '.github/workflows/fuzz.yml'
   schedule:
     - cron: '0 3 * * 0'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
+  properties:
+    name: Replay fuzz seeds and property models
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Replay checked-in seeds without sanitizers
+        working-directory: ./fuzz
+        run: |
+          mkdir -p logs
+          set -o pipefail
+          cargo test --lib 2>&1 | tee logs/properties.log
+      - name: Preserve replay logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fuzz-property-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fuzz/logs
+          retention-days: 14
+
   fuzz:
     name: Fuzz ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -21,14 +57,62 @@ jobs:
           - basic_auth
           - tus_options
           - websocket_upgrade
+          - cache_control
+          - openapi_roundtrip
+          - conditional_headers
+          - multipart
+          - tus_state
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
+
+      - name: Restore reusable corpus
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: fuzz/.corpus-cache/${{ matrix.target }}
+          key: fuzz-corpus-v1-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: fuzz-corpus-v1-${{ matrix.target }}-
 
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
+        working-directory: ./fuzz
+        run: |
+          mkdir -p logs artifacts/${{ matrix.target }} .corpus-cache/${{ matrix.target }}
+          cp -a corpus/${{ matrix.target }}/. .corpus-cache/${{ matrix.target }}/
+          set -o pipefail
+          cargo install cargo-fuzz --locked 2>&1 | tee logs/install.log
 
       - name: Run target
         working-directory: ./fuzz
-        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=300
+        env:
+          FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && '30' || '300' }}
+        run: |
+          set -o pipefail
+          rustc +nightly -Vv | tee logs/environment.log
+          cargo +nightly -V | tee -a logs/environment.log
+          cargo fuzz --version | tee -a logs/environment.log
+          cargo +nightly fuzz run ${{ matrix.target }} .corpus-cache/${{ matrix.target }} -- \
+            -max_total_time="$FUZZ_SECONDS" -seed=1337 -max_len=8192 \
+            -rss_limit_mb=2048 -timeout=15 -print_final_stats=1 \
+            -artifact_prefix=artifacts/${{ matrix.target }}/ 2>&1 | tee logs/${{ matrix.target }}.log
+
+      - name: Save reusable corpus
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: fuzz/.corpus-cache/${{ matrix.target }}
+          key: fuzz-corpus-v1-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Preserve failures, corpus, and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fuzz-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            fuzz/artifacts/${{ matrix.target }}
+            fuzz/.corpus-cache/${{ matrix.target }}
+            fuzz/corpus/${{ matrix.target }}
+            fuzz/logs
+            fuzz/Cargo.lock
+          retention-days: 14

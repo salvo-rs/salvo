@@ -18,6 +18,10 @@ categories = { workspace = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[[bench]]
+name = "cache_headers"
+harness = false
+
 [features]
 default = ["moka-store"]
 full = ["moka-store"]
@@ -31,9 +35,15 @@ tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["test", "cookie"] }
+futures-util = { workspace = true }
+stats_alloc = "0.1.10"
+salvo_core = { workspace = true, features = ["test", "cookie", "server", "server-handle"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 time = { workspace = true }
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "cache_chunks"
+harness = false

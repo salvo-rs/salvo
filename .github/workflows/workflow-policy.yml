@@ -1,0 +1,20 @@
+name: Workflow policy
+permissions:
+  contents: read
+on:
+  pull_request:
+    paths: ['.github/workflows/**', '.github/dependabot.yml', '.github/scripts/test_workflow_policy.py']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**', '.github/dependabot.yml', '.github/scripts/test_workflow_policy.py']
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - run: python3 -m pip install 'PyYAML==6.0.3'
+      - run: python3 .github/scripts/test_workflow_policy.py

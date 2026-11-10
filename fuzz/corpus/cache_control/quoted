@@ -1,0 +1,1 @@
+max-age=7, extension="opaque,max-age=2592000", stale-if-error=0

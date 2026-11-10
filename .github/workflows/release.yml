@@ -1,12 +1,16 @@
 name: Release
 
 permissions:
-  contents: write
+  contents: read
 
 on:
   push:
     tags:
       - "v*.*.*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   publish:
@@ -14,12 +18,13 @@ jobs:
       contents: read
       actions: read
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
 
       - name: Verify tag versions and quality at the exact commit
         env:
@@ -28,7 +33,7 @@ jobs:
           python3 .github/scripts/release_preflight.py
           --tag '${{ github.ref_name }}' --sha '${{ github.sha }}' --repo '${{ github.repository }}'
 
-      - uses: taiki-e/install-action@cargo-audit
+      - uses: taiki-e/install-action@f84dff0ad3f25ff0e5dc531e626734a4e7d11ac7 # cargo-audit
 
       - name: Audit dependencies before publishing (warnings only)
         run: |
@@ -67,36 +72,8 @@ jobs:
             "salvo:crates/salvo"
           )
 
-          crate_index_path() {
-            local crate="${1,,}"
-
-            case "${#crate}" in
-              1)
-                printf '1/%s\n' "$crate"
-                ;;
-              2)
-                printf '2/%s\n' "$crate"
-                ;;
-              3)
-                printf '3/%s/%s\n' "${crate:0:1}" "$crate"
-                ;;
-              *)
-                printf '%s/%s/%s\n' "${crate:0:2}" "${crate:2:2}" "$crate"
-                ;;
-            esac
-          }
-
           crate_is_published() {
-            local crate="$1"
-            local version="$2"
-            local index_path
-
-            index_path="$(crate_index_path "$crate")"
-            curl --silent --show-error --fail --location \
-              --header "Accept: text/plain" \
-              --header "User-Agent: salvo-release-ci" \
-              "https://index.crates.io/${index_path}" \
-              | grep --fixed-strings --quiet "\"vers\":\"${version}\""
+            python3 .github/scripts/check_published.py "$1" "$2"
           }
 
           wait_for_crate() {
@@ -107,6 +84,11 @@ jobs:
               if crate_is_published "$crate" "$version"; then
                 echo "${crate} ${version} is visible in the crates.io index"
                 return 0
+              else
+                status=$?
+                if [[ "$status" -ne 1 ]]; then
+                  echo "Index check failed; retrying without treating it as absence" >&2
+                fi
               fi
 
               echo "Waiting for ${crate} ${version} to become visible in the crates.io index (attempt ${attempt}/30)"
@@ -156,6 +138,12 @@ jobs:
             if crate_is_published "$crate" "$version"; then
               echo "${crate} ${version} already published, skipping"
               return 0
+            else
+              status=$?
+              if [[ "$status" -ne 1 ]]; then
+                echo "Cannot determine whether ${crate} ${version} is published" >&2
+                return "$status"
+              fi
             fi
 
             cargo publish --locked --dry-run --manifest-path "${path}/Cargo.toml"
@@ -170,13 +158,16 @@ jobs:
           done
 
   release:
+    permissions:
+      contents: write
     needs: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           generate_release_notes: true

@@ -12,6 +12,15 @@
 //! [`Handler`] will be skipped. You can also manually adjust `ctrl.skip_rest()` to skip subsequent
 //! middleware and [`Handler`].
 //!
+//! # Request path normalization
+//!
+//! Dot segments (`.` and `..`), including percent-encoded forms, are normalized
+//! before route matching. Encoded path separators, literal backslashes, and NUL
+//! bytes are rejected with `400 Bad Request`. On Windows, paths containing
+//! colon-bearing segments or reserved device names are also rejected. This
+//! prevents downstream path normalization from changing the authorization scope
+//! selected by the router.
+//!
 //! # Write in flat way
 //!
 //! We can write routers in flat way, like this:
@@ -490,24 +499,25 @@ pub fn normalize_url_path(path: &str) -> String {
     let final_slash = if path.ends_with('/') { "/" } else { "" };
     let mut used_parts = Vec::with_capacity(8);
     for part in path.split(['/', '\\']) {
-        // Skip empty parts, current directory references, and parts with drive letters
-        if part.is_empty() || part == "." || (cfg!(windows) && part.contains(':')) {
-            continue;
-        }
-        // Skip parts containing null bytes (security risk)
-        if part.contains('\0') {
+        // Routing rejects invalid components before matching. Keep the legacy
+        // normalizer's component policy shared with that validation.
+        if part.is_empty() || part == "." || is_invalid_path_segment(part) {
             continue;
         }
         // Handle parent directory references
         if part == ".." {
             used_parts.pop();
-        } else if cfg!(windows) && is_windows_reserved_name(part) {
-            // Skip Windows reserved device names
         } else {
             used_parts.push(part);
         }
     }
     used_parts.join("/") + final_slash
+}
+
+/// Components omitted by normalization must not reach route matching, where
+/// retaining them could select a different authorization scope.
+fn is_invalid_path_segment(part: &str) -> bool {
+    part.contains('\0') || (cfg!(windows) && (part.contains(':') || is_windows_reserved_name(part)))
 }
 
 #[doc(hidden)]

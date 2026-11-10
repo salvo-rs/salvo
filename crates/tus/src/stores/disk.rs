@@ -131,6 +131,27 @@ impl From<MetaUpload> for UploadInfo {
 #[derive(Debug, Clone)]
 pub struct DiskStore {
     root: PathBuf,
+    #[cfg(test)]
+    checkpoint: Option<std::sync::Arc<CancellationCheckpoint>>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CommitStage {
+    ChunkAccepted,
+    DataFlushed,
+    MetadataWritten,
+    MetadataCommitted,
+    DestinationRetained,
+    DestinationCommitted,
+    SourceRemoved,
+}
+
+#[cfg(test)]
+#[derive(Debug)]
+struct CancellationCheckpoint {
+    stage: CommitStage,
+    entered: tokio::sync::Notify,
 }
 
 impl Default for DiskStore {
@@ -145,6 +166,8 @@ impl DiskStore {
     pub fn new() -> Self {
         Self {
             root: "./tus-upload-files".into(),
+            #[cfg(test)]
+            checkpoint: None,
         }
     }
 
@@ -155,6 +178,16 @@ impl DiskStore {
     pub fn disk_root(mut self, root: impl Into<PathBuf>) -> Self {
         self.root = root.into();
         self
+    }
+
+    #[cfg(test)]
+    async fn at_commit_stage(&self, stage: CommitStage) {
+        if let Some(checkpoint) = &self.checkpoint
+            && checkpoint.stage == stage
+        {
+            checkpoint.entered.notify_one();
+            std::future::pending::<()>().await;
+        }
     }
 
     async fn ensure_root(&self) -> TusResult<()> {
@@ -427,6 +460,8 @@ impl DiskStore {
             }
             match Self::retain_file_no_replace(&current_path, &target_path).await {
                 Ok(true) => {
+                    #[cfg(test)]
+                    self.at_commit_stage(CommitStage::DestinationRetained).await;
                     let mut finalized = meta.clone();
                     let storage = finalized.storage.get_or_insert_with(|| MetaStoreInfo {
                         type_name: "file".to_owned(),
@@ -446,6 +481,9 @@ impl DiskStore {
                         return;
                     }
                     *meta = finalized;
+                    #[cfg(test)]
+                    self.at_commit_stage(CommitStage::DestinationCommitted)
+                        .await;
                     // Never unlink the source before metadata points to the
                     // complete destination. Cancellation between these steps
                     // can leave an extra link/copy, but cannot strand the upload.
@@ -457,6 +495,8 @@ impl DiskStore {
                             meta.id, err
                         );
                     }
+                    #[cfg(test)]
+                    self.at_commit_stage(CommitStage::SourceRemoved).await;
                     return;
                 }
                 Ok(false) => {}
@@ -496,12 +536,16 @@ impl DiskStore {
         fs::write(&tmp, json)
             .await
             .map_err(|e| TusError::Internal(e.to_string()))?;
+        #[cfg(test)]
+        self.at_commit_stage(CommitStage::MetadataWritten).await;
 
         // Rename replaces an existing file on Windows as well as Unix. Keep
         // the destination intact if replacing the temporary file fails.
         fs::rename(&tmp, &final_path)
             .await
             .map_err(|e| TusError::Internal(format!("rename meta tmp: {e}")))?;
+        #[cfg(test)]
+        self.at_commit_stage(CommitStage::MetadataCommitted).await;
 
         Ok(())
     }
@@ -653,12 +697,16 @@ impl DataStore for DiskStore {
                 file.write_all(&chunk)
                     .await
                     .map_err(|e| TusError::Internal(e.to_string()))?;
+                #[cfg(test)]
+                self.at_commit_stage(CommitStage::ChunkAccepted).await;
                 written += chunk.len() as u64;
             }
 
             file.flush()
                 .await
                 .map_err(|e| TusError::Internal(e.to_string()))?;
+            #[cfg(test)]
+            self.at_commit_stage(CommitStage::DataFlushed).await;
             Ok(written)
         }
         .await;
@@ -731,6 +779,111 @@ mod tests {
             metadata: None,
             storage: None,
             creation_date: "2024-01-01T00:00:00Z".to_owned(),
+        }
+    }
+
+    #[tokio::test]
+    async fn task_cancellation_at_commit_boundaries_allows_same_id_retry() {
+        use std::sync::Arc;
+        use std::time::Duration;
+
+        use bytes::Bytes;
+        use futures_util::stream;
+
+        for stage in [
+            CommitStage::ChunkAccepted,
+            CommitStage::DataFlushed,
+            CommitStage::MetadataWritten,
+            CommitStage::MetadataCommitted,
+            CommitStage::DestinationRetained,
+            CommitStage::DestinationCommitted,
+            CommitStage::SourceRemoved,
+        ] {
+            let (store, directory) = create_test_store();
+            let id = format!("cancel-{stage:?}");
+            let mut upload = create_test_upload_info(&id);
+            upload.size = Some(12);
+            upload.metadata = Some(Metadata(HashMap::from([(
+                "filename".into(),
+                Some(b"completed.txt".to_vec()),
+            )])));
+            store.create(upload).await.unwrap();
+            store
+                .write(
+                    &id,
+                    0,
+                    Box::pin(stream::iter([Ok(Bytes::from_static(b"prefix"))])),
+                )
+                .await
+                .unwrap();
+            fs::write(directory.path().join("data/unrelated.bin"), b"unrelated")
+                .await
+                .unwrap();
+
+            let checkpoint = Arc::new(CancellationCheckpoint {
+                stage,
+                entered: tokio::sync::Notify::new(),
+            });
+            let mut pausing_store = store.clone();
+            pausing_store.checkpoint = Some(checkpoint.clone());
+            let write_id = id.clone();
+            let task = tokio::spawn(async move {
+                pausing_store
+                    .write(
+                        &write_id,
+                        6,
+                        Box::pin(stream::iter([Ok(Bytes::from_static(b"oldold"))])),
+                    )
+                    .await
+            });
+            tokio::time::timeout(Duration::from_secs(3), checkpoint.entered.notified())
+                .await
+                .unwrap_or_else(|_| panic!("did not reach {stage:?}"));
+            task.abort();
+            assert!(task.await.unwrap_err().is_cancelled());
+
+            // Reopen and immediately issue the next request for the same ID. Read the
+            // committed offset instead of assuming that a cancelled request did not commit.
+            let reopened = DiskStore::new().disk_root(directory.path());
+            let committed = reopened
+                .get_upload_file_info(&id)
+                .await
+                .unwrap()
+                .offset
+                .unwrap();
+            let (retry, expected): (ByteStream, &[u8]) = match committed {
+                6 => (
+                    Box::pin(stream::iter([Ok(Bytes::from_static(b"suffix"))])),
+                    b"prefixsuffix",
+                ),
+                12 => (Box::pin(stream::empty()), b"prefixoldold"),
+                offset => panic!("unexpected committed offset {offset} at {stage:?}"),
+            };
+            reopened.write(&id, committed, retry).await.unwrap();
+            let info = reopened.get_upload_file_info(&id).await.unwrap();
+            assert_eq!(info.offset, Some(12), "{stage:?}");
+            let path = info.storage.unwrap().path;
+            assert_eq!(fs::read(&path).await.unwrap(), expected, "{stage:?}");
+            reopened
+                .write(&id, 12, Box::pin(stream::empty()))
+                .await
+                .unwrap();
+            assert_eq!(
+                reopened
+                    .get_upload_file_info(&id)
+                    .await
+                    .unwrap()
+                    .storage
+                    .unwrap()
+                    .path,
+                path
+            );
+            assert_eq!(
+                fs::read(directory.path().join("data/unrelated.bin"))
+                    .await
+                    .unwrap(),
+                b"unrelated"
+            );
         }
     }
 
