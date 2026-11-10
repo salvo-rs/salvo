@@ -38,9 +38,15 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+stats_alloc = "0.1.10"
+flate2 = { workspace = true }
 salvo_core = { workspace = true, features = ["test"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "static_roots"
+harness = false

@@ -486,7 +486,15 @@ impl Compression {
                 (Some(explicit), _) => Some(explicit),
                 (None, wildcard) => wildcard,
             };
-            selected.map(|(algo, level, _)| (algo, level))
+            // An explicitly preferred identity representation must participate in
+            // client-priority negotiation too. Preserve codec preference on ties.
+            let identity_q = accept_list
+                .iter()
+                .find(|(name, _)| name == "identity")
+                .map(|(_, q)| *q);
+            selected
+                .filter(|(_, _, q)| !identity_q.is_some_and(|identity| identity > *q))
+                .map(|(algo, level, _)| (algo, level))
         }
     }
 }
