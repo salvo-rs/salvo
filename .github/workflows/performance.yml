@@ -27,6 +27,10 @@ on:
       - '.github/workflows/performance.yml'
       - '.github/scripts/test_performance_paths.py'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   criterion:
     name: Core routing and dispatch
@@ -36,12 +40,12 @@ jobs:
       CARGO_TARGET_DIR: target
       CARGO_TERM_COLOR: always
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Check benchmark trigger coverage
         run: |
           python3 -m pip install 'PyYAML==6.0.3'
           python3 .github/scripts/test_performance_paths.py
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: '1.95.0'
       - name: Record benchmark environment
@@ -74,7 +78,7 @@ jobs:
             2>&1 | tee benchmark-artifacts/criterion.log
       - name: Upload benchmark results and environment
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: core-criterion-${{ github.sha }}-${{ github.run_attempt }}
           path: |

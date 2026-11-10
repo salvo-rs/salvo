@@ -19,6 +19,10 @@ on:
   schedule:
     - cron: '0 3 * * 0'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   properties:
     name: Replay fuzz seeds and property models
@@ -59,9 +63,9 @@ jobs:
           - multipart
           - tus_state
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
 
       - name: Restore reusable corpus
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5

@@ -18,6 +18,10 @@ on:
       - '**/Cargo.toml'         # or dependency updates
       - '.github/workflows/**'  # or workflow changes
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   test:
     strategy:
@@ -33,10 +37,11 @@ jobs:
 
     name: Check ${{ matrix.version }} - ${{ matrix.target }}
     runs-on: windows-latest
+    timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
