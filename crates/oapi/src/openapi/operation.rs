@@ -142,7 +142,7 @@ pub struct Operation {
 
     /// Optional request body for this [`Operation`].
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_body: Option<RequestBody>,
+    pub request_body: Option<RefOr<RequestBody>>,
 
     /// List of possible responses returned by the [`Operation`].
     pub responses: Responses,
@@ -245,8 +245,8 @@ impl Operation {
 
     /// Add or change request body of the [`Operation`].
     #[must_use]
-    pub fn request_body(mut self, request_body: RequestBody) -> Self {
-        self.request_body = Some(request_body);
+    pub fn request_body(mut self, request_body: impl Into<RefOr<RequestBody>>) -> Self {
+        self.request_body = Some(request_body.into());
         self
     }
 

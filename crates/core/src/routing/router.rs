@@ -120,6 +120,9 @@ impl Router {
         req: &mut Request,
         path_state: &mut PathState<'_>,
     ) -> Option<DetectMatched> {
+        if !path_state.is_valid_path() {
+            return None;
+        }
         self.detect_with_method(req, path_state, None).await
     }
 
@@ -1131,13 +1134,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_router_detect_path_encoded() {
+    async fn test_router_rejects_encoded_path_separators() {
         let router = Router::new().path("api/{p}").get(fake_handler);
         let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
         let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
-        assert!(matched.is_some());
-        assert_eq!(path_state.params["p"], "a/b/c");
+        assert!(matched.is_none());
+        assert!(path_state.params.is_empty());
     }
 
     #[tokio::test]

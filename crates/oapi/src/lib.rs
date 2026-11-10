@@ -1133,7 +1133,7 @@ pub trait ToParameter {
 /// }
 /// impl EndpointArgRegister for MyPayload {
 ///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
-///         operation.request_body = Some(Self::to_request_body(components));
+///         operation.request_body = Some(Self::to_request_body(components).into());
 ///     }
 /// }
 /// ```

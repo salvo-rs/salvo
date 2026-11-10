@@ -1,0 +1,14 @@
+[package]
+name = "salvo-feature-costs"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace]
+
+[features]
+full = ["salvo/full"]
+
+[dependencies]
+salvo = { path = "../../crates/salvo", default-features = false, features = ["server", "http1"] }

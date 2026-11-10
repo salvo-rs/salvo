@@ -228,9 +228,65 @@ are shared across decoder clones and have a one-second cooldown after completion
 including failures, so repeated cache misses do not cause one provider request
 per token. A new key might require retrying after that cooldown.
 
-JWKS freshness accounts for the response's `Age` and the time spent fetching it.
-A key set served by an intermediary therefore retains only its remaining
-`max-age` and stale allowance, rather than receiving a new lifetime on arrival.
+### JWKS freshness and key removal
+
+JWKS reuse has a bounded age. Initial age is the greater of apparent age from
+`Date` and `Age` plus the monotonic time spent fetching the response (including
+its body). Local residence then advances with `Instant`, so a wall-clock rollback
+after receipt cannot extend reuse. A missing or invalid `Date` contributes zero;
+a future `Date` never subtracts age. Every JWKS network refresh sends request
+`Cache-Control: no-cache` to require intermediary validation.
+
+A response is fresh only while `age < max-age`. After that, reuse is permitted
+only inside `stale-while-revalidate`, or inside `stale-if-error` after a failed
+refresh. The windows overlap; they are not added to each other. Without directives,
+the defaults are one second fresh, one additional second for background refresh,
+and 60 additional seconds on error: at most 61 seconds of reuse since origin
+response age zero. Each duration is capped at 30 days, so even a very large IdP
+value allows at most 60 days of reuse without a successful refresh. Provider
+operators should send short explicit durations appropriate to their key-removal
+requirements. Removing a key from the provider does not invalidate previously
+cached copies immediately. These bounds apply to cache reuse under unchanged
+provider data, not to a provider or intermediary that continues issuing apparently
+new responses containing the removed key. JWT claim checks, including expiration,
+still apply independently.
+
+| Response directive | Decoder behavior |
+| --- | --- |
+| `max-age=0` | No fresh window; explicit stale allowances may still permit stale use. Omitted stale directives retain the defaults above. |
+| `no-cache` | Validate over the network for each use, including a known `kid`; never fall back to an unvalidated cached key. |
+| `no-store` | Validate for each use, use the response key only for that operation, and retain no JWKS or decoded key in the cache. |
+| `must-revalidate` | Allow fresh reuse; disable all stale reuse, including on network failure. |
+
+These restrictions win over duration directives regardless of field order and
+apply on the next response even if the key bytes are unchanged. If an expired
+cacheable response refreshes into `no-cache`/`no-store`, only the lookup that
+performed that validation may use its transient key; later lookups must validate
+again. Qualified
+`no-cache` is handled conservatively as applying to the entire response. The
+implementation does not use HTTP conditional requests or process `304` responses;
+a successful full JWKS response is required.
+
+The refresh budget is separate from freshness. The shared one-second cooldown
+also applies to `no-cache`/`no-store`, including failures. A request during the
+cooldown or another in-flight per-use validation fails closed; the decoder does
+not reuse an unvalidated key to improve availability. If the provider explicitly
+supports a network validation for every token, opt out of the cooldown after
+construction:
+
+```rust
+let decoder = OidcDecoder::new(issuer, audience)
+    .await?
+    .revalidation_interval(std::time::Duration::ZERO);
+```
+
+One validation remains in flight at a time across clones. Changing this interval
+does not extend the response's reuse window. A cancelled per-use validation
+releases its refresh claim and starts the same cooldown.
+
+Age and directive rules follow the conservative parts of
+[RFC 9111](https://www.rfc-editor.org/rfc/rfc9111.html#section-4.2.3);
+this is a JWKS cache, not a general-purpose HTTP cache.
 
 Discovery metadata must include an `issuer` that exactly matches the configured
 issuer URL, including any trailing slash. JWKS keys with an explicit `use` must

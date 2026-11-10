@@ -1,0 +1,1 @@
+{"openapi":"3.1.0","info":{"title":"seed","version":"1"},"paths":{},"components":{"schemas":{"Item":{"$ref":"#/components/schemas/Other"}}}}

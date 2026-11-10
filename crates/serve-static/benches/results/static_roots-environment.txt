@@ -1,0 +1,11 @@
+Source baseline: ec427f834afa22f29689c9c7a18366beeb691f5f
+CPU: Intel Core i7-14700KF; 28 logical processors
+OS: Windows-11-10.0.26300-SP0
+Command: cargo bench --locked -p salvo-serve-static --bench static_roots
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: x86_64-pc-windows-msvc
+release: 1.99.1
+LLVM version: 23.1.1

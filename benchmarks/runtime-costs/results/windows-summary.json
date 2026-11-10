@@ -1,0 +1,32 @@
+{
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.1\nLLVM version: 23.1.1",
+  "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+  "samples": 128,
+  "jobs": 2,
+  "runtime": {
+    "before": {
+      "commit": "e29dbf75e46311ab96acf92f96c16ca01434e15b",
+      "runtime_seconds": 1.3354970999935176,
+      "executable_bytes": 5879808
+    },
+    "after": {
+      "commit": "ec427f834afa22f29689c9c7a18366beeb691f5f",
+      "runtime_seconds": 1.88530670000182,
+      "executable_bytes": 5948416
+    }
+  },
+  "feature_builds": {
+    "minimal": {
+      "cold_target_seconds": 44.35079519999272,
+      "unchanged_incremental_seconds": 0.208361099998001,
+      "normal_build_package_versions_including_consumer": 109,
+      "smoke_consumer_executable_bytes": 126464
+    },
+    "full": {
+      "cold_target_seconds": 388.33721890000743,
+      "unchanged_incremental_seconds": 20.271589399999357,
+      "normal_build_package_versions_including_consumer": 393,
+      "smoke_consumer_executable_bytes": 1654272
+    }
+  }
+}
