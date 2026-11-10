@@ -4,7 +4,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Content, Required};
+use super::{Content, Ref, RefOr, Required};
 use crate::PropMap;
 
 /// Implements [OpenAPI Request Body][request_body].
@@ -29,6 +29,12 @@ pub struct RequestBody {
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
+}
+
+impl From<Ref> for RefOr<RequestBody> {
+    fn from(reference: Ref) -> Self {
+        Self::Ref(reference)
+    }
 }
 
 impl RequestBody {
