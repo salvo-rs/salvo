@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   coverage, and add Clippy correctness checks.
 - Extend performance benchmarks for caching, static directory roots, streaming
   compression, rate guards, and runtime and feature costs.
+- Keep performance comparisons working across local crate version bumps while
+  preserving the external dependency lock.
 - Pin CI actions and coverage tooling, retain failure diagnostics and dependency
   audit evidence, and bound cancellable workflow runs.
 - Require matching package versions and successful quality checks at the exact

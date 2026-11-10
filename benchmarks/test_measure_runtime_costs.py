@@ -3,8 +3,10 @@ import csv
 import importlib.util
 import json
 import pathlib
+import subprocess
 import tempfile
 import types
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +16,47 @@ SPEC.loader.exec_module(costs)
 
 
 class ProfilingSafety(unittest.TestCase):
+    def test_lock_reuse_accepts_a_local_crate_version_bump(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            library = root / "library"
+            library.mkdir()
+            (library / "lib.rs").write_text("", encoding="utf-8")
+            library_manifest = library / "Cargo.toml"
+            library_manifest.write_text(
+                '[package]\nname = "fixture-library"\nversion = "1.1.1"\n'
+                '[lib]\npath = "lib.rs"\n', encoding="utf-8")
+            manifest = root / "Cargo.toml"
+            manifest.write_text(
+                '[package]\nname = "fixture-consumer"\nversion = "0.0.0"\n'
+                '[workspace]\n[lib]\npath = "lib.rs"\n'
+                '[dependencies]\nfixture-library = { path = "library" }\n', encoding="utf-8")
+            (root / "lib.rs").write_text("", encoding="utf-8")
+            subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=root, check=True, capture_output=True)
+            baseline = root / "baseline.lock"
+            baseline.write_bytes((root / "Cargo.lock").read_bytes())
+            library_manifest.write_text(library_manifest.read_text().replace('"1.1.1"', '"1.1.2"'), encoding="utf-8")
+            costs.reuse_dependency_lock(baseline, manifest, root, root / "refresh.log")
+            packages = tomllib.loads((root / "Cargo.lock").read_text())["package"]
+            self.assertEqual(next(p["version"] for p in packages if p["name"] == "fixture-library"), "1.1.2")
+            subprocess.run(["cargo", "metadata", "--offline", "--locked", "--format-version", "1"],
+                           cwd=root, check=True, capture_output=True)
+
+    def test_lock_reuse_rejects_external_dependency_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            baseline = root / "baseline.lock"
+            baseline.write_text(
+                'version = 4\n[[package]]\nname = "fixture"\nversion = "0.0.0"\n'
+                '[[package]]\nname = "external"\nversion = "1.0.0"\n'
+                'source = "registry+https://github.com/rust-lang/crates.io-index"\n', encoding="utf-8")
+            def drift(*args):
+                lock = root / "Cargo.lock"
+                lock.write_text(lock.read_text().replace('"1.0.0"', '"2.0.0"'), encoding="utf-8")
+            with patch.object(costs, "command", side_effect=drift):
+                with self.assertRaisesRegex(RuntimeError, "external dependency locks differ"):
+                    costs.reuse_dependency_lock(baseline, root / "Cargo.toml", root, root / "refresh.log")
+
     def test_external_target_is_rejected_without_clean(self):
         with tempfile.TemporaryDirectory() as directory:
             manifest = pathlib.Path(directory) / "fixture" / "Cargo.toml"

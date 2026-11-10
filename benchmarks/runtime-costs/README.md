@@ -4,7 +4,7 @@ This workload measures the aggregate cost of the correctness changes between
 `e29dbf75` (before the original six fixes) and the selected current revision.
 It adds no production optimization or latency threshold.
 
-From the repository root, with Python 3.10+, Git, Cargo and a supported linker:
+From the repository root, with Python 3.11+, Git, Cargo and a supported linker:
 
 ```sh
 python -m unittest discover -s benchmarks -p 'test_*.py'
@@ -23,8 +23,10 @@ both real fixtures; the smoke script inherits that setting without overriding it
 
 The output directory must stay in this checkout. The runner creates detached
 before/after worktrees inside it, copies the **same fixture** into both, resolves
-one dependency lock and builds both with that lock. It stops if that lock cannot
-build the selected revision, rather than silently changing dependency versions.
+one dependency lock and builds both with its external dependencies pinned. Local
+path package entries are refreshed offline to match each revision's versions;
+any external dependency change stops the comparison. It also stops if that lock
+cannot build the selected revision, rather than silently changing dependencies.
 Use a compatible revision pair or explicitly update the experiment in that case.
 An existing worktree at a different revision is never reset or overwritten;
 choose a new output directory. Evidence includes fixture hashes, full commit IDs,

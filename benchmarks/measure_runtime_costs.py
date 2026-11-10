@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -97,6 +98,27 @@ def validate_samples(path):
             raise RuntimeError(f"{path}: negative measurement")
 
 
+def reuse_dependency_lock(previous, manifest, checkout, log):
+    lock = manifest.with_name("Cargo.lock")
+    shutil.copyfile(previous, lock)
+    baseline = tomllib.loads(lock.read_text(encoding="utf-8"))
+    # Path package versions follow the checked-out revision. Refresh only those
+    # entries offline, retaining the exact external dependency graph.
+    packages = [package["name"] for package in baseline["package"] if "source" not in package]
+    arguments = ["cargo", "update", "--offline", "--manifest-path", str(manifest)]
+    for package in packages:
+        arguments.extend(["--package", package])
+    command(arguments, checkout, log)
+    current = tomllib.loads(lock.read_text(encoding="utf-8"))
+
+    def external_packages(data):
+        return {(p["name"], p["version"], p["source"]): p
+                for p in data["package"] if "source" in p}
+
+    if external_packages(baseline) != external_packages(current):
+        raise RuntimeError("before/after external dependency locks differ; stop the comparison")
+
+
 def runtime_costs(args, output):
     records = {}
     first_lock = None
@@ -115,7 +137,7 @@ def runtime_costs(args, output):
         (directory / "metadata.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
         lock = manifest.parent / "Cargo.lock"
         if first_lock:
-            shutil.copyfile(first_lock, lock)
+            reuse_dependency_lock(first_lock, manifest, checkout, directory / "refresh-lock.log")
         else:
             command(["cargo", "generate-lockfile", "--manifest-path", str(manifest)], checkout,
                     directory / "resolve.log")
