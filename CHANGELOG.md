@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-10
+
+### Added
+
+- Add validated `__Host-` prefixed CSRF cookie storage.
+- Expose response body production observations and optionally retain concurrency
+  capacity until the response body finishes.
+- Support references in OpenAPI operation request bodies.
+
+### Fixed
+
+- Reject ambiguous request paths before route authorization, including encoded
+  separators and traversal forms.
+- Keep upgraded connections within server lifecycle and capacity limits, and
+  preserve admission progress when accepting connections is cancelled.
+- Isolate generic extractor metadata by flattened child types and preserve user
+  predicates when deriving `Extractible`.
+- Keep OpenAPI header schema and content representations mutually exclusive.
+- Serialize OpenAPI Link fields with standard names while accepting legacy aliases.
+- Isolate origin-form response cache keys by validated Host authority, validate
+  the outer response context before reusing cached headers, and honor request
+  cache bypass directives.
+- Honor an explicit preference for the identity encoding during compression
+  negotiation.
+- Enforce bounded OIDC JWKS freshness and cache validation directives.
+
+### Changed
+
+- Expand cancellation, fuzz, downstream macro, and OpenAPI contract regression
+  coverage, and add Clippy correctness checks.
+- Extend performance benchmarks for caching, static directory roots, streaming
+  compression, rate guards, and runtime and feature costs.
+- Pin CI actions and coverage tooling, retain failure diagnostics and dependency
+  audit evidence, and bound cancellable workflow runs.
+- Require matching package versions and successful quality checks at the exact
+  tagged commit before publishing, and distinguish registry lookup errors from
+  unpublished versions.
+
 ## [1.1.1] - 2026-11-06
 
 ### Fixed
