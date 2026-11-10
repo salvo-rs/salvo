@@ -110,7 +110,7 @@ fn valid_bounds_and_invalid_delta_seconds_keep_conservative_defaults() {
     }
     let zero = HeaderValue::from_static("max-age=0, stale-while-revalidate=0");
     let policy = CachePolicy::from_header_val(Some(&zero));
-    assert_eq!(policy.max_age, Duration::from_secs(1));
+    assert_eq!(policy.max_age, Duration::ZERO);
     assert_eq!(policy.stale_while_revalidate, Some(Duration::ZERO));
     let huge = HeaderValue::from_static(
         "max-age=18446744073709551615, stale-if-error=18446744073709551615",
