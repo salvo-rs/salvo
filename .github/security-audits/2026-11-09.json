@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-09",
+  "source_commit": "ec427f834afa22f29689c9c7a18366beeb691f5f",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "cargo_audit": "cargo-audit-audit 0.22.0",
+  "scopes": {
+    "root": {
+      "outcome": "findings",
+      "raw_exit_code": 1,
+      "policy": "warning-only",
+      "lockfile": "Cargo.lock",
+      "lockfile_sha256": "8dadd66a2b5ea4bd73b1cdf2ae7a793445dd208352e9c91868afcd4dedccfee9",
+      "database": {
+        "advisory-count": 1429,
+        "last-commit": null,
+        "last-updated": null
+      },
+      "dependency_count": 538,
+      "advisories": [
+        "RUSTSEC-2026-0387"
+      ],
+      "warnings": {},
+      "ignored_advisories": [
+        "RUSTSEC-2023-0071"
+      ]
+    },
+    "examples": {
+      "outcome": "findings",
+      "raw_exit_code": 1,
+      "policy": "warning-only",
+      "lockfile": "examples\\Cargo.lock",
+      "lockfile_sha256": "a82ab925be33dc3569f4559448c35787dcb2d281c704ef2be1dde786f3d015f2",
+      "database": {
+        "advisory-count": 1429,
+        "last-commit": null,
+        "last-updated": null
+      },
+      "dependency_count": 941,
+      "advisories": [
+        "RUSTSEC-2026-0459"
+      ],
+      "warnings": {
+        "unmaintained": [
+          "RUSTSEC-2025-0134"
+        ],
+        "unsound": [
+          "RUSTSEC-2026-0002",
+          "RUSTSEC-2026-0253"
+        ]
+      },
+      "ignored_advisories": [
+        "RUSTSEC-2023-0071"
+      ]
+    },
+    "fuzz": {
+      "outcome": "clean",
+      "raw_exit_code": 0,
+      "policy": "warning-only",
+      "lockfile": "fuzz\\Cargo.lock",
+      "lockfile_sha256": "b0c42775ef425612fe121ebb97eaa06bd8b4af2f2391d761fa8d9be337544f86",
+      "database": {
+        "advisory-count": 1429,
+        "last-commit": null,
+        "last-updated": null
+      },
+      "dependency_count": 145,
+      "advisories": [],
+      "warnings": {},
+      "ignored_advisories": [
+        "RUSTSEC-2023-0071"
+      ]
+    },
+    "default-jwt": {
+      "outcome": "clean",
+      "raw_exit_code": 0,
+      "policy": "warning-only",
+      "lockfile": "isolated default-only consumer/Cargo.lock",
+      "lockfile_sha256": "d00400b038e27430074106b396cb025d87ac0ba7d403fc427506797e101b444a",
+      "database": {
+        "advisory-count": 1429,
+        "last-commit": null,
+        "last-updated": null
+      },
+      "dependency_count": 198,
+      "advisories": [],
+      "warnings": {},
+      "ignored_advisories": [
+        "RUSTSEC-2023-0071"
+      ]
+    }
+  }
+}

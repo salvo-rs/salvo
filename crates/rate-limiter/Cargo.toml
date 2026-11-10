@@ -18,6 +18,10 @@ categories = { workspace = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[[bench]]
+name = "guard_state"
+harness = false
+
 [features]
 default = ["moka-store", "fixed-guard", "sliding-guard"]
 full = ["moka-store", "fixed-guard", "sliding-guard"]
@@ -34,6 +38,7 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+stats_alloc = "0.1.10"
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 

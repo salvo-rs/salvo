@@ -187,6 +187,7 @@ mod tests {
             status: Some(StatusCode::OK),
             headers: HeaderMap::new(),
             body: CachedBody::Once("test_body".into()),
+            outer_headers: None,
         };
         store.save_entry(key.clone(), entry.clone()).await.unwrap();
         let loaded_entry = store.load_entry(&key).await.unwrap();
@@ -207,6 +208,7 @@ mod tests {
             status: Some(StatusCode::OK),
             headers: HeaderMap::new(),
             body: CachedBody::Once("test_body".into()),
+            outer_headers: None,
         };
         store.save_entry(key.clone(), entry.clone()).await.unwrap();
         let loaded_entry = store.load_entry(&key).await.unwrap();
@@ -247,6 +249,7 @@ mod tests {
             status: None,
             headers: HeaderMap::new(),
             body: CachedBody::Once("test_body".into()),
+            outer_headers: None,
         };
         store.save_entry("key1".to_owned(), entry.clone()).await.unwrap();
         store.save_entry("key2".to_owned(), entry.clone()).await.unwrap();
@@ -291,7 +294,8 @@ mod tests {
         let entry = CachedEntry {
             status: None,
             headers: HeaderMap::new(),
-            body: CachedBody::Once("test_body".into()), // 9 bytes
+            body: CachedBody::Once("test_body".into()),
+            outer_headers: None, // 9 bytes
         };
         store.save_entry("key1".to_owned(), entry.clone()).await.unwrap();
         store.save_entry("key2".to_owned(), entry.clone()).await.unwrap();

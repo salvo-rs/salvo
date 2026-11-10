@@ -294,51 +294,61 @@ impl HyperHandler {
         async move {
             let path = req.uri().path().to_owned();
             let mut path_state = PathState::from_borrowed_path(&path);
-            let matched = state.router.detect(&mut req, &mut path_state).await;
-            let allowed = if matched.is_none() {
-                state.router.allowed_methods(&mut req, &path).await
+            let mut allowed = Vec::new();
+            let mut method_not_allowed = false;
+            if !path_state.is_valid_path() {
+                res.render(StatusError::bad_request().brief("invalid request path"));
+                if !state.hoops.is_empty() {
+                    let mut ctrl = FlowCtrl::with_conn(state.hoops.clone(), conn_ctrl.clone());
+                    ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                }
             } else {
-                Vec::new()
-            };
-            let method_not_allowed = !allowed.is_empty();
-            if let Some(dm) = matched {
-                path_state.params.seal();
-                req.params = path_state.params;
-                #[cfg(feature = "matched-path")]
-                {
-                    req.matched_path = path_state.matched_parts.join("/");
-                }
-                // Set default status code before service hoops executed.
-                // We hope all hoops in service can get the correct status code.
-                let mut handlers = Vec::with_capacity(state.hoops.len() + dm.hoops.len() + 2);
-                handlers.extend(state.hoops.iter().cloned());
-                handlers.extend(dm.hoops);
-                handlers.push(DEFAULT_STATUS_OK_HANDLER.clone());
-                handlers.push(dm.goal);
-                let mut ctrl = FlowCtrl::with_conn(handlers, conn_ctrl.clone());
-                ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                // Set it to default status code again if any hoop set status code to None.
-                if res.status_code.is_none() {
-                    res.status_code = Some(StatusCode::OK);
-                }
-            } else if !state.hoops.is_empty() {
-                path_state.params.seal();
-                req.params = path_state.params;
-                // Set default status code before service hoops executed.
-                // We hope all hoops in service can get the correct status code.
-                if method_not_allowed {
-                    res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
+                let matched = state.router.detect(&mut req, &mut path_state).await;
+                allowed = if matched.is_none() {
+                    state.router.allowed_methods(&mut req, &path).await
                 } else {
-                    res.status_code = Some(StatusCode::NOT_FOUND);
-                }
-                let mut ctrl = FlowCtrl::with_conn(state.hoops.clone(), conn_ctrl.clone());
-                ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                // Set it to default status code again if any hoop set status code to None.
-                if res.status_code.is_none() && method_not_allowed {
+                    Vec::new()
+                };
+                method_not_allowed = !allowed.is_empty();
+                if let Some(dm) = matched {
+                    path_state.params.seal();
+                    req.params = path_state.params;
+                    #[cfg(feature = "matched-path")]
+                    {
+                        req.matched_path = path_state.matched_parts.join("/");
+                    }
+                    // Set default status code before service hoops executed.
+                    // We hope all hoops in service can get the correct status code.
+                    let mut handlers = Vec::with_capacity(state.hoops.len() + dm.hoops.len() + 2);
+                    handlers.extend(state.hoops.iter().cloned());
+                    handlers.extend(dm.hoops);
+                    handlers.push(DEFAULT_STATUS_OK_HANDLER.clone());
+                    handlers.push(dm.goal);
+                    let mut ctrl = FlowCtrl::with_conn(handlers, conn_ctrl.clone());
+                    ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                    // Set it to default status code again if any hoop set status code to None.
+                    if res.status_code.is_none() {
+                        res.status_code = Some(StatusCode::OK);
+                    }
+                } else if !state.hoops.is_empty() {
+                    path_state.params.seal();
+                    req.params = path_state.params;
+                    // Set default status code before service hoops executed.
+                    // We hope all hoops in service can get the correct status code.
+                    if method_not_allowed {
+                        res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
+                    } else {
+                        res.status_code = Some(StatusCode::NOT_FOUND);
+                    }
+                    let mut ctrl = FlowCtrl::with_conn(state.hoops.clone(), conn_ctrl.clone());
+                    ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                    // Set it to default status code again if any hoop set status code to None.
+                    if res.status_code.is_none() && method_not_allowed {
+                        res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
+                    }
+                } else if method_not_allowed {
                     res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
                 }
-            } else if method_not_allowed {
-                res.status_code = Some(StatusCode::METHOD_NOT_ALLOWED);
             }
 
             if !state.allowed_media_types.is_empty()
@@ -499,6 +509,64 @@ mod tests {
     #[handler]
     async fn method_probe_goal() -> &'static str {
         "ok"
+    }
+
+    #[tokio::test]
+    #[cfg(all(feature = "server", feature = "http1"))]
+    async fn invalid_paths_are_rejected_over_http_before_routing() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        use crate::conn::Acceptor;
+
+        #[handler]
+        async fn unreachable_goal() {
+            panic!("an invalid path reached the router goal");
+        }
+
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let addr = acceptor.holdings()[0]
+            .local_addr
+            .clone()
+            .into_std()
+            .unwrap();
+        let server = Server::new(acceptor);
+        let task =
+            tokio::spawn(server.try_serve(Router::with_path("{**rest}").goal(unreachable_goal)));
+        for method in ["GET", "POST", "HEAD", "OPTIONS"] {
+            for path in [
+                "/%2freport_note/secret.txt",
+                "/%5creport_note/secret.txt",
+                "/%00/report_note/secret.txt",
+                #[cfg(windows)]
+                "/C:/report_note/secret.txt",
+                #[cfg(windows)]
+                "/CON/report_note/secret.txt",
+            ] {
+                let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
+                client.write_all(format!(
+                    "{method} {path} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                ).as_bytes()).await.unwrap();
+                let mut response = Vec::new();
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    client.read_to_end(&mut response),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                let response = String::from_utf8(response).unwrap();
+                assert!(
+                    response.starts_with("HTTP/1.1 400 "),
+                    "{method} {path}: {response}"
+                );
+                assert!(
+                    !response.to_ascii_lowercase().contains("\r\nallow:"),
+                    "{method} {path}"
+                );
+            }
+        }
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
     }
 
     #[tokio::test]
