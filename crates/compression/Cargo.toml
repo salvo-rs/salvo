@@ -40,7 +40,14 @@ tracing = { workspace = true }
 zstd = { workspace = true, optional = true, features = ["default"] }
 
 [dev-dependencies]
+stats_alloc = "0.1.10"
+http-body-util = { workspace = true }
+tokio = { workspace = true, features = ["rt", "time"] }
 salvo_core = { workspace = true, features = ["http1", "test"] }
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "stream_pressure"
+harness = false
