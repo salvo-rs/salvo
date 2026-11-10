@@ -24,6 +24,7 @@ categories = [
 ]
 
 [workspace.dependencies]
+# Internal crate requirements track workspace.package.version.
 salvo_macros = { version = "1.1.2", path = "crates/macros", default-features = false }
 salvo_core = { version = "1.1.2", path = "crates/core", default-features = false }
 salvo_extra = { version = "1.1.2", path = "crates/extra", default-features = false }
