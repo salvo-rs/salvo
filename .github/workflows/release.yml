@@ -33,7 +33,9 @@ jobs:
           python3 .github/scripts/release_preflight.py
           --tag '${{ github.ref_name }}' --sha '${{ github.sha }}' --repo '${{ github.repository }}'
 
-      - uses: taiki-e/install-action@f84dff0ad3f25ff0e5dc531e626734a4e7d11ac7 # cargo-audit
+      - uses: taiki-e/install-action@28bfb437c78d9b7ea8650351357e3eb8c0be2672 # cargo-audit
+        with:
+          tool: cargo-audit
 
       - name: Audit dependencies before publishing (warnings only)
         run: |
