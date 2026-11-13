@@ -56,6 +56,13 @@ jobs:
           /usr/bin/time -v -o target/perf-p05/resources.txt "$executable" | tee target/perf-p05/samples.csv
       - name: Validate CSV schema and all workload rows
         run: python3 crates/compression/benches/check_stream_pressure_csv.py target/perf-p05/samples.csv crates/compression/benches/results/stream_pressure-windows.csv
+      - name: Measure fixed-size frame granularity independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          executable=$(python3 -c 'import json,sys; rows=(json.loads(line) for line in open(sys.argv[1])); print(next(r["executable"] for r in rows if r.get("reason")=="compiler-artifact" and r.get("target",{}).get("name")=="stream_pressure" and r.get("executable")))' target/perf-p05/build.jsonl)
+          /usr/bin/time -v -o target/perf-p05/granularity-resources.txt "$executable" --granularity | tee target/perf-p05/granularity.csv
+          python3 crates/compression/benches/check_stream_pressure_csv.py --granularity target/perf-p05/granularity.csv
       - name: Preserve benchmark evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

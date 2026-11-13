@@ -135,13 +135,28 @@ async fn consume(service: &Service, algorithm: &str, payload: &[u8], slow: bool)
 }
 
 fn main() {
+    // Keep the historical pressure matrix unchanged. Granularity is a separate
+    // fixed-size workload for observing per-frame scheduling/flush overhead.
+    let granularity = std::env::args().any(|argument| argument == "--granularity");
+    let input_bytes = if granularity { 1024 * 1024 } else { 64 * 1024 };
+    let chunk_sizes: &[usize] = if granularity {
+        &[64, 1024, 16 * 1024, 1024 * 1024]
+    } else {
+        &[8 * 1024, 16 * 1024, 64 * 1024]
+    };
+    let consumer_modes: &[bool] = if granularity {
+        &[false]
+    } else {
+        &[false, true]
+    };
+    let concurrency_levels: &[usize] = if granularity { &[1] } else { &[1, 8] };
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .max_blocking_threads(4)
         .build()
         .unwrap();
     let payload = Bytes::from(
-        (0..64 * 1024)
+        (0..input_bytes)
             .map(|i| {
                 if i % 16384 < 8192 {
                     b'a' + (i % 4) as u8
@@ -157,7 +172,7 @@ fn main() {
             ("default", CompressionLevel::Default),
             ("precise5", CompressionLevel::Precise(5)),
         ] {
-            for chunk_size in [8 * 1024, 16 * 1024, 64 * 1024] {
+            for &chunk_size in chunk_sizes {
                 let compression = match algorithm {
                     "gzip" => Compression::new().disable_all().enable_gzip(level),
                     "br" => Compression::new().disable_all().enable_brotli(level),
@@ -169,13 +184,13 @@ fn main() {
                     chunk_size,
                 }));
                 let encoded_bytes = runtime.block_on(consume(&service, algorithm, &payload, false));
-                for slow in [false, true] {
-                    for concurrency in [1, 8] {
+                for &slow in consumer_modes {
+                    for &concurrency in concurrency_levels {
                         let label = format!(
                             "{algorithm}/{level_name}/{chunk_size}/{}/{concurrency}",
                             if slow { "slow" } else { "ready" }
                         );
-                        support::measure(&runtime, &label, encoded_bytes, || async {
+                        support::measure(&runtime, &label, encoded_bytes, input_bytes, || async {
                             let sizes = join_all(
                                 (0..concurrency)
                                     .map(|_| consume(&service, algorithm, &payload, slow)),

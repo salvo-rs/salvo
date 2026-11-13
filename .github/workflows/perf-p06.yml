@@ -5,6 +5,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      baseline:
+        description: Commit or ref to compare with the selected revision
+        type: string
+        default: HEAD^
   pull_request:
     paths:
       - 'crates/**'
@@ -27,6 +32,8 @@ jobs:
   benchmark:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      BENCHMARK_BASELINE: ${{ inputs.baseline || github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,7 +49,10 @@ jobs:
           set -euo pipefail
           mkdir -p target/perf-p06
           lscpu > target/perf-p06/cpu.txt
-          python3 benchmarks/measure_runtime_costs.py --jobs 2 --samples 128
+          if [[ "$BENCHMARK_BASELINE" =~ ^0+$ ]]; then BENCHMARK_BASELINE=HEAD^; fi
+          python3 benchmarks/measure_runtime_costs.py --baseline "$BENCHMARK_BASELINE" --jobs 2 --samples 128
+      - name: Summarize same-run comparison
+        run: python3 benchmarks/summarize_runtime_costs.py target/perf-p06
       - name: Verify both fixtures with a configured native target
         shell: bash
         run: |

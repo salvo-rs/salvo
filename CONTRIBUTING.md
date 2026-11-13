@@ -81,6 +81,10 @@ cargo +1.95.0 bench --profile dev -p salvo_core --bench router_detect --bench se
 
 Smoke checks execute each scenario without collecting performance measurements.
 The workflow records measurements without enforcing a regression threshold.
+The runtime-cost workflow also compares identical fixtures on the same runner
+against the PR base or previous push commit and publishes a matched-workload
+summary. For manual runs, select the `baseline` input explicitly when `HEAD^`
+is not the intended comparison. See `benchmarks/runtime-costs/README.md`.
 Compare results from equivalent hardware and toolchains; hosted runner timing
 varies between runs, and a single run does not establish a performance change.
 
