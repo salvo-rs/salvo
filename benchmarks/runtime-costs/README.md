@@ -21,6 +21,14 @@ default-layout binaries next to configured-target artifacts. CI additionally set
 its native `CARGO_BUILD_TARGET` for a separate smoke step that builds and runs
 both real fixtures; the smoke script inherits that setting without overriding it.
 
+CI compares against the pull request base commit, the previous push commit, or
+the manually selected `baseline` (default `HEAD^`). The command-line runner keeps
+its historical default for reproducing the original experiment. After measuring,
+`python benchmarks/summarize_runtime_costs.py target/perf-p06` produces
+`comparison.md` and a GitHub job summary with matched workload latency changes and
+allocation counts. The report rejects unmatched or duplicate workload sets; it
+does not claim statistical significance or impose a timing gate on shared runners.
+
 The output directory must stay in this checkout. The runner creates detached
 before/after worktrees inside it, copies the **same fixture** into both, resolves
 one dependency lock and builds both with its external dependencies pinned. Local

@@ -25,6 +25,7 @@ pub(super) fn measure<F, T>(
     runtime: &tokio::runtime::Runtime,
     label: &str,
     encoded_bytes: usize,
+    input_bytes: usize,
     mut operation: F,
 ) where
     F: FnMut() -> T,
@@ -47,13 +48,13 @@ pub(super) fn measure<F, T>(
     durations.sort_unstable();
     let quantile = |p: usize| durations[(count * p).div_ceil(100).saturating_sub(1)];
     println!(
-        "{label},{count},{},{},{},{:.1},{:.2},{:.2},{encoded_bytes},65536,{:.4}",
+        "{label},{count},{},{},{},{:.1},{:.2},{:.2},{encoded_bytes},{input_bytes},{:.4}",
         quantile(50),
         quantile(95),
         quantile(99),
         count as f64 / elapsed,
         stats.allocations as f64 / count as f64,
         stats.bytes_allocated as f64 / count as f64,
-        encoded_bytes as f64 / 65536.0
+        encoded_bytes as f64 / input_bytes as f64
     );
 }
