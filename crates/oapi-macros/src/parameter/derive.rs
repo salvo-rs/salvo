@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
+use syn::ext::IdentExt;
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -488,6 +489,7 @@ impl Parameter<'_> {
             .ident
             .as_ref()
             .expect("struct field name should be exists")
+            .unraw()
             .to_string();
 
         let rename = param_features

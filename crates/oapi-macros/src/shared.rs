@@ -32,7 +32,7 @@ pub(crate) fn oapi_crate() -> syn::Ident {
             FoundCrate::Itself => syn::Ident::new("salvo_oapi", Span::call_site()),
             FoundCrate::Name(name) => syn::Ident::new(&name, Span::call_site()),
         },
-        Err(_) => Ident::new("salvo", Span::call_site()),
+        Err(_) => salvo_crate(),
     }
 }
 // https://github.com/bkchr/proc-macro-crate/issues/14

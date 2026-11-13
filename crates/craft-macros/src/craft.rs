@@ -8,7 +8,7 @@ use syn::{
     Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type, parse_quote,
 };
 
-use crate::utils::salvo_crate;
+use crate::utils::{oapi_crate, salvo_crate};
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     match input {
@@ -61,7 +61,7 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
                 .unwrap_or_default();
             let ts: TokenStream = match name {
                 "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,
-                "endpoint" => format!("#[{}::oapi::{name}{content}]", salvo_crate()).parse()?,
+                "endpoint" => format!("#[{}::oapi::{name}{content}]", oapi_crate()).parse()?,
                 _ => {
                     unreachable!()
                 }
@@ -184,7 +184,7 @@ fn rewrite_method(
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
-                    pub struct handle #impl_g(::std::sync::Arc<#self_ty>) #where_c;
+                    struct handle #impl_g(::std::sync::Arc<#self_ty>) #where_c;
                     use ::std::ops::Deref;
                     impl #impl_g Deref for handle #ty_g #where_c {
                         type Target = #self_ty;
