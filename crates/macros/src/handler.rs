@@ -126,7 +126,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
-                                e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                                #salvo::Writer::write(e, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                                 // If status code is not set or is not error, set it to 400.
                                 let status_code = __macro_gen_res.status_code.unwrap_or_default();
                                 if !status_code.is_client_error() && !status_code.is_server_error() {

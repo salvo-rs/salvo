@@ -2,6 +2,14 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
 use syn::Ident;
 
+pub(crate) fn oapi_crate() -> syn::Ident {
+    match crate_name("salvo-oapi") {
+        Ok(FoundCrate::Itself) => Ident::new("salvo_oapi", Span::call_site()),
+        Ok(FoundCrate::Name(name)) => Ident::new(&name, Span::call_site()),
+        Err(_) => salvo_crate(),
+    }
+}
+
 pub(crate) fn salvo_crate() -> syn::Ident {
     match crate_name("salvo") {
         Ok(salvo) => match salvo {

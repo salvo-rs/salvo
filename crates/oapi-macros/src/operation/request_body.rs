@@ -237,6 +237,10 @@ impl TryToTokens for RequestBodyAttr<'_> {
                     );
                 }
             }
+        } else {
+            tokens.extend(quote! {
+                #oapi::oapi::request_body::RequestBody::new()
+            });
         }
 
         if let Some(description) = &self.description {

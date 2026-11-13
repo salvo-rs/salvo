@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
+use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
@@ -41,6 +42,7 @@ fn metadata(
     type_path: &TokenStream,
     mut modifiers: Vec<TokenStream>,
 ) -> DiagResult<TokenStream> {
+    let name = name.unraw();
     let tfn = Ident::new(
         &format!("__macro_gen_oapi_endpoint_type_id_{name}"),
         Span::call_site(),
@@ -280,13 +282,8 @@ fn handle_fn(
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
                     call_args.push(ident.ident.clone());
                     let ty = omit_type_path_lifetimes(ty);
-                    let idv = pat.pat.to_token_stream().to_string();
-                    // If id like `mut pdata`, then idv is `pdata`;
-                    let idv = idv
-                        .rsplit_once(' ')
-                        .map(|(_, v)| v.to_owned())
-                        .unwrap_or(idv);
-                    let id = Ident::new(&idv, Span::call_site());
+                    let id = ident.ident.clone();
+                    let idv = id.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
@@ -294,7 +291,7 @@ fn handle_fn(
                                 data
                             },
                             Err(e) => {
-                                e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                                #salvo::Writer::write(e, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                                 // If status code is not set or is not error, set it to 400.
                                 let status_code = __macro_gen_res.status_code.unwrap_or_default();
                                 if !status_code.is_client_error() && !status_code.is_server_error() {
@@ -379,7 +376,7 @@ mod tests {
                         data
                     },
                     Err(e) => {
-                        e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        salvo::Writer::write(e, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                         // If status code is not set or is not error, set it to 400.
                         let status_code = __macro_gen_res.status_code.unwrap_or_default();
                         if !status_code.is_client_error() && !status_code.is_server_error() {

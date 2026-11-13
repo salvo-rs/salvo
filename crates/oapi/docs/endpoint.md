@@ -92,6 +92,8 @@ pub async fn authenticated_action() {}
   can be used to reference external json file for body schema.
 
 * `description = "..."` Define the description for the request body object as str.
+  When the body schema is inferred from an extractor such as `JsonBody<T>`,
+  `request_body(description = "...")` overrides its description without repeating `content`.
 
 * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
   from the `content` attribute. If defined the value should be valid content type such as
