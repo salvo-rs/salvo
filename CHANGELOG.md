@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
+  with `cannot find RefOr in salvo` (regression in 1.1.2).
+
 ## [1.1.2] - 2026-11-10
 
 ### Added

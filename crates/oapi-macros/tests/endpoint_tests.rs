@@ -94,3 +94,58 @@ fn test_endpoint_singular_aliases() {
         })
     );
 }
+
+// The `request_body(...)` attribute must expand to paths that resolve through the `salvo`
+// facade, which is how this test crate (and most applications) reach `salvo-oapi`.
+#[test]
+fn test_endpoint_request_body_attribute() {
+    #[derive(serde::Deserialize, ToSchema)]
+    #[allow(dead_code)]
+    struct NewUser {
+        name: String,
+    }
+
+    #[endpoint(request_body(content = NewUser, description = "user payload"))]
+    async fn create_user() -> &'static str {
+        "ok"
+    }
+
+    // The attribute is merged into the body inferred from the `JsonBody` extractor.
+    #[endpoint(request_body(content = NewUser, description = "replacement payload"))]
+    async fn replace_user(_user: JsonBody<NewUser>) -> &'static str {
+        "ok"
+    }
+
+    #[endpoint(request_body = NewUser)]
+    async fn patch_user() -> &'static str {
+        "ok"
+    }
+
+    let router = Router::new()
+        .push(Router::with_path("users").post(create_user))
+        .push(
+            Router::with_path("users/{id}")
+                .put(replace_user)
+                .patch(patch_user),
+        );
+
+    let doc =
+        serde_json::to_value(OpenApi::new("test api", "0.0.1").merge_router(&router)).unwrap();
+    let schema_ref = json!({"$ref": "#/components/schemas/endpoint_tests.test_endpoint_request_body_attribute.NewUser"});
+    assert_json_eq!(
+        doc["paths"]["/users"]["post"]["requestBody"],
+        json!({
+            "description": "user payload",
+            "content": {"application/json": {"schema": schema_ref}},
+            "required": true
+        })
+    );
+    let merged = &doc["paths"]["/users/{id}"]["put"]["requestBody"];
+    assert_eq!(merged["description"], "replacement payload");
+    assert_eq!(merged["content"]["application/json"]["schema"], schema_ref);
+    let short_form = &doc["paths"]["/users/{id}"]["patch"]["requestBody"];
+    assert_eq!(
+        short_form["content"]["application/json"]["schema"],
+        schema_ref
+    );
+}

@@ -120,7 +120,7 @@ impl<'a> Operation<'a> {
             modifiers.push({
                 let rb = rb.try_to_token_stream()?;
                 quote! {
-                    if let Some(#oapi::RefOr::Type(request_body)) = operation.request_body.as_mut() {
+                    if let Some(#oapi::oapi::RefOr::Type(request_body)) = operation.request_body.as_mut() {
                         request_body.merge(#rb);
                     } else {
                         operation.request_body = Some((#rb).into());
