@@ -75,11 +75,11 @@ impl CsrfStore for SessionStore {
         depot: &mut Depot,
         cipher: &C,
     ) -> Option<(String, String)> {
-        depot
+        let (token, proof) = depot
             .session()
             .and_then(|s| s.get::<String>(&self.name))
-            .and_then(|s| s.split_once('.').map(|(t, p)| (t.to_owned(), p.to_owned())))
-            .filter(|(token, proof)| cipher.verify(token, proof))
+            .and_then(|s| s.split_once('.').map(|(t, p)| (t.to_owned(), p.to_owned())))?;
+        cipher.verify_async(&token, &proof).await.then_some((token, proof))
     }
     async fn save(
         &self,

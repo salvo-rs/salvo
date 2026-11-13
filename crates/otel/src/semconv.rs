@@ -168,6 +168,23 @@ pub(crate) fn final_body_size(method: &Method, res: &Response, status: StatusCod
     res.body.size()
 }
 
+/// Selects explicitly allowed fields before applying mandatory signature redaction.
+/// Unknown fields (including their names) never reach the exported attribute.
+pub(crate) fn allowed_query(query: &str, fields: &HashSet<String>) -> Option<String> {
+    let selected = query
+        .split('&')
+        .filter(|pair| {
+            let key = pair.split_once('=').map_or(*pair, |(key, _)| key);
+            let key = key.replace('+', " ");
+            percent_decode_str(&key)
+                .decode_utf8()
+                .is_ok_and(|key| fields.contains(key.as_ref()))
+        })
+        .collect::<Vec<_>>()
+        .join("&");
+    (!selected.is_empty()).then(|| redact_query(&selected).into_owned())
+}
+
 /// Replaces the values of well-known credential-bearing query keys with
 /// `REDACTED`, keeping their keys, as the conventions require before
 /// `url.query` is recorded.

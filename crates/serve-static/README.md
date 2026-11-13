@@ -47,6 +47,25 @@ This is an official crate, so you can enable it in `Cargo.toml` like this:
 salvo = { version = "*", features = ["serve-static"] }
 ```
 
+## Directory listing budgets and filesystem permissions
+
+Directory listings are disabled by default. When `auto_list(true)` is enabled, `StaticDir`
+examines at most 10,000 entries and buffers at most 2 MiB of encoded output. Configure both
+with `listing_limits(max_entries, max_bytes)`. Hidden and excluded entries count toward the
+scan budget so filtering cannot cause an unbounded scan. An overflow returns **503 Service
+Unavailable** for HTML, JSON, XML and plain text; it never serves a partial listing as 200.
+For large collections, serve a paginated index instead. These limits apply per request.
+
+Canonical-path containment checks reject stable symlink or junction escapes, but checking
+a path and opening it are separate operations. Untrusted users must not be able to replace
+ancestor directories, rename served paths or create/swap symlinks and junctions during a
+request. Keep uploads in a separate storage area with suitable filesystem permissions.
+Permission to upload file contents alone does not establish this race condition.
+
+Small-file preloading happens only after conditional and range checks. A matching
+conditional GET can return 304 without reading the whole file; MIME/charset detection may
+still inspect a sample of at most 1 KiB. Byte-range responses stream only the selected range.
+
 ## Documentation & Resources
 
 - [API Documentation](https://docs.rs/salvo-serve-static)

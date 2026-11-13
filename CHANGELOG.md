@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Omit query strings from OpenTelemetry spans by default; opt in to selected
+  non-sensitive fields with `Tracing::query_fields`.
+- Run middleware bcrypt CSRF operations on bounded blocking workers while
+  retaining capacity until cancelled work actually finishes.
+- Serve only the committed TUS upload prefix and retain read locks while
+  streamed downloads use the file.
+- Defer small-file preloading until conditional and range handling completes,
+  and bound automatic directory listings by scanned entries and output bytes.
+
 - Fix OpenAPI macros with renamed `salvo` dependencies, `craft(endpoint)` with
   direct `salvo_core`/`salvo-oapi` dependencies, extractor error handling without
   a `Writer` import, endpoint functions and parameters using raw identifiers,

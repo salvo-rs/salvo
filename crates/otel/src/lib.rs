@@ -45,6 +45,9 @@
 //!     .get(my_handler);
 //! ```
 //!
+//! Query strings are omitted from traces by default. Use
+//! [`Tracing::query_fields`] to explicitly allow non-sensitive fields.
+//!
 //! # Collected Metrics
 //!
 //! The [`Metrics`] middleware records the HTTP server instruments defined by the
@@ -63,7 +66,7 @@
 //!
 //! Both middlewares follow the [HTTP span conventions] for attribute names and
 //! values: `http.request.method`, `http.route`, `http.response.status_code`,
-//! `url.scheme`, `url.path`, `url.query`, `network.protocol.version` and
+//! `url.scheme`, `url.path`, `network.protocol.version` and
 //! `error.type`.
 //!
 //! The request target is reported as the matched route template (`/users/{id}`)

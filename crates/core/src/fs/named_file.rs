@@ -9,7 +9,6 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use mime::Mime;
@@ -140,13 +139,14 @@ pub struct NamedFile {
     file: File,
     modified: Option<SystemTime>,
     buffer_size: u64,
+    #[cfg(unix)]
     metadata: Metadata,
     flags: BitFlags<Flag>,
     content_type: mime::Mime,
     content_disposition: Option<HeaderValue>,
     content_encoding: Option<HeaderValue>,
-    /// Pre-read content for small files, avoiding ChunkedFile + spawn_blocking overhead.
-    preread: Option<Bytes>,
+    preload_threshold: u64,
+    length: u64,
 }
 
 /// Builder for constructing [`NamedFile`] instances with custom configuration.
@@ -184,6 +184,7 @@ pub struct NamedFileBuilder {
     content_encoding: Option<String>,
     buffer_size: Option<u64>,
     preload_threshold: Option<u64>,
+    max_length: Option<u64>,
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
@@ -256,13 +257,25 @@ impl NamedFileBuilder {
 
     /// Sets small-file preload threshold and returns `Self`.
     ///
-    /// Files whose size is less than or equal to this threshold are read during build and sent from
-    /// memory. Larger files are streamed in chunks using [`Self::buffer_size`]. Set this to `0` to
-    /// disable preloading for non-empty files.
+    /// Full responses whose size is less than or equal to this threshold are read only after
+    /// conditional and range checks, then sent from memory. Larger files are streamed using
+    /// [`Self::buffer_size`]. Set this to `0` to disable preloading for non-empty files.
     #[inline]
     #[must_use]
     pub fn preload_threshold(mut self, threshold: u64) -> Self {
         self.preload_threshold = Some(threshold);
+        self
+    }
+
+    /// Limits the served representation to at most this many bytes from the file start.
+    ///
+    /// The length is captured at build time as the smaller of this limit and the physical
+    /// file length. Content detection, validators, byte ranges and response bodies all use
+    /// that representation. Callers must prevent concurrent modification of those bytes.
+    #[inline]
+    #[must_use]
+    pub fn max_length(mut self, length: u64) -> Self {
+        self.max_length = Some(length);
         self
     }
 
@@ -329,6 +342,7 @@ impl NamedFileBuilder {
             content_encoding,
             buffer_size,
             preload_threshold,
+            max_length,
             disposition_type,
             attached_name,
             disposition_name,
@@ -369,39 +383,23 @@ impl NamedFileBuilder {
 
         let needs_detection_sample = needs_charset || needs_detect;
 
-        // Single spawn_blocking: open + metadata + optional preread/detection sample.
-        // This replaces 3-7 separate spawn_blocking calls with just 1.
+        // Open and inspect only. Defer body reads until conditional/range checks finish.
         struct FileInfo {
             file: std::fs::File,
             metadata: Metadata,
-            preread: Option<Vec<u8>>,
+            length: u64,
             detection_sample: Option<Vec<u8>>,
         }
         let blocking_path = path.clone();
         let info = tokio::task::spawn_blocking(move || -> std::io::Result<FileInfo> {
             let mut file = std::fs::File::open(&blocking_path)?;
             let metadata = file.metadata()?;
-            let file_size = metadata.len();
-
-            // For small files (size <= preload_threshold), read the entire content now.
-            // This avoids ChunkedFile's spawn_blocking + into_std overhead later.
-            let preread = if file_size <= preload_threshold {
-                let mut buf = vec![0u8; file_size as usize];
-                file.read_exact(&mut buf)?;
-                Some(buf)
-            } else {
-                None
-            };
-
+            let length = metadata.len().min(max_length.unwrap_or(u64::MAX));
             let detection_sample = if needs_detection_sample {
-                if let Some(preread) = &preread {
-                    Some(preread[..cmp::min(1024, preread.len())].to_vec())
-                } else {
-                    let mut sample = vec![0u8; cmp::min(1024, file_size) as usize];
-                    file.read_exact(&mut sample)?;
-                    file.seek(SeekFrom::Start(0))?;
-                    Some(sample)
-                }
+                let mut sample = vec![0u8; cmp::min(1024, length) as usize];
+                file.read_exact(&mut sample)?;
+                file.seek(SeekFrom::Start(0))?;
+                Some(sample)
             } else {
                 None
             };
@@ -409,7 +407,7 @@ impl NamedFileBuilder {
             Ok(FileInfo {
                 file,
                 metadata,
-                preread,
+                length,
                 detection_sample,
             })
         })
@@ -419,7 +417,7 @@ impl NamedFileBuilder {
 
         let file = File::from_std(info.file);
 
-        // Resolve content type, using preread bytes for charset detection if needed.
+        // Resolve content type using the bounded detection sample if needed.
         let content_type = if let Some(mut mime) = inferred_mime {
             if needs_charset {
                 let sample = info.detection_sample.as_deref().unwrap_or(&[]);
@@ -432,8 +430,6 @@ impl NamedFileBuilder {
         } else {
             mime::APPLICATION_OCTET_STREAM
         };
-
-        let preread = info.preread.map(Bytes::from);
 
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(
@@ -460,11 +456,13 @@ impl NamedFileBuilder {
             content_type,
             content_disposition,
             modified: info.metadata.modified().ok(),
+            #[cfg(unix)]
             metadata: info.metadata,
             content_encoding,
             buffer_size: buf_size,
             flags,
-            preread,
+            preload_threshold,
+            length: info.length,
         })
     }
 }
@@ -615,6 +613,7 @@ impl NamedFile {
             content_encoding: None,
             buffer_size: None,
             preload_threshold: None,
+            max_length: None,
             flags: BitFlags::default(),
         }
     }
@@ -742,7 +741,7 @@ impl NamedFile {
             let etag_str = format!(
                 "\"{:x}-{:x}-{:x}-{:x}\"",
                 ino,
-                self.metadata.len(),
+                self.length,
                 dur.as_secs(),
                 dur.subsec_nanos()
             );
@@ -929,7 +928,7 @@ impl NamedFile {
         }
         res.headers_mut().typed_insert(AcceptRanges::bytes());
 
-        let mut length = self.metadata.len();
+        let mut length = self.length;
         // Conditional request handling must precede Range processing: per RFC 7232
         // a `304 Not Modified` / `412 Precondition Failed` takes priority over the
         // `206`/`416` produced by a Range request.
@@ -961,7 +960,7 @@ impl NamedFile {
             return;
         }
 
-        let file_size = self.metadata.len();
+        let file_size = self.length;
         let mut offset = 0;
         let mut is_partial = false;
 
@@ -1022,29 +1021,41 @@ impl NamedFile {
             }
             res.headers_mut().typed_insert(ContentLength(total_size));
 
-            // Fast path: slice from preread bytes if available
-            if let Some(preread) = self.preread.take() {
-                let end = cmp::min(offset.saturating_add(total_size) as usize, preread.len());
-                let start = cmp::min(offset as usize, end);
-                res.replace_body(ResBody::Once(preread.slice(start..end)));
-            } else {
-                let reader = ChunkedFile {
-                    offset,
-                    total_size,
-                    read_size: 0,
-                    state: ChunkedState::File(Some(self.file.into_std().await)),
-                    buffer_size: self.buffer_size,
-                };
-                res.stream(reader);
-            }
+            let reader = ChunkedFile {
+                offset,
+                total_size,
+                read_size: 0,
+                state: ChunkedState::File(Some(self.file.into_std().await)),
+                buffer_size: self.buffer_size,
+            };
+            res.stream(reader);
         } else {
             // Full file response
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(length));
 
-            // Fast path: send preread bytes directly — zero spawn_blocking calls
-            if let Some(preread) = self.preread.take() {
-                res.replace_body(ResBody::Once(preread));
+            if length <= self.preload_threshold {
+                let mut file = self.file.into_std().await;
+                let read = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<u8>> {
+                    let size = usize::try_from(length).map_err(std::io::Error::other)?;
+                    let mut bytes = vec![0; size];
+                    file.seek(SeekFrom::Start(0))?;
+                    file.read_exact(&mut bytes)?;
+                    Ok(bytes)
+                })
+                .await;
+                match read {
+                    Ok(Ok(bytes)) => {
+                        res.replace_body(ResBody::Once(bytes.into()));
+                    }
+                    error => {
+                        tracing::error!(error = ?error, "read file body failed");
+                        res.headers_mut()
+                            .remove(crate::http::header::CONTENT_LENGTH);
+                        res.headers_mut().remove(CONTENT_ENCODING);
+                        res.render(StatusError::internal_server_error());
+                    }
+                }
             } else {
                 let reader = ChunkedFile {
                     offset,
@@ -1589,7 +1600,7 @@ mod tests {
             .expect("build named file");
 
         assert_eq!(named.buffer_size, PRELOAD_THRESHOLD * 2);
-        assert!(named.preread.is_none());
+        assert_eq!(named.preload_threshold, PRELOAD_THRESHOLD);
     }
 
     #[tokio::test]
@@ -1607,10 +1618,104 @@ mod tests {
             .await
             .expect("build named file");
 
-        assert_eq!(
-            named.preread.as_ref().map(Bytes::len),
-            Some((PRELOAD_THRESHOLD + 1) as usize)
+        assert_eq!(named.preload_threshold, PRELOAD_THRESHOLD + 1);
+        let mut res = Response::new();
+        named.send(&HeaderMap::new(), &mut res).await;
+        assert!(
+            matches!(res.body, ResBody::Once(bytes) if bytes.len() == (PRELOAD_THRESHOLD + 1) as usize)
         );
+    }
+
+    #[tokio::test]
+    async fn conditional_responses_do_not_read_file_bodies() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("data.bin");
+        for status in [StatusCode::NOT_MODIFIED, StatusCode::PRECONDITION_FAILED] {
+            std::fs::write(&path, vec![42; 900 * 1024]).unwrap();
+            let mut named = NamedFile::builder(&path)
+                .content_type(mime::APPLICATION_OCTET_STREAM)
+                .build()
+                .await
+                .unwrap();
+            // A build must inspect metadata only when no content sample is needed.
+            assert_eq!(named.file.stream_position().await.unwrap(), 0);
+            let mut headers = HeaderMap::new();
+            if status == StatusCode::NOT_MODIFIED {
+                headers.typed_insert(IfNoneMatch::from(named.etag().unwrap()));
+            } else {
+                headers.insert(IF_MATCH, HeaderValue::from_static("\"does-not-match\""));
+            }
+            // Any late body read would now fail with UnexpectedEof.
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(0)
+                .unwrap();
+            let mut res = Response::new();
+            named.send(&headers, &mut res).await;
+            assert_eq!(res.status_code, Some(status));
+            assert!(matches!(res.body, ResBody::None));
+        }
+    }
+
+    #[tokio::test]
+    async fn max_length_bounds_full_range_and_validators() {
+        use crate::test::ResponseExt;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("data.txt");
+        std::fs::write(&path, b"committedUNCOMMITTED").unwrap();
+        let mut full = Response::new();
+        let named = NamedFile::builder(&path)
+            .max_length(9)
+            .build()
+            .await
+            .unwrap();
+        let bounded_etag = named.etag();
+        let complete = NamedFile::open(&path).await.unwrap();
+        assert_ne!(bounded_etag, complete.etag());
+        named.send(&HeaderMap::new(), &mut full).await;
+        assert_eq!(full.headers()[crate::http::header::CONTENT_LENGTH], "9");
+        assert_eq!(full.take_string().await.unwrap(), "committed");
+        let named = NamedFile::builder(&path)
+            .max_length(9)
+            .preload_threshold(0)
+            .build()
+            .await
+            .unwrap();
+        let mut streamed = Response::new();
+        named.send(&HeaderMap::new(), &mut streamed).await;
+        assert_eq!(streamed.take_string().await.unwrap(), "committed");
+        for (range, status, body) in [
+            ("bytes=7-20", StatusCode::PARTIAL_CONTENT, "ed"),
+            ("bytes=9-", StatusCode::RANGE_NOT_SATISFIABLE, ""),
+        ] {
+            let named = NamedFile::builder(&path)
+                .max_length(9)
+                .build()
+                .await
+                .unwrap();
+            let mut headers = HeaderMap::new();
+            headers.insert(RANGE, HeaderValue::from_static(range));
+            let mut res = Response::new();
+            named.send(&headers, &mut res).await;
+            assert_eq!(res.status_code, Some(status));
+            if status == StatusCode::PARTIAL_CONTENT {
+                assert_eq!(res.take_string().await.unwrap(), body);
+            } else {
+                assert_eq!(
+                    res.headers()[crate::http::header::CONTENT_RANGE],
+                    "bytes */9"
+                );
+            }
+        }
+        let named = NamedFile::builder(&path)
+            .max_length(0)
+            .build()
+            .await
+            .unwrap();
+        assert_eq!(named.length, 0);
+        assert_eq!(named.content_type().type_(), mime::TEXT);
     }
 
     #[tokio::test]
@@ -1627,7 +1732,7 @@ mod tests {
 
         assert_eq!(named.content_type().type_(), mime::TEXT);
         assert_eq!(named.content_type().subtype(), mime::PLAIN);
-        assert!(named.preread.is_none());
+        assert_eq!(named.preload_threshold, 0);
     }
 
     #[tokio::test]
@@ -1651,7 +1756,7 @@ mod tests {
                 .map(|v| v.as_str()),
             Some("utf-8")
         );
-        assert!(named.preread.is_none());
+        assert_eq!(named.preload_threshold, 0);
     }
 
     #[tokio::test]

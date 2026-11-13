@@ -138,6 +138,23 @@ chained setters that use the `with_` prefix.
 - Prefer direct, grammatical wording that explains what is missing or why the operation failed.
 - Do not mechanically rewrite standardized protocol text such as HTTP reason phrases, RFC terms, or other externally defined wire-format strings.
 
+### Timeout And Filesystem Boundaries
+
+When changing timeout code or documentation, identify the phase being bounded: handler
+processing, connection establishment, request headers, request-body gaps, response-body
+production, transport inactivity, or total stream lifetime. Test stalled headers and stalled
+body frames separately. Include a legitimate long-stream case such as SSE, and distinguish
+body-production observations from socket delivery. A timeout around a handler future does
+not continue after it returns a streaming response.
+
+For static-file containment changes, distinguish fixed symlink/junction escapes from
+concurrent filesystem replacement. Canonical-path checks reject a fixed outside-root
+target but do not make a later path-based open atomic. A race requires an actor able to
+rename relevant directories or create/switch links; ordinary file upload access alone
+does not establish that capability. Keep served roots and their ancestors outside untrusted
+rename/link control, and document that assumption. Tests for a pre-existing escape link
+must not be presented as proof against concurrent replacement.
+
 ## Pull Requests
 
 - Explain the motivation, scope, and user-visible impact.
