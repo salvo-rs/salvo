@@ -185,6 +185,11 @@ pub struct TusOptions {
     /// Optional hook invoked when a new upload is created.
     pub on_upload_create: Option<OnUploadCreate>,
     /// Optional hook invoked when an upload is completed.
+    ///
+    /// Stored bytes are not rolled back if the hook fails. Cancellation or
+    /// failure after commit does not guarantee a retry. See
+    /// [`Tus::on_upload_finish`](crate::Tus::on_upload_finish) for the delivery contract and
+    /// durable processing guidance.
     pub on_upload_finish: Option<OnUploadFinish>,
 }
 

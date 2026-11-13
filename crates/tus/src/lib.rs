@@ -43,6 +43,14 @@
 //! | DELETE | `/uploads/{id}` | Cancels an upload |
 //! | GET | `/uploads/{id}` | Downloads the uploaded file |
 //!
+//! Downloads can read incomplete uploads, but expose only the committed offset
+//! reported by HEAD. Length, ranges and validators describe that same prefix.
+//! A streaming download holds a shared upload lock until its body reaches EOF or
+//! is dropped; PATCH and DELETE wait for it, preventing a changing file from
+//! invalidating the response. Applications should bound slow download lifetimes
+//! through their transport policy. Deployments sharing a store across processes
+//! must supply a locker shared by those processes.
+//!
 //! # Lifecycle Hooks
 //!
 //! React to upload events:
@@ -488,8 +496,12 @@ impl Tus {
     /// The hook runs for creation requests that complete an upload and for a
     /// PATCH that transitions an unfinished upload to completion. An empty
     /// PATCH on an already completed upload does not repeat the hook. A hook
-    /// error does not undo stored bytes; applications needing durable delivery
-    /// should make their completion processing recoverable and idempotent.
+    /// error does not undo stored bytes. Failure, request cancellation or process
+    /// termination after the upload commits does not guarantee another hook
+    /// invocation, even if the client retries PATCH. This hook is not a durable
+    /// delivery queue. Applications requiring reliable completion processing
+    /// should persist an idempotent task or outbox record and reconcile completed
+    /// uploads to recover notifications lost before that record was persisted.
     #[must_use]
     pub fn on_upload_finish<F, Fut>(mut self, f: F) -> Self
     where

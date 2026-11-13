@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{self, Debug, Formatter};
 
 use opentelemetry::trace::{FutureExt, Span, SpanKind, Status, TraceContextExt, Tracer};
@@ -17,14 +18,13 @@ const OTHER_METHOD_SPAN_NAME: &str = "HTTP";
 ///
 /// The span is named `{method} {route}` — `GET /users/{id}` — falling back to
 /// the method alone when no route matched, and carries `http.request.method`,
-/// `url.path`, `url.query`, `url.scheme`, `http.route`, `client.address`,
+/// `url.path`, `url.scheme`, `http.route`, `client.address`,
 /// `client.port`, `network.protocol.version`, `http.response.status_code`,
 /// `http.response.body.size` and, for a server error, `error.type`.
 ///
-/// The request target is reported split into `url.path` and `url.query` rather
-/// than as one `url.full`, and the query has the values of well-known
-/// credential-bearing keys (`sig`, `Signature`, `AWSAccessKeyId`,
-/// `X-Goog-Signature`) replaced with `REDACTED`, as the conventions require.
+/// Query strings are omitted by default. Use [`Self::query_fields`] to
+/// explicitly allow non-sensitive query fields in `url.query`. The full URL
+/// is never recorded.
 ///
 /// `http.route` requires the `matched-path` feature, which is enabled by
 /// default. Through the `salvo` crate, enable its own `matched-path` feature
@@ -39,6 +39,7 @@ const OTHER_METHOD_SPAN_NAME: &str = "HTTP";
 pub struct Tracing<T> {
     tracer: T,
     known_methods: Option<KnownMethods>,
+    query_fields: HashSet<String>,
 }
 
 impl<T> Tracing<T> {
@@ -47,7 +48,33 @@ impl<T> Tracing<T> {
         Self {
             tracer,
             known_methods: None,
+            query_fields: HashSet::new(),
         }
+    }
+
+    /// Records only these non-sensitive query fields in `url.query`.
+    ///
+    /// Query strings are omitted by default. This replaces the previous allowlist;
+    /// an empty list disables query recording. Names are matched case-sensitively
+    /// after percent decoding and converting `+` to a space. Unlisted fields are
+    /// omitted entirely, and repeated listed fields retain their order and encoding.
+    /// The signature fields `sig`, `Signature`, `AWSAccessKeyId`, and
+    /// `X-Goog-Signature` remain redacted even if explicitly listed.
+    ///
+    /// Only list fields whose values are safe to export. For example, use
+    /// `.query_fields(["page", "sort"])`; never list tokens, passwords,
+    /// OAuth authorization codes, or application-specific credentials.
+    #[must_use]
+    pub fn query_fields<I, S>(mut self, fields: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.query_fields = fields
+            .into_iter()
+            .map(|field| field.as_ref().to_owned())
+            .collect();
+        self
     }
 
     /// Replaces the set of methods reported verbatim in `http.request.method`.
@@ -143,11 +170,11 @@ where
             attribute::URL_PATH,
             req.uri().path().to_owned(),
         ));
-        if let Some(query) = req.uri().query() {
-            attributes.push(KeyValue::new(
-                attribute::URL_QUERY,
-                semconv::redact_query(query).into_owned(),
-            ));
+        if !self.query_fields.is_empty()
+            && let Some(query) = req.uri().query()
+            && let Some(query) = semconv::allowed_query(query, &self.query_fields)
+        {
+            attributes.push(KeyValue::new(attribute::URL_QUERY, query));
         }
         attributes.push(KeyValue::new(
             attribute::URL_SCHEME,

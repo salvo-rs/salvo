@@ -30,7 +30,7 @@ full = [
 ]
 cookie-store = ["salvo_core/cookie", "dep:cookie"]
 session-store = ["dep:salvo-session"]
-bcrypt-cipher = ["dep:bcrypt"]
+bcrypt-cipher = ["dep:bcrypt", "dep:tokio"]
 hmac-cipher = ["dep:hmac", "dep:sha2"]
 aes-gcm-cipher = ["dep:aead", "dep:aes-gcm", "dep:subtle"]
 ccp-cipher = ["dep:aead", "dep:chacha20poly1305", "dep:subtle"]
@@ -53,10 +53,11 @@ salvo-session = { workspace = true, optional = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt", "sync"], optional = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 [lints]
 workspace = true

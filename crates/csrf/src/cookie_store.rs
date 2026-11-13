@@ -168,7 +168,8 @@ impl CsrfStore for CookieStore {
         };
         let (token, proof) = cookie.value().split_once('.')?;
         cipher
-            .verify(token, proof)
+            .verify_async(token, proof)
+            .await
             .then(|| (token.into(), proof.into()))
     }
     async fn save(

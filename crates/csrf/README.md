@@ -49,6 +49,18 @@ salvo = { version = "*", features = ["csrf"] }
 
 [![Docs](https://img.shields.io/docsrs/salvo-csrf.svg)](https://docs.rs/salvo-csrf)
 
+## Cipher scheduling
+
+For high-throughput applications, prefer the keyed `HmacCipher`, `AesGcmCipher`,
+or `CcpCipher` features. Bcrypt intentionally performs substantially more CPU work.
+The middleware and built-in stores use asynchronous cipher operations; bcrypt
+runs on blocking workers with a process-wide limit equal to available CPU parallelism.
+Cancelling a request aborts queued work; already-running work retains its capacity
+permit until it finishes. Apply request timeouts and admission limits to bound
+requests waiting for capacity. Direct `generate()` and `verify()` calls remain
+synchronous; custom expensive ciphers can override `generate_async()` and
+`verify_async()` while existing cipher implementations keep working.
+
 ## Choosing token storage
 
 For browser-facing HTTPS services, prefer `CookieStore::host_prefixed()` over

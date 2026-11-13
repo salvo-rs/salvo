@@ -138,7 +138,16 @@ let tus = Tus::new()
     });
 ```
 
+Completion hooks run after upload bytes have committed. A hook error does not
+roll those bytes back. Failure, request cancellation or process termination can
+leave a completed upload without a successful notification; retrying PATCH on
+that upload does not guarantee another hook invocation. For reliable processing,
+persist an idempotent task or outbox record and reconcile completed uploads to
+recover notifications lost before that record was persisted. The built-in hook
+does not provide a durable queue or exactly-once delivery.
+
 ## Binary Upload Metadata and Migration
+
 
 `Metadata` stores decoded values as `HashMap<String, Option<Vec<u8>>>` so arbitrary
 binary values survive creation, persistence, and `HEAD` responses. TUS headers

@@ -213,6 +213,22 @@ pub trait CsrfCipher: Send + Sync + 'static {
     /// Generate a new `(token, proof)` pair.
     fn generate(&self) -> (String, String);
 
+    /// Verify a pair during asynchronous request processing.
+    ///
+    /// Expensive implementations should override this method to use bounded blocking work.
+    fn verify_async(&self, token: &str, proof: &str) -> impl Future<Output = bool> + Send {
+        async move { self.verify(token, proof) }
+    }
+
+    /// Generate a pair during asynchronous request processing.
+    ///
+    /// The default calls [`Self::generate`]. Expensive implementations should override it.
+    fn generate_async(
+        &self,
+    ) -> impl Future<Output = Result<(String, String), salvo_core::Error>> + Send {
+        async move { Ok(self.generate()) }
+    }
+
     /// Generate `len` random bytes.
     fn random_bytes(&self, len: usize) -> Vec<u8> {
         rand::rng().sample_iter(StandardUniform).take(len).collect()
@@ -323,11 +339,13 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
         req: &mut Request,
         depot: &mut Depot,
         res: &mut Response,
-    ) -> Result<String, S::Error> {
-        let (token, proof) = self.cipher.generate();
+    ) -> Result<String, ()> {
+        let (token, proof) = self.cipher.generate_async().await.map_err(|error| {
+            tracing::error!(error = ?error, "csrf token generation failed");
+        })?;
         if let Err(e) = self.store.save(req, depot, res, &token, &proof).await {
             tracing::error!(error = ?e, "csrf token save failed");
-            return Err(e);
+            return Err(());
         }
         tracing::debug!("new csrf token generated");
         Ok(token)
@@ -349,7 +367,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 if !skipped {
                     if let Some(token) = self.find_token(req).await {
                         tracing::debug!("csrf token found in request");
-                        if !self.cipher.verify(&token, &proof) {
+                        if !self.cipher.verify_async(&token, &proof).await {
                             tracing::debug!(
                                 "rejecting request due to invalid or expired csrf token"
                             );
@@ -406,6 +424,44 @@ mod tests {
     use salvo_core::test::{RequestBuilder, ResponseExt, TestClient};
 
     use super::*;
+
+    #[tokio::test]
+    async fn middleware_and_cookie_store_use_async_cipher_operations() {
+        struct AsyncCipher;
+        impl CsrfCipher for AsyncCipher {
+            fn verify(&self, _token: &str, _proof: &str) -> bool {
+                panic!("middleware must use async verification")
+            }
+            fn generate(&self) -> (String, String) {
+                panic!("middleware must use async generation")
+            }
+            async fn verify_async(&self, token: &str, proof: &str) -> bool {
+                token == "token" && proof == "proof"
+            }
+            async fn generate_async(&self) -> Result<(String, String), salvo_core::Error> {
+                Ok(("token".into(), "proof".into()))
+            }
+        }
+        let service = Service::new(
+            Router::new()
+                .hoop(Csrf::new(
+                    AsyncCipher,
+                    CookieStore::new(),
+                    HeaderFinder::new("x-csrf-token"),
+                ))
+                .get(get_index)
+                .post(post_token),
+        );
+        let mut issued = TestClient::get("http://localhost/").send(&service).await;
+        let cookie = issued.cookie("salvo.csrf").unwrap().to_string();
+        assert_eq!(issued.take_string().await.unwrap(), "token");
+        let accepted = TestClient::post("http://localhost/")
+            .add_header("cookie", cookie, true)
+            .add_header("x-csrf-token", "token", true)
+            .send(&service)
+            .await;
+        assert_eq!(accepted.status_code, Some(StatusCode::OK));
+    }
 
     #[handler]
     async fn get_index(depot: &mut Depot) -> String {

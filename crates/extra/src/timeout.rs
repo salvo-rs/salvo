@@ -1,16 +1,45 @@
-//! Middleware for controlling requests timeout.
+//! Deadline for downstream handler processing.
 //!
-//! If the request does not complete within the specified timeout it will be aborted and a `503 Service Unavailable`
-//! response will be sent.
+//! If `FlowCtrl::call_next` does not finish within the configured duration, this middleware
+//! drops that future and produces a `503 Service Unavailable` response. The deadline covers
+//! request-body reads performed by those handlers and an upstream proxy's wait for response
+//! headers. It ends when the handlers return, even if the response body is still streaming.
+//! Catchers or middleware outside this call are outside its deadline. Cancellation does not
+//! undo completed side effects, stop detached tasks, or preempt blocking synchronous code.
 //!
-//! This middleware can be used to deal with slow network attacks.
+//! # Choose timeouts by phase
+//!
+//! | Phase | Configuration | Scope |
+//! |-------|---------------|-------|
+//! | Downstream handler work | [`Timeout`] | One `call_next` future |
+//! | TLS handshake / incoming HTTP/1 headers | [`FuseConfig`](salvo_core::fuse::FuseConfig) | Accepted connection; HTTP/1 detection and headers share one budget |
+//! | Incoming request-body inactivity | `FuseConfig::request_body_timeout` | Gap between request-body frames |
+//! | Transport inactivity / blocked writes | `FuseConfig::connection_idle_timeout` / `write_stall_timeout` | TCP-based connection; multiplexed streams share transport activity |
+//! | Upstream connect / reads / total request | Configure the proxy's HTTP client | Separate from the inbound server fuse and this middleware |
+//!
+//! A handler deadline does not enforce an outgoing response-body idle timeout or a total
+//! streaming lifetime. `ResBody::observe` measures body production, errors, and early drops;
+//! it does not enforce a timeout or prove socket delivery. Bound custom producers explicitly
+//! when a response-body deadline is required. Once headers have been sent, a stream failure
+//! cannot be replaced with a fresh `503` response.
+//!
+//! For SSE and other intentional long streams, keep the handler's setup deadline separate
+//! from stream lifetime. Configure heartbeats and any upstream read timeout for the expected
+//! quiet interval; a short total upstream deadline will terminate a healthy long stream.
+//! TCP idle/write limits can close legitimate idle or slow connections and do not provide
+//! per-response inactivity isolation on HTTP/2. HTTP/3 uses QUIC transport limits instead.
 //!
 //! # Example
+//!
+//! This finite-response service uses a five-second handler deadline and separately enables
+//! inbound body-frame, transport idle, and write-stall limits. Choose values for the workload;
+//! these transport limits need reconsideration before using the same listener for SSE.
 //!
 //! ```no_run
 //! use std::time::Duration;
 //!
 //! use salvo_core::prelude::*;
+//! use salvo_core::fuse::FuseConfig;
 //! use salvo_extra::timeout::Timeout;
 //!
 //! #[handler]
@@ -31,7 +60,11 @@
 //!         .push(Router::with_path("fast").get(fast));
 //!
 //!     let acceptor = TcpListener::new("0.0.0.0:8698").bind().await;
-//!     Server::new(acceptor).serve(router).await;
+//!     let mut fuse = FuseConfig::default();
+//!     fuse.request_body_timeout = Some(Duration::from_secs(15));
+//!     fuse.connection_idle_timeout = Some(Duration::from_secs(60));
+//!     fuse.write_stall_timeout = Some(Duration::from_secs(15));
+//!     Server::new(acceptor).fuse_config(fuse).serve(router).await;
 //! }
 //! ```
 use std::fmt::{self, Debug, Formatter};
@@ -41,7 +74,7 @@ use salvo_core::http::headers::{Connection, HeaderMapExt};
 use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{Depot, FlowCtrl, Handler, async_trait};
 
-/// Middleware for controlling request timeout.
+/// Deadline for downstream handler processing, ending before response-body transmission.
 ///
 /// View [module level documentation](index.html) for more details.
 pub struct Timeout {

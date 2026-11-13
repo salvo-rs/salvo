@@ -102,6 +102,47 @@ Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
 forwarding chain.
 
+### Timeout phases and streaming
+
+The inbound server fuse, handler deadline, and upstream HTTP client cover different phases.
+`Timeout` middleware bounds downstream handler processing, including waiting for upstream
+response headers. It stops when the proxy has installed the streaming body in the response.
+It does not bound the remainder of that body or an upgraded WebSocket tunnel.
+
+For finite upstream responses, configure the HTTP client as well. With the `reqwest-client`
+feature, this example sets separate connect, per-read, and total request deadlines:
+
+```rust,no_run
+use std::time::Duration;
+use salvo_proxy::{Proxy, ReqwestClient};
+
+fn finite_proxy() -> Result<Proxy<&'static str, ReqwestClient>, reqwest::Error> {
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(3))
+        .read_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(60))
+        .build()?;
+    Ok(Proxy::new("https://backend.example", ReqwestClient::new(client)))
+}
+```
+
+The connect timeout bounds connection establishment. The read timeout resets after a
+successful upstream read and covers stalled reads, including body reads. The total timeout
+covers the upstream request through body completion. `HyperClient` users must configure
+an appropriate connector and, for deadlines beyond connection setup, a custom client/body
+wrapper; the default Hyper client does not add these three application deadlines.
+
+For SSE or other intentional long streams, use a separate client policy without a short
+total request timeout, and choose a read timeout longer than the expected heartbeat interval.
+A handler deadline can still bound stream setup. Configure WebSocket tunnel lifetime and
+heartbeat policy separately after upgrade. Inbound `FuseConfig::request_body_timeout` limits
+request-body gaps, while TCP `connection_idle_timeout` and `write_stall_timeout` operate on
+the connection, not one response. They do not isolate response-body inactivity across HTTP/2
+streams; HTTP/3 uses QUIC transport controls. `ResBody::observe` reports body production,
+not network delivery, and does not enforce an idle or total timeout. Once response headers
+are sent, body errors terminate the stream rather than produce a new error response.
+
 ### Failure logging
 
 Upstream request failures log the request method, path, and client error type.

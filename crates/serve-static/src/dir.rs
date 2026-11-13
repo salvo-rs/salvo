@@ -21,7 +21,6 @@ use salvo_core::routing::{
 use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use time::OffsetDateTime;
 use time::macros::format_description;
 
@@ -151,6 +150,13 @@ where
 /// and caches check file metadata such as `Content-Length`, `ETag`, and `Last-Modified` without
 /// downloading the response body.
 ///
+/// **Filesystem trust boundary**: canonical-path checks reject stable symbolic links and
+/// junctions that escape a configured root. They do not make path resolution and file
+/// opening atomic. Untrusted actors must not be able to replace ancestor directories,
+/// create or swap symlinks/junctions, or rename served paths while requests resolve them.
+/// Store uploads in a separate area with restricted filesystem permissions; allowing file
+/// contents to be uploaded alone does not imply permission to mutate directory topology.
+///
 /// **Security note**: a `HEAD` request still follows the same file lookup and metadata path as
 /// `GET`. A client can send a very small request that makes the server touch the filesystem.
 /// Enable `HEAD` at your own risk.
@@ -185,6 +191,12 @@ pub struct StaticDir {
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     /// Whether to automatically list directories when default file isn't found
     pub auto_list: bool,
+    /// Maximum directory entries examined for a listing, including hidden/excluded entries.
+    /// Defaults to 10,000. Exceeding it returns 503 without a partial listing.
+    pub listing_max_entries: usize,
+    /// Maximum encoded listing body size in bytes. Defaults to 2 MiB.
+    /// Exceeding it returns 503 without a partial listing, for every supported format.
+    pub listing_max_bytes: usize,
     /// Map of compression algorithms to file extensions for compressed variants
     pub compressed_variations: HashMap<CompressionAlgo, Vec<String>>,
     /// Default file names to look for in directories (e.g., "index.html")
@@ -204,6 +216,8 @@ impl Debug for StaticDir {
             .field("preload_threshold", &self.preload_threshold)
             .field("include_dot_files", &self.include_dot_files)
             .field("auto_list", &self.auto_list)
+            .field("listing_max_entries", &self.listing_max_entries)
+            .field("listing_max_bytes", &self.listing_max_bytes)
             .field("compressed_variations", &self.compressed_variations)
             .field("defaults", &self.defaults)
             .field("fallback", &self.fallback)
@@ -229,6 +243,8 @@ impl StaticDir {
             include_dot_files: false,
             exclude_filters: vec![],
             auto_list: false,
+            listing_max_entries: 10_000,
+            listing_max_bytes: 2 * 1024 * 1024,
             compressed_variations,
             defaults: vec![],
             fallback: None,
@@ -283,6 +299,21 @@ impl StaticDir {
         F: Fn(&str) -> bool + Send + Sync + 'static,
     {
         self.exclude_filters.push(Box::new(filter));
+        self
+    }
+
+    /// Sets the work and output budgets for automatic directory listings.
+    ///
+    /// At most `max_entries + 1` entries are fetched (the extra detects overflow),
+    /// before metadata lookup or sorting beyond the budget. All entries count, including
+    /// hidden and excluded names. The encoded response is buffered up to `max_bytes`.
+    /// A budget overflow returns `503 Service Unavailable`, never a truncated `200`.
+    /// Zero permits only an empty directory / empty output, respectively.
+    #[inline]
+    #[must_use]
+    pub fn listing_limits(mut self, max_entries: usize, max_bytes: usize) -> Self {
+        self.listing_max_entries = max_entries;
+        self.listing_max_bytes = max_bytes;
         self
     }
 
@@ -341,8 +372,8 @@ impl StaticDir {
 
     /// Sets the small-file preload threshold.
     ///
-    /// Files whose size is less than or equal to this threshold are read during `NamedFile`
-    /// construction and sent from memory. Larger files are streamed in chunks. Set this to `0` to
+    /// Full responses at or below this threshold are read after conditional and range
+    /// checks and sent from memory. Larger files are streamed in chunks. Set this to `0` to
     /// disable preloading for non-empty files.
     #[inline]
     #[must_use]
@@ -704,7 +735,16 @@ impl Handler for StaticDir {
         } else if !is_file {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
+                let mut examined = 0usize;
                 while let Ok(Some(entry)) = entries.next_entry().await {
+                    if examined >= self.listing_max_entries {
+                        res.render(
+                            StatusError::service_unavailable()
+                                .brief("Directory listing entry limit exceeded"),
+                        );
+                        return;
+                    }
+                    examined += 1;
                     let file_name = entry.file_name().to_string_lossy().into_owned();
                     if self.include_dot_files || !file_name.starts_with('.') {
                         let raw_path = join_path!(&abs_path, &file_name);
@@ -734,28 +774,99 @@ impl Handler for StaticDir {
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
             let root = CurrentInfo::new(decode_url_path(req_path).into_owned(), files, dirs);
-            res.status_code(StatusCode::OK);
-            match format.subtype().as_ref() {
-                "plain" => res.render(Text::Plain(list_text(&root))),
-                "json" => res.render(Text::Json(list_json(&root))),
-                "xml" => res.render(Text::Xml(list_xml(&root))),
-                _ => res.render(Text::Html(list_html(&root))),
+            let limit = self.listing_max_bytes;
+            let listing = match format.subtype().as_ref() {
+                "plain" => list_text(&root, limit).map(Text::Plain),
+                "json" => list_json(&root, limit).map(Text::Json),
+                "xml" => list_xml(&root, limit).map(Text::Xml),
+                _ => list_html(&root, limit).map(Text::Html),
             };
+            if let Some(listing) = listing {
+                res.status_code(StatusCode::OK);
+                res.render(listing);
+            } else {
+                res.render(
+                    StatusError::service_unavailable()
+                        .brief("Directory listing byte limit exceeded"),
+                );
+            }
         }
     }
 }
 
-#[inline]
-fn list_json(current: &CurrentInfo) -> String {
-    json!(current).to_string()
+// Formatting and JSON serialization share a bounded sink, so escaping cannot grow
+// an intermediate response beyond the configured output budget.
+struct ListingOutput {
+    bytes: Vec<u8>,
+    limit: usize,
+    exceeded: bool,
 }
-fn list_xml(current: &CurrentInfo) -> String {
-    let mut xml = "<list>".to_owned();
+impl ListingOutput {
+    fn new(limit: usize) -> Self {
+        Self {
+            bytes: Vec::new(),
+            limit,
+            exceeded: false,
+        }
+    }
+    fn append(&mut self, bytes: &[u8]) -> bool {
+        if self.exceeded || bytes.len() > self.limit.saturating_sub(self.bytes.len()) {
+            self.exceeded = true;
+            false
+        } else {
+            self.bytes.extend_from_slice(bytes);
+            true
+        }
+    }
+    fn push_str(&mut self, text: &str) {
+        self.append(text.as_bytes());
+    }
+    fn finish(self) -> Option<String> {
+        if self.exceeded {
+            None
+        } else {
+            String::from_utf8(self.bytes).ok()
+        }
+    }
+}
+impl fmt::Write for ListingOutput {
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        if self.append(text.as_bytes()) {
+            Ok(())
+        } else {
+            Err(fmt::Error)
+        }
+    }
+}
+impl std::io::Write for ListingOutput {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        if self.append(bytes) {
+            Ok(bytes.len())
+        } else {
+            Err(std::io::Error::other("listing output limit exceeded"))
+        }
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn list_json(current: &CurrentInfo, limit: usize) -> Option<String> {
+    let mut out = ListingOutput::new(limit);
+    serde_json::to_writer(&mut out, current).ok()?;
+    out.finish()
+}
+fn list_xml(current: &CurrentInfo, limit: usize) -> Option<String> {
+    let mut xml = ListingOutput::new(limit);
+    xml.push_str("<list>");
     if current.dirs.is_empty() && current.files.is_empty() {
         xml.push_str("No files");
     } else {
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
+            if xml.exceeded {
+                return None;
+            }
             let _ = write!(
                 xml,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
@@ -765,6 +876,9 @@ fn list_xml(current: &CurrentInfo) -> String {
             );
         }
         for file in &current.files {
+            if xml.exceeded {
+                return None;
+            }
             let _ = write!(
                 xml,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
@@ -776,7 +890,7 @@ fn list_xml(current: &CurrentInfo) -> String {
         }
     }
     xml.push_str("</list>");
-    xml
+    xml.finish()
 }
 
 fn is_safe_relative_path(path: &str) -> bool {
@@ -822,8 +936,8 @@ fn human_size(bytes: u64) -> String {
     }
     format!("{} {}", bytes, units[index])
 }
-fn list_html(current: &CurrentInfo) -> String {
-    fn header_link(out: &mut String, path: &str) {
+fn list_html(current: &CurrentInfo, limit: usize) -> Option<String> {
+    fn header_link(out: &mut ListingOutput, path: &str) {
         let _ = write!(out, r#"<a href="/">{HOME_ICON}</a>"#);
         let mut link = String::new();
         for seg in path
@@ -839,7 +953,9 @@ fn list_html(current: &CurrentInfo) -> String {
             let _ = write!(out, r#"/<a href="{link}">{}</a>"#, xml_escape(seg));
         }
     }
-    let mut html = format!(
+    let mut html = ListingOutput::new(limit);
+    let _ = write!(
+        html,
         r#"<!DOCTYPE html><html><head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width">
@@ -863,6 +979,9 @@ fn list_html(current: &CurrentInfo) -> String {
         );
         let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
+            if html.exceeded {
+                return None;
+            }
             let _ = write!(
                 html,
                 r#"<tr><td>{}</td><td><a href="./{}/">{}</a></td><td>{}</td><td></td></tr>"#,
@@ -873,6 +992,9 @@ fn list_html(current: &CurrentInfo) -> String {
             );
         }
         for file in &current.files {
+            if html.exceeded {
+                return None;
+            }
             let _ = write!(
                 html,
                 r#"<tr><td>{}</td><td><a href="./{}">{}</a></td><td>{}</td><td>{}</td></tr>"#,
@@ -889,13 +1011,17 @@ fn list_html(current: &CurrentInfo) -> String {
         html,
         r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#
     );
-    html
+    html.finish()
 }
-fn list_text(current: &CurrentInfo) -> String {
+fn list_text(current: &CurrentInfo, limit: usize) -> Option<String> {
     use std::fmt::Write;
     let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-    let mut txt = format!("Directory: {}\n\n", current.path);
+    let mut txt = ListingOutput::new(limit);
+    let _ = write!(txt, "Directory: {}\n\n", current.path);
     for dir in &current.dirs {
+        if txt.exceeded {
+            return None;
+        }
         let _ = writeln!(
             txt,
             "[DIR]  {}  {}",
@@ -904,6 +1030,9 @@ fn list_text(current: &CurrentInfo) -> String {
         );
     }
     for file in &current.files {
+        if txt.exceeded {
+            return None;
+        }
         let _ = writeln!(
             txt,
             "{:>10}  {}  {}",
@@ -912,7 +1041,7 @@ fn list_text(current: &CurrentInfo) -> String {
             file.name,
         );
     }
-    txt
+    txt.finish()
 }
 
 const HTML_STYLE: &str = r#"
@@ -959,6 +1088,72 @@ mod tests {
     };
 
     #[tokio::test]
+    async fn listing_budgets_apply_to_every_format_and_hidden_entries() {
+        use salvo_core::http::StatusCode;
+        use salvo_core::test::{ResponseExt, TestClient};
+        use salvo_core::{Router, Service};
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("visible"), b"x").unwrap();
+        std::fs::write(root.path().join(".hidden"), b"x").unwrap();
+        for accept in [
+            "text/plain",
+            "application/json",
+            "application/xml",
+            "text/html",
+        ] {
+            for (entries, bytes, expected) in [
+                (1, 100_000, StatusCode::SERVICE_UNAVAILABLE),
+                (2, 1, StatusCode::SERVICE_UNAVAILABLE),
+                (2, 100_000, StatusCode::OK),
+            ] {
+                let handler = super::StaticDir::new(root.path().to_path_buf())
+                    .auto_list(true)
+                    .listing_limits(entries, bytes);
+                let service = Service::new(Router::with_path("{**path}").goal(handler));
+                let mut res = TestClient::get("http://localhost/")
+                    .add_header("accept", accept, true)
+                    .send(&service)
+                    .await;
+                assert_eq!(
+                    res.status_code,
+                    Some(expected),
+                    "{accept}, {entries}, {bytes}"
+                );
+                let body = res.take_string().await.unwrap();
+                if expected == StatusCode::OK {
+                    assert!(body.contains("visible"));
+                    assert!(!body.contains(".hidden"));
+                    if accept == "application/json" {
+                        serde_json::from_str::<serde_json::Value>(&body).unwrap();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn listing_output_limit_counts_encoded_bytes_exactly() {
+        let root = tempfile::tempdir().unwrap();
+        let metadata = std::fs::metadata(root.path()).unwrap();
+        let info = CurrentInfo::new(
+            "雪&<".into(),
+            vec![FileInfo::new("a&雪".into(), &metadata)],
+            vec![],
+        );
+        for render in [
+            super::list_text,
+            super::list_json,
+            super::list_xml,
+            super::list_html,
+        ] {
+            let full = render(&info, usize::MAX).unwrap();
+            assert_eq!(render(&info, full.len()).unwrap(), full);
+            assert!(render(&info, full.len() - 1).is_none());
+            assert!(render(&info, 0).is_none());
+        }
+    }
+
+    #[tokio::test]
     async fn directory_redirect_cannot_change_authority_after_path_normalization() {
         use salvo_core::http::StatusCode;
         use salvo_core::http::header::LOCATION;
@@ -1003,7 +1198,11 @@ mod tests {
 
         let files = vec![FileInfo::new("a&b'<c>.txt".to_owned(), &metadata)];
         let dirs = vec![DirInfo::new(r#"d"ir&"#.to_owned(), &metadata)];
-        let html = list_html(&CurrentInfo::new("pa&th".to_owned(), files, dirs));
+        let html = list_html(
+            &CurrentInfo::new("pa&th".to_owned(), files, dirs),
+            usize::MAX,
+        )
+        .unwrap();
 
         // Visible text is entity-escaped...
         assert!(html.contains("a&amp;b&apos;&lt;c&gt;.txt"));

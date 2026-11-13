@@ -101,8 +101,8 @@ async fn test_span_reports_route_and_split_url() {
     assert_eq!(span.attr("url.path"), Some("/users/42"));
     assert_eq!(
         span.attr("url.query"),
-        Some("s%69g=REDACTED&token=abc"),
-        "credential-bearing query values are redacted, other keys are kept"
+        None,
+        "query strings are omitted by default"
     );
     assert_eq!(span.attr("url.scheme"), Some("http"));
     assert_eq!(span.attr("network.protocol.version"), Some("1.1"));
@@ -267,4 +267,128 @@ async fn test_span_without_root_route() {
         Some("404"),
         "a root path without a reachable goal is not found"
     );
+}
+
+#[tokio::test]
+async fn query_credentials_are_omitted_by_default() {
+    let span = trace_request(
+        TestClient::get(concat!(
+            "http://127.0.0.1:8698/users/42?",
+            "access_token=access-secret&access_token=repeat-secret&",
+            "%61pi_key=api-secret&password=password-secret&code=oauth-secret&",
+            "custom_credential=custom-secret&token=token-secret&page=2"
+        )),
+        routed,
+    )
+    .await;
+    assert_eq!(span.attr("url.query"), None);
+    let exported = format!("{} {:?}", span.name, span.attrs);
+    for secret in [
+        "access-secret",
+        "repeat-secret",
+        "api-secret",
+        "password-secret",
+        "oauth-secret",
+        "custom-secret",
+        "token-secret",
+    ] {
+        assert!(!exported.contains(secret), "leaked {secret}");
+    }
+}
+
+#[tokio::test]
+async fn query_allowlist_keeps_only_explicit_non_sensitive_fields() {
+    let span = trace_request(
+        TestClient::get(concat!(
+            "http://127.0.0.1:8698/?page=1&access_token=access-secret&",
+            "%70age=2&api_key=api-secret&code=oauth-secret&",
+            "custom_credential=custom-secret&sort=a%26token%3Db&",
+            "token=token-secret&sort+order=ascending&Page=case-secret&",
+            "%FF=invalid-secret&debug"
+        )),
+        |provider| {
+            Service::new(
+                Router::new()
+                    .hoop(Tracing::new(provider.tracer("test")).query_fields([
+                        "page",
+                        "sort",
+                        "sort order",
+                        "debug",
+                    ]))
+                    .goal(hello),
+            )
+        },
+    )
+    .await;
+    assert_eq!(
+        span.attr("url.query"),
+        Some("page=1&%70age=2&sort=a%26token%3Db&sort+order=ascending&debug")
+    );
+    let exported = format!("{} {:?}", span.name, span.attrs);
+    for secret in [
+        "access-secret",
+        "api-secret",
+        "oauth-secret",
+        "custom-secret",
+        "token-secret",
+        "case-secret",
+        "invalid-secret",
+    ] {
+        assert!(!exported.contains(secret), "leaked {secret}");
+    }
+}
+
+#[tokio::test]
+async fn listed_signature_fields_remain_redacted() {
+    let span = trace_request(
+        TestClient::get(concat!(
+            "http://127.0.0.1:8698/?s%69g=first-secret&sig=repeat-secret&",
+            "Signature=signature-secret&AWSAccessKeyId=aws-secret&",
+            "X-Goog-%53ignature=google-secret&page=2"
+        )),
+        |provider| {
+            Service::new(
+                Router::new()
+                    .hoop(Tracing::new(provider.tracer("test")).query_fields([
+                        "sig",
+                        "Signature",
+                        "AWSAccessKeyId",
+                        "X-Goog-Signature",
+                        "page",
+                    ]))
+                    .goal(hello),
+            )
+        },
+    )
+    .await;
+    assert_eq!(
+        span.attr("url.query"),
+        Some(concat!(
+            "s%69g=REDACTED&sig=REDACTED&Signature=REDACTED&",
+            "AWSAccessKeyId=REDACTED&X-Goog-%53ignature=REDACTED&page=2"
+        ))
+    );
+    assert!(!format!("{:?}", span.attrs).contains("secret"));
+}
+
+#[tokio::test]
+async fn empty_or_unmatched_query_allowlist_omits_attribute() {
+    for fields in [vec!["page"], vec![]] {
+        let span = trace_request(
+            TestClient::get("http://127.0.0.1:8698/?token=secret"),
+            |provider| {
+                Service::new(
+                    Router::new()
+                        .hoop(
+                            Tracing::new(provider.tracer("test"))
+                                .query_fields(["token"])
+                                .query_fields(fields),
+                        )
+                        .goal(hello),
+                )
+            },
+        )
+        .await;
+        assert_eq!(span.attr("url.query"), None);
+    }
 }

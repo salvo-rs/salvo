@@ -75,7 +75,7 @@ filtering on `error.type` or `http.response.status_code`.
 
 Both middlewares follow the [HTTP semantic conventions][semconv] for attribute
 names and values: `http.request.method`, `http.route`,
-`http.response.status_code`, `url.scheme`, `url.path`, `url.query`,
+`http.response.status_code`, `url.scheme`, `url.path`,
 `network.protocol.version` and `error.type`.
 
 The request target is reported as the matched route template (`/users/{id}`)
@@ -88,6 +88,25 @@ own with `Metrics::with_known_methods`.
 through the `salvo` crate, by its own `matched-path` feature.
 
 [semconv]: https://opentelemetry.io/docs/specs/semconv/http/http-metrics/
+
+### Query privacy
+
+`Tracing` omits query strings by default, including OAuth authorization codes,
+access tokens, passwords, and application-specific credentials. To record only
+non-sensitive fields, explicitly configure an allowlist:
+
+```rust,ignore
+let tracing = Tracing::new(provider.tracer("my-service"))
+    .query_fields(["page", "sort"]);
+```
+
+Only these fields appear in `url.query`; all other fields are omitted entirely.
+Names are matched case-sensitively after percent decoding and converting `+` to
+a space. Repeated fields retain their order and original encoding. An empty
+allowlist disables query recording. The signature fields `sig`, `Signature`,
+`AWSAccessKeyId`, and `X-Goog-Signature` always have their values replaced with
+`REDACTED` when listed. Only allow values that are safe for your telemetry
+backend; never add credential fields to the allowlist.
 
 ## Installation
 
