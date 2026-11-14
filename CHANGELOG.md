@@ -102,6 +102,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Keep `max_properties` and `min_properties` usable in `ToSchema` structs with
   flattened struct fields.
 
+- Fix `#[handler]` and `#[endpoint]` functions with extractor arguments failing to compile when
+  a handler named `data`, `e` or `status_code` is in scope.
+
 ## [1.1.2] - 2026-11-10
 
 ### Added

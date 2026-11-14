@@ -351,14 +351,14 @@ fn handle_fn(
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
-                            Ok(data) => {
-                                data
+                            Ok(__macro_gen_data) => {
+                                __macro_gen_data
                             },
-                            Err(e) => {
-                                #salvo::Writer::write(e, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                            Err(__macro_gen_err) => {
+                                #salvo::Writer::write(__macro_gen_err, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                                 // If status code is not set or is not error, set it to 400.
-                                let status_code = __macro_gen_res.status_code.unwrap_or_default();
-                                if !status_code.is_client_error() && !status_code.is_server_error() {
+                                let __macro_gen_status_code = __macro_gen_res.status_code.unwrap_or_default();
+                                if !__macro_gen_status_code.is_client_error() && !__macro_gen_status_code.is_server_error() {
                                     __macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
                                 }
                                 return;
@@ -436,14 +436,14 @@ mod tests {
         let expected_hfn = quote! {
             async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
                 let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
-                    Ok(data) => {
-                        data
+                    Ok(__macro_gen_data) => {
+                        __macro_gen_data
                     },
-                    Err(e) => {
-                        salvo::Writer::write(e, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                    Err(__macro_gen_err) => {
+                        salvo::Writer::write(__macro_gen_err, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                         // If status code is not set or is not error, set it to 400.
-                        let status_code = __macro_gen_res.status_code.unwrap_or_default();
-                        if !status_code.is_client_error() && !status_code.is_server_error() {
+                        let __macro_gen_status_code = __macro_gen_res.status_code.unwrap_or_default();
+                        if !__macro_gen_status_code.is_client_error() && !__macro_gen_status_code.is_server_error() {
                             __macro_gen_res.status_code(salvo::http::StatusCode::BAD_REQUEST);
                         }
                         return;

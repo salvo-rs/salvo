@@ -232,3 +232,40 @@ fn test_endpoint_parameter_allow_reserved() {
     assert_eq!(derive[2]["name"], "plain");
     assert!(derive[2].get("allowReserved").is_none());
 }
+
+// A handler function becomes a unit struct with the same name, so an unprefixed binding in the
+// expansion of *another* handler in scope would resolve to that struct instead of binding.
+// The names below are the ones the argument-extraction code used to bind.
+#[test]
+fn test_handler_names_do_not_capture_generated_bindings() {
+    #[handler]
+    async fn data() {}
+    #[handler]
+    async fn e() {}
+    #[endpoint]
+    async fn status_code() {}
+
+    #[handler]
+    async fn plain(id: QueryParam<u32, true>) -> String {
+        id.into_inner().to_string()
+    }
+
+    #[endpoint]
+    async fn documented(id: QueryParam<u32, true>) -> String {
+        id.into_inner().to_string()
+    }
+
+    let router = Router::new()
+        .push(Router::with_path("data").get(data))
+        .push(Router::with_path("e").get(e))
+        .push(Router::with_path("status_code").get(status_code))
+        .push(Router::with_path("plain").get(plain))
+        .push(Router::with_path("documented").get(documented));
+    let doc =
+        serde_json::to_value(OpenApi::new("test api", "0.0.1").merge_router(&router)).unwrap();
+    assert_eq!(
+        doc["paths"]["/documented"]["get"]["parameters"][0]["name"],
+        "id"
+    );
+    assert!(doc["paths"]["/status_code"]["get"].is_object());
+}
