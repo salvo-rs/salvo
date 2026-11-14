@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Honor schema/serde skips and conditional ignores on flattened schema fields,
+  including their generated defaults.
+
 - Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
