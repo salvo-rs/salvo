@@ -8,6 +8,7 @@
 
 use proc_macro2::{Ident, Span, TokenTree};
 use syn::buffer::Cursor;
+use syn::parse::Parser;
 use syn::{Attribute, Error};
 
 pub(crate) mod case;
@@ -30,6 +31,40 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
         },
         _ => None,
     }
+}
+
+fn parse_rename(next: Cursor, deserializing: bool) -> syn::Result<Option<(String, Span)>> {
+    if let Some(name) = parse_next_lit_str(next) {
+        return Ok(Some(name));
+    }
+    let Some((TokenTree::Group(group), _)) = next.token_tree() else {
+        return Ok(None);
+    };
+    if group.delimiter() != proc_macro2::Delimiter::Parenthesis {
+        return Ok(None);
+    }
+    let parser = |input: syn::parse::ParseStream| {
+        let mut name = None;
+        while !input.is_empty() {
+            let direction: Ident = input.parse()?;
+            input.parse::<syn::Token![=]>()?;
+            let literal: syn::LitStr = input.parse()?;
+            if direction
+                == if deserializing {
+                    "deserialize"
+                } else {
+                    "serialize"
+                }
+            {
+                name = Some((literal.value(), literal.span()));
+            }
+            if !input.is_empty() {
+                input.parse::<syn::Token![,]>()?;
+            }
+        }
+        Ok(name)
+    };
+    parser.parse2(group.stream())
 }
 
 /// Parsed values from a `#[serde(...)]` attribute.
@@ -71,7 +106,7 @@ impl SerdeValue {
                     }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
-                        if let Some((literal, _)) = parse_next_lit_str(next) {
+                        if let Some((literal, _)) = parse_rename(next, deserializing)? {
                             value.rename = Some(literal)
                         };
                     }
@@ -152,10 +187,15 @@ impl SerdeContainer {
     ///     * `content = ...`
     ///     * `untagged = ...`
     ///     * `default = ...`
-    fn parse_attribute(&mut self, ident: &Ident, next: Cursor) -> syn::Result<()> {
+    fn parse_attribute(
+        &mut self,
+        ident: &Ident,
+        next: Cursor,
+        deserializing: bool,
+    ) -> syn::Result<()> {
         match ident.to_string().as_str() {
             "rename_all" => {
-                if let Some((literal, span)) = parse_next_lit_str(next) {
+                if let Some((literal, span)) = parse_rename(next, deserializing)? {
                     self.rename_all = Some(
                         literal
                             .parse::<RenameRule>()
@@ -222,14 +262,14 @@ impl SerdeContainer {
     }
 
     /// Parse the attributes inside a `#[serde(...)]` container attribute.
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, deserializing: bool) -> syn::Result<Self> {
         let mut container = Self::default();
 
         input.step(|cursor| {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 if let TokenTree::Ident(ident) = tt {
-                    container.parse_attribute(&ident, next)?
+                    container.parse_attribute(&ident, next, deserializing)?
                 }
 
                 rest = next;
@@ -241,7 +281,7 @@ impl SerdeContainer {
     }
 }
 
-/// Parse value.
+/// Parse field attributes using serialization names.
 ///
 /// Returns `Ok(Some(SerdeValue))` if attributes are successfully parsed (even if no serde
 /// attributes are present, in which case a default `SerdeValue` is returned),
@@ -301,16 +341,34 @@ fn parse_value_with_direction(
         })
 }
 
-/// Parse container.
+/// Parse container attributes using the serialization `rename_all` rule.
 ///
 /// Returns `Ok(Some(SerdeContainer))` if attributes are successfully parsed (even if no serde
 /// attributes are present, in which case a default `SerdeContainer` is returned),
 /// or `Err` if parsing any serde attribute fails.
 pub fn parse_container(attributes: &[Attribute]) -> Result<Option<SerdeContainer>, Error> {
+    parse_container_with_direction(attributes, false)
+}
+
+/// Parse container attributes using the deserialization `rename_all` rule.
+pub fn parse_container_for_deserialize(
+    attributes: &[Attribute],
+) -> Result<Option<SerdeContainer>, Error> {
+    parse_container_with_direction(attributes, true)
+}
+
+fn parse_container_with_direction(
+    attributes: &[Attribute],
+    deserializing: bool,
+) -> Result<Option<SerdeContainer>, Error> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse))
+        .map(|serde_attribute| {
+            serde_attribute.parse_args_with(|input: syn::parse::ParseStream| {
+                SerdeContainer::parse(input, deserializing)
+            })
+        })
         .collect::<Result<Vec<_>, _>>()
         .map(|parsed| {
             Some(
@@ -494,5 +552,86 @@ mod input_direction_tests {
                 expected
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod directional_rename_tests {
+    use super::*;
+
+    #[test]
+    fn field_names_select_the_requested_direction() {
+        let attrs =
+            [syn::parse_quote!(#[serde(rename(serialize = "output", deserialize = "input"))])];
+        assert_eq!(
+            parse_value(&attrs).unwrap().unwrap().rename.as_deref(),
+            Some("output")
+        );
+        assert_eq!(
+            parse_value_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .rename
+                .as_deref(),
+            Some("input")
+        );
+        let attrs = [syn::parse_quote!(#[serde(rename(serialize = "output"))])];
+        assert_eq!(
+            parse_value_for_deserialize(&attrs).unwrap().unwrap().rename,
+            None
+        );
+        let attrs = [syn::parse_quote!(#[serde(rename(deserialize = "input"))])];
+        assert_eq!(parse_value(&attrs).unwrap().unwrap().rename, None);
+        let attrs = [syn::parse_quote!(#[serde(rename = "shared")])];
+        assert_eq!(
+            parse_value(&attrs).unwrap().unwrap().rename.as_deref(),
+            Some("shared")
+        );
+        assert_eq!(
+            parse_value_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .rename
+                .as_deref(),
+            Some("shared")
+        );
+    }
+
+    #[test]
+    fn container_names_select_the_requested_direction() {
+        let attrs = [
+            syn::parse_quote!(#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]),
+        ];
+        assert_eq!(
+            parse_container(&attrs).unwrap().unwrap().rename_all,
+            Some(RenameRule::SnakeCase)
+        );
+        assert_eq!(
+            parse_container_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .rename_all,
+            Some(RenameRule::CamelCase)
+        );
+        let attrs = [syn::parse_quote!(#[serde(rename_all(serialize = "snake_case"))])];
+        assert_eq!(
+            parse_container_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .rename_all,
+            None
+        );
+        let attrs = [syn::parse_quote!(#[serde(rename_all = "camelCase")])];
+        assert_eq!(
+            parse_container(&attrs).unwrap().unwrap().rename_all,
+            Some(RenameRule::CamelCase)
+        );
+        assert_eq!(
+            parse_container_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .rename_all,
+            Some(RenameRule::CamelCase)
+        );
     }
 }

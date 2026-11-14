@@ -58,7 +58,7 @@ impl TryFrom<&Field> for FieldInfo {
             flatten,
             ..
         }) =
-            serde_util::parse_value(&field.attrs)?
+            serde_util::parse_value_for_deserialize(&field.attrs)?
         {
             (rename, aliases, flatten)
         } else {
@@ -234,7 +234,7 @@ impl ExtractibleArgs {
                 }
             }
         }
-        let serde_container = serde_util::parse_container(&attrs)?;
+        let serde_container = serde_util::parse_container_for_deserialize(&attrs)?;
         let serde_rename_all = serde_container.and_then(|c| c.rename_all);
         Ok(Self {
             ident,

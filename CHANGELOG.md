@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Accept documented `ref("...")` schema references in endpoint request bodies
   and responses, while retaining `ref(Type)` support.
+- Honor directional serde `rename` and `rename_all` for request extraction and
+  serialized schemas.
 - Keep `serde(skip_serializing)` fields available to `ToParameters` request extraction.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.

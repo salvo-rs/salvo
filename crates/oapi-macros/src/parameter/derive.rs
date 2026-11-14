@@ -96,7 +96,8 @@ impl TryToTokens for ToParameters {
             .collect::<Result<Vec<_>, Diagnostic>>()?
             .into_iter()
             .reduce(|acc, item| acc.merge(item));
-        let serde_container = serde_util::parse_container(&self.attrs).map_err(Diagnostic::from)?;
+        let serde_container =
+            serde_util::parse_container_for_deserialize(&self.attrs).map_err(Diagnostic::from)?;
 
         let names = parameters_features.as_mut().and_then(|features| {
             let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
