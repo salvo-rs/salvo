@@ -74,6 +74,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
+- Encode generic schema names as valid OpenAPI component keys while retaining
+  legal names and collision disambiguation.
+
 - Give derived reusable responses distinct component names across modules and
   generic instantiations, using valid OpenAPI component keys.
 
