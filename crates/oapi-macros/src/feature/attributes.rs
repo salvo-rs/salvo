@@ -74,8 +74,8 @@ impl_get_name!(Examples = "examples");
 #[derive(Clone, Debug)]
 pub(crate) struct Default(pub(crate) Option<AnyValue>);
 impl Default {
-    pub(crate) fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
-        Self(Some(AnyValue::new_default_trait(struct_ident, field_ident)))
+    pub(crate) fn new_default_trait(field_ident: syn::Member) -> Self {
+        Self(Some(AnyValue::new_default_trait(field_ident)))
     }
 }
 impl Parse for Default {
