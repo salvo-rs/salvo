@@ -362,14 +362,21 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
 
 /// Used to create complex enums with varying Object types.
 ///
-/// Will create `oneOf` object with discriminator field for referenced schemas.
+/// Tagged alternatives use `oneOf`; untagged alternatives use `anyOf`.
 pub(crate) struct CustomEnum<'c, T: ToTokens> {
     // pub(crate) items: Cow<'c, >,
     items: T,
     pub(crate) tag: Option<Cow<'c, str>>,
+    len: usize,
+    any_of: bool,
 }
 
 impl<'c, T: ToTokens> CustomEnum<'c, T> {
+    pub(crate) fn any_of(mut self) -> Self {
+        self.any_of = true;
+        self
+    }
+
     pub(crate) fn discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
         self.tag = Some(discriminator);
         self
@@ -382,7 +389,16 @@ where
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        self.items.to_tokens(tokens);
+        let len = self.len;
+        let items = &self.items;
+        let composite = if self.any_of {
+            quote! { #oapi::oapi::schema::AnyOf }
+        } else {
+            quote! { #oapi::oapi::schema::OneOf }
+        };
+        tokens.extend(quote! {
+            Into::<#composite>::into(#composite::with_capacity(#len)) #items
+        });
 
         // currently uses serde `tag` attribute as a discriminator. This discriminator
         // feature needs some refinement.
@@ -400,7 +416,6 @@ where
 
 impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
     fn from_iter<T: IntoIterator<Item = TokenStream>>(iter: T) -> Self {
-        let oapi = crate::oapi_crate();
         let mut len = 0;
 
         let items = iter
@@ -416,16 +431,11 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
             })
             .collect::<TokenStream>();
 
-        let mut tokens = TokenStream::new();
-
-        tokens.extend(quote! {
-            Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
-                #items
-        });
-
         CustomEnum {
-            items: tokens,
+            items,
             tag: None,
+            len,
+            any_of: false,
         }
     }
 }

@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
+- Use `anyOf` for untagged enum alternatives, including per-variant fallbacks,
+  so overlapping valid serde representations remain accepted.
+
 - Respect explicit `deprecated = false` on schema properties.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected

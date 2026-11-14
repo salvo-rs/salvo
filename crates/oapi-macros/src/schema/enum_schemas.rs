@@ -5,7 +5,7 @@ use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Fields, Generics, Token, Variant};
+use syn::{Attribute, Fields, Generics, Meta, Token, Variant};
 
 use super::enum_variant::{
     self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
@@ -30,6 +30,25 @@ use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
 use crate::type_tree::{TypeTree, ValueType};
 use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
 
+fn variant_is_untagged(variant: &Variant) -> DiagResult<bool> {
+    for attribute in variant
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("serde"))
+    {
+        let attributes = attribute
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            .map_err(Diagnostic::from)?;
+        if attributes
+            .iter()
+            .any(|attribute| attribute.path().is_ident("untagged"))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 #[derive(Debug)]
 pub(crate) struct EnumSchema<'a> {
     pub(super) schema_type: EnumSchemaType<'a>,
@@ -48,9 +67,19 @@ impl<'e> EnumSchema<'e> {
         aliases: Option<Punctuated<Alias, Comma>>,
         generics: Option<&'e Generics>,
     ) -> DiagResult<Self> {
+        let has_untagged_variant = variants
+            .iter()
+            .map(|variant| {
+                let rules = serde_util::parse_value(&variant.attrs).map_err(Diagnostic::from)?;
+                Ok(is_not_skipped(rules.as_ref()) && variant_is_untagged(variant)?)
+            })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .any(|untagged| untagged);
         if variants
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
+            && !has_untagged_variant
         {
             #[cfg(feature = "repr")]
             {
@@ -1115,7 +1144,8 @@ impl TryToTokens for ComplexEnum<'_> {
             | SerdeEnumRepr::Untagged
             | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
         };
-        let ts = self
+        let mut has_untagged_variant = matches!(enum_repr, SerdeEnumRepr::Untagged);
+        let mut ts = self
             .variants
             .iter()
             .map(|variant: &Variant| {
@@ -1129,42 +1159,56 @@ impl TryToTokens for ComplexEnum<'_> {
             .map(|(variant, variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
 
-                match &enum_repr {
-                    SerdeEnumRepr::ExternallyTagged => self.variant_tokens(
-                        variant_name,
-                        variant,
-                        variant_serde_rules.as_ref(),
-                        container_rules.as_ref(),
-                        self.rename_all,
-                    ),
-                    SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
-                        tag,
-                        variant_name,
-                        variant,
-                        variant_serde_rules.as_ref(),
-                        container_rules.as_ref(),
-                        self.rename_all,
-                    ),
-                    SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
-                    SerdeEnumRepr::AdjacentlyTagged { tag, content } => self
-                        .adjacently_tagged_variant_tokens(
-                            tag,
-                            content,
+                let variant_untagged = variant_is_untagged(variant)?;
+                let variant_tokens = if variant_untagged {
+                    self.untagged_variant_tokens(variant)
+                } else {
+                    match &enum_repr {
+                        SerdeEnumRepr::ExternallyTagged => self.variant_tokens(
                             variant_name,
                             variant,
                             variant_serde_rules.as_ref(),
                             container_rules.as_ref(),
                             self.rename_all,
                         ),
-                    SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                        unreachable!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
+                        SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
+                            tag,
+                            variant_name,
+                            variant,
+                            variant_serde_rules.as_ref(),
+                            container_rules.as_ref(),
+                            self.rename_all,
+                        ),
+                        SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
+                        SerdeEnumRepr::AdjacentlyTagged { tag, content } => self
+                            .adjacently_tagged_variant_tokens(
+                                tag,
+                                content,
+                                variant_name,
+                                variant,
+                                variant_serde_rules.as_ref(),
+                                container_rules.as_ref(),
+                                self.rename_all,
+                            ),
+                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                            unreachable!(
+                                "Serde should not have parsed an UnfinishedAdjacentlyTagged"
+                            )
+                        }
                     }
+                }?;
+                if variant_untagged && variant_tokens.is_some() {
+                    has_untagged_variant = true;
                 }
+                Ok(variant_tokens)
             })
             .collect::<DiagResult<Vec<Option<TokenStream>>>>()?
             .into_iter()
             .flatten()
             .collect::<CustomEnum<'_, TokenStream>>();
+        if has_untagged_variant {
+            ts = ts.any_of();
+        }
         if let Some(discriminator) = &self.discriminator {
             // User-provided discriminator attribute takes precedence
             let discriminator_tokens = discriminator.to_token_stream();
@@ -1172,7 +1216,9 @@ impl TryToTokens for ComplexEnum<'_> {
             tokens.extend(quote! {
                 .discriminator(#discriminator_tokens)
             });
-        } else if let Some(tag) = tag {
+        } else if let Some(tag) = tag
+            && !has_untagged_variant
+        {
             ts.discriminator(Cow::Borrowed(tag.as_str()))
                 .to_tokens(tokens);
         } else {
