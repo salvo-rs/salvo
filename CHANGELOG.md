@@ -46,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 
+- Preserve all borrowed lifetimes when deriving request extractors and parameters.
+
 - Require `Extractible` only for flattened generic child fields, allowing ordinary
   generic request values to use `Deserialize`.
 
