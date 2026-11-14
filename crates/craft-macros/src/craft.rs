@@ -118,10 +118,20 @@ impl FnReceiver {
         match &recv.kind {
             syn::ReceiverKind::Reference(_, _, None) if recv.mutability.is_none() => Ok(Self::Ref),
             syn::ReceiverKind::Typed(_, ty) => {
-                let ty = ty.to_token_stream().to_string().replace(' ', "");
-                if ty == "&Self" {
+                let is_self = |ty: &Type| matches!(ty, Type::Path(path) if path.qself.is_none() && path.path.is_ident("Self"));
+                let is_arc = |ty: &Type| {
+                    matches!(ty, Type::Path(path) if path.qself.is_none() && path.path.segments.last().is_some_and(|segment| {
+                        segment.ident == "Arc"
+                            && matches!(&segment.arguments, syn::PathArguments::AngleBracketed(args)
+                                if args.args.len() == 1 && matches!(args.args.first(), Some(syn::GenericArgument::Type(ty)) if is_self(ty)))
+                    }))
+                };
+                if matches!(ty.as_ref(), Type::Reference(reference) if reference.mutability.is_none() && is_self(&reference.elem))
+                {
                     Ok(Self::Ref)
-                } else if ty == "Arc<Self>" || ty == "&Arc<Self>" || ty.ends_with("::Arc<Self>") {
+                } else if is_arc(ty)
+                    || matches!(ty.as_ref(), Type::Reference(reference) if reference.mutability.is_none() && is_arc(&reference.elem))
+                {
                     Ok(Self::Arc)
                 } else {
                     Err(syn::Error::new_spanned(
