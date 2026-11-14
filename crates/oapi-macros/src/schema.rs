@@ -1,6 +1,6 @@
 mod enum_schemas;
 mod enum_variant;
-mod feature;
+pub(crate) mod feature;
 mod flattened_map_schema;
 mod struct_schemas;
 mod xml;
@@ -139,12 +139,13 @@ impl TryToTokens for ToSchema<'_> {
         let _ = compose_variant.pop_skip_bound();
         let _ = compose_variant.pop_bound();
 
+        let effective_data = bound::effective_schema_data(self.data)?;
         let mut generics = bound::without_defaults(self.generics);
         if skip_bound != Some(SkipBound(true)) {
             generics = match bound {
                 Some(ref predicates) => bound::with_where_predicates(&generics, predicates),
                 None => bound::with_bound(
-                    self.data,
+                    &effective_data,
                     &generics,
                     &parse_quote!(#oapi::oapi::ToSchema + #oapi::oapi::ComposeSchema + 'static),
                 ),
@@ -165,7 +166,7 @@ impl TryToTokens for ToSchema<'_> {
             compose_generics = match bound {
                 Some(predicates) => bound::with_where_predicates(&compose_generics, &predicates),
                 None => bound::with_bound(
-                    self.data,
+                    &effective_data,
                     &compose_generics,
                     &parse_quote!(#oapi::oapi::ComposeSchema),
                 ),
@@ -185,7 +186,7 @@ impl TryToTokens for ToSchema<'_> {
 
         // Generate code to ensure generic type parameters are registered before assign_name
         let generic_type_registrations: TokenStream =
-            bound::relevant_types(self.data, self.generics)
+            bound::relevant_types(&effective_data, self.generics)
                 .iter()
                 .map(|ty| {
                     quote! {

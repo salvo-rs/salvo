@@ -3,6 +3,57 @@ use std::collections::HashSet;
 use syn::Token;
 use syn::punctuated::{Pair, Punctuated};
 
+use crate::feature::{Feature, IsSkipped};
+use crate::schema::feature::{FromAttributes, NamedFieldFeatures};
+use crate::{DiagResult, Diagnostic, IntoInner, serde_util};
+
+/// Bound inference follows the types used by generated schemas, rather than
+/// types replaced or omitted by field attributes. Keep the original AST intact
+/// for schema generation and for diagnostics.
+pub(crate) fn effective_schema_data(data: &syn::Data) -> DiagResult<syn::Data> {
+    fn fields(fields: &mut syn::Fields) -> DiagResult<()> {
+        if !matches!(fields, syn::Fields::Named(_)) {
+            return Ok(());
+        }
+        for field in fields.iter_mut() {
+            let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+            let features = field
+                .attrs
+                .parse_features::<NamedFieldFeatures>()?
+                .into_inner()
+                .unwrap_or_default();
+            if rules.is_some_and(|rules| rules.skip)
+                || features.is_skipped()
+                || features.iter().any(|feature| matches!(feature, Feature::SchemaWith(_)))
+                || features.iter().any(|feature| matches!(feature, Feature::Ignore(crate::feature::attributes::Ignore(crate::parse_utils::LitBoolOrExprPath::LitBool(value))) if value.value()))
+            {
+                field.ty = syn::parse_quote!(());
+            } else if let Some(Feature::ValueType(value_type)) = features.iter().find(|feature| matches!(feature, Feature::ValueType(_))) {
+                field.ty = value_type.0.clone();
+            }
+        }
+        Ok(())
+    }
+    let mut data = data.clone();
+    match &mut data {
+        syn::Data::Struct(data) => fields(&mut data.fields)?,
+        syn::Data::Enum(data) => {
+            for variant in &mut data.variants {
+                if serde_util::parse_value(&variant.attrs)
+                    .map_err(Diagnostic::from)?
+                    .is_some_and(|rules| rules.skip)
+                {
+                    variant.fields = syn::Fields::Unit;
+                } else {
+                    fields(&mut variant.fields)?;
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(data)
+}
+
 // Remove the default from every type parameter because in the generated impls
 // they look like associated types: "error: associated type bindings are not
 // allowed here".
