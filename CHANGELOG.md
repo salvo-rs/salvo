@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   raw field extraction in `ToParameters`, crafted handlers on private service types,
   and description-only overrides of inferred request bodies.
 
+- Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
+
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 
