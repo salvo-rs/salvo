@@ -185,6 +185,10 @@ fn rewrite_method(
     // the generated handler, where `Self` must still denote the service type.
     struct ServiceSelf<'a>(&'a Type);
     impl syn::visit_mut::VisitMut for ServiceSelf<'_> {
+        // Nested items introduce their own scope and cannot capture the service's
+        // Self or impl parameters. Keep their types and expressions untouched.
+        fn visit_item_mut(&mut self, _item: &mut syn::Item) {}
+
         fn visit_type_mut(&mut self, ty: &mut Type) {
             syn::visit_mut::visit_type_mut(self, ty);
             if let Type::Path(path) = ty
