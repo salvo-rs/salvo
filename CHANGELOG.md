@@ -35,6 +35,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Defer small-file preloading until conditional and range handling completes,
   and bound automatic directory listings by scanned entries and output bytes.
 
+- Preserve conditional compilation on handler, endpoint, and crafted impl methods,
+  including disabled-method diagnostics and nested `cfg_attr` conditions.
+
 - Fix OpenAPI macros with renamed `salvo` dependencies, `craft(endpoint)` with
   direct `salvo_core`/`salvo-oapi` dependencies, extractor error handling without
   a `Writer` import, endpoint functions and parameters using raw identifiers,

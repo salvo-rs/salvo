@@ -8,20 +8,33 @@ use syn::{
     Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type, parse_quote,
 };
 
-use crate::utils::{oapi_crate, salvo_crate};
+use crate::utils::{cfg_attributes, oapi_crate, salvo_crate};
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     match input {
         Item::Impl(mut item_impl) => {
             let mut helpers = Vec::new();
-            for item in &mut item_impl.items {
+            for (index, item) in item_impl.items.iter_mut().enumerate() {
                 if let ImplItem::Fn(method) = item {
-                    if let Some(helper) = rewrite_method(
+                    let cfg = cfg_attributes(&method.attrs)?;
+                    match rewrite_method(
                         item_impl.generics.clone(),
                         item_impl.self_ty.as_ref(),
                         method,
-                    )? {
-                        helpers.push(ImplItem::Fn(helper));
+                    ) {
+                        Ok(Some(helper)) => helpers.push(ImplItem::Fn(helper)),
+                        Ok(None) => {}
+                        Err(error) if !cfg.is_empty() => {
+                            let name = Ident::new(
+                                &format!("__SALVO_CRAFT_ERROR_{index}"),
+                                Span::call_site(),
+                            );
+                            let error = error.into_compile_error();
+                            *item = ImplItem::Verbatim(
+                                quote! { #(#cfg)* const #name: () = { #error }; },
+                            );
+                        }
+                        Err(error) => return Err(error),
                     }
                 }
             }
@@ -327,5 +340,23 @@ mod tests {
             fn my_method(self: Box<Self>) {}
         };
         assert!(FnReceiver::from_method(&method).is_err());
+    }
+}
+
+#[cfg(test)]
+mod conditional_diagnostic_tests {
+    #[test]
+    fn enabled_conditional_receiver_errors_keep_the_original_message() {
+        let input = syn::parse_quote! {
+            impl Service {
+                #[cfg(all())]
+                #[craft(handler)]
+                fn invalid(&mut self) {}
+            }
+        };
+        let generated = super::generate(input).unwrap().to_string();
+        assert!(generated.contains("compile_error"));
+        assert!(generated.contains("method receiver must be"));
+        assert!(generated.contains("cfg (all ())"));
     }
 }
