@@ -362,6 +362,7 @@ impl<'a> SchemaVariant<'a> {
                     attributes,
                     aliases.map(|a| a.0),
                     Some(generics),
+                    compose_context,
                 )?))
             }
             _ => Err(Diagnostic::spanned(
