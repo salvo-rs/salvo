@@ -166,19 +166,10 @@ impl TryToTokens for ToParameters {
             .flatten()
             .collect::<Vec<Parameter>>();
 
-        let extract_fields = if self.is_named_struct() {
-            params
-                .iter()
-                .map(|param| param.to_extract_field_token_stream(&salvo))
-                .collect::<DiagResult<Vec<TokenStream>>>()?
-        } else if let Some(names) = &names {
-            names
-                .iter()
-                .map(|name| quote! { #salvo::extract::metadata::Field::new(#name)})
-                .collect::<Vec<_>>()
-        } else {
-            vec![]
-        };
+        let extract_fields = params
+            .iter()
+            .map(|param| param.to_extract_field_token_stream(&salvo))
+            .collect::<DiagResult<Vec<TokenStream>>>()?;
 
         fn quote_rename_rule(salvo: &Ident, rename_all: RenameRule) -> TokenStream {
             let rename_all = match rename_all {
@@ -262,9 +253,6 @@ impl TryToTokens for ToParameters {
 }
 
 impl ToParameters {
-    fn is_named_struct(&self) -> bool {
-        matches!(&self.data, Data::Struct(data_struct) if matches!(&data_struct.fields, syn::Fields::Named(_)))
-    }
     fn get_struct_fields(
         &self,
         field_names: Option<&Vec<String>>,
@@ -488,9 +476,15 @@ impl Parameter<'_> {
             .field
             .ident
             .as_ref()
-            .expect("struct field name should be exists")
-            .unraw()
-            .to_string();
+            .map(|ident| ident.unraw().to_string())
+            .or_else(|| self.container_attributes.name.cloned())
+            .ok_or_else(|| {
+                Diagnostic::spanned(
+                    self.field.span(),
+                    DiagLevel::Error,
+                    "No name specified for unnamed field",
+                )
+            })?;
 
         let rename = param_features
             .pop_rename_feature()
@@ -502,6 +496,13 @@ impl Parameter<'_> {
                 .as_ref()
                 .map(|rename| quote!(.serde_rename(#rename)))
         });
+        let defaulted = (self.field.ident.is_none()
+            && (self
+                .field_serde_params
+                .as_ref()
+                .is_some_and(|rules| rules.is_default)
+                || self.serde_container.is_some_and(|rules| rules.is_default)))
+        .then(|| quote!(.defaulted(true)));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 // QueryString is rejected by resolve_field_features before extraction
@@ -527,12 +528,14 @@ impl Parameter<'_> {
                     .add_source(#source)
                     #rename
                     #serde_rename
+                    #defaulted
             })
         } else {
             Ok(quote! {
                 #salvo::extract::metadata::Field::new(#name)
                 #rename
                 #serde_rename
+                #defaulted
             })
         }
     }
