@@ -33,22 +33,24 @@ impl<'a> ToResponse<'a> {
         generics: &'a Generics,
     ) -> DiagResult<Self> {
         let response = match &data {
-            Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => {
-                    ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0
-                }
-                Fields::Unnamed(fields) => {
-                    let field = fields.unnamed.iter().next().ok_or_else(|| {
+            Data::Struct(struct_value) => {
+                match &struct_value.fields {
+                    Fields::Named(fields) => {
+                        ToResponseNamedStructResponse::new(attributes, ident, &fields.named)?.0
+                    }
+                    Fields::Unnamed(fields) => {
+                        let field = fields.unnamed.iter().next().filter(|_| fields.unnamed.len() == 1).ok_or_else(|| {
                         Diagnostic::spanned(
                             ident.span(),
                             DiagLevel::Error,
                             "`ToResponse` requires the tuple struct to have exactly one field",
                         )
                     })?;
-                    ToResponseUnnamedStructResponse::new(attributes, &field.ty, &field.attrs)?.0
+                        ToResponseUnnamedStructResponse::new(attributes, &field.ty, &field.attrs)?.0
+                    }
+                    Fields::Unit => ToResponseUnitStructResponse::new(attributes)?.0,
                 }
-                Fields::Unit => ToResponseUnitStructResponse::new(attributes)?.0,
-            },
+            }
             Data::Enum(enum_value) => EnumResponse::new(ident, &enum_value.variants, attributes)?.0,
             Data::Union(_) => {
                 return Err(Diagnostic::spanned(
@@ -116,7 +118,7 @@ impl TryToTokens for ToResponses<'_> {
                     Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unnamed(fields) => {
-                    let field = fields.unnamed.iter().next().ok_or_else(|| {
+                    let field = fields.unnamed.iter().next().filter(|_| fields.unnamed.len() == 1).ok_or_else(|| {
                         Diagnostic::spanned(
                             self.ident.span(),
                             DiagLevel::Error,
@@ -148,7 +150,7 @@ impl TryToTokens for ToResponses<'_> {
                     )?
                     .0),
                     Fields::Unnamed(fields) => {
-                        let field = fields.unnamed.iter().next().ok_or_else(|| {
+                        let field = fields.unnamed.iter().next().filter(|_| fields.unnamed.len() == 1).ok_or_else(|| {
                             Diagnostic::spanned(
                                 variant.ident.span(),
                                 DiagLevel::Error,
@@ -685,5 +687,97 @@ impl ToResponseUnitStructResponse<'_> {
         });
 
         Ok(Self(response_value.into()))
+    }
+}
+
+#[cfg(test)]
+mod arity_tests {
+    use syn::parse_quote;
+
+    #[test]
+    fn to_response_rejects_empty_and_multi_field_tuple_structs() {
+        for input in [
+            parse_quote!(
+                struct Empty();
+            ),
+            parse_quote!(
+                struct Pair(String, u32);
+            ),
+            parse_quote!(
+                struct Triple(String, u32, bool);
+            ),
+        ] {
+            let error = crate::response::to_response(input).unwrap_err();
+            assert!(
+                error
+                    .emit_as_item_tokens()
+                    .to_string()
+                    .contains("exactly one field")
+            );
+        }
+        assert!(
+            crate::response::to_response(parse_quote!(
+                struct One(String);
+            ))
+            .is_ok()
+        );
+        assert!(
+            crate::response::to_response(parse_quote!(
+                struct Unit;
+            ))
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn to_responses_rejects_empty_and_multi_field_tuple_structs_and_variants() {
+        for input in [
+            parse_quote!(
+                #[salvo(response(status_code = 200))]
+                struct Empty();
+            ),
+            parse_quote!(
+                #[salvo(response(status_code = 200))]
+                struct Pair(String, u32);
+            ),
+            parse_quote!(
+                enum EmptyVariant {
+                    #[salvo(response(status_code = 200))]
+                    Value(),
+                }
+            ),
+            parse_quote!(
+                enum PairVariant {
+                    #[salvo(response(status_code = 200))]
+                    Value(String, u32),
+                }
+            ),
+        ] {
+            let error = crate::response::to_responses(input).unwrap_err();
+            assert!(
+                error
+                    .emit_as_item_tokens()
+                    .to_string()
+                    .contains("exactly one field")
+            );
+        }
+        assert!(
+            crate::response::to_responses(parse_quote!(
+                #[salvo(response(status_code = 200))]
+                struct One(String);
+            ))
+            .is_ok()
+        );
+        assert!(
+            crate::response::to_responses(parse_quote!(
+                enum Good {
+                    #[salvo(response(status_code = 200))]
+                    One(String),
+                    #[salvo(response(status_code = 204))]
+                    Unit,
+                }
+            ))
+            .is_ok()
+        );
     }
 }

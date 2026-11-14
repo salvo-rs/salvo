@@ -57,6 +57,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Give derived reusable responses distinct component names across modules and
   generic instantiations, using valid OpenAPI component keys.
 
+- Reject unsupported multi-field tuple structs and variants in response derives
+  instead of silently documenting only their first field.
+
 - Require only `ToResponse` for reusable `#[endpoint]` response types, without an
   unrelated `ToSchema` bound.
 
