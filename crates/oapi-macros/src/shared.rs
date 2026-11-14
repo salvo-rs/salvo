@@ -380,10 +380,7 @@ impl ToTokens for ExternalDocs {
 pub(crate) enum AnyValue {
     String(TokenStream),
     Json(TokenStream),
-    DefaultTrait {
-        struct_ident: Ident,
-        field_ident: Member,
-    },
+    DefaultTrait { field_ident: Member },
 }
 
 impl AnyValue {
@@ -439,11 +436,8 @@ impl AnyValue {
         }
     }
 
-    pub(crate) fn new_default_trait(struct_ident: Ident, field_ident: Member) -> Self {
-        Self::DefaultTrait {
-            struct_ident,
-            field_ident,
-        }
+    pub(crate) fn new_default_trait(field_ident: Member) -> Self {
+        Self::DefaultTrait { field_ident }
     }
 }
 
@@ -455,11 +449,8 @@ impl ToTokens for AnyValue {
                 #oapi::oapi::__private::serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
-            Self::DefaultTrait {
-                struct_ident,
-                field_ident,
-            } => tokens.extend(quote! {
-                #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+            Self::DefaultTrait { field_ident } => tokens.extend(quote! {
+                #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap()
             }),
         }
     }

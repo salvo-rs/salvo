@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve generic type arguments when deriving schema defaults for named,
+  newtype, and flattened structs.
+
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while

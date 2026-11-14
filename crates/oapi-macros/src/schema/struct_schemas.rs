@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{ToTokens, format_ident, quote};
+use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
@@ -112,9 +112,7 @@ impl NamedStructSchema<'_> {
                     .as_ref()
                     .expect("field ident should be exist")
                     .to_owned();
-                let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(Default::new_default_trait(
-                    struct_ident,
                     field_ident.into(),
                 )));
             }
@@ -379,7 +377,6 @@ impl TryToTokens for NamedStructSchema<'_> {
         };
 
         if all_of && (schema_default || serde_default) {
-            let struct_ident = format_ident!("{}", &self.struct_name);
             let mut default_value_tokens = TokenStream::new();
 
             for field in self.fields {
@@ -417,7 +414,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                 if is_flatten(field_rule.as_ref()) {
                     let insert_tokens = quote! {
                         if let #oapi::oapi::__private::serde_json::Value::Object(__flattened) =
-                            #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap()
                         {
                             __default.extend(__flattened);
                         }
@@ -450,7 +447,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     let insert_tokens = quote! {
                         __default.insert(
                             #name.to_owned(),
-                            #oapi::oapi::__private::serde_json::to_value(#struct_ident::default().#field_ident).unwrap(),
+                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap(),
                         );
                     };
                     if let Some(guard_tokens) = maybe_guard {
@@ -572,12 +569,8 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 features.extend(inline);
 
                 if pop_feature!(features => Feature::Default(Default(None))).is_some() {
-                    let struct_ident = format_ident!("{}", &self.struct_name);
                     let index: syn::Index = 0.into();
-                    features.push(Feature::Default(Default::new_default_trait(
-                        struct_ident,
-                        index.into(),
-                    )));
+                    features.push(Feature::Default(Default::new_default_trait(index.into())));
                 }
             }
 
