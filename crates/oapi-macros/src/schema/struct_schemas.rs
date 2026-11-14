@@ -348,8 +348,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     Property::FlattenedMap(_) => match flattened_map_field {
                         None => {
                             let property = property.try_to_token_stream()?;
-                            object_tokens
-                                .extend(quote! { .additional_properties(Some(#property)) });
+                            object_tokens.extend(quote! { .additional_properties(#property) });
                             flattened_map_field = Some(field);
                         }
                         Some(flattened_map_field) => {

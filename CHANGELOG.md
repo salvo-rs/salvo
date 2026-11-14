@@ -8,8 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Keep `max_properties` and `min_properties` usable in `ToSchema` structs with
-  flattened struct fields.
+- Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
@@ -32,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fix `links(...)` in `#[endpoint]` responses failing to compile with `cannot find link in oapi`,
   and `allow_reserved` on `#[endpoint]` parameters and `ToParameters` fields failing with a
   `bool`/`Option<bool>` mismatch.
+
+- Keep `max_properties` and `min_properties` usable in `ToSchema` structs with
+  flattened struct fields.
 
 ## [1.1.2] - 2026-11-10
 
