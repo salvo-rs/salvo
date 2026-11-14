@@ -25,7 +25,7 @@ proc-macro = true
 proc-macro-crate.workspace = true
 proc-macro2.workspace = true
 quote.workspace = true
-syn = { workspace = true, features = ["full", "parsing"] }
+syn = { workspace = true, features = ["full", "parsing", "visit-mut"] }
 regex.workspace = true
 
 [dev-dependencies]

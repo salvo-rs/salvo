@@ -54,11 +54,7 @@ fn ungroup(mut ty: &syn::Type) -> &syn::Type {
 //         #[serde(skip_serializing)]
 //         c: C,
 //     }
-pub(crate) fn with_bound(
-    data: &syn::Data,
-    generics: &syn::Generics,
-    bounds: &Punctuated<syn::TypeParamBound, syn::token::Plus>,
-) -> syn::Generics {
+pub(crate) fn relevant_types(data: &syn::Data, generics: &syn::Generics) -> Vec<syn::TypePath> {
     struct FindTyParams<'ast> {
         // Set of all generic type parameters on the current struct (A, B, C in
         // the example). Initialized up front.
@@ -227,7 +223,7 @@ pub(crate) fn with_bound(
 
     let relevant_type_params = visitor.relevant_type_params;
     let associated_type_usage = visitor.associated_type_usage;
-    let new_predicates = generics
+    generics
         .type_params()
         .map(|param| param.ident.clone())
         .filter(|id| relevant_type_params.contains(id))
@@ -237,6 +233,16 @@ pub(crate) fn with_bound(
             path: id.into(),
         })
         .chain(associated_type_usage.into_iter().cloned())
+        .collect()
+}
+
+pub(crate) fn with_bound(
+    data: &syn::Data,
+    generics: &syn::Generics,
+    bounds: &Punctuated<syn::TypeParamBound, syn::token::Plus>,
+) -> syn::Generics {
+    let new_predicates = relevant_types(data, generics)
+        .into_iter()
         .map(|bounded_ty| {
             syn::WherePredicate::Type(syn::PredicateType {
                 attrs: Vec::new(),

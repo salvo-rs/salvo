@@ -8,17 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Honor schema/serde skips and conditional ignores on flattened schema fields,
+  including their generated defaults.
+
 - Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
+
+- Respect explicit `deprecated = false` on schema properties.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
 
 - Accept documented `ref("...")` schema references in endpoint request bodies
   and responses, while retaining `ref(Type)` support.
+- Keep `serde(skip_serializing)` fields available to `ToParameters` request extraction.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.
+- Extract tuple `ToParameters` fields in declaration order and honor field sources
+  and renames, including serde defaults for absent tuple fields.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
+
+- Attach array `examples(...)` to the array schema rather than its items.
 
 - Allow empty `examples()` lists in `ToSchema` attributes without generating
   an invalid builder call.
@@ -31,14 +41,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   raw field extraction in `ToParameters`, crafted handlers on private service types,
   and description-only overrides of inferred request bodies.
 
+- Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
+
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 
 - Require `Extractible` only for flattened generic child fields, allowing ordinary
   generic request values to use `Deserialize`.
 
+- Preserve parameter descriptions, requiredness, and options when using `schema_with`.
+
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
+
+- Give derived reusable responses distinct component names across modules and
+  generic instantiations, using valid OpenAPI component keys.
 
 - Require only `ToResponse` for reusable `#[endpoint]` response types, without an
   unrelated `ToSchema` bound.
@@ -46,6 +63,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fix `links(...)` in `#[endpoint]` responses failing to compile with `cannot find link in oapi`,
   and `allow_reserved` on `#[endpoint]` parameters and `ToParameters` fields failing with a
   `bool`/`Option<bool>` mismatch.
+
+- Avoid eager schema registration for generic parameters used only by
+  `PhantomData`, including skipped marker fields.
 
 - Keep `max_properties` and `min_properties` usable in `ToSchema` structs with
   flattened struct fields.

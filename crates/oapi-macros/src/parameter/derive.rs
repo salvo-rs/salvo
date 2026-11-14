@@ -135,7 +135,7 @@ impl TryToTokens for ToParameters {
             .get_struct_fields(names.as_ref())?
             .enumerate()
             .map(|(index, field)| {
-                let field_serde_params = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                let field_serde_params = serde_util::parse_value_for_deserialize(&field.attrs).map_err(Diagnostic::from)?;
                 if matches!(&field_serde_params, Some(params) if !params.skip) {
                     Ok(Some(Parameter {
                         field,
@@ -166,19 +166,10 @@ impl TryToTokens for ToParameters {
             .flatten()
             .collect::<Vec<Parameter>>();
 
-        let extract_fields = if self.is_named_struct() {
-            params
-                .iter()
-                .map(|param| param.to_extract_field_token_stream(&salvo))
-                .collect::<DiagResult<Vec<TokenStream>>>()?
-        } else if let Some(names) = &names {
-            names
-                .iter()
-                .map(|name| quote! { #salvo::extract::metadata::Field::new(#name)})
-                .collect::<Vec<_>>()
-        } else {
-            vec![]
-        };
+        let extract_fields = params
+            .iter()
+            .map(|param| param.to_extract_field_token_stream(&salvo))
+            .collect::<DiagResult<Vec<TokenStream>>>()?;
 
         fn quote_rename_rule(salvo: &Ident, rename_all: RenameRule) -> TokenStream {
             let rename_all = match rename_all {
@@ -262,9 +253,6 @@ impl TryToTokens for ToParameters {
 }
 
 impl ToParameters {
-    fn is_named_struct(&self) -> bool {
-        matches!(&self.data, Data::Struct(data_struct) if matches!(&data_struct.fields, syn::Fields::Named(_)))
-    }
     fn get_struct_fields(
         &self,
         field_names: Option<&Vec<String>>,
@@ -488,9 +476,15 @@ impl Parameter<'_> {
             .field
             .ident
             .as_ref()
-            .expect("struct field name should be exists")
-            .unraw()
-            .to_string();
+            .map(|ident| ident.unraw().to_string())
+            .or_else(|| self.container_attributes.name.cloned())
+            .ok_or_else(|| {
+                Diagnostic::spanned(
+                    self.field.span(),
+                    DiagLevel::Error,
+                    "No name specified for unnamed field",
+                )
+            })?;
 
         let rename = param_features
             .pop_rename_feature()
@@ -502,6 +496,13 @@ impl Parameter<'_> {
                 .as_ref()
                 .map(|rename| quote!(.serde_rename(#rename)))
         });
+        let defaulted = (self.field.ident.is_none()
+            && (self
+                .field_serde_params
+                .as_ref()
+                .is_some_and(|rules| rules.is_default)
+                || self.serde_container.is_some_and(|rules| rules.is_default)))
+        .then(|| quote!(.defaulted(true)));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 // QueryString is rejected by resolve_field_features before extraction
@@ -527,12 +528,14 @@ impl Parameter<'_> {
                     .add_source(#source)
                     #rename
                     #serde_rename
+                    #defaulted
             })
         } else {
             Ok(quote! {
                 #salvo::extract::metadata::Field::new(#name)
                 #rename
                 #serde_rename
+                #defaulted
             })
         }
     }
@@ -610,36 +613,35 @@ impl TryToTokens for Parameter<'_> {
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
+        let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+        if !description.is_empty() {
+            tokens.extend(quote! { .description(#description)})
+        }
+
+        let value_type = param_features.pop_value_type_feature();
+        let component = value_type
+            .as_ref()
+            .map(|value_type| value_type.as_type_tree())
+            .transpose()?
+            .unwrap_or(type_tree);
+
+        let required: Option<attributes::Required> =
+            pop_feature!(param_features => Feature::Required(_)).into_inner();
+        let component_required = !component.is_option()
+            && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
+
+        let required = match (required, component_required) {
+            (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
+            (None, component_required) => Into::<Required>::into(component_required),
+        };
+        tokens.extend(quote! {
+            .required(#required)
+        });
+        tokens.extend(param_features.try_to_token_stream()?);
+
         if let Some(schema_with) = schema_with {
             tokens.extend(quote! { .schema(#schema_with) });
         } else {
-            let description =
-                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
-            if !description.is_empty() {
-                tokens.extend(quote! { .description(#description)})
-            }
-
-            let value_type = param_features.pop_value_type_feature();
-            let component = value_type
-                .as_ref()
-                .map(|value_type| value_type.as_type_tree())
-                .transpose()?
-                .unwrap_or(type_tree);
-
-            let required: Option<attributes::Required> =
-                pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required = !component.is_option()
-                && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
-
-            let required = match (required, component_required) {
-                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
-                (None, component_required) => Into::<Required>::into(component_required),
-            };
-            tokens.extend(quote! {
-                .required(#required)
-            });
-            tokens.extend(param_features.try_to_token_stream()?);
-
             let user_explicit_inline = schema_features
                 .iter()
                 .any(|f| matches!(f, Feature::Inline(Inline(true))));

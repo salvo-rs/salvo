@@ -521,10 +521,70 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
         self.deserialize_seq(visitor)
     }
 
+    fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_seq(&mut self)
+    }
+
+    fn deserialize_tuple_struct<V>(
+        self,
+        _name: &'static str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_tuple(len, visitor)
+    }
+
+    fn deserialize_newtype_struct<V>(
+        mut self,
+        _name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_seq(&mut self)
+    }
+
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct tuple_struct map seq
+        bytes byte_buf option unit unit_struct map
         struct enum identifier ignored_any
+    }
+}
+
+impl<'de> de::SeqAccess<'de> for RequestDeserializer<'de> {
+    type Error = ValError;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let index = self.field_index + 1;
+        let Some(field) = self.metadata.fields.get(index as usize) else {
+            return Ok(None);
+        };
+        self.field_index = index;
+        self.field_flatten = field.flatten;
+        self.field_source = None;
+        self.field_str_value = None;
+        self.field_vec_value = None;
+        if self.fill_value(field) {
+            self.deserialize_value(seed).map(Some)
+        } else if field.defaulted {
+            // Serde's tuple visitor invokes the configured default only for an
+            // absent element. A supplied unit value would bypass that default.
+            Ok(None)
+        } else {
+            // A missing optional slot must not shift subsequent tuple fields.
+            seed.deserialize(de::value::UnitDeserializer::<ValError>::new())
+                .map(Some)
+        }
     }
 }
 

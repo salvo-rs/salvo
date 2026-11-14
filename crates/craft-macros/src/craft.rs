@@ -13,15 +13,19 @@ use crate::utils::{oapi_crate, salvo_crate};
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     match input {
         Item::Impl(mut item_impl) => {
+            let mut helpers = Vec::new();
             for item in &mut item_impl.items {
                 if let ImplItem::Fn(method) = item {
-                    rewrite_method(
+                    if let Some(helper) = rewrite_method(
                         item_impl.generics.clone(),
                         item_impl.self_ty.as_ref(),
                         method,
-                    )?;
+                    )? {
+                        helpers.push(ImplItem::Fn(helper));
+                    }
                 }
             }
+            item_impl.items.extend(helpers);
             Ok(item_impl.into_token_stream())
         }
         Item::Fn(_) => Ok(input.into_token_stream()),
@@ -125,9 +129,9 @@ fn rewrite_method(
     impl_generics: Generics,
     self_ty: &Type,
     method: &mut ImplItemFn,
-) -> syn::Result<()> {
+) -> syn::Result<Option<ImplItemFn>> {
     let Some(macro_attr) = take_method_macro(method)? else {
-        return Ok(());
+        return Ok(None);
     };
     method.sig.asyncness = Some(Token![async](Span::call_site()));
     let salvo = salvo_crate();
@@ -135,7 +139,70 @@ fn rewrite_method(
     let method_name = method.sig.ident.clone();
     let vis = method.vis.clone();
     let mut attrs = method.attrs.clone();
-    let mut new_method: ImplItemFn = match FnReceiver::from_method(method)? {
+    let style = FnReceiver::from_method(method)?;
+    let borrowed_arc = method.sig.receiver().is_some_and(|recv| {
+        matches!(&recv.kind, syn::ReceiverKind::Typed(_, ty) if matches!(ty.as_ref(), Type::Reference(_)))
+    });
+    let helper_name = Ident::new(
+        &format!(
+            "__salvo_craft_{}",
+            method_name.to_string().trim_start_matches("r#")
+        ),
+        method_name.span(),
+    );
+    let mut helper = method.clone();
+    helper.sig.ident = helper_name.clone();
+    helper.vis = syn::Visibility::Inherited;
+    helper
+        .attrs
+        .retain(|attr| !attr.path().is_ident("deprecated"));
+    let mut arguments = Vec::new();
+    for (index, input) in method.sig.inputs.iter_mut().enumerate() {
+        if let FnArg::Typed(input) = input {
+            let ident = match input.pat.as_ref() {
+                syn::Pat::Ident(pat) if pat.subpat.is_none() => pat.ident.clone(),
+                _ => Ident::new(&format!("__salvo_craft_arg_{index}"), Span::call_site()),
+            };
+            input.pat = Box::new(parse_quote!(#ident));
+            arguments.push(ident);
+        }
+    }
+    // The body stays in the service impl. Only the forwarding signature belongs to
+    // the generated handler, where `Self` must still denote the service type.
+    struct ServiceSelf<'a>(&'a Type);
+    impl syn::visit_mut::VisitMut for ServiceSelf<'_> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let Type::Path(path) = ty
+                && path.qself.is_none()
+                && path
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let service = self.0;
+                let rest: syn::punctuated::Punctuated<syn::PathSegment, Token![::]> =
+                    path.path.segments.iter().skip(1).cloned().collect();
+                *ty = if rest.is_empty() {
+                    parse_quote!(#service)
+                } else {
+                    parse_quote!(<#service>::#rest)
+                };
+            } else {
+                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+    }
+    use syn::visit_mut::VisitMut;
+    ServiceSelf(self_ty).visit_signature_mut(&mut method.sig);
+    let call = match style {
+        FnReceiver::None => quote!(<#self_ty>::#helper_name(#(#arguments),*).await),
+        FnReceiver::Ref => quote!(self.0.as_ref().#helper_name(#(#arguments),*).await),
+        FnReceiver::Arc if borrowed_arc => quote!(self.0.#helper_name(#(#arguments),*).await),
+        FnReceiver::Arc => quote!(self.0.clone().#helper_name(#(#arguments),*).await),
+    };
+    method.block = parse_quote!({ #call });
+    let mut new_method: ImplItemFn = match style {
         FnReceiver::None => {
             method.attrs.push(macro_attr);
             parse_quote! {
@@ -185,16 +252,6 @@ fn rewrite_method(
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
                     struct handle #impl_g(::std::sync::Arc<#self_ty>) #where_c;
-                    use ::std::ops::Deref;
-                    impl #impl_g Deref for handle #ty_g #where_c {
-                        type Target = #self_ty;
-
-                        fn deref(&self) -> &Self::Target {
-                            &self.0
-                        }
-                    }
-                    #[allow(unused_imports)]
-                    use ::std::ops::Deref as _;
                     #(#forwarded_attrs)*
                     #macro_attr
                     impl #impl_g handle #ty_g #where_c {
@@ -208,7 +265,7 @@ fn rewrite_method(
     new_method.attrs.append(&mut attrs);
     *method = new_method;
     // println!("{}", method.to_token_stream());
-    Ok(())
+    Ok(Some(helper))
 }
 
 #[cfg(test)]
