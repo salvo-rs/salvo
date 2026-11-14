@@ -15,7 +15,7 @@ use super::feature::{
     self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures, FromAttributes,
 };
-use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_flatten, is_not_skipped};
+use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
@@ -783,34 +783,34 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }]);
 
-                // Check if any named field has #[serde(flatten)], which causes
-                // NamedStructSchema to produce an AllOf. In that case we cannot
-                // call .property()/.required() directly on the AllOf; instead we
-                // wrap the tag property in a new Object and append it as an item.
-                let has_flatten = named_fields.named.iter().any(|field| {
-                    let rule = serde_util::parse_value(&field.attrs).ok().flatten();
-                    is_flatten(rule.as_ref())
-                });
-
-                if has_flatten {
-                    let tag_object = quote! {
-                        #oapi::oapi::Object::new()
-                            #title
-                            .property(#tag, #variant_name_tokens)
-                            .required(#tag)
-                    };
-                    Ok(Some(quote! {
-                        #named_enum
-                            .item(#tag_object)
-                    }))
+                // A flattened map, an excluded field, and a visible flattened struct
+                // can produce different schema shapes. Attach the tag to the actual
+                // generated schema instead of inferring its builder from the attributes.
+                let tag_object = quote! {
+                    #oapi::oapi::Object::new()
+                        .property(#tag, #variant_name_tokens)
+                        .required(#tag)
+                };
+                let named_variant = quote! {{
+                    match #oapi::oapi::schema::Schema::from(#named_enum) {
+                        #oapi::oapi::schema::Schema::Object(__object) => {
+                            #oapi::oapi::schema::Schema::from((*__object)
+                                        .property(#tag, #variant_name_tokens)
+                                .required(#tag))
+                        }
+                        #oapi::oapi::schema::Schema::AllOf(__all_of) => {
+                            #oapi::oapi::schema::Schema::from(__all_of.item(#tag_object))
+                        }
+                        __schema => #oapi::oapi::schema::Schema::from(
+                            #oapi::oapi::schema::AllOf::new().item(__schema).item(#tag_object)
+                        ),
+                    }
+                }};
+                Ok(Some(if title.is_some() {
+                    quote! { #oapi::oapi::schema::AllOf::new().item(#named_variant) #title }
                 } else {
-                    Ok(Some(quote! {
-                        #named_enum
-                            #title
-                            .property(#tag, #variant_name_tokens)
-                            .required(#tag)
-                    }))
-                }
+                    named_variant
+                }))
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
