@@ -14,25 +14,16 @@ use crate::{
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
-/// Build a valid identifier usable as a suffix in generated function names from an
-/// arbitrary self type. Any character that is not allowed in an identifier (`:`, `<`,
-/// `>`, `,`, whitespace, ...) is replaced with `_`, so qualified or generic types such
-/// as `path::Foo` or `Foo<T>` no longer panic the way `Ident::new(ty.to_string())` did.
+/// Encode the concrete type syntax injectively into an identifier suffix.
+/// Hex-encoding every UTF-8 byte keeps punctuation, underscores and Unicode
+/// distinct, rather than allowing different owners to share sanitized helpers.
 fn type_name_suffix(ty: &Type) -> Ident {
     let raw = ty.to_token_stream().to_string();
-    let mut sanitized = String::with_capacity(raw.len());
-    for ch in raw.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '_' {
-            sanitized.push(ch);
-        } else {
-            sanitized.push('_');
-        }
+    let mut encoded = String::from("type_");
+    for byte in raw.bytes() {
+        encoded.push_str(&format!("{byte:02x}"));
     }
-    // An identifier may not be empty nor start with a digit.
-    if sanitized.is_empty() || sanitized.starts_with(|c: char| c.is_ascii_digit()) {
-        sanitized.insert(0, '_');
-    }
-    Ident::new(&sanitized, Span::call_site())
+    Ident::new(&encoded, Span::call_site())
 }
 
 /// Metadata is emitted outside the impl, so `Self` types need a concrete owner.
@@ -470,11 +461,17 @@ mod tests {
             assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
             assert!(!id.starts_with(|c: char| c.is_ascii_digit()));
         }
-        // A plain type is unchanged.
+        // Every byte is encoded, including plain identifiers and underscores.
         assert_eq!(
             type_name_suffix(&parse_str("Foo").unwrap()).to_string(),
-            "Foo"
+            "type_466f6f"
         );
+        for (left, right) in [("用户", "订单"), ("nested::Owner", "nested____Owner")] {
+            assert_ne!(
+                type_name_suffix(&parse_str(left).unwrap()),
+                type_name_suffix(&parse_str(right).unwrap())
+            );
+        }
     }
 
     #[test]
@@ -488,8 +485,9 @@ mod tests {
         // The full self type is used verbatim in the type-level positions...
         assert!(text.contains("TypeId :: of :: < a :: b :: Foo >"));
         assert!(text.contains("assign_name :: < a :: b :: Foo >"));
-        // ...while the generated helper fns get a sanitized identifier suffix.
-        assert!(text.contains("__macro_gen_oapi_endpoint_type_id_a"));
+        // ...while the generated helper fns use the injective encoded suffix.
+        let suffix = type_name_suffix(&parse_str("a::b::Foo").unwrap());
+        assert!(text.contains(&format!("__macro_gen_oapi_endpoint_type_id_{suffix}")));
     }
 
     #[test]
