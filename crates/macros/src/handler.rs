@@ -48,31 +48,43 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             })
         }
         Item::Impl(item_impl) => {
-            let mut hmtd = None;
-            for item in &item_impl.items {
-                if let ImplItem::Fn(method) = item
-                    && method.sig.ident == Ident::new("handle", Span::call_site())
-                {
-                    hmtd = Some(method);
-                }
-            }
-            let Some(hmtd) = hmtd else {
+            let methods = item_impl
+                .items
+                .iter()
+                .filter_map(|item| match item {
+                    ImplItem::Fn(method)
+                        if method.sig.ident == Ident::new("handle", Span::call_site()) =>
+                    {
+                        Some(method)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if methods.is_empty() {
                 return Err(syn::Error::new_spanned(
                     item_impl.impl_token,
                     "missing handle function",
                 ));
-            };
-            let hfn = handle_fn(&salvo, &hmtd.sig)?;
+            }
             let ty = &item_impl.self_ty;
-            let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
-
-            Ok(quote! {
-                #item_impl
-                #[#salvo::async_trait]
-                impl #impl_generics #salvo::Handler for #ty #where_clause {
-                    #hfn
+            let (impl_generics, _, where_clause) = item_impl.generics.split_for_impl();
+            let mut implementations = Vec::new();
+            for method in methods {
+                let cfg = cfg_attributes(&method.attrs)?;
+                match handle_fn(&salvo, &method.sig) {
+                    Ok(hfn) => implementations.push(quote! {
+                        #(#cfg)*
+                        #[#salvo::async_trait]
+                        impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
+                    }),
+                    Err(error) if !cfg.is_empty() => {
+                        let error = error.into_compile_error();
+                        implementations.push(quote! { #(#cfg)* const _: () = { #error }; });
+                    }
+                    Err(error) => return Err(error),
                 }
-            })
+            }
+            Ok(quote! { #item_impl #(#implementations)* })
         }
         _ => Err(syn::Error::new_spanned(
             input,
@@ -190,5 +202,22 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod conditional_diagnostic_tests {
+    #[test]
+    fn invalid_conditional_handle_emits_a_conditional_diagnostic() {
+        let input = syn::parse_quote! {
+            impl Service {
+                #[cfg(all())]
+                fn handle(&self, _invalid: &[u32]) {}
+            }
+        };
+        let generated = super::generate(input).unwrap().to_string();
+        assert!(generated.contains("compile_error"));
+        assert!(generated.contains("the inputs parameters must be Request"));
+        assert!(generated.contains("cfg (all ())"));
     }
 }
