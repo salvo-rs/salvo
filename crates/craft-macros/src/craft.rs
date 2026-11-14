@@ -172,6 +172,7 @@ fn rewrite_method(
     struct ServiceSelf<'a>(&'a Type);
     impl syn::visit_mut::VisitMut for ServiceSelf<'_> {
         fn visit_type_mut(&mut self, ty: &mut Type) {
+            syn::visit_mut::visit_type_mut(self, ty);
             if let Type::Path(path) = ty
                 && path.qself.is_none()
                 && path
@@ -188,8 +189,25 @@ fn rewrite_method(
                 } else {
                     parse_quote!(<#service>::#rest)
                 };
-            } else {
-                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+
+        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
+            syn::visit_mut::visit_expr_path_mut(self, expression);
+            if expression.qself.is_none()
+                && expression.path.segments.len() > 1
+                && expression
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let service = self.0;
+                let suffix: syn::punctuated::Punctuated<syn::PathSegment, Token![::]> =
+                    expression.path.segments.iter().skip(1).cloned().collect();
+                let mut replacement: syn::ExprPath = parse_quote!(<#service>::#suffix);
+                replacement.attrs = ::std::mem::take(&mut expression.attrs);
+                *expression = replacement;
             }
         }
     }
