@@ -19,6 +19,11 @@ impl<T: Send + Sync + 'static> GenericService<T> {
     fn documented() -> &'static str {
         "documented"
     }
+    #[craft(endpoint)]
+    fn increment(mut value: salvo::oapi::extract::QueryParam<i64>) -> String {
+        *value += 1;
+        value.to_string()
+    }
 }
 
 struct ConstService<const N: usize>;
@@ -75,4 +80,28 @@ async fn generic_static_endpoints_keep_runtime_and_documentation() {
         .await
         .unwrap();
     assert_eq!(body, "documented");
+}
+
+#[tokio::test]
+async fn generic_static_endpoint_preserves_mutable_argument_bindings() {
+    let router = Router::with_path("increment").get(GenericService::<u32>::increment());
+    let doc = salvo::oapi::OpenApi::new("static", "1").merge_router(&router);
+    let operation = doc
+        .paths
+        .get("/increment")
+        .unwrap()
+        .operations
+        .get(&salvo::oapi::PathItemType::Get)
+        .unwrap();
+    let salvo::oapi::RefOr::Type(parameter) = &operation.parameters.0[0] else {
+        panic!("expected parameter");
+    };
+    assert_eq!(parameter.name, "value");
+    let body = TestClient::get("http://localhost/increment?value=2")
+        .send(router)
+        .await
+        .take_string()
+        .await
+        .unwrap();
+    assert_eq!(body, "3");
 }

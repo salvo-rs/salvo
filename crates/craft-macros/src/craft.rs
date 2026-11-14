@@ -208,6 +208,8 @@ fn rewrite_method(
             if stateless_generic {
                 // A nested function cannot refer to the enclosing impl parameters.
                 // Preserve the original stateless body for generic static methods.
+                method.sig = helper.sig.clone();
+                method.sig.ident = method_name.clone();
                 method.block = helper.block.clone();
             }
             method.attrs.push(macro_attr);
