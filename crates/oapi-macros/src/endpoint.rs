@@ -39,7 +39,12 @@ fn type_name_suffix(ty: &Type) -> Ident {
 fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
     struct Resolver<'a>(&'a Type);
     impl syn::visit_mut::VisitMut for Resolver<'_> {
+        // A nested item cannot capture its enclosing impl's Self, and may bind
+        // its own Self in a trait or impl.
+        fn visit_item_mut(&mut self, _item: &mut syn::Item) {}
+
         fn visit_type_mut(&mut self, ty: &mut Type) {
+            syn::visit_mut::visit_type_mut(self, ty);
             if let Type::Path(path) = ty
                 && path.qself.is_none()
                 && path
@@ -56,8 +61,25 @@ fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
                 } else {
                     syn::parse_quote!(<#owner>::#suffix)
                 };
-            } else {
-                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+
+        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
+            syn::visit_mut::visit_expr_path_mut(self, expression);
+            if expression.qself.is_none()
+                && expression.path.segments.len() > 1
+                && expression
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let owner = self.0;
+                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
+                    expression.path.segments.iter().skip(1).cloned().collect();
+                let mut replacement: syn::ExprPath = syn::parse_quote!(<#owner>::#suffix);
+                replacement.attrs = ::std::mem::take(&mut expression.attrs);
+                *expression = replacement;
             }
         }
     }
@@ -122,6 +144,9 @@ fn metadata(
         }
     }
     let status_codes = Array::from_iter(status_code_tokens);
+    let owner: Type = syn::parse2(type_path.clone())?;
+    let mut status_codes: syn::Block = syn::parse2(quote! {{ #status_codes }})?;
+    resolve_self_types(&mut status_codes, &owner);
     let modifiers = if modifiers.is_empty() {
         None
     } else {
@@ -130,7 +155,6 @@ fn metadata(
             let operation = &mut operation;
             #(#modifiers)*
         }})?;
-        let owner: Type = syn::parse2(type_path.clone())?;
         resolve_self_types(&mut block, &owner);
         Some(quote! { #block })
     };
