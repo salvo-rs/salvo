@@ -276,8 +276,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let salvo = salvo_crate();
     let (_, ty_generics, _) = args.generics.split_for_impl();
     let mut bounded_generics = args.generics.clone();
-    if args.generics.type_params().next().is_some() || args.generics.const_params().next().is_some()
-    {
+    if !args.generics.params.is_empty() {
         bounded_generics
             .make_where_clause()
             .predicates
@@ -459,40 +458,21 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             #metadata_body
         }
     };
-    let life_param = args.generics.lifetimes().next();
-    let code = if let Some(life_param) = life_param {
-        let ex_life_def = syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime))
-            .expect("Invalid lifetime.");
-        let mut generics = args.generics.clone();
-        generics.params.insert(0, ex_life_def);
-        let impl_generics_de = generics.split_for_impl().0;
-        quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
-                #metadata
+    let ex_lifetime: syn::LifetimeParam = syn::parse_quote!('__macro_gen_ex);
+    let mut generics = args.generics.clone();
+    generics
+        .params
+        .insert(0, syn::GenericParam::Lifetime(ex_lifetime));
+    let impl_generics_de = generics.split_for_impl().0;
+    let code = quote! {
+        impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
+            #metadata
 
-                #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, #salvo::http::ParseError>
-                where
-                    Self: Sized {
-                    #salvo::serde::from_request(req, depot, Self::metadata()).await
-                }
-            }
-        }
-    } else {
-        let ex_life_def = syn::parse_str("'__macro_gen_ex").expect("Invalid lifetime.");
-        let mut generics = args.generics.clone();
-        generics.params.insert(0, ex_life_def);
-        let impl_generics_de = generics.split_for_impl().0;
-        quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
-                #metadata
-
-                #[allow(refining_impl_trait)]
-                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, #salvo::http::ParseError>
-                where
-                    Self: Sized {
-                    #salvo::serde::from_request(req, depot, Self::metadata()).await
-                }
+            #[allow(refining_impl_trait)]
+            async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, #salvo::http::ParseError>
+            where
+                Self: Sized {
+                #salvo::serde::from_request(req, depot, Self::metadata()).await
             }
         }
     };

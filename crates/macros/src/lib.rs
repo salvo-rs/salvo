@@ -275,7 +275,8 @@ mod tests {
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
             quote!{
-                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
+                impl<'__macro_gen_ex, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a>
+                where Self: salvo::serde::Deserialize<'__macro_gen_ex> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(|| {
@@ -327,7 +328,8 @@ mod tests {
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
             quote!{
-                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
+                impl<'__macro_gen_ex, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a>
+                where Self: salvo::serde::Deserialize<'__macro_gen_ex> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(|| {
