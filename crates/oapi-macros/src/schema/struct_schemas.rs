@@ -17,8 +17,7 @@ use crate::feature::attributes::{
     self, Alias, Bound, Default, Ignore, Name, NoRecursion, RenameAll, Required, SkipBound,
 };
 use crate::feature::{
-    Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
-    pop_feature_as_inner,
+    Feature, FeaturesExt, IsSkipped, parse_features, pop_feature, pop_feature_as_inner,
 };
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
@@ -221,7 +220,20 @@ impl TryToTokens for NamedStructSchema<'_> {
             .flatten()
             .collect::<Vec<_>>();
 
-        let mut object_tokens = quote! { #oapi::oapi::Object::new() };
+        // Object constraints still apply to the entire instance when this object
+        // becomes one member of an allOf for flattened fields.
+        let (object_features, schema_features): (Vec<_>, Vec<_>) =
+            self.features.iter().flatten().partition(|feature| {
+                matches!(
+                    feature,
+                    Feature::MaxProperties(_) | Feature::MinProperties(_)
+                )
+            });
+        let object_features = object_features
+            .into_iter()
+            .map(TryToTokens::try_to_token_stream)
+            .collect::<DiagResult<TokenStream>>()?;
+        let mut object_tokens = quote! { #oapi::oapi::Object::new() #object_features };
         for (field, field_rule) in field_values {
             let mut field_name = &*field
                 .ident
@@ -488,8 +500,8 @@ impl TryToTokens for NamedStructSchema<'_> {
             tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
-        if let Some(struct_features) = self.features.as_ref() {
-            tokens.extend(struct_features.try_to_token_stream()?)
+        for feature in schema_features {
+            feature.try_to_tokens(tokens)?;
         }
 
         let comments = CommentAttributes::from_attributes(self.attributes);
