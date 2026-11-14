@@ -321,32 +321,61 @@ impl TryToTokens for NamedStructSchema<'_> {
             .fields
             .iter()
             .map(|field| {
-                let field_rule = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
-                Ok((field, field_rule))
+                let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                let skipped = field
+                    .attrs
+                    .parse_features::<NamedFieldFeatures>()?
+                    .into_inner()
+                    .is_some_and(|features| features.is_skipped());
+                Ok((field, rules, skipped))
             })
             .collect::<DiagResult<Vec<_>>>()?
             .into_iter()
-            .filter(|(_, field_rule)| is_flatten(field_rule.as_ref()))
-            .map(|(field, _)| field)
+            .filter(|(_, rules, skipped)| {
+                !skipped && is_not_skipped(rules.as_ref()) && is_flatten(rules.as_ref())
+            })
+            .map(|(field, ..)| field)
             .collect();
 
         let all_of = if !flatten_fields.is_empty() {
-            let mut flattened_tokens = TokenStream::new();
+            let mut flattened_tokens = quote! { #oapi::oapi::schema::AllOf::new() };
+            let mut has_flattened_schema = false;
             let mut flattened_map_field = None;
 
             for field in flatten_fields {
-                let NamedStructFieldOptions { property, .. } =
-                    self.field_as_schema_property(field, true, container_rules.as_ref())?;
+                let NamedStructFieldOptions {
+                    property, ignore, ..
+                } = self.field_as_schema_property(field, true, container_rules.as_ref())?;
 
+                let guard = match ignore {
+                    Some(crate::parse_utils::LitBoolOrExprPath::LitBool(lit)) if lit.value() => {
+                        continue;
+                    }
+                    Some(crate::parse_utils::LitBoolOrExprPath::ExprPath(path)) => Some(path),
+                    _ => None,
+                };
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
                         let property = property.try_to_token_stream()?;
-                        flattened_tokens.extend(quote! { .item(#property) })
+                        has_flattened_schema = true;
+                        flattened_tokens = if let Some(path) = guard {
+                            quote! {{ let __all_of = #flattened_tokens;
+                                if !#path() { __all_of.item(#property) } else { __all_of }
+                            }}
+                        } else {
+                            quote! { #flattened_tokens.item(#property) }
+                        };
                     }
                     Property::FlattenedMap(_) => match flattened_map_field {
                         None => {
                             let property = property.try_to_token_stream()?;
-                            object_tokens.extend(quote! { .additional_properties(#property) });
+                            object_tokens = if let Some(path) = guard {
+                                quote! {{ let __obj = #object_tokens;
+                                    if !#path() { __obj.additional_properties(#property) } else { __obj }
+                                }}
+                            } else {
+                                quote! { #object_tokens.additional_properties(#property) }
+                            };
                             flattened_map_field = Some(field);
                         }
                         Some(flattened_map_field) => {
@@ -371,13 +400,12 @@ impl TryToTokens for NamedStructSchema<'_> {
                 }
             }
 
-            if flattened_tokens.is_empty() {
+            if !has_flattened_schema {
                 tokens.extend(object_tokens);
                 false
             } else {
                 tokens.extend(quote! {
-                    #oapi::oapi::schema::AllOf::new()
-                        #flattened_tokens
+                    #flattened_tokens
                     .item(#object_tokens)
                 });
                 true
@@ -391,6 +419,14 @@ impl TryToTokens for NamedStructSchema<'_> {
             let mut default_value_tokens = TokenStream::new();
 
             for field in self.fields {
+                if field
+                    .attrs
+                    .parse_features::<NamedFieldFeatures>()?
+                    .into_inner()
+                    .is_some_and(|features| features.is_skipped())
+                {
+                    continue;
+                }
                 let field_rule = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
                 if !is_not_skipped(field_rule.as_ref()) {
                     continue;
