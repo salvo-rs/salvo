@@ -55,6 +55,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   raw field extraction in `ToParameters`, crafted handlers on private service types,
   and description-only overrides of inferred request bodies.
 
+- Keep service `Self` predicates attached to the service type when crafting
+  handler wrappers, including associated constants and nested generic arguments.
+
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
 - Preserve generic schema composition in every enum representation without

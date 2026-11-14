@@ -185,7 +185,12 @@ fn rewrite_method(
     // the generated handler, where `Self` must still denote the service type.
     struct ServiceSelf<'a>(&'a Type);
     impl syn::visit_mut::VisitMut for ServiceSelf<'_> {
+        // Nested items introduce their own scope and cannot capture the service's
+        // Self or impl parameters. Keep their types and expressions untouched.
+        fn visit_item_mut(&mut self, _item: &mut syn::Item) {}
+
         fn visit_type_mut(&mut self, ty: &mut Type) {
+            syn::visit_mut::visit_type_mut(self, ty);
             if let Type::Path(path) = ty
                 && path.qself.is_none()
                 && path
@@ -202,8 +207,25 @@ fn rewrite_method(
                 } else {
                     parse_quote!(<#service>::#rest)
                 };
-            } else {
-                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+
+        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
+            syn::visit_mut::visit_expr_path_mut(self, expression);
+            if expression.qself.is_none()
+                && expression.path.segments.len() > 1
+                && expression
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let service = self.0;
+                let suffix: syn::punctuated::Punctuated<syn::PathSegment, Token![::]> =
+                    expression.path.segments.iter().skip(1).cloned().collect();
+                let mut replacement: syn::ExprPath = parse_quote!(<#service>::#suffix);
+                replacement.attrs = ::std::mem::take(&mut expression.attrs);
+                *expression = replacement;
             }
         }
     }
@@ -268,7 +290,11 @@ fn rewrite_method(
             // The previous code derived the type arguments from `self_ty`, which is
             // wrong whenever they differ from the impl's parameters (e.g.
             // `impl<T> Foo<Wrapper<T>>` would emit `handle<Wrapper<T>>`).
-            let (impl_g, ty_g, where_c) = impl_generics.split_for_impl();
+            // In the local wrapper, `Self` names the wrapper rather than the service.
+            // Keep predicates from the service impl attached to the service type.
+            let mut handler_generics = impl_generics.clone();
+            ServiceSelf(self_ty).visit_generics_mut(&mut handler_generics);
+            let (impl_g, ty_g, where_c) = handler_generics.split_for_impl();
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
