@@ -668,12 +668,28 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .to_token_stream(),
             );
         } else {
-            // Struct that has multiple unnamed fields is serialized to array by default with serde.
-            // See: https://serde.rs/json.html
-            // Typically OpenAPI does not support multi type arrays thus we simply consider the case
-            // as generic object array
+            // JSON Schema 2020-12 describes heterogeneous serde tuples with
+            // positional schemas, rather than requiring every item to be an object.
+            let items = self
+                .fields
+                .iter()
+                .map(|field| {
+                    let type_tree = TypeTree::from_type(&field.ty)?;
+                    Ok(ComponentSchema::new(ComponentSchemaProps {
+                        type_tree: &type_tree,
+                        features: None,
+                        description: None,
+                        deprecated: None,
+                        object_name: self.struct_name.as_ref(),
+                        compose_context: self.compose_context.as_ref(),
+                    })?
+                    .to_token_stream())
+                })
+                .collect::<DiagResult<Vec<_>>>()?;
             tokens.extend(quote! {
-                #oapi::oapi::Object::new()
+                #oapi::oapi::schema::Array::new()
+                    .items(#oapi::oapi::schema::ArrayItems::False)
+                    .prefix_items([#(Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#items)),*])
             });
 
             if let Some(deprecated) = deprecated {
@@ -696,8 +712,10 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .as_ref()
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
+            if all_fields_are_same {
+                tokens.extend(quote! { .to_array() });
+            }
             tokens.extend(quote! {
-            .to_array()
                 .max_items(#fields_len)
                 .min_items(#fields_len)
                 #description
