@@ -610,36 +610,35 @@ impl TryToTokens for Parameter<'_> {
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_))
             .map(|f| f.try_to_token_stream())
             .transpose()?;
+        let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+        if !description.is_empty() {
+            tokens.extend(quote! { .description(#description)})
+        }
+
+        let value_type = param_features.pop_value_type_feature();
+        let component = value_type
+            .as_ref()
+            .map(|value_type| value_type.as_type_tree())
+            .transpose()?
+            .unwrap_or(type_tree);
+
+        let required: Option<attributes::Required> =
+            pop_feature!(param_features => Feature::Required(_)).into_inner();
+        let component_required = !component.is_option()
+            && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
+
+        let required = match (required, component_required) {
+            (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
+            (None, component_required) => Into::<Required>::into(component_required),
+        };
+        tokens.extend(quote! {
+            .required(#required)
+        });
+        tokens.extend(param_features.try_to_token_stream()?);
+
         if let Some(schema_with) = schema_with {
             tokens.extend(quote! { .schema(#schema_with) });
         } else {
-            let description =
-                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
-            if !description.is_empty() {
-                tokens.extend(quote! { .description(#description)})
-            }
-
-            let value_type = param_features.pop_value_type_feature();
-            let component = value_type
-                .as_ref()
-                .map(|value_type| value_type.as_type_tree())
-                .transpose()?
-                .unwrap_or(type_tree);
-
-            let required: Option<attributes::Required> =
-                pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required = !component.is_option()
-                && crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
-
-            let required = match (required, component_required) {
-                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
-                (None, component_required) => Into::<Required>::into(component_required),
-            };
-            tokens.extend(quote! {
-                .required(#required)
-            });
-            tokens.extend(param_features.try_to_token_stream()?);
-
             let user_explicit_inline = schema_features
                 .iter()
                 .any(|f| matches!(f, Feature::Inline(Inline(true))));

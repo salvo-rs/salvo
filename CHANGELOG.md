@@ -34,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 
+- Preserve parameter descriptions, requiredness, and options when using `schema_with`.
+
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
