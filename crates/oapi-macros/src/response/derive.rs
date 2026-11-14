@@ -73,7 +73,6 @@ impl TryToTokens for ToResponse<'_> {
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let ident = &self.ident;
-        let name = ident.to_string();
         let response = self.response.try_to_token_stream()?;
 
         let (impl_generics, ..) = self.generics.split_for_impl();
@@ -82,8 +81,9 @@ impl TryToTokens for ToResponse<'_> {
             impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
                 fn to_response(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::Response> {
                     let response = #response;
-                    components.responses.insert(#name, response);
-                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/responses/{}", #name)))
+                    let name = ::std::any::type_name::<Self>().replace("::", ".");
+                    components.responses.insert(name.clone(), response);
+                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/responses/{}", name)))
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {

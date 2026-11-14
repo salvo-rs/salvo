@@ -482,8 +482,9 @@ mod tests {
                                     .required("age")
                             )
                         );
-                        components.responses.insert("User", response);
-                        salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/responses/{}", "User")))
+                        let name = ::std::any::type_name::<Self>().replace("::", ".");
+                        components.responses.insert(name.clone(), response);
+                        salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/responses/{}", name)))
                     }
                 }
                 impl salvo::oapi::EndpointOutRegister for User {
