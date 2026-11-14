@@ -496,6 +496,13 @@ impl Parameter<'_> {
                 .as_ref()
                 .map(|rename| quote!(.serde_rename(#rename)))
         });
+        let defaulted = (self.field.ident.is_none()
+            && (self
+                .field_serde_params
+                .as_ref()
+                .is_some_and(|rules| rules.is_default)
+                || self.serde_container.is_some_and(|rules| rules.is_default)))
+        .then(|| quote!(.defaulted(true)));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 // QueryString is rejected by resolve_field_features before extraction
@@ -521,12 +528,14 @@ impl Parameter<'_> {
                     .add_source(#source)
                     #rename
                     #serde_rename
+                    #defaulted
             })
         } else {
             Ok(quote! {
                 #salvo::extract::metadata::Field::new(#name)
                 #rename
                 #serde_rename
+                #defaulted
             })
         }
     }

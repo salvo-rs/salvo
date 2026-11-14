@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
-  and renames.
+  and renames, including serde defaults for absent tuple fields.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 

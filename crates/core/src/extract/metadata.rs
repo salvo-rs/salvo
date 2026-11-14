@@ -164,6 +164,8 @@ pub struct Field {
     pub decl_name: &'static str,
     /// Whether the field is flattened; this field will be extracted from the request.
     pub flatten: bool,
+    /// Whether serde supplies a default when this tuple field is absent.
+    pub defaulted: bool,
     /// Field sources.
     pub sources: Vec<Source>,
     /// Field aliases.
@@ -188,6 +190,7 @@ impl Field {
         Self {
             decl_name,
             flatten: false,
+            defaulted: false,
             sources,
             aliases: vec![],
             rename: None,
@@ -200,6 +203,13 @@ impl Field {
     #[must_use]
     pub fn flatten(mut self, flatten: bool) -> Self {
         self.flatten = flatten;
+        self
+    }
+
+    /// Set whether an absent tuple field should use its serde default.
+    #[must_use]
+    pub fn defaulted(mut self, defaulted: bool) -> Self {
+        self.defaulted = defaulted;
         self
     }
 

@@ -548,18 +548,7 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        struct NewtypeSeed<V>(V);
-        impl<'de, V: de::Visitor<'de>> de::DeserializeSeed<'de> for NewtypeSeed<V> {
-            type Value = V::Value;
-            fn deserialize<D: de::Deserializer<'de>>(
-                self,
-                deserializer: D,
-            ) -> Result<Self::Value, D::Error> {
-                self.0.visit_newtype_struct(deserializer)
-            }
-        }
-        de::SeqAccess::next_element_seed(&mut self, NewtypeSeed(visitor))?
-            .ok_or_else(|| ValError::custom("missing newtype field"))
+        visitor.visit_seq(&mut self)
     }
 
     forward_to_deserialize_any! {
@@ -587,6 +576,10 @@ impl<'de> de::SeqAccess<'de> for RequestDeserializer<'de> {
         self.field_vec_value = None;
         if self.fill_value(field) {
             self.deserialize_value(seed).map(Some)
+        } else if field.defaulted {
+            // Serde's tuple visitor invokes the configured default only for an
+            // absent element. A supplied unit value would bypass that default.
+            Ok(None)
         } else {
             // A missing optional slot must not shift subsequent tuple fields.
             seed.deserialize(de::value::UnitDeserializer::<ValError>::new())
