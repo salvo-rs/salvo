@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   retaining capacity until cancelled work actually finishes.
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
   and renames, including serde defaults for absent tuple fields.
+- Restore stateless crafted handlers and endpoints in generic service impls.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 
