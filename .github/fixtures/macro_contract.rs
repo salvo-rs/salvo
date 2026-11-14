@@ -7,6 +7,9 @@ struct Query {
     value: String,
 }
 
+#[derive(renamed_api::ToSchema)]
+struct Envelope<T> { value: T }
+
 #[handler]
 async fn plain() -> &'static str {
     "ok"
@@ -21,6 +24,7 @@ fn main() {
     let _ = <Query as renamed_framework::extract::Extractible>::metadata();
     let router = Router::with_path("contract").get(described);
     let mut components = renamed_api::Components::new();
+    let _ = <Envelope<String> as renamed_api::ToSchema>::to_schema(&mut components);
     let query_schema = <Query as renamed_api::ToSchema>::to_schema(&mut components);
     let doc = renamed_api::OpenApi::new("downstream contracts", "1")
         .merge_router(&router)

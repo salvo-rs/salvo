@@ -8,20 +8,33 @@ use syn::{
     Attribute, FnArg, Generics, Ident, ImplItem, ImplItemFn, Item, Token, Type, parse_quote,
 };
 
-use crate::utils::{oapi_crate, salvo_crate};
+use crate::utils::{cfg_attributes, oapi_crate, salvo_crate};
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     match input {
         Item::Impl(mut item_impl) => {
             let mut helpers = Vec::new();
-            for item in &mut item_impl.items {
+            for (index, item) in item_impl.items.iter_mut().enumerate() {
                 if let ImplItem::Fn(method) = item {
-                    if let Some(helper) = rewrite_method(
+                    let cfg = cfg_attributes(&method.attrs)?;
+                    match rewrite_method(
                         item_impl.generics.clone(),
                         item_impl.self_ty.as_ref(),
                         method,
-                    )? {
-                        helpers.push(ImplItem::Fn(helper));
+                    ) {
+                        Ok(Some(helper)) => helpers.push(ImplItem::Fn(helper)),
+                        Ok(None) => {}
+                        Err(error) if !cfg.is_empty() => {
+                            let name = Ident::new(
+                                &format!("__SALVO_CRAFT_ERROR_{index}"),
+                                Span::call_site(),
+                            );
+                            let error = error.into_compile_error();
+                            *item = ImplItem::Verbatim(
+                                quote! { #(#cfg)* const #name: () = { #error }; },
+                            );
+                        }
+                        Err(error) => return Err(error),
                     }
                 }
             }
@@ -140,6 +153,7 @@ fn rewrite_method(
     let vis = method.vis.clone();
     let mut attrs = method.attrs.clone();
     let style = FnReceiver::from_method(method)?;
+    let stateless_generic = style == FnReceiver::None && !impl_generics.params.is_empty();
     let borrowed_arc = method.sig.receiver().is_some_and(|recv| {
         matches!(&recv.kind, syn::ReceiverKind::Typed(_, ty) if matches!(ty.as_ref(), Type::Reference(_)))
     });
@@ -222,6 +236,13 @@ fn rewrite_method(
     method.block = parse_quote!({ #call });
     let mut new_method: ImplItemFn = match style {
         FnReceiver::None => {
+            if stateless_generic {
+                // A nested function cannot refer to the enclosing impl parameters.
+                // Preserve the original stateless body for generic static methods.
+                method.sig = helper.sig.clone();
+                method.sig.ident = method_name.clone();
+                method.block = helper.block.clone();
+            }
             method.attrs.push(macro_attr);
             parse_quote! {
                 #vis fn #method_name() -> impl #handler {
@@ -287,7 +308,7 @@ fn rewrite_method(
     new_method.attrs.append(&mut attrs);
     *method = new_method;
     // println!("{}", method.to_token_stream());
-    Ok(Some(helper))
+    Ok((!stateless_generic).then_some(helper))
 }
 
 #[cfg(test)]
@@ -349,5 +370,23 @@ mod tests {
             fn my_method(self: Box<Self>) {}
         };
         assert!(FnReceiver::from_method(&method).is_err());
+    }
+}
+
+#[cfg(test)]
+mod conditional_diagnostic_tests {
+    #[test]
+    fn enabled_conditional_receiver_errors_keep_the_original_message() {
+        let input = syn::parse_quote! {
+            impl Service {
+                #[cfg(all())]
+                #[craft(handler)]
+                fn invalid(&mut self) {}
+            }
+        };
+        let generated = super::generate(input).unwrap().to_string();
+        assert!(generated.contains("compile_error"));
+        assert!(generated.contains("method receiver must be"));
+        assert!(generated.contains("cfg (all ())"));
     }
 }

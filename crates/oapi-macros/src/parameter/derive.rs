@@ -74,7 +74,15 @@ impl TryToTokens for ToParameters {
         let ex_lifetime = GenericParam::Lifetime(LifetimeParam::new(ex_life.clone()));
         let mut ex_generics = self.generics.clone();
         ex_generics.params.insert(0, ex_lifetime);
-        let ex_impl_generics = ex_generics.split_for_impl().0;
+        if self.generics.lifetimes().next().is_some() {
+            ex_generics
+                .make_where_clause()
+                .predicates
+                .push(syn::parse_quote! {
+                    Self: #salvo::serde::Deserialize<'__macro_gen_ex>
+                });
+        }
+        let (ex_impl_generics, _, ex_where_clause) = ex_generics.split_for_impl();
 
         // Container-level config is spelled `parameters(...)`, but the singular
         // `parameter(...)` is accepted as an alias so the key matches its
@@ -96,7 +104,8 @@ impl TryToTokens for ToParameters {
             .collect::<Result<Vec<_>, Diagnostic>>()?
             .into_iter()
             .reduce(|acc, item| acc.merge(item));
-        let serde_container = serde_util::parse_container(&self.attrs).map_err(Diagnostic::from)?;
+        let serde_container =
+            serde_util::parse_container_for_deserialize(&self.attrs).map_err(Diagnostic::from)?;
 
         let names = parameters_features.as_mut().and_then(|features| {
             let to_parameters_names = pop_feature!(features => Feature::ToParametersNames(_));
@@ -217,7 +226,7 @@ impl TryToTokens for ToParameters {
             .map(TryToTokens::try_to_token_stream)
             .collect::<DiagResult<Array<TokenStream>>>()?;
         tokens.extend(quote!{
-            impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
+            impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #ex_where_clause {
                 fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.into_iter().map(#oapi::oapi::RefOr::Type).collect())
                 }
@@ -229,7 +238,7 @@ impl TryToTokens for ToParameters {
                     }
                 }
             }
-            impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #where_clause {
+            impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #ex_where_clause {
                 fn metadata() -> &'static #salvo::extract::Metadata {
                     static METADATA: ::std::sync::OnceLock<#salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                     METADATA.get_or_init(||
@@ -496,6 +505,12 @@ impl Parameter<'_> {
                 .as_ref()
                 .map(|rename| quote!(.serde_rename(#rename)))
         });
+        let aliases: Vec<_> = self
+            .field_serde_params
+            .iter()
+            .flat_map(|rules| &rules.aliases)
+            .map(|alias| quote!(.add_alias(#alias)))
+            .collect();
         let defaulted = (self.field.ident.is_none()
             && (self
                 .field_serde_params
@@ -528,6 +543,7 @@ impl Parameter<'_> {
                     .add_source(#source)
                     #rename
                     #serde_rename
+                    #(#aliases)*
                     #defaulted
             })
         } else {
@@ -535,6 +551,7 @@ impl Parameter<'_> {
                 #salvo::extract::metadata::Field::new(#name)
                 #rename
                 #serde_rename
+                #(#aliases)*
                 #defaulted
             })
         }

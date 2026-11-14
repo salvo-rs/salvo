@@ -8,10 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Attach internally tagged enum discriminators to the generated schema shape,
+  including flattened maps and skipped or ignored flattened fields.
+
 - Honor schema/serde skips and conditional ignores on flattened schema fields,
   including their generated defaults.
 
 - Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
+
+- Use `anyOf` for untagged enum alternatives, including per-variant fallbacks,
+  so overlapping valid serde representations remain accepted.
 
 - Respect explicit `deprecated = false` on schema properties.
 
@@ -20,11 +26,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Accept documented `ref("...")` schema references in endpoint request bodies
   and responses, while retaining `ref(Type)` support.
+- Honor directional serde `rename` and `rename_all` for request extraction and
+  serialized schemas.
 - Keep `serde(skip_serializing)` fields available to `ToParameters` request extraction.
+- Keep non-optional input parameters required when serde only skips their
+  serialization conditionally.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
   and renames, including serde defaults for absent tuple fields.
+- Restore stateless crafted handlers and endpoints in generic service impls.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 
@@ -34,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   an invalid builder call.
 - Defer small-file preloading until conditional and range handling completes,
   and bound automatic directory listings by scanned entries and output bytes.
+
+- Preserve conditional compilation on handler, endpoint, and crafted impl methods,
+  including disabled-method diagnostics and nested `cfg_attr` conditions.
 
 - Fix OpenAPI macros with renamed `salvo` dependencies, `craft(endpoint)` with
   direct `salvo_core`/`salvo-oapi` dependencies, extractor error handling without
@@ -46,19 +60,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
+- Preserve generic schema composition in every enum representation without
+  requiring `ToSchema` on composition-only type arguments.
+
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
+
+- Preserve all borrowed lifetimes when deriving request extractors and parameters.
 
 - Require `Extractible` only for flattened generic child fields, allowing ordinary
   generic request values to use `Deserialize`.
 
+- Accept all serde aliases when extracting named and tuple request parameters.
+
 - Preserve parameter descriptions, requiredness, and options when using `schema_with`.
+
+- Resolve service `Self` response types in generated endpoint metadata.
 
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
+- Encode generic schema names as valid OpenAPI component keys while retaining
+  legal names and collision disambiguation.
+
 - Give derived reusable responses distinct component names across modules and
   generic instantiations, using valid OpenAPI component keys.
+
+- Reject unsupported multi-field tuple structs and variants in response derives
+  instead of silently documenting only their first field.
 
 - Require only `ToResponse` for reusable `#[endpoint]` response types, without an
   unrelated `ToSchema` bound.

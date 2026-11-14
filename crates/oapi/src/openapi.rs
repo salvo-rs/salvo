@@ -2111,7 +2111,7 @@ mod tests {
                                     "content": {
                                         "application/json": {
                                             "schema": {
-                                                "$ref": "#/components/schemas/Response<alloc.vec.Vec<City>>"
+                                                "$ref": "#/components/schemas/Response_3Calloc.vec.Vec_3CCity_3E_3E"
                                             }
                                         }
                                     }
@@ -2177,7 +2177,7 @@ mod tests {
                                 }
                             }
                         },
-                        "Response<alloc.vec.Vec<City>>": {
+                        "Response_3Calloc.vec.Vec_3CCity_3E_3E": {
                             "type": "object",
                             "required": [
                                 "status",

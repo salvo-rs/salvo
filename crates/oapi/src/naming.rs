@@ -309,6 +309,25 @@ impl FlexNamer {
         self
     }
 }
+// Preserve legal names and let the existing registry disambiguate escaped collisions.
+fn component_key(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('_');
+            encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+            encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+    }
+    if encoded.is_empty() {
+        encoded.push('_');
+    }
+    encoded
+}
+
 impl Namer for FlexNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
         let name = match rule {
@@ -325,6 +344,7 @@ impl Namer for FlexNamer {
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
                 }
+                let base = component_key(&base);
                 let mut name = base.clone();
                 let mut count = 1;
                 while let Some(exist_id) = type_info_by_name(&name).map(|t| t.0) {
@@ -350,6 +370,7 @@ impl Namer for FlexNamer {
                 if let Some((open, close)) = &self.generic_delimiter {
                     base = base.replace('<', open).replace('>', close);
                 }
+                let base = component_key(&base);
                 let mut name = base.clone();
                 let mut count = 1;
                 while let Some((exist_id, exist_name)) = type_info_by_name(&name) {
@@ -389,7 +410,7 @@ mod tests {
         let name = assign_name::<String>(NameRule::Auto);
         assert_eq!(name, "alloc.string.String");
         let name = assign_name::<Vec<String>>(NameRule::Auto);
-        assert_eq!(name, "alloc.vec.Vec<alloc.string.String>");
+        assert_eq!(name, "alloc.vec.Vec_3Calloc.string.String_3E");
 
         let name = assign_name::<MyString>(NameRule::Auto);
         assert!(
@@ -506,14 +527,14 @@ mod tests {
         // Now register Response<CityDTO> with Force("Response")
         // It should resolve CityDTO to "City" in the generic parameter
         let response_name = assign_name::<Response<CityDTO>>(NameRule::Force("Response"));
-        assert_eq!(response_name, "Response<City>");
+        assert_eq!(response_name, "Response_3CCity_3E");
 
         // Test with Auto mode - should also resolve generic parameters
         let wrapper_name = assign_name::<Wrapper<CityDTO>>(NameRule::Auto);
         // The base type will have full path, but CityDTO should be resolved to City
         assert!(
-            wrapper_name.contains("<City>"),
-            "Expected wrapper name to contain '<City>', got: {wrapper_name}"
+            wrapper_name.contains("_3CCity_3E"),
+            "Expected wrapper name to contain encoded 'City', got: {wrapper_name}"
         );
     }
 
@@ -533,14 +554,14 @@ mod tests {
         // Test Response<String> with Force("Response")
         // String is not registered, but should be shortened to "String"
         let response_name = assign_name::<Response<String>>(NameRule::Force("Response"));
-        assert_eq!(response_name, "Response<String>");
+        assert_eq!(response_name, "Response_3CString_3E");
 
         // Test Response<Vec<String>> - nested generics with primitives
         let response_vec_name =
             assign_name::<Response<Vec<String>>>(NameRule::Force("ResponseVec"));
         assert!(
-            response_vec_name.contains("<String>"),
-            "Expected name to contain '<String>', got: {response_vec_name}"
+            response_vec_name.contains("_3CString_3E"),
+            "Expected name to contain encoded 'String', got: {response_vec_name}"
         );
     }
 }

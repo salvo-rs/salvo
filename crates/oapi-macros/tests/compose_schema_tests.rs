@@ -114,7 +114,7 @@ fn test_compose_schema_multiple_generic_params() {
     let schemas = value.pointer("/components/schemas").unwrap();
 
     assert_json_eq!(
-        schemas["Pair_String, i32_"],
+        schemas["Pair_String_2C_20i32_"],
         json!({
             "type": "object",
             "required": ["first", "second"],

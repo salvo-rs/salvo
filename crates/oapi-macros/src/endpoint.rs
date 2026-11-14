@@ -5,6 +5,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
+use crate::shared::cfg_attributes;
 use crate::{
     Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
     parse_input_type,
@@ -34,6 +35,36 @@ fn type_name_suffix(ty: &Type) -> Ident {
     Ident::new(&sanitized, Span::call_site())
 }
 
+/// Metadata is emitted outside the impl, so `Self` types need a concrete owner.
+fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
+    struct Resolver<'a>(&'a Type);
+    impl syn::visit_mut::VisitMut for Resolver<'_> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let Type::Path(path) = ty
+                && path.qself.is_none()
+                && path
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let owner = self.0;
+                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
+                    path.path.segments.iter().skip(1).cloned().collect();
+                *ty = if suffix.is_empty() {
+                    syn::parse_quote!(#owner)
+                } else {
+                    syn::parse_quote!(<#owner>::#suffix)
+                };
+            } else {
+                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+    }
+    use syn::visit_mut::VisitMut;
+    Resolver(owner).visit_block_mut(block);
+}
+
 fn metadata(
     salvo: &Ident,
     oapi: &Ident,
@@ -41,6 +72,7 @@ fn metadata(
     name: &Ident,
     type_path: &TokenStream,
     mut modifiers: Vec<TokenStream>,
+    cfg: &[syn::Attribute],
 ) -> DiagResult<TokenStream> {
     let name = name.unraw();
     let tfn = Ident::new(
@@ -93,16 +125,21 @@ fn metadata(
     let modifiers = if modifiers.is_empty() {
         None
     } else {
-        Some(quote! {{
+        let mut block: syn::Block = syn::parse2(quote! {{
             let components = &mut components;
             let operation = &mut operation;
             #(#modifiers)*
-        }})
+        }})?;
+        let owner: Type = syn::parse2(type_path.clone())?;
+        resolve_self_types(&mut block, &owner);
+        Some(quote! { #block })
     };
     let stream = quote! {
+        #(#cfg)*
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#type_path>()
         }
+        #(#cfg)*
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
@@ -126,6 +163,7 @@ fn metadata(
                 components,
             }
         }
+        #(#cfg)*
         #oapi::oapi::__private::inventory::submit! {
             #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
         }
@@ -174,7 +212,15 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             };
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
-            let meta = metadata(&salvo, &oapi, &attr, name, &quote! { #name }, modifiers)?;
+            let meta = metadata(
+                &salvo,
+                &oapi,
+                &attr,
+                name,
+                &quote! { #name },
+                modifiers,
+                &[],
+            )?;
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -209,38 +255,56 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 None
             };
 
-            let mut hmtd = None;
-            for item in &item_impl.items {
-                if let ImplItem::Fn(method) = item
-                    && method.sig.ident == Ident::new("handle", Span::call_site())
-                {
-                    hmtd = Some(method);
-                }
-            }
-            let Some(hmtd) = hmtd else {
+            let methods = item_impl
+                .items
+                .iter()
+                .filter_map(|item| match item {
+                    ImplItem::Fn(method)
+                        if method.sig.ident == Ident::new("handle", Span::call_site()) =>
+                    {
+                        Some(method)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if methods.is_empty() {
                 return Err(syn::Error::new_spanned(
                     item_impl.impl_token,
                     "missing handle function",
                 ));
-            };
-            let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
+            }
             let ty = &item_impl.self_ty;
-            let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
-            // The self type is used verbatim for `TypeId::of` / `assign_name`, while a
-            // sanitized identifier derived from it names the generated helper fns. This
-            // avoids panicking on qualified self types like `path::Foo`, which the old
-            // `Ident::new(ty.to_string())` rejected because of the `:` and spaces.
+            let (impl_generics, _, where_clause) = item_impl.generics.split_for_impl();
             let name = type_name_suffix(ty);
-            let meta = metadata(&salvo, &oapi, &attr, &name, &quote! { #ty }, modifiers)?;
-
-            Ok(quote! {
-                #item_impl
-                #[#salvo::async_trait]
-                impl #impl_generics #salvo::Handler for #ty #where_clause {
-                    #hfn
-                }
-                #meta
-            })
+            let mut implementations = Vec::new();
+            for method in methods {
+                let cfg = cfg_attributes(&method.attrs)?;
+                let (hfn, modifiers) = match handle_fn(&salvo, &oapi, &method.sig) {
+                    Ok(result) => result,
+                    Err(error) if !cfg.is_empty() => {
+                        let error = error.into_compile_error();
+                        implementations.push(quote! { #(#cfg)* const _: () = { #error }; });
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                };
+                let meta = metadata(
+                    &salvo,
+                    &oapi,
+                    &attr,
+                    &name,
+                    &quote! { #ty },
+                    modifiers,
+                    &cfg,
+                )?;
+                implementations.push(quote! {
+                    #(#cfg)*
+                    #[#salvo::async_trait]
+                    impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
+                    #meta
+                });
+            }
+            Ok(quote! { #item_impl #(#implementations)* })
         }
         _ => Err(syn::Error::new_spanned(
             input,
@@ -448,5 +512,24 @@ mod tests {
             .expect("concrete instantiation should be accepted")
             .to_string();
         assert!(text.contains("TypeId :: of :: < Foo < String > >"));
+    }
+}
+
+#[cfg(test)]
+mod conditional_diagnostic_tests {
+    #[test]
+    fn invalid_conditional_endpoint_emits_a_conditional_diagnostic() {
+        let input = syn::parse_quote! {
+            impl Service {
+                #[cfg(all())]
+                fn handle(&self, _invalid: &[u32]) {}
+            }
+        };
+        let generated = super::generate(Default::default(), input)
+            .unwrap()
+            .to_string();
+        assert!(generated.contains("compile_error"));
+        assert!(generated.contains("the inputs parameters must be Request"));
+        assert!(generated.contains("cfg (all ())"));
     }
 }

@@ -5,7 +5,7 @@ use quote::{ToTokens, quote};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Fields, Generics, Token, Variant};
+use syn::{Attribute, Fields, Generics, Meta, Token, Variant};
 
 use super::enum_variant::{
     self, AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
@@ -15,7 +15,7 @@ use super::feature::{
     self, ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures, FromAttributes,
 };
-use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_flatten, is_not_skipped};
+use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_skipped};
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
@@ -29,6 +29,25 @@ use crate::schema::{Description, Inline, VariantRename};
 use crate::serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue};
 use crate::type_tree::{TypeTree, ValueType};
 use crate::{DiagLevel, DiagResult, Diagnostic, IntoInner, TryToTokens};
+
+fn variant_is_untagged(variant: &Variant) -> DiagResult<bool> {
+    for attribute in variant
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("serde"))
+    {
+        let attributes = attribute
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            .map_err(Diagnostic::from)?;
+        if attributes
+            .iter()
+            .any(|attribute| attribute.path().is_ident("untagged"))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
 
 #[derive(Debug)]
 pub(crate) struct EnumSchema<'a> {
@@ -47,10 +66,21 @@ impl<'e> EnumSchema<'e> {
         attributes: &'e [Attribute],
         aliases: Option<Punctuated<Alias, Comma>>,
         generics: Option<&'e Generics>,
+        compose_context: Option<crate::component::ComposeContext>,
     ) -> DiagResult<Self> {
+        let has_untagged_variant = variants
+            .iter()
+            .map(|variant| {
+                let rules = serde_util::parse_value(&variant.attrs).map_err(Diagnostic::from)?;
+                Ok(is_not_skipped(rules.as_ref()) && variant_is_untagged(variant)?)
+            })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .any(|untagged| untagged);
         if variants
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
+            && !has_untagged_variant
         {
             #[cfg(feature = "repr")]
             {
@@ -197,6 +227,7 @@ impl<'e> EnumSchema<'e> {
                     rename_all,
                     enum_features,
                     discriminator,
+                    compose_context,
                 }),
                 name,
                 aliases,
@@ -485,6 +516,7 @@ pub(super) struct ComplexEnum<'a> {
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
     discriminator: Option<Discriminator>,
+    compose_context: Option<crate::component::ComposeContext>,
 }
 
 impl ComplexEnum<'_> {
@@ -549,7 +581,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?,
                 })))
@@ -595,7 +627,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?,
                 })))
@@ -672,7 +704,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -697,7 +729,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -766,7 +798,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -780,34 +812,34 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }]);
 
-                // Check if any named field has #[serde(flatten)], which causes
-                // NamedStructSchema to produce an AllOf. In that case we cannot
-                // call .property()/.required() directly on the AllOf; instead we
-                // wrap the tag property in a new Object and append it as an item.
-                let has_flatten = named_fields.named.iter().any(|field| {
-                    let rule = serde_util::parse_value(&field.attrs).ok().flatten();
-                    is_flatten(rule.as_ref())
-                });
-
-                if has_flatten {
-                    let tag_object = quote! {
-                        #oapi::oapi::Object::new()
-                            #title
-                            .property(#tag, #variant_name_tokens)
-                            .required(#tag)
-                    };
-                    Ok(Some(quote! {
-                        #named_enum
-                            .item(#tag_object)
-                    }))
+                // A flattened map, an excluded field, and a visible flattened struct
+                // can produce different schema shapes. Attach the tag to the actual
+                // generated schema instead of inferring its builder from the attributes.
+                let tag_object = quote! {
+                    #oapi::oapi::Object::new()
+                        .property(#tag, #variant_name_tokens)
+                        .required(#tag)
+                };
+                let named_variant = quote! {{
+                    match #oapi::oapi::schema::Schema::from(#named_enum) {
+                        #oapi::oapi::schema::Schema::Object(__object) => {
+                            #oapi::oapi::schema::Schema::from((*__object)
+                                        .property(#tag, #variant_name_tokens)
+                                .required(#tag))
+                        }
+                        #oapi::oapi::schema::Schema::AllOf(__all_of) => {
+                            #oapi::oapi::schema::Schema::from(__all_of.item(#tag_object))
+                        }
+                        __schema => #oapi::oapi::schema::Schema::from(
+                            #oapi::oapi::schema::AllOf::new().item(__schema).item(#tag_object)
+                        ),
+                    }
+                }};
+                Ok(Some(if title.is_some() {
+                    quote! { #oapi::oapi::schema::AllOf::new().item(#named_variant) #title }
                 } else {
-                    Ok(Some(quote! {
-                        #named_enum
-                            #title
-                            .property(#tag, #variant_name_tokens)
-                            .required(#tag)
-                    }))
-                }
+                    named_variant
+                }))
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
@@ -839,7 +871,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?;
 
@@ -972,7 +1004,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -1025,7 +1057,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?;
 
@@ -1115,7 +1147,8 @@ impl TryToTokens for ComplexEnum<'_> {
             | SerdeEnumRepr::Untagged
             | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
         };
-        let ts = self
+        let mut has_untagged_variant = matches!(enum_repr, SerdeEnumRepr::Untagged);
+        let mut ts = self
             .variants
             .iter()
             .map(|variant: &Variant| {
@@ -1129,42 +1162,56 @@ impl TryToTokens for ComplexEnum<'_> {
             .map(|(variant, variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
 
-                match &enum_repr {
-                    SerdeEnumRepr::ExternallyTagged => self.variant_tokens(
-                        variant_name,
-                        variant,
-                        variant_serde_rules.as_ref(),
-                        container_rules.as_ref(),
-                        self.rename_all,
-                    ),
-                    SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
-                        tag,
-                        variant_name,
-                        variant,
-                        variant_serde_rules.as_ref(),
-                        container_rules.as_ref(),
-                        self.rename_all,
-                    ),
-                    SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
-                    SerdeEnumRepr::AdjacentlyTagged { tag, content } => self
-                        .adjacently_tagged_variant_tokens(
-                            tag,
-                            content,
+                let variant_untagged = variant_is_untagged(variant)?;
+                let variant_tokens = if variant_untagged {
+                    self.untagged_variant_tokens(variant)
+                } else {
+                    match &enum_repr {
+                        SerdeEnumRepr::ExternallyTagged => self.variant_tokens(
                             variant_name,
                             variant,
                             variant_serde_rules.as_ref(),
                             container_rules.as_ref(),
                             self.rename_all,
                         ),
-                    SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                        unreachable!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
+                        SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
+                            tag,
+                            variant_name,
+                            variant,
+                            variant_serde_rules.as_ref(),
+                            container_rules.as_ref(),
+                            self.rename_all,
+                        ),
+                        SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
+                        SerdeEnumRepr::AdjacentlyTagged { tag, content } => self
+                            .adjacently_tagged_variant_tokens(
+                                tag,
+                                content,
+                                variant_name,
+                                variant,
+                                variant_serde_rules.as_ref(),
+                                container_rules.as_ref(),
+                                self.rename_all,
+                            ),
+                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                            unreachable!(
+                                "Serde should not have parsed an UnfinishedAdjacentlyTagged"
+                            )
+                        }
                     }
+                }?;
+                if variant_untagged && variant_tokens.is_some() {
+                    has_untagged_variant = true;
                 }
+                Ok(variant_tokens)
             })
             .collect::<DiagResult<Vec<Option<TokenStream>>>>()?
             .into_iter()
             .flatten()
             .collect::<CustomEnum<'_, TokenStream>>();
+        if has_untagged_variant {
+            ts = ts.any_of();
+        }
         if let Some(discriminator) = &self.discriminator {
             // User-provided discriminator attribute takes precedence
             let discriminator_tokens = discriminator.to_token_stream();
@@ -1172,7 +1219,9 @@ impl TryToTokens for ComplexEnum<'_> {
             tokens.extend(quote! {
                 .discriminator(#discriminator_tokens)
             });
-        } else if let Some(tag) = tag {
+        } else if let Some(tag) = tag
+            && !has_untagged_variant
+        {
             ts.discriminator(Cow::Borrowed(tag.as_str()))
                 .to_tokens(tokens);
         } else {
