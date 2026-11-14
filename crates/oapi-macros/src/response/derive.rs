@@ -566,6 +566,7 @@ impl<'r> EnumResponse<'r> {
                 attributes,
                 None,
                 None,
+                None,
             )?;
 
             Some(PathType::InlineSchema(

@@ -51,6 +51,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
+- Preserve generic schema composition in every enum representation without
+  requiring `ToSchema` on composition-only type arguments.
+
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 

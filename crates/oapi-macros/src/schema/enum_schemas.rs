@@ -47,6 +47,7 @@ impl<'e> EnumSchema<'e> {
         attributes: &'e [Attribute],
         aliases: Option<Punctuated<Alias, Comma>>,
         generics: Option<&'e Generics>,
+        compose_context: Option<crate::component::ComposeContext>,
     ) -> DiagResult<Self> {
         if variants
             .iter()
@@ -197,6 +198,7 @@ impl<'e> EnumSchema<'e> {
                     rename_all,
                     enum_features,
                     discriminator,
+                    compose_context,
                 }),
                 name,
                 aliases,
@@ -485,6 +487,7 @@ pub(super) struct ComplexEnum<'a> {
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
     discriminator: Option<Discriminator>,
+    compose_context: Option<crate::component::ComposeContext>,
 }
 
 impl ComplexEnum<'_> {
@@ -549,7 +552,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?,
                 })))
@@ -595,7 +598,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?,
                 })))
@@ -672,7 +675,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -697,7 +700,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()
                 .map(Some)
@@ -766,7 +769,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -839,7 +842,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?;
 
@@ -972,7 +975,7 @@ impl ComplexEnum<'_> {
                     name: None,
                     aliases: None,
                     inline: None,
-                    compose_context: None,
+                    compose_context: self.compose_context.clone(),
                 }
                 .try_to_token_stream()?;
                 let title = title_features
@@ -1025,7 +1028,7 @@ impl ComplexEnum<'_> {
                         name: None,
                         aliases: None,
                         inline: None,
-                        compose_context: None,
+                        compose_context: self.compose_context.clone(),
                     }
                     .try_to_token_stream()?;
 
