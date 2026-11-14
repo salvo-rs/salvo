@@ -38,7 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
 - Give derived reusable responses distinct component names across modules and
-  generic instantiations.
+  generic instantiations, using valid OpenAPI component keys.
 
 - Require only `ToResponse` for reusable `#[endpoint]` response types, without an
   unrelated `ToSchema` bound.

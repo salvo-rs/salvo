@@ -81,7 +81,7 @@ impl TryToTokens for ToResponse<'_> {
             impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
                 fn to_response(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::Response> {
                     let response = #response;
-                    let name = ::std::any::type_name::<Self>().replace("::", ".");
+                    let name = #oapi::oapi::naming::response_component_name::<Self>();
                     components.responses.insert(name.clone(), response);
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/responses/{}", name)))
                 }

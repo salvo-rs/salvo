@@ -482,7 +482,7 @@ mod tests {
                                     .required("age")
                             )
                         );
-                        let name = ::std::any::type_name::<Self>().replace("::", ".");
+                        let name = salvo::oapi::naming::response_component_name::<Self>();
                         components.responses.insert(name.clone(), response);
                         salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/responses/{}", name)))
                     }
