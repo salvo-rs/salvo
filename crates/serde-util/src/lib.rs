@@ -101,7 +101,7 @@ impl SerdeValue {
                     {
                         value.skip = true
                     }
-                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => {
+                    TokenTree::Ident(ident) if !deserializing && ident == "skip_serializing_if" => {
                         value.skip_serializing_if = true
                     }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
@@ -537,6 +537,23 @@ mod tests {
 
 #[cfg(test)]
 mod input_direction_tests {
+    #[test]
+    fn serialization_conditions_do_not_make_input_fields_optional() {
+        let attrs = [syn::parse_quote!(#[serde(skip_serializing_if = "String::is_empty")])];
+        assert!(
+            super::parse_value(&attrs)
+                .unwrap()
+                .unwrap()
+                .skip_serializing_if
+        );
+        assert!(
+            !super::parse_value_for_deserialize(&attrs)
+                .unwrap()
+                .unwrap()
+                .skip_serializing_if
+        );
+    }
+
     #[test]
     fn only_input_skips_hide_request_fields() {
         for (attr, expected) in [
