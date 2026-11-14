@@ -140,6 +140,7 @@ fn rewrite_method(
     let vis = method.vis.clone();
     let mut attrs = method.attrs.clone();
     let style = FnReceiver::from_method(method)?;
+    let stateless_generic = style == FnReceiver::None && !impl_generics.params.is_empty();
     let borrowed_arc = method.sig.receiver().is_some_and(|recv| {
         matches!(&recv.kind, syn::ReceiverKind::Typed(_, ty) if matches!(ty.as_ref(), Type::Reference(_)))
     });
@@ -204,6 +205,11 @@ fn rewrite_method(
     method.block = parse_quote!({ #call });
     let mut new_method: ImplItemFn = match style {
         FnReceiver::None => {
+            if stateless_generic {
+                // A nested function cannot refer to the enclosing impl parameters.
+                // Preserve the original stateless body for generic static methods.
+                method.block = helper.block.clone();
+            }
             method.attrs.push(macro_attr);
             parse_quote! {
                 #vis fn #method_name() -> impl #handler {
@@ -265,7 +271,7 @@ fn rewrite_method(
     new_method.attrs.append(&mut attrs);
     *method = new_method;
     // println!("{}", method.to_token_stream());
-    Ok(Some(helper))
+    Ok((!stateless_generic).then_some(helper))
 }
 
 #[cfg(test)]
