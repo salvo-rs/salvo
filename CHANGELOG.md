@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   retaining capacity until cancelled work actually finishes.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
+
+- Allow empty `examples()` lists in `ToSchema` attributes without generating
+  an invalid builder call.
 - Defer small-file preloading until conditional and range handling completes,
   and bound automatic directory listings by scanned entries and output bytes.
 
