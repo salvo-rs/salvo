@@ -217,6 +217,25 @@ pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     namer().assign_name(type_id, type_name, rule)
 }
 
+/// Encode a concrete response type as an OpenAPI component key.
+#[doc(hidden)]
+pub fn response_component_name<T: ?Sized>() -> String {
+    let type_name = std::any::type_name::<T>();
+    let mut name = String::with_capacity(type_name.len());
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    for byte in type_name.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-') {
+            name.push(char::from(byte));
+        } else {
+            // Escape underscores too, so a literal `_3C` cannot alias an encoded `<`.
+            name.push('_');
+            name.push(char::from(HEX[usize::from(byte >> 4)]));
+            name.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+    }
+    name
+}
+
 /// Get the name of the type. Panic if the name is not exist.
 pub fn get_name<T: 'static>() -> String {
     let type_id = TypeId::of::<T>();
