@@ -247,7 +247,11 @@ fn rewrite_method(
             // The previous code derived the type arguments from `self_ty`, which is
             // wrong whenever they differ from the impl's parameters (e.g.
             // `impl<T> Foo<Wrapper<T>>` would emit `handle<Wrapper<T>>`).
-            let (impl_g, ty_g, where_c) = impl_generics.split_for_impl();
+            // In the local wrapper, `Self` names the wrapper rather than the service.
+            // Keep predicates from the service impl attached to the service type.
+            let mut handler_generics = impl_generics.clone();
+            ServiceSelf(self_ty).visit_generics_mut(&mut handler_generics);
+            let (impl_g, ty_g, where_c) = handler_generics.split_for_impl();
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
