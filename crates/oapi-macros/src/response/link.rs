@@ -131,7 +131,7 @@ impl ToTokens for Link {
 
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            #oapi::oapi::link::Link::default()
+            #oapi::oapi::Link::default()
                 #operation_ref
                 #operation_id
                 #parameters
