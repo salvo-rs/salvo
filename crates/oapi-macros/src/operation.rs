@@ -5,7 +5,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
 use syn::parse::Parse;
 use syn::token::Paren;
-use syn::{Expr, ExprPath, Path, Token, Type, parenthesized};
+use syn::{Expr, ExprPath, LitStr, Path, Token, Type, parenthesized};
 
 use crate::endpoint::EndpointAttr;
 use crate::parse_utils::LitStrOrExpr;
@@ -308,6 +308,7 @@ impl ToTokens for Summary<'_> {
 #[derive(Debug)]
 pub(crate) enum PathType<'p> {
     RefPath(Path),
+    RefLocation(LitStr),
     MediaType(InlineType<'p>),
     InlineSchema(TokenStream, Type),
 }
@@ -338,7 +339,11 @@ impl Parse for PathType<'_> {
             }
             let ref_stream;
             parenthesized!(ref_stream in input);
-            Ok(Self::RefPath(ref_stream.parse::<ExprPath>()?.path))
+            if ref_stream.peek(LitStr) {
+                Ok(Self::RefLocation(ref_stream.parse()?))
+            } else {
+                Ok(Self::RefPath(ref_stream.parse::<ExprPath>()?.path))
+            }
         } else {
             Ok(Self::MediaType(input.parse()?))
         }
