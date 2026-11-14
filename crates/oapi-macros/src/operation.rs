@@ -198,12 +198,8 @@ impl<'a> Operation<'a> {
                     let code = &tuple.status_code;
                     if let Some(inner) = &tuple.inner {
                         match inner {
-                            ResponseTupleInner::Ref(inline) => {
-                                let ty = &inline.ty;
-                                modifiers.push(quote! {
-                                    let _= <#ty as #oapi::oapi::ToSchema>::to_schema(components);
-                                });
-                            }
+                            // ToResponse registers its response and any body schemas itself.
+                            ResponseTupleInner::Ref(_) => {}
                             ResponseTupleInner::Value(value) => {
                                 if let Some(content) = &value.response_type {
                                     modifiers

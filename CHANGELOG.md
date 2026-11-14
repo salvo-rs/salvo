@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Require only `ToResponse` for reusable `#[endpoint]` response types, without an
+  unrelated `ToSchema` bound.
+
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
