@@ -151,6 +151,12 @@ impl TryToTokens for ToSchema<'_> {
             };
         }
 
+        if !inline || type_aliases.is_some() {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(Self: 'static));
+        }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         // Build ComposeSchema generics (uses ComposeSchema bound instead of ToSchema)
@@ -178,16 +184,15 @@ impl TryToTokens for ToSchema<'_> {
         let compose_variant_tokens = compose_variant.try_to_token_stream()?;
 
         // Generate code to ensure generic type parameters are registered before assign_name
-        let generic_type_registrations: TokenStream = self
-            .generics
-            .type_params()
-            .map(|tp| {
-                let ty = &tp.ident;
-                quote! {
-                    let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
-                }
-            })
-            .collect();
+        let generic_type_registrations: TokenStream =
+            bound::relevant_types(self.data, self.generics)
+                .iter()
+                .map(|ty| {
+                    quote! {
+                        let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
+                    }
+                })
+                .collect();
 
         // Generate ComposeSchema impl
         let compose_body = quote! {
