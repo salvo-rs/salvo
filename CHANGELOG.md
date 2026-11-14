@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Accept documented `ref("...")` schema references in endpoint request bodies
+  and responses, while retaining `ref(Type)` support.
+
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while

@@ -85,6 +85,9 @@ pub async fn authenticated_action() {}
   json file for body schema.
 
 **Advanced format definition by `request_body(...)`**
+Literal `ref("...")` references are emitted verbatim without registering a Rust schema.
+The existing `ref(Type)` form registers and references a type implementing [`ToSchema`][to_schema].
+
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced

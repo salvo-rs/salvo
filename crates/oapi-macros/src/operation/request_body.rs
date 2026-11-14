@@ -162,6 +162,9 @@ impl TryToTokens for RequestBodyAttr<'_> {
                 PathType::RefPath(ref_type) => quote! {
                     <#ref_type as #oapi::oapi::ToSchema>::to_schema(components)
                 },
+                PathType::RefLocation(location) => quote! {
+                    #oapi::oapi::Ref::new(#location)
+                },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree()?;
                     if body_type.is_inline {
@@ -208,10 +211,14 @@ impl TryToTokens for RequestBodyAttr<'_> {
             }
 
             match body_type {
-                PathType::RefPath(_) => {
+                PathType::RefPath(_) | PathType::RefLocation(_) => {
+                    let content_type = self
+                        .content_type
+                        .as_ref()
+                        .map_or_else(|| quote!("application/json"), ToTokens::to_token_stream);
                     tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
-                            .add_content("application/json", #content)
+                            .add_content(#content_type, #content)
                     });
                 }
                 PathType::MediaType(body_type) => {
