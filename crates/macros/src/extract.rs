@@ -276,15 +276,23 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let salvo = salvo_crate();
     let (_, ty_generics, _) = args.generics.split_for_impl();
     let mut bounded_generics = args.generics.clone();
-    for param in args.generics.type_params() {
-        let ty = &param.ident;
+    if args.generics.type_params().next().is_some() || args.generics.const_params().next().is_some()
+    {
         bounded_generics
             .make_where_clause()
             .predicates
             .push(syn::parse_quote! {
-                #ty: #salvo::extract::Extractible<'__macro_gen_ex>
-                    + #salvo::serde::Deserialize<'__macro_gen_ex>
+                Self: #salvo::serde::Deserialize<'__macro_gen_ex>
             });
+        for field in args.fields.iter().filter(|field| field.flatten) {
+            let ty = &field.ty;
+            bounded_generics
+                .make_where_clause()
+                .predicates
+                .push(syn::parse_quote! {
+                    #ty: #salvo::extract::Extractible<'__macro_gen_ex>
+                });
+        }
     }
     let where_clause = &bounded_generics.where_clause;
 

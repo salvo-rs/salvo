@@ -46,6 +46,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve generic type arguments when deriving schema defaults for named,
   newtype, and flattened structs.
 
+- Require `Extractible` only for flattened generic child fields, allowing ordinary
+  generic request values to use `Deserialize`.
+
 - Preserve parameter descriptions, requiredness, and options when using `schema_with`.
 
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
