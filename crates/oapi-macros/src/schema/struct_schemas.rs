@@ -123,13 +123,13 @@ impl NamedStructSchema<'_> {
                 _ => None,
             });
 
-        let deprecated = crate::get_deprecated(&field.attrs).or_else(|| {
-            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature
-            {
-                Feature::Deprecated(_) => Some(Deprecated::True),
+        let schema_deprecated = pop_feature!(field_features => Feature::Deprecated(_)).and_then(
+            |feature| match feature {
+                Feature::Deprecated(deprecated) => Some(Deprecated::from(deprecated.0)),
                 _ => None,
-            })
-        });
+            },
+        );
+        let deprecated = crate::get_deprecated(&field.attrs).or(schema_deprecated);
 
         let value_type = field_features
             .as_mut()
