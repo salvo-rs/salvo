@@ -135,7 +135,7 @@ impl TryToTokens for ToParameters {
             .get_struct_fields(names.as_ref())?
             .enumerate()
             .map(|(index, field)| {
-                let field_serde_params = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                let field_serde_params = serde_util::parse_value_for_deserialize(&field.attrs).map_err(Diagnostic::from)?;
                 if matches!(&field_serde_params, Some(params) if !params.skip) {
                     Ok(Some(Parameter {
                         field,

@@ -52,7 +52,7 @@ pub struct SerdeValue {
 }
 
 impl SerdeValue {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, deserializing: bool) -> syn::Result<Self> {
         let mut value = Self::default();
 
         input.step(|cursor| {
@@ -61,7 +61,7 @@ impl SerdeValue {
                 match tt {
                     TokenTree::Ident(ident)
                         if ident == "skip"
-                            || ident == "skip_serializing"
+                            || (!deserializing && ident == "skip_serializing")
                             || ident == "skip_deserializing" =>
                     {
                         value.skip = true
@@ -247,10 +247,28 @@ impl SerdeContainer {
 /// attributes are present, in which case a default `SerdeValue` is returned),
 /// or `Err` if parsing any serde attribute fails.
 pub fn parse_value(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Error> {
+    parse_value_with_direction(attributes, false)
+}
+
+/// Parse field attributes for request deserialization.
+///
+/// `skip_serializing` does not omit an input field; `skip` and `skip_deserializing` do.
+pub fn parse_value_for_deserialize(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Error> {
+    parse_value_with_direction(attributes, true)
+}
+
+fn parse_value_with_direction(
+    attributes: &[Attribute],
+    deserializing: bool,
+) -> Result<Option<SerdeValue>, Error> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse))
+        .map(|serde_attribute| {
+            serde_attribute.parse_args_with(|input: syn::parse::ParseStream| {
+                SerdeValue::parse(input, deserializing)
+            })
+        })
         .collect::<Result<Vec<_>, _>>()
         .map(|parsed| {
             Some(
@@ -456,5 +474,25 @@ mod tests {
                 content: "c".to_owned()
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod input_direction_tests {
+    #[test]
+    fn only_input_skips_hide_request_fields() {
+        for (attr, expected) in [
+            (syn::parse_quote!(#[serde(skip_serializing)]), false),
+            (syn::parse_quote!(#[serde(skip_deserializing)]), true),
+            (syn::parse_quote!(#[serde(skip)]), true),
+        ] {
+            assert_eq!(
+                super::parse_value_for_deserialize(&[attr])
+                    .unwrap()
+                    .unwrap()
+                    .skip,
+                expected
+            );
+        }
     }
 }
