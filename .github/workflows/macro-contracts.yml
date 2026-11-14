@@ -3,10 +3,10 @@ permissions:
   contents: read
 on:
   pull_request:
-    paths: ['**/*.rs', '**/Cargo.toml', '.github/fixtures/**', '.github/schemas/**', '.github/scripts/check_macro_contracts.py', '.github/scripts/check_macro_paths.py', '.github/workflows/macro-contracts.yml']
+    paths: ['**/*.rs', '**/Cargo.toml', '.github/fixtures/**', '.github/schemas/**', '.github/scripts/check_macro_contracts.py', '.github/scripts/check_macro_paths.py', '.github/scripts/check_enum_schema_contracts.py', '.github/workflows/macro-contracts.yml']
   push:
     branches: [main]
-    paths: ['**/*.rs', '**/Cargo.toml', '.github/fixtures/**', '.github/schemas/**', '.github/scripts/check_macro_contracts.py', '.github/scripts/check_macro_paths.py', '.github/workflows/macro-contracts.yml']
+    paths: ['**/*.rs', '**/Cargo.toml', '.github/fixtures/**', '.github/schemas/**', '.github/scripts/check_macro_contracts.py', '.github/scripts/check_macro_paths.py', '.github/scripts/check_enum_schema_contracts.py', '.github/workflows/macro-contracts.yml']
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
@@ -22,6 +22,7 @@ jobs:
       - run: python3 -m pip install jsonschema==4.26.0
       - run: python3 .github/scripts/check_macro_contracts.py
       - run: python3 .github/scripts/check_macro_paths.py
+      - run: python3 .github/scripts/check_enum_schema_contracts.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
