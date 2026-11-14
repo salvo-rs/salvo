@@ -21,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Accept documented `ref("...")` schema references in endpoint request bodies
   and responses, while retaining `ref(Type)` support.
 - Keep `serde(skip_serializing)` fields available to `ToParameters` request extraction.
+- Keep non-optional input parameters required when serde only skips their
+  serialization conditionally.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
