@@ -8,11 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Accept documented `ref("...")` schema references in endpoint request bodies
-  and responses, while retaining `ref(Type)` support.
+- Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
+
+- Accept documented `ref("...")` schema references in endpoint request bodies
+  and responses, while retaining `ref(Type)` support.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
   retaining capacity until cancelled work actually finishes.
 - Serve only the committed TUS upload prefix and retain read locks while
