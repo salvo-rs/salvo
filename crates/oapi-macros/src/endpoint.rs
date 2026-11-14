@@ -35,6 +35,36 @@ fn type_name_suffix(ty: &Type) -> Ident {
     Ident::new(&sanitized, Span::call_site())
 }
 
+/// Metadata is emitted outside the impl, so `Self` types need a concrete owner.
+fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
+    struct Resolver<'a>(&'a Type);
+    impl syn::visit_mut::VisitMut for Resolver<'_> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let Type::Path(path) = ty
+                && path.qself.is_none()
+                && path
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "Self")
+            {
+                let owner = self.0;
+                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
+                    path.path.segments.iter().skip(1).cloned().collect();
+                *ty = if suffix.is_empty() {
+                    syn::parse_quote!(#owner)
+                } else {
+                    syn::parse_quote!(<#owner>::#suffix)
+                };
+            } else {
+                syn::visit_mut::visit_type_mut(self, ty);
+            }
+        }
+    }
+    use syn::visit_mut::VisitMut;
+    Resolver(owner).visit_block_mut(block);
+}
+
 fn metadata(
     salvo: &Ident,
     oapi: &Ident,
@@ -95,11 +125,14 @@ fn metadata(
     let modifiers = if modifiers.is_empty() {
         None
     } else {
-        Some(quote! {{
+        let mut block: syn::Block = syn::parse2(quote! {{
             let components = &mut components;
             let operation = &mut operation;
             #(#modifiers)*
-        }})
+        }})?;
+        let owner: Type = syn::parse2(type_path.clone())?;
+        resolve_self_types(&mut block, &owner);
+        Some(quote! { #block })
     };
     let stream = quote! {
         #(#cfg)*
