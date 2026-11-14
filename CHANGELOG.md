@@ -8,8 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Preserve generic type arguments when deriving schema defaults for named,
-  newtype, and flattened structs.
+- Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
@@ -25,6 +24,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a `Writer` import, endpoint functions and parameters using raw identifiers,
   raw field extraction in `ToParameters`, crafted handlers on private service types,
   and description-only overrides of inferred request bodies.
+
+- Preserve generic type arguments when deriving schema defaults for named,
+  newtype, and flattened structs.
 
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
