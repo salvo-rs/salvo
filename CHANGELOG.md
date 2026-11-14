@@ -51,6 +51,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve parameter descriptions, requiredness, and options when using `schema_with`.
 
+- Resolve service `Self` response types in generated endpoint metadata.
+
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
