@@ -306,7 +306,11 @@ impl ComponentSchema {
         compose_context: Option<&ComposeContext>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let example = pop_feature!(features => Feature::Example(_));
+        let examples: Vec<_> = features
+            .extract_if(.., |feature| {
+                matches!(feature, Feature::Example(_) | Feature::Examples(_))
+            })
+            .collect();
         let xml = features.extract_vec_xml_feature(type_tree);
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
@@ -381,7 +385,7 @@ impl ComponentSchema {
             tokens.extend(default.to_token_stream())
         }
 
-        if let Some(example) = example {
+        for example in examples {
             example.try_to_tokens(tokens)?;
         }
         if let Some(xml) = xml {

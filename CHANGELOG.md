@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 
+- Attach array `examples(...)` to the array schema rather than its items.
+
 - Allow empty `examples()` lists in `ToSchema` attributes without generating
   an invalid builder call.
 - Defer small-file preloading until conditional and range handling completes,
