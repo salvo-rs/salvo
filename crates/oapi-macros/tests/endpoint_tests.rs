@@ -149,3 +149,86 @@ fn test_endpoint_request_body_attribute() {
         schema_ref
     );
 }
+
+// `links(...)` must expand to a path that exists: `Link` is re-exported from the crate
+// root, its `link` module is private.
+#[test]
+fn test_endpoint_response_links() {
+    #[endpoint(responses(
+        (status_code = 200, description = "success response",
+            links(
+                ("link_name" = (
+                    operation_id = "test_links",
+                    parameters(("key" = "value"), ("json_value" = json!(1))),
+                    request_body = "this is body",
+                    description = "follow up",
+                    server(url = "http://localhost")
+                )),
+                ("by_ref" = (operation_ref = "#/paths/~1users/get"))
+            )
+        )
+    ))]
+    async fn linked() {}
+
+    let router = Router::new().push(Router::with_path("linked").get(linked));
+    let doc =
+        serde_json::to_value(OpenApi::new("test api", "0.0.1").merge_router(&router)).unwrap();
+    assert_json_eq!(
+        doc["paths"]["/linked"]["get"]["responses"]["200"]["links"],
+        json!({
+            "link_name": {
+                "operationId": "test_links",
+                "parameters": {"key": "value", "json_value": 1},
+                "requestBody": "this is body",
+                "description": "follow up",
+                "server": {"url": "http://localhost"}
+            },
+            "by_ref": {"operationRef": "#/paths/~1users/get"}
+        })
+    );
+}
+
+// `allow_reserved` takes a `bool` on `Parameter`; both the tuple form and the
+// `ToParameters` field attribute must compile and reach the document.
+#[test]
+fn test_endpoint_parameter_allow_reserved() {
+    #[derive(serde::Deserialize, ToParameters)]
+    #[salvo(parameters(default_parameter_in = Query))]
+    #[allow(dead_code)]
+    struct Search {
+        #[salvo(parameter(allow_reserved))]
+        filter: String,
+        #[salvo(parameter(allow_reserved = false))]
+        strict: String,
+        plain: String,
+    }
+
+    #[endpoint(parameters(
+        ("q" = String, Query, allow_reserved),
+        ("r" = String, Query, allow_reserved = false),
+    ))]
+    async fn tuple_form() {}
+
+    #[endpoint]
+    async fn derive_form(_search: Search) {}
+
+    let router = Router::new()
+        .push(Router::with_path("tuple").get(tuple_form))
+        .push(Router::with_path("derive").get(derive_form));
+    let doc =
+        serde_json::to_value(OpenApi::new("test api", "0.0.1").merge_router(&router)).unwrap();
+
+    let tuple = &doc["paths"]["/tuple"]["get"]["parameters"];
+    assert_eq!(tuple[0]["name"], "q");
+    assert_eq!(tuple[0]["allowReserved"], true);
+    assert_eq!(tuple[1]["name"], "r");
+    assert_eq!(tuple[1]["allowReserved"], false);
+
+    let derive = &doc["paths"]["/derive"]["get"]["parameters"];
+    assert_eq!(derive[0]["name"], "filter");
+    assert_eq!(derive[0]["allowReserved"], true);
+    assert_eq!(derive[1]["name"], "strict");
+    assert_eq!(derive[1]["allowReserved"], false);
+    assert_eq!(derive[2]["name"], "plain");
+    assert!(derive[2].get("allowReserved").is_none());
+}

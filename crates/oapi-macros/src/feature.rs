@@ -249,7 +249,7 @@ impl TryToTokens for Feature {
             Self::DefaultParameterIn(parameter_in) => quote! { .location(#parameter_in) },
             Self::MultipleOf(multiple_of) => quote! { .multiple_of(#multiple_of) },
             Self::AllowReserved(allow_reserved) => {
-                quote! { .allow_reserved(Some(#allow_reserved)) }
+                quote! { .allow_reserved(#allow_reserved) }
             }
             Self::Explode(explode) => quote! { .explode(#explode) },
             Self::Maximum(maximum) => quote! { .maximum(#maximum) },

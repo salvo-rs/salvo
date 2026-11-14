@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 
+- Fix `links(...)` in `#[endpoint]` responses failing to compile with `cannot find link in oapi`,
+  and `allow_reserved` on `#[endpoint]` parameters and `ToParameters` fields failing with a
+  `bool`/`Option<bool>` mismatch.
+
 ## [1.1.2] - 2026-11-10
 
 ### Added
