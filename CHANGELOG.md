@@ -57,6 +57,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Require `Extractible` only for flattened generic child fields, allowing ordinary
   generic request values to use `Deserialize`.
 
+- Accept all serde aliases when extracting named and tuple request parameters.
+
 - Preserve parameter descriptions, requiredness, and options when using `schema_with`.
 
 - Resolve service `Self` response types in generated endpoint metadata.

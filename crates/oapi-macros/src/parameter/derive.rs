@@ -505,6 +505,12 @@ impl Parameter<'_> {
                 .as_ref()
                 .map(|rename| quote!(.serde_rename(#rename)))
         });
+        let aliases: Vec<_> = self
+            .field_serde_params
+            .iter()
+            .flat_map(|rules| &rules.aliases)
+            .map(|alias| quote!(.add_alias(#alias)))
+            .collect();
         let defaulted = (self.field.ident.is_none()
             && (self
                 .field_serde_params
@@ -537,6 +543,7 @@ impl Parameter<'_> {
                     .add_source(#source)
                     #rename
                     #serde_rename
+                    #(#aliases)*
                     #defaulted
             })
         } else {
@@ -544,6 +551,7 @@ impl Parameter<'_> {
                 #salvo::extract::metadata::Field::new(#name)
                 #rename
                 #serde_rename
+                #(#aliases)*
                 #defaulted
             })
         }
