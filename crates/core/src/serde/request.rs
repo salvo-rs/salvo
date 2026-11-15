@@ -108,8 +108,60 @@ impl Payload<'_> {
     }
 }
 
+// Use raw separators to retain escaped commas/pipes inside elements, while
+// borrowing slices of Request's decoded query cache for borrowed extractors.
+fn split_query_values<'de>(
+    raw_query: Option<&str>,
+    name: &str,
+    values: &'de [String],
+    delimiter: char,
+) -> Vec<CowValue<'de>> {
+    let raw_values = raw_query
+        .into_iter()
+        .flat_map(|query| query.split('&'))
+        .filter_map(|pair| {
+            let (key, decoded) = form_urlencoded::parse(pair.as_bytes()).next()?;
+            (key == name).then(|| (pair.split_once('=').map_or("", |(_, value)| value), decoded))
+        })
+        .collect::<Vec<_>>();
+    values
+        .iter()
+        .enumerate()
+        .flat_map(|(index, value)| {
+            if let Some((raw, decoded)) = raw_values.get(index)
+                && decoded.as_ref() == value
+            {
+                let mut offset = 0;
+                let mut parts = Vec::new();
+                let mut valid = true;
+                for raw_part in raw.split(delimiter) {
+                    let spaced = raw_part.replace('+', " ");
+                    let len = percent_encoding::percent_decode_str(&spaced)
+                        .decode_utf8_lossy()
+                        .len();
+                    let Some(part) = value.get(offset..offset + len) else {
+                        valid = false;
+                        break;
+                    };
+                    parts.push(CowValue(Cow::Borrowed(part)));
+                    offset += len + delimiter.len_utf8();
+                }
+                if valid {
+                    return parts;
+                }
+            }
+            // Middleware may replace the parsed query cache independently of the URI.
+            value
+                .split(delimiter)
+                .map(|part| CowValue(Cow::Borrowed(part)))
+                .collect()
+        })
+        .collect()
+}
+
 #[derive(Debug)]
 pub(crate) struct RequestDeserializer<'de> {
+    raw_query: Option<&'de str>,
     params: &'de IndexMap<String, String>,
     queries: &'de MultiMap<String, String>,
     #[cfg(feature = "cookie")]
@@ -161,6 +213,7 @@ impl<'de> RequestDeserializer<'de> {
             }
         }
         Ok(RequestDeserializer {
+            raw_query: request.uri().query(),
             params: request.params(),
             queries: request.queries(),
             headers: request.headers(),
@@ -201,6 +254,7 @@ impl<'de> RequestDeserializer<'de> {
 
     fn with_metadata(&self, metadata: &'de Metadata) -> Self {
         Self {
+            raw_query: self.raw_query,
             params: self.params,
             queries: self.queries,
             headers: self.headers,
@@ -293,7 +347,14 @@ impl<'de> RequestDeserializer<'de> {
             } else if let Some(value) = self.field_str_value.take() {
                 seed.deserialize(CowValue(value))
             } else if let Some(value) = self.field_vec_value.take() {
-                if source.from == SourceFrom::Query || source.from == SourceFrom::Header {
+                let delimited = self
+                    .metadata
+                    .fields
+                    .get(self.field_index as usize)
+                    .is_some_and(|field| field.value_delimiter.is_some());
+                if !delimited
+                    && (source.from == SourceFrom::Query || source.from == SourceFrom::Header)
+                {
                     seed.deserialize(FlatValue(value))
                 } else {
                     seed.deserialize(VecValue(value.into_iter()))
@@ -350,18 +411,24 @@ impl<'de> RequestDeserializer<'de> {
                     }
                 }
                 SourceFrom::Query => {
+                    let mut query_name = field_name;
                     let mut value = self.queries.get_vec(field_name);
                     if value.is_none() {
                         for alias in &field.aliases {
                             value = self.queries.get_vec(*alias);
                             if value.is_some() {
+                                query_name = *alias;
                                 break;
                             }
                         }
                     }
                     if let Some(value) = value {
                         self.field_vec_value =
-                            Some(value.iter().map(|v| CowValue(v.into())).collect());
+                            Some(if let Some(delimiter) = field.value_delimiter {
+                                split_query_values(self.raw_query, query_name, value, delimiter)
+                            } else {
+                                value.iter().map(|v| CowValue(v.into())).collect()
+                            });
                         self.field_source = Some(source);
                         return Ok(true);
                     }
@@ -379,13 +446,24 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     };
                     if let Some(value) = value {
-                        self.field_vec_value = Some(
-                            value
-                                .iter()
-                                .map(|v| v.to_str().map(|s| CowValue(Cow::Borrowed(s))))
-                                .collect::<Result<Vec<_>, _>>()
-                                .map_err(ValError::custom)?,
-                        );
+                        let values = value
+                            .iter()
+                            .map(|v| v.to_str())
+                            .collect::<Result<Vec<_>, _>>()
+                            .map_err(ValError::custom)?;
+                        self.field_vec_value =
+                            Some(if let Some(delimiter) = field.value_delimiter {
+                                values
+                                    .into_iter()
+                                    .flat_map(|value| value.split(delimiter))
+                                    .map(|value| CowValue(Cow::Borrowed(value.trim())))
+                                    .collect()
+                            } else {
+                                values
+                                    .into_iter()
+                                    .map(|value| CowValue(Cow::Borrowed(value)))
+                                    .collect()
+                            });
                         self.field_source = Some(source);
                         return Ok(true);
                     }

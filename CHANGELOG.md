@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
+
 - Preserve flattened map key constraints alongside conditional flattened fields,
   including nested schemas, without exempting inactive fields or map values.
 
