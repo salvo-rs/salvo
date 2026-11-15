@@ -192,7 +192,11 @@ impl TryToTokens for RequestBodyAttr<'_> {
                     .example(#example)
                 })
             }
-            if let Some(ref examples) = self.examples {
+            if let Some(examples) = self
+                .examples
+                .as_ref()
+                .filter(|examples| !examples.is_empty())
+            {
                 let examples = examples
                     .iter()
                     .map(|example| {

@@ -1,7 +1,8 @@
 //! Implements [OpenAPI Parameter Object][parameter] types.
 //!
 //! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 
 use super::content::Content;
@@ -142,7 +143,7 @@ impl Parameters {
 ///
 /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
+#[derive(Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Parameter {
     /// Name of the parameter.
@@ -236,6 +237,52 @@ pub struct Parameter {
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
+}
+
+impl Serialize for Parameter {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("name", &self.name)?;
+        map.serialize_entry("in", &self.parameter_in)?;
+        if !is_required_unset(&self.required) {
+            map.serialize_entry("required", &self.required)?;
+        }
+        if let Some(value) = &self.description {
+            map.serialize_entry("description", value)?;
+        }
+        if let Some(value) = &self.deprecated {
+            map.serialize_entry("deprecated", value)?;
+        }
+        if let Some(value) = &self.allow_empty_value {
+            map.serialize_entry("allowEmptyValue", value)?;
+        }
+        if let Some(value) = &self.schema {
+            map.serialize_entry("schema", value)?;
+        }
+        if let Some(value) = &self.style {
+            map.serialize_entry("style", value)?;
+        }
+        if let Some(value) = &self.explode {
+            map.serialize_entry("explode", value)?;
+        }
+        if let Some(value) = &self.allow_reserved {
+            map.serialize_entry("allowReserved", value)?;
+        }
+        if self.examples.is_empty() {
+            if let Some(example) = &self.example {
+                map.serialize_entry("example", example)?;
+            }
+        } else {
+            map.serialize_entry("examples", &self.examples)?;
+        }
+        if !self.content.is_empty() {
+            map.serialize_entry("content", &self.content)?;
+        }
+        for (key, value) in &self.extensions {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
+    }
 }
 
 impl Parameter {
@@ -335,11 +382,14 @@ impl Parameter {
         if let Some(allow_reserved) = allow_reserved {
             self.allow_reserved = Some(allow_reserved);
         }
-        if let Some(example) = example {
-            self.example = Some(example);
+        if self.examples.is_empty() && examples.is_empty() {
+            if let Some(example) = example {
+                self.example = Some(example);
+            }
         }
-        for (k, v) in examples {
-            self.examples.insert(k, v);
+        self.examples.extend(examples);
+        if !self.examples.is_empty() {
+            self.example = None;
         }
         self.extensions.extend(extensions);
         true
@@ -406,7 +456,7 @@ impl Parameter {
     /// Add or change example of [`Parameter`]'s potential value.
     #[must_use]
     pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+        self.example = self.examples.is_empty().then_some(example);
         self
     }
 
@@ -420,6 +470,7 @@ impl Parameter {
         example: E,
     ) -> Self {
         self.examples.insert(name.into(), example.into());
+        self.example = None;
         self
     }
 
@@ -435,6 +486,9 @@ impl Parameter {
             .into_iter()
             .map(|(name, example)| (name.into(), example.into()))
             .collect();
+        if !self.examples.is_empty() {
+            self.example = None;
+        }
         self
     }
 

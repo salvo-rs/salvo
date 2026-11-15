@@ -358,7 +358,9 @@ impl TryToTokens for ResponseTuple<'_> {
                             .example(#example)
                         })
                     }
-                    if let Some(examples) = &examples {
+                    if let Some(examples) =
+                        examples.as_ref().filter(|examples| !examples.is_empty())
+                    {
                         let examples = examples
                             .iter()
                             .map(|example| {
