@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Apply serde `rename_all_fields` rules to enum variant schemas.
+
 - Preserve flattened map key constraints alongside conditional flattened fields,
   including nested schemas, without exempting inactive fields or map values.
 
