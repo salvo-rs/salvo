@@ -664,7 +664,7 @@ impl Request {
             .iter()
             .filter_map(|v| v.to_str().ok())
             .collect::<Vec<_>>();
-        from_str_multi_val(values).map_err(Into::into)
+        crate::serde::from_header_multi_val(values).map_err(Into::into)
     }
 
     /// Modify a header for this request.

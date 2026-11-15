@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde::de::value::{Error as ValError, SeqDeserializer};
 use serde::de::{Deserializer, Error as DeError, IntoDeserializer, Visitor};
 use serde::forward_to_deserialize_any;
@@ -10,7 +12,7 @@ macro_rules! forward_vec_parsed_value {
             fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
                 where V: Visitor<'de>
             {
-                if let Some(item) = self.0.into_iter().next() {
+                if let Some(item) = self.values.into_iter().next() {
                     match item.0.parse::<$ty>() {
                         Ok(val) => val.into_deserializer().$method(visitor),
                         Err(e) => Err(DeError::custom(e))
@@ -23,7 +25,26 @@ macro_rules! forward_vec_parsed_value {
     }
 }
 
-pub(super) struct VecValue<I>(pub(super) I);
+pub(super) struct VecValue<I> {
+    values: I,
+    split_header_commas: bool,
+}
+
+impl<I> VecValue<I> {
+    pub(super) fn new(values: I) -> Self {
+        Self {
+            values,
+            split_header_commas: false,
+        }
+    }
+
+    pub(super) fn header(values: I) -> Self {
+        Self {
+            values,
+            split_header_commas: true,
+        }
+    }
+}
 impl<'de, I> IntoDeserializer<'de> for VecValue<I>
 where
     I: Iterator<Item = CowValue<'de>>,
@@ -47,7 +68,7 @@ where
     where
         V: Visitor<'de>,
     {
-        let mut iter = self.0.into_iter();
+        let mut iter = self.values.into_iter();
         let Some(first) = iter.next() else {
             return Err(DeError::custom("expected vec not empty"));
         };
@@ -66,14 +87,17 @@ where
     where
         V: Visitor<'de>,
     {
-        let mut iter = self.0.into_iter();
+        let mut iter = self.values.into_iter();
         let Some(first) = iter.next() else {
             return visitor.visit_none();
         };
         let mut items = Vec::with_capacity(2);
         items.push(first);
         items.extend(iter);
-        visitor.visit_some(VecValue(items.into_iter()))
+        visitor.visit_some(VecValue {
+            values: items.into_iter(),
+            split_header_commas: self.split_header_commas,
+        })
     }
 
     #[inline]
@@ -81,7 +105,7 @@ where
     where
         V: Visitor<'de>,
     {
-        if let Some(item) = self.0.into_iter().next() {
+        if let Some(item) = self.values.into_iter().next() {
             item.deserialize_str(visitor)
         } else {
             Err(DeError::custom("expected vec not empty"))
@@ -93,7 +117,7 @@ where
     where
         V: Visitor<'de>,
     {
-        if let Some(item) = self.0.into_iter().next() {
+        if let Some(item) = self.values.into_iter().next() {
             item.deserialize_string(visitor)
         } else {
             Err(DeError::custom("expected vec not empty"))
@@ -110,7 +134,7 @@ where
     where
         V: Visitor<'de>,
     {
-        if let Some(item) = self.0.into_iter().next() {
+        if let Some(item) = self.values.into_iter().next() {
             visitor.visit_enum(ValueEnumAccess(item.0))
         } else {
             Err(DeError::custom("expected vec not empty"))
@@ -153,7 +177,23 @@ where
     where
         V: Visitor<'de>,
     {
-        visitor.visit_seq(SeqDeserializer::new(self.0.into_iter()))
+        if self.split_header_commas {
+            // Split only when serde requests a sequence. Scalar strings, custom
+            // string deserializers and enums must retain commas in their values.
+            let values = self.values.into_iter().flat_map(|value| match value.0 {
+                Cow::Borrowed(value) => value
+                    .split(',')
+                    .map(|item| CowValue(Cow::Borrowed(item.trim_matches([' ', '\t']))))
+                    .collect::<Vec<_>>(),
+                Cow::Owned(value) => value
+                    .split(',')
+                    .map(|item| CowValue(Cow::Owned(item.trim_matches([' ', '\t']).to_owned())))
+                    .collect::<Vec<_>>(),
+            });
+            visitor.visit_seq(SeqDeserializer::new(values))
+        } else {
+            visitor.visit_seq(SeqDeserializer::new(self.values.into_iter()))
+        }
     }
 
     forward_to_deserialize_any! {
