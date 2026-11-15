@@ -462,7 +462,12 @@ impl OidcDecoder {
             }
         };
         let mut cache = self.cache.write().await;
-        let per_use = fetch.restrictions.revalidate || fetch.restrictions.no_store;
+        // A zero fresh lifetime still permits the initiating request to use the
+        // response it just revalidated (the request sent Cache-Control:no-cache).
+        // Other requests must continue to obey the zero cache reuse window.
+        let per_use = fetch.restrictions.revalidate
+            || fetch.restrictions.no_store
+            || fetch.cache_policy.unwrap_or(cache.cache_policy).max_age.is_zero();
         let key = per_use.then(|| cache.transient_key(&fetch.jwks, kid)).flatten();
         self.cache_state.set_response_age(fetch.initial_age);
         self.cache_state.set_is_error(false);
