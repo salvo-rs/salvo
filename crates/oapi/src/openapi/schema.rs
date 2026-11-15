@@ -177,17 +177,64 @@ pub(crate) fn flatten_with_known_properties(
     known: &std::collections::BTreeSet<String>,
     components: &crate::Components,
 ) -> RefOr<Schema> {
+    prepare_known_properties(schema, known, components, false)
+}
+
+/// Exempt an internally injected tag from the payload's object rules.
+/// Unlike ordinary serde flattening, this adds a property to the serialized
+/// payload, so its property-count bounds must grow with that property.
+#[doc(hidden)]
+pub fn tagged_payload_schema(
+    schema: RefOr<Schema>,
+    tag: &str,
+    components: &crate::Components,
+) -> RefOr<Schema> {
+    let original = serde_json::to_value(&schema).expect("schema serializes to JSON");
+    let already_counted = flatten_names::own_names(&original, components)
+        .is_some_and(|own| own.contains(tag))
+        || original
+            .get("required")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|required| required.iter().any(|name| name == tag));
+    prepare_known_properties(
+        schema,
+        &std::collections::BTreeSet::from([tag.to_owned()]),
+        components,
+        !already_counted,
+    )
+}
+
+fn prepare_known_properties(
+    schema: RefOr<Schema>,
+    known: &std::collections::BTreeSet<String>,
+    components: &crate::Components,
+    adjust_counts: bool,
+) -> RefOr<Schema> {
+    fn count_extensions(extensions: &mut PropMap<String, serde_json::Value>, delta: usize) {
+        for keyword in ["minProperties", "maxProperties"] {
+            if let Some(bound) = extensions.get_mut(keyword)
+                && let Some(value) = bound.as_u64()
+            {
+                *bound = value.saturating_add(delta as u64).into();
+            }
+        }
+    }
+
     fn extensions(
         extensions: &mut PropMap<String, serde_json::Value>,
         known: &std::collections::BTreeSet<String>,
         inject_properties: bool,
         own: Option<&std::collections::BTreeSet<String>>,
         components: &crate::Components,
+        adjust_counts: bool,
     ) {
         flatten_names::exempt_known(extensions, known, components);
         let exempt = own
             .map(|own| known.difference(own).cloned().collect::<Vec<_>>())
             .unwrap_or_default();
+        if adjust_counts {
+            count_extensions(extensions, exempt.len());
+        }
         if inject_properties
             && (extensions.contains_key("additionalProperties")
                 || extensions.contains_key("unevaluatedProperties"))
@@ -215,6 +262,7 @@ pub(crate) fn flatten_with_known_properties(
         known: &std::collections::BTreeSet<String>,
         components: &crate::Components,
         visiting: &mut std::collections::HashSet<String>,
+        adjust_counts: bool,
     ) -> RefOr<Schema> {
         match schema {
             RefOr::Ref(reference) => {
@@ -229,8 +277,9 @@ pub(crate) fn flatten_with_known_properties(
                             .schemas
                             .get(&name.replace("~1", "/").replace("~0", "~"))
                     });
-                let prepared =
-                    target.map(|target| prepare(target.clone(), known, components, visiting));
+                let prepared = target.map(|target| {
+                    prepare(target.clone(), known, components, visiting, adjust_counts)
+                });
                 visiting.remove(&reference.ref_location);
                 let name_rule = reference.extensions.get("propertyNames");
                 let name_own = name_rule.and_then(|_| {
@@ -241,8 +290,14 @@ pub(crate) fn flatten_with_known_properties(
                 let prepare_names = name_own
                     .as_ref()
                     .is_some_and(|own| known.difference(own).next().is_some());
+                let prepare_counts = adjust_counts
+                    && ["minProperties", "maxProperties"]
+                        .iter()
+                        .any(|keyword| reference.extensions.contains_key(*keyword));
                 match (target, prepared) {
-                    (Some(target), Some(prepared)) if &prepared != target || prepare_names => {
+                    (Some(target), Some(prepared))
+                        if &prepared != target || prepare_names || prepare_counts =>
+                    {
                         if reference.extensions.is_empty()
                             && reference.description.is_empty()
                             && reference.summary.is_empty()
@@ -262,8 +317,13 @@ pub(crate) fn flatten_with_known_properties(
                                         object.extensions = siblings;
                                         object.into()
                                     });
-                                combined =
-                                    combined.item(prepare(siblings, known, components, visiting));
+                                combined = combined.item(prepare(
+                                    siblings,
+                                    known,
+                                    components,
+                                    visiting,
+                                    adjust_counts,
+                                ));
                             }
                             if let Some(rule) = name_rule {
                                 combined = combined.item(flatten_names::reference_check(
@@ -291,6 +351,18 @@ pub(crate) fn flatten_with_known_properties(
                 let own = flatten_names::own_names(&original, components);
                 match &mut schema {
                     Schema::Object(object) => {
+                        if adjust_counts {
+                            let delta = own
+                                .as_ref()
+                                .map(|own| known.difference(own).count())
+                                .unwrap_or(0);
+                            object.min_properties = object
+                                .min_properties
+                                .map(|bound| bound.saturating_add(delta));
+                            object.max_properties = object
+                                .max_properties
+                                .map(|bound| bound.saturating_add(delta));
+                        }
                         let exempt = known
                             .iter()
                             .filter(|name| !object.properties.contains_key(*name))
@@ -332,28 +404,50 @@ pub(crate) fn flatten_with_known_properties(
                             false,
                             own.as_ref(),
                             components,
+                            adjust_counts,
                         );
                     }
                     Schema::AllOf(all) => {
                         all.items = std::mem::take(&mut all.items)
                             .into_iter()
-                            .map(|item| prepare(item, known, components, visiting))
+                            .map(|item| prepare(item, known, components, visiting, adjust_counts))
                             .collect();
-                        extensions(&mut all.extensions, known, true, own.as_ref(), components);
+                        extensions(
+                            &mut all.extensions,
+                            known,
+                            true,
+                            own.as_ref(),
+                            components,
+                            adjust_counts,
+                        );
                     }
                     Schema::AnyOf(any) => {
                         any.items = std::mem::take(&mut any.items)
                             .into_iter()
-                            .map(|item| prepare(item, known, components, visiting))
+                            .map(|item| prepare(item, known, components, visiting, adjust_counts))
                             .collect();
-                        extensions(&mut any.extensions, known, true, own.as_ref(), components);
+                        extensions(
+                            &mut any.extensions,
+                            known,
+                            true,
+                            own.as_ref(),
+                            components,
+                            adjust_counts,
+                        );
                     }
                     Schema::OneOf(one) => {
                         one.items = std::mem::take(&mut one.items)
                             .into_iter()
-                            .map(|item| prepare(item, known, components, visiting))
+                            .map(|item| prepare(item, known, components, visiting, adjust_counts))
                             .collect();
-                        extensions(&mut one.extensions, known, true, own.as_ref(), components);
+                        extensions(
+                            &mut one.extensions,
+                            known,
+                            true,
+                            own.as_ref(),
+                            components,
+                            adjust_counts,
+                        );
                     }
                     _ => {}
                 }
@@ -369,6 +463,7 @@ pub(crate) fn flatten_with_known_properties(
             known,
             components,
             &mut std::collections::HashSet::new(),
+            adjust_counts,
         )
     }
 }

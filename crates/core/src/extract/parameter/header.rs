@@ -8,6 +8,10 @@ use crate::extract::{Extractible, Metadata};
 use crate::http::{ParseError, Request};
 
 /// Extracts a parameter from a request header.
+///
+/// Sequence types use comma-separated elements, combining repeated header lines
+/// in their original order. Scalar strings retain commas. This matches the
+/// default OpenAPI `Simple` encoding for header parameters.
 pub struct HeaderParam<T, const REQUIRED: bool = true>(Option<T>);
 impl<T> HeaderParam<T, true> {
     /// Consumes self and returns the value of the parameter.
@@ -111,6 +115,11 @@ where
         _depot: &'ex mut Depot,
         arg: &str,
     ) -> Result<Self, ParseError> {
+        if !req.headers().contains_key(arg) {
+            return Err(ParseError::other(format!(
+                "header parameter {arg} not found"
+            )));
+        }
         let value = req.header::<T>(arg).ok_or_else(|| {
             ParseError::other(format!(
                 "header parameter {arg} not found or convert to type failed"
@@ -138,7 +147,11 @@ where
         _depot: &'ex mut Depot,
         arg: &str,
     ) -> Result<Self, ParseError> {
-        Ok(Self(req.header(arg)))
+        Ok(Self(if req.headers().contains_key(arg) {
+            req.header(arg)
+        } else {
+            None
+        }))
     }
 }
 

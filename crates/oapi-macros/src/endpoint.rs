@@ -26,58 +26,6 @@ fn type_name_suffix(ty: &Type) -> Ident {
     Ident::new(&encoded, Span::call_site())
 }
 
-/// Metadata is emitted outside the impl, so `Self` types need a concrete owner.
-fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
-    struct Resolver<'a>(&'a Type);
-    impl syn::visit_mut::VisitMut for Resolver<'_> {
-        // A nested item cannot capture its enclosing impl's Self, and may bind
-        // its own Self in a trait or impl.
-        fn visit_item_mut(&mut self, _item: &mut syn::Item) {}
-
-        fn visit_type_mut(&mut self, ty: &mut Type) {
-            syn::visit_mut::visit_type_mut(self, ty);
-            if let Type::Path(path) = ty
-                && path.qself.is_none()
-                && path
-                    .path
-                    .segments
-                    .first()
-                    .is_some_and(|segment| segment.ident == "Self")
-            {
-                let owner = self.0;
-                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
-                    path.path.segments.iter().skip(1).cloned().collect();
-                *ty = if suffix.is_empty() {
-                    syn::parse_quote!(#owner)
-                } else {
-                    syn::parse_quote!(<#owner>::#suffix)
-                };
-            }
-        }
-
-        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
-            syn::visit_mut::visit_expr_path_mut(self, expression);
-            if expression.qself.is_none()
-                && expression.path.segments.len() > 1
-                && expression
-                    .path
-                    .segments
-                    .first()
-                    .is_some_and(|segment| segment.ident == "Self")
-            {
-                let owner = self.0;
-                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
-                    expression.path.segments.iter().skip(1).cloned().collect();
-                let mut replacement: syn::ExprPath = syn::parse_quote!(<#owner>::#suffix);
-                replacement.attrs = ::std::mem::take(&mut expression.attrs);
-                *expression = replacement;
-            }
-        }
-    }
-    use syn::visit_mut::VisitMut;
-    Resolver(owner).visit_block_mut(block);
-}
-
 fn metadata(
     salvo: &syn::Path,
     oapi: &syn::Path,
@@ -108,6 +56,15 @@ fn metadata_inner(
     let cfn = Ident::new(
         &format!("__macro_gen_oapi_endpoint_creator_{name}"),
         Span::call_site(),
+    );
+    let owner: Type = syn::parse2(type_path.clone())?;
+    let metadata_trait = Ident::new(
+        &format!("__SalvoEndpointMetadata_{}", type_name_suffix(&owner)),
+        Span::mixed_site(),
+    );
+    let metadata_method = Ident::new(
+        &format!("__salvo_endpoint_create_{}", type_name_suffix(&owner)),
+        Span::mixed_site(),
     );
     let opt = Operation::new(attr);
     modifiers.append(opt.modifiers()?.as_mut());
@@ -148,20 +105,13 @@ fn metadata_inner(
         }
     }
     let status_codes = Array::from_iter(status_code_tokens);
-    let owner: Type = syn::parse2(type_path.clone())?;
-    let mut status_codes: syn::Block = syn::parse2(quote! {{ #status_codes }})?;
-    resolve_self_types(&mut status_codes, &owner);
-    let modifiers = if modifiers.is_empty() {
-        None
-    } else {
-        let mut block: syn::Block = syn::parse2(quote! {{
+    let modifiers = (!modifiers.is_empty()).then(|| {
+        quote! {{
             let components = &mut components;
             let operation = &mut operation;
             #(#modifiers)*
-        }})?;
-        resolve_self_types(&mut block, &owner);
-        Some(quote! { #block })
-    };
+        }}
+    });
     let allow_deprecated = attr
         .deprecated
         .unwrap_or_default()
@@ -179,32 +129,28 @@ fn metadata_inner(
         }
     };
     let creator_body = quote! {
-            let mut components = #oapi::oapi::Components::new();
-            let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            let mut operation = #oapi::oapi::Operation::new();
-            #modifiers
-            if operation.operation_id.is_none() {
-                operation.assign_auto_operation_id(#auto_operation_id);
-            }
-            if !status_codes.is_empty() {
-                let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
-                responses.retain(|k,_| {
-                    if let Ok(code) = <#salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
-                        status_codes.contains(&code)
-                    } else {
-                        true
-                    }
-                });
-            }
-            // Untyped/manual responses cannot be inferred from the signature.
-            // Keep the document valid without claiming a status or body shape.
-            if operation.responses.is_empty() {
-                operation.responses.insert("default", #oapi::oapi::Response::new("Response"));
-            }
-            #oapi::oapi::Endpoint{
-                operation,
-                components,
-            }
+        let mut components = #oapi::oapi::Components::new();
+        let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
+        let mut operation = #oapi::oapi::Operation::new();
+        #modifiers
+        if operation.operation_id.is_none() {
+            operation.assign_auto_operation_id(#auto_operation_id);
+        }
+        if !status_codes.is_empty() {
+            let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
+            responses.retain(|k,_| {
+                if let Ok(code) = <#salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
+                    status_codes.contains(&code)
+                } else {
+                    true
+                }
+            });
+        }
+        // Keep manual/untyped responses valid without inferring a body shape.
+        if operation.responses.is_empty() {
+            operation.responses.insert("default", #oapi::oapi::Response::new("Response"));
+        }
+        #oapi::oapi::Endpoint { operation, components, }
     };
     if let Some((creator, _, endpoint_type_id)) = associated {
         return Ok(quote! {
@@ -215,23 +161,32 @@ fn metadata_inner(
     let stream = quote! {
         #(#cfg)*
         #allow_deprecated
-        fn #tfn() -> ::std::any::TypeId {
-            ::std::any::TypeId::of::<#type_path>()
-        }
-        #(#cfg)*
-        #allow_deprecated
-        fn #cfn() -> #oapi::oapi::Endpoint { #creator_body }
-
-        #(#cfg)*
-        #oapi::oapi::__private::inventory::submit! {
-            #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
-        }
+        const _: () = {
+            // Evaluate expressions in the owner's impl scope, where Rust can
+            // expand macros without rewriting their tokens or nested Self scopes.
+            trait #metadata_trait {
+                fn #metadata_method() -> #oapi::oapi::Endpoint;
+            }
+            impl #metadata_trait for #type_path {
+                fn #metadata_method() -> #oapi::oapi::Endpoint { #creator_body }
+            }
+            fn #tfn() -> ::std::any::TypeId {
+                ::std::any::TypeId::of::<#type_path>()
+            }
+            fn #cfn() -> #oapi::oapi::Endpoint {
+                <#type_path as #metadata_trait>::#metadata_method()
+            }
+            #oapi::oapi::__private::inventory::submit! {
+                #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
+            }
+        };
     };
     Ok(stream)
 }
 pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<TokenStream> {
     let salvo = crate::salvo_crate();
     let oapi = crate::oapi_crate();
+    let reserved = reserved_identifiers(input.to_token_stream());
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = item_fn
@@ -284,7 +239,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 None
             };
 
-            let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
+            let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig, &reserved)?;
             let meta = metadata(
                 &salvo,
                 &oapi,
@@ -300,9 +255,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                     #inherent
                     #allow_deprecated
                     #[#salvo::async_trait]
-                    impl #salvo::Handler for #name {
-                        #hfn
-                    }
+                    impl #salvo::Handler for #name { #hfn }
                 },
             );
             Ok(quote! { #sdef #implementations #meta })
@@ -356,7 +309,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let mut implementations = Vec::new();
             for method in methods {
                 let cfg = cfg_attributes(&method.attrs)?;
-                let (hfn, modifiers) = match handle_fn(&salvo, &oapi, &method.sig) {
+                let (hfn, modifiers) = match handle_fn(&salvo, &oapi, &method.sig, &reserved) {
                     Ok(result) => result,
                     Err(error) if !cfg.is_empty() => {
                         let error = error.into_compile_error();
@@ -411,17 +364,11 @@ fn handle_fn(
     salvo: &syn::Path,
     oapi: &syn::Path,
     sig: &Signature,
-) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
-    handle_fn_scoped(salvo, oapi, sig, &Default::default())
-}
-
-fn handle_fn_scoped(
-    salvo: &syn::Path,
-    oapi: &syn::Path,
-    sig: &Signature,
     reserved: &::std::collections::HashSet<String>,
 ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let mut reserved = reserved.clone();
+    let name = &sig.ident;
+    let __macro_gen_conn = fresh_binding("__macro_gen_conn", &mut reserved);
     let __macro_gen_ctrl = fresh_binding("__macro_gen_ctrl", &mut reserved);
     let __macro_gen_data = fresh_binding("__macro_gen_data", &mut reserved);
     let __macro_gen_depot = fresh_binding("__macro_gen_depot", &mut reserved);
@@ -429,10 +376,11 @@ fn handle_fn_scoped(
     let __macro_gen_req = fresh_binding("__macro_gen_req", &mut reserved);
     let __macro_gen_res = fresh_binding("__macro_gen_res", &mut reserved);
     let __macro_gen_status_code = fresh_binding("__macro_gen_status_code", &mut reserved);
-    let name = &sig.ident;
+
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut modifiers = Vec::new();
+    let mut needs_conn = false;
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
@@ -447,18 +395,22 @@ fn handle_fn_scoped(
             InputType::FlowCtrl(_pat) => {
                 call_args.push(__macro_gen_ctrl.clone());
             }
+            InputType::ConnCtrl(_pat) => {
+                needs_conn = true;
+                call_args.push(__macro_gen_conn.clone());
+            }
             InputType::Unknown => {
                 return Err(syn::Error::new_spanned(
                     &sig.inputs,
-                    "the inputs parameters must be Request, Depot, Response or FlowCtrl",
+                    "the inputs parameters must be Request, Depot, Response, FlowCtrl or ConnCtrl",
                 ));
             }
             InputType::NoReference(pat) => {
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, unwrapped_type(&pat.ty)) {
-                    call_args.push(ident.ident.clone());
-                    let ty = omit_type_path_lifetimes(ty);
                     let id = ident.ident.clone();
-                    let idv = id.unraw().to_string();
+                    call_args.push(id.clone());
+                    let ty = omit_type_path_lifetimes(ty);
+                    let idv = ident.ident.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(#__macro_gen_req, #__macro_gen_depot, #idv).await {
@@ -489,11 +441,17 @@ fn handle_fn_scoped(
         }
     }
 
+    let conn_init = needs_conn.then(|| {
+        quote! {
+            let #__macro_gen_conn = &mut #__macro_gen_ctrl.conn().clone();
+        }
+    });
     let hfn = match &sig.output {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
                 quote! {
                     async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                        #conn_init
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
@@ -501,6 +459,7 @@ fn handle_fn_scoped(
             } else {
                 quote! {
                     async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                        #conn_init
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -524,6 +483,7 @@ fn handle_fn_scoped(
             if sig.asyncness.is_none() {
                 quote! {
                     async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                        #conn_init
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
@@ -531,6 +491,7 @@ fn handle_fn_scoped(
             } else {
                 quote! {
                     async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                        #conn_init
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
@@ -553,7 +514,7 @@ mod tests {
         let salvo: syn::Path = syn::parse_quote!(salvo);
         let oapi: syn::Path = syn::parse_quote!(salvo_oapi);
         let sig: Signature = parse_str("fn hello(name: String)").unwrap();
-        let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig).unwrap();
+        let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig, &Default::default()).unwrap();
         let expected_hfn = quote! {
             async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
                 let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
@@ -705,7 +666,7 @@ pub(crate) fn craft_helper(
     let reserved_tokens = &args.reserved;
     let mut reserved = reserved_identifiers(quote!(#helper #reserved_tokens));
     let endpoint_type_id = fresh_binding("__salvo_endpoint_type_id", &mut reserved);
-    let (hfn, modifiers) = handle_fn_scoped(&salvo, &oapi, &helper.sig, &reserved)?;
+    let (hfn, modifiers) = handle_fn(&salvo, &oapi, &helper.sig, &reserved)?;
     args.attr.doc_comments = Some(CommentAttributes::from_attributes(&helper.attrs).0);
     args.attr.deprecated = args.attr.deprecated.or_else(|| {
         helper

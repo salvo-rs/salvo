@@ -146,6 +146,9 @@ pub(crate) fn effective_schema_data(
         }
         syn::Data::Enum(data) => {
             for variant in &mut data.variants {
+                if crate::schema::is_skipped_newtype_variant(variant)? {
+                    variant.fields = syn::Fields::Unit;
+                }
                 let features = match &variant.fields {
                     syn::Fields::Named(_) => variant
                         .attrs

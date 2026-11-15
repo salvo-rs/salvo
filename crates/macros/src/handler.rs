@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{ToTokens, quote};
 use syn::ext::IdentExt;
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
@@ -7,6 +7,7 @@ use crate::shared::*;
 
 pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     let salvo = salvo_crate();
+    let reserved = reserved_identifiers(input.to_token_stream());
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = item_fn
@@ -45,16 +46,14 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                 }
             };
 
-            let hfn = handle_fn(&salvo, sig)?;
+            let hfn = handle_fn(&salvo, sig, &reserved)?;
             let implementations = parameter_binding_scope(
                 sig,
                 quote! {
                     #inherent
                     #allow_deprecated
                     #[#salvo::async_trait]
-                    impl #salvo::Handler for #name {
-                        #hfn
-                    }
+                    impl #salvo::Handler for #name { #hfn }
                 },
             );
             Ok(quote! { #sdef #implementations })
@@ -83,7 +82,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             let mut implementations = Vec::new();
             for method in methods {
                 let cfg = cfg_attributes(&method.attrs)?;
-                match handle_fn(&salvo, &method.sig) {
+                match handle_fn(&salvo, &method.sig, &reserved) {
                     Ok(hfn) => implementations.push(quote! {
                         #(#cfg)*
                         #[#salvo::async_trait]
@@ -124,16 +123,13 @@ fn parameter_binding_scope(sig: &Signature, implementations: TokenStream) -> Tok
     }; }
 }
 
-fn handle_fn(salvo: &syn::Path, sig: &Signature) -> syn::Result<TokenStream> {
-    handle_fn_scoped(salvo, sig, &Default::default())
-}
-
-fn handle_fn_scoped(
+fn handle_fn(
     salvo: &syn::Path,
     sig: &Signature,
     reserved: &::std::collections::HashSet<String>,
 ) -> syn::Result<TokenStream> {
     let mut reserved = reserved.clone();
+    let name = &sig.ident;
     let __macro_gen_conn = fresh_binding("__macro_gen_conn", &mut reserved);
     let __macro_gen_ctrl = fresh_binding("__macro_gen_ctrl", &mut reserved);
     let __macro_gen_data = fresh_binding("__macro_gen_data", &mut reserved);
@@ -142,7 +138,7 @@ fn handle_fn_scoped(
     let __macro_gen_req = fresh_binding("__macro_gen_req", &mut reserved);
     let __macro_gen_res = fresh_binding("__macro_gen_res", &mut reserved);
     let __macro_gen_status_code = fresh_binding("__macro_gen_status_code", &mut reserved);
-    let name = &sig.ident;
+
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut needs_conn = false;
@@ -181,7 +177,7 @@ fn handle_fn_scoped(
                     // directly. The previous code re-stringified the whole pattern
                     // and rebuilt it with `Ident::new`, which panics on a raw
                     // identifier such as `r#type`. `unraw` drops a leading `r#`.
-                    let idv = id.unraw().to_string();
+                    let idv = pat_ident.ident.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
 
                     extract_ts.push(quote!{
@@ -298,7 +294,7 @@ pub(crate) fn craft_helper(args: CraftArgs, mut helper: syn::ItemFn) -> syn::Res
     let salvo = salvo_crate();
     let reserved_tokens = &args.reserved;
     let reserved = reserved_identifiers(quote!(#helper #reserved_tokens));
-    let hfn = handle_fn_scoped(&salvo, &helper.sig, &reserved)?;
+    let hfn = handle_fn(&salvo, &helper.sig, &reserved)?;
     let mut dispatch: syn::ImplItemFn = syn::parse2(hfn)?;
     let lifetime = &args.request_lifetime;
     dispatch.sig.ident = args.dispatch;
