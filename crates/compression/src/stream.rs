@@ -24,6 +24,8 @@ pub(super) struct EncodeStream<B> {
     eof: bool,
     offload: bool,
     trailers: Option<BytesFrame>,
+    pending_frame: Option<BytesFrame>,
+    input_finished: bool,
     encoding: Option<JoinHandle<IoResult<Encoded>>>,
 }
 
@@ -49,6 +51,8 @@ impl<B> EncodeStream<B> {
                 CompressionLevel::Minsize | CompressionLevel::Precise(_)
             ),
             trailers: None,
+            pending_frame: None,
+            input_finished: false,
             encoding: None,
             encoder: Some(Encoder::new(algo, level)),
         }
@@ -165,11 +169,75 @@ macro_rules! impl_stream {
                         }
                         continue;
                     }
-                    let result = match ready!(this.poll_chunk(cx)) {
+                    let next = if let Some(frame) = this.pending_frame.take() {
+                        Some(Ok(frame))
+                    } else if this.input_finished {
+                        None
+                    } else {
+                        ready!(this.poll_chunk(cx))
+                    };
+                    let result = match next {
                         Some(Ok(frame)) => match frame.into_data() {
-                            Ok(chunk) => this.write_chunk(chunk),
-                            Err(trailers) => {
+                            Ok(mut chunk) => {
+                                // Combine only frames already ready in this poll.
+                                // Flush immediately on Pending to retain SSE latency;
+                                // bound both lookahead and allocation for backpressure.
+                                if chunk.len() < MAX_CHUNK_SIZE_ENCODE_IN_PLACE {
+                                    let mut pieces = smallvec::SmallVec::<[Bytes; 16]>::new();
+                                    let mut length = chunk.len();
+                                    pieces.push(chunk);
+                                    for _ in 1..16 {
+                                        if length >= MAX_CHUNK_SIZE_ENCODE_IN_PLACE {
+                                            break;
+                                        }
+                                        match this.poll_chunk(cx) {
+                                            Poll::Ready(Some(Ok(frame))) => match frame.into_data()
+                                            {
+                                                Ok(data)
+                                                    if data.len()
+                                                        <= MAX_CHUNK_SIZE_ENCODE_IN_PLACE
+                                                            - length =>
+                                                {
+                                                    length += data.len();
+                                                    pieces.push(data);
+                                                }
+                                                Ok(data) => {
+                                                    this.pending_frame =
+                                                        Some(BytesFrame::data(data));
+                                                    break;
+                                                }
+                                                Err(frame) => {
+                                                    this.pending_frame = Some(frame);
+                                                    break;
+                                                }
+                                            },
+                                            Poll::Ready(Some(Err(error))) => {
+                                                return this.fail(error);
+                                            }
+                                            Poll::Ready(None) => {
+                                                this.input_finished = true;
+                                                break;
+                                            }
+                                            Poll::Pending => break,
+                                        }
+                                    }
+                                    chunk = if pieces.len() == 1 {
+                                        pieces.pop().unwrap()
+                                    } else {
+                                        let mut joined = Vec::with_capacity(length);
+                                        for piece in pieces {
+                                            joined.extend_from_slice(&piece);
+                                        }
+                                        Bytes::from(joined)
+                                    };
+                                }
+                                this.write_chunk(chunk)
+                            }
+                            Err(mut trailers) => {
                                 // Emit the final compressed bytes before forwarding trailers.
+                                if let Some(headers) = trailers.0.trailers_mut() {
+                                    super::strip_digests(headers);
+                                }
                                 this.trailers = Some(trailers);
                                 this.finish_encoding()
                             }
@@ -218,6 +286,69 @@ mod tests {
             #[cfg(feature = "zstd")]
             CompressionAlgo::Zstd,
         ]
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn ready_fragments_coalesce_without_losing_trailers_or_payload() {
+        use salvo_core::http::HeaderMap;
+        use salvo_core::http::body::Frame;
+        let mut trailers = HeaderMap::new();
+        trailers.insert("content-digest", "obsolete".parse().unwrap());
+        trailers.insert("repr-digest", "obsolete".parse().unwrap());
+        trailers.insert("x-complete", "yes".parse().unwrap());
+        let mut frames: Vec<_> = (0..64).map(|_| Ok(BytesFrame::data("fragment"))).collect();
+        frames.push(Ok(BytesFrame(Frame::trailers(trailers))));
+        let body: BoxStream<'static, Result<BytesFrame, BoxedError>> =
+            futures_util::stream::iter(frames).boxed();
+        let mut stream = EncodeStream::new(CompressionAlgo::Gzip, CompressionLevel::Default, body);
+        let mut encoded = Vec::new();
+        let mut count = 0;
+        while let Some(frame) = stream.next().await {
+            match frame.unwrap().into_data() {
+                Ok(data) => {
+                    count += 1;
+                    encoded.extend_from_slice(&data);
+                }
+                Err(frame) => {
+                    let trailers = frame.into_trailers().unwrap();
+                    assert!(!trailers.contains_key("content-digest"));
+                    assert!(!trailers.contains_key("repr-digest"));
+                    assert_eq!(trailers["x-complete"], "yes");
+                }
+            }
+        }
+        assert!(
+            count < 16,
+            "ready fragments must not require one flush per fragment"
+        );
+        assert_eq!(
+            decode(CompressionAlgo::Gzip, &encoded),
+            b"fragment".repeat(64)
+        );
+    }
+
+    #[cfg(feature = "gzip")]
+    #[tokio::test]
+    async fn a_pending_source_flushes_an_available_small_event_immediately() {
+        let mut first = true;
+        let body: BoxStream<'static, Result<BytesFrame, BoxedError>> =
+            futures_util::stream::poll_fn(move |_| {
+                if first {
+                    first = false;
+                    Poll::Ready(Some(Ok(BytesFrame::data("data: event\n\n"))))
+                } else {
+                    Poll::Pending
+                }
+            })
+            .boxed();
+        let mut stream = EncodeStream::new(CompressionAlgo::Gzip, CompressionLevel::Default, body);
+        let data = tokio::time::timeout(std::time::Duration::from_millis(100), stream.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert!(!data.into_data().unwrap().is_empty());
     }
 
     fn decode(algo: CompressionAlgo, compressed: &[u8]) -> Vec<u8> {

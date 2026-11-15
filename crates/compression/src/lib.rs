@@ -67,6 +67,11 @@
 //!
 //! Small responses may not benefit from compression. Use `.min_length(bytes)`
 //! to skip compression for responses smaller than the specified size.
+//! This is an optimization, not permission to send an explicitly rejected
+//! identity representation. If identity is forbidden, eligible small bodies
+//! are encoded; when no acceptable representation can be supplied the response
+//! is `406 Not Acceptable`. Transformed digest fields are removed, including
+//! their trailer declarations, because they describe different bytes.
 //!
 //! Read more: <https://salvo.rs>
 
@@ -519,10 +524,37 @@ impl Handler for Compression {
             || res.headers().contains_key(CONTENT_RANGE)
             || res.status_code == Some(StatusCode::PARTIAL_CONTENT)
         {
+            if !ctrl.is_ceased()
+                && !res.headers().contains_key(CONTENT_ENCODING)
+                && !matches!(
+                    res.status_code,
+                    Some(
+                        StatusCode::SWITCHING_PROTOCOLS
+                            | StatusCode::NO_CONTENT
+                            | StatusCode::NOT_MODIFIED
+                    )
+                )
+                && !identity_acceptable(req)
+            {
+                strip_digests(res.headers_mut());
+                res.render(salvo_core::http::StatusError::not_acceptable());
+                append_vary_header(res.headers_mut(), "accept-encoding");
+            }
             return;
         }
 
         if let Some(StatusCode::SWITCHING_PROTOCOLS | StatusCode::NO_CONTENT) = res.status_code {
+            return;
+        }
+
+        let force_encoding = !identity_acceptable(req);
+        if force_encoding
+            && res.status_code != Some(StatusCode::NOT_MODIFIED)
+            && self.negotiate(req, res).is_none()
+        {
+            strip_digests(res.headers_mut());
+            res.render(salvo_core::http::StatusError::not_acceptable());
+            append_vary_header(res.headers_mut(), "accept-encoding");
             return;
         }
 
@@ -535,8 +567,10 @@ impl Handler for Compression {
             } else {
                 self.negotiate_encoding(req)
             };
-            if encoding.is_some() && !self.content_length_is_below_minimum(res) {
+            if encoding.is_some() && (force_encoding || !self.content_length_is_below_minimum(res))
+            {
                 weaken_etag(res);
+                strip_digests(res.headers_mut());
             }
             append_vary_header(res.headers_mut(), "accept-encoding");
             return;
@@ -550,10 +584,10 @@ impl Handler for Compression {
                 if req.method() != Method::HEAD {
                     return;
                 }
-                if res.headers().typed_get::<ContentLength>().is_none() {
+                if !force_encoding && res.headers().typed_get::<ContentLength>().is_none() {
                     return;
                 }
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     return;
                 }
                 if let Some((algo, _level)) = self.negotiate(req, res) {
@@ -563,7 +597,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Once(bytes) => {
-                if self.min_length > 0 && bytes.len() < self.min_length {
+                if !force_encoding && self.min_length > 0 && bytes.len() < self.min_length {
                     res.body(ResBody::Once(bytes));
                     return;
                 }
@@ -576,7 +610,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Chunks(chunks) => {
-                if self.min_length > 0 {
+                if !force_encoding && self.min_length > 0 {
                     let len: usize = chunks.iter().map(|c| c.len()).sum();
                     if len < self.min_length {
                         res.body(ResBody::Chunks(chunks));
@@ -592,7 +626,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Hyper(body) => {
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(ResBody::Hyper(body));
                     return;
                 }
@@ -606,7 +640,7 @@ impl Handler for Compression {
             }
             ResBody::Stream(body) => {
                 let body = body.into_inner();
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(ResBody::stream(body));
                     return;
                 }
@@ -619,7 +653,7 @@ impl Handler for Compression {
                 }
             }
             body @ (ResBody::Boxed(_) | ResBody::Channel(_)) => {
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(body);
                     return;
                 }
@@ -637,7 +671,52 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
+        strip_digests(res.headers_mut());
         weaken_etag(res);
+    }
+}
+
+fn identity_acceptable(req: &Request) -> bool {
+    let mut preferences = Vec::new();
+    for value in req.headers().get_all(ACCEPT_ENCODING) {
+        if let Ok(value) = value.to_str() {
+            preferences.extend(http::parse_accept_encoding_with_quality(value));
+        }
+    }
+    let quality = |name| {
+        preferences
+            .iter()
+            .filter(|(coding, _)| coding == name)
+            .map(|(_, quality)| *quality)
+            .max()
+    };
+    quality("identity").map_or(quality("*") != Some(0), |quality| quality > 0)
+}
+
+fn strip_digests(headers: &mut http::HeaderMap) {
+    const DIGESTS: [&str; 3] = ["content-digest", "repr-digest", "content-md5"];
+    for name in DIGESTS {
+        headers.remove(name);
+    }
+    let names: Vec<_> = headers
+        .get_all("trailer")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter(|name| {
+            !DIGESTS
+                .iter()
+                .any(|digest| name.eq_ignore_ascii_case(digest))
+        })
+        .filter(|name| !name.is_empty())
+        .collect();
+    let declaration = names.join(", ");
+    headers.remove("trailer");
+    if !declaration.is_empty() {
+        if let Ok(value) = HeaderValue::from_str(&declaration) {
+            headers.insert("trailer", value);
+        }
     }
 }
 
