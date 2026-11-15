@@ -38,6 +38,14 @@ use shared::*;
 /// A return value that implements Salvo's writer traits is written to the
 /// response automatically.
 ///
+/// Parameters and local bindings may reuse the function's name. In functions
+/// with such bindings, use `Self` or a qualified path to refer to the generated
+/// handler value or match its constructor. The name check examines parsed Rust
+/// patterns before nested macros expand. Blocks with a same-named or glob import
+/// retain their existing name resolution. If this prevents a local binding,
+/// use an explicit import with a different name or move the import outside the
+/// handler function.
+///
 /// On an `impl` block, the method named `handle` is used as the implementation
 /// of `Handler` for the implementing type.
 ///

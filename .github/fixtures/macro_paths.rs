@@ -35,6 +35,42 @@ async fn plain(value: api::extract::QueryParam<String>) -> String {
     value.into_inner()
 }
 
+// Foreign declarations are compile-only: no foreign function is ever called.
+// Keep this in the downstream fixture, outside the workspace's unsafe-code ban.
+#[framework::handler]
+fn foreign_handler() -> String {
+    #[allow(dead_code)]
+    unsafe extern "C" {
+        fn declaration(foreign_handler: u8);
+    }
+    let _: Self = foreign_handler;
+    {
+        #[allow(dead_code)]
+        unsafe extern "C" {
+            fn foreign_handler();
+        }
+        let foreign_handler = "foreign handler";
+        foreign_handler.to_owned()
+    }
+}
+
+#[api::endpoint]
+fn foreign_endpoint() -> String {
+    #[allow(dead_code)]
+    unsafe extern "C" {
+        fn declaration(foreign_endpoint: u8);
+    }
+    let _: Self = foreign_endpoint;
+    {
+        #[allow(dead_code)]
+        unsafe extern "C" {
+            fn foreign_endpoint();
+        }
+        let foreign_endpoint = "foreign endpoint";
+        foreign_endpoint.to_owned()
+    }
+}
+
 #[api::endpoint(request_body(content = Payload, description = "payload"))]
 async fn described(value: api::extract::QueryParam<String>) -> String {
     value.into_inner()
@@ -97,6 +133,8 @@ async fn main() {
     let _ = <Extracted as framework::Extractible>::metadata();
     let router = framework::Router::new()
         .push(framework::Router::with_path("plain").get(plain))
+        .push(framework::Router::with_path("foreign-handler").get(foreign_handler))
+        .push(framework::Router::with_path("foreign-endpoint").get(foreign_endpoint))
         .push(framework::Router::with_path("described").post(described))
         .push(framework::Router::with_path("short").post(short))
         .push(framework::Router::with_path("merged").post(merged))

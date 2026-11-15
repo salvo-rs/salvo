@@ -25,7 +25,7 @@ proc-macro-crate = { workspace = true }
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 salvo-serde-util = { workspace = true }
-syn = { workspace = true, features = ["full", "parsing", "visit-mut"] }
+syn = { workspace = true, features = ["full", "parsing", "visit", "visit-mut"] }
 
 [lints]
 workspace = true
