@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Exclude serde-skipped tuple fields from schema positions, lengths and generic bounds.
+
 - Preserve flattened map key constraints alongside conditional flattened fields,
   including nested schemas, without exempting inactive fields or map values.
 
