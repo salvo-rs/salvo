@@ -165,6 +165,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// `Simple` style and comma separators. Query separators are identified before
 /// percent decoding, so an escaped comma or pipe stays inside its element.
 /// Other array encodings require a custom extractor and produce a derive error.
+/// Scalar query and cookie parameters support `Form`; scalar path and header
+/// parameters support `Simple` (their default). Cookie parameters also support
+/// the OpenAPI 3.2 `Cookie` style. Object parameter encodings such as `DeepObject`
+/// and path encodings such as `Label` or `Matrix` require a custom extractor;
+/// unsupported style/location combinations produce a derive error instead of
+/// advertising an encoding the generated extractor cannot decode.
 ///
 /// Full attribute reference:
 /// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToParameters.html>
