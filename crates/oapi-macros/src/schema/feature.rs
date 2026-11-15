@@ -276,9 +276,25 @@ pub(crate) fn parse_schema_features_with<
 ) -> DiagResult<Option<T>> {
     Ok(attributes
         .iter()
-        .filter(|attribute| attribute.path().is_ident("schema"))
-        .map(|attributes| attributes.parse_args_with(parser).map_err(Diagnostic::from))
+        .filter(|attribute| attribute.path().is_ident("salvo"))
+        .filter_map(|attr| attribute::find_nested_list(attr, "schema").ok().flatten())
+        .map(|attr| attr.parse_args_with(parser).map_err(Diagnostic::from))
         .collect::<Result<Vec<T>, Diagnostic>>()?
         .into_iter()
         .reduce(|acc, item| acc.merge(item)))
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    #[test]
+    fn simple_variant_attribute_errors_remain_diagnostics() {
+        for input in [
+            parse_quote! { enum Example { #[salvo(schema(rename = 7))] Value } },
+            parse_quote! { enum Example { #[salvo(schema(unknown))] Value } },
+        ] {
+            assert!(crate::schema::to_schema(input).is_err());
+        }
+    }
 }
