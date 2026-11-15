@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Make regex routing and built-in HTML, JSON, and XML error responses optional
+  through `routing-regex`, `catcher-html`, `catcher-json`, and `catcher-xml`.
+  All remain enabled by default and by `full`; minimal builds retain basic path
+  routing and plain-text errors.
+
 ### Fixed
 
 - Preserve flattened map key constraints alongside conditional flattened fields,

@@ -175,6 +175,11 @@ jobs:
           - 'server,http2'
           - 'server,http1,http2'
           - 'server,http1,websocket'
+          - 'server,http1,routing-regex'
+          - 'server,http1,catcher-html'
+          - 'server,http1,catcher-json'
+          - 'server,http1,catcher-xml'
+          - 'server,http1,routing-regex,catcher-html,catcher-json,catcher-xml'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -193,5 +198,17 @@ jobs:
           tree=$(cargo tree -p salvo --no-default-features --features '${{ matrix.features }}' --edges normal,build --prefix none)
           if grep -q '^h2 v' <<< "$tree"; then
             echo 'HTTP/2 was enabled unexpectedly'
+            exit 1
+          fi
+      - name: Test optional routing and catcher capabilities
+        if: ${{ contains(matrix.features, 'routing-regex') || contains(matrix.features, 'catcher-') }}
+        run: cargo test -p salvo_core --lib --no-default-features --features 'test,${{ matrix.features }}'
+      - name: Verify regex is excluded when disabled
+        if: ${{ matrix.features == 'server,http1' }}
+        shell: bash
+        run: |
+          tree=$(cargo tree -p salvo --no-default-features --features server,http1 --edges normal,build --prefix none)
+          if grep -Eq '^(regex|regex-automata|regex-syntax) v' <<< "$tree"; then
+            echo 'Regex routing was enabled unexpectedly'
             exit 1
           fi

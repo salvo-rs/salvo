@@ -1,5 +1,5 @@
 //! A regex path parameter with alternatives must match the whole segment or rest.
-#![cfg(feature = "test")]
+#![cfg(all(feature = "test", feature = "routing-regex"))]
 
 use salvo_core::prelude::*;
 use salvo_core::test::{ResponseExt, TestClient};

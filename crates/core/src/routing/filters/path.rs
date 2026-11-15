@@ -16,6 +16,7 @@ use std::sync::{Arc, LazyLock};
 
 use indexmap::IndexSet;
 use parking_lot::RwLock;
+#[cfg(feature = "routing-regex")]
 use regex::Regex;
 
 use crate::async_trait;
@@ -63,8 +64,6 @@ static WISP_BUILDERS: LazyLock<WispBuilderMap> = LazyLock::new(|| {
     map.insert("hex".into(), Arc::new(CharsWispBuilder::builtin(is_hex)));
     RwLock::new(map)
 });
-static NEVER_MATCH_PATH_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("^$").expect("path filter fallback regex should compile"));
 
 #[inline]
 fn is_num(ch: char) -> bool {
@@ -94,8 +93,10 @@ pub enum WispKind {
     /// Matches a run of characters accepted by a checker. See [`CharsWisp`].
     Chars(CharsWisp),
     /// Matches part of a segment with a regex pattern. See [`RegexWisp`].
+    #[cfg(feature = "routing-regex")]
     Regex(RegexWisp),
     /// Combines several wisps within a single segment. See [`CombWisp`].
+    #[cfg(feature = "routing-regex")]
     Comb(CombWisp),
 }
 impl PathWisp for WispKind {
@@ -105,7 +106,9 @@ impl PathWisp for WispKind {
             Self::Const(wisp) => wisp.validate(),
             Self::Named(wisp) => wisp.validate(),
             Self::Chars(wisp) => wisp.validate(),
+            #[cfg(feature = "routing-regex")]
             Self::Regex(wisp) => wisp.validate(),
+            #[cfg(feature = "routing-regex")]
             Self::Comb(wisp) => wisp.validate(),
         }
     }
@@ -115,7 +118,9 @@ impl PathWisp for WispKind {
             Self::Const(wisp) => wisp.detect(state),
             Self::Named(wisp) => wisp.detect(state),
             Self::Chars(wisp) => wisp.detect(state),
+            #[cfg(feature = "routing-regex")]
             Self::Regex(wisp) => wisp.detect(state),
+            #[cfg(feature = "routing-regex")]
             Self::Comb(wisp) => wisp.detect(state),
         }
     }
@@ -126,7 +131,9 @@ impl Debug for WispKind {
             Self::Const(wisp) => wisp.fmt(f),
             Self::Named(wisp) => wisp.fmt(f),
             Self::Chars(wisp) => wisp.fmt(f),
+            #[cfg(feature = "routing-regex")]
             Self::Regex(wisp) => wisp.fmt(f),
+            #[cfg(feature = "routing-regex")]
             Self::Comb(wisp) => wisp.fmt(f),
         }
     }
@@ -149,12 +156,14 @@ impl From<CharsWisp> for WispKind {
         Self::Chars(wisp)
     }
 }
+#[cfg(feature = "routing-regex")]
 impl From<RegexWisp> for WispKind {
     #[inline]
     fn from(wisp: RegexWisp) -> Self {
         Self::Regex(wisp)
     }
 }
+#[cfg(feature = "routing-regex")]
 impl From<CombWisp> for WispKind {
     #[inline]
     fn from(wisp: CombWisp) -> Self {
@@ -164,7 +173,9 @@ impl From<CombWisp> for WispKind {
 
 /// A [`WispBuilder`] that builds a [`RegexWisp`] from a shared regex pattern.
 #[derive(Debug)]
+#[cfg(feature = "routing-regex")]
 pub struct RegexWispBuilder(Regex);
+#[cfg(feature = "routing-regex")]
 impl RegexWispBuilder {
     /// Creates a new `RegexWispBuilder`.
     #[inline]
@@ -173,6 +184,7 @@ impl RegexWispBuilder {
         Self(checker)
     }
 }
+#[cfg(feature = "routing-regex")]
 impl WispBuilder for RegexWispBuilder {
     fn build(&self, name: String, _sign: String, _args: Vec<String>) -> Result<WispKind, String> {
         Ok(RegexWisp {
@@ -340,12 +352,14 @@ impl PathWisp for CharsWisp {
 
 /// Comb wisp is a group of other kinds of wisps within the same URL segment.
 #[derive(Debug)]
+#[cfg(feature = "routing-regex")]
 pub struct CombWisp {
     names: Vec<String>,
     comb_regex: Regex,
     wild_regex: Option<Regex>,
     wild_start: Option<String>,
 }
+#[cfg(feature = "routing-regex")]
 impl CombWisp {
     /// Creates a new `CombWisp`.
     ///
@@ -444,6 +458,7 @@ impl CombWisp {
             .map_err(|e| format!("Regex error: {e}"))
     }
 }
+#[cfg(feature = "routing-regex")]
 impl PathWisp for CombWisp {
     #[inline]
     fn detect(&self, state: &mut PathState<'_>) -> bool {
@@ -587,12 +602,14 @@ impl PathWisp for NamedWisp {
 /// Regex wisp matches part of a URL segment with a regex pattern and captures it under a name.
 #[derive(Debug)]
 #[non_exhaustive]
+#[cfg(feature = "routing-regex")]
 pub struct RegexWisp {
     /// The name of the wisp.
     pub name: String,
     /// The regex pattern.
     pub regex: Regex,
 }
+#[cfg(feature = "routing-regex")]
 impl RegexWisp {
     #[inline]
     fn new(name: String, regex: &str) -> Result<Self, String> {
@@ -632,12 +649,14 @@ impl RegexWisp {
         })
     }
 }
+#[cfg(feature = "routing-regex")]
 impl PartialEq for RegexWisp {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.regex.as_str() == other.regex.as_str()
     }
 }
+#[cfg(feature = "routing-regex")]
 impl PathWisp for RegexWisp {
     #[inline]
     fn detect(&self, state: &mut PathState<'_>) -> bool {
@@ -779,6 +798,7 @@ impl PathParser {
         }
     }
     #[inline]
+    #[cfg(feature = "routing-regex")]
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
         let mut ch = self
@@ -936,10 +956,14 @@ impl PathParser {
 
                     wisps.push(builder.build(name, sign, args)?);
                 } else if ch == '|' {
-                    // start to scan regex part
-                    self.next(false);
-                    let regex = &self.scan_regex()?;
-                    wisps.push(RegexWisp::new(name, regex)?.into());
+                    #[cfg(feature = "routing-regex")]
+                    {
+                        self.next(false);
+                        let regex = &self.scan_regex()?;
+                        wisps.push(RegexWisp::new(name, regex)?.into());
+                    }
+                    #[cfg(not(feature = "routing-regex"))]
+                    return Err("regex paths require the `routing-regex` feature".to_owned());
                 } else if ch == '}' {
                     wisps.push(NamedWisp(name).into());
                 }
@@ -989,7 +1013,10 @@ impl PathParser {
             }
             let mut scanned = self.scan_wisps()?;
             if scanned.len() > 1 {
+                #[cfg(feature = "routing-regex")]
                 wisps.push(CombWisp::new(scanned)?.into());
+                #[cfg(not(feature = "routing-regex"))]
+                return Err("mixed path segments require the `routing-regex` feature".to_owned());
             } else if let Some(wisp) = scanned.pop() {
                 wisps.push(wisp);
             } else {
@@ -1019,6 +1046,7 @@ impl PathParser {
             let name = match wisp {
                 WispKind::Named(wisp) => Some(&wisp.0),
                 WispKind::Chars(wisp) => Some(&wisp.name),
+                #[cfg(feature = "routing-regex")]
                 WispKind::Regex(wisp) => Some(&wisp.name),
                 _ => None,
             };
@@ -1067,9 +1095,14 @@ impl PathParser {
 }
 
 /// Filter requests by their path information.
+///
+/// With `routing-regex` disabled, literal segments, whole-segment parameters,
+/// `num`/`hex` constraints and whole-segment wildcards remain available. Regex
+/// patterns and mixed segments such as `file-{id}.txt` require `routing-regex`.
 pub struct PathFilter {
     raw_value: String,
     path_wisps: Vec<WispKind>,
+    valid: bool,
 }
 
 impl Debug for PathFilter {
@@ -1124,6 +1157,7 @@ impl PathFilter {
         Ok(Self {
             raw_value,
             path_wisps,
+            valid: true,
         })
     }
 
@@ -1131,13 +1165,8 @@ impl PathFilter {
     fn invalid(raw_value: String) -> Self {
         Self {
             raw_value,
-            path_wisps: vec![
-                RegexWisp {
-                    name: "__salvo_invalid_path_filter".into(),
-                    regex: NEVER_MATCH_PATH_REGEX.clone(),
-                }
-                .into(),
-            ],
+            path_wisps: vec![],
+            valid: false,
         }
     }
 
@@ -1178,12 +1207,16 @@ impl PathFilter {
     }
     /// Register new path part regex.
     #[inline]
+    #[cfg(feature = "routing-regex")]
     pub fn register_wisp_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = WISP_BUILDERS.write();
         builders.insert(name.into(), Arc::new(RegexWispBuilder::new(regex)));
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState<'_>) -> bool {
+        if !self.valid {
+            return false;
+        }
         let checkpoint = state.checkpoint();
         for ps in &self.path_wisps {
             let row = state.cursor.0;
@@ -1206,6 +1239,50 @@ mod tests {
     use super::PathParser;
     use crate::routing::{PathFilter, PathState};
 
+    #[cfg(not(feature = "routing-regex"))]
+    #[test]
+    fn minimal_routes_reject_regex_and_mixed_segments() {
+        for pattern in [r"/{id|\d+}", "/file-{id}.txt"] {
+            let error = PathFilter::try_new(pattern).unwrap_err();
+            assert!(error.contains("routing-regex"), "{error}");
+            let filter = PathFilter::new(pattern);
+            for path in ["", "/", "/file-123.txt", "/123"] {
+                let mut state = PathState::from_borrowed_path(path);
+                let cursor = state.cursor;
+                assert!(!filter.detect(&mut state));
+                assert_eq!(state.cursor, cursor);
+                assert!(state.params.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn basic_routes_work_without_regex() {
+        for (pattern, path, name, value) in [
+            ("/hello", "/hello", "", ""),
+            ("/你好/{name}", "/你好/世界", "name", "世界"),
+            ("/users/{id:num}", "/users/123", "id", "123"),
+            ("/files/{id:hex}", "/files/aF09", "id", "aF09"),
+            ("/files/{**rest}", "/files/a/b.txt", "rest", "a/b.txt"),
+        ] {
+            let filter = PathFilter::try_new(pattern).unwrap();
+            let mut state = PathState::from_borrowed_path(path);
+            assert!(filter.detect(&mut state), "{pattern}: {path}");
+            assert!(state.is_ended());
+            if !name.is_empty() {
+                assert_eq!(state.params.get(name).map(String::as_str), Some(value));
+            }
+        }
+        for (pattern, path) in [
+            ("/users/{id:num}", "/users/abc"),
+            ("/files/{id:hex}", "/files/xyz"),
+            ("/files/{*+rest}", "/files"),
+        ] {
+            let filter = PathFilter::try_new(pattern).unwrap();
+            let mut state = PathState::from_borrowed_path(path);
+            assert!(!filter.detect(&mut state), "{pattern}: {path}");
+        }
+    }
     #[test]
     fn test_parse_empty() {
         let segments = PathParser::new("").parse().unwrap();
@@ -1231,6 +1308,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/{abc|\d+}").parse().unwrap();
         assert_eq!(
@@ -1239,6 +1317,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_wildcard_regex() {
         let segments = PathParser::new(r"/{abc|\d+\.+}").parse().unwrap();
         assert_eq!(
@@ -1247,6 +1326,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_single_regex_with_prefix() {
         let segments = PathParser::new(r"/prefix_{abc|\d+}").parse().unwrap();
         assert_eq!(
@@ -1255,6 +1335,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_single_regex_with_suffix() {
         let segments = PathParser::new(r"/{abc|\d+}_suffix.png").parse().unwrap();
         assert_eq!(
@@ -1263,6 +1344,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_single_regex_with_prefix_and_suffix() {
         let segments = PathParser::new(r"/prefix{abc|\d+}suffix.png")
             .parse()
@@ -1273,6 +1355,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_dot_after_param() {
         let segments = PathParser::new(r"/{pid}/show/{table_name}.bu")
             .parse()
@@ -1283,6 +1366,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_multi_regex() {
         let segments = PathParser::new(r"/first{id}/prefix{abc|\d+}")
             .parse()
@@ -1293,6 +1377,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_multi_regex_with_prefix() {
         let segments = PathParser::new(r"/first{id}/prefix{abc|\d+}")
             .parse()
@@ -1303,6 +1388,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_multi_regex_with_suffix() {
         let segments = PathParser::new(r"/first{id|\d+}/prefix{abc|\d+}")
             .parse()
@@ -1313,6 +1399,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_multi_regex_with_prefix_and_suffix() {
         let segments = PathParser::new(r"/first{id}/prefix{abc|\d+}ext")
             .parse()
@@ -1323,6 +1410,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_rest() {
         let segments = PathParser::new(r"/first{id}/{**rest}").parse().unwrap();
         assert_eq!(
@@ -1386,6 +1474,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_comb_1() {
         let segments = PathParser::new(r"/first{id}world{**rest}").parse().unwrap();
         assert_eq!(
@@ -1402,6 +1491,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_comb_2() {
         let filter = PathFilter::new("/abc/hello{id}world{**rest}");
         let mut state = PathState::from_borrowed_path("abc/hello123world.ext");
@@ -1409,12 +1499,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_comb_3() {
         let filter = PathFilter::new("/{id}/{name}!hello.bu");
         let mut state = PathState::from_borrowed_path("123/gold!hello.bu");
         assert!(filter.detect(&mut state));
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_comb_4() {
         let filter = PathFilter::new("/abc/l{**rest}");
         let mut state = PathState::from_borrowed_path("abc/llo1");
@@ -1424,6 +1516,7 @@ mod tests {
         assert!(!filter.detect(&mut state));
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_parse_comb_5() {
         let filter = PathFilter::new(r"/abc/t{**rest|\d+}");
         // After the literal `t` is consumed, the remaining `11` matches `\d+`, so
@@ -1497,6 +1590,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_detect_const_and_named() {
         let filter = PathFilter::new("/hello/world{id}");
         let mut state = PathState::from_borrowed_path("hello/worldabc");
@@ -1516,6 +1610,7 @@ mod tests {
         assert!(filter.detect(&mut state));
     }
     #[test]
+    #[cfg(feature = "routing-regex")]
     fn test_detect_named_regex() {
         PathFilter::register_wisp_regex(
             "guid",

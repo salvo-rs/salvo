@@ -26,6 +26,10 @@ path = "src/lib.rs"
 
 [features]
 default = [
+    "routing-regex",
+    "catcher-html",
+    "catcher-json",
+    "catcher-xml",
     "cookie",
     "fix-http1-request-uri",
     "server",
@@ -37,6 +41,10 @@ default = [
     "matched-path",
 ]
 full = [
+    "routing-regex",
+    "catcher-html",
+    "catcher-json",
+    "catcher-xml",
     "cookie",
     "fix-http1-request-uri",
     "server",
@@ -86,6 +94,10 @@ full = [
     "tus",
 ]
 cookie = ["salvo_core/cookie"]
+routing-regex = ["salvo_core/routing-regex"]
+catcher-html = ["salvo_core/catcher-html"]
+catcher-json = ["salvo_core/catcher-json"]
+catcher-xml = ["salvo_core/catcher-xml"]
 fix-http1-request-uri = ["salvo_core/fix-http1-request-uri"]
 server = ["salvo_core/server"]
 server-handle = ["salvo_core/server-handle"]

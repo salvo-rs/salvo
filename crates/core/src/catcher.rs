@@ -12,6 +12,12 @@
 //! - **Middleware-style chaining** of error handlers
 //! - **Content negotiation** based on the `Accept` header
 //!
+//! Plain text errors are always available. Built-in HTML, JSON and XML output
+//! require `catcher-html`, `catcher-json` and `catcher-xml`, respectively (all
+//! enabled by default). Unsupported formats fall back to HTML when enabled,
+//! otherwise plain text. These features do not restrict custom handlers or
+//! ordinary JSON/XML response writers.
+//!
 //! # Basic Usage
 //!
 //! Add a default catcher to your service:
@@ -114,6 +120,7 @@ use std::sync::{Arc, LazyLock};
 use async_trait::async_trait;
 use bytes::Bytes;
 use mime::Mime;
+#[cfg(any(feature = "catcher-json", feature = "catcher-xml"))]
 use serde::Serialize;
 
 use crate::handler::{Handler, WhenHoop};
@@ -121,8 +128,15 @@ use crate::http::mime::guess_accept_mime;
 use crate::http::{Request, ResBody, Response, StatusCode, StatusError, header};
 use crate::{Depot, FlowCtrl};
 
-static SUPPORTED_FORMATS: LazyLock<Vec<mime::Name>> =
-    LazyLock::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+static SUPPORTED_FORMATS: &[mime::Name<'static>] = &[
+    #[cfg(feature = "catcher-json")]
+    mime::JSON,
+    #[cfg(feature = "catcher-html")]
+    mime::HTML,
+    #[cfg(feature = "catcher-xml")]
+    mime::XML,
+    mime::PLAIN,
+];
 static STATUS_ERROR_SETS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "force_detail",
@@ -152,6 +166,7 @@ static PARSED_ENV_SETS: LazyLock<HashSet<String>> = LazyLock::new(|| {
         })
         .collect::<HashSet<_>>()
 });
+#[cfg(feature = "catcher-html")]
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 /// `Catcher` is used to catch errors.
@@ -341,6 +356,7 @@ cfg_feature! {
 /// Escapes text interpolated into the HTML error page so that request-derived
 /// content (e.g. via `StatusError::brief`/`detail`/`cause`) cannot inject markup
 /// (reflected XSS).
+#[cfg(feature = "catcher-html")]
 fn html_escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for c in input.chars() {
@@ -356,6 +372,7 @@ fn html_escape(input: &str) -> String {
     out
 }
 
+#[cfg(feature = "catcher-html")]
 fn status_error_html(
     code: StatusCode,
     name: &str,
@@ -417,6 +434,7 @@ fn status_error_html(
 }
 
 #[inline]
+#[cfg(feature = "catcher-json")]
 fn status_error_json(
     code: StatusCode,
     name: &str,
@@ -471,6 +489,7 @@ fn status_error_plain(
     )
 }
 
+#[cfg(feature = "catcher-xml")]
 fn status_error_xml(
     code: StatusCode,
     name: &str,
@@ -529,7 +548,14 @@ pub fn status_error_bytes(
     footer: Option<&str>,
 ) -> (Mime, Bytes) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
-        mime::TEXT_HTML
+        #[cfg(feature = "catcher-html")]
+        {
+            mime::TEXT_HTML
+        }
+        #[cfg(not(feature = "catcher-html"))]
+        {
+            mime::TEXT_PLAIN
+        }
     } else {
         prefer_format.clone()
     };
@@ -556,9 +582,12 @@ pub fn status_error_bytes(
 
     let content = match format.subtype().as_ref() {
         "plain" => status_error_plain(err.code, &err.name, &err.brief, detail, cause.as_deref()),
+        #[cfg(feature = "catcher-json")]
         "json" => status_error_json(err.code, &err.name, &err.brief, detail, cause.as_deref()),
+        #[cfg(feature = "catcher-xml")]
         "xml" => status_error_xml(err.code, &err.name, &err.brief, detail, cause.as_deref()),
-        _ => status_error_html(
+        #[cfg(feature = "catcher-html")]
+        "html" => status_error_html(
             err.code,
             &err.name,
             &err.brief,
@@ -566,7 +595,10 @@ pub fn status_error_bytes(
             cause.as_deref(),
             footer,
         ),
+        _ => status_error_plain(err.code, &err.name, &err.brief, detail, cause.as_deref()),
     };
+    #[cfg(not(feature = "catcher-html"))]
+    let _ = footer;
     (format, Bytes::from(content))
 }
 
@@ -598,6 +630,45 @@ mod tests {
     use crate::test::{ResponseExt, TestClient};
 
     #[test]
+    fn status_error_formats_follow_features() {
+        let error = StatusError::not_found().brief("missing resource");
+        for (mime, enabled) in [
+            (mime::TEXT_PLAIN, true),
+            (mime::TEXT_HTML, cfg!(feature = "catcher-html")),
+            (mime::APPLICATION_JSON, cfg!(feature = "catcher-json")),
+            (
+                "application/xml".parse().unwrap(),
+                cfg!(feature = "catcher-xml"),
+            ),
+            (mime::IMAGE_PNG, false),
+        ] {
+            let (actual, body) = status_error_bytes(&error, &mime, None);
+            let expected = if enabled {
+                mime
+            } else if cfg!(feature = "catcher-html") {
+                mime::TEXT_HTML
+            } else {
+                mime::TEXT_PLAIN
+            };
+            assert_eq!(actual, expected);
+            let body = std::str::from_utf8(&body).unwrap();
+            assert!(body.contains("404"));
+            assert!(body.contains("missing resource"));
+            match actual.subtype() {
+                mime::PLAIN => assert!(body.starts_with("code: 404")),
+                mime::HTML => assert!(body.starts_with("<!DOCTYPE html>")),
+                mime::JSON => {
+                    let value: serde_json::Value = serde_json::from_str(body).unwrap();
+                    assert_eq!(value["error"]["code"], 404);
+                }
+                mime::XML => assert!(body.contains("<code>404</code>")),
+                _ => panic!("unexpected error format: {actual}"),
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "catcher-html")]
     fn test_status_error_html_escapes_content() {
         let html = status_error_html(
             StatusCode::BAD_REQUEST,
