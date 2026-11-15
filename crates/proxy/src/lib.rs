@@ -1324,8 +1324,8 @@ mod tests {
         // Form parsing alone retains no raw bytes, including for requests
         // without a length header (such as HTTP/2 or chunked requests).
         let mut form = salvo_core::test::TestClient::post("http://localhost/")
-            .add_header("content-type", "application/x-www-form-urlencoded", true)
-            .body("field=value")
+            .add_header("content-type", "multipart/form-data; boundary=b", true)
+            .body("--b\r\nContent-Disposition: form-data; name=\"field\"\r\n\r\nvalue\r\n--b--\r\n")
             .build();
         form.form_data().await.unwrap();
         form.headers_mut().remove(CONTENT_LENGTH);
