@@ -282,10 +282,10 @@ impl<'de> RequestDeserializer<'de> {
     }
 
     #[allow(unreachable_patterns)]
-    fn fill_value(&mut self, field: &'de Field) -> bool {
+    fn fill_value(&mut self, field: &'de Field) -> Result<bool, ValError> {
         if field.flatten {
             self.field_flatten = true;
-            return true;
+            return Ok(true);
         }
         let sources = if !field.sources.is_empty() {
             &field.sources
@@ -293,7 +293,7 @@ impl<'de> RequestDeserializer<'de> {
             &self.metadata.default_sources
         } else {
             tracing::error!("no sources for field {}", field.decl_name);
-            return false;
+            return Ok(false);
         };
 
         let field_name = if let Some(rename) = field.rename {
@@ -323,7 +323,7 @@ impl<'de> RequestDeserializer<'de> {
                     if let Some(value) = value {
                         self.field_str_value = Some(Cow::Borrowed(value));
                         self.field_source = Some(source);
-                        return true;
+                        return Ok(true);
                     }
                 }
                 SourceFrom::Query => {
@@ -340,7 +340,7 @@ impl<'de> RequestDeserializer<'de> {
                         self.field_vec_value =
                             Some(value.iter().map(|v| CowValue(v.into())).collect());
                         self.field_source = Some(source);
-                        return true;
+                        return Ok(true);
                     }
                 }
                 SourceFrom::Header => {
@@ -359,11 +359,12 @@ impl<'de> RequestDeserializer<'de> {
                         self.field_vec_value = Some(
                             value
                                 .iter()
-                                .map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default())))
-                                .collect(),
+                                .map(|v| v.to_str().map(|s| CowValue(Cow::Borrowed(s))))
+                                .collect::<Result<Vec<_>, _>>()
+                                .map_err(ValError::custom)?,
                         );
                         self.field_source = Some(source);
-                        return true;
+                        return Ok(true);
                     }
                 }
                 #[cfg(feature = "cookie")]
@@ -382,7 +383,7 @@ impl<'de> RequestDeserializer<'de> {
                     if let Some(value) = value {
                         self.field_str_value = Some(Cow::Borrowed(value));
                         self.field_source = Some(source);
-                        return true;
+                        return Ok(true);
                     }
                 }
                 SourceFrom::Depot => {
@@ -398,7 +399,7 @@ impl<'de> RequestDeserializer<'de> {
                     if let Some(value) = value {
                         self.field_str_value = Some(value);
                         self.field_source = Some(source);
-                        return true;
+                        return Ok(true);
                     }
                 }
                 SourceFrom::Body => {
@@ -420,7 +421,7 @@ impl<'de> RequestDeserializer<'de> {
                                         if let Some(value) = value {
                                             self.field_str_value = Some(Cow::Borrowed(value));
                                             self.field_source = Some(source);
-                                            return true;
+                                            return Ok(true);
                                         }
                                     }
                                     Payload::JsonMap(map) => {
@@ -436,13 +437,13 @@ impl<'de> RequestDeserializer<'de> {
                                         if let Some(value) = value {
                                             self.field_str_value = Some(Cow::Borrowed(value.get()));
                                             self.field_source = Some(source);
-                                            return true;
+                                            return Ok(true);
                                         }
                                     }
                                     Payload::JsonStr(value) => {
                                         self.field_str_value = Some(Cow::Borrowed(*value));
                                         self.field_source = Some(source);
-                                        return true;
+                                        return Ok(true);
                                     }
                                 }
                             }
@@ -463,7 +464,7 @@ impl<'de> RequestDeserializer<'de> {
                                         value.iter().map(|v| CowValue(Cow::from(v))).collect(),
                                     );
                                     self.field_source = Some(source);
-                                    return true;
+                                    return Ok(true);
                                 }
                             }
                         }
@@ -472,15 +473,15 @@ impl<'de> RequestDeserializer<'de> {
                             // can construct an unsupported (from, parser) pair.
                             // Skip the field instead of panicking.
                             tracing::error!(?parser, "unsupported source parser");
-                            return false;
+                            return Ok(false);
                         }
                     }
                 }
             }
         }
-        false
+        Ok(false)
     }
-    fn next(&mut self) -> Option<Cow<'_, str>> {
+    fn next(&mut self) -> Result<Option<Cow<'_, str>>, ValError> {
         while self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;
             let field = &self.metadata.fields[self.field_index as usize];
@@ -488,17 +489,17 @@ impl<'de> RequestDeserializer<'de> {
             self.field_str_value = None;
             self.field_vec_value = None;
 
-            if self.fill_value(field) {
-                return field.serde_rename.map(Cow::from).or_else(|| {
+            if self.fill_value(field)? {
+                return Ok(field.serde_rename.map(Cow::from).or_else(|| {
                     if let Some(serde_rename_all) = self.metadata.serde_rename_all {
                         Some(serde_rename_all.apply_to_field(field.decl_name))
                     } else {
                         Some(Cow::from(field.decl_name))
                     }
-                });
+                }));
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -574,7 +575,7 @@ impl<'de> de::SeqAccess<'de> for RequestDeserializer<'de> {
         self.field_source = None;
         self.field_str_value = None;
         self.field_vec_value = None;
-        if self.fill_value(field) {
+        if self.fill_value(field)? {
             self.deserialize_value(seed).map(Some)
         } else if field.defaulted {
             // Serde's tuple visitor invokes the configured default only for an
@@ -596,7 +597,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
     where
         T: de::DeserializeSeed<'de>,
     {
-        match self.next() {
+        match self.next()? {
             Some(key) => seed.deserialize(key.into_deserializer()).map(Some),
             None => Ok(None),
         }
@@ -620,7 +621,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         TK: de::DeserializeSeed<'de>,
         TV: de::DeserializeSeed<'de>,
     {
-        match self.next() {
+        match self.next()? {
             Some(key) => {
                 let key = kseed.deserialize(key.into_deserializer())?;
                 let value = self.deserialize_value(vseed)?;
