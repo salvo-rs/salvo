@@ -5,7 +5,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::shared::cfg_attributes;
+use crate::shared::{cfg_attributes, fresh_binding, reserved_identifiers};
 use crate::{
     Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
     parse_input_type, unwrapped_type,
@@ -98,7 +98,7 @@ fn metadata_inner(
     type_path: &TokenStream,
     mut modifiers: Vec<TokenStream>,
     cfg: &[syn::Attribute],
-    associated: Option<(&Ident, &Ident)>,
+    associated: Option<(&Ident, &Ident, &Ident)>,
 ) -> DiagResult<TokenStream> {
     let name = name.unraw();
     let tfn = Ident::new(
@@ -166,9 +166,8 @@ fn metadata_inner(
         .deprecated
         .unwrap_or_default()
         .then(|| quote!(#[allow(deprecated)]));
-    let endpoint_type_id = Ident::new("__salvo_endpoint_type_id", Span::mixed_site());
     let auto_operation_id = match associated {
-        Some((_, method)) => {
+        Some((_, method, endpoint_type_id)) => {
             quote!(#oapi::oapi::naming::namer().assign_name(
                 #endpoint_type_id,
                 ::std::any::type_name_of_val(&Self::#method),
@@ -207,7 +206,7 @@ fn metadata_inner(
                 components,
             }
     };
-    if let Some((creator, _)) = associated {
+    if let Some((creator, _, endpoint_type_id)) = associated {
         return Ok(quote! {
             #allow_deprecated
             fn #creator(#endpoint_type_id: ::std::any::TypeId) -> #oapi::oapi::Endpoint { #creator_body }
@@ -413,6 +412,23 @@ fn handle_fn(
     oapi: &syn::Path,
     sig: &Signature,
 ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+    handle_fn_scoped(salvo, oapi, sig, &Default::default())
+}
+
+fn handle_fn_scoped(
+    salvo: &syn::Path,
+    oapi: &syn::Path,
+    sig: &Signature,
+    reserved: &::std::collections::HashSet<String>,
+) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+    let mut reserved = reserved.clone();
+    let __macro_gen_ctrl = fresh_binding("__macro_gen_ctrl", &mut reserved);
+    let __macro_gen_data = fresh_binding("__macro_gen_data", &mut reserved);
+    let __macro_gen_depot = fresh_binding("__macro_gen_depot", &mut reserved);
+    let __macro_gen_err = fresh_binding("__macro_gen_err", &mut reserved);
+    let __macro_gen_req = fresh_binding("__macro_gen_req", &mut reserved);
+    let __macro_gen_res = fresh_binding("__macro_gen_res", &mut reserved);
+    let __macro_gen_status_code = fresh_binding("__macro_gen_status_code", &mut reserved);
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
@@ -420,16 +436,16 @@ fn handle_fn(
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push(Ident::new("__macro_gen_req", Span::call_site()));
+                call_args.push(__macro_gen_req.clone());
             }
             InputType::Depot(_pat) => {
-                call_args.push(Ident::new("__macro_gen_depot", Span::call_site()));
+                call_args.push(__macro_gen_depot.clone());
             }
             InputType::Response(_pat) => {
-                call_args.push(Ident::new("__macro_gen_res", Span::call_site()));
+                call_args.push(__macro_gen_res.clone());
             }
             InputType::FlowCtrl(_pat) => {
-                call_args.push(Ident::new("__macro_gen_ctrl", Span::call_site()));
+                call_args.push(__macro_gen_ctrl.clone());
             }
             InputType::Unknown => {
                 return Err(syn::Error::new_spanned(
@@ -445,16 +461,16 @@ fn handle_fn(
                     let idv = id.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
-                            Ok(__macro_gen_data) => {
-                                __macro_gen_data
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(#__macro_gen_req, #__macro_gen_depot, #idv).await {
+                            Ok(#__macro_gen_data) => {
+                                #__macro_gen_data
                             },
-                            Err(__macro_gen_err) => {
-                                #salvo::Writer::write(__macro_gen_err, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                            Err(#__macro_gen_err) => {
+                                #salvo::Writer::write(#__macro_gen_err, #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                                 // If status code is not set or is not error, set it to 400.
-                                let __macro_gen_status_code = __macro_gen_res.status_code.unwrap_or_default();
-                                if !__macro_gen_status_code.is_client_error() && !__macro_gen_status_code.is_server_error() {
-                                    __macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
+                                let #__macro_gen_status_code = #__macro_gen_res.status_code.unwrap_or_default();
+                                if !#__macro_gen_status_code.is_client_error() && !#__macro_gen_status_code.is_server_error() {
+                                    #__macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
                                 }
                                 return;
                             }
@@ -477,14 +493,14 @@ fn handle_fn(
         ReturnType::Default => {
             if sig.asyncness.is_none() {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
                 }
             } else {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -507,16 +523,16 @@ fn handle_fn(
             }
             if sig.asyncness.is_none() {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*), #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
                 }
             } else {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
                 }
             }
@@ -651,6 +667,7 @@ pub(crate) struct CraftArgs<'a> {
     creator: Ident,
     request_lifetime: syn::Lifetime,
     method: Ident,
+    reserved: TokenStream,
     attr: EndpointAttr<'a>,
 }
 
@@ -663,12 +680,17 @@ impl syn::parse::Parse for CraftArgs<'_> {
         let request_lifetime = input.parse()?;
         input.parse::<syn::Token![,]>()?;
         let method = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let reserved;
+        syn::parenthesized!(reserved in input);
+        let reserved = reserved.parse()?;
         input.parse::<syn::Token![;]>()?;
         Ok(Self {
             dispatch,
             creator,
             request_lifetime,
             method,
+            reserved,
             attr: input.parse()?,
         })
     }
@@ -680,7 +702,10 @@ pub(crate) fn craft_helper(
 ) -> syn::Result<TokenStream> {
     let salvo = crate::salvo_crate();
     let oapi = crate::oapi_crate();
-    let (hfn, modifiers) = handle_fn(&salvo, &oapi, &helper.sig)?;
+    let reserved_tokens = &args.reserved;
+    let mut reserved = reserved_identifiers(quote!(#helper #reserved_tokens));
+    let endpoint_type_id = fresh_binding("__salvo_endpoint_type_id", &mut reserved);
+    let (hfn, modifiers) = handle_fn_scoped(&salvo, &oapi, &helper.sig, &reserved)?;
     args.attr.doc_comments = Some(CommentAttributes::from_attributes(&helper.attrs).0);
     args.attr.deprecated = args.attr.deprecated.or_else(|| {
         helper
@@ -697,7 +722,7 @@ pub(crate) fn craft_helper(
         &quote!(Self),
         modifiers,
         &[],
-        Some((&args.creator, &args.method)),
+        Some((&args.creator, &args.method, &endpoint_type_id)),
     )?;
     let mut creator: syn::ImplItemFn = syn::parse2(creator)?;
     creator.sig.generics.where_clause = helper.sig.generics.where_clause.clone();

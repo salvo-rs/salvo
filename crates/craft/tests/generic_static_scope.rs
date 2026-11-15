@@ -85,6 +85,66 @@ fn borrowed_endpoint<'short>(_: &'short str) -> impl Handler {
     Service::<'short, &'short str, 3>::documented()
 }
 
+#[allow(non_upper_case_globals)]
+struct Reserved<
+    const __macro_gen_req: usize,
+    const __macro_gen_depot: usize,
+    const __macro_gen_res: usize,
+    const __macro_gen_ctrl: usize,
+    const __macro_gen_conn: usize,
+    const __salvo_endpoint_type_id: usize,
+>;
+
+#[allow(non_upper_case_globals)]
+#[craft]
+impl<
+    const __macro_gen_req: usize,
+    const __macro_gen_depot: usize,
+    const __macro_gen_res: usize,
+    const __macro_gen_ctrl: usize,
+    const __macro_gen_conn: usize,
+    const __salvo_endpoint_type_id: usize,
+>
+    Reserved<
+        { __macro_gen_req },
+        { __macro_gen_depot },
+        { __macro_gen_res },
+        { __macro_gen_ctrl },
+        { __macro_gen_conn },
+        { __salvo_endpoint_type_id },
+    >
+{
+    #[craft(handler)]
+    fn handler(conn: &mut ConnCtrl) -> &'static str {
+        conn.relax_timeouts();
+        "reserved-handler"
+    }
+
+    #[craft(endpoint)]
+    fn endpoint() -> &'static str {
+        "reserved-endpoint"
+    }
+}
+
+#[tokio::test]
+async fn unused_impl_constants_do_not_capture_generated_bindings() {
+    let router = Router::new()
+        .push(Router::with_path("handler").get(Reserved::<1, 2, 3, 4, 5, 6>::handler()))
+        .push(Router::with_path("endpoint").get(Reserved::<1, 2, 3, 4, 5, 6>::endpoint()));
+    let doc = to_value(OpenApi::new("reserved constants", "1").merge_router(&router)).unwrap();
+    assert!(doc["paths"]["/endpoint"]["get"].is_object());
+    let service = salvo::Service::new(router);
+    for (path, expected) in [
+        ("handler", "reserved-handler"),
+        ("endpoint", "reserved-endpoint"),
+    ] {
+        let mut response = TestClient::get(format!("http://localhost/{path}"))
+            .send(&service)
+            .await;
+        assert_eq!(response.take_string().await.unwrap(), expected);
+    }
+}
+
 #[tokio::test]
 async fn bodies_keep_type_const_lifetime_and_nested_self_scopes() {
     let local = String::from("short borrow");

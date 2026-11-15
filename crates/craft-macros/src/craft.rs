@@ -225,9 +225,9 @@ fn rewrite_method(
         // the original service's type, const and lifetime parameters remain in scope.
         helper.attrs = attrs.clone();
         helper.attrs.push(if is_endpoint {
-            parse_quote!(#[#oapi::oapi::__private::__craft_endpoint(#dispatch, #creator, #lifetime, #method_name; #endpoint_args)])
+            parse_quote!(#[#oapi::oapi::__private::__craft_endpoint(#dispatch, #creator, #lifetime, #method_name, (#impl_generics); #endpoint_args)])
         } else {
-            parse_quote!(#[#salvo::macros::__craft_handler(#dispatch, #lifetime)])
+            parse_quote!(#[#salvo::macros::__craft_handler(#dispatch, #lifetime, (#impl_generics))])
         });
         let metadata_field = is_endpoint.then(|| quote!(creator: fn() -> #oapi::oapi::Endpoint,));
         let metadata_init = is_endpoint.then(|| {
