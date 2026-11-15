@@ -76,6 +76,8 @@ pub fn optional_flatten_schema(
         &mut std::collections::HashSet::new(),
         &mut fields,
     );
+    let known = parent.properties.keys().cloned().collect();
+    let schema = flatten_with_known_properties(schema, &known, components);
     if fields.is_empty() {
         // Unknown/custom schemas retain their constraints; do not introduce a
         // blanket permissive branch when no property group can be identified.
@@ -92,6 +94,143 @@ pub fn optional_flatten_schema(
         Object::new().add_extension("not", serde_json::json!({"anyOf":any_present}))
     };
     AnyOf::new().item(schema).item(absent).into()
+}
+
+// A flattened child receives the parent's whole object, while serde has already
+// claimed the parent's own fields before reading the child map. Exempt only
+// those known keys from catch-all rules; their declared schemas still validate
+// them. Resolve references locally so the standalone component stays unchanged.
+pub(crate) fn flatten_with_known_properties(
+    schema: RefOr<Schema>,
+    known: &std::collections::BTreeSet<String>,
+    components: &crate::Components,
+) -> RefOr<Schema> {
+    fn extensions(
+        extensions: &mut PropMap<String, serde_json::Value>,
+        known: &std::collections::BTreeSet<String>,
+    ) {
+        let exempt = known
+            .iter()
+            .filter(|name| {
+                !extensions
+                    .get("properties")
+                    .and_then(serde_json::Value::as_object)
+                    .is_some_and(|properties| properties.contains_key(*name))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if extensions.contains_key("additionalProperties")
+            || extensions.contains_key("unevaluatedProperties")
+        {
+            let properties = extensions
+                .entry("properties".into())
+                .or_insert_with(|| serde_json::json!({}));
+            if let Some(properties) = properties.as_object_mut() {
+                for name in known {
+                    properties
+                        .entry(name.clone())
+                        .or_insert(serde_json::Value::Bool(true));
+                }
+            }
+        }
+        if !exempt.is_empty()
+            && let Some(names) = extensions.get_mut("propertyNames")
+        {
+            *names = serde_json::json!({"anyOf":[names.clone(), {"enum":exempt}]});
+        }
+    }
+
+    fn prepare(
+        schema: RefOr<Schema>,
+        known: &std::collections::BTreeSet<String>,
+        components: &crate::Components,
+        visiting: &mut std::collections::HashSet<String>,
+    ) -> RefOr<Schema> {
+        match schema {
+            RefOr::Ref(reference) => {
+                if !visiting.insert(reference.ref_location.clone()) {
+                    return reference.into();
+                }
+                let target = reference
+                    .ref_location
+                    .strip_prefix("#/components/schemas/")
+                    .and_then(|name| {
+                        components
+                            .schemas
+                            .get(&name.replace("~1", "/").replace("~0", "~"))
+                    });
+                let prepared =
+                    target.map(|target| prepare(target.clone(), known, components, visiting));
+                visiting.remove(&reference.ref_location);
+                match (target, prepared) {
+                    (Some(target), Some(prepared)) if &prepared != target => prepared,
+                    _ => reference.into(),
+                }
+            }
+            RefOr::Type(mut schema) => {
+                match &mut schema {
+                    Schema::Object(object) => {
+                        let exempt = known
+                            .iter()
+                            .filter(|name| !object.properties.contains_key(*name))
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        if object.additional_properties.is_some() {
+                            for name in &exempt {
+                                object
+                                    .properties
+                                    .insert(name.clone(), Schema::Boolean(true).into());
+                            }
+                        }
+                        if !exempt.is_empty()
+                            && let Some(names) = object.property_names.take()
+                        {
+                            object.property_names = Some(Box::new(
+                                AnyOf::new()
+                                    .item(*names)
+                                    .item(Object::with_type(BasicType::String).enum_values(exempt))
+                                    .into(),
+                            ));
+                        }
+                        extensions(&mut object.extensions, known);
+                    }
+                    Schema::AllOf(all) => {
+                        all.items = std::mem::take(&mut all.items)
+                            .into_iter()
+                            .map(|item| prepare(item, known, components, visiting))
+                            .collect();
+                        extensions(&mut all.extensions, known);
+                    }
+                    Schema::AnyOf(any) => {
+                        any.items = std::mem::take(&mut any.items)
+                            .into_iter()
+                            .map(|item| prepare(item, known, components, visiting))
+                            .collect();
+                        extensions(&mut any.extensions, known);
+                    }
+                    Schema::OneOf(one) => {
+                        one.items = std::mem::take(&mut one.items)
+                            .into_iter()
+                            .map(|item| prepare(item, known, components, visiting))
+                            .collect();
+                        extensions(&mut one.extensions, known);
+                    }
+                    _ => {}
+                }
+                schema.into()
+            }
+        }
+    }
+    if known.is_empty() {
+        schema
+    } else {
+        prepare(
+            schema,
+            known,
+            components,
+            &mut std::collections::HashSet::new(),
+        )
+    }
 }
 
 /// Schemas collection for OpenApi.
