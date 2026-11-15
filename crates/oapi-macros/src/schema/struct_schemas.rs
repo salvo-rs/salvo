@@ -22,7 +22,7 @@ use crate::feature::{
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
 use crate::{
-    Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
+    AnyValue, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
     TryToTokens, serde_util,
 };
 
@@ -111,9 +111,13 @@ impl NamedStructSchema<'_> {
                     .as_ref()
                     .expect("field ident should be exist")
                     .to_owned();
-                features_inner.push(Feature::Default(Default::new_default_trait(
-                    field_ident.into(),
-                )));
+                let default = match container_rules.and_then(|rules| rules.default_path.as_ref()) {
+                    Some(path) if !schema_default => {
+                        Default(Some(AnyValue::Json(quote! { (#path()).#field_ident })))
+                    }
+                    _ => Default::new_default_trait(field_ident.into()),
+                };
+                features_inner.push(Feature::Default(default));
             }
         }
 
@@ -235,6 +239,20 @@ impl TryToTokens for NamedStructSchema<'_> {
             .map(TryToTokens::try_to_token_stream)
             .collect::<DiagResult<TokenStream>>()?;
         let mut object_tokens = quote! { #oapi::oapi::Object::new() #object_features };
+        let struct_tag = match container_rules.as_ref().map(|rules| &rules.enum_repr) {
+            Some(serde_util::SerdeEnumRepr::InternallyTagged { tag }) => {
+                let name = serde_util::parse_value(self.attributes)
+                    .map_err(Diagnostic::from)?
+                    .and_then(|rules| rules.rename)
+                    .unwrap_or_else(|| self.struct_name.trim_start_matches("r#").to_owned());
+                object_tokens.extend(quote! {
+                    .property(#tag, #oapi::oapi::Object::with_type(#oapi::oapi::schema::BasicType::String).enum_values([#name]))
+                    .required(#tag)
+                });
+                Some((tag, name))
+            }
+            _ => None,
+        };
         for (field, field_rule) in field_values {
             let mut field_name = &*field
                 .ident
@@ -455,6 +473,18 @@ impl TryToTokens for NamedStructSchema<'_> {
 
         if all_of && (schema_default || serde_default) {
             let mut default_value_tokens = TokenStream::new();
+            if let Some((tag, name)) = &struct_tag {
+                default_value_tokens.extend(quote! {
+                    __default.insert(#tag.into(), #oapi::oapi::__private::serde_json::json!(#name));
+                });
+            }
+            let default_constructor = match container_rules
+                .as_ref()
+                .and_then(|rules| rules.default_path.as_ref())
+            {
+                Some(path) if !schema_default => quote! { #path() },
+                _ => quote! { Self::default() },
+            };
 
             for field in self.fields {
                 if field
@@ -499,7 +529,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                 if is_flatten(field_rule.as_ref()) {
                     let insert_tokens = quote! {
                         if let #oapi::oapi::__private::serde_json::Value::Object(__flattened) =
-                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap()
+                            #oapi::oapi::__private::serde_json::to_value((#default_constructor).#field_ident).unwrap()
                         {
                             __default.extend(__flattened);
                         }
@@ -532,7 +562,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     let insert_tokens = quote! {
                         __default.insert(
                             #name.to_owned(),
-                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap(),
+                            #oapi::oapi::__private::serde_json::to_value((#default_constructor).#field_ident).unwrap(),
                         );
                     };
                     if let Some(guard_tokens) = maybe_guard {

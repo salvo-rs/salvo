@@ -225,6 +225,10 @@ impl<'e> EnumSchema<'e> {
                     description,
                     variants,
                     rename_all,
+                    field_rename_all: serde_util::parse_container(attributes)
+                        .map_err(Diagnostic::from)?
+                        .and_then(|rules| rules.rename_all_fields)
+                        .map(RenameAll),
                     enum_features,
                     discriminator,
                     compose_context,
@@ -515,6 +519,7 @@ pub(super) struct ComplexEnum<'a> {
     enum_name: Cow<'a, str>,
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
+    field_rename_all: Option<RenameAll>,
     discriminator: Option<Discriminator>,
     compose_context: Option<crate::component::ComposeContext>,
 }
@@ -574,7 +579,9 @@ impl ComplexEnum<'_> {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
                         description: None,
-                        rename_all: named_struct_features.pop_rename_all_feature(),
+                        rename_all: named_struct_features
+                            .pop_rename_all_feature()
+                            .or(self.field_rename_all),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
@@ -697,7 +704,9 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: named_struct_features
+                        .pop_rename_all_feature()
+                        .or(self.field_rename_all),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
@@ -791,7 +800,9 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: named_struct_features
+                        .pop_rename_all_feature()
+                        .or(self.field_rename_all),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
@@ -997,7 +1008,9 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: named_struct_features
+                        .pop_rename_all_feature()
+                        .or(self.field_rename_all),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
