@@ -87,10 +87,13 @@ async fn cleartext_http2_follows_the_feature_and_advertised_capabilities() {
 
 #[cfg(feature = "rustls")]
 mod tls {
-    use super::*;
-    use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
-    use salvo_core::conn::rustls::{Keycert, RustlsConfig, default_crypto_provider};
     use std::sync::Arc;
+
+    use rustls::pki_types::pem::PemObject;
+    use rustls::pki_types::{CertificateDer, ServerName};
+    use salvo_core::conn::rustls::{Keycert, RustlsConfig, default_crypto_provider};
+
+    use super::*;
 
     fn identity() -> Keycert {
         Keycert::new()
