@@ -796,7 +796,10 @@ mod tests {
             .take_string()
             .await
             .unwrap();
+        #[cfg(feature = "catcher-json")]
         assert!(result.contains(r#""code":404"#));
+        #[cfg(not(feature = "catcher-json"))]
+        assert!(result.contains("Not Found"));
         let result = TestClient::get(format!("{base_url}/not_exist"))
             .add_header("accept", "text/plain", true)
             .send(&service)
@@ -812,7 +815,10 @@ mod tests {
             .take_string()
             .await
             .unwrap();
+        #[cfg(feature = "catcher-xml")]
         assert!(result.contains("<code>404</code>"));
+        #[cfg(not(feature = "catcher-xml"))]
+        assert!(result.contains("Not Found"));
     }
 
     #[cfg(feature = "server-handle")]

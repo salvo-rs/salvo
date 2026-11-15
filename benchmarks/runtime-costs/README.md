@@ -32,8 +32,11 @@ does not claim statistical significance or impose a timing gate on shared runner
 The output directory must stay in this checkout. The runner creates detached
 before/after worktrees inside it, copies the **same fixture** into both, resolves
 one dependency lock and builds both with its external dependencies pinned. Local
-path package entries are refreshed offline to match each revision's versions;
-any external dependency change stops the comparison. It also stops if that lock
+path package entries are refreshed offline to match each revision's versions.
+Cargo may prune unused optional dependencies; removed packages are recorded in
+`summary.json` and the comparison report. New external packages or changes to
+any remaining external lock entry (including version, source, checksum and
+dependencies) stop the comparison. It also stops if that lock
 cannot build the selected revision, rather than silently changing dependencies.
 Use a compatible revision pair or explicitly update the experiment in that case.
 An existing worktree at a different revision is never reset or overwritten;

@@ -46,6 +46,12 @@ def summarize(directory):
                      f"{change(row['p50_ns'], current['p50_ns'])} | "
                      f"{change(row['p99_ns'], current['p99_ns'])} | "
                      f"{row['allocations_per_operation']} → {current['allocations_per_operation']} |")
+    removed = evidence["runtime"]["after"].get("removed_external_dependencies", [])
+    if removed:
+        lines.extend(["", "Removed external dependencies (unused after the revision change):", ""])
+        lines.extend(f"- `{package['name']} {package['version']}` ({package['source']})"
+                     for package in removed)
+        lines.extend(["", "All remaining external lock entries are unchanged."])
     return "\n".join(lines) + "\n"
 
 

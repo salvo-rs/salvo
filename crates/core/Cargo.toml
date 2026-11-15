@@ -18,6 +18,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = [
+    "routing-regex",
+    "catcher-html",
+    "catcher-json",
+    "catcher-xml",
     "cookie",
     "fix-http1-request-uri",
     "server",
@@ -30,6 +34,10 @@ default = [
     "unix",
 ]
 full = [
+    "routing-regex",
+    "catcher-html",
+    "catcher-json",
+    "catcher-xml",
     "cookie",
     "fix-http1-request-uri",
     "server",
@@ -50,6 +58,10 @@ full = [
     "response-observers",
 ]
 cookie = ["dep:cookie"]
+routing-regex = ["dep:regex"]
+catcher-html = []
+catcher-json = []
+catcher-xml = []
 fix-http1-request-uri = ["http1"]
 aws-lc-rs = ["rustls?/aws_lc_rs", "tokio-rustls?/aws-lc-rs", "quinn?/rustls-aws-lc-rs"]
 ring = ["rustls?/ring", "tokio-rustls?/ring", "quinn?/rustls-ring"]
@@ -116,7 +128,7 @@ quinn = { workspace = true, optional = true, default-features = false, features 
     "runtime-tokio",
 ] }
 rand = { workspace = true }
-regex = { workspace = true }
+regex = { workspace = true, optional = true }
 rustls = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }

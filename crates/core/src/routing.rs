@@ -378,6 +378,8 @@
 //!
 //! ## Custom Wisp
 //!
+//! Regex examples in this section require the `routing-regex` feature.
+//!
 //! For some frequently-occurring matching expressions, we can name a short name by
 //! `PathFilter::register_wisp_regex` or `PathFilter::register_wisp_builder`. For example, GUID
 //! format is often used in paths appears, normally written like this every time a match is
@@ -402,11 +404,14 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
+//! #   #[cfg(feature = "routing-regex")]
+//! #   {
 //!     let guid = regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap();
 //!     PathFilter::register_wisp_regex("guid", guid);
 //!     Router::new()
 //!         .push(Router::with_path("/articles/{id:guid}").get(show_article))
 //!         .push(Router::with_path("/users/{id:guid}").get(show_user));
+//! #   }
 //! }
 //! ```
 //!
@@ -603,11 +608,9 @@ mod tests {
                 .unwrap()
         }
 
-        assert!(
-            access(&service, "127.0.0.1")
-                .await
-                .contains("404: Not Found")
-        );
+        let mut response = TestClient::get("http://127.0.0.1/").send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::NOT_FOUND));
+        assert!(response.take_string().await.unwrap().contains("Not Found"));
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 

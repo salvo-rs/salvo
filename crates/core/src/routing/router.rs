@@ -923,6 +923,7 @@ mod tests {
         assert!(path_state.is_ended());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect3() {
         let router = Router::new().push(
             Router::with_path("users").push(
@@ -944,6 +945,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect4() {
         let router = Router::new().push(
             Router::with_path("users").push(
@@ -965,6 +967,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect5() {
         let router = Router::new().push(
             Router::with_path("users").push(
@@ -988,6 +991,7 @@ mod tests {
         assert_eq!(path_state.params["id"], "12");
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect6() {
         let router = Router::new().push(
             Router::with_path("users").push(
@@ -1010,6 +1014,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect_utf8() {
         let router = Router::new().push(
             Router::with_path("用户").push(
@@ -1034,6 +1039,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect9() {
         let router = Router::new()
             .push(Router::with_path("users/{sub|(images|css)}/{filename}").goal(fake_handler));
@@ -1048,6 +1054,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect10() {
         let router = Router::new()
             .push(Router::with_path(r"users/{*sub|(images|css)/.+}").goal(fake_handler));
@@ -1062,6 +1069,7 @@ mod tests {
         assert!(matched.is_some());
     }
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect11() {
         let router = Router::new()
             .push(Router::with_path(r"avatars/{width|\d+}x{height|\d+}.{ext}").goal(fake_handler));
@@ -1089,6 +1097,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect13() {
         let router = Router::new()
             .path("user/{id|[0-9a-z]{8}(-[0-9a-z]{4}){3}-[0-9a-z]{12}}")
@@ -1106,6 +1115,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "routing-regex")]
     async fn test_router_detect_method_mismatch_wildcard_sibling() {
         // Regression test for https://github.com/salvo-rs/salvo/issues/1612
         //

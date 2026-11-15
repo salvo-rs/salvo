@@ -103,7 +103,8 @@ def reuse_dependency_lock(previous, manifest, checkout, log):
     shutil.copyfile(previous, lock)
     baseline = tomllib.loads(lock.read_text(encoding="utf-8"))
     # Path package versions follow the checked-out revision. Refresh only those
-    # entries offline, retaining the exact external dependency graph.
+    # entries offline. Cargo may prune unused optional dependencies, but every
+    # remaining external package must retain its complete locked entry.
     packages = [package["name"] for package in baseline["package"] if "source" not in package]
     arguments = ["cargo", "update", "--offline", "--manifest-path", str(manifest)]
     for package in packages:
@@ -115,8 +116,12 @@ def reuse_dependency_lock(previous, manifest, checkout, log):
         return {(p["name"], p["version"], p["source"]): p
                 for p in data["package"] if "source" in p}
 
-    if external_packages(baseline) != external_packages(current):
+    before = external_packages(baseline)
+    after = external_packages(current)
+    if any(before.get(key) != package for key, package in after.items()):
         raise RuntimeError("before/after external dependency locks differ; stop the comparison")
+    return [{"name": name, "version": version, "source": source}
+            for name, version, source in sorted(before.keys() - after.keys())]
 
 
 def runtime_costs(args, output):
@@ -136,8 +141,10 @@ def runtime_costs(args, output):
         (directory / "fixture-sha256.json").write_text(json.dumps(fixture, indent=2), encoding="utf-8")
         (directory / "metadata.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
         lock = manifest.parent / "Cargo.lock"
+        removed_dependencies = []
         if first_lock:
-            reuse_dependency_lock(first_lock, manifest, checkout, directory / "refresh-lock.log")
+            removed_dependencies = reuse_dependency_lock(
+                first_lock, manifest, checkout, directory / "refresh-lock.log")
         else:
             command(["cargo", "generate-lockfile", "--manifest-path", str(manifest)], checkout,
                     directory / "resolve.log")
@@ -155,7 +162,8 @@ def runtime_costs(args, output):
         seconds = command(invocation, checkout, directory / "samples.csv", environment)
         validate_samples(directory / "samples.csv")
         records[label] = {"commit": sha, "runtime_seconds": seconds,
-                          "executable_bytes": executable.stat().st_size}
+                          "executable_bytes": executable.stat().st_size,
+                          "removed_external_dependencies": removed_dependencies}
     return records
 
 

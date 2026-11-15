@@ -12,6 +12,10 @@
 //! | `server-handle` | Expose a [`ServerHandle`](salvo_core::server::ServerHandle) for graceful/forced shutdown | ✔️ |
 //! | `http1` | Support for HTTP 1.1 protocol | ✔️ |
 //! | `http2` | Support for HTTP 2 protocol | ✔️ |
+//! | `routing-regex` | Regex paths and mixed segments such as `file-{id}.txt` | ✔️ |
+//! | `catcher-html` | Built-in HTML error pages | ✔️ |
+//! | `catcher-json` | Built-in JSON error responses | ✔️ |
+//! | `catcher-xml` | Built-in XML error responses | ✔️ |
 //! | `http2-cleartext` | Support for HTTP 2 over cleartext TCP | ❌ |
 //! | `quinn` | Use [quinn](https://crates.io/crates/quinn) to support HTTP 3 protocol | ❌ |
 //! | `test` | Utilities for testing application | ✔️ |
@@ -74,6 +78,13 @@
 //! Add other features as needed. Cargo features are additive: `full`, `http2`,
 //! `http2-cleartext`, or dependencies that enable Hyper's HTTP/2 support (such as
 //! `proxy`, `acme`, and the OIDC client in `jwt-auth`) will compile `h2` again.
+//!
+//! The minimal configuration above retains literal paths, whole-segment parameters,
+//! `num`/`hex` constraints and whole-segment wildcards. Enable `routing-regex` for
+//! regex patterns or mixed segments such as `file-{id}.txt`. Built-in errors use
+//! plain text unless the corresponding `catcher-html`, `catcher-json` or
+//! `catcher-xml` feature is enabled. Unsupported error formats fall back to HTML
+//! when available, otherwise plain text. Custom response writers are unaffected.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
