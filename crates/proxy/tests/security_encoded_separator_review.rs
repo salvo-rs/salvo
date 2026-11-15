@@ -72,6 +72,11 @@ async fn path_separators_are_rejected_before_proxy_routing() {
     for (path, expected, guard_calls) in [
         ("/report_note/secret.txt", StatusCode::FORBIDDEN, 1),
         ("/%72eport_note/secret.txt", StatusCode::FORBIDDEN, 1),
+        // Decoded once by the router, this is `%72eport_note`, which an
+        // upstream that decodes again would read as the protected prefix.
+        ("/%2572eport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
+        ("/%2552eport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
+        ("/report%255fnote/secret.txt", StatusCode::BAD_REQUEST, 0),
         ("/%2freport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
         ("/%2Freport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
         ("/%5creport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
@@ -163,4 +168,59 @@ async fn safe_encoded_paths_still_reach_public_upstream() {
         assert_eq!(response.take_string().await.unwrap(), expected, "{path}");
     }
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+async fn forwarded_path(service: &Service, path: &str) -> (Option<StatusCode>, String) {
+    use salvo_core::test::ResponseExt;
+
+    let mut response = service.handle(request(path)).await;
+    let status = response.status_code;
+    (status, response.take_string().await.unwrap_or_default())
+}
+
+#[tokio::test]
+async fn literal_percent_signs_reach_the_upstream_escaped() {
+    let service = protected_service(Arc::new(AtomicUsize::new(0)));
+    for path in ["/files/50%25off.txt", "/files/100%25", "/files/a%25/b%25z"] {
+        assert_eq!(
+            forwarded_path(&service, path).await,
+            (Some(StatusCode::OK), path.to_owned()),
+            "{path}"
+        );
+    }
+    // After the default getter escapes the routed percent sign, the strict
+    // check sees `%25` followed by two hex digits. This includes controls as
+    // well as unreserved characters; none may become an upstream escape.
+    for path in [
+        "/files/a%2541.txt",
+        "/files/a%25%34%31.txt",
+        "/api/x%2500y",
+        "/api/x%250dy",
+        "/api/x%250ay",
+        "/api/x%250d%250ay",
+        "/api/x%257fy",
+        "/%252572eport_note/secret.txt",
+    ] {
+        assert_eq!(
+            forwarded_path(&service, path).await.0,
+            Some(StatusCode::BAD_REQUEST),
+            "{path}"
+        );
+    }
+
+    let lenient = Service::new(Router::with_path("{**rest}").goal(
+        Proxy::new("http://upstream.invalid", EchoUpstream).strict_path_normalization(false),
+    ));
+    for path in [
+        "/files/a%2541.txt",
+        "/%252e%252e/secret.txt",
+        "/api/x%2500y",
+        "/api/x%250d%250ay",
+    ] {
+        assert_eq!(
+            forwarded_path(&lenient, path).await,
+            (Some(StatusCode::OK), path.to_owned()),
+            "{path}"
+        );
+    }
 }
