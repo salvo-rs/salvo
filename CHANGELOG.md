@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Generate valid adjacent enum variant titles and retain object schema titles.
 - Generate transparent serde schemas from the serialized field and omit skipped generic bounds.
 - Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
 - Allow handler and endpoint parameters to share their function's name.
