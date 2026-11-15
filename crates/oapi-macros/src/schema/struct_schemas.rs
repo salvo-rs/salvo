@@ -341,6 +341,7 @@ impl TryToTokens for NamedStructSchema<'_> {
             let mut flattened_tokens = quote! { #oapi::oapi::schema::AllOf::new() };
             let mut has_flattened_schema = false;
             let mut flattened_map_field = None;
+            let mut flattened_map_schema = None;
 
             for field in flatten_fields {
                 let NamedStructFieldOptions {
@@ -369,13 +370,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     Property::FlattenedMap(_) => match flattened_map_field {
                         None => {
                             let property = property.try_to_token_stream()?;
-                            object_tokens = if let Some(path) = guard {
-                                quote! {{ let __obj = #object_tokens;
-                                    if !#path() { __obj.additional_properties(#property) } else { __obj }
-                                }}
-                            } else {
-                                quote! { #object_tokens.additional_properties(#property) }
-                            };
+                            flattened_map_schema = Some((property, guard));
                             flattened_map_field = Some(field);
                         }
                         Some(flattened_map_field) => {
@@ -401,13 +396,38 @@ impl TryToTokens for NamedStructSchema<'_> {
             }
 
             if !has_flattened_schema {
+                if let Some((property, guard)) = flattened_map_schema {
+                    object_tokens = if let Some(path) = guard {
+                        quote! {{ let __obj = #object_tokens;
+                            if !#path() { __obj.additional_properties(#property) } else { __obj }
+                        }}
+                    } else {
+                        quote! { #object_tokens.additional_properties(#property) }
+                    };
+                }
                 tokens.extend(object_tokens);
                 false
             } else {
-                tokens.extend(quote! {
-                    #flattened_tokens
-                    .item(#object_tokens)
-                });
+                let schema = quote! { #flattened_tokens.item(#object_tokens) };
+                let schema = if let Some((property, guard)) = flattened_map_schema {
+                    // additionalProperties only sees this local object's properties.
+                    // Evaluate all siblings/references before constraining remaining keys.
+                    let catch_all = quote! {
+                        .add_extension("unevaluatedProperties", #oapi::oapi::__private::serde_json::to_value(
+                            Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#property)
+                        ).expect("schema serializes to JSON"))
+                    };
+                    if let Some(path) = guard {
+                        quote! {{ let __schema = #schema;
+                            if !#path() { __schema #catch_all } else { __schema }
+                        }}
+                    } else {
+                        quote! { #schema #catch_all }
+                    }
+                } else {
+                    schema
+                };
+                tokens.extend(schema);
                 true
             }
         } else {
