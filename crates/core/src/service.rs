@@ -399,6 +399,8 @@ impl HyperHandler {
                 }
             }
 
+            res.run_after_response_hooks(&req);
+
             let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
             if req.method() == Method::HEAD
                 || status.is_informational()

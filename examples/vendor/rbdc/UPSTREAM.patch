@@ -1,0 +1,78 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -47 +46,0 @@
+-    "rustls-pemfile",
+@@ -156 +155 @@
+-version = "0.14.0"
++version = "0.18.2"
+@@ -173,4 +171,0 @@
+-
+-[dependencies.rustls-pemfile]
+-version = "2.0.0"
+-optional = true
+--- a/src/net/tls/rustls.rs
++++ b/src/net/tls/rustls.rs
+@@ -11 +11 @@
+-use std::io::Cursor;
++use rustls::pki_types::pem::PemObject;
+@@ -33,2 +33,2 @@
+-            let mut cursor = Cursor::new(data);
+-            for cert_result in rustls_pemfile::certs(&mut cursor) {
++            let mut certificate_count = 0;
++            for cert_result in CertificateDer::pem_slice_iter(&data) {
+@@ -39,0 +40,4 @@
++                certificate_count += 1;
++            }
++            if certificate_count == 0 {
++                return Err(Error::from(format!("No certificates found in {}", ca)));
+--- a/tests/tls_test.rs
++++ b/tests/tls_test.rs
+@@ -8 +8 @@
+-use std::io::Cursor;
++use rustls::pki_types::{PrivateKeyDer, pem::PemObject};
+@@ -22 +22 @@
+-    let certs = rustls_pemfile::certs(&mut Cursor::new(SERVER_CERT_PEM.as_bytes()))
++    let certs = CertificateDer::pem_slice_iter(SERVER_CERT_PEM.as_bytes())
+@@ -25,3 +25 @@
+-    let key = rustls_pemfile::private_key(&mut Cursor::new(SERVER_KEY_PEM.as_bytes()))
+-        .unwrap()
+-        .unwrap();
++    let key = PrivateKeyDer::from_pem_slice(SERVER_KEY_PEM.as_bytes()).unwrap();
+@@ -69,0 +68 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -85,0 +85 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -104,0 +105 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -119,0 +121 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -138,0 +141 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -155,0 +159 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -174,0 +179 @@
++    let _ = rustls::crypto::ring::default_provider().install_default();
+@@ -182,0 +188,23 @@
++
++#[test]
++fn pem_key_loader_rejects_missing_and_malformed_keys() {
++    for pem in ["", CA_PEM, "not a private key", "-----BEGIN PRIVATE KEY-----\n!invalid!\n-----END PRIVATE KEY-----"] {
++        assert!(PrivateKeyDer::from_pem_slice(pem.as_bytes()).is_err());
++    }
++    assert!(PrivateKeyDer::from_pem_slice(SERVER_KEY_PEM.as_bytes()).is_ok());
++}
++
++#[tokio::test]
++async fn explicit_root_rejects_missing_or_malformed_certificates() {
++    let _ = rustls::crypto::ring::default_provider().install_default();
++    for pem in ["", "not a certificate", SERVER_KEY_PEM, "-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----"] {
++        let (client, _server) = tokio::io::duplex(64);
++        let mut stream = MaybeTlsStream::Raw(client);
++        let ca: CertificateInput = pem.to_owned().into();
++        let result = tokio::time::timeout(
++            std::time::Duration::from_secs(1),
++            stream.upgrade("localhost", false, false, Some(&ca)),
++        ).await.expect("bad PEM must fail before starting a handshake");
++        assert!(result.is_err(), "accepted invalid or empty certificate input");
++    }
++}

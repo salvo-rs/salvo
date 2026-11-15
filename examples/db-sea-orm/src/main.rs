@@ -218,3 +218,52 @@ async fn main() {
     let acceptor = TcpListener::new(server_url).bind().await;
     Server::new(acceptor).serve(router).await;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
+
+    #[tokio::test]
+    async fn patched_sqlite_migrates_and_serves_crud() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        let row = db
+            .query_one_raw(Statement::from_string(
+                DbBackend::Sqlite,
+                "SELECT sqlite_version() AS version",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let version: String = row.try_get("", "version").unwrap();
+        let parts: Vec<u32> = version
+            .split('.')
+            .map(|part| part.parse().unwrap())
+            .collect();
+        assert!(
+            parts.as_slice() >= [3, 54, 0].as_slice(),
+            "SQLite {version} predates the WAL fix"
+        );
+
+        Migrator::up(&db, None).await.unwrap();
+        let saved = post::ActiveModel {
+            title: Set("patched database".to_owned()),
+            text: Set("original".to_owned()),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await
+        .unwrap();
+        let mut active = saved.clone().into_active_model();
+        active.text = Set("updated".to_owned());
+        active.update(&db).await.unwrap();
+        let fetched = post::Entity::find_by_id(saved.id)
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(fetched.text, "updated");
+        fetched.delete(&db).await.unwrap();
+        assert_eq!(post::Entity::find().count(&db).await.unwrap(), 0);
+    }
+}
