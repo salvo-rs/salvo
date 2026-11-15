@@ -235,10 +235,9 @@ impl TryToTokens for ToParameters {
                 fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, _arg: &str) {
                     // Registering schemas does not deserialize a request, so it
                     // must not inherit the extraction impl's serde bounds.
-                    let parameters = #oapi::oapi::Parameters(#params.into_iter().map(#oapi::oapi::RefOr::Type).collect());
-                    for parameter in parameters {
-                        operation.parameters.insert(parameter);
-                    }
+                    operation.parameters.extend(#oapi::oapi::Parameters(
+                        #params.into_iter().map(#oapi::oapi::RefOr::Type).collect()
+                    ));
                 }
             }
             impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #ex_where_clause {

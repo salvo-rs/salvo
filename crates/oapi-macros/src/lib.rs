@@ -646,7 +646,7 @@ mod tests {
                         operation: &mut salvo::oapi::Operation,
                         _arg: &str
                     ) {
-                        let parameters = salvo::oapi::Parameters(
+                        operation.parameters.extend(salvo::oapi::Parameters(
                             [
                                 salvo::oapi::parameter::Parameter::new("name")
                                     .location(salvo::oapi::parameter::ParameterIn::Query)
@@ -674,10 +674,7 @@ mod tests {
                                     .schema(<PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
                             ]
                             .into_iter().map(salvo::oapi::RefOr::Type).collect()
-                        );
-                        for parameter in parameters {
-                            operation.parameters.insert(parameter);
-                        }
+                        ));
                     }
                 }
                 impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
