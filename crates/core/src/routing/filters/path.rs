@@ -595,6 +595,13 @@ pub struct RegexWisp {
 impl RegexWisp {
     #[inline]
     fn new(name: String, regex: &str) -> Result<Self, String> {
+        // Anchors added around `a|b` would bind to the first and last
+        // alternative only, so group a pattern that has alternatives first.
+        let regex = if regex.contains('|') {
+            &*format!("^(?:{regex})$")
+        } else {
+            regex
+        };
         let regex = if !regex.starts_with('^') {
             &*format!("^{regex}")
         } else {
