@@ -2,6 +2,7 @@
 use std::collections::VecDeque;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -17,7 +18,45 @@ use crate::fs::NamedFile;
 use crate::fuse::TransProto;
 pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 use crate::http::{StatusCode, StatusError};
-use crate::{BoxedError, Error, Scribe};
+use crate::{BoxedError, Error, Request, Scribe};
+
+type ResponseHook = Box<dyn FnOnce(&Request, &mut Response) + Send + 'static>;
+
+#[derive(Clone, Default)]
+struct ResponseHooks(Arc<Mutex<Vec<ResponseHook>>>);
+
+#[cfg(test)]
+mod finalization_hook_tests {
+    use super::*;
+
+    #[test]
+    fn hooks_run_once_in_order_and_preserve_response_metadata() {
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let mut response = Response::new();
+        response.version = Version::HTTP_2;
+        response
+            .headers
+            .insert("x-preserved", HeaderValue::from_static("value"));
+        response.extensions.insert(17_u32);
+        #[cfg(feature = "cookie")]
+        response.cookies.add(Cookie::new("session", "value"));
+        for value in [1, 2] {
+            let order = order.clone();
+            response.after_response_hook(move |_, response| {
+                order.lock().unwrap().push(value);
+                assert_eq!(response.version, Version::HTTP_2);
+                assert_eq!(response.headers["x-preserved"], "value");
+                assert_eq!(response.extensions.get::<u32>(), Some(&17));
+                #[cfg(feature = "cookie")]
+                assert_eq!(response.cookies.get("session").unwrap().value(), "value");
+            });
+        }
+        response.run_after_response_hooks(&Request::new());
+        response.run_after_response_hooks(&Request::new());
+        assert_eq!(*order.lock().unwrap(), [1, 2]);
+        assert_eq!(response.extensions.len(), 1);
+    }
+}
 
 /// Represents an HTTP response.
 ///
@@ -108,6 +147,41 @@ where
 }
 
 impl Response {
+    /// Registers a one-shot response transformation during handler execution.
+    ///
+    /// [`crate::Service`] runs the registered hooks in registration order after
+    /// the error catcher, before removing forbidden response bodies and notifying
+    /// response observers. Hooks run synchronously and cannot invoke the catcher
+    /// again; a hook that changes an error must supply its final body itself.
+    /// Hooks registered by another hook are not run during that finalization.
+    /// Converting a response without passing it through `Service` does not run
+    /// these hooks. Dropping the response cancels pending hooks.
+    pub fn after_response_hook<F>(&mut self, hook: F)
+    where
+        F: FnOnce(&Request, &mut Response) + Send + 'static,
+    {
+        if self.extensions.get::<ResponseHooks>().is_none() {
+            self.extensions.insert(ResponseHooks::default());
+        }
+        if let Some(hooks) = self.extensions.get::<ResponseHooks>() {
+            hooks
+                .0
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .push(Box::new(hook));
+        }
+    }
+
+    pub(crate) fn run_after_response_hooks(&mut self, req: &Request) {
+        if let Some(hooks) = self.extensions.remove::<ResponseHooks>() {
+            let pending =
+                std::mem::take(&mut *hooks.0.lock().unwrap_or_else(|error| error.into_inner()));
+            for hook in pending {
+                hook(req, self);
+            }
+        }
+    }
+
     /// Creates a new blank `Response` with the provided cookie jar.
     #[inline]
     #[must_use]

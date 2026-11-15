@@ -402,6 +402,8 @@ impl HyperHandler {
                 }
             }
 
+            res.run_after_response_hooks(&req);
+
             if Method::HEAD == *req.method() && !res.body.is_none() {
                 tracing::debug!("stripping response body for HEAD request per RFC 9110 §9.3.2");
                 res.take_body();
