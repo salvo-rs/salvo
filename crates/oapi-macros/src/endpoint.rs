@@ -179,6 +179,11 @@ fn metadata(
                     }
                 });
             }
+            // Untyped/manual responses cannot be inferred from the signature.
+            // Keep the document valid without claiming a status or body shape.
+            if operation.responses.is_empty() {
+                operation.responses.insert("default", #oapi::oapi::Response::new("Response"));
+            }
             #oapi::oapi::Endpoint{
                 operation,
                 components,
@@ -431,9 +436,19 @@ fn handle_fn(
             }
         }
         ReturnType::Type(_, ty) => {
-            modifiers.push(quote! {
-                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
-            });
+            fn is_unit(ty: &Type) -> bool {
+                match ty {
+                    Type::Group(group) => is_unit(&group.elem),
+                    Type::Paren(paren) => is_unit(&paren.elem),
+                    Type::Tuple(tuple) => tuple.elems.is_empty(),
+                    _ => false,
+                }
+            }
+            if !is_unit(ty) {
+                modifiers.push(quote! {
+                    <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
+                });
+            }
             if sig.asyncness.is_none() {
                 quote! {
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {

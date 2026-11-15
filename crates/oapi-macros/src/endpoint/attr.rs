@@ -226,9 +226,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_parameters() {
-        let input = "parameters((\"id\" in path,))";
+        let input = r#"parameters(("id" = String, Path,))"#;
         let attr = parse_str::<EndpointAttr>(input).unwrap();
         assert_eq!(attr.parameters.len(), 1);
     }
