@@ -82,6 +82,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve all borrowed lifetimes when deriving request extractors and parameters.
 
+- Report the `content-length` of HTTP/3 request bodies through their size hint, so `Proxy`
+  forwards the length instead of using chunked transfer encoding, and fail an HTTP/3 request
+  whose content is longer or shorter than that length.
+
 - Skip extension methods in `MethodSkipper::skip_all`, so the default cache skipper
   stores responses to `GET` requests only.
 

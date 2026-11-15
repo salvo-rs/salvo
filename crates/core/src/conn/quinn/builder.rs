@@ -370,6 +370,17 @@ async fn process_web_transport(
 }
 
 #[allow(clippy::future_not_send)]
+/// The request's `content-length`, when it is given exactly once and is a valid length.
+fn announced_content_length(headers: &http::HeaderMap) -> Option<u64> {
+    let mut values = headers.get_all(http::header::CONTENT_LENGTH).iter();
+    let value = values.next()?.as_bytes();
+    // `u64::from_str` would also accept a leading `+`.
+    if values.next().is_some() || value.is_empty() || !value.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    std::str::from_utf8(value).ok()?.parse().ok()
+}
+
 async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
@@ -382,7 +393,8 @@ where
 {
     let (mut tx, rx) = stream.split();
     let (parts, _body) = request.into_parts();
-    let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
+    let body = H3ReqBody::new(rx).content_length(announced_content_length(&parts.headers));
+    let request = hyper::Request::from_parts(parts, ReqBody::from(body));
 
     let response = hyper::service::Service::call(&hyper_handler, request)
         .await
