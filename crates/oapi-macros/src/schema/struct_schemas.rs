@@ -146,8 +146,11 @@ impl NamedStructSchema<'_> {
             Some(Feature::Ignore(Ignore(bool_or_exp))) => Some(bool_or_exp),
             _ => None,
         };
-        let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
+        let mut type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
         let is_option = type_tree.is_option();
+        while flatten && type_tree.is_option() {
+            type_tree = &type_tree.children.as_ref().expect("Option has a child")[0];
+        }
 
         Ok(NamedStructFieldOptions {
             property: if let Some(with_schema) = with_schema {
@@ -345,7 +348,10 @@ impl TryToTokens for NamedStructSchema<'_> {
 
             for field in flatten_fields {
                 let NamedStructFieldOptions {
-                    property, ignore, ..
+                    property,
+                    ignore,
+                    is_option,
+                    ..
                 } = self.field_as_schema_property(field, true, container_rules.as_ref())?;
 
                 let guard = match ignore {
@@ -358,6 +364,11 @@ impl TryToTokens for NamedStructSchema<'_> {
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
                         let property = property.try_to_token_stream()?;
+                        let property = if is_option {
+                            quote! { #oapi::oapi::schema::optional_flatten_schema((#property).into(), &__salvo_flatten_base, components) }
+                        } else {
+                            property
+                        };
                         has_flattened_schema = true;
                         flattened_tokens = if let Some(path) = guard {
                             quote! {{ let __all_of = #flattened_tokens;
@@ -408,7 +419,12 @@ impl TryToTokens for NamedStructSchema<'_> {
                 tokens.extend(object_tokens);
                 false
             } else {
-                let schema = quote! { #flattened_tokens.item(#object_tokens) };
+                let schema = quote! {
+                    {
+                        let __salvo_flatten_base = #object_tokens;
+                        (#flattened_tokens).item(__salvo_flatten_base)
+                    }
+                };
                 let schema = if let Some((property, guard)) = flattened_map_schema {
                     // additionalProperties only sees this local object's properties.
                     // Evaluate all siblings/references before constraining remaining keys.
