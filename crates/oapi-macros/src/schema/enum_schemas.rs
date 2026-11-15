@@ -19,7 +19,7 @@ use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_ski
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
-    Alias, Bound, Discriminator, Example, Name, Rename, RenameAll, SkipBound, Title,
+    Alias, Bound, Discriminator, Example, Name, Rename, RenameAll, Skip, SkipBound, Title,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
@@ -446,14 +446,16 @@ impl TryToTokens for SimpleEnum<'_> {
                     None
                 }
             })
-            .flat_map(|(variant, variant_rules)| {
+            .map(|(variant, variant_rules)| {
                 let name = &*variant.ident.to_string();
                 let mut variant_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Rename))
-                    })
-                    .ok()?
+                        Ok(parse_features!(input as Rename, Skip))
+                    })?
                     .unwrap_or_default();
+                if variant_features.is_skipped() {
+                    return Ok(None);
+                }
                 let variant_name = rename_enum_variant(
                     name,
                     &mut variant_features,
@@ -462,16 +464,15 @@ impl TryToTokens for SimpleEnum<'_> {
                     self.rename_all,
                 );
 
-                variant_name
-                    .map(|name| SimpleEnumVariant {
-                        value: name.to_token_stream(),
-                    })
-                    .or_else(|| {
-                        Some(SimpleEnumVariant {
-                            value: name.to_token_stream(),
-                        })
-                    })
+                Ok(Some(SimpleEnumVariant {
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(name))
+                        .to_token_stream(),
+                }))
             })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
             .collect::<Vec<SimpleEnumVariant<TokenStream>>>();
 
         regular_enum_to_tokens(
@@ -701,7 +702,13 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, RenameAll, Rename, Example))
+                        Ok(parse_features!(
+                            input as Title,
+                            RenameAll,
+                            Rename,
+                            Example,
+                            Skip
+                        ))
                     })?
                     .unwrap_or_default();
 
@@ -805,7 +812,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title))
+                        Ok(parse_features!(input as Title, Skip))
                     })?
                     .unwrap_or_default();
 
@@ -997,7 +1004,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, Rename))
+                        Ok(parse_features!(input as Title, Rename, Skip))
                     })?
                     .unwrap_or_default();
 
@@ -1169,7 +1176,7 @@ impl ComplexEnum<'_> {
                 // In this case `content` is simply ignored - there is nothing to put in it.
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, Rename))
+                        Ok(parse_features!(input as Title, Rename, Skip))
                     })?
                     .unwrap_or_default();
 
