@@ -723,7 +723,10 @@ impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for BTreeMap<K, V> {
             .get(1)
             .cloned()
             .unwrap_or_else(|| V::compose(components, vec![]));
-        schema::Object::new().additional_properties(v_schema).into()
+        let k_schema = generics.first().cloned().unwrap_or_else(|| K::compose(components, vec![]));
+        schema::Object::new()
+            .property_names(schema::serialized_map_key_schema(k_schema, components))
+            .additional_properties(v_schema).into()
     }
 }
 
@@ -741,7 +744,10 @@ impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for HashMap<K, V> {
             .get(1)
             .cloned()
             .unwrap_or_else(|| V::compose(components, vec![]));
-        schema::Object::new().additional_properties(v_schema).into()
+        let k_schema = generics.first().cloned().unwrap_or_else(|| K::compose(components, vec![]));
+        schema::Object::new()
+            .property_names(schema::serialized_map_key_schema(k_schema, components))
+            .additional_properties(v_schema).into()
     }
 }
 

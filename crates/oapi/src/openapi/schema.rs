@@ -21,6 +21,72 @@ use serde::{Deserialize, Serialize};
 
 use crate::{PropMap, RefOr};
 
+/// Convert a map key's value schema to its JSON object-name representation.
+/// This is an implementation detail used by generated schemas.
+#[doc(hidden)]
+pub fn serialized_map_key_schema(
+    mut key: RefOr<Schema>,
+    components: &crate::Components,
+) -> RefOr<Schema> {
+    let mut seen = std::collections::HashSet::new();
+    while let RefOr::Ref(reference) = &key {
+        if !seen.insert(reference.ref_location.clone()) {
+            return Object::with_type(BasicType::String).into();
+        }
+        let Some(schema) = reference
+            .ref_location
+            .strip_prefix("#/components/schemas/")
+            .and_then(|name| components.schemas.get(name))
+        else {
+            return Object::with_type(BasicType::String).into();
+        };
+        key = schema.clone();
+    }
+    let RefOr::Type(Schema::Object(object)) = key else {
+        return Object::with_type(BasicType::String).into();
+    };
+    if object.schema_type == SchemaType::Basic(BasicType::String) {
+        return (*object).into();
+    }
+    let mut names = Object::with_type(BasicType::String);
+    match object.schema_type {
+        SchemaType::Basic(BasicType::Integer) => {
+            let unsigned = object
+                .minimum
+                .as_ref()
+                .is_some_and(|minimum| match minimum {
+                    Number::Int(value) => *value >= 0,
+                    Number::UInt(_) => true,
+                    Number::Float(value) => *value >= 0.0,
+                });
+            names.pattern = Some(
+                if unsigned {
+                    "^(0|[1-9][0-9]*)$"
+                } else {
+                    "^-?(0|[1-9][0-9]*)$"
+                }
+                .into(),
+            );
+        }
+        SchemaType::Basic(BasicType::Boolean) => {
+            names.enum_values = Some(vec![serde_json::json!("true"), serde_json::json!("false")]);
+        }
+        SchemaType::Basic(BasicType::Number) => {
+            names.pattern = Some(r"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$".into());
+        }
+        _ => {}
+    }
+    if let Some(values) = object.enum_values {
+        names.enum_values = Some(
+            values
+                .into_iter()
+                .map(|value| serde_json::Value::String(value.to_string()))
+                .collect(),
+        );
+    }
+    names.into()
+}
+
 /// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
