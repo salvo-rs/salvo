@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use time::{Duration, OffsetDateTime};
 
 use super::{CelledQuota, RateGuard};
@@ -18,7 +20,7 @@ use super::{CelledQuota, RateGuard};
 pub struct SlidingGuard {
     cell_start: OffsetDateTime,
     cell_span: Duration,
-    counts: Vec<usize>,
+    counts: Arc<Vec<usize>>,
     head: usize,
     total: usize,
     quota: Option<CelledQuota>,
@@ -37,7 +39,7 @@ impl SlidingGuard {
         Self {
             cell_start: OffsetDateTime::now_utc(),
             cell_span: Duration::default(),
-            counts: vec![],
+            counts: Arc::new(Vec::new()),
             head: 0,
             total: 0,
             quota: None,
@@ -47,9 +49,9 @@ impl SlidingGuard {
     fn reset_window(&mut self, quota: &CelledQuota, now: OffsetDateTime) {
         self.cell_start = now;
         self.cell_span = Self::cell_span(quota);
-        self.counts = vec![0; quota.cells];
+        self.counts = Arc::new(vec![0; quota.cells]);
         self.head = 0;
-        self.counts[0] = 1;
+        Arc::make_mut(&mut self.counts)[0] = 1;
         self.total = 1;
     }
 
@@ -92,9 +94,9 @@ impl RateGuard for SlidingGuard {
             delta -= self.cell_span;
             self.head = (self.head + 1) % self.counts.len();
             self.total = self.total.saturating_sub(self.counts[self.head]);
-            self.counts[self.head] = 0;
+            Arc::make_mut(&mut self.counts)[self.head] = 0;
         }
-        self.counts[self.head] += 1;
+        Arc::make_mut(&mut self.counts)[self.head] += 1;
         self.total += 1;
         self.cell_start = now - delta;
         self.total <= quota.limit
@@ -154,6 +156,19 @@ mod tests {
         assert_eq!(guard.head, cloned.head);
         assert_eq!(guard.counts, cloned.counts);
         assert_eq!(guard.total, cloned.total);
+    }
+
+    #[tokio::test]
+    async fn cloned_snapshots_share_buckets_until_the_next_mutation() {
+        let quota = CelledQuota::per_hour(10_000, 1024);
+        let mut guard = SlidingGuard::new();
+        assert!(guard.verify(&quota).await);
+        let snapshot = guard.clone();
+        assert!(Arc::ptr_eq(&guard.counts, &snapshot.counts));
+        assert!(guard.verify(&quota).await);
+        assert_eq!(snapshot.remaining(&quota).await, 9_999);
+        assert_eq!(guard.remaining(&quota).await, 9_998);
+        assert!(!Arc::ptr_eq(&guard.counts, &snapshot.counts));
     }
 
     #[tokio::test]

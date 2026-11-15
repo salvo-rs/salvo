@@ -102,7 +102,7 @@ async fn aged_jwks_refreshes_before_reusing_a_revoked_signing_key() {
     let token = jsonwebtoken::encode(
         &header,
         &json!({"iss":issuer,"aud":"client","exp":4_000_000_000u64}),
-        &EncodingKey::from_secret(b"secret"),
+        &EncodingKey::from_secret(b"secret").unwrap(),
     )
     .unwrap();
     assert!(

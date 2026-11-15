@@ -247,14 +247,15 @@ impl RequestBuilder {
         #[cfg(feature = "cookie")]
         {
             let mut response = target.call(self.build()).await;
-            let values = response
-                .cookies
-                .delta()
-                .filter_map(|c| c.encoded().to_string().parse().ok())
-                .collect::<Vec<_>>();
-            for hv in values {
-                response.headers_mut().insert(header::SET_COOKIE, hv);
+            // Expose the same Set-Cookie fields as the real transport, while
+            // retaining the test helper's convenient cookie lookup. The retained
+            // jar is a baseline, so serializing this response again is idempotent.
+            let mut visible = cookie::CookieJar::new();
+            for cookie in response.cookies.iter() {
+                visible.add_original(cookie.clone());
             }
+            Response::flush_cookies_into(&mut response.headers, &mut response.cookies);
+            response.cookies = visible;
             response
         }
         #[cfg(not(feature = "cookie"))]

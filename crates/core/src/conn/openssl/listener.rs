@@ -213,6 +213,7 @@ where
         let Some(tls_acceptor) = self.current_acceptor.load_full() else {
             return Err(IoError::other("openssl: no active tls config"));
         };
+        let tls_conn_ctrl = conn_ctrl.clone();
         let conn = async move {
             let ssl = Ssl::new(tls_acceptor.context()).map_err(IoError::other)?;
             let mut tls_stream = SslStream::new(ssl, stream).map_err(IoError::other)?;
@@ -220,6 +221,7 @@ where
                 .accept()
                 .await
                 .map_err(IoError::other)?;
+            tls_conn_ctrl.set_tls_protocol(tls_stream.ssl().selected_alpn_protocol());
             Ok(tls_stream)
         };
 

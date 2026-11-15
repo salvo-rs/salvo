@@ -176,6 +176,15 @@ streams; HTTP/3 uses QUIC transport controls. `ResBody::observe` reports body pr
 not network delivery, and does not enforce an idle or total timeout. Once response headers
 are sent, body errors terminate the stream rather than produce a new error response.
 
+### Response header ownership
+
+The upstream response body replaces any prepared body. Its representation fields
+(including length, type, encoding, validators and digests) replace old metadata;
+fields absent from the upstream are cleared. Other upstream fields replace
+prepared values of the same name. Set-Cookie and Vary remain additive, and
+unrelated outer headers are preserved. Apply an outer policy after the proxy
+returns when it must override upstream response fields.
+
 ### Failure logging
 
 Upstream request failures log the request method, path, and client error type.

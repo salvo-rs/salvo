@@ -92,7 +92,7 @@ use futures_util::sink::{Sink, SinkExt};
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::{FutureExt, TryFutureExt, future};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::header::{ORIGIN, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
+use salvo_core::http::header::{ORIGIN, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade,
 };
@@ -409,19 +409,28 @@ impl WebSocketUpgrade {
             return Err(StatusError::bad_request()
                 .brief("missing upgrade header or it is not websocket"));
         }
-        let matched = !req_headers
+        let matched = req_headers.get_all(SEC_WEBSOCKET_VERSION).iter().count() != 1 || !req_headers
             .get(SEC_WEBSOCKET_VERSION)
             .and_then(|v| v.to_str().ok())
             .map(|v| v == "13")
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not 13");
+            res.add_header(SEC_WEBSOCKET_VERSION, "13", true).expect("static version is valid");
             return Err(StatusError::bad_request().brief("websocket version is not 13"));
         }
-        let Some(sec_ws_key) = req_headers.typed_get::<SecWebsocketKey>() else {
-            tracing::debug!("missing sec-websocket-key header");
+        use base64::Engine as _;
+        let mut keys = req_headers.get_all(SEC_WEBSOCKET_KEY).iter();
+        let Some(first_key) = keys.next() else {
             return Err(StatusError::bad_request().brief("missing sec-websocket-key header"));
         };
+        let key = first_key.to_str().ok()
+            .and_then(|key| base64::engine::general_purpose::STANDARD.decode(key.trim_matches([' ', '\t'])).ok())
+            .and_then(|key| <[u8; 16]>::try_from(key).ok());
+        let Some(key) = key.filter(|_| keys.next().is_none()) else {
+            return Err(StatusError::bad_request().brief("websocket requires one base64-encoded 16-byte key"));
+        };
+        let sec_ws_key = SecWebsocketKey::from(key);
 
         if let Some(check) = &self.origin_check {
             let origin = req_headers.get(ORIGIN).and_then(|v| v.to_str().ok());
@@ -429,6 +438,10 @@ impl WebSocketUpgrade {
                 tracing::debug!(?origin, "rejecting websocket upgrade: origin not allowed");
                 return Err(StatusError::forbidden().brief("websocket origin not allowed"));
             }
+        }
+
+        if req.extensions().get::<OnUpgrade>().is_none() {
+            return Err(StatusError::bad_request().brief("websocket upgrade state is missing"));
         }
 
         res.status_code(StatusCode::SWITCHING_PROTOCOLS);
