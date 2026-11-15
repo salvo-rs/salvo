@@ -85,3 +85,88 @@ async fn real_origin_form_requests_do_not_share_representations_across_hosts() {
         .unwrap()
         .unwrap();
 }
+
+#[tokio::test]
+async fn absolute_form_keys_require_a_matching_host() {
+    let issuer = RequestIssuer::new();
+    let mut req = Request::new();
+    *req.uri_mut() = "http://one.example/shared".parse().unwrap();
+    let without_host = issuer.issue(&mut req, &Depot::new()).await.unwrap();
+    for host in ["one.example", "ONE.example"] {
+        req.add_header("host", host, true).unwrap();
+        assert_eq!(
+            issuer.issue(&mut req, &Depot::new()).await.as_ref(),
+            Some(&without_host),
+            "{host}"
+        );
+    }
+    for host in [
+        "two.example",
+        "one.example:8080",
+        "one.example.two.example",
+        "",
+        "invalid host",
+        "user@one.example",
+        "one.example/path",
+    ] {
+        req.add_header("host", host, true).unwrap();
+        assert!(
+            issuer.issue(&mut req, &Depot::new()).await.is_none(),
+            "{host}"
+        );
+    }
+    req.add_header("host", "one.example", true).unwrap();
+    req.add_header("host", "one.example", false).unwrap();
+    assert!(issuer.issue(&mut req, &Depot::new()).await.is_none());
+    assert!(
+        RequestIssuer::new()
+            .use_authority(false)
+            .issue(&mut req, &Depot::new())
+            .await
+            .is_some()
+    );
+}
+
+#[tokio::test]
+async fn absolute_form_target_does_not_store_another_hosts_representation() {
+    let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+    let addr = acceptor.holdings()[0]
+        .local_addr
+        .clone()
+        .into_std()
+        .unwrap();
+    let server = Server::new(acceptor);
+    let handle = server.handle();
+    let router = Router::with_path("shared")
+        .hoop(Cache::new(MokaStore::new(10), RequestIssuer::new()))
+        .get(host_page);
+    let task = tokio::spawn(server.try_serve(router));
+    for (target, host) in [
+        ("http://one.example/shared", "two.example"),
+        ("/shared", "one.example"),
+        ("http://one.example/shared", "one.example"),
+    ] {
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        stream
+            .write_all(
+                format!("GET {target} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
+                    .as_bytes(),
+            )
+            .await
+            .unwrap();
+        let mut bytes = Vec::new();
+        tokio::time::timeout(Duration::from_secs(3), stream.read_to_end(&mut bytes))
+            .await
+            .unwrap()
+            .unwrap();
+        let response = String::from_utf8(bytes).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+        assert!(response.ends_with(host), "{target} {host}: {response}");
+    }
+    handle.stop_forceful();
+    tokio::time::timeout(Duration::from_secs(3), task)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+}

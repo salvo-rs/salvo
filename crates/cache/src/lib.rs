@@ -207,7 +207,8 @@ impl RequestIssuer {
     /// Whether to isolate keys by authority.
     ///
     /// Origin-form requests without a URI authority use one valid `Host` header instead.
-    /// Missing, repeated, or invalid Host values disable caching when this option is enabled.
+    /// Missing, repeated, or invalid Host values disable caching when this option is enabled,
+    /// and so does a `Host` header that differs from the URI authority.
     /// Disabling this option makes host isolation the application's responsibility.
     #[must_use]
     pub fn use_authority(mut self, value: bool) -> Self {
@@ -244,7 +245,21 @@ impl CacheIssuer for RequestIssuer {
         }
         if self.use_authority {
             let authority = match req.uri().authority() {
-                Some(authority) => authority.clone(),
+                Some(authority) => {
+                    // An absolute-form target may name another authority than
+                    // the Host header. Handlers can read either one, so such a
+                    // response must not be stored under either key.
+                    let mut hosts = req.headers().get_all(salvo_core::http::header::HOST).iter();
+                    if let Some(host) = hosts.next()
+                        && (hosts.next().is_some()
+                            || !host
+                                .as_bytes()
+                                .eq_ignore_ascii_case(authority.as_str().as_bytes()))
+                    {
+                        return None;
+                    }
+                    authority.clone()
+                }
                 None => {
                     let mut hosts = req.headers().get_all(salvo_core::http::header::HOST).iter();
                     let host = hosts.next()?;
