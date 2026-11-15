@@ -81,6 +81,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
+- Close connections that have not sent a request yet when the server stops gracefully,
+  instead of waiting for the header timeout, and serve an HTTP/1 request that has already
+  arrived instead of closing its connection.
+
 - Recognize a trusted proxy in `TrustedProxyIssuer` when a dual-stack listener reports
   its IPv4 address as an IPv4-mapped IPv6 address.
 

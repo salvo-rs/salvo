@@ -113,6 +113,10 @@ impl HttpBuilder {
             // config keeps its header timeout, so a silent connection is still bounded.
             let detect_timeout = fuse_config.and_then(|config| config.http1_header_timeout);
             tokio::select! {
+                // Look at the read first. Once it has decided the protocol, the request
+                // that arrived with it belongs to the connection handling below, even if
+                // the server is asked to stop at the same moment.
+                biased;
                 result = read_version(socket) => result?,
                 _ = async {
                     match detect_timeout {
@@ -125,6 +129,19 @@ impl HttpBuilder {
                 }
                 state = conn_ctrl.notified() => {
                     tracing::info!(?state, "closing connection during protocol detection");
+                    return Ok(());
+                },
+                // A connection that has not selected a protocol yet has no request to
+                // drain. Close it on graceful stop instead of keeping the server alive
+                // until the detection read times out, as the QUIC handshake path does.
+                _ = async {
+                    if let Some(token) = &graceful_stop_token {
+                        token.cancelled().await;
+                    } else {
+                        pending::<()>().await;
+                    }
+                } => {
+                    tracing::info!("closing connection during protocol detection: server is shutting down");
                     return Ok(());
                 },
             }
@@ -165,6 +182,9 @@ impl HttpBuilder {
                     // connection control are driven by the same task. This avoids
                     // spawning a supervisor task for every accepted connection.
                     tokio::select! {
+                        // Poll the connection first, so that a request which has already
+                        // arrived is read before a graceful shutdown closes what is idle.
+                        biased;
                         result = &mut conn => {
                             if let Err(error) = result {
                                 tracing::debug!(?error, "HTTP/1 connection ended with an error");
