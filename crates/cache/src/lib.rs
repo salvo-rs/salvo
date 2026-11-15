@@ -478,9 +478,20 @@ impl TryFrom<&ResBody> for CachedBody {
             ResBody::None => Ok(Self::None),
             ResBody::Once(bytes) => Ok(Self::Once(bytes.to_owned())),
             ResBody::Chunks(chunks) => {
-                // Pay for compaction once on insertion, rather than cloning a
-                // descriptor array on every store lookup and coalesced miss.
-                let len = chunks.iter().map(Bytes::len).sum();
+                if chunks.len() <= 1 {
+                    return Ok(Self::Once(chunks.front().cloned().unwrap_or_default()));
+                }
+                // Bound the extra insertion-time allocation. Small fragmented
+                // bodies are compacted once instead of cloning a descriptor
+                // array on every hit; large responses keep shared chunks.
+                const MAX_COMPACT_BYTES: usize = 64 * 1024;
+                let len = chunks.iter().try_fold(0usize, |len, chunk| {
+                    len.checked_add(chunk.len())
+                        .filter(|len| *len <= MAX_COMPACT_BYTES)
+                });
+                let Some(len) = len else {
+                    return Ok(Self::Chunks(chunks.clone()));
+                };
                 let mut bytes = Vec::with_capacity(len);
                 for chunk in chunks {
                     bytes.extend_from_slice(chunk);
