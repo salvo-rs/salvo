@@ -958,32 +958,46 @@ mod tests {
             &jsonwebtoken::EncodingKey::from_secret(b"secret"),
         )
         .unwrap();
-        let decoder = OidcDecoder::builder(issuer)
-            .audience("test-client")
-            .allow_symmetric_jwks(true)
-            .http_client(test_http_client())
-            .build()
-            .await
-            .unwrap();
-        assert!(
-            decoder
-                .decode::<serde_json::Value>(&token, &mut Depot::new())
+        for expire_initial_cache in [false, true] {
+            revoked.store(false, Ordering::SeqCst);
+            let decoder = OidcDecoder::builder(issuer.clone())
+                .audience("test-client")
+                .allow_symmetric_jwks(true)
+                .http_client(test_http_client())
+                .build()
                 .await
-                .is_ok()
-        );
-        assert_eq!(fetches.load(Ordering::SeqCst), 1);
-        revoked.store(true, Ordering::SeqCst);
-        // Real elapsed time exceeds the trusted endpoint's one-second policy
-        // even with the cache's whole-second clock granularity.
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        assert!(
+                .unwrap()
+                // Freshness is tested independently of the refresh cooldown.
+                .revalidation_interval(Duration::ZERO);
+            if expire_initial_cache {
+                decoder
+                    .cache_state
+                    .set_last_update(current_time().saturating_sub(3));
+            }
+            assert!(
+                decoder
+                    .decode::<serde_json::Value>(&token, &mut Depot::new())
+                    .await
+                    .is_ok()
+            );
+            // A slow runner may legitimately refresh the one-second cache during
+            // the initial decode. Count subsequent requests from that point.
+            let initial_fetches = fetches.load(Ordering::SeqCst);
+            revoked.store(true, Ordering::SeqCst);
+            // Expire the trusted one-second policy without depending on scheduling.
+            // Three seconds must not expire the quoted extension's bogus month.
             decoder
-                .decode::<serde_json::Value>(&token, &mut Depot::new())
-                .await
-                .is_err(),
-            "revoked key remained usable after the endpoint's max-age"
-        );
-        assert_eq!(fetches.load(Ordering::SeqCst), 2);
+                .cache_state
+                .set_last_update(current_time().saturating_sub(3));
+            assert!(
+                decoder
+                    .decode::<serde_json::Value>(&token, &mut Depot::new())
+                    .await
+                    .is_err(),
+                "revoked key remained usable after the endpoint's max-age"
+            );
+            assert_eq!(fetches.load(Ordering::SeqCst), initial_fetches + 1);
+        }
     }
 
     #[tokio::test]
