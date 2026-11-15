@@ -24,6 +24,16 @@ class ComparisonTests(unittest.TestCase):
             self.assertIn("+20.0%", report)
             self.assertIn("+25.0%", report)
             self.assertIn("0 → 1", report)
+            self.assertNotIn("Removed external dependencies", report)
+            (root / "summary.json").write_text(json.dumps({"runtime": {
+                "before": {"commit": "base"}, "after": {
+                    "commit": "head", "removed_external_dependencies": [{
+                        "name": "regex", "version": "1.13.1",
+                        "source": "registry+https://github.com/rust-lang/crates.io-index"}]}}}))
+            report = summary.summarize(root)
+            self.assertIn("Removed external dependencies", report)
+            self.assertIn("regex 1.13.1", report)
+            self.assertIn("registry+https://github.com/rust-lang/crates.io-index", report)
             path = root / "after" / "samples.csv"
             path.write_text(header + "different,1,1,1,1\n")
             with self.assertRaisesRegex(ValueError, "sets differ"):

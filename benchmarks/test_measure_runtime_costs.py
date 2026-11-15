@@ -91,6 +91,60 @@ class ProfilingSafety(unittest.TestCase):
             self.assertTrue(output.exists())
 
 
+class ExternalDependencyLocks(unittest.TestCase):
+    SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
+
+    def package(self, name, version="1.0.0", **fields):
+        return {"name": name, "version": version, "source": self.SOURCE,
+                "checksum": "a" * 64, **fields}
+
+    def reuse(self, before, after):
+        def lock_text(packages):
+            return "version = 4\n" + "".join(
+                "[[package]]\n" + "".join(f"{key} = {json.dumps(value)}\n"
+                                          for key, value in package.items())
+                for package in packages)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            baseline = root / "baseline.lock"
+            baseline.write_text(lock_text(before), encoding="utf-8")
+
+            def prune(*args):
+                (root / "Cargo.lock").write_text(lock_text(after), encoding="utf-8")
+
+            with patch.object(costs, "command", side_effect=prune):
+                return costs.reuse_dependency_lock(
+                    baseline, root / "Cargo.toml", root, root / "refresh.log")
+
+    def test_optional_regex_dependencies_can_be_pruned_and_are_reported(self):
+        shared = self.package("bytes")
+        removed = [self.package(name) for name in
+                   ("regex-syntax", "regex", "aho-corasick", "regex-automata")]
+        actual = self.reuse([shared, *removed], [shared])
+        self.assertEqual(actual, [
+            {field: package[field] for field in ("name", "version", "source")}
+            for package in sorted(removed, key=lambda package: package["name"])])
+
+    def test_identical_locks_have_no_removed_dependencies(self):
+        packages = [self.package("bytes")]
+        self.assertEqual(self.reuse(packages, packages), [])
+
+    def test_pruning_does_not_allow_shared_package_drift(self):
+        shared = self.package("bytes", dependencies=["shared-helper"])
+        removed = self.package("regex")
+        for field, value in (("version", "2.0.0"), ("source", "registry+https://other.invalid/index"),
+                             ("checksum", "b" * 64), ("dependencies", [])):
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(RuntimeError, "external dependency locks differ"):
+                    self.reuse([shared, removed], [{**shared, field: value}])
+
+    def test_new_external_dependencies_are_rejected(self):
+        shared = self.package("bytes")
+        with self.assertRaisesRegex(RuntimeError, "external dependency locks differ"):
+            self.reuse([shared], [shared, self.package("unexpected")])
+
+
 class ExecutableArtifacts(unittest.TestCase):
     def check_configured_target(self, name):
         with tempfile.TemporaryDirectory() as directory:
