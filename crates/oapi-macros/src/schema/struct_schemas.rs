@@ -768,6 +768,41 @@ impl UnnamedStructSchema<'_> {
     }
 }
 
+// Enumerate distinct serialized subsequences, merging only equivalent item schemas.
+// The bound applies to distinct shapes, so homogeneous optional tuples stay linear.
+fn conditional_tuple_shapes(
+    keys: &[String],
+    optional: &[bool],
+    span: proc_macro2::Span,
+) -> DiagResult<Vec<Vec<usize>>> {
+    const MAX_SHAPES: usize = 256;
+    let mut shapes = vec![Vec::new()];
+    for (index, optional) in optional.iter().enumerate() {
+        let mut next = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for shape in shapes {
+            let mut included = shape.clone();
+            included.push(index);
+            for candidate in std::iter::once(included).chain(optional.then_some(shape)) {
+                let key = candidate
+                    .iter()
+                    .map(|index| keys[*index].clone())
+                    .collect::<Vec<_>>();
+                if seen.insert(key) {
+                    next.push(candidate);
+                    if next.len() > MAX_SHAPES {
+                        return Err(Diagnostic::spanned(span, DiagLevel::Error,
+                            "conditional tuple serialization produces more than 256 distinct schema shapes")
+                            .help("reduce independently skipped fields, use named fields, or implement ToSchema manually"));
+                    }
+                }
+            }
+        }
+        shapes = next;
+    }
+    Ok(shapes)
+}
+
 impl TryToTokens for UnnamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         if serde_util::parse_container(self.attributes)
@@ -821,6 +856,115 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .all(|schema_part| first_part == schema_part);
 
         let deprecated = crate::get_deprecated(self.attributes);
+        let optional = fields
+            .iter()
+            .map(|field| {
+                serde_util::parse_value(&field.attrs)
+                    .map(|rules| rules.is_some_and(|rules| rules.skip_serializing_if))
+                    .map_err(Diagnostic::from)
+            })
+            .collect::<DiagResult<Vec<_>>>()?;
+        if !is_newtype && optional.iter().any(|optional| *optional) {
+            let mut features = self.features.clone().unwrap_or_default();
+            // These validators describe a scalar/newtype, not a tuple container.
+            if let Some(feature) = features.iter().find(|feature| {
+                matches!(
+                    feature,
+                    Feature::MultipleOf(_)
+                        | Feature::Maximum(_)
+                        | Feature::Minimum(_)
+                        | Feature::ExclusiveMaximum(_)
+                        | Feature::ExclusiveMinimum(_)
+                        | Feature::MaxLength(_)
+                        | Feature::MinLength(_)
+                        | Feature::Pattern(_)
+                        | Feature::MaxItems(_)
+                        | Feature::MinItems(_)
+                )
+            }) {
+                return Err(Diagnostic::spanned(
+                    self.fields.span(),
+                    DiagLevel::Error,
+                    format!(
+                        "{feature} attribute is not allowed for unnamed structs with multiple fields"
+                    ),
+                ));
+            }
+            let value_type = all_fields_are_same
+                .then(|| features.pop_value_type_feature())
+                .flatten();
+            let override_type = value_type
+                .as_ref()
+                .map(|value| value.as_type_tree())
+                .transpose()?;
+            let item_format = pop_feature!(features => Feature::Format(_));
+            let item_features = features
+                .iter()
+                .filter(|feature| matches!(feature, Feature::NoRecursion(_)))
+                .cloned()
+                .chain(item_format)
+                .collect::<Vec<_>>();
+            let items = fields
+                .iter()
+                .map(|field| {
+                    let type_tree = TypeTree::from_type(&field.ty)?;
+                    Ok(ComponentSchema::new(ComponentSchemaProps {
+                        type_tree: override_type.as_ref().unwrap_or(&type_tree),
+                        features: Some(item_features.clone()),
+                        description: None,
+                        deprecated: None,
+                        object_name: self.struct_name.as_ref(),
+                        compose_context: self.compose_context.as_ref(),
+                    })?
+                    .to_token_stream())
+                })
+                .collect::<DiagResult<Vec<_>>>()?;
+            let keys = items
+                .iter()
+                .zip(&fields)
+                .map(|(item, field)| {
+                    // Keep schema/documentation attributes in the equivalence key too,
+                    // so future item-level annotations cannot be merged accidentally.
+                    let attrs = field
+                        .attrs
+                        .iter()
+                        .filter(|attr| !attr.path().is_ident("serde"));
+                    quote! { #item #(#attrs)* }.to_string()
+                })
+                .collect::<Vec<_>>();
+            let shapes = conditional_tuple_shapes(&keys, &optional, self.fields.span())?;
+            let variants = shapes.iter().map(|shape| {
+                let length = shape.len();
+                let prefix = (!shape.is_empty()).then(|| {
+                    quote! {
+                        .prefix_items([#(__salvo_tuple_items[#shape].clone()),*])
+                    }
+                });
+                quote! {
+                    .item(#oapi::oapi::schema::Array::new()
+                        .items(#oapi::oapi::schema::ArrayItems::False)
+                        #prefix .min_items(#length).max_items(#length))
+                }
+            });
+            let count = items.len();
+            let metadata = features
+                .iter()
+                .map(TryToTokens::try_to_token_stream)
+                .collect::<DiagResult<TokenStream>>()?;
+            let comments = CommentAttributes::from_attributes(self.attributes);
+            let description = self
+                .description
+                .as_ref()
+                .map(ComponentDescription::Description)
+                .or(Some(ComponentDescription::CommentAttributes(&comments)));
+            let deprecated = deprecated.map(|deprecated| quote! { .deprecated(#deprecated) });
+            tokens.extend(quote! {{
+                let __salvo_tuple_items: [#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>; #count] =
+                    [#(Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#items)),*];
+                #oapi::oapi::schema::AnyOf::new() #(#variants)* #metadata #description #deprecated
+            }});
+            return Ok(());
+        }
         if all_fields_are_same {
             let mut unnamed_struct_features = self.features.clone();
             let value_type = unnamed_struct_features
@@ -945,5 +1089,54 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             })
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod conditional_tuple_tests {
+    use proc_macro2::Span;
+
+    use super::conditional_tuple_shapes;
+
+    #[test]
+    fn limits_distinct_shapes_without_expanding_homogeneous_combinations() {
+        let keys = vec!["same schema".to_owned(); 20];
+        let shapes = conditional_tuple_shapes(&keys, &[true; 20], Span::call_site()).unwrap();
+        assert_eq!(shapes.len(), 21);
+        let keys = (0..9)
+            .map(|index| format!("different schema {index}"))
+            .collect::<Vec<_>>();
+        let error: syn::Error = conditional_tuple_shapes(&keys, &[true; 9], Span::call_site())
+            .unwrap_err()
+            .into();
+        assert!(
+            error
+                .to_string()
+                .contains("more than 256 distinct schema shapes")
+        );
+        assert!(error.to_string().contains("implement ToSchema manually"));
+    }
+
+    #[test]
+    fn reports_combinatorial_tuple_expansion_as_a_macro_diagnostic() {
+        let input = syn::parse_quote! {
+            struct Many(
+                #[serde(skip_serializing_if = "never")] [u8; 1],
+                #[serde(skip_serializing_if = "never")] [u8; 2],
+                #[serde(skip_serializing_if = "never")] [u8; 3],
+                #[serde(skip_serializing_if = "never")] [u8; 4],
+                #[serde(skip_serializing_if = "never")] [u8; 5],
+                #[serde(skip_serializing_if = "never")] [u8; 6],
+                #[serde(skip_serializing_if = "never")] [u8; 7],
+                #[serde(skip_serializing_if = "never")] [u8; 8],
+                #[serde(skip_serializing_if = "never")] [u8; 9],
+            );
+        };
+        let error: syn::Error = crate::schema::to_schema(input).unwrap_err().into();
+        assert!(
+            error
+                .to_string()
+                .contains("more than 256 distinct schema shapes")
+        );
     }
 }
