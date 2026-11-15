@@ -24,6 +24,8 @@
 //! Certificates and account keys are stored in memory unless a cache path or
 //! custom storage is configured. Maintenance follows the lifetime of the shared
 //! TLS configuration and stops when its last owner is dropped.
+//! ACME connections use the same authenticated TLS metadata and ALPN enforcement
+//! as the standard rustls listener; HTTP/2 over TLS does not require enabling h2c.
 //!
 //! ## Certificate key type
 //!
