@@ -104,6 +104,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Resolve service `Self` response types in generated endpoint metadata.
 
+- Document wildcard routes such as `{**rest}` with the name of their path parameter.
+
+- Describe the JSON body of a `StatusError` response as the default catcher sends it.
+
+- Keep every document, with a name, in `SwaggerUi::url`, and select the primary one in
+  `SwaggerUi::urls`.
+
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).
 

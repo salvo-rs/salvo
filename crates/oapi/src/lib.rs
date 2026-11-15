@@ -769,17 +769,22 @@ impl ToSchema for StatusError {
         let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
         if !components.schemas.contains_key(&name) {
             components.schemas.insert(name.clone(), ref_or.clone());
+            // This is the JSON body the default catcher writes for a status error:
+            // the fields are nested in `error`, and `detail` and `cause` are only
+            // present when the error carries them and they are allowed to be shown.
             let schema = Schema::from(
-                Object::new()
-                    .property("code", u16::to_schema(components))
-                    .required("code")
-                    .required("name")
-                    .property("name", String::to_schema(components))
-                    .required("brief")
-                    .property("brief", String::to_schema(components))
-                    .required("detail")
-                    .property("detail", String::to_schema(components))
-                    .property("cause", String::to_schema(components)),
+                Object::new().required("error").property(
+                    "error",
+                    Object::new()
+                        .property("code", u16::to_schema(components))
+                        .required("code")
+                        .required("name")
+                        .property("name", String::to_schema(components))
+                        .required("brief")
+                        .property("brief", String::to_schema(components))
+                        .property("detail", String::to_schema(components))
+                        .property("cause", String::to_schema(components)),
+                ),
             );
             components.schemas.insert(name, schema);
         }
