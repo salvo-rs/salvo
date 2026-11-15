@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde::Serialize;
 
 use super::oauth;
@@ -175,6 +177,39 @@ impl<'a> Config<'a> {
                 Self::new_config_with_multiple_urls(urls)
             }
         }
+    }
+
+    /// Adds one document to the ones already configured.
+    pub(crate) fn push_url(&mut self, mut url: Url<'a>) {
+        // A single unnamed document is kept in `url`, which Swagger UI ignores as
+        // soon as `urls` is not empty. Move it into the list so it stays selectable.
+        if let Some(first) = self.url.take() {
+            self.urls.push(Url {
+                name: Cow::Owned(first.clone()),
+                url: Cow::Owned(first),
+                primary: false,
+            });
+        }
+        if url.name.is_empty() {
+            url.name = url.url.clone();
+        }
+        if url.primary && self.urls_primary_name.is_none() {
+            self.urls_primary_name = Some(url.name.as_ref().to_owned());
+        }
+        self.urls.push(url);
+    }
+
+    /// Replaces the configured documents, as [`Config::new`] would set them.
+    pub(crate) fn set_urls(&mut self, urls: Vec<Url<'a>>) {
+        let Self {
+            url,
+            urls,
+            urls_primary_name,
+            ..
+        } = Self::new_(urls, None);
+        self.url = url;
+        self.urls = urls;
+        self.urls_primary_name = urls_primary_name;
     }
 
     fn new_config_with_multiple_urls(urls: Vec<Url<'a>>) -> Self {
