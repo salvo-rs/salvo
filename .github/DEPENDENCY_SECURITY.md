@@ -97,9 +97,19 @@ example enables the affected bundle or opens attacker-controlled files.
 The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot
 select the fixed lru releases for RUSTSEC-2026-0002 (`>=0.16.3`) and
 RUSTSEC-2026-0253 (`>=0.18.2`). rustls-pemfile 2.2.0 remains an unmaintained
-warning through rbdc and toasty-driver-postgresql. Owner: Salvo maintainers;
-recheck on database-stack upgrades and before dependency refreshes. Supported
-upstream migrations are required; no exception has been added for these paths.
+warning through rbdc. The Toasty PostgreSQL driver is now explicitly patched
+in the examples workspace to use maintained rustls-pki-types PEM APIs; its
+published 0.8 version is retained because latest 0.11 also uses the old parser.
+The [patch notes](../examples/vendor/toasty-driver-postgresql/LOCAL_PATCH.md)
+record source, full MIT license, exact diff, tests and removal conditions.
+
+Sixteen isolated driver tests pass, including valid client identities and
+rejection of empty/malformed certificates, missing/invalid keys and mismatched
+keys. The Toasty example compiles. The dated
+[Toasty evidence](security-audits/2026-11-15-toasty.json) records that rbdc is
+the remaining rustls-pemfile referrer on this independent branch. No advisory
+exception has been added. Owner: Salvo maintainers; recheck when a supported
+upstream driver migrates away from the unmaintained parser.
 Actual iterator/panic-unwind reachability must be assessed in each application.
 
 The direct rustls/quinn minimums and isolated downstream TLS checks remain in
