@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Diagnose unsupported scalar/object `ToParameters` encodings instead of generating incompatible extractors.
 - Honor nested `salvo(schema(...))` attributes on enum variants, repr enums and newtype fields.
 - Describe serde-skipped enum newtypes as unit variants without unused generic bounds.
 - Generate valid adjacent enum variant titles and retain object schema titles.
